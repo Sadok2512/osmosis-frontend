@@ -2,12 +2,13 @@ import React, { useState, useCallback } from 'react';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon } from 'lucide-react';
 import { Filters } from '../../types';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
-import { WidgetItem } from '../bi/dashboardTypes';
+import { WidgetItem, MapWidgetConfig, createDefaultMapWidget } from '../bi/dashboardTypes';
 import BIChartCard from '../bi/BIChartCard';
 import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/BITextWidget';
+import BIMapWidget from '../bi/BIMapWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
 import AIAssistantPanel from '../bi/AIAssistantPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
@@ -39,8 +40,8 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
     i: getId(w),
     x: w.layout.x, y: w.layout.y,
     w: w.layout.w, h: w.layout.h,
-    minW: w.kind === 'text' ? 2 : 3,
-    minH: w.kind === 'text' ? 1 : 2,
+    minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : 3,
+    minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : 2,
   }));
 
   const onLayoutChange = (newLayout: any[]) => {
@@ -63,6 +64,11 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
     setWidgets(prev => [...prev, { kind: 'text', config: createDefaultTextWidget(id), layout: { x: 0, y: getMaxY(), w: 4, h: 2 } }]);
   };
 
+  const addMap = () => {
+    const id = `map_${Date.now()}`;
+    setWidgets(prev => [...prev, { kind: 'map', config: createDefaultMapWidget(id), layout: { x: 0, y: getMaxY(), w: 6, h: 5 } }]);
+  };
+
   const duplicateWidget = (id: string) => {
     const source = widgets.find(w => getId(w) === id);
     if (!source) return;
@@ -71,6 +77,12 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
       setWidgets(prev => [...prev, {
         kind: 'chart',
         config: { ...source.config, id: newId, title: source.config.title + ' (copy)' },
+        layout: { ...source.layout, y: getMaxY() },
+      }]);
+    } else if (source.kind === 'map') {
+      setWidgets(prev => [...prev, {
+        kind: 'map',
+        config: { ...(source.config as MapWidgetConfig), id: newId, title: (source.config as MapWidgetConfig).title + ' (copy)' },
         layout: { ...source.layout, y: getMaxY() },
       }]);
     } else {
@@ -95,9 +107,20 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
     setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'text' ? { ...w, config } : w));
   };
 
+  const updateMapConfig = (id: string, config: MapWidgetConfig) => {
+    setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'map' ? { ...w, config } : w));
+  };
+
   const editingChart = widgets.find(w => getId(w) === editingId && w.kind === 'chart');
   const chartCount = widgets.filter(w => w.kind === 'chart').length;
   const textCount = widgets.filter(w => w.kind === 'text').length;
+  const mapCount = widgets.filter(w => w.kind === 'map').length;
+
+  const widgetCountLabel = [
+    `${chartCount} chart(s)`,
+    textCount > 0 ? `${textCount} text(s)` : '',
+    mapCount > 0 ? `${mapCount} map(s)` : '',
+  ].filter(Boolean).join(' · ');
 
   return (
     <div className="flex-1 flex overflow-hidden bg-background">
@@ -117,14 +140,17 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
           <div className="flex items-center gap-2">
             <LayoutGrid className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold text-foreground truncate max-w-[200px]">{dm.activeTab?.name}</span>
-            <span className="text-[10px] text-muted-foreground font-mono ml-2">{chartCount} chart(s){textCount > 0 ? ` · ${textCount} text(s)` : ''}</span>
+            <span className="text-[10px] text-muted-foreground font-mono ml-2">{widgetCountLabel}</span>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={addChart} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
-              <Plus className="w-3 h-3" /> Add Chart
+              <Plus className="w-3 h-3" /> Chart
+            </button>
+            <button onClick={addMap} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-accent text-accent-foreground text-xs font-medium hover:opacity-90 transition-opacity">
+              <MapIcon className="w-3 h-3" /> Map
             </button>
             <button onClick={addText} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
-              <Type className="w-3 h-3" /> Add Text
+              <Type className="w-3 h-3" /> Text
             </button>
             <button onClick={dm.saveCurrent} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
               <Save className="w-3 h-3" /> Save
@@ -134,7 +160,7 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
             </button>
             <button onClick={() => { setShowAI(!showAI); setEditingId(null); }}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
-              <Sparkles className="w-3 h-3" /> AI Assistant
+              <Sparkles className="w-3 h-3" /> AI
             </button>
           </div>
         </div>
@@ -146,7 +172,7 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
                 <LayoutGrid className="w-8 h-8 text-primary" />
               </div>
-              <p className="text-sm text-muted-foreground">Click <strong>Add Chart</strong> or <strong>Add Text</strong> to start</p>
+              <p className="text-sm text-muted-foreground">Click <strong>Chart</strong>, <strong>Map</strong> or <strong>Text</strong> to start</p>
             </div>
           ) : (
             <GridLayout
@@ -169,6 +195,12 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
                       config={w.config as ChartConfig}
                       onEdit={() => { setEditingId(getId(w)); setShowAI(false); }}
                       onDuplicate={() => duplicateWidget(getId(w))}
+                      onDelete={() => deleteWidget(getId(w))}
+                    />
+                  ) : w.kind === 'map' ? (
+                    <BIMapWidget
+                      config={w.config as MapWidgetConfig}
+                      onChange={cfg => updateMapConfig(getId(w), cfg)}
                       onDelete={() => deleteWidget(getId(w))}
                     />
                   ) : (
