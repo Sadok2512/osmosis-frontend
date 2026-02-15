@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash } from 'lucide-react';
 import { ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI, Aggregation, ChartType, Granularity, AxisSide } from './biTypes';
 import { getDimensionValues } from './mockBIData';
@@ -133,15 +134,21 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   <Select value={m.kpi} options={BI_KPIS} onChange={v => updateMetric(i, { kpi: v as BIKPI })} className="flex-1" />
                   <button onClick={() => removeMetric(i)} className="p-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {CHART_TYPE_OPTIONS.map(opt => (
-                    <button key={opt.type} onClick={() => updateMetric(i, { chartType: opt.type })}
-                      title={opt.label}
-                      className={`p-1.5 rounded-md border transition-all ${m.chartType === opt.type ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted/50 text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'}`}>
-                      {opt.icon}
-                    </button>
-                  ))}
-                </div>
+                <TooltipProvider delayDuration={200}>
+                  <div className="flex flex-wrap gap-1">
+                    {CHART_TYPE_OPTIONS.map(opt => (
+                      <Tooltip key={opt.type}>
+                        <TooltipTrigger asChild>
+                          <button onClick={() => updateMetric(i, { chartType: opt.type })}
+                            className={`p-1.5 rounded-md border transition-all ${m.chartType === opt.type ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted/50 text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'}`}>
+                            {opt.icon}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-[11px]">{opt.label}</TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </TooltipProvider>
                 <Select value={m.axis} options={['left', 'right'] as const} onChange={v => updateMetric(i, { axis: v as AxisSide })} className="w-full" />
                 <div className="flex items-center gap-3 text-[10px]">
                   <label className="flex items-center gap-1 text-muted-foreground">
