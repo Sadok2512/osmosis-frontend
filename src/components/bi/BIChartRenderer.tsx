@@ -205,6 +205,10 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
                   fillOpacity={0.85}
                   radius={[4, 4, 0, 0]}
                   name={m.kpi.replace(/_/g, ' ')}
+                  isAnimationActive={true}
+                  animationBegin={i * 150}
+                  animationDuration={800}
+                  animationEasing="ease-out"
                 />
               );
             case 'stacked_bar':
@@ -218,6 +222,10 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
                   stackId="stack"
                   radius={i === config.yMetrics.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                   name={m.kpi.replace(/_/g, ' ')}
+                  isAnimationActive={true}
+                  animationBegin={i * 150}
+                  animationDuration={800}
+                  animationEasing="ease-out"
                 />
               );
             case 'grouped_bar': {
@@ -239,6 +247,10 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
                     radius={[5, 5, 0, 0]}
                     barSize={groupedBarSize}
                     name={m.kpi.replace(/_/g, ' ')}
+                    isAnimationActive={true}
+                    animationBegin={i * 150}
+                    animationDuration={800}
+                    animationEasing="ease-out"
                   />
                 </React.Fragment>
               );
