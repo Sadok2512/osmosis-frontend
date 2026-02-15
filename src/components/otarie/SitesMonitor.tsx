@@ -138,6 +138,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
+  const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
+
+  const TILE_URLS: Record<typeof mapLayer, { url: string; attribution: string }> = {
+    light: {
+      url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    },
+    dark: {
+      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    },
+    satellite: {
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attribution: '&copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+    },
+  };
 
   const MAP_KPIS = [
     { id: 'qoe_score_avg', label: 'Score QoE Global', category: 'QUALITY' },
@@ -352,8 +368,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         zoomControl={false}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
+          key={mapLayer}
+          url={TILE_URLS[mapLayer].url}
+          attribution={TILE_URLS[mapLayer].attribution}
         />
         <FlyToSite coords={flyTarget} />
         <MapViewportTracker onViewportChange={handleViewportChange} />
@@ -464,6 +481,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           );
         })}
       </MapContainer>
+
+      {/* Map layer control — L / D / S */}
+      <div className="absolute top-4 right-4 z-[1000] flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+        {([
+          { key: 'light' as const, label: 'L' },
+          { key: 'dark' as const, label: 'D' },
+          { key: 'satellite' as const, label: 'S' },
+        ]).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setMapLayer(key)}
+            className={`w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all ${
+              mapLayer === key
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {/* Floating info badge — site count + zoom level */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
