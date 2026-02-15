@@ -9,6 +9,7 @@ import TrafficTypes from '../components/otarie/TrafficTypes';
 import SubscriberExperience from '../components/otarie/SubscriberExperience';
 import DetectorConsole from '../components/otarie/DetectorConsole';
 import SettingsPanel from '../components/otarie/SettingsPanel';
+import DocumentationPage from '../components/otarie/DocumentationPage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
@@ -104,6 +105,10 @@ const Index: React.FC = () => {
         return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} />;
       case 'settings':
         return <SettingsPanel sidebarTheme={sidebarTheme} setSidebarTheme={setSidebarTheme} accentColor={accentColor} setAccentColor={setAccentColor} />;
+      case 'doc-topo':
+      case 'doc-metrics':
+      case 'doc-dimensions':
+        return <DocumentationPage activeDoc={activeTab as 'doc-topo' | 'doc-metrics' | 'doc-dimensions'} />;
       default:
         return null;
     }
