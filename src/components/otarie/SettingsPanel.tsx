@@ -123,103 +123,82 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
       </div>
 
       <div className="p-10 space-y-10 pb-32">
-        {/* System Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          <InfoCard
-            icon={<Building2 className="w-6 h-6" />}
-            label="Organisation"
-            value="Orange France"
-            sublabel="Opérateur Télécom"
-            accentColor="text-orange-500"
-            bgColor="bg-orange-500/10"
-          />
-          <InfoCard
-            icon={<Users className="w-6 h-6" />}
-            label="Équipe"
-            value="PSN Team"
-            sublabel="Performance & Service Network"
-            accentColor="text-primary"
-            bgColor="bg-primary/10"
-          />
-          <InfoCard
-            icon={<Tag className="w-6 h-6" />}
-            label="Version"
-            value="V1.0 Beta"
-            sublabel="Build 2026.02.15"
-            accentColor="text-purple-500"
-            bgColor="bg-purple-500/10"
-          />
-          <InfoCard
-            icon={<CalendarDays className="w-6 h-6" />}
-            label="Date Système"
-            value={systemTime.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
-            sublabel={systemTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            accentColor="text-cyan-500"
-            bgColor="bg-cyan-500/10"
-          />
-        </div>
-
-        {/* Appearance Settings */}
-        <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Palette className="w-5 h-5 text-primary" />
+        {/* System Info + Appearance Side by Side */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {/* System Info */}
+          <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Server className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Informations Système</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Identité & version de la plateforme</p>
+              </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <InfoCard icon={<Building2 className="w-5 h-5" />} label="Organisation" value="Orange France" sublabel="Opérateur Télécom" accentColor="text-orange-500" bgColor="bg-orange-500/10" />
+              <InfoCard icon={<Users className="w-5 h-5" />} label="Équipe" value="PSN Team" sublabel="Performance & Service Network" accentColor="text-primary" bgColor="bg-primary/10" />
+              <InfoCard icon={<Tag className="w-5 h-5" />} label="Version" value="V1.0 Beta" sublabel="Build 2026.02.15" accentColor="text-purple-500" bgColor="bg-purple-500/10" />
+              <InfoCard icon={<CalendarDays className="w-5 h-5" />} label="Date Système" value={systemTime.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })} sublabel={systemTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} accentColor="text-cyan-500" bgColor="bg-cyan-500/10" />
+            </div>
+          </div>
+
+          {/* Appearance */}
+          <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Palette className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Apparence</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Personnaliser le thème et les couleurs</p>
+              </div>
+            </div>
+
+            {/* Sidebar Theme */}
+            <div className="mb-6">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Thème Sidebar</p>
+              <div className="flex gap-3">
+                {SIDEBAR_THEMES.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setSidebarTheme(t.id)}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all flex-1 ${
+                      sidebarTheme === t.id
+                        ? 'border-primary bg-primary/5 shadow-lg'
+                        : 'border-border hover:border-primary/40 bg-card'
+                    }`}
+                  >
+                    <div className={`w-12 h-16 rounded-lg ${t.preview} border border-border/50 shadow-inner flex flex-col items-center justify-center gap-1`}>
+                      <div className={`w-6 h-0.5 rounded-full ${t.id === 'light' ? 'bg-black/20' : 'bg-white/30'}`} />
+                      <div className={`w-4 h-0.5 rounded-full ${t.id === 'light' ? 'bg-black/10' : 'bg-white/15'}`} />
+                    </div>
+                    <span className={`text-[9px] font-black uppercase tracking-wider ${sidebarTheme === t.id ? 'text-primary' : 'text-muted-foreground'}`}>{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Accent Color */}
             <div>
-              <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Apparence</h3>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Personnaliser le thème et les couleurs</p>
-            </div>
-          </div>
-
-          {/* Sidebar Theme */}
-          <div className="mb-8">
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Thème Sidebar</p>
-            <div className="flex gap-4">
-              {SIDEBAR_THEMES.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setSidebarTheme(t.id)}
-                  className={`flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all min-w-[120px] ${
-                    sidebarTheme === t.id
-                      ? 'border-primary bg-primary/5 shadow-lg'
-                      : 'border-border hover:border-primary/40 bg-card'
-                  }`}
-                >
-                  <div className={`w-16 h-24 rounded-xl ${t.preview} border border-border/50 shadow-inner flex flex-col items-center justify-center gap-1.5`}>
-                    <div className={`w-8 h-1 rounded-full ${t.id === 'light' ? 'bg-black/20' : 'bg-white/30'}`} />
-                    <div className={`w-6 h-1 rounded-full ${t.id === 'light' ? 'bg-black/10' : 'bg-white/15'}`} />
-                    <div className={`w-7 h-1 rounded-full ${t.id === 'light' ? 'bg-black/10' : 'bg-white/15'}`} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`${sidebarTheme === t.id ? 'text-primary' : 'text-muted-foreground'}`}>{t.icon}</span>
-                    <span className={`text-[11px] font-black uppercase tracking-wider ${sidebarTheme === t.id ? 'text-primary' : 'text-foreground'}`}>{t.label}</span>
-                  </div>
-                  {sidebarTheme === t.id && (
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Accent Color */}
-          <div>
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Couleur d'accent</p>
-            <div className="flex flex-wrap gap-3">
-              {ACCENT_COLORS.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setAccentColor(c.id)}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all min-w-[80px] ${
-                    accentColor === c.id
-                      ? 'border-primary bg-primary/5 shadow-lg'
-                      : 'border-border hover:border-primary/40 bg-card'
-                  }`}
-                >
-                  <div className={`w-10 h-10 rounded-xl ${c.color} shadow-md ring-2 ${accentColor === c.id ? 'ring-primary ring-offset-2 ring-offset-card' : 'ring-transparent'}`} />
-                  <span className={`text-[9px] font-black uppercase tracking-wider ${accentColor === c.id ? 'text-primary' : 'text-muted-foreground'}`}>{c.label}</span>
-                </button>
-              ))}
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Couleur d'accent</p>
+              <div className="grid grid-cols-3 gap-2">
+                {ACCENT_COLORS.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setAccentColor(c.id)}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border-2 transition-all ${
+                      accentColor === c.id
+                        ? 'border-primary bg-primary/5 shadow-lg'
+                        : 'border-border hover:border-primary/40 bg-card'
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg ${c.color} shadow-sm flex-shrink-0`} />
+                    <span className={`text-[9px] font-black uppercase tracking-wider ${accentColor === c.id ? 'text-primary' : 'text-muted-foreground'}`}>{c.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
