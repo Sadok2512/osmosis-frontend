@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Plus, X, Save, FolderOpen, Trash2, Clock, LayoutDashboard, Download, Upload } from 'lucide-react';
+import { Plus, X, Save, FolderOpen, Trash2, Clock, LayoutDashboard, Download, Upload, Copy } from 'lucide-react';
 import { WidgetItem, createDefaultMapWidget } from './dashboardTypes';
 import { createDefaultChart } from './biTypes';
 import { createDefaultTextWidget } from './BITextWidget';
@@ -241,10 +241,30 @@ export function useDashboardManager() {
     reader.readAsText(file);
   }, []);
 
+  const duplicateDashboard = useCallback((id: string) => {
+    const all = loadAllDashboards();
+    const source = all.find(d => d.id === id);
+    if (!source) return;
+    const newId = `db_${Date.now()}`;
+    // Generate unique name
+    const existingNames = new Set([...all.map(d => d.name.toLowerCase()), ...tabs.map(t => t.name.toLowerCase())]);
+    let dupName = `${source.name} (copy)`;
+    if (existingNames.has(dupName.toLowerCase())) {
+      let counter = 2;
+      while (existingNames.has(`${source.name} (copy ${counter})`.toLowerCase())) counter++;
+      dupName = `${source.name} (copy ${counter})`;
+    }
+    const cloned: SavedDashboard = { id: newId, name: dupName, widgets: JSON.parse(JSON.stringify(source.widgets)), updatedAt: new Date().toISOString() };
+    all.push(cloned);
+    saveAllDashboards(all);
+    setTabs(prev => [...prev, { id: newId, name: dupName, widgets: cloned.widgets, dirty: false }]);
+    setActiveTabId(newId);
+  }, [tabs]);
+
   return {
     tabs, activeTab, activeTabId, setActiveTabId,
     updateActiveWidgets, createNew, openDashboard, closeTab,
-    saveCurrent, deleteDashboard, renameTab,
+    saveCurrent, deleteDashboard, renameTab, duplicateDashboard,
     exportDashboard, exportAll, importDashboards,
     showList, setShowList, savedDashboards,
   };
@@ -255,6 +275,7 @@ interface DashboardListProps {
   openIds: string[];
   onOpen: (db: SavedDashboard) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
   onCreate: () => void;
   onClose: () => void;
   onExport: (id: string) => void;
@@ -262,7 +283,7 @@ interface DashboardListProps {
   onImport: (file: File) => void;
 }
 
-export const DashboardListPanel: React.FC<DashboardListProps> = ({ dashboards, openIds, onOpen, onDelete, onCreate, onClose, onExport, onExportAll, onImport }) => {
+export const DashboardListPanel: React.FC<DashboardListProps> = ({ dashboards, openIds, onOpen, onDelete, onDuplicate, onCreate, onClose, onExport, onExportAll, onImport }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleImportClick = () => fileInputRef.current?.click();
@@ -317,6 +338,13 @@ export const DashboardListPanel: React.FC<DashboardListProps> = ({ dashboards, o
                 </p>
               </div>
               {isOpen && <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-semibold">Open</span>}
+              <button
+                onClick={(e) => { e.stopPropagation(); onDuplicate(db.id); }}
+                className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground hover:text-foreground transition-all"
+                title="Duplicate"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onExport(db.id); }}
                 className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground hover:text-foreground transition-all"

@@ -418,6 +418,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
           openIds={dm.tabs.map(t => t.id)}
           onOpen={dm.openDashboard}
           onDelete={dm.deleteDashboard}
+          onDuplicate={dm.duplicateDashboard}
           onCreate={handleCreateNew}
           onClose={() => dm.setShowList(false)}
           onExport={dm.exportDashboard}
