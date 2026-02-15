@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
 import 'react-grid-layout/css/styles.css';
@@ -309,32 +310,25 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
                 <Table2 className="w-3 h-3" /> Table
               </button>
               <div className="w-px h-4 bg-border mx-0.5" />
-              <button onClick={handleSave} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Save className="w-3 h-3" /> Save
-              </button>
-              <button onClick={() => { dm.duplicateDashboard(dm.activeTabId); toast({ title: 'Dashboard dupliqué', description: 'Une copie a été créée.' }); }} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Copy className="w-3 h-3" /> Duplicate
-              </button>
-              <button onClick={() => setShowPrintPreview(true)} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Eye className="w-3 h-3" /> Preview
-              </button>
-              <button onClick={handleExportDashboardPDF} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <FileDown className="w-3 h-3" /> PDF
-              </button>
-              <div className="w-px h-4 bg-border mx-0.5" />
-              <button onClick={() => dm.setShowList(!dm.showList)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${dm.showList ? 'bg-primary text-primary-foreground' : 'hover:bg-primary hover:text-primary-foreground'}`}>
-                <FolderOpen className="w-3 h-3" /> Load
-              </button>
-              <button onClick={() => { setShowAI(!showAI); setEditingId(null); }}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'hover:bg-primary hover:text-primary-foreground'}`}>
-                <Sparkles className="w-3 h-3" /> AI
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                    <MoreHorizontal className="w-3 h-3" /> Actions
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem onClick={handleSave}><Save className="w-3.5 h-3.5 mr-2" /> Save</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { dm.duplicateDashboard(dm.activeTabId); toast({ title: 'Dashboard dupliqué', description: 'Une copie a été créée.' }); }}><Copy className="w-3.5 h-3.5 mr-2" /> Duplicate</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => dm.setShowList(!dm.showList)}><FolderOpen className="w-3.5 h-3.5 mr-2" /> Load</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowPrintPreview(true)}><Eye className="w-3.5 h-3.5 mr-2" /> Preview</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportDashboardPDF}><FileDown className="w-3.5 h-3.5 mr-2" /> Export PDF</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => { setShowAI(!showAI); setEditingId(null); }}><Sparkles className="w-3.5 h-3.5 mr-2" /> AI Assistant</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setShowCSVPanel(!showCSVPanel); }}><FileSpreadsheet className="w-3.5 h-3.5 mr-2" /> Data {datasets.length > 0 && `(${datasets.length})`}</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <CSVUploadButton />
-              <button onClick={() => { setShowCSVPanel(!showCSVPanel); }}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${showCSVPanel ? 'bg-primary text-primary-foreground' : 'hover:bg-primary hover:text-primary-foreground'}`}>
-                <FileSpreadsheet className="w-3 h-3" /> Data
-                {datasets.length > 0 && <span className="ml-0.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">{datasets.length}</span>}
-              </button>
             </div>
           </div>
         </div>
