@@ -78,6 +78,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   }, []);
 
   const filtered = useMemo(() => {
+    if (config.technoFilter === 'NONE') return [];
     return sites.filter(s => {
       if (config.vendorFilter !== 'ALL' && s.vendor !== config.vendorFilter) return false;
       if (config.dorFilter !== 'ALL' && s.dor !== config.dorFilter) return false;
@@ -272,9 +273,9 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               {/* Techno filter */}
               <div className="flex gap-0.5 bg-card/95 backdrop-blur-md border border-border/40 rounded-xl p-1 shadow-lg">
                 <Radio className="w-3.5 h-3.5 text-muted-foreground self-center ml-1 mr-0.5" />
-                <button className={techBtn(config.technoFilter === 'ALL', 'ALL')} onClick={() => onChange({ ...config, technoFilter: 'ALL' })}>ALL</button>
-                <button className={techBtn(config.technoFilter === '5G', '5G')} onClick={() => onChange({ ...config, technoFilter: '5G' })}>5G</button>
-                <button className={techBtn(config.technoFilter === '4G', '4G')} onClick={() => onChange({ ...config, technoFilter: '4G' })}>4G</button>
+                <button className={techBtn(config.technoFilter === 'ALL', 'ALL')} onClick={() => onChange({ ...config, technoFilter: config.technoFilter === 'ALL' ? 'NONE' : 'ALL' })}>ALL</button>
+                <button className={techBtn(config.technoFilter === '5G', '5G')} onClick={() => onChange({ ...config, technoFilter: config.technoFilter === '5G' ? 'NONE' : '5G' })}>5G</button>
+                <button className={techBtn(config.technoFilter === '4G', '4G')} onClick={() => onChange({ ...config, technoFilter: config.technoFilter === '4G' ? 'NONE' : '4G' })}>4G</button>
               </div>
             </div>
 
