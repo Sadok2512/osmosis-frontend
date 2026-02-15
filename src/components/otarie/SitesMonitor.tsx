@@ -155,6 +155,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     },
   };
 
+  const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G'>('ALL');
+
   const MAP_KPIS = [
     { id: 'qoe_score_avg', label: 'Score QoE Global', category: 'QUALITY' },
     { id: 'dms_dl_3', label: 'DMS DL ≥ 3 Mbps', category: 'QUALITY' },
@@ -240,9 +242,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
       const matchesLocalSite = localSite === 'ALL' || s.site_name === localSite;
-      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite;
+      const matchesTechnoFilter = mapTechnoFilter === 'ALL' || s.cells.some(c => c.techno === mapTechnoFilter);
+      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite && matchesTechnoFilter;
     });
-  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite]);
+  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite, mapTechnoFilter]);
 
   // Unique site names for site filter dropdown
   const uniqueSiteNames = useMemo(() => {
@@ -482,25 +485,45 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
       </MapContainer>
 
-      {/* Map layer control — L / D / S */}
-      <div className="absolute top-4 right-4 z-[1000] flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
-        {([
-          { key: 'light' as const, label: 'L' },
-          { key: 'dark' as const, label: 'D' },
-          { key: 'satellite' as const, label: 'S' },
-        ]).map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setMapLayer(key)}
-            className={`w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all ${
-              mapLayer === key
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      {/* Map controls — bottom right: techno filter + layer switcher */}
+      <div className="absolute bottom-6 right-4 z-[1000] flex items-end gap-2">
+        {/* Techno filter: ALL / 5G / 4G */}
+        <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+          {(['ALL', '5G', '4G'] as const).map((tech) => (
+            <button
+              key={tech}
+              onClick={() => setMapTechnoFilter(tech)}
+              className={`w-10 h-10 flex items-center justify-center text-[10px] font-black tracking-wider transition-all ${
+                mapTechnoFilter === tech
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {tech}
+            </button>
+          ))}
+        </div>
+
+        {/* Layer switcher: L / D / S */}
+        <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+          {([
+            { key: 'light' as const, label: 'L' },
+            { key: 'dark' as const, label: 'D' },
+            { key: 'satellite' as const, label: 'S' },
+          ]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setMapLayer(key)}
+              className={`w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all ${
+                mapLayer === key
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Floating info badge — site count + zoom level */}
