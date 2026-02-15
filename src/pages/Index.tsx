@@ -12,6 +12,7 @@ import DetectorConsole from '../components/otarie/DetectorConsole';
 import SettingsPanel from '../components/otarie/SettingsPanel';
 import DocumentationPage from '../components/otarie/DocumentationPage';
 import AIAssistantPage from '../components/otarie/AIAssistantPage';
+import DashboardOverview from '../components/otarie/DashboardOverview';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
@@ -21,7 +22,7 @@ export type SidebarTheme = 'dark' | 'grey' | 'light';
 export type AccentColor = 'default' | 'orange' | 'red' | 'pink' | 'purple' | 'indigo' | 'cyan' | 'emerald' | 'amber';
 
 const Index: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<AppTab>('analytics');
+  const [activeTab, setActiveTab] = useState<AppTab>('dashboard_overview');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarTheme, setSidebarTheme] = useState<SidebarTheme>('dark');
@@ -87,6 +88,8 @@ const Index: React.FC = () => {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'dashboard_overview':
+        return <DashboardOverview />;
       case 'analytics':
         return <GlobalDashboard filters={filters} onFilterChange={setFilters} />;
       case 'bi':
