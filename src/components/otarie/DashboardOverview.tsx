@@ -163,11 +163,6 @@ const DashboardOverview: React.FC = () => {
 
   const selected = useMemo(() => dashboards.find(d => d.id === selectedId), [dashboards, selectedId]);
 
-  const getWidgetBreakdown = (db: SavedDashboard) => {
-    const counts = { chart: 0, text: 0, map: 0, image: 0, table: 0 };
-    db.widgets.forEach(w => { if (w.kind in counts) counts[w.kind as keyof typeof counts]++; });
-    return counts;
-  };
 
   if (selected) {
     return (
