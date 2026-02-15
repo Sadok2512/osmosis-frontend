@@ -46,12 +46,12 @@ export const KPI_LABELS: Record<string, string> = {
   [KPIType.OUT_OF_ORDER]: 'Out of Order Ratio'
 };
 
-export const PLAQUES = ['ALL', 'PARIS', 'LYON', 'MARSEILLE', 'BORDEAUX', 'LILLE'];
+export const PLAQUES = ['ALL', 'LITTORAL_DUNKERQUE', 'Zones_Blanches_A1', 'DEPT_57', 'DEPT_62', 'FREJUS', 'AUTRES41', 'BAYONNE'];
 export const SERVICES = ['ALL', 'Streaming', 'Gaming', 'Web', 'Social'];
 export const RATS = ['ALL', '5G', '4G', '3G', '2G'];
-export const DEPARTMENTS = ['ALL', '75', '33', '69', '13', '59'];
-export const VENDORS = ['ALL', 'Ericsson', 'Nokia', 'Huawei'];
-export const DORS = ['ALL', 'DOR IDF', 'DOR SUD', 'DOR OUEST', 'DOR EST'];
+export const DEPARTMENTS = ['ALL', 'LITTORAL_DUNKERQUE', 'Zones_Blanches_A1', '57', '62', 'FREJUS', 'AUTRES41', 'BAYONNE'];
+export const VENDORS = ['ALL', 'Ericsson', 'Nokia'];
+export const DORS = ['ALL', 'DOR EST', 'DOR SUD', 'DOR OUEST'];
 
 export const getQoEColor = (qoe: number) => {
   if (qoe >= 85) return '#10b981';
