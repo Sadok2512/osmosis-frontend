@@ -631,51 +631,39 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               <div className="space-y-0 divide-y divide-border/40">
                 {filteredMetrics.map((metric) => {
                   const isActive = selectedMetrics.has(metric.id);
-                  const origIdx = metricsConfig.findIndex(m => m.id === metric.id);
                   return (
-                    <div key={metric.id} className={`flex items-center gap-4 py-4 px-2 transition-all ${!isActive ? 'opacity-40' : ''}`}>
+                    <div key={metric.id} className={`flex items-center gap-4 py-3.5 px-2 transition-all ${!isActive ? 'opacity-40' : ''}`}>
                       {/* Checkbox */}
                       <button
                         onClick={() => toggleMetric(metric.id)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
                           isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-primary/20'
                         }`}
                       >
-                        {isActive && <Check className="w-4 h-4" />}
+                        {isActive && <Check className="w-3.5 h-3.5" />}
                       </button>
 
                       {/* Name & ID */}
-                      <div className="w-40 flex-shrink-0">
+                      <div className="flex-1 min-w-0">
                         <p className={`text-sm font-semibold ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>{metric.name}</p>
                         <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{metric.id.toUpperCase()}</p>
                       </div>
 
-                      {/* Thresholds + color bars */}
-                      <div className="flex-1 flex items-center gap-3">
-                        {metric.thresholds.map((t, i) => (
-                          <div key={i} className="flex-1">
-                            <input
-                              type="number"
-                              value={t}
-                              onChange={e => updateMetricThreshold(origIdx, i, parseFloat(e.target.value) || 0)}
-                              className="w-full px-3 py-1.5 rounded-md border border-border bg-card text-xs font-semibold text-foreground text-center focus:outline-none focus:border-primary/50 mb-1"
-                            />
-                            <div className="relative w-full h-1.5 rounded-full cursor-pointer overflow-hidden" style={{ backgroundColor: metric.colors[i] }}>
-                              <input
-                                type="color"
-                                value={metric.colors[i]}
-                                onChange={e => updateMetricColor(origIdx, i, e.target.value)}
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                              />
-                            </div>
-                          </div>
+                      {/* Color preview mini-bar */}
+                      <div className="flex rounded overflow-hidden h-3 w-28 flex-shrink-0">
+                        {metric.colors.map((c, i) => (
+                          <div key={i} className="flex-1" style={{ backgroundColor: c }} />
                         ))}
                       </div>
+
+                      {/* Category badge */}
+                      <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded-md flex-shrink-0">{metric.category}</span>
 
                       {/* Edit popup trigger */}
                       <button
                         onClick={() => setEditingMetric(metric.id)}
                         className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all flex-shrink-0"
+                        title="Éditer seuils & couleurs"
                       >
                         <Palette className="w-4 h-4" />
                       </button>
@@ -745,12 +733,20 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
                   </div>
                 </div>
 
-                <button
-                  onClick={() => setEditingMetric(null)}
-                  className="mt-5 w-full py-2.5 bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90 transition-all"
-                >
-                  Fermer
-                </button>
+                <div className="flex gap-3 mt-5">
+                  <button
+                    onClick={() => setEditingMetric(null)}
+                    className="flex-1 py-2.5 bg-muted text-muted-foreground rounded-lg text-xs font-semibold hover:bg-muted/80 transition-all"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={() => setEditingMetric(null)}
+                    className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90 transition-all"
+                  >
+                    ✓ Confirmer
+                  </button>
+                </div>
               </div>
             </div>
           )}
