@@ -94,7 +94,6 @@ export function generateChartData(config: ChartConfig): any[] {
     }
   } else if (config.xAxis.type === 'dimension') {
     let vals = getDimensionValues(config.xAxis.value);
-    // Apply filter on the X-axis dimension if present
     if (filterMap.has(config.xAxis.value)) {
       vals = vals.filter(v => filterMap.get(config.xAxis.value)!.has(v));
     }
@@ -103,6 +102,29 @@ export function generateChartData(config: ChartConfig): any[] {
       for (const metric of config.yMetrics) {
         const base = getKPIBase(metric.kpi);
         point[metric.kpi] = +(base * (0.6 + rng() * 0.8)).toFixed(2);
+      }
+      data.push(point);
+    }
+  } else if (config.xAxis.type === 'kpi') {
+    // KPI on X-axis: generate scatter-like data points
+    const xKpi = config.xAxis.value;
+    const numPoints = config.groupBy.length > 0 ? 20 : 30;
+    for (let i = 0; i < numPoints; i++) {
+      const point: any = {};
+      const xBase = getKPIBase(xKpi);
+      point.x = +(xBase * (0.5 + rng())).toFixed(2);
+      point[xKpi] = point.x;
+      for (const metric of config.yMetrics) {
+        const base = getKPIBase(metric.kpi);
+        point[metric.kpi] = +(base * (0.5 + rng())).toFixed(2);
+      }
+      if (config.groupBy.length > 0) {
+        const dim = config.groupBy[0];
+        let vals = getDimensionValues(dim);
+        if (filterMap.has(dim)) {
+          vals = vals.filter(v => filterMap.get(dim)!.has(v));
+        }
+        point.group = vals[Math.floor(rng() * vals.length)];
       }
       data.push(point);
     }
