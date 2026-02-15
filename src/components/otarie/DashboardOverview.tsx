@@ -266,7 +266,6 @@ const DashboardOverview: React.FC = () => {
           viewMode === 'grid' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filtered.map(db => {
-                const counts = getWidgetBreakdown(db);
                 return (
                   <button
                     key={db.id}
@@ -284,40 +283,10 @@ const DashboardOverview: React.FC = () => {
                       <Clock className="w-3 h-3" />
                       {new Date(db.updatedAt).toLocaleString('fr-FR')}
                     </p>
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-3">
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                       <User className="w-3 h-3" />
                       PSN TEAM
                     </p>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                        {db.widgets.length} widget{db.widgets.length > 1 ? 's' : ''}
-                      </span>
-                      {counts.chart > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
-                          <BarChart2 className="w-2.5 h-2.5" /> {counts.chart}
-                        </span>
-                      )}
-                      {counts.table > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
-                          <Table2 className="w-2.5 h-2.5" /> {counts.table}
-                        </span>
-                      )}
-                      {counts.map > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
-                          <MapIcon className="w-2.5 h-2.5" /> {counts.map}
-                        </span>
-                      )}
-                      {counts.text > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
-                          <Type className="w-2.5 h-2.5" /> {counts.text}
-                        </span>
-                      )}
-                      {counts.image > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
-                          <ImageIcon className="w-2.5 h-2.5" /> {counts.image}
-                        </span>
-                      )}
-                    </div>
                   </button>
                 );
               })}
@@ -326,21 +295,19 @@ const DashboardOverview: React.FC = () => {
             /* List view */
             <div className="bg-card border border-border rounded-xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[1fr_160px_120px_200px_60px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="grid grid-cols-[1fr_160px_120px_60px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                 <span>Nom</span>
                 <span>Dernière modification</span>
                 <span>Utilisateur</span>
-                <span>Widgets</span>
                 <span className="text-center">Action</span>
               </div>
               {/* Rows */}
               {filtered.map(db => {
-                const counts = getWidgetBreakdown(db);
                 return (
                   <button
                     key={db.id}
                     onClick={() => setSelectedId(db.id)}
-                    className="w-full grid grid-cols-[1fr_160px_120px_200px_60px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left group"
+                    className="w-full grid grid-cols-[1fr_160px_120px_60px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -356,36 +323,6 @@ const DashboardOverview: React.FC = () => {
                       <User className="w-3 h-3 shrink-0" />
                       PSN TEAM
                     </span>
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                        {db.widgets.length} total
-                      </span>
-                      {counts.chart > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
-                          <BarChart2 className="w-2.5 h-2.5" /> {counts.chart}
-                        </span>
-                      )}
-                      {counts.table > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
-                          <Table2 className="w-2.5 h-2.5" /> {counts.table}
-                        </span>
-                      )}
-                      {counts.map > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
-                          <MapIcon className="w-2.5 h-2.5" /> {counts.map}
-                        </span>
-                      )}
-                      {counts.text > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
-                          <Type className="w-2.5 h-2.5" /> {counts.text}
-                        </span>
-                      )}
-                      {counts.image > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
-                          <ImageIcon className="w-2.5 h-2.5" /> {counts.image}
-                        </span>
-                      )}
-                    </div>
                     <div className="flex justify-center">
                       <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
