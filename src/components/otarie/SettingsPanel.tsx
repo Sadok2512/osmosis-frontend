@@ -4,7 +4,7 @@ import {
   CalendarDays, Activity, CheckCircle2, XCircle, RefreshCw, Zap,
   Globe, Database, Shield, Heart, ArrowRight, Play, BarChart3, Palette, Moon, Sun, Monitor,
   Upload, FileSpreadsheet, Trash2, MapPin, Radio, Antenna, Signal, Gauge, Waves, Search,
-  X, ChevronDown, ChevronRight, Eye, EyeOff
+  X, ChevronDown, ChevronRight, Eye, EyeOff, Check
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -571,72 +571,33 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
         {/* ===== DATA MODEL TAB ===== */}
         {settingsTab === 'data' && (<>
         <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Database className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Schéma Analytique Dynamique</h3>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Dimensions réseau, segments & métriques radio</p>
-              </div>
-            </div>
-            <div className="bg-muted/40 rounded-2xl border border-border/50 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-wrap">
-                {Object.entries(selectedDimensions).filter(([,v]) => v.length > 0).slice(0,7).map(([title], i) => (
-                  <React.Fragment key={title}>
-                    {i > 0 && <span className="text-muted-foreground text-[10px]">›</span>}
-                    <span className="px-3 py-1 rounded-lg bg-primary/15 text-[10px] font-black text-primary uppercase tracking-wider">{title}</span>
-                  </React.Fragment>
-                ))}
-              </div>
-              <div className="text-right">
-                <span className="text-2xl font-black text-foreground">{totalSelectedDims}</span>
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Fields Active</p>
-              </div>
-            </div>
-          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-8">
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* LEFT: Dimensions with toggles */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Globe className="w-4 h-4 text-primary" />
-                <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Dimensions</span>
-                <span className="text-[9px] font-bold text-muted-foreground ml-auto">{totalSelectedDims} sélectionnés</span>
-              </div>
+            {/* LEFT: Dimensions */}
+            <div className="space-y-6 border-r border-border/50 pr-6">
               {DIMENSIONS_CONFIG.map((dim) => {
                 const selected = selectedDimensions[dim.title] || [];
-                const allSelected = dim.values.every(v => selected.includes(v));
                 return (
-                  <div key={dim.title} className="bg-muted/30 rounded-2xl border border-border/50 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <button
-                        onClick={() => toggleAllDimension(dim.title, dim.values)}
-                        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                          allSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40 hover:border-primary'
-                        }`}
-                      >
-                        {allSelected && <CheckCircle2 className="w-3 h-3 text-primary-foreground" />}
-                      </button>
+                  <div key={dim.title}>
+                    <div className="flex items-center gap-2.5 mb-3">
                       <div className="text-primary">{dim.icon}</div>
-                      <span className="text-[10px] font-black text-foreground uppercase tracking-widest">{dim.title}</span>
-                      <span className="text-[9px] font-bold text-muted-foreground ml-auto">{selected.length}/{dim.values.length}</span>
+                      <span className="text-xs font-bold text-foreground uppercase tracking-wider">{dim.title}</span>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="grid grid-cols-2 gap-1.5">
                       {dim.values.map((v) => {
                         const isSelected = selected.includes(v);
                         return (
                           <button
                             key={v}
                             onClick={() => toggleDimensionValue(dim.title, v)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                               isSelected
-                                ? 'bg-primary/15 border border-primary/40 text-primary'
-                                : 'bg-card border border-border/50 text-muted-foreground/50 line-through hover:text-muted-foreground hover:border-border'
+                                ? 'bg-foreground text-background'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                             }`}
                           >
-                            {v}
+                            <span className="uppercase text-[11px] tracking-wide">{v}</span>
+                            {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
                           </button>
                         );
                       })}
@@ -646,120 +607,111 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               })}
             </div>
 
-            {/* RIGHT: Radio Metrics with search, categories, select/deselect + color popup */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Radio className="w-4 h-4 text-primary" />
-                <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Métriques Radio</span>
-                <span className="text-[9px] font-bold text-muted-foreground ml-auto">{selectedMetrics.size}/{metricsConfig.length} actives</span>
-              </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Rechercher une métrique..."
-                  value={metricSearch}
-                  onChange={e => setMetricSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-[11px] font-bold text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-all"
-                />
+            {/* RIGHT: Metrics Definition Grid */}
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="text-muted-foreground">
+                    <BarChart3 className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Metrics Definition Grid</span>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Filter metrics..."
+                    value={metricSearch}
+                    onChange={e => setMetricSearch(e.target.value)}
+                    className="pl-9 pr-4 py-2 rounded-lg bg-muted/40 border border-border/50 text-xs font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-all w-52"
+                  />
+                </div>
               </div>
 
-              {METRIC_CATEGORIES.map(cat => {
-                const catMetrics = filteredMetrics.filter(m => m.category === cat.id);
-                if (catMetrics.length === 0) return null;
-                const allCatSelected = catMetrics.every(m => selectedMetrics.has(m.id));
-                const isCollapsed = collapsedCategories.has(cat.id);
-                const selectedInCat = catMetrics.filter(m => selectedMetrics.has(m.id)).length;
-
-                return (
-                  <div key={cat.id} className="rounded-2xl border border-border/50 overflow-hidden">
-                    {/* Category Header */}
-                    <div className="flex items-center gap-3 px-4 py-3 bg-muted/50 border-b border-border/30">
-                      <button onClick={() => toggleCollapseCategory(cat.id)} className="text-muted-foreground hover:text-foreground transition-colors">
-                        {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                      <div className="text-primary">{cat.icon}</div>
-                      <span className="text-[10px] font-black text-foreground uppercase tracking-widest flex-1">{cat.label}</span>
-                      <span className="text-[9px] font-bold text-muted-foreground mr-2">{selectedInCat}/{catMetrics.length}</span>
+              <div className="space-y-0 divide-y divide-border/40">
+                {filteredMetrics.map((metric) => {
+                  const isActive = selectedMetrics.has(metric.id);
+                  const origIdx = metricsConfig.findIndex(m => m.id === metric.id);
+                  return (
+                    <div key={metric.id} className={`flex items-center gap-4 py-4 px-2 transition-all ${!isActive ? 'opacity-40' : ''}`}>
+                      {/* Checkbox */}
                       <button
-                        onClick={() => toggleCategoryMetrics(cat.id)}
-                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                          allCatSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40 hover:border-primary'
+                        onClick={() => toggleMetric(metric.id)}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+                          isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-primary/20'
                         }`}
                       >
-                        {allCatSelected && <CheckCircle2 className="w-3 h-3 text-primary-foreground" />}
+                        {isActive && <Check className="w-4 h-4" />}
+                      </button>
+
+                      {/* Name & ID */}
+                      <div className="w-40 flex-shrink-0">
+                        <p className={`text-sm font-semibold ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>{metric.name}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{metric.id.toUpperCase()}</p>
+                      </div>
+
+                      {/* Thresholds + color bars */}
+                      <div className="flex-1 flex items-center gap-3">
+                        {metric.thresholds.map((t, i) => (
+                          <div key={i} className="flex-1">
+                            <input
+                              type="number"
+                              value={t}
+                              onChange={e => updateMetricThreshold(origIdx, i, parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-1.5 rounded-md border border-border bg-card text-xs font-semibold text-foreground text-center focus:outline-none focus:border-primary/50 mb-1"
+                            />
+                            <div className="relative w-full h-1.5 rounded-full cursor-pointer overflow-hidden" style={{ backgroundColor: metric.colors[i] }}>
+                              <input
+                                type="color"
+                                value={metric.colors[i]}
+                                onChange={e => updateMetricColor(origIdx, i, e.target.value)}
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Edit popup trigger */}
+                      <button
+                        onClick={() => setEditingMetric(metric.id)}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all flex-shrink-0"
+                      >
+                        <Palette className="w-4 h-4" />
                       </button>
                     </div>
+                  );
+                })}
+              </div>
 
-                    {/* Category Metrics */}
-                    {!isCollapsed && (
-                      <div className="divide-y divide-border/20">
-                        {catMetrics.map((metric) => {
-                          const isActive = selectedMetrics.has(metric.id);
-                          return (
-                            <div key={metric.id} className={`flex items-center gap-3 px-4 py-2.5 transition-all ${isActive ? 'bg-card' : 'bg-muted/20 opacity-50'}`}>
-                              <button
-                                onClick={() => toggleMetric(metric.id)}
-                                className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                                  isActive ? 'bg-primary border-primary' : 'border-muted-foreground/40 hover:border-primary'
-                                }`}
-                              >
-                                {isActive && <CheckCircle2 className="w-3 h-3 text-primary-foreground" />}
-                              </button>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-[10px] font-black uppercase tracking-tight ${isActive ? 'text-foreground' : 'text-muted-foreground line-through'}`}>{metric.name}</p>
-                                <p className="text-[8px] font-bold text-muted-foreground font-mono">{metric.id}</p>
-                              </div>
-                              {/* Color preview dots */}
-                              <div className="flex items-center gap-1">
-                                {metric.colors.map((c, i) => (
-                                  <div key={i} className="w-3 h-3 rounded-full border border-border/50" style={{ backgroundColor: c }} />
-                                ))}
-                              </div>
-                              {/* Edit button to open popup */}
-                              <button
-                                onClick={() => setEditingMetric(metric.id)}
-                                className="px-2 py-1 rounded-lg bg-muted/50 hover:bg-primary/10 text-[9px] font-black text-muted-foreground hover:text-primary uppercase tracking-wider transition-all"
-                              >
-                                Éditer
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {filteredMetrics.length === 0 && (
+                <div className="text-center py-12 text-sm text-muted-foreground">Aucune métrique trouvée</div>
+              )}
             </div>
           </div>
 
           {/* === Color Edit Popup/Modal === */}
           {editingMetricData && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setEditingMetric(null)}>
-              <div className="bg-card rounded-3xl border border-border shadow-2xl p-8 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Palette className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">{editingMetricData.name}</h3>
-                      <p className="text-[9px] font-bold text-muted-foreground font-mono uppercase">{editingMetricData.id}</p>
-                    </div>
+              <div className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 className="text-base font-bold text-foreground">{editingMetricData.name}</h3>
+                    <p className="text-xs text-muted-foreground font-mono mt-0.5">{editingMetricData.id}</p>
                   </div>
                   <button onClick={() => setEditingMetric(null)} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="space-y-4">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                    {editingMetricData.numColors} plage{editingMetricData.numColors > 1 ? 's' : ''} de couleur
-                  </p>
+                <p className="text-xs font-medium text-muted-foreground mb-4">
+                  {editingMetricData.numColors} plage{editingMetricData.numColors > 1 ? 's' : ''} de couleur
+                </p>
+
+                <div className="space-y-3">
                   {editingMetricData.thresholds.map((t, i) => (
-                    <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-muted/30 border border-border/50">
-                      <div className="relative w-10 h-10 rounded-xl cursor-pointer overflow-hidden border-2 border-border/50 flex-shrink-0" style={{ backgroundColor: editingMetricData.colors[i] }}>
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/50">
+                      <div className="relative w-9 h-9 rounded-lg cursor-pointer overflow-hidden border border-border/50 flex-shrink-0" style={{ backgroundColor: editingMetricData.colors[i] }}>
                         <input
                           type="color"
                           value={editingMetricData.colors[i]}
@@ -768,34 +720,34 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1 block">Seuil {i + 1}</label>
+                        <label className="text-[10px] font-medium text-muted-foreground mb-1 block">Seuil {i + 1}</label>
                         <input
                           type="number"
                           value={t}
                           onChange={e => updateMetricThreshold(editingMetricIdx, i, parseFloat(e.target.value) || 0)}
-                          className="w-full px-3 py-2 rounded-lg bg-card border border-border/50 text-[11px] font-black text-foreground focus:outline-none focus:border-primary/50"
+                          className="w-full px-3 py-1.5 rounded-md bg-card border border-border text-xs font-semibold text-foreground focus:outline-none focus:border-primary/50"
                         />
                       </div>
-                      <span className="text-[10px] font-mono font-bold text-muted-foreground">{editingMetricData.colors[i]}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">{editingMetricData.colors[i]}</span>
                     </div>
                   ))}
+                </div>
 
-                  {/* Preview bar */}
-                  <div>
-                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Aperçu</p>
-                    <div className="flex rounded-xl overflow-hidden h-6">
-                      {editingMetricData.colors.map((c, i) => (
-                        <div key={i} className="flex-1 flex items-center justify-center text-[8px] font-black text-white" style={{ backgroundColor: c }}>
-                          {editingMetricData.thresholds[i]}
-                        </div>
-                      ))}
-                    </div>
+                {/* Preview bar */}
+                <div className="mt-4">
+                  <p className="text-[10px] font-medium text-muted-foreground mb-2">Aperçu</p>
+                  <div className="flex rounded-lg overflow-hidden h-5">
+                    {editingMetricData.colors.map((c, i) => (
+                      <div key={i} className="flex-1 flex items-center justify-center text-[9px] font-semibold text-white" style={{ backgroundColor: c }}>
+                        {editingMetricData.thresholds[i]}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 <button
                   onClick={() => setEditingMetric(null)}
-                  className="mt-6 w-full py-3 bg-primary text-primary-foreground rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-primary/90 transition-all"
+                  className="mt-5 w-full py-2.5 bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90 transition-all"
                 >
                   Fermer
                 </button>
