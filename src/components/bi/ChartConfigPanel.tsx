@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush } from 'lucide-react';
 import { ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine, MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI, Aggregation, ChartType, Granularity, AxisSide, LineStyle } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 
@@ -13,6 +13,35 @@ interface Props {
 const AGGREGATIONS: Aggregation[] = ['AVG', 'SUM', 'MAX', 'MIN', 'P50', 'P95'];
 const GRANULARITIES: Granularity[] = ['hour', 'day', 'week', 'month'];
 const LINE_STYLES: LineStyle[] = ['solid', 'dashed', 'dotted'];
+
+const SIMPLE_PALETTE = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1',
+  '#84cc16', '#e11d48',
+];
+
+const BG_PALETTE = [
+  'transparent', '#ffffff', '#f8fafc', '#f1f5f9', '#e2e8f0',
+  '#0f172a', '#1e293b', '#1a1a2e', '#fef9ef', '#f0fdf4',
+  '#eff6ff', '#fdf2f8',
+];
+
+const ColorSwatch: React.FC<{ color: string; selected: boolean; onClick: () => void; size?: 'sm' | 'md' }> = ({ color, selected, onClick, size = 'sm' }) => (
+  <button
+    onClick={onClick}
+    className={`rounded-md border-2 transition-all ${selected ? 'border-primary scale-110 shadow-sm' : 'border-transparent hover:border-primary/40'}`}
+    style={{
+      width: size === 'sm' ? 18 : 22,
+      height: size === 'sm' ? 18 : 22,
+      background: color === 'transparent'
+        ? 'linear-gradient(45deg, #e2e8f0 25%, transparent 25%, transparent 75%, #e2e8f0 75%), linear-gradient(45deg, #e2e8f0 25%, transparent 25%, transparent 75%, #e2e8f0 75%)'
+        : color,
+      backgroundSize: color === 'transparent' ? '8px 8px' : undefined,
+      backgroundPosition: color === 'transparent' ? '0 0, 4px 4px' : undefined,
+    }}
+    title={color === 'transparent' ? 'Transparent' : color}
+  />
+);
 
 const CHART_TYPE_OPTIONS: { type: ChartType; icon: React.ReactNode; label: string }[] = [
   { type: 'line', icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'Ligne' },
@@ -158,7 +187,11 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   <label className="flex items-center gap-1 text-muted-foreground">
                     <input type="checkbox" checked={m.showMovingAvg} onChange={e => updateMetric(i, { showMovingAvg: e.target.checked })} className="rounded" /> MA
                   </label>
-                  <input type="color" value={m.color} onChange={e => updateMetric(i, { color: e.target.value })} className="w-5 h-5 rounded cursor-pointer border-0" />
+                </div>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {SIMPLE_PALETTE.map(c => (
+                    <ColorSwatch key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} />
+                  ))}
                 </div>
               </div>
             ))}
@@ -230,6 +263,18 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 className="w-16 bg-muted border border-border rounded px-2 py-1 text-xs text-foreground" />
             </div>
 
+            {/* ── BACKGROUND COLOR ── */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                <Paintbrush className="w-3 h-3" /> Couleur de fond
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {BG_PALETTE.map(c => (
+                  <ColorSwatch key={c} color={c} size="md" selected={(config.advanced.backgroundColor || 'transparent') === c} onClick={() => update({ advanced: { ...config.advanced, backgroundColor: c } })} />
+                ))}
+              </div>
+            </div>
+
             {/* ── THRESHOLDS ── */}
             <div className="space-y-2">
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Seuils (horizontaux)</span>
@@ -256,11 +301,15 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                       thresholds[i] = { ...t, lineStyle: v as LineStyle };
                       update({ advanced: { ...config.advanced, thresholds } });
                     }} className="flex-1" />
-                    <input type="color" value={t.color} onChange={e => {
-                      const thresholds = [...config.advanced.thresholds];
-                      thresholds[i] = { ...t, color: e.target.value };
-                      update({ advanced: { ...config.advanced, thresholds } });
-                    }} className="w-5 h-5 rounded cursor-pointer border-0" />
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {SIMPLE_PALETTE.map(c => (
+                      <ColorSwatch key={c} color={c} selected={t.color === c} onClick={() => {
+                        const thresholds = [...config.advanced.thresholds];
+                        thresholds[i] = { ...t, color: c };
+                        update({ advanced: { ...config.advanced, thresholds } });
+                      }} />
+                    ))}
                   </div>
                 </div>
               ))}
@@ -297,11 +346,15 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                       milestones[i] = { ...m, lineStyle: v as LineStyle };
                       update({ advanced: { ...config.advanced, milestones } });
                     }} className="flex-1" />
-                    <input type="color" value={m.color} onChange={e => {
-                      const milestones = [...(config.advanced.milestones || [])];
-                      milestones[i] = { ...m, color: e.target.value };
-                      update({ advanced: { ...config.advanced, milestones } });
-                    }} className="w-5 h-5 rounded cursor-pointer border-0" />
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {SIMPLE_PALETTE.map(c => (
+                      <ColorSwatch key={c} color={c} selected={m.color === c} onClick={() => {
+                        const milestones = [...(config.advanced.milestones || [])];
+                        milestones[i] = { ...m, color: c };
+                        update({ advanced: { ...config.advanced, milestones } });
+                      }} />
+                    ))}
                   </div>
                 </div>
               ))}
