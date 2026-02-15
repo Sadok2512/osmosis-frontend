@@ -59,6 +59,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
   const [topoStatus, setTopoStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
   const [topoCount, setTopoCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [settingsTab, setSettingsTab] = useState<'style' | 'data' | 'system'>('style');
 
   useEffect(() => {
     const interval = setInterval(() => setSystemTime(new Date()), 1000);
@@ -218,7 +219,31 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
         </div>
       </div>
 
+      {/* Tab Bar */}
+      <div className="flex items-center gap-2 px-10 pt-4 pb-0 bg-card border-b border-border sticky top-[104px] z-10">
+        {([
+          { id: 'style' as const, label: 'Style UI', icon: <Palette className="w-4 h-4" /> },
+          { id: 'data' as const, label: 'Data Model', icon: <Database className="w-4 h-4" /> },
+          { id: 'system' as const, label: 'System Core', icon: <Settings className="w-4 h-4" /> },
+        ]).map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setSettingsTab(tab.id)}
+            className={`flex items-center gap-2 px-6 py-3 rounded-t-xl text-[11px] font-black uppercase tracking-widest transition-all ${
+              settingsTab === tab.id
+                ? 'bg-background text-foreground border border-border border-b-0 -mb-px'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="p-10 space-y-10 pb-32">
+        {/* ===== STYLE UI TAB ===== */}
+        {settingsTab === 'style' && (<>
         {/* System Info + Appearance Side by Side */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* System Info */}
@@ -299,45 +324,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
           </div>
         </div>
 
-        {/* Platform Details */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 bg-card rounded-3xl border border-border p-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Informations Plateforme</h3>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Détails techniques du système</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <DetailRow label="Plateforme" value="OTARIE QoE Observatory" />
-              <DetailRow label="Environnement" value="Production" badge="PROD" badgeColor="bg-emerald-500" />
-              <DetailRow label="Framework" value="React 18 + TypeScript" />
-              <DetailRow label="Cartographie" value="Leaflet 4.2.1" />
-              <DetailRow label="Analytique" value="Recharts 2.15" />
-              <DetailRow label="Organisation" value="Orange France — DSI/DTRS" />
-              <DetailRow label="Région Cible" value="France Métropolitaine" />
-              <DetailRow label="Protocole" value="HTTPS / TLS 1.3" />
-            </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="bg-gradient-to-br from-sidebar to-sidebar-accent rounded-3xl p-8 text-white shadow-xl border border-sidebar-border">
-            <div className="flex items-center gap-3 mb-8">
-              <Heart className="w-5 h-5 text-sidebar-primary" />
-              <h3 className="text-[13px] font-black uppercase tracking-wider">Santé Système</h3>
-            </div>
-            <div className="space-y-6">
-              <HealthMetric label="Uptime" value="99.97%" color="text-emerald-400" />
-              <HealthMetric label="Latence Moy." value={avgLatency > 0 ? `${Math.round(avgLatency)}ms` : '—'} color={avgLatency < 200 ? 'text-emerald-400' : avgLatency < 500 ? 'text-amber-400' : 'text-red-400'} />
-              <HealthMetric label="Endpoints OK" value={`${successCount}/${ENDPOINTS.length}`} color={successCount === ENDPOINTS.length ? 'text-emerald-400' : 'text-amber-400'} />
-              <HealthMetric label="Dernière MàJ" value="15 fév. 2026" color="text-sidebar-primary" />
-            </div>
-          </div>
-        </div>
-
         {/* Topologie Réseau Import */}
         <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
           <div className="flex items-center justify-between mb-6">
@@ -398,7 +384,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
             </div>
           )}
         </div>
+        </>)}
 
+        {/* ===== DATA MODEL TAB ===== */}
+        {settingsTab === 'data' && (<>
         {/* Data Model & Radio Parameters */}
         <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
           {/* Header with dynamic schema breadcrumb */}
@@ -541,6 +530,48 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
             </div>
           </div>
         </div>
+        </>)}
+
+        {/* ===== SYSTEM CORE TAB ===== */}
+        {settingsTab === 'system' && (<>
+        {/* Platform Details */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 bg-card rounded-3xl border border-border p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Informations Plateforme</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Détails techniques du système</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <DetailRow label="Plateforme" value="OTARIE QoE Observatory" />
+              <DetailRow label="Environnement" value="Production" badge="PROD" badgeColor="bg-emerald-500" />
+              <DetailRow label="Framework" value="React 18 + TypeScript" />
+              <DetailRow label="Cartographie" value="Leaflet 4.2.1" />
+              <DetailRow label="Analytique" value="Recharts 2.15" />
+              <DetailRow label="Organisation" value="Orange France — DSI/DTRS" />
+              <DetailRow label="Région Cible" value="France Métropolitaine" />
+              <DetailRow label="Protocole" value="HTTPS / TLS 1.3" />
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="bg-gradient-to-br from-sidebar to-sidebar-accent rounded-3xl p-8 text-white shadow-xl border border-sidebar-border">
+            <div className="flex items-center gap-3 mb-8">
+              <Heart className="w-5 h-5 text-sidebar-primary" />
+              <h3 className="text-[13px] font-black uppercase tracking-wider">Santé Système</h3>
+            </div>
+            <div className="space-y-6">
+              <HealthMetric label="Uptime" value="99.97%" color="text-emerald-400" />
+              <HealthMetric label="Latence Moy." value={avgLatency > 0 ? `${Math.round(avgLatency)}ms` : '—'} color={avgLatency < 200 ? 'text-emerald-400' : avgLatency < 500 ? 'text-amber-400' : 'text-red-400'} />
+              <HealthMetric label="Endpoints OK" value={`${successCount}/${ENDPOINTS.length}`} color={successCount === ENDPOINTS.length ? 'text-emerald-400' : 'text-amber-400'} />
+              <HealthMetric label="Dernière MàJ" value="15 fév. 2026" color="text-sidebar-primary" />
+            </div>
+          </div>
+        </div>
 
         {/* Backend Connectivity Test */}
         <div className="bg-card rounded-3xl border border-border shadow-sm overflow-hidden">
@@ -648,6 +679,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
             </div>
           )}
         </div>
+        </>)}
       </div>
     </div>
   );
