@@ -3,7 +3,7 @@ import {
   Settings, Server, Wifi, WifiOff, Clock, Building2, Users, Tag,
   CalendarDays, Activity, CheckCircle2, XCircle, RefreshCw, Zap,
   Globe, Database, Shield, Heart, ArrowRight, Play, BarChart3, Palette, Moon, Sun, Monitor,
-  Upload, FileSpreadsheet, Trash2, MapPin, Radio, Antenna, Signal, Gauge, Waves
+  Upload, FileSpreadsheet, Trash2, MapPin, Radio, Antenna, Signal, Gauge, Waves, Search
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -49,6 +49,37 @@ const ACCENT_COLORS: { id: AccentColor; label: string; color: string }[] = [
   { id: 'amber', label: 'Amber', color: 'bg-[hsl(38,92%,50%)]' },
 ];
 
+const DEFAULT_COLORS = ['#ef4444','#f59e0b','#3b82f6','#10b981'];
+
+const DIMENSIONS_CONFIG: { icon: React.ReactNode; title: string; values: string[] }[] = [
+  { icon: <Globe className="w-4 h-4" />, title: 'ORF NETWORK', values: ['Nationale','Vendor','DOR','Plaque','Site','Cellule'] },
+  { icon: <Zap className="w-4 h-4" />, title: 'CAPABILITY', values: ['5G_Capable','Non_5G_Capable'] },
+  { icon: <Shield className="w-4 h-4" />, title: 'ARCEP ZONE', values: ['Top15','Intermédiaire','Rural','AXE','TGV'] },
+  { icon: <Activity className="w-4 h-4" />, title: 'APPLICATION', values: ['Social','Streaming','WEB'] },
+  { icon: <Server className="w-4 h-4" />, title: 'SERVICE PROVIDER', values: ['Google','Meta','Microsoft','Amazone','Other'] },
+  { icon: <Antenna className="w-4 h-4" />, title: 'RAT', values: ['5G_SA','5G_NSA','4G','3G','2G','WiFi'] },
+  { icon: <MapPin className="w-4 h-4" />, title: 'DOR', values: ['Île-de-France','Nord-Est','Ouest','Sud-Est','Sud-Ouest'] },
+  { icon: <Building2 className="w-4 h-4" />, title: 'POP', values: ['CNM','CNL'] },
+  { icon: <Waves className="w-4 h-4" />, title: 'BANDE', values: ['NR_3500','NR_700','LTE2600','LTE2100','LTE1800','LTE800','LTE700'] },
+  { icon: <Wifi className="w-4 h-4" />, title: 'DEVICE BRAND', values: ['iPhone','Samsung','Other'] },
+  { icon: <Monitor className="w-4 h-4" />, title: 'OS', values: ['Android','iOS','Other'] },
+  { icon: <Users className="w-4 h-4" />, title: 'CLIENT', values: ['FWA','Mobile'] },
+  { icon: <Tag className="w-4 h-4" />, title: 'VENDOR', values: ['Ericsson','Nokia','Ransharing','Samsung'] },
+];
+
+const METRICS_CONFIG: { name: string; id: string; numColors: number; thresholds: number[]; colors: string[] }[] = [
+  { name: 'Nb Sessions', id: 'session_nbr', numColors: 4, thresholds: [30,60,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Volume Total', id: 'volume_totale', numColors: 4, thresholds: [30,60,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Débit DL', id: 'debit_dl', numColors: 4, thresholds: [3,8,30,100], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Débit UL', id: 'debit_ul', numColors: 4, thresholds: [1,3,10,50], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'RTT Setup Avg', id: 'rtt_setup_avg', numColors: 4, thresholds: [50,100,200,500], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'RTT Setup 40ms', id: 'rtt_setup_40', numColors: 1, thresholds: [40], colors: ['#f59e0b'] },
+  { name: 'Loss DL Rate', id: 'loss_dl_rate', numColors: 4, thresholds: [0.5,1,3,5], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Loss DL 3%', id: 'loss_dl_3', numColors: 1, thresholds: [3], colors: ['#ef4444'] },
+  { name: 'TCP Retr Rate 3%', id: 'tcp_retr_rate_3', numColors: 1, thresholds: [3], colors: ['#ef4444'] },
+  { name: 'QoE Index', id: 'qoe_index', numColors: 4, thresholds: [40,60,80,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+];
+
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarTheme, accentColor, setAccentColor }) => {
   const [results, setResults] = useState<LatencyResult[]>(
     ENDPOINTS.map(e => ({ endpoint: e.url, label: e.label, status: 'idle' }))
@@ -60,6 +91,59 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
   const [topoCount, setTopoCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [settingsTab, setSettingsTab] = useState<'style' | 'data' | 'system'>('style');
+  const [metricSearch, setMetricSearch] = useState('');
+
+  // Dimension toggle state — each dimension category has an array of selected values
+  const [selectedDimensions, setSelectedDimensions] = useState<Record<string, string[]>>(() => {
+    const dims: Record<string, string[]> = {};
+    DIMENSIONS_CONFIG.forEach(d => { dims[d.title] = [...d.values]; });
+    return dims;
+  });
+
+  // Metrics with editable colors
+  const [metricsConfig, setMetricsConfig] = useState(METRICS_CONFIG.map(m => ({ ...m })));
+
+  const toggleDimensionValue = (title: string, value: string) => {
+    setSelectedDimensions(prev => {
+      const current = prev[title] || [];
+      const next = current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value];
+      return { ...prev, [title]: next };
+    });
+  };
+
+  const toggleAllDimension = (title: string, values: string[]) => {
+    setSelectedDimensions(prev => {
+      const allSelected = values.every(v => (prev[title] || []).includes(v));
+      return { ...prev, [title]: allSelected ? [] : [...values] };
+    });
+  };
+
+  const updateMetricColor = (metricIdx: number, colorIdx: number, newColor: string) => {
+    setMetricsConfig(prev => prev.map((m, i) => {
+      if (i !== metricIdx) return m;
+      const newColors = [...m.colors];
+      newColors[colorIdx] = newColor;
+      return { ...m, colors: newColors };
+    }));
+  };
+
+  const updateMetricThreshold = (metricIdx: number, thresholdIdx: number, newVal: number) => {
+    setMetricsConfig(prev => prev.map((m, i) => {
+      if (i !== metricIdx) return m;
+      const newThresholds = [...m.thresholds];
+      newThresholds[thresholdIdx] = newVal;
+      return { ...m, thresholds: newThresholds };
+    }));
+  };
+
+  const filteredMetrics = metricsConfig.filter(m =>
+    m.name.toLowerCase().includes(metricSearch.toLowerCase()) ||
+    m.id.toLowerCase().includes(metricSearch.toLowerCase())
+  );
+
+  const totalSelectedDims = Object.values(selectedDimensions).reduce((s, arr) => s + arr.length, 0);
 
   useEffect(() => {
     const interval = setInterval(() => setSystemTime(new Date()), 1000);
@@ -388,9 +472,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
 
         {/* ===== DATA MODEL TAB ===== */}
         {settingsTab === 'data' && (<>
-        {/* Data Model & Radio Parameters */}
         <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
-          {/* Header with dynamic schema breadcrumb */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -401,132 +483,131 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Dimensions réseau, segments & métriques radio</p>
               </div>
             </div>
-            {/* Schema breadcrumb bar */}
             <div className="bg-muted/40 rounded-2xl border border-border/50 p-4 flex items-center justify-between">
               <div className="flex items-center gap-2 flex-wrap">
-                {['date_part','cellule','site','5g_sa','streaming','fwa','plaque'].map((tag, i) => (
-                  <React.Fragment key={tag}>
+                {Object.entries(selectedDimensions).filter(([,v]) => v.length > 0).slice(0,7).map(([title], i) => (
+                  <React.Fragment key={title}>
                     {i > 0 && <span className="text-muted-foreground text-[10px]">›</span>}
-                    <span className="px-3 py-1 rounded-lg bg-primary/15 text-[10px] font-black text-primary uppercase tracking-wider">{tag}</span>
+                    <span className="px-3 py-1 rounded-lg bg-primary/15 text-[10px] font-black text-primary uppercase tracking-wider">{title}</span>
                   </React.Fragment>
                 ))}
               </div>
               <div className="text-right">
-                <span className="text-2xl font-black text-foreground">14</span>
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Fields in Pipeline</p>
+                <span className="text-2xl font-black text-foreground">{totalSelectedDims}</span>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Fields Active</p>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* LEFT: Dimensions */}
-            <div className="space-y-5">
-              {/* ORF NETWORK */}
-              <DimensionCard
-                icon={<Globe className="w-4 h-4" />}
-                title="ORF NETWORK"
-                values={['Nationale','Vendor','DOR','Plaque','Site','Cellule']}
-              />
-              {/* 5G Capability */}
-              <DimensionCard
-                icon={<Zap className="w-4 h-4" />}
-                title="CAPABILITY"
-                values={['5G_Capable','Non_5G_Capable']}
-              />
-              {/* ARCEP Zone */}
-              <DimensionCard
-                icon={<Shield className="w-4 h-4" />}
-                title="ARCEP ZONE"
-                values={['Top15','Intermédiaire','Rural','AXE','TGV']}
-              />
-              {/* Application */}
-              <DimensionCard
-                icon={<Activity className="w-4 h-4" />}
-                title="APPLICATION"
-                values={['Social','Streaming','WEB']}
-              />
-              {/* Service Provider */}
-              <DimensionCard
-                icon={<Server className="w-4 h-4" />}
-                title="SERVICE PROVIDER"
-                values={['Google','Meta','Microsoft','Amazone','Other']}
-              />
-              {/* RAT */}
-              <DimensionCard
-                icon={<Antenna className="w-4 h-4" />}
-                title="RAT"
-                values={['5G_SA','5G_NSA','4G','3G','2G','WiFi']}
-              />
-              {/* DOR */}
-              <DimensionCard
-                icon={<MapPin className="w-4 h-4" />}
-                title="DOR"
-                values={['Île-de-France','Nord-Est','Ouest','Sud-Est','Sud-Ouest']}
-              />
-              {/* POP */}
-              <DimensionCard
-                icon={<Building2 className="w-4 h-4" />}
-                title="POP"
-                values={['CNM','CNL']}
-              />
-              {/* Bande */}
-              <DimensionCard
-                icon={<Waves className="w-4 h-4" />}
-                title="BANDE"
-                values={['NR_3500','NR_700','LTE2600','LTE2100','LTE1800','LTE800','LTE700']}
-              />
-              {/* Device Brand */}
-              <DimensionCard
-                icon={<Wifi className="w-4 h-4" />}
-                title="DEVICE BRAND"
-                values={['iPhone','Samsung','Other']}
-              />
-              {/* OS */}
-              <DimensionCard
-                icon={<Monitor className="w-4 h-4" />}
-                title="OS"
-                values={['Android','iOS','Other']}
-              />
-              {/* Client */}
-              <DimensionCard
-                icon={<Users className="w-4 h-4" />}
-                title="CLIENT"
-                values={['FWA','Mobile']}
-              />
-              {/* Vendor */}
-              <DimensionCard
-                icon={<Tag className="w-4 h-4" />}
-                title="VENDOR"
-                values={['Ericsson','Nokia','Ransharing','Samsung']}
-              />
+            {/* LEFT: Dimensions with toggles */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Globe className="w-4 h-4 text-primary" />
+                <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Dimensions</span>
+                <span className="text-[9px] font-bold text-muted-foreground ml-auto">{totalSelectedDims} sélectionnés</span>
+              </div>
+              {DIMENSIONS_CONFIG.map((dim) => {
+                const selected = selectedDimensions[dim.title] || [];
+                const allSelected = dim.values.every(v => selected.includes(v));
+                return (
+                  <div key={dim.title} className="bg-muted/30 rounded-2xl border border-border/50 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <button
+                        onClick={() => toggleAllDimension(dim.title, dim.values)}
+                        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                          allSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40 hover:border-primary'
+                        }`}
+                      >
+                        {allSelected && <CheckCircle2 className="w-3 h-3 text-primary-foreground" />}
+                      </button>
+                      <div className="text-primary">{dim.icon}</div>
+                      <span className="text-[10px] font-black text-foreground uppercase tracking-widest">{dim.title}</span>
+                      <span className="text-[9px] font-bold text-muted-foreground ml-auto">{selected.length}/{dim.values.length}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {dim.values.map((v) => {
+                        const isSelected = selected.includes(v);
+                        return (
+                          <button
+                            key={v}
+                            onClick={() => toggleDimensionValue(dim.title, v)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                              isSelected
+                                ? 'bg-primary/15 border border-primary/40 text-primary'
+                                : 'bg-card border border-border/50 text-muted-foreground/50 line-through hover:text-muted-foreground hover:border-border'
+                            }`}
+                          >
+                            {v}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* RIGHT: Radio Metrics */}
-            <div className="space-y-5">
+            {/* RIGHT: Radio Metrics with search + editable colors */}
+            <div className="space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <Radio className="w-4 h-4 text-primary" />
-                <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Métriques Radio & Performance</span>
+                <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Métriques Radio</span>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Rechercher une métrique..."
+                  value={metricSearch}
+                  onChange={e => setMetricSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-muted/40 border border-border/50 text-[11px] font-bold text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-all"
+                />
               </div>
 
-              {[
-                { name: 'Nb Sessions', id: 'SESSION_NBR', thresholds: [30,60,85,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
-                { name: 'Volume Total', id: 'VOLUME_TOTALE', thresholds: [30,60,85,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
-                { name: 'Volume DL Moy', id: 'VOLUME_DL_MOY', thresholds: [30,60,85,95], colors: ['bg-red-500','bg-red-400','bg-amber-500','bg-emerald-500'] },
-                { name: 'Volume UL Moy', id: 'VOLUME_UL_MOY', thresholds: [30,60,85,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
-                { name: 'Débit DL', id: 'DEBIT_DL', thresholds: [30,60,85,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
-                { name: 'Débit UL', id: 'DEBIT_UL', thresholds: [30,60,85,95], colors: ['bg-muted','bg-muted','bg-muted','bg-muted'] },
-                { name: 'RTT Moyen', id: 'RTT_AVG', thresholds: [50,100,200,500], colors: ['bg-emerald-500','bg-blue-500','bg-amber-500','bg-red-500'] },
-                { name: 'Packet Loss DL', id: 'LOSS_DL', thresholds: [0.5,1,3,5], colors: ['bg-emerald-500','bg-blue-500','bg-amber-500','bg-red-500'] },
-                { name: 'TCP Retransmission', id: 'RETRANS_RATE', thresholds: [1,3,5,10], colors: ['bg-emerald-500','bg-blue-500','bg-amber-500','bg-red-500'] },
-                { name: 'Window Full Ratio', id: 'WIN_FULL_RATIO', thresholds: [5,15,30,50], colors: ['bg-emerald-500','bg-blue-500','bg-amber-500','bg-red-500'] },
-                { name: 'DMS DL 3 Mbps', id: 'DMS_DL_3', thresholds: [50,70,85,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
-                { name: 'DMS DL 8 Mbps', id: 'DMS_DL_8', thresholds: [30,50,70,90], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
-                { name: 'DMS DL 30 Mbps', id: 'DMS_DL_30', thresholds: [10,30,50,75], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
-                { name: 'DMS UL 3 Mbps', id: 'DMS_UL_3', thresholds: [30,55,75,90], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
-                { name: 'QoE Score', id: 'QOE_SCORE', thresholds: [40,60,80,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
-              ].map((metric) => (
-                <MetricRow key={metric.id} metric={metric} />
-              ))}
+              {filteredMetrics.length === 0 && (
+                <div className="text-center py-8 text-[11px] font-bold text-muted-foreground">Aucune métrique trouvée</div>
+              )}
+
+              {filteredMetrics.map((metric) => {
+                const origIdx = metricsConfig.findIndex(m => m.id === metric.id);
+                return (
+                  <div key={metric.id} className="p-4 rounded-2xl bg-muted/30 border border-border/50 hover:border-primary/30 transition-all">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Gauge className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-black text-foreground uppercase tracking-tight">{metric.name}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground font-mono uppercase">{metric.id}</p>
+                      </div>
+                      <span className="text-[9px] font-black text-muted-foreground bg-muted rounded-lg px-2 py-1">
+                        {metric.numColors} couleur{metric.numColors > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {metric.thresholds.map((t, i) => (
+                        <div key={i} className="flex-1 text-center">
+                          <input
+                            type="number"
+                            value={t}
+                            onChange={e => updateMetricThreshold(origIdx, i, parseFloat(e.target.value) || 0)}
+                            className="w-full px-2 py-1 rounded-lg bg-card border border-border/50 text-[10px] font-black text-foreground text-center focus:outline-none focus:border-primary/50 mb-1"
+                          />
+                          <div className="relative w-full h-3 rounded-full cursor-pointer overflow-hidden" style={{ backgroundColor: metric.colors[i] }}>
+                            <input
+                              type="color"
+                              value={metric.colors[i]}
+                              onChange={e => updateMetricColor(origIdx, i, e.target.value)}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -712,44 +793,6 @@ const HealthMetric = ({ label, value, color }: { label: string; value: string; c
   <div className="flex items-center justify-between">
     <span className="text-[11px] font-bold text-white/60 uppercase tracking-wider">{label}</span>
     <span className={`text-[15px] font-black tracking-tight ${color}`}>{value}</span>
-  </div>
-);
-
-const DimensionCard = ({ icon, title, values }: { icon: React.ReactNode; title: string; values: string[] }) => (
-  <div className="bg-muted/30 rounded-2xl border border-border/50 p-5">
-    <div className="flex items-center gap-2 mb-4">
-      <div className="text-primary">{icon}</div>
-      <span className="text-[10px] font-black text-foreground uppercase tracking-widest">{title}</span>
-    </div>
-    <div className="flex flex-wrap gap-2">
-      {values.map((v) => (
-        <span key={v} className="px-3 py-1.5 rounded-lg bg-card border border-border/50 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hover:border-primary/40 hover:text-primary transition-all cursor-default">
-          {v}
-        </span>
-      ))}
-    </div>
-  </div>
-);
-
-const MetricRow = ({ metric }: { metric: { name: string; id: string; thresholds: number[]; colors: string[] } }) => (
-  <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-border/50 hover:border-primary/30 transition-all group">
-    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-      <CheckCircle2 className="w-4 h-4 text-primary" />
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-[11px] font-black text-foreground uppercase tracking-tight">{metric.name}</p>
-      <p className="text-[9px] font-bold text-muted-foreground font-mono uppercase">{metric.id}</p>
-    </div>
-    <div className="flex items-center gap-2">
-      {metric.thresholds.map((t, i) => (
-        <div key={i} className="text-center">
-          <div className="px-3 py-1 rounded-lg bg-card border border-border/50 mb-1">
-            <span className="text-[10px] font-black text-foreground">{t}</span>
-          </div>
-          <div className={`h-1 rounded-full ${metric.colors[i]}`} />
-        </div>
-      ))}
-    </div>
   </div>
 );
 
