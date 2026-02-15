@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
 import 'react-grid-layout/css/styles.css';
@@ -22,6 +23,88 @@ import { CSVDataProvider, CSVUploadButton, CSVDataPanel, useCSVData } from '../b
 const COLS = 12;
 const ROW_HEIGHT = 80;
 
+/* ── Print Preview Modal ── */
+const PrintPreviewModal: React.FC<{
+  dashboardName: string;
+  logoDataUrl?: string;
+  dashboardRef: React.RefObject<HTMLDivElement>;
+  onClose: () => void;
+  onExport: () => void;
+}> = ({ dashboardName, logoDataUrl, dashboardRef, onClose, onExport }) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const generate = async () => {
+      if (!dashboardRef.current) return;
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(dashboardRef.current, {
+        scale: 1.5,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+      if (!cancelled) {
+        setPreviewUrl(canvas.toDataURL('image/png'));
+        setLoading(false);
+      }
+    };
+    generate();
+    return () => { cancelled = true; };
+  }, [dashboardRef]);
+
+  const dateStr = new Date().toLocaleDateString('fr-FR', {
+    day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="relative w-[calc(100vw-80px)] max-w-[1200px] h-[calc(100vh-80px)] flex flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
+        {/* Simulated PDF Header */}
+        <div className="bg-slate-900 px-8 py-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            {logoDataUrl && (
+              <img src={logoDataUrl} alt="Logo" className="w-12 h-12 rounded-lg object-contain bg-white/10" />
+            )}
+            <div>
+              <h2 className="text-white font-bold text-lg">{dashboardName}</h2>
+              <p className="text-slate-400 text-xs">{dateStr}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-slate-300 text-sm font-semibold">PSN TEAM</span>
+          </div>
+        </div>
+        <div className="h-0.5 bg-blue-500" />
+
+        {/* Preview content */}
+        <div className="flex-1 overflow-auto bg-slate-100 p-4">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-sm text-slate-500 animate-pulse font-semibold">Génération de l'aperçu...</div>
+            </div>
+          ) : previewUrl ? (
+            <img src={previewUrl} alt="Dashboard preview" className="w-full rounded-lg shadow-md" />
+          ) : null}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 px-6 py-3 border-t border-slate-200 bg-white shrink-0">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-xs text-slate-600 hover:bg-slate-100 transition-colors font-medium">
+            Fermer
+          </button>
+          <button onClick={() => { onExport(); onClose(); }}
+            className="px-5 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2">
+            <FileDown className="w-3.5 h-3.5" /> Exporter PDF
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const dm = useDashboardManager();
   const { datasets } = useCSVData();
@@ -34,7 +117,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [newDashName, setNewDashName] = useState('');
   const [showCSVPanel, setShowCSVPanel] = useState(false);
-  const [pdfUserName, setPdfUserName] = useState('');
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
 
   const handleExportDashboardPDF = async () => {
@@ -47,7 +130,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
       const headerOptions: PDFHeaderOptions = {
         dashboardName: dm.activeTab?.name || 'Dashboard',
         logoDataUrl: logoDataUrl || undefined,
-        userName: pdfUserName || undefined,
+        userName: 'PSN TEAM',
       };
 
       await exportElementToPDF(dashboardRef.current, dm.activeTab?.name?.replace(/\s+/g, '_') || 'dashboard', headerOptions);
@@ -210,13 +293,9 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
               <ImageIcon className="w-3 h-3" /> Image
             </button>
             <div className="w-px h-5 bg-border mx-0.5" />
-            <input
-              type="text"
-              placeholder="Nom utilisateur (PDF)..."
-              value={pdfUserName}
-              onChange={e => setPdfUserName(e.target.value)}
-              className="bg-muted border border-border rounded px-2 py-1 text-[10px] text-foreground w-28 outline-none focus:ring-1 focus:ring-primary/30"
-            />
+            <button onClick={() => setShowPrintPreview(true)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
+              <Eye className="w-3 h-3" /> Preview
+            </button>
             <button onClick={handleExportDashboardPDF} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
               <FileDown className="w-3 h-3" /> PDF
             </button>
@@ -347,6 +426,19 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             </div>
           </div>
         </div>
+      )}
+      {/* Print Preview Modal */}
+      {showPrintPreview && (
+        <PrintPreviewModal
+          dashboardName={dm.activeTab?.name || 'Dashboard'}
+          logoDataUrl={(() => {
+            const iw = widgets.find(w => w.kind === 'image');
+            return iw ? (iw.config as ImageWidgetConfig).src : undefined;
+          })()}
+          dashboardRef={dashboardRef}
+          onClose={() => setShowPrintPreview(false)}
+          onExport={handleExportDashboardPDF}
+        />
       )}
     </div>
   );
