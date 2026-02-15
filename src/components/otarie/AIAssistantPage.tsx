@@ -280,80 +280,70 @@ const AIAssistantPage: React.FC = () => {
 };
 
 /**
- * AssistantMessage: renders mixed HTML + Markdown content.
- * If content contains raw HTML (tables, divs), those parts are rendered via dangerouslySetInnerHTML.
- * Pure text/markdown sections are rendered via ReactMarkdown with GFM support.
+ * AssistantMessage: always renders via ReactMarkdown with GFM for proper formatting.
  */
 const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
-  // Split content into HTML blocks and text blocks
-  const parts = useMemo(() => {
-    // Check if the content has HTML tags
-    const hasHtml = /<(table|div|style)\b/i.test(content);
-    if (hasHtml) {
-      // Render entirely as HTML since it's mixed
-      return [{ type: 'html' as const, content }];
-    }
-    // Pure markdown
-    return [{ type: 'md' as const, content }];
-  }, [content]);
-
   return (
-    <div className="ai-msg-content space-y-3 text-sm leading-relaxed text-foreground">
-      {parts.map((part, i) =>
-        part.type === 'html' ? (
-          <div
-            key={i}
-            className="ai-html-block"
-            dangerouslySetInnerHTML={{ __html: part.content }}
-          />
-        ) : (
-          <ReactMarkdown
-            key={i}
-            remarkPlugins={[remarkGfm]}
-            components={{
-              h1: ({ children }) => <h1 className="text-lg font-bold text-foreground mt-5 mb-2">{children}</h1>,
-              h2: ({ children }) => <h2 className="text-base font-bold text-foreground mt-4 mb-2 flex items-center gap-2"><span className="w-1 h-5 bg-primary rounded-full inline-block" />{children}</h2>,
-              h3: ({ children }) => <h3 className="text-sm font-bold text-foreground mt-3 mb-1.5">{children}</h3>,
-              p: ({ children }) => <p className="text-sm leading-relaxed text-foreground/90 mb-2">{children}</p>,
-              strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
-              em: ({ children }) => <em className="text-foreground/70 italic">{children}</em>,
-              code: ({ children, className }) => {
-                const isBlock = className?.includes('language-');
-                if (isBlock) {
-                  return <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 overflow-x-auto my-2"><code className="text-xs font-mono text-foreground">{children}</code></pre>;
-                }
-                return <code className="bg-primary/10 text-primary font-mono text-xs px-1.5 py-0.5 rounded-md">{children}</code>;
-              },
-              ul: ({ children }) => <ul className="space-y-1.5 my-2 ml-1">{children}</ul>,
-              ol: ({ children }) => <ol className="space-y-1.5 my-2 ml-1 list-decimal list-inside">{children}</ol>,
-              li: ({ children }) => (
-                <li className="text-sm text-foreground/90 flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-2 shrink-0" />
-                  <span>{children}</span>
-                </li>
-              ),
-              table: ({ children }) => (
-                <div className="my-3 rounded-xl border border-border overflow-hidden shadow-sm">
-                  <table className="w-full border-collapse text-xs">{children}</table>
-                </div>
-              ),
-              thead: ({ children }) => <thead className="bg-muted">{children}</thead>,
-              th: ({ children }) => <th className="px-3 py-2.5 text-xs font-bold text-foreground text-left border-b border-border uppercase tracking-wider">{children}</th>,
-              td: ({ children }) => <td className="px-3 py-2 text-xs text-foreground/90 border-b border-border/40">{children}</td>,
-              tr: ({ children, ...props }) => <tr className="hover:bg-muted/30 transition-colors even:bg-muted/15">{children}</tr>,
-              blockquote: ({ children }) => (
-                <blockquote className="border-l-3 border-primary bg-primary/5 rounded-r-lg px-4 py-3 my-3 text-sm text-foreground/80 italic">
-                  {children}
-                </blockquote>
-              ),
-              hr: () => <hr className="border-border my-4" />,
-              a: ({ href, children }) => <a href={href} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors">{children}</a>,
-            }}
-          >
-            {part.content}
-          </ReactMarkdown>
-        )
-      )}
+    <div className="ai-msg-content text-sm leading-relaxed text-foreground">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => <h1 className="text-lg font-bold text-foreground mt-5 mb-3">{children}</h1>,
+          h2: ({ children }) => (
+            <h2 className="text-[15px] font-bold text-foreground mt-5 mb-2.5 flex items-center gap-2 pb-1.5 border-b border-border/50">
+              <span className="w-1 h-5 bg-primary rounded-full inline-block shrink-0" />
+              {children}
+            </h2>
+          ),
+          h3: ({ children }) => <h3 className="text-sm font-bold text-foreground mt-4 mb-2">{children}</h3>,
+          p: ({ children }) => <p className="text-[13px] leading-[1.75] text-foreground/85 mb-3">{children}</p>,
+          strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+          em: ({ children }) => <em className="text-foreground/60 italic">{children}</em>,
+          code: ({ children, className }) => {
+            const isBlock = className?.includes('language-');
+            if (isBlock) {
+              return <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 overflow-x-auto my-3"><code className="text-xs font-mono text-foreground">{children}</code></pre>;
+            }
+            return <code className="bg-primary/10 text-primary font-mono text-[11px] px-1.5 py-0.5 rounded-md font-semibold">{children}</code>;
+          },
+          ul: ({ children }) => <ul className="space-y-2 my-3 ml-0.5">{children}</ul>,
+          ol: ({ children }) => <ol className="space-y-2 my-3 ml-0.5 counter-reset-item">{children}</ol>,
+          li: ({ children, ...props }) => {
+            const ordered = (props as any).ordered;
+            const index = (props as any).index;
+            return (
+              <li className="text-[13px] text-foreground/85 flex items-start gap-2.5 leading-[1.7]">
+                {ordered ? (
+                  <span className="w-5 h-5 rounded-md bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{(index ?? 0) + 1}</span>
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/50 mt-[9px] shrink-0" />
+                )}
+                <span className="flex-1">{children}</span>
+              </li>
+            );
+          },
+          table: ({ children }) => (
+            <div className="my-4 rounded-xl border border-border overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">{children}</table>
+              </div>
+            </div>
+          ),
+          thead: ({ children }) => <thead className="bg-muted/80">{children}</thead>,
+          th: ({ children }) => <th className="px-3 py-2.5 text-[11px] font-bold text-foreground text-left border-b-2 border-border tracking-wide">{children}</th>,
+          td: ({ children }) => <td className="px-3 py-2.5 text-xs text-foreground/85 border-b border-border/30">{children}</td>,
+          tr: ({ children }) => <tr className="hover:bg-muted/30 transition-colors even:bg-muted/10">{children}</tr>,
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-[3px] border-primary bg-primary/5 rounded-r-lg px-4 py-3 my-3 text-[13px] text-foreground/75 italic">
+              {children}
+            </blockquote>
+          ),
+          hr: () => <hr className="border-border/50 my-5" />,
+          a: ({ href, children }) => <a href={href} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors">{children}</a>,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
     </div>
   );
 };
