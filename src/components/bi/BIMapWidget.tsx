@@ -244,7 +244,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
                       weight: 2,
                     }}
                   >
-                    <Tooltip direction="top" offset={[0, -10]} permanent={config.showSiteNames}>
+                    <Tooltip key={`tt-${config.showSiteNames}`} direction="top" offset={[0, -10]} permanent={config.showSiteNames}>
                       <div style={{ fontFamily: 'Inter, sans-serif' }}>
                         <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{site.site_name}</div>
                         <div style={{ fontSize: 10, color: '#64748b' }}>{site.vendor} · {site.cell_count} cells</div>
