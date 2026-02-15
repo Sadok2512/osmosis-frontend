@@ -128,6 +128,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [showSidePanel, setShowSidePanel] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [panelMinimized, setPanelMinimized] = useState(false);
+  const [localVendor, setLocalVendor] = useState('ALL');
+  const [localDor, setLocalDor] = useState('ALL');
+  const [localPlaque, setLocalPlaque] = useState('ALL');
+  const [localSite, setLocalSite] = useState('ALL');
   const [mapKpi, setMapKpi] = useState('qoe_score_avg');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
@@ -204,9 +209,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesVendor = filters.vendor === 'ALL' || s.vendor === filters.vendor;
       const matchesDep = filters.department === 'ALL' || s.department === filters.department;
       const matchesRat = filters.rat === 'ALL' || s.cells.some(c => c.techno === filters.rat);
-      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat;
+      // Local filters
+      const matchesLocalVendor = localVendor === 'ALL' || s.vendor === localVendor;
+      const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
+      const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
+      const matchesLocalSite = localSite === 'ALL' || s.site_name === localSite;
+      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite;
     });
-  }, [sites, localSearch, filters]);
+  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite]);
+
+  // Unique site names for site filter dropdown
+  const uniqueSiteNames = useMemo(() => {
+    const names = [...new Set(sites.map(s => s.site_name))].sort();
+    return ['ALL', ...names];
+  }, [sites]);
 
   // Sites visible in current viewport
   const visibleSites = useMemo(() => {
@@ -546,71 +562,61 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Floating site list panel */}
+      {/* Floating top search & filters bar */}
       {showSidePanel && viewMode === 'map' && (
-        <div className="absolute top-4 left-4 bottom-4 w-[380px] z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-border shrink-0">
-            <div className="flex items-center gap-3 bg-muted rounded-xl px-4 py-3">
-              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-              <input
-                type="text"
-                placeholder="Search Site ID or Name..."
-                value={localSearch}
-                onChange={(e) => setLocalSearch(e.target.value)}
-                className="flex-1 bg-transparent text-[13px] font-medium text-foreground outline-none placeholder:text-muted-foreground"
-              />
+        <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2" style={{ maxWidth: '420px' }}>
+          {/* Search + toggle row */}
+          <div className="bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl flex items-center gap-2 px-3 py-2">
+            <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              placeholder="Search Cell ID or Site Name..."
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              className="flex-1 bg-transparent text-[12px] font-medium text-foreground outline-none placeholder:text-muted-foreground min-w-0"
+            />
+            <button
+              onClick={() => setPanelMinimized(!panelMinimized)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all shrink-0"
+              title={panelMinimized ? 'Expand filters' : 'Minimize'}
+            >
+              {panelMinimized ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            </button>
+          </div>
+
+          {/* Filter dropdowns (collapsible) */}
+          {!panelMinimized && (
+            <div className="bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl p-3 grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Vendor</span>
+                <select value={localVendor} onChange={(e) => setLocalVendor(e.target.value)}
+                  className="bg-muted border border-border rounded-lg px-3 py-2 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                  {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">DOR</span>
+                <select value={localDor} onChange={(e) => setLocalDor(e.target.value)}
+                  className="bg-muted border border-border rounded-lg px-3 py-2 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                  {DORS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Plaque</span>
+                <select value={localPlaque} onChange={(e) => setLocalPlaque(e.target.value)}
+                  className="bg-muted border border-border rounded-lg px-3 py-2 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                  {PLAQUES.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Site</span>
+                <select value={localSite} onChange={(e) => setLocalSite(e.target.value)}
+                  className="bg-muted border border-border rounded-lg px-3 py-2 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                  {uniqueSiteNames.slice(0, 500).map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
             </div>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {filteredSites.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <Search size={28} className="mb-3 opacity-30" />
-                <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
-              </div>
-            ) : filteredSites.slice(0, 200).map(site => (
-              <div
-                key={site.site_id}
-                onClick={() => handleSiteClick(site)}
-                onMouseEnter={() => setHoveredSiteId(site.site_id)}
-                onMouseLeave={() => setHoveredSiteId(null)}
-                className={`px-5 py-4 border-b border-border/50 cursor-pointer transition-all hover:bg-primary/5 ${
-                  hoveredSiteId === site.site_id ? 'bg-primary/5' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
-                      <MapPin size={16} />
-                    </div>
-                    <div>
-                      <h4 className="text-[13px] font-bold text-foreground tracking-tight uppercase">{site.site_name}</h4>
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                        <span className="font-mono">{site.site_id}</span>
-                        <span className="uppercase">{site.vendor}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[15px] font-black tracking-tight" style={{ color: getQoEColor(site.qoe_score_avg) }}>
-                      {site.qoe_score_avg.toFixed(1)}%
-                    </span>
-                    <ChevronRight size={16} className="text-muted-foreground" />
-                  </div>
-                </div>
-              </div>
-            ))}
-            {filteredSites.length > 200 && (
-              <div className="px-5 py-4 text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                + {filteredSites.length - 200} more sites — zoom or filter to narrow
-              </div>
-            )}
-          </div>
-          <button
-            onClick={() => setShowSidePanel(false)}
-            className="absolute top-1/2 -right-4 w-4 h-10 bg-card border border-border rounded-r-lg flex items-center justify-center text-muted-foreground hover:text-primary shadow-md"
-          >
-            <ChevronLeft size={12} />
-          </button>
+          )}
         </div>
       )}
 
