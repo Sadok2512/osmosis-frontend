@@ -434,7 +434,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight text-foreground uppercase">Paramètres Système</h1>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Configuration & Diagnostics • OTARIE Platform</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Configuration & Diagnostics • QOEBIT Platform</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -893,7 +893,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <DetailRow label="Plateforme" value="OTARIE QoE Observatory" />
+              <DetailRow label="Plateforme" value="QOEBIT QoE Observatory" />
               <DetailRow label="Environnement" value="Production" badge="PROD" badgeColor="bg-emerald-500" />
               <DetailRow label="Framework" value="React 18 + TypeScript" />
               <DetailRow label="Cartographie" value="Leaflet 4.2.1" />
