@@ -200,16 +200,12 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         <SectionHeader title="Group By" number="4" open={sections.group} toggle={() => toggle('group')} />
         {sections.group && (
           <div className="pl-5 space-y-2 pb-3">
-            {[0, 1].map(idx => (
-              <Select key={idx}
-                value={config.groupBy[idx] || ''}
-                options={['', ...BI_DIMENSIONS] as any}
-                onChange={v => {
-                  const gb = [...config.groupBy];
-                  if (v) { gb[idx] = v as BIDimension; } else { gb.splice(idx, 1); }
-                  update({ groupBy: gb });
-                }} className="w-full" />
-            ))}
+            <Select
+              value={config.groupBy[0] || ''}
+              options={['', ...BI_DIMENSIONS] as any}
+              onChange={v => {
+                update({ groupBy: v ? [v as BIDimension] : [] });
+              }} className="w-full" />
           </div>
         )}
 
