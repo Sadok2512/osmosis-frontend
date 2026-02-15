@@ -49,12 +49,20 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     qoe_score_avg: seededRand(cellName + 'qoe', 55, 98),
     p95_rtt_ms: seededRand(cellName + 'rtt', 15, 180),
     traffic_up_bytes: seededRand(cellName + 'traf', 1e9, 5e10),
+    traffic_dn_bytes: seededRand(cellName + 'trafd', 5e9, 1e11),
     dms_dl_3: seededRand(cellName + 'dms3', 75, 99),
     dms_dl_8: seededRand(cellName + 'dms8', 55, 95),
     dms_dl_30: seededRand(cellName + 'dms30', 15, 55),
     dms_ul_3: seededRand(cellName + 'ul3', 65, 95),
     p50_thr_dn_mbps: seededRand(cellName + 'thr', 8, 120),
+    p50_thr_up_mbps: seededRand(cellName + 'thrup', 2, 40),
     sessions: Math.floor(seededRand(cellName + 'ses', 500, 50000)),
+    window_full_ratio: seededRand(cellName + 'wfr', 20, 95),
+    retransmission_rate: seededRand(cellName + 'retr', 0.5, 15),
+    tcp_loss_rate: seededRand(cellName + 'tcpl', 0.1, 8),
+    out_of_order_ratio: seededRand(cellName + 'ooo', 0.05, 5),
+    p25_rtt_ms: seededRand(cellName + 'rtt25', 5, 60),
+    p75_rtt_ms: seededRand(cellName + 'rtt75', 30, 120),
   };
 }
 
