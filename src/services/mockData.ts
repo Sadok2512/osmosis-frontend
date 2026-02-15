@@ -5,78 +5,97 @@ import {
   DetectorConfig, AnalyticsResponse, AnalyticsQuery, Filters, KPIType,
   TimeSeriesPoint, GeoJSONFeature
 } from '../types';
+import topoRaw from '../data/topoData';
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 const randInt = (min: number, max: number) => Math.floor(rand(min, max));
 const pick = <T>(arr: T[]): T => arr[randInt(0, arr.length)];
 
-const SITE_NAMES = [
-  'PARIS_DEFENSE', 'PARIS_NATION', 'LYON_PARTDIEU', 'LYON_CONFLUENCE',
-  'MARSEILLE_VIEUX_PORT', 'BORDEAUX_CENTRE', 'LILLE_FLANDRES',
-  'TOULOUSE_CAPITOLE', 'NICE_PROMENADE', 'NANTES_COMMERCE',
-  'STRASBOURG_GARE', 'MONTPELLIER_COMÉDIE', 'RENNES_REPUBLIQUE',
-  'GRENOBLE_ALPEXPO', 'DIJON_TOISON', 'CLERMONT_JAUDE',
-  'SAINT_ETIENNE_CHATEAUCREUX', 'TOURS_GRAMMONT', 'METZ_GARE', 'ROUEN_CENTRE'
-];
-
-const VENDORS = ['Ericsson', 'Nokia', 'Huawei'];
-const DORS = ['DOR IDF', 'DOR SUD', 'DOR OUEST', 'DOR EST'];
-const PLAQUES = ['PARIS', 'LYON', 'MARSEILLE', 'BORDEAUX', 'LILLE'];
-const DEPARTMENTS = ['75', '33', '69', '13', '59'];
-const TECHNOS = ['5G', '4G', '4G', '4G', '3G'];
-const BANDS = ['700', '800', '1800', '2100', '2600', '3500'];
-
-function generateCell(siteId: string, idx: number): CellProperties {
-  const techno = pick(TECHNOS);
-  return {
-    cell_id: `${siteId}_S${idx + 1}`,
-    techno,
-    bande: techno === '5G' ? '3500' : pick(BANDS.slice(0, 5)),
-    azimut: idx * (360 / 3) + randInt(-10, 10),
-    hba: randInt(20, 45),
-    qoe_score_avg: rand(55, 98),
-    p95_rtt_ms: rand(15, 180),
-    traffic_up_bytes: rand(1e9, 5e10),
-    dms_dl_3: rand(75, 99),
-    dms_dl_8: rand(55, 95),
-    dms_dl_30: rand(15, 55),
-    dms_ul_3: rand(65, 95),
-    p50_thr_dn_mbps: rand(8, 120),
-    sessions: randInt(500, 50000),
-  };
+// Seeded random for stable KPI values per cell
+function seededRand(seed: string, min: number, max: number): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  const x = Math.sin(hash) * 10000;
+  return min + (x - Math.floor(x)) * (max - min);
 }
 
-function generateSite(name: string, idx: number): SiteSummary {
-  const siteId = `SITE_${String(idx + 1).padStart(3, '0')}`;
-  const cellCount = randInt(3, 6);
-  const cells = Array.from({ length: cellCount }, (_, i) => generateCell(siteId, i));
-  const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
-  return {
-    site_id: siteId,
-    site_name: name,
-    vendor: pick(VENDORS),
-    dor: pick(DORS),
-    plaque: pick(PLAQUES),
-    department: pick(DEPARTMENTS),
-    cell_count: cellCount,
-    qoe_score_avg: avg(cells.map(c => c.qoe_score_avg)),
-    p50_thr_dn_mbps: avg(cells.map(c => c.p50_thr_dn_mbps)),
-    p50_thr_up_mbps: rand(5, 40),
-    dms_dl_3: avg(cells.map(c => c.dms_dl_3)),
-    dms_dl_8: avg(cells.map(c => c.dms_dl_8)),
-    dms_dl_30: avg(cells.map(c => c.dms_dl_30)),
-    dms_ul_3: avg(cells.map(c => c.dms_ul_3)),
-    coordinates: [48.83 + Math.random() * 0.06, 2.28 + Math.random() * 0.12] as [number, number],
-    cells,
-  };
+// Build sites from real topo data
+function buildSitesFromTopo(): SiteSummary[] {
+  const siteMap = new Map<string, typeof topoRaw>();
+
+  topoRaw.forEach(row => {
+    if (!siteMap.has(row.siteId)) siteMap.set(row.siteId, []);
+    siteMap.get(row.siteId)!.push(row);
+  });
+
+  const sites: SiteSummary[] = [];
+
+  siteMap.forEach((rows, siteId) => {
+    const first = rows[0];
+
+    // Use average coordinates of all cells for site center
+    const avgLat = rows.reduce((s, r) => s + r.lat, 0) / rows.length;
+    const avgLng = rows.reduce((s, r) => s + r.lng, 0) / rows.length;
+
+    const cells: CellProperties[] = rows.map(r => ({
+      cell_id: r.cellName,
+      techno: r.techno,
+      bande: r.bande,
+      azimut: r.azimut,
+      hba: r.hba,
+      qoe_score_avg: seededRand(r.cellName + 'qoe', 55, 98),
+      p95_rtt_ms: seededRand(r.cellName + 'rtt', 15, 180),
+      traffic_up_bytes: seededRand(r.cellName + 'traf', 1e9, 5e10),
+      dms_dl_3: seededRand(r.cellName + 'dms3', 75, 99),
+      dms_dl_8: seededRand(r.cellName + 'dms8', 55, 95),
+      dms_dl_30: seededRand(r.cellName + 'dms30', 15, 55),
+      dms_ul_3: seededRand(r.cellName + 'ul3', 65, 95),
+      p50_thr_dn_mbps: seededRand(r.cellName + 'thr', 8, 120),
+      sessions: Math.floor(seededRand(r.cellName + 'ses', 500, 50000)),
+    }));
+
+    const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+
+    // Determine DOR from region
+    const dorMap: Record<string, string> = {
+      'UPR Nord-Est': 'DOR EST',
+      'UPR Sud-Est': 'DOR SUD',
+      'UPR Ouest': 'DOR OUEST',
+      'UPR Sud-Ouest': 'DOR SUD',
+    };
+
+    sites.push({
+      site_id: siteId,
+      site_name: first.siteName,
+      vendor: first.vendor.charAt(0).toUpperCase() + first.vendor.slice(1),
+      dor: dorMap[first.region] || 'DOR IDF',
+      plaque: first.plaque,
+      department: first.plaque.replace('DEPT_', ''),
+      cell_count: cells.length,
+      qoe_score_avg: avg(cells.map(c => c.qoe_score_avg)),
+      p50_thr_dn_mbps: avg(cells.map(c => c.p50_thr_dn_mbps)),
+      p50_thr_up_mbps: seededRand(siteId + 'thrup', 5, 40),
+      dms_dl_3: avg(cells.map(c => c.dms_dl_3)),
+      dms_dl_8: avg(cells.map(c => c.dms_dl_8)),
+      dms_dl_30: avg(cells.map(c => c.dms_dl_30)),
+      dms_ul_3: avg(cells.map(c => c.dms_ul_3)),
+      coordinates: [avgLat, avgLng] as [number, number],
+      cells,
+    });
+  });
+
+  return sites;
 }
 
-// Cache sites so they're stable across renders
 let cachedSites: SiteSummary[] | null = null;
 
 function getSites(): SiteSummary[] {
   if (!cachedSites) {
-    cachedSites = SITE_NAMES.map((name, i) => generateSite(name, i));
+    cachedSites = buildSitesFromTopo();
   }
   return cachedSites;
 }
@@ -89,10 +108,9 @@ export function fetchSiteDetails(siteId: string): Promise<SiteDetail> {
   const site = getSites().find(s => s.site_id === siteId) || getSites()[0];
   return Promise.resolve({
     ...site,
-    coordinates: [-0.57918 + rand(-0.05, 0.05), 44.83778 + rand(-0.05, 0.05)] as [number, number],
-    traffic_dn_bytes: rand(1e12, 8e12),
-    traffic_up_bytes: rand(1e11, 2e12),
-    p95_rtt_ms: rand(20, 150),
+    traffic_dn_bytes: seededRand(siteId + 'vol', 1e12, 8e12),
+    traffic_up_bytes: seededRand(siteId + 'volup', 1e11, 2e12),
+    p95_rtt_ms: seededRand(siteId + 'rtt', 20, 150),
   });
 }
 
@@ -151,23 +169,28 @@ export function fetchDashboardSnapshot(_filters: Filters): Promise<Record<string
 }
 
 export function fetchGlobalDistributions(_filters: Filters): Promise<Record<string, any>> {
+  const sites = getSites();
+  const vendors = [...new Set(sites.map(s => s.vendor))];
+  const technos = [...new Set(sites.flatMap(s => s.cells.map(c => c.techno)))];
+  const plaques = [...new Set(sites.map(s => s.plaque))];
   return Promise.resolve({
-    vendor: VENDORS.map(v => ({ name: v, value: randInt(20, 40) })),
-    technology: ['5G', '4G', '3G'].map(t => ({ name: t, value: randInt(15, 50) })),
-    region: PLAQUES.map(p => ({ name: p, qoe: rand(70, 95) })),
+    vendor: vendors.map(v => ({ name: v, value: sites.filter(s => s.vendor === v).length })),
+    technology: technos.map(t => ({ name: t, value: sites.flatMap(s => s.cells).filter(c => c.techno === t).length })),
+    region: plaques.slice(0, 5).map(p => ({ name: p, qoe: rand(70, 95) })),
   });
 }
 
 export function fetchAlerts(_filters: Filters): Promise<Alert[]> {
   const severities: Alert['severity'][] = ['CRITIQUE', 'ELEVEE', 'MOYENNE', 'FAIBLE'];
   const statuses: Alert['status'][] = ['NEW', 'ACK', 'RESOLVED', 'FALSE_POSITIVE'];
+  const sites = getSites();
   return Promise.resolve(
     Array.from({ length: 12 }, (_, i) => ({
       alert_id: `ALT-${String(i + 1).padStart(3, '0')}`,
       severity: severities[i % 4],
       scope_type: pick(['CELL', 'SITE', 'REGION']),
-      scope_id: `SITE_${String(randInt(1, 20)).padStart(3, '0')}`,
-      scope_name: pick(SITE_NAMES),
+      scope_id: sites[i % sites.length].site_id,
+      scope_name: sites[i % sites.length].site_name,
       primary_kpi: pick(['qoe_score_avg', 'dms_dl_8', 'p95_rtt_ms', 'loss_dn_sum']),
       baseline: rand(75, 92),
       current: rand(45, 80),
@@ -196,7 +219,7 @@ export function fetchTCPAnalytics(_filters: Filters): Promise<TCPAnalyticsData> 
     ],
     distributions: {},
     worst_cells: Array.from({ length: 5 }, (_, i) => ({
-      name: `CELL_${pick(SITE_NAMES).split('_')[0]}_S${i + 1}`,
+      name: `CELL_${getSites()[i % getSites().length].site_name}_S${i + 1}`,
       id: `C${randInt(1000, 9999)}`,
       value: `${rand(1, 8).toFixed(2)}%`,
       qoe_impact: `-${rand(2, 15).toFixed(1)}%`,
@@ -249,13 +272,14 @@ export function fetchTrafficOverview(_filters: Filters): Promise<TrafficTypeStat
 }
 
 export function fetchSubscriberProfile(_hash: string): Promise<SubscriberExperienceData> {
+  const sites = getSites();
   return Promise.resolve({
     total_traffic_gb: rand(5, 50),
     qoe_global: rand(65, 95),
     top_app: pick(['Netflix', 'YouTube', 'TikTok', 'Instagram']),
     sessions: Array.from({ length: 6 }, (_, i) => ({
       type: pick(['Streaming', 'Gaming', 'Web', 'Social']),
-      cell: `CELL_${pick(SITE_NAMES).split('_')[0]}_S${randInt(1, 4)}`,
+      cell: `CELL_${sites[i % sites.length].site_name}_S${randInt(1, 4)}`,
       rtt: randInt(15, 250),
       loss: rand(0, 2),
       status: rand(0, 1) > 0.3 ? 'OK' : 'DEGRADED',
@@ -298,10 +322,10 @@ export function fetchAnalyticsQuery(query: AnalyticsQuery): Promise<AnalyticsRes
 function getLabelsForAggregation(agg: string): string[] {
   switch (agg) {
     case 'date': return Array.from({ length: 14 }, (_, i) => { const d = new Date('2026-02-10'); d.setDate(d.getDate() - (13 - i)); return d.toISOString().slice(5, 10); });
-    case 'vendor': return ['Ericsson', 'Nokia', 'Huawei'];
-    case 'dor': return ['DOR IDF', 'DOR SUD', 'DOR OUEST', 'DOR EST'];
-    case 'department': return ['75', '33', '69', '13', '59'];
-    case 'plaque': return ['PARIS', 'LYON', 'MARSEILLE', 'BORDEAUX', 'LILLE'];
+    case 'vendor': return [...new Set(getSites().map(s => s.vendor))];
+    case 'dor': return [...new Set(getSites().map(s => s.dor))];
+    case 'department': return [...new Set(getSites().map(s => s.department))];
+    case 'plaque': return [...new Set(getSites().map(s => s.plaque))];
     case 'traffic_type': return ['Streaming', 'Gaming', 'Web', 'Social', 'Cloud'];
     case 'rat': return ['5G', '4G', '3G', '2G'];
     default: return Array.from({ length: 10 }, (_, i) => `Item ${i + 1}`);
@@ -312,12 +336,12 @@ function getLabelsForAggregation(agg: string): string[] {
 export function generateMapFeatures(sites: SiteSummary[]): GeoJSONFeature[] {
   const features: GeoJSONFeature[] = [];
   sites.forEach((s) => {
-    s.cells.forEach((cell, idx) => {
+    s.cells.forEach((cell) => {
       features.push({
         type: 'Feature',
         geometry: {
           type: 'Point',
-          coordinates: [-0.57918 + (Math.random() - 0.5) * 0.1, 44.83778 + (Math.random() - 0.5) * 0.1]
+          coordinates: [s.coordinates[1], s.coordinates[0]] // [lng, lat]
         },
         properties: {
           cell_id: cell.cell_id,
