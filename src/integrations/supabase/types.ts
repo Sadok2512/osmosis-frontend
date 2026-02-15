@@ -14,7 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      topo: {
+        Row: {
+          azimut: number | null
+          bande: string | null
+          code_nidt: string
+          constructeur: string | null
+          created_at: string | null
+          date_fn8: string | null
+          date_mes: string | null
+          hba: number | null
+          id: number
+          latitude: number | null
+          longitude: number | null
+          nom_cellule: string
+          nom_site: string
+          plaque: string | null
+          region: string | null
+          tac: number | null
+          techno: string | null
+        }
+        Insert: {
+          azimut?: number | null
+          bande?: string | null
+          code_nidt: string
+          constructeur?: string | null
+          created_at?: string | null
+          date_fn8?: string | null
+          date_mes?: string | null
+          hba?: number | null
+          id?: never
+          latitude?: number | null
+          longitude?: number | null
+          nom_cellule: string
+          nom_site: string
+          plaque?: string | null
+          region?: string | null
+          tac?: number | null
+          techno?: string | null
+        }
+        Update: {
+          azimut?: number | null
+          bande?: string | null
+          code_nidt?: string
+          constructeur?: string | null
+          created_at?: string | null
+          date_fn8?: string | null
+          date_mes?: string | null
+          hba?: number | null
+          id?: never
+          latitude?: number | null
+          longitude?: number | null
+          nom_cellule?: string
+          nom_site?: string
+          plaque?: string | null
+          region?: string | null
+          tac?: number | null
+          techno?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

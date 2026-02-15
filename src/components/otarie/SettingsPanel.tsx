@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Settings, Server, Wifi, WifiOff, Clock, Building2, Users, Tag,
   CalendarDays, Activity, CheckCircle2, XCircle, RefreshCw, Zap,
-  Globe, Database, Shield, Heart, ArrowRight, Play, BarChart3, Palette, Moon, Sun, Monitor
+  Globe, Database, Shield, Heart, ArrowRight, Play, BarChart3, Palette, Moon, Sun, Monitor,
+  Upload, FileSpreadsheet, Trash2, MapPin
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { supabase } from '@/integrations/supabase/client';
 import type { SidebarTheme, AccentColor } from '../../pages/Index';
 
 interface SettingsPanelProps {
@@ -51,10 +54,21 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
   );
   const [isTestingAll, setIsTestingAll] = useState(false);
   const [systemTime, setSystemTime] = useState(new Date());
+  const [topoImporting, setTopoImporting] = useState(false);
+  const [topoStatus, setTopoStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
+  const [topoCount, setTopoCount] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setSystemTime(new Date()), 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Load topo count
+  useEffect(() => {
+    supabase.from('topo').select('id', { count: 'exact', head: true }).then(({ count }) => {
+      setTopoCount(count ?? 0);
+    });
   }, []);
 
   const testEndpoint = useCallback(async (index: number) => {
@@ -97,6 +111,82 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
     if (ms < 200) return 'bg-emerald-500/10';
     if (ms < 500) return 'bg-amber-500/10';
     return 'bg-red-500/10';
+  };
+
+  const handleTopoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setTopoImporting(true);
+    setTopoStatus({ message: 'Lecture du fichier Excel...', type: 'info' });
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonRows: any[] = XLSX.utils.sheet_to_json(sheet);
+
+      setTopoStatus({ message: `${jsonRows.length} lignes lues. Import en cours...`, type: 'info' });
+
+      // Map Excel columns to DB columns
+      const rows = jsonRows.map((r: any) => {
+        // Handle Excel date serial numbers
+        const parseDate = (val: any) => {
+          if (!val) return null;
+          if (typeof val === 'number') {
+            const d = XLSX.SSF.parse_date_code(val);
+            if (d) return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+          }
+          return String(val);
+        };
+        return {
+          code_nidt: r['Code NIDT'] || '',
+          nom_site: r['Nom Site'] || '',
+          region: r['Région'] || null,
+          longitude: r['longitude'] ? parseFloat(r['longitude']) : null,
+          latitude: r['latitude'] ? parseFloat(r['latitude']) : null,
+          nom_cellule: r['Nom Cellule'] || '',
+          techno: r['Techno'] || null,
+          bande: r['Bande'] || null,
+          constructeur: r['Constructeur'] || null,
+          azimut: r['Azimut'] != null ? parseInt(r['Azimut']) : null,
+          date_mes: parseDate(r['Date MES']),
+          date_fn8: parseDate(r['Date FN8']),
+          plaque: r['Plaque'] || null,
+          hba: r['HBA'] != null ? parseInt(r['HBA']) : null,
+          tac: r['TAC'] != null ? parseInt(r['TAC']) : null,
+        };
+      });
+
+      // Call edge function
+      const { data: result, error } = await supabase.functions.invoke('import-topo', {
+        body: { rows, clear_before: true },
+      });
+
+      if (error) throw error;
+
+      setTopoCount(result.inserted);
+      setTopoStatus({ message: `✓ ${result.inserted} cellules importées avec succès`, type: 'success' });
+    } catch (err: any) {
+      setTopoStatus({ message: `Erreur: ${err.message}`, type: 'error' });
+    } finally {
+      setTopoImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleClearTopo = async () => {
+    if (!confirm('Supprimer toutes les données topologiques ?')) return;
+    setTopoImporting(true);
+    try {
+      const { error } = await supabase.from('topo').delete().neq('id', 0);
+      if (error) throw error;
+      setTopoCount(0);
+      setTopoStatus({ message: 'Données topologiques supprimées', type: 'info' });
+    } catch (err: any) {
+      setTopoStatus({ message: `Erreur: ${err.message}`, type: 'error' });
+    } finally {
+      setTopoImporting(false);
+    }
   };
 
   return (
@@ -244,6 +334,67 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               <HealthMetric label="Dernière MàJ" value="15 fév. 2026" color="text-sidebar-primary" />
             </div>
           </div>
+        </div>
+
+        {/* Topologie Réseau Import */}
+        <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Topologie Réseau</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Importer les données de sites et cellules</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {topoCount !== null && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl">
+                  <Database className="w-4 h-4 text-primary" />
+                  <span className="text-[11px] font-black text-primary">{topoCount.toLocaleString()} cellules</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleTopoUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={topoImporting}
+              className="flex items-center gap-3 px-6 py-3 bg-primary text-primary-foreground rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50 shadow-lg"
+            >
+              {topoImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {topoImporting ? 'Import en cours...' : 'Importer Fichier Excel'}
+            </button>
+            {topoCount !== null && topoCount > 0 && (
+              <button
+                onClick={handleClearTopo}
+                disabled={topoImporting}
+                className="flex items-center gap-2 px-4 py-3 bg-red-500/10 text-red-500 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                Vider
+              </button>
+            )}
+          </div>
+
+          {topoStatus && (
+            <div className={`mt-4 px-4 py-3 rounded-xl text-[11px] font-bold ${
+              topoStatus.type === 'success' ? 'bg-emerald-500/10 text-emerald-600' :
+              topoStatus.type === 'error' ? 'bg-red-500/10 text-red-500' :
+              'bg-primary/10 text-primary'
+            }`}>
+              {topoStatus.message}
+            </div>
+          )}
         </div>
 
         {/* Backend Connectivity Test */}
