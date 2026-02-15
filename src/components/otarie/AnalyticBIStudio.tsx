@@ -289,7 +289,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
           <div className="flex items-center gap-2">
             <LayoutGrid className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold text-foreground truncate max-w-[200px]">{dm.activeTab?.name}</span>
-            <span className="text-[10px] text-muted-foreground font-mono ml-2">{widgetCountLabel}</span>
+            
           </div>
           <div className="flex items-center gap-1">
             <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
