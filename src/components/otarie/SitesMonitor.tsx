@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { fetchSites, fetchSiteDetails } from '../../services/api';
 import { SiteSummary, SiteDetail, Filters } from '../../types';
@@ -16,6 +17,30 @@ interface SitesMonitorProps {
   onFilterChange: (filters: Filters) => void;
   onCellSelect: (cellId: string) => void;
 }
+
+// Generate sector polygon points (wedge shape)
+const getSectorCoords = (
+  center: [number, number],
+  azimuth: number, // degrees from north
+  radiusMeters: number = 300,
+  aperture: number = 65 // degrees width of sector
+): [number, number][] => {
+  const steps = 20;
+  const startAngle = azimuth - aperture / 2;
+  const endAngle = azimuth + aperture / 2;
+  const points: [number, number][] = [center];
+  
+  for (let i = 0; i <= steps; i++) {
+    const angle = startAngle + (endAngle - startAngle) * (i / steps);
+    const rad = (angle - 90) * (Math.PI / 180); // convert to math angle (0=east)
+    const dlat = (radiusMeters / 111320) * Math.cos(rad);
+    const dlng = (radiusMeters / (111320 * Math.cos(center[0] * Math.PI / 180))) * Math.sin(rad);
+    points.push([center[0] + dlat, center[1] + dlng]);
+  }
+  
+  points.push(center);
+  return points;
+};
 
 // Fly to a site when selected
 const FlyToSite = ({ coords }: { coords: [number, number] | null }) => {
@@ -186,35 +211,71 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
         />
         <FlyToSite coords={flyTarget} />
-        {filteredSites.map(site => (
-          <CircleMarker
-            key={site.site_id}
-            center={site.coordinates}
-            radius={hoveredSiteId === site.site_id ? 14 : 9}
-            pathOptions={{
-              color: hoveredSiteId === site.site_id ? '#1e293b' : getQoEColor(site.qoe_score_avg),
-              fillColor: getQoEColor(site.qoe_score_avg),
-              fillOpacity: 0.85,
-              weight: hoveredSiteId === site.site_id ? 3 : 2,
-            }}
-            eventHandlers={{
-              click: () => handleSiteClick(site),
-              mouseover: () => setHoveredSiteId(site.site_id),
-              mouseout: () => setHoveredSiteId(null),
-            }}
-          >
-            <Popup>
-              <div className="p-1">
-                <div className="font-bold text-sm">{site.site_name}</div>
-                <div className="text-xs text-gray-500 mt-1">{site.site_id} • {site.vendor}</div>
-                <div className="text-sm font-bold mt-2" style={{ color: getQoEColor(site.qoe_score_avg) }}>
-                  QoE: {site.qoe_score_avg.toFixed(1)}%
-                </div>
-                <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
-              </div>
-            </Popup>
-          </CircleMarker>
-        ))}
+        {filteredSites.map(site => {
+          const isHovered = hoveredSiteId === site.site_id;
+          return (
+            <React.Fragment key={site.site_id}>
+              {/* Sector wedges for each cell */}
+              {site.cells.map(cell => {
+                const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, 350, 65);
+                const color = getQoEColor(cell.qoe_score_avg);
+                return (
+                  <Polygon
+                    key={cell.cell_id}
+                    positions={sectorCoords}
+                    pathOptions={{
+                      color: color,
+                      fillColor: color,
+                      fillOpacity: isHovered ? 0.35 : 0.2,
+                      weight: isHovered ? 2 : 1,
+                      dashArray: '6 4',
+                    }}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -10]} permanent={false}>
+                      <div className="text-center">
+                        <div className="font-bold text-xs">{cell.azimut}° {cell.techno}</div>
+                        <div className="text-[10px]">{cell.bande} MHz</div>
+                        <div className="font-bold text-xs" style={{ color }}>QoE: {cell.qoe_score_avg.toFixed(1)}%</div>
+                      </div>
+                    </Tooltip>
+                  </Polygon>
+                );
+              })}
+              {/* Center site dot */}
+              <CircleMarker
+                center={site.coordinates}
+                radius={isHovered ? 7 : 5}
+                pathOptions={{
+                  color: '#1e293b',
+                  fillColor: getQoEColor(site.qoe_score_avg),
+                  fillOpacity: 1,
+                  weight: 2,
+                }}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Popup>
+                  <div className="p-1">
+                    <div className="font-bold text-sm">{site.site_name}</div>
+                    <div className="text-xs text-gray-500 mt-1">{site.site_id} • {site.vendor}</div>
+                    <div className="text-sm font-bold mt-2" style={{ color: getQoEColor(site.qoe_score_avg) }}>
+                      QoE: {site.qoe_score_avg.toFixed(1)}%
+                    </div>
+                    <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            </React.Fragment>
+          );
+        })}
       </MapContainer>
 
       {/* Floating top bar */}
