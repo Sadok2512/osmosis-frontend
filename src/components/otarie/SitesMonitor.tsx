@@ -155,7 +155,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     },
   };
 
-  const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G'>('ALL');
+  const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'NONE'>('ALL');
 
   const MAP_KPIS = [
     { id: 'qoe_score_avg', label: 'Score QoE Global', category: 'QUALITY' },
@@ -242,7 +242,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
       const matchesLocalSite = localSite === 'ALL' || s.site_name === localSite;
-      const matchesTechnoFilter = mapTechnoFilter === 'ALL' || s.cells.some(c => c.techno === mapTechnoFilter);
+      const matchesTechnoFilter = mapTechnoFilter === 'NONE' ? false : mapTechnoFilter === 'ALL' || s.cells.some(c => c.techno === mapTechnoFilter);
       return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite && matchesTechnoFilter;
     });
   }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite, mapTechnoFilter]);
@@ -559,7 +559,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {(['ALL', '5G', '4G'] as const).map((tech) => (
               <button
                 key={tech}
-                onClick={() => setMapTechnoFilter(tech)}
+                onClick={() => setMapTechnoFilter(prev => prev === tech ? 'NONE' : tech)}
                 className={`w-10 h-10 flex items-center justify-center text-[10px] font-black tracking-wider transition-all ${
                   mapTechnoFilter === tech
                     ? 'bg-primary text-primary-foreground'
