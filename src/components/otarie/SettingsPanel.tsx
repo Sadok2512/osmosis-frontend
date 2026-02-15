@@ -3,7 +3,8 @@ import {
   Settings, Server, Wifi, WifiOff, Clock, Building2, Users, Tag,
   CalendarDays, Activity, CheckCircle2, XCircle, RefreshCw, Zap,
   Globe, Database, Shield, Heart, ArrowRight, Play, BarChart3, Palette, Moon, Sun, Monitor,
-  Upload, FileSpreadsheet, Trash2, MapPin, Radio, Antenna, Signal, Gauge, Waves, Search
+  Upload, FileSpreadsheet, Trash2, MapPin, Radio, Antenna, Signal, Gauge, Waves, Search,
+  X, ChevronDown, ChevronRight, Eye, EyeOff
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,78 +68,82 @@ const DIMENSIONS_CONFIG: { icon: React.ReactNode; title: string; values: string[
   { icon: <Tag className="w-4 h-4" />, title: 'VENDOR', values: ['Ericsson','Nokia','Ransharing','Samsung'] },
 ];
 
-const METRICS_CONFIG: { name: string; id: string; numColors: number; thresholds: number[]; colors: string[] }[] = [
-  // TRAFFIC & VOLUME
-  { name: 'Volume Totale', id: 'volume_totale', numColors: 4, thresholds: [30,60,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Débit DL', id: 'debit_dl', numColors: 4, thresholds: [3,8,30,100], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Débit UL', id: 'debit_ul', numColors: 4, thresholds: [1,3,10,50], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'DL/UL Ratio', id: 'dl_ul_ratio', numColors: 4, thresholds: [1,3,5,10], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Débit DL Max', id: 'debit_dl_max', numColors: 4, thresholds: [10,30,100,300], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Débit UL Max', id: 'debit_ul_max', numColors: 4, thresholds: [5,10,50,100], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  // RTT
-  { name: 'RTT Setup Avg', id: 'rtt_setup_avg', numColors: 4, thresholds: [40,80,150,300], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'RTT Data Avg', id: 'rtt_data_avg', numColors: 4, thresholds: [40,80,150,300], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'RTT Setup <40ms', id: 'rtt_setup_40', numColors: 1, thresholds: [40], colors: ['#10b981'] },
-  { name: 'RTT Setup 40-80', id: 'rtt_setup_40_80', numColors: 1, thresholds: [80], colors: ['#3b82f6'] },
-  { name: 'RTT Setup 80-150', id: 'rtt_setup_80_150', numColors: 1, thresholds: [150], colors: ['#f59e0b'] },
-  { name: 'RTT Setup 150-300', id: 'rtt_setup_150_300', numColors: 1, thresholds: [300], colors: ['#ef4444'] },
-  { name: 'RTT Setup >300', id: 'rtt_setup_300', numColors: 1, thresholds: [300], colors: ['#dc2626'] },
-  { name: 'RTT Data <40ms', id: 'rtt_data_40', numColors: 1, thresholds: [40], colors: ['#10b981'] },
-  { name: 'RTT Data 40-80', id: 'rtt_data_40_80', numColors: 1, thresholds: [80], colors: ['#3b82f6'] },
-  { name: 'RTT Data 80-150', id: 'rtt_data_80_150', numColors: 1, thresholds: [150], colors: ['#f59e0b'] },
-  { name: 'RTT Data 150-300', id: 'rtt_data_150_300', numColors: 1, thresholds: [300], colors: ['#ef4444'] },
-  { name: 'RTT Data >300', id: 'rtt_data_300', numColors: 1, thresholds: [300], colors: ['#dc2626'] },
-  // LOSS
-  { name: 'Loss DL Rate', id: 'loss_dl_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Loss UL Rate', id: 'loss_ul_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Loss UL <1%', id: 'loss_ul_1', numColors: 1, thresholds: [1], colors: ['#10b981'] },
-  { name: 'Loss UL <3%', id: 'loss_ul_3', numColors: 1, thresholds: [3], colors: ['#3b82f6'] },
-  { name: 'Loss UL <5%', id: 'loss_ul_5', numColors: 1, thresholds: [5], colors: ['#f59e0b'] },
-  { name: 'Loss UL <10%', id: 'loss_ul_10', numColors: 1, thresholds: [10], colors: ['#ef4444'] },
-  { name: 'Loss DL <1%', id: 'loss_dl_1', numColors: 1, thresholds: [1], colors: ['#10b981'] },
-  { name: 'Loss DL <3%', id: 'loss_dl_3', numColors: 1, thresholds: [3], colors: ['#3b82f6'] },
-  { name: 'Loss DL <5%', id: 'loss_dl_5', numColors: 1, thresholds: [5], colors: ['#f59e0b'] },
-  { name: 'Loss DL <10%', id: 'loss_dl_10', numColors: 1, thresholds: [10], colors: ['#ef4444'] },
-  // TCP
-  { name: 'TCP Retr <1%', id: 'tcp_retr_rate_1', numColors: 1, thresholds: [1], colors: ['#10b981'] },
-  { name: 'TCP Retr <3%', id: 'tcp_retr_rate_3', numColors: 1, thresholds: [3], colors: ['#3b82f6'] },
-  { name: 'TCP Retr <5%', id: 'tcp_retr_rate_5', numColors: 1, thresholds: [5], colors: ['#f59e0b'] },
-  { name: 'TCP Retr <10%', id: 'tcp_retr_rate_10', numColors: 1, thresholds: [10], colors: ['#ef4444'] },
-  // DMS
-  { name: 'DMS DL >30 Mbps', id: 'dms_dl_30', numColors: 4, thresholds: [10,30,50,75], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'DMS DL >8 Mbps', id: 'dms_dl_8', numColors: 4, thresholds: [30,50,70,90], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'DMS DL >3 Mbps', id: 'dms_dl_3', numColors: 4, thresholds: [50,70,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'DMS UL >5 Mbps', id: 'dms_ul_5', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'DMS UL >3 Mbps', id: 'dms_ul_3', numColors: 4, thresholds: [30,50,70,90], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'DMS UL >1 Mbps', id: 'dms_ul_1', numColors: 4, thresholds: [50,70,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  // SESSIONS
-  { name: 'Sessions 3G/2G', id: 'session_3g2g_nbr', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Sessions 4G', id: 'session_4g_nbr', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Sessions 5G', id: 'session_5g_nbr', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Nb Sessions', id: 'session_nbr', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Durée Moy Session', id: 'session_dur_moy', numColors: 4, thresholds: [10,30,60,120], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Session DCR', id: 'session_dcr', numColors: 4, thresholds: [0.5,1,3,5], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  // MOBILITY & FALLBACK
-  { name: 'Fallback 5G→4G Rate', id: 'fallback_5G_to_4G_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Fallback 4G→3G/2G Rate', id: 'fallback_4G_to_3G2G_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Instability Rate', id: 'instability_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Nbr Fallback 5G→4G', id: 'nbr_fullback_5g_4g', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Nbr Fallback 4G→3G/2G', id: 'nbr_fullback_4g_3g2g', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  // RAT TIME
-  { name: 'Time RAT 5G %', id: 'time_rat_5g_%', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Time RAT 4G %', id: 'time_rat_4g_%', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Time RAT 3G/2G %', id: 'time_rat_3G2G_%', numColors: 4, thresholds: [1,5,10,20], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  // QOE & QUALITY
-  { name: 'Bad Session Rate', id: 'bad_session_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Bad Session Nbr', id: 'bad_session_nbr', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'QoE Index', id: 'qoe_index', numColors: 4, thresholds: [40,60,80,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: '5G Capable Rate', id: '5G_capable_rate', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: '5GUE Attached 4G Rate', id: '5gue_attached_4G_rate', numColors: 4, thresholds: [5,15,30,50], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  // TCP WINDOW & ORDER
-  { name: 'Out of Order Nbr', id: 'out_of_order_nbr', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Out of Order Rate', id: 'out_of_order_rate', numColors: 4, thresholds: [0.5,1,3,5], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Window Full Nbr', id: 'wind_full_nbr', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Window Full Rate', id: 'wind_full_rate', numColors: 4, thresholds: [5,15,30,50], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+type MetricCategory = 'Traffic' | 'RTT' | 'Loss' | 'TCP' | 'DMS' | 'Sessions' | 'Mobility' | 'RAT Time' | 'QoE';
+
+const METRIC_CATEGORIES: { id: MetricCategory; label: string; icon: React.ReactNode }[] = [
+  { id: 'Traffic', label: 'Traffic & Volume', icon: <BarChart3 className="w-4 h-4" /> },
+  { id: 'RTT', label: 'Round-Trip Time', icon: <Clock className="w-4 h-4" /> },
+  { id: 'Loss', label: 'Packet Loss', icon: <XCircle className="w-4 h-4" /> },
+  { id: 'TCP', label: 'TCP Performance', icon: <Activity className="w-4 h-4" /> },
+  { id: 'DMS', label: 'DMS Compliance', icon: <Shield className="w-4 h-4" /> },
+  { id: 'Sessions', label: 'Sessions', icon: <Users className="w-4 h-4" /> },
+  { id: 'Mobility', label: 'Mobility & Fallback', icon: <Antenna className="w-4 h-4" /> },
+  { id: 'RAT Time', label: 'RAT Time', icon: <Signal className="w-4 h-4" /> },
+  { id: 'QoE', label: 'Quality & QoE', icon: <Gauge className="w-4 h-4" /> },
+];
+
+const METRICS_CONFIG: { name: string; id: string; numColors: number; thresholds: number[]; colors: string[]; category: MetricCategory }[] = [
+  { name: 'Volume Totale', id: 'volume_totale', category: 'Traffic', numColors: 4, thresholds: [30,60,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Débit DL', id: 'debit_dl', category: 'Traffic', numColors: 4, thresholds: [3,8,30,100], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Débit UL', id: 'debit_ul', category: 'Traffic', numColors: 4, thresholds: [1,3,10,50], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DL/UL Ratio', id: 'dl_ul_ratio', category: 'Traffic', numColors: 4, thresholds: [1,3,5,10], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Débit DL Max', id: 'debit_dl_max', category: 'Traffic', numColors: 4, thresholds: [10,30,100,300], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Débit UL Max', id: 'debit_ul_max', category: 'Traffic', numColors: 4, thresholds: [5,10,50,100], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'RTT Setup Avg', id: 'rtt_setup_avg', category: 'RTT', numColors: 4, thresholds: [40,80,150,300], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'RTT Data Avg', id: 'rtt_data_avg', category: 'RTT', numColors: 4, thresholds: [40,80,150,300], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'RTT Setup <40ms', id: 'rtt_setup_40', category: 'RTT', numColors: 1, thresholds: [40], colors: ['#10b981'] },
+  { name: 'RTT Setup 40-80', id: 'rtt_setup_40_80', category: 'RTT', numColors: 1, thresholds: [80], colors: ['#3b82f6'] },
+  { name: 'RTT Setup 80-150', id: 'rtt_setup_80_150', category: 'RTT', numColors: 1, thresholds: [150], colors: ['#f59e0b'] },
+  { name: 'RTT Setup 150-300', id: 'rtt_setup_150_300', category: 'RTT', numColors: 1, thresholds: [300], colors: ['#ef4444'] },
+  { name: 'RTT Setup >300', id: 'rtt_setup_300', category: 'RTT', numColors: 1, thresholds: [300], colors: ['#dc2626'] },
+  { name: 'RTT Data <40ms', id: 'rtt_data_40', category: 'RTT', numColors: 1, thresholds: [40], colors: ['#10b981'] },
+  { name: 'RTT Data 40-80', id: 'rtt_data_40_80', category: 'RTT', numColors: 1, thresholds: [80], colors: ['#3b82f6'] },
+  { name: 'RTT Data 80-150', id: 'rtt_data_80_150', category: 'RTT', numColors: 1, thresholds: [150], colors: ['#f59e0b'] },
+  { name: 'RTT Data 150-300', id: 'rtt_data_150_300', category: 'RTT', numColors: 1, thresholds: [300], colors: ['#ef4444'] },
+  { name: 'RTT Data >300', id: 'rtt_data_300', category: 'RTT', numColors: 1, thresholds: [300], colors: ['#dc2626'] },
+  { name: 'Loss DL Rate', id: 'loss_dl_rate', category: 'Loss', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Loss UL Rate', id: 'loss_ul_rate', category: 'Loss', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Loss UL <1%', id: 'loss_ul_1', category: 'Loss', numColors: 1, thresholds: [1], colors: ['#10b981'] },
+  { name: 'Loss UL <3%', id: 'loss_ul_3', category: 'Loss', numColors: 1, thresholds: [3], colors: ['#3b82f6'] },
+  { name: 'Loss UL <5%', id: 'loss_ul_5', category: 'Loss', numColors: 1, thresholds: [5], colors: ['#f59e0b'] },
+  { name: 'Loss UL <10%', id: 'loss_ul_10', category: 'Loss', numColors: 1, thresholds: [10], colors: ['#ef4444'] },
+  { name: 'Loss DL <1%', id: 'loss_dl_1', category: 'Loss', numColors: 1, thresholds: [1], colors: ['#10b981'] },
+  { name: 'Loss DL <3%', id: 'loss_dl_3', category: 'Loss', numColors: 1, thresholds: [3], colors: ['#3b82f6'] },
+  { name: 'Loss DL <5%', id: 'loss_dl_5', category: 'Loss', numColors: 1, thresholds: [5], colors: ['#f59e0b'] },
+  { name: 'Loss DL <10%', id: 'loss_dl_10', category: 'Loss', numColors: 1, thresholds: [10], colors: ['#ef4444'] },
+  { name: 'TCP Retr <1%', id: 'tcp_retr_rate_1', category: 'TCP', numColors: 1, thresholds: [1], colors: ['#10b981'] },
+  { name: 'TCP Retr <3%', id: 'tcp_retr_rate_3', category: 'TCP', numColors: 1, thresholds: [3], colors: ['#3b82f6'] },
+  { name: 'TCP Retr <5%', id: 'tcp_retr_rate_5', category: 'TCP', numColors: 1, thresholds: [5], colors: ['#f59e0b'] },
+  { name: 'TCP Retr <10%', id: 'tcp_retr_rate_10', category: 'TCP', numColors: 1, thresholds: [10], colors: ['#ef4444'] },
+  { name: 'Out of Order Nbr', id: 'out_of_order_nbr', category: 'TCP', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Out of Order Rate', id: 'out_of_order_rate', category: 'TCP', numColors: 4, thresholds: [0.5,1,3,5], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Window Full Nbr', id: 'wind_full_nbr', category: 'TCP', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Window Full Rate', id: 'wind_full_rate', category: 'TCP', numColors: 4, thresholds: [5,15,30,50], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'DMS DL >30 Mbps', id: 'dms_dl_30', category: 'DMS', numColors: 4, thresholds: [10,30,50,75], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DMS DL >8 Mbps', id: 'dms_dl_8', category: 'DMS', numColors: 4, thresholds: [30,50,70,90], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DMS DL >3 Mbps', id: 'dms_dl_3', category: 'DMS', numColors: 4, thresholds: [50,70,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DMS UL >5 Mbps', id: 'dms_ul_5', category: 'DMS', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DMS UL >3 Mbps', id: 'dms_ul_3', category: 'DMS', numColors: 4, thresholds: [30,50,70,90], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DMS UL >1 Mbps', id: 'dms_ul_1', category: 'DMS', numColors: 4, thresholds: [50,70,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Sessions 3G/2G', id: 'session_3g2g_nbr', category: 'Sessions', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Sessions 4G', id: 'session_4g_nbr', category: 'Sessions', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Sessions 5G', id: 'session_5g_nbr', category: 'Sessions', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Nb Sessions', id: 'session_nbr', category: 'Sessions', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Durée Moy Session', id: 'session_dur_moy', category: 'Sessions', numColors: 4, thresholds: [10,30,60,120], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Session DCR', id: 'session_dcr', category: 'Sessions', numColors: 4, thresholds: [0.5,1,3,5], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Fallback 5G→4G Rate', id: 'fallback_5G_to_4G_rate', category: 'Mobility', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Fallback 4G→3G/2G Rate', id: 'fallback_4G_to_3G2G_rate', category: 'Mobility', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Instability Rate', id: 'instability_rate', category: 'Mobility', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Nbr Fallback 5G→4G', id: 'nbr_fullback_5g_4g', category: 'Mobility', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Nbr Fallback 4G→3G/2G', id: 'nbr_fullback_4g_3g2g', category: 'Mobility', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Time RAT 5G %', id: 'time_rat_5g_%', category: 'RAT Time', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Time RAT 4G %', id: 'time_rat_4g_%', category: 'RAT Time', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Time RAT 3G/2G %', id: 'time_rat_3G2G_%', category: 'RAT Time', numColors: 4, thresholds: [1,5,10,20], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Bad Session Rate', id: 'bad_session_rate', category: 'QoE', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Bad Session Nbr', id: 'bad_session_nbr', category: 'QoE', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'QoE Index', id: 'qoe_index', category: 'QoE', numColors: 4, thresholds: [40,60,80,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: '5G Capable Rate', id: '5G_capable_rate', category: 'QoE', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: '5GUE Attached 4G Rate', id: '5gue_attached_4G_rate', category: 'QoE', numColors: 4, thresholds: [5,15,30,50], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
 ];
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarTheme, accentColor, setAccentColor }) => {
@@ -153,6 +158,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [settingsTab, setSettingsTab] = useState<'style' | 'data' | 'system'>('style');
   const [metricSearch, setMetricSearch] = useState('');
+  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(() => new Set(METRICS_CONFIG.map(m => m.id)));
+  const [editingMetric, setEditingMetric] = useState<string | null>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<MetricCategory>>(new Set());
 
   // Dimension toggle state — each dimension category has an array of selected values
   const [selectedDimensions, setSelectedDimensions] = useState<Record<string, string[]>>(() => {
@@ -181,6 +189,32 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
     });
   };
 
+  const toggleMetric = (id: string) => {
+    setSelectedMetrics(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleCategoryMetrics = (category: MetricCategory) => {
+    const categoryMetrics = metricsConfig.filter(m => m.category === category);
+    const allSelected = categoryMetrics.every(m => selectedMetrics.has(m.id));
+    setSelectedMetrics(prev => {
+      const next = new Set(prev);
+      categoryMetrics.forEach(m => { if (allSelected) next.delete(m.id); else next.add(m.id); });
+      return next;
+    });
+  };
+
+  const toggleCollapseCategory = (cat: MetricCategory) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  };
+
   const updateMetricColor = (metricIdx: number, colorIdx: number, newColor: string) => {
     setMetricsConfig(prev => prev.map((m, i) => {
       if (i !== metricIdx) return m;
@@ -203,6 +237,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
     m.name.toLowerCase().includes(metricSearch.toLowerCase()) ||
     m.id.toLowerCase().includes(metricSearch.toLowerCase())
   );
+
+  const editingMetricData = editingMetric ? metricsConfig.find(m => m.id === editingMetric) : null;
+  const editingMetricIdx = editingMetric ? metricsConfig.findIndex(m => m.id === editingMetric) : -1;
 
   const totalSelectedDims = Object.values(selectedDimensions).reduce((s, arr) => s + arr.length, 0);
 
@@ -609,11 +646,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               })}
             </div>
 
-            {/* RIGHT: Radio Metrics with search + editable colors */}
+            {/* RIGHT: Radio Metrics with search, categories, select/deselect + color popup */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <Radio className="w-4 h-4 text-primary" />
                 <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Métriques Radio</span>
+                <span className="text-[9px] font-bold text-muted-foreground ml-auto">{selectedMetrics.size}/{metricsConfig.length} actives</span>
               </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -626,51 +664,144 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
                 />
               </div>
 
-              {filteredMetrics.length === 0 && (
-                <div className="text-center py-8 text-[11px] font-bold text-muted-foreground">Aucune métrique trouvée</div>
-              )}
+              {METRIC_CATEGORIES.map(cat => {
+                const catMetrics = filteredMetrics.filter(m => m.category === cat.id);
+                if (catMetrics.length === 0) return null;
+                const allCatSelected = catMetrics.every(m => selectedMetrics.has(m.id));
+                const isCollapsed = collapsedCategories.has(cat.id);
+                const selectedInCat = catMetrics.filter(m => selectedMetrics.has(m.id)).length;
 
-              {filteredMetrics.map((metric) => {
-                const origIdx = metricsConfig.findIndex(m => m.id === metric.id);
                 return (
-                  <div key={metric.id} className="p-4 rounded-2xl bg-muted/30 border border-border/50 hover:border-primary/30 transition-all">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Gauge className="w-3.5 h-3.5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-black text-foreground uppercase tracking-tight">{metric.name}</p>
-                        <p className="text-[9px] font-bold text-muted-foreground font-mono uppercase">{metric.id}</p>
-                      </div>
-                      <span className="text-[9px] font-black text-muted-foreground bg-muted rounded-lg px-2 py-1">
-                        {metric.numColors} couleur{metric.numColors > 1 ? 's' : ''}
-                      </span>
+                  <div key={cat.id} className="rounded-2xl border border-border/50 overflow-hidden">
+                    {/* Category Header */}
+                    <div className="flex items-center gap-3 px-4 py-3 bg-muted/50 border-b border-border/30">
+                      <button onClick={() => toggleCollapseCategory(cat.id)} className="text-muted-foreground hover:text-foreground transition-colors">
+                        {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                      <div className="text-primary">{cat.icon}</div>
+                      <span className="text-[10px] font-black text-foreground uppercase tracking-widest flex-1">{cat.label}</span>
+                      <span className="text-[9px] font-bold text-muted-foreground mr-2">{selectedInCat}/{catMetrics.length}</span>
+                      <button
+                        onClick={() => toggleCategoryMetrics(cat.id)}
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                          allCatSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40 hover:border-primary'
+                        }`}
+                      >
+                        {allCatSelected && <CheckCircle2 className="w-3 h-3 text-primary-foreground" />}
+                      </button>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {metric.thresholds.map((t, i) => (
-                        <div key={i} className="flex-1 text-center">
-                          <input
-                            type="number"
-                            value={t}
-                            onChange={e => updateMetricThreshold(origIdx, i, parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1 rounded-lg bg-card border border-border/50 text-[10px] font-black text-foreground text-center focus:outline-none focus:border-primary/50 mb-1"
-                          />
-                          <div className="relative w-full h-3 rounded-full cursor-pointer overflow-hidden" style={{ backgroundColor: metric.colors[i] }}>
-                            <input
-                              type="color"
-                              value={metric.colors[i]}
-                              onChange={e => updateMetricColor(origIdx, i, e.target.value)}
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+
+                    {/* Category Metrics */}
+                    {!isCollapsed && (
+                      <div className="divide-y divide-border/20">
+                        {catMetrics.map((metric) => {
+                          const isActive = selectedMetrics.has(metric.id);
+                          return (
+                            <div key={metric.id} className={`flex items-center gap-3 px-4 py-2.5 transition-all ${isActive ? 'bg-card' : 'bg-muted/20 opacity-50'}`}>
+                              <button
+                                onClick={() => toggleMetric(metric.id)}
+                                className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                  isActive ? 'bg-primary border-primary' : 'border-muted-foreground/40 hover:border-primary'
+                                }`}
+                              >
+                                {isActive && <CheckCircle2 className="w-3 h-3 text-primary-foreground" />}
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-[10px] font-black uppercase tracking-tight ${isActive ? 'text-foreground' : 'text-muted-foreground line-through'}`}>{metric.name}</p>
+                                <p className="text-[8px] font-bold text-muted-foreground font-mono">{metric.id}</p>
+                              </div>
+                              {/* Color preview dots */}
+                              <div className="flex items-center gap-1">
+                                {metric.colors.map((c, i) => (
+                                  <div key={i} className="w-3 h-3 rounded-full border border-border/50" style={{ backgroundColor: c }} />
+                                ))}
+                              </div>
+                              {/* Edit button to open popup */}
+                              <button
+                                onClick={() => setEditingMetric(metric.id)}
+                                className="px-2 py-1 rounded-lg bg-muted/50 hover:bg-primary/10 text-[9px] font-black text-muted-foreground hover:text-primary uppercase tracking-wider transition-all"
+                              >
+                                Éditer
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
+
+          {/* === Color Edit Popup/Modal === */}
+          {editingMetricData && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setEditingMetric(null)}>
+              <div className="bg-card rounded-3xl border border-border shadow-2xl p-8 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Palette className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">{editingMetricData.name}</h3>
+                      <p className="text-[9px] font-bold text-muted-foreground font-mono uppercase">{editingMetricData.id}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setEditingMetric(null)} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    {editingMetricData.numColors} plage{editingMetricData.numColors > 1 ? 's' : ''} de couleur
+                  </p>
+                  {editingMetricData.thresholds.map((t, i) => (
+                    <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-muted/30 border border-border/50">
+                      <div className="relative w-10 h-10 rounded-xl cursor-pointer overflow-hidden border-2 border-border/50 flex-shrink-0" style={{ backgroundColor: editingMetricData.colors[i] }}>
+                        <input
+                          type="color"
+                          value={editingMetricData.colors[i]}
+                          onChange={e => updateMetricColor(editingMetricIdx, i, e.target.value)}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1 block">Seuil {i + 1}</label>
+                        <input
+                          type="number"
+                          value={t}
+                          onChange={e => updateMetricThreshold(editingMetricIdx, i, parseFloat(e.target.value) || 0)}
+                          className="w-full px-3 py-2 rounded-lg bg-card border border-border/50 text-[11px] font-black text-foreground focus:outline-none focus:border-primary/50"
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-muted-foreground">{editingMetricData.colors[i]}</span>
+                    </div>
+                  ))}
+
+                  {/* Preview bar */}
+                  <div>
+                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Aperçu</p>
+                    <div className="flex rounded-xl overflow-hidden h-6">
+                      {editingMetricData.colors.map((c, i) => (
+                        <div key={i} className="flex-1 flex items-center justify-center text-[8px] font-black text-white" style={{ backgroundColor: c }}>
+                          {editingMetricData.thresholds[i]}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setEditingMetric(null)}
+                  className="mt-6 w-full py-3 bg-primary text-primary-foreground rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-primary/90 transition-all"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         </>)}
 
