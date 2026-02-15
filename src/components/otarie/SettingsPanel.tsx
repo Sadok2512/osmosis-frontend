@@ -180,9 +180,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               </div>
             </div>
 
-            {/* Accent Color */}
+            {/* App Color */}
             <div>
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Couleur d'accent</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Couleur App</p>
               <div className="grid grid-cols-3 gap-2">
                 {ACCENT_COLORS.map((c) => (
                   <button
@@ -190,12 +190,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
                     onClick={() => setAccentColor(c.id)}
                     className={`flex items-center gap-2 p-2.5 rounded-xl border-2 transition-all ${
                       accentColor === c.id
-                        ? 'border-primary bg-primary/5 shadow-lg'
-                        : 'border-border hover:border-primary/40 bg-card'
+                        ? 'border-foreground/50 bg-muted shadow-lg'
+                        : 'border-border hover:border-foreground/30 bg-card'
                     }`}
                   >
-                    <div className={`w-7 h-7 rounded-lg ${c.color} shadow-sm flex-shrink-0`} />
-                    <span className={`text-[9px] font-black uppercase tracking-wider ${accentColor === c.id ? 'text-primary' : 'text-muted-foreground'}`}>{c.label}</span>
+                    <div className={`w-7 h-7 rounded-full ${c.color} shadow-sm flex-shrink-0`} />
+                    <span className={`text-[9px] font-black uppercase tracking-wider ${accentColor === c.id ? 'text-foreground' : 'text-muted-foreground'}`}>{c.label}</span>
                   </button>
                 ))}
               </div>
