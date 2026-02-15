@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2 } from 'lucide-react';
+import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon } from 'lucide-react';
 import { SavedDashboard } from '../bi/DashboardManager';
 import { WidgetItem } from '../bi/dashboardTypes';
 import { TableWidgetConfig } from '../bi/BITableWidget';
@@ -133,27 +133,46 @@ const ReadOnlyWidget: React.FC<{ widget: WidgetItem }> = ({ widget }) => {
 
 const DashboardOverview: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const dashboards = useMemo(() => loadAllDashboards(), []);
 
+  const filtered = useMemo(() => {
+    if (!search.trim()) return dashboards;
+    const q = search.toLowerCase();
+    return dashboards.filter(d => d.name.toLowerCase().includes(q));
+  }, [dashboards, search]);
+
   const selected = useMemo(() => dashboards.find(d => d.id === selectedId), [dashboards, selectedId]);
+
+  const getWidgetBreakdown = (db: SavedDashboard) => {
+    const counts = { chart: 0, text: 0, map: 0, image: 0, table: 0 };
+    db.widgets.forEach(w => { if (w.kind in counts) counts[w.kind as keyof typeof counts]++; });
+    return counts;
+  };
 
   if (selected) {
     return (
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
         {/* Header */}
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-card">
-          <button onClick={() => setSelectedId(null)}
-            className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <LayoutDashboard className="w-5 h-5 text-primary" />
-          <div>
-            <h2 className="text-sm font-bold text-foreground">{selected.name}</h2>
-            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              Dernière modification : {new Date(selected.updatedAt).toLocaleString('fr-FR')}
-              <span className="ml-2 px-1.5 py-0.5 rounded bg-muted text-[9px] font-semibold uppercase tracking-wider">Lecture seule</span>
-            </p>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSelectedId(null)}
+              className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <LayoutDashboard className="w-5 h-5 text-primary" />
+            <div>
+              <h2 className="text-sm font-bold text-foreground">{selected.name}</h2>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                Dernière modification : {new Date(selected.updatedAt).toLocaleString('fr-FR')}
+                <span className="ml-2 px-1.5 py-0.5 rounded bg-muted text-[9px] font-semibold uppercase tracking-wider">Lecture seule</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <User className="w-3.5 h-3.5" />
+            <span className="font-semibold text-foreground">PSN TEAM</span>
           </div>
         </div>
 
@@ -184,53 +203,110 @@ const DashboardOverview: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-border bg-card">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <LayoutDashboard className="w-5 h-5 text-primary" />
+      {/* Header with search */}
+      <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-card">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <LayoutDashboard className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-foreground">Dashboard Overview</h1>
+            <p className="text-[11px] text-muted-foreground">Consultation des dashboards • Lecture seule</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-lg font-bold text-foreground">Dashboard Overview</h1>
-          <p className="text-[11px] text-muted-foreground">Consultation des dashboards • Lecture seule</p>
+        <div className="flex items-center gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Rechercher un dashboard..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground w-[220px] outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+            />
+          </div>
+          {/* User */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
+            <User className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-semibold text-foreground">PSN TEAM</span>
+          </div>
         </div>
       </div>
 
-      {/* Dashboard list */}
+      {/* Dashboard grid */}
       <div className="flex-1 overflow-auto p-6">
-        {dashboards.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <LayoutDashboard className="w-16 h-16 text-muted-foreground/30 mb-4" />
-            <h3 className="text-sm font-semibold text-foreground mb-1">Aucun dashboard disponible</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-1">
+              {dashboards.length === 0 ? 'Aucun dashboard disponible' : 'Aucun résultat'}
+            </h3>
             <p className="text-xs text-muted-foreground max-w-xs">
-              Créez des dashboards dans l'Analytic BI Studio pour les retrouver ici en lecture seule.
+              {dashboards.length === 0
+                ? "Créez des dashboards dans l'Analytic BI Studio pour les retrouver ici en lecture seule."
+                : 'Essayez un autre terme de recherche.'}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {dashboards.map(db => (
-              <button
-                key={db.id}
-                onClick={() => setSelectedId(db.id)}
-                className="group text-left bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-lg transition-all"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <LayoutDashboard className="w-4 h-4 text-primary" />
+            {filtered.map(db => {
+              const counts = getWidgetBreakdown(db);
+              return (
+                <button
+                  key={db.id}
+                  onClick={() => setSelectedId(db.id)}
+                  className="group text-left bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-lg transition-all"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <LayoutDashboard className="w-4 h-4 text-primary" />
+                    </div>
+                    <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <h3 className="text-sm font-semibold text-foreground mb-1 truncate">{db.name}</h3>
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {new Date(db.updatedAt).toLocaleString('fr-FR')}
-                </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                    {db.widgets.length} widget{db.widgets.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-              </button>
-            ))}
+                  <h3 className="text-sm font-semibold text-foreground mb-1 truncate">{db.name}</h3>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1">
+                    <Clock className="w-3 h-3" />
+                    {new Date(db.updatedAt).toLocaleString('fr-FR')}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-3">
+                    <User className="w-3 h-3" />
+                    PSN TEAM
+                  </p>
+                  {/* Widget breakdown */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                      {db.widgets.length} widget{db.widgets.length > 1 ? 's' : ''}
+                    </span>
+                    {counts.chart > 0 && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                        <BarChart2 className="w-2.5 h-2.5" /> {counts.chart}
+                      </span>
+                    )}
+                    {counts.table > 0 && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                        <Table2 className="w-2.5 h-2.5" /> {counts.table}
+                      </span>
+                    )}
+                    {counts.map > 0 && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                        <MapIcon className="w-2.5 h-2.5" /> {counts.map}
+                      </span>
+                    )}
+                    {counts.text > 0 && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
+                        <Type className="w-2.5 h-2.5" /> {counts.text}
+                      </span>
+                    )}
+                    {counts.image > 0 && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
+                        <ImageIcon className="w-2.5 h-2.5" /> {counts.image}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
