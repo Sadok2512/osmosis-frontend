@@ -5,7 +5,7 @@ import {
   DetectorConfig, AnalyticsResponse, AnalyticsQuery, Filters, KPIType,
   TimeSeriesPoint, GeoJSONFeature
 } from '../types';
-import { fetchTopoSites, fetchTopoSiteDetail } from './topoService';
+import { fetchTopoSites, fetchTopoSiteDetail, invalidateTopoCache } from './topoService';
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 const randInt = (min: number, max: number) => Math.floor(rand(min, max));
@@ -31,6 +31,11 @@ async function getSites(): Promise<SiteSummary[]> {
     cachedSites = await fetchTopoSites();
   }
   return cachedSites;
+}
+
+export function invalidateSitesCache() {
+  cachedSites = null;
+  invalidateTopoCache();
 }
 
 export async function fetchSites(_filters: Filters): Promise<SiteSummary[]> {
