@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
 import 'react-grid-layout/css/styles.css';
@@ -15,6 +15,7 @@ import BIChartCard from '../bi/BIChartCard';
 import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/BITextWidget';
 import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../bi/BIImageWidget';
 import BIMapWidget from '../bi/BIMapWidget';
+import BITableWidget, { TableWidgetConfig, createDefaultTableWidget } from '../bi/BITableWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
 import AIAssistantPanel from '../bi/AIAssistantPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
@@ -174,8 +175,8 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
     i: getId(w),
     x: w.layout.x, y: w.layout.y,
     w: w.layout.w, h: w.layout.h,
-    minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : w.kind === 'image' ? 2 : 3,
-    minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : w.kind === 'image' ? 2 : 2,
+    minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : w.kind === 'image' ? 2 : w.kind === 'table' ? 4 : 3,
+    minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : w.kind === 'image' ? 2 : w.kind === 'table' ? 3 : 2,
   }));
 
   const onLayoutChange = (newLayout: any[]) => {
@@ -206,6 +207,11 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const addImage = () => {
     const id = `image_${Date.now()}`;
     setWidgets(prev => [...prev, { kind: 'image', config: createDefaultImageWidget(id), layout: { x: 0, y: getMaxY(), w: 3, h: 3 } }]);
+  };
+
+  const addTable = () => {
+    const id = `table_${Date.now()}`;
+    setWidgets(prev => [...prev, { kind: 'table', config: createDefaultTableWidget(id), layout: { x: 0, y: getMaxY(), w: 8, h: 4 } }]);
   };
 
   const duplicateWidget = (id: string) => {
@@ -246,17 +252,23 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
     setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'image' ? { ...w, config } : w));
   };
 
+  const updateTableConfig = (id: string, config: TableWidgetConfig) => {
+    setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'table' ? { ...w, config } : w));
+  };
+
   const editingChart = widgets.find(w => getId(w) === editingId && w.kind === 'chart');
   const chartCount = widgets.filter(w => w.kind === 'chart').length;
   const textCount = widgets.filter(w => w.kind === 'text').length;
   const mapCount = widgets.filter(w => w.kind === 'map').length;
   const imageCount = widgets.filter(w => w.kind === 'image').length;
+  const tableCount = widgets.filter(w => w.kind === 'table').length;
 
   const widgetCountLabel = [
     `${chartCount} chart(s)`,
     textCount > 0 ? `${textCount} text(s)` : '',
     mapCount > 0 ? `${mapCount} map(s)` : '',
     imageCount > 0 ? `${imageCount} image(s)` : '',
+    tableCount > 0 ? `${tableCount} table(s)` : '',
   ].filter(Boolean).join(' · ');
 
   return (
@@ -291,6 +303,9 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             </button>
             <button onClick={addImage} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
               <ImageIcon className="w-3 h-3" /> Image
+            </button>
+            <button onClick={addTable} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
+              <Table2 className="w-3 h-3" /> Table
             </button>
             <div className="w-px h-5 bg-border mx-0.5" />
             <button onClick={() => setShowPrintPreview(true)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
@@ -360,6 +375,12 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
                     <BIImageWidget
                       config={w.config as ImageWidgetConfig}
                       onChange={cfg => updateImageConfig(getId(w), cfg)}
+                      onDelete={() => deleteWidget(getId(w))}
+                    />
+                  ) : w.kind === 'table' ? (
+                    <BITableWidget
+                      config={w.config as TableWidgetConfig}
+                      onChange={cfg => updateTableConfig(getId(w), cfg)}
                       onDelete={() => deleteWidget(getId(w))}
                     />
                   ) : (

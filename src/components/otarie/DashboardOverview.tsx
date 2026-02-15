@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, Clock, Eye, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2 } from 'lucide-react';
 import { SavedDashboard } from '../bi/DashboardManager';
 import { WidgetItem } from '../bi/dashboardTypes';
+import { TableWidgetConfig } from '../bi/BITableWidget';
+import { KPI_UNITS } from '../bi/biTypes';
+import { getDimensionValues } from '../bi/mockBIData';
 import BIChartRenderer from '../bi/BIChartRenderer';
 
 const LS_KEY = 'bi_dashboards_v3';
@@ -56,6 +59,56 @@ const ReadOnlyMap: React.FC<{ config: any }> = ({ config }) => (
   </div>
 );
 
+/** Read-only table renderer */
+const ReadOnlyTable: React.FC<{ config: TableWidgetConfig }> = ({ config }) => {
+  // Simple seeded random for stable data
+  const rng = (() => { let s = config.id.charCodeAt(0) * 100 + config.kpis.length; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; })();
+  const dimValues = getDimensionValues(config.dimension);
+  const kpiRanges: Record<string, [number, number]> = {
+    volume_totale: [50, 500], debit_dl: [10, 150], debit_ul: [5, 80], dms_dl_3: [60, 99], dms_dl_8: [40, 95], dms_dl_30: [10, 70],
+    dms_ul_1: [70, 99], dms_ul_3: [50, 95], dms_ul_5: [30, 85], qoe_index: [500, 900], rtt_setup_avg: [10, 80], rtt_data_avg: [15, 100],
+    loss_dl_rate: [0, 5], loss_ul_rate: [0, 5], session_nbr: [1000, 50000], session_dcr: [0, 5],
+  };
+  const data = dimValues.map(dim => {
+    const row: Record<string, any> = { dimension: dim };
+    for (const kpi of config.kpis) { const [min, max] = kpiRanges[kpi] || [0, 100]; row[kpi] = +(min + rng() * (max - min)).toFixed(2); }
+    return row;
+  });
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30 shrink-0">
+        <Table2 className="w-3.5 h-3.5 text-primary" />
+        <span className="text-xs font-semibold text-foreground">{config.title}</span>
+      </div>
+      <div className="flex-1 overflow-auto">
+        <table className="w-full text-left" style={{ fontSize: config.fontSize || 11 }}>
+          <thead className="sticky top-0 bg-muted/60">
+            <tr>
+              <th className="px-3 py-1.5 font-bold text-foreground border-b border-border">{config.dimension}</th>
+              {config.kpis.map(kpi => (
+                <th key={kpi} className="px-3 py-1.5 font-bold text-foreground border-b border-border text-right whitespace-nowrap">
+                  {kpi.replace(/_/g, ' ')}{KPI_UNITS[kpi] ? ` (${KPI_UNITS[kpi]})` : ''}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row, i) => (
+              <tr key={i} className={config.striped && i % 2 === 1 ? 'bg-muted/20' : ''}>
+                <td className="px-3 py-1 font-medium text-foreground border-b border-border/50">{row.dimension}</td>
+                {config.kpis.map(kpi => (
+                  <td key={kpi} className="px-3 py-1 text-right font-mono border-b border-border/50">{row[kpi]?.toLocaleString('fr-FR')}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 /** Read-only widget renderer */
 const ReadOnlyWidget: React.FC<{ widget: WidgetItem }> = ({ widget }) => {
   switch (widget.kind) {
@@ -71,6 +124,8 @@ const ReadOnlyWidget: React.FC<{ widget: WidgetItem }> = ({ widget }) => {
       return <ReadOnlyImage config={widget.config} />;
     case 'map':
       return <ReadOnlyMap config={widget.config} />;
+    case 'table':
+      return <ReadOnlyTable config={widget.config as TableWidgetConfig} />;
     default:
       return null;
   }
