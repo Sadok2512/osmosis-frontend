@@ -90,35 +90,40 @@ const BITextWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
           {/* Text color palette */}
           <div className="relative">
             <button onClick={() => { setShowTextColors(!showTextColors); setShowBgColors(false); }}
-              className="w-5 h-5 rounded border border-border cursor-pointer ml-0.5 flex items-center justify-center text-[8px] font-bold"
-              style={{ color: config.color.startsWith('hsl') ? undefined : config.color }}
-              title="Text color">A</button>
+              className="w-5 h-5 rounded-full border-2 border-border cursor-pointer ml-0.5 shadow-sm hover:shadow-md transition-shadow"
+              style={{ backgroundColor: config.color.startsWith('hsl') ? 'hsl(var(--foreground))' : config.color }}
+              title="Text color" />
             {showTextColors && (
-              <div className="absolute top-7 right-0 bg-card border border-border rounded-lg shadow-xl p-2 grid grid-cols-5 gap-1.5 z-[9999] animate-scale-in"
+              <div className="absolute top-8 right-0 bg-popover/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl p-3 z-[9999] animate-in fade-in zoom-in-95 duration-150"
                 onMouseLeave={() => setShowTextColors(false)}>
-                {TEXT_COLORS.map(c => (
-                  <button key={c} onClick={() => { update({ color: c }); setShowTextColors(false); }}
-                    className={`w-6 h-6 rounded-md border-2 transition-transform hover:scale-125 ${config.color === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border/50'}`}
-                    style={{ backgroundColor: c }} />
-                ))}
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-2 block">Texte</span>
+                <div className="flex gap-1.5">
+                  {TEXT_COLORS.map(c => (
+                    <button key={c} onClick={() => { update({ color: c }); setShowTextColors(false); }}
+                      className={`w-5 h-5 rounded-full border transition-all duration-150 hover:scale-[1.3] hover:shadow-lg ${config.color === c ? 'ring-2 ring-primary ring-offset-2 ring-offset-popover scale-110' : 'border-transparent shadow-sm'}`}
+                      style={{ backgroundColor: c }} />
+                  ))}
+                </div>
               </div>
             )}
           </div>
           {/* Background color palette */}
           <div className="relative">
             <button onClick={() => { setShowBgColors(!showBgColors); setShowTextColors(false); }}
-              className="w-5 h-5 rounded border border-border cursor-pointer flex items-center justify-center overflow-hidden"
+              className="w-5 h-5 rounded-full border-2 border-dashed border-border cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
+              style={{ backgroundColor: config.bgColor || undefined }}
               title="Background color">
-              <Paintbrush className="w-3 h-3" style={{ color: config.bgColor || undefined }} />
+              {!config.bgColor && <Paintbrush className="w-2.5 h-2.5 text-muted-foreground mx-auto" />}
             </button>
             {showBgColors && (
-              <div className="absolute top-7 right-0 bg-card border border-border rounded-lg shadow-xl p-2 z-[9999] animate-scale-in"
+              <div className="absolute top-8 right-0 bg-popover/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl p-3 z-[9999] animate-in fade-in zoom-in-95 duration-150"
                 onMouseLeave={() => setShowBgColors(false)}>
-                <div className="grid grid-cols-6 gap-1.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-2 block">Fond</span>
+                <div className="flex flex-wrap gap-1.5 max-w-[140px]">
                   {BG_COLORS.map((c, i) => (
                     <button key={i} onClick={() => { update({ bgColor: c }); setShowBgColors(false); }}
-                      className={`w-6 h-6 rounded-md border-2 transition-transform hover:scale-125 ${config.bgColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border/50'}`}
-                      style={{ backgroundColor: c || 'transparent', backgroundImage: !c ? 'linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%)' : undefined, backgroundSize: !c ? '6px 6px' : undefined, backgroundPosition: !c ? '0 0, 3px 3px' : undefined }}>
+                      className={`w-5 h-5 rounded-full border transition-all duration-150 hover:scale-[1.3] hover:shadow-lg ${config.bgColor === c ? 'ring-2 ring-primary ring-offset-2 ring-offset-popover scale-110' : 'border-transparent shadow-sm'}`}
+                      style={{ backgroundColor: c || 'transparent', backgroundImage: !c ? 'linear-gradient(135deg, hsl(var(--muted)) 50%, hsl(var(--destructive)/0.3) 50%)' : undefined }}>
                     </button>
                   ))}
                 </div>
