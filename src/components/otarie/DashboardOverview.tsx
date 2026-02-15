@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon } from 'lucide-react';
+import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List } from 'lucide-react';
 import { SavedDashboard } from '../bi/DashboardManager';
 import { WidgetItem } from '../bi/dashboardTypes';
 import { TableWidgetConfig } from '../bi/BITableWidget';
@@ -134,6 +134,7 @@ const ReadOnlyWidget: React.FC<{ widget: WidgetItem }> = ({ widget }) => {
 const DashboardOverview: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const dashboards = useMemo(() => loadAllDashboards(), []);
 
   const filtered = useMemo(() => {
@@ -226,6 +227,19 @@ const DashboardOverview: React.FC = () => {
               className="pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground w-[220px] outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
             />
           </div>
+          {/* View toggle */}
+          <div className="flex items-center rounded-lg border border-border overflow-hidden">
+            <button onClick={() => setViewMode('grid')}
+              className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'}`}
+              title="Grille">
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => setViewMode('list')}
+              className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'}`}
+              title="Liste">
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
           {/* User */}
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
             <User className="w-3.5 h-3.5 text-primary" />
@@ -249,65 +263,137 @@ const DashboardOverview: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map(db => {
-              const counts = getWidgetBreakdown(db);
-              return (
-                <button
-                  key={db.id}
-                  onClick={() => setSelectedId(db.id)}
-                  className="group text-left bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-lg transition-all"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <LayoutDashboard className="w-4 h-4 text-primary" />
+          viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filtered.map(db => {
+                const counts = getWidgetBreakdown(db);
+                return (
+                  <button
+                    key={db.id}
+                    onClick={() => setSelectedId(db.id)}
+                    className="group text-left bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-lg transition-all"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                        <LayoutDashboard className="w-4 h-4 text-primary" />
+                      </div>
+                      <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
-                    <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-foreground mb-1 truncate">{db.name}</h3>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1">
-                    <Clock className="w-3 h-3" />
-                    {new Date(db.updatedAt).toLocaleString('fr-FR')}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-3">
-                    <User className="w-3 h-3" />
-                    PSN TEAM
-                  </p>
-                  {/* Widget breakdown */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                      {db.widgets.length} widget{db.widgets.length > 1 ? 's' : ''}
+                    <h3 className="text-sm font-semibold text-foreground mb-1 truncate">{db.name}</h3>
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1">
+                      <Clock className="w-3 h-3" />
+                      {new Date(db.updatedAt).toLocaleString('fr-FR')}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-3">
+                      <User className="w-3 h-3" />
+                      PSN TEAM
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                        {db.widgets.length} widget{db.widgets.length > 1 ? 's' : ''}
+                      </span>
+                      {counts.chart > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                          <BarChart2 className="w-2.5 h-2.5" /> {counts.chart}
+                        </span>
+                      )}
+                      {counts.table > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                          <Table2 className="w-2.5 h-2.5" /> {counts.table}
+                        </span>
+                      )}
+                      {counts.map > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                          <MapIcon className="w-2.5 h-2.5" /> {counts.map}
+                        </span>
+                      )}
+                      {counts.text > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
+                          <Type className="w-2.5 h-2.5" /> {counts.text}
+                        </span>
+                      )}
+                      {counts.image > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
+                          <ImageIcon className="w-2.5 h-2.5" /> {counts.image}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            /* List view */
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              {/* Table header */}
+              <div className="grid grid-cols-[1fr_160px_120px_200px_60px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <span>Nom</span>
+                <span>Dernière modification</span>
+                <span>Utilisateur</span>
+                <span>Widgets</span>
+                <span className="text-center">Action</span>
+              </div>
+              {/* Rows */}
+              {filtered.map(db => {
+                const counts = getWidgetBreakdown(db);
+                return (
+                  <button
+                    key={db.id}
+                    onClick={() => setSelectedId(db.id)}
+                    className="w-full grid grid-cols-[1fr_160px_120px_200px_60px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <span className="text-xs font-semibold text-foreground truncate">{db.name}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-3 h-3 shrink-0" />
+                      {new Date(db.updatedAt).toLocaleString('fr-FR')}
                     </span>
-                    {counts.chart > 0 && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
-                        <BarChart2 className="w-2.5 h-2.5" /> {counts.chart}
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <User className="w-3 h-3 shrink-0" />
+                      PSN TEAM
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                        {db.widgets.length} total
                       </span>
-                    )}
-                    {counts.table > 0 && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
-                        <Table2 className="w-2.5 h-2.5" /> {counts.table}
-                      </span>
-                    )}
-                    {counts.map > 0 && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
-                        <MapIcon className="w-2.5 h-2.5" /> {counts.map}
-                      </span>
-                    )}
-                    {counts.text > 0 && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
-                        <Type className="w-2.5 h-2.5" /> {counts.text}
-                      </span>
-                    )}
-                    {counts.image > 0 && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
-                        <ImageIcon className="w-2.5 h-2.5" /> {counts.image}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                      {counts.chart > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                          <BarChart2 className="w-2.5 h-2.5" /> {counts.chart}
+                        </span>
+                      )}
+                      {counts.table > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                          <Table2 className="w-2.5 h-2.5" /> {counts.table}
+                        </span>
+                      )}
+                      {counts.map > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-0.5">
+                          <MapIcon className="w-2.5 h-2.5" /> {counts.map}
+                        </span>
+                      )}
+                      {counts.text > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
+                          <Type className="w-2.5 h-2.5" /> {counts.text}
+                        </span>
+                      )}
+                      {counts.image > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
+                          <ImageIcon className="w-2.5 h-2.5" /> {counts.image}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex justify-center">
+                      <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
     </div>
