@@ -12,6 +12,8 @@ export interface MapWidgetConfig {
   mapLayer: 'light' | 'dark' | 'satellite';
   center: [number, number];
   zoom: number;
+  showSiteNames: boolean;
+  showMetricValues: boolean;
 }
 
 export function createDefaultMapWidget(id: string): MapWidgetConfig {
@@ -26,6 +28,8 @@ export function createDefaultMapWidget(id: string): MapWidgetConfig {
     mapLayer: 'light',
     center: [46.6, 2.5],
     zoom: 6,
+    showSiteNames: false,
+    showMetricValues: true,
   };
 }
 
