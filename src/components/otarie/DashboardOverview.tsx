@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List } from 'lucide-react';
+import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List, Copy } from 'lucide-react';
 import { SavedDashboard } from '../bi/DashboardManager';
 import { WidgetItem } from '../bi/dashboardTypes';
 import { TableWidgetConfig } from '../bi/BITableWidget';
@@ -135,7 +135,25 @@ const DashboardOverview: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const dashboards = useMemo(() => loadAllDashboards(), []);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const dashboards = useMemo(() => loadAllDashboards(), [refreshKey]);
+
+  const duplicateDashboard = (id: string) => {
+    const all = loadAllDashboards();
+    const source = all.find(d => d.id === id);
+    if (!source) return;
+    const existingNames = new Set(all.map(d => d.name.toLowerCase()));
+    let dupName = `${source.name} (copy)`;
+    if (existingNames.has(dupName.toLowerCase())) {
+      let counter = 2;
+      while (existingNames.has(`${source.name} (copy ${counter})`.toLowerCase())) counter++;
+      dupName = `${source.name} (copy ${counter})`;
+    }
+    const cloned: SavedDashboard = { id: `db_${Date.now()}`, name: dupName, widgets: JSON.parse(JSON.stringify(source.widgets)), updatedAt: new Date().toISOString() };
+    all.push(cloned);
+    localStorage.setItem(LS_KEY, JSON.stringify(all));
+    setRefreshKey(k => k + 1);
+  };
 
   const filtered = useMemo(() => {
     if (!search.trim()) return dashboards;
@@ -276,7 +294,13 @@ const DashboardOverview: React.FC = () => {
                       <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                         <LayoutDashboard className="w-4 h-4 text-primary" />
                       </div>
-                      <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="flex items-center gap-1">
+                        <button onClick={(e) => { e.stopPropagation(); duplicateDashboard(db.id); }}
+                          className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground hover:text-foreground transition-all" title="Dupliquer">
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
                     </div>
                     <h3 className="text-sm font-semibold text-foreground mb-1 truncate">{db.name}</h3>
                     <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1">
@@ -295,11 +319,11 @@ const DashboardOverview: React.FC = () => {
             /* List view */
             <div className="bg-card border border-border rounded-xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[1fr_160px_120px_60px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="grid grid-cols-[1fr_160px_120px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                 <span>Nom</span>
                 <span>Dernière modification</span>
                 <span>Utilisateur</span>
-                <span className="text-center">Action</span>
+                <span className="text-center">Actions</span>
               </div>
               {/* Rows */}
               {filtered.map(db => {
@@ -307,7 +331,7 @@ const DashboardOverview: React.FC = () => {
                   <button
                     key={db.id}
                     onClick={() => setSelectedId(db.id)}
-                    className="w-full grid grid-cols-[1fr_160px_120px_60px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left group"
+                    className="w-full grid grid-cols-[1fr_160px_120px_80px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -323,7 +347,11 @@ const DashboardOverview: React.FC = () => {
                       <User className="w-3 h-3 shrink-0" />
                       PSN TEAM
                     </span>
-                    <div className="flex justify-center">
+                    <div className="flex justify-center gap-1">
+                      <button onClick={(e) => { e.stopPropagation(); duplicateDashboard(db.id); }}
+                        className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground hover:text-foreground transition-all" title="Dupliquer">
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
                       <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </button>
