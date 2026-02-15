@@ -319,4 +319,4 @@ export interface DetectorConfig {
   last_run?: string;
 }
 
-export type AppTab = 'list' | 'sites' | 'analytics' | 'bi' | 'radio' | 'traffic' | 'subscriber' | 'alerts' | 'detector' | 'settings' | 'docs';
+export type AppTab = 'list' | 'sites' | 'analytics' | 'bi' | 'radio' | 'traffic' | 'subscriber' | 'alerts' | 'detector' | 'settings' | 'docs' | 'ai_assistant';

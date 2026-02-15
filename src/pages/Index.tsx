@@ -11,6 +11,7 @@ import SubscriberExperience from '../components/otarie/SubscriberExperience';
 import DetectorConsole from '../components/otarie/DetectorConsole';
 import SettingsPanel from '../components/otarie/SettingsPanel';
 import DocumentationPage from '../components/otarie/DocumentationPage';
+import AIAssistantPage from '../components/otarie/AIAssistantPage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
@@ -108,6 +109,8 @@ const Index: React.FC = () => {
         return <SettingsPanel sidebarTheme={sidebarTheme} setSidebarTheme={setSidebarTheme} accentColor={accentColor} setAccentColor={setAccentColor} />;
       case 'docs':
         return <DocumentationPage />;
+      case 'ai_assistant':
+        return <AIAssistantPage />;
       default:
         return null;
     }
