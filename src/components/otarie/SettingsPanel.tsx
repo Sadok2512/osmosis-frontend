@@ -609,22 +609,36 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
 
             {/* RIGHT: Metrics Definition Grid */}
             <div>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                   <div className="text-muted-foreground">
                     <BarChart3 className="w-5 h-5" />
                   </div>
                   <span className="text-xs font-bold text-foreground uppercase tracking-wider">Metrics Definition Grid</span>
                 </div>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Filter metrics..."
-                    value={metricSearch}
-                    onChange={e => setMetricSearch(e.target.value)}
-                    className="pl-9 pr-4 py-2 rounded-lg bg-muted/40 border border-border/50 text-xs font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-all w-52"
-                  />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedMetrics(new Set(metricsConfig.map(m => m.id)))}
+                    className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[11px] font-semibold hover:bg-primary/20 transition-all"
+                  >
+                    Tout sélectionner
+                  </button>
+                  <button
+                    onClick={() => setSelectedMetrics(new Set())}
+                    className="px-3 py-1.5 rounded-lg bg-muted text-muted-foreground text-[11px] font-semibold hover:bg-muted/80 transition-all"
+                  >
+                    Tout désélectionner
+                  </button>
+                  <div className="relative ml-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Filter metrics..."
+                      value={metricSearch}
+                      onChange={e => setMetricSearch(e.target.value)}
+                      className="pl-9 pr-4 py-2 rounded-lg bg-muted/40 border border-border/50 text-xs font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-all w-48"
+                    />
+                  </div>
                 </div>
               </div>
 
