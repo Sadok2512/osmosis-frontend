@@ -116,7 +116,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[11px] font-black text-primary uppercase tracking-wider">Système Actif</span>
+              <span className="text-[11px] font-black text-primary uppercase tracking-wider">V1.0 Beta • Orange France</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-xl">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[11px] font-black text-emerald-600 uppercase tracking-wider">Connected</span>
             </div>
           </div>
         </div>
