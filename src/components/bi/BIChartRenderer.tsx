@@ -11,8 +11,8 @@ interface Props {
   config: ChartConfig;
 }
 
-// Custom dot for the reference style
-const RenderDot = (props: any) => {
+// Custom dot - plain function, no ref needed
+const renderDot = (props: any) => {
   const { cx, cy, stroke } = props;
   if (!cx || !cy) return null;
   return (
@@ -20,13 +20,15 @@ const RenderDot = (props: any) => {
   );
 };
 
-// Custom tooltip matching the clean card style
-const CustomTooltip = ({ active, payload, label }: any) => {
+// Custom tooltip - filter out background entries
+const renderTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
+  const filtered = payload.filter((e: any) => !e.name?.endsWith('_bg'));
+  if (!filtered.length) return null;
   return (
     <div className="bg-card border border-border rounded-lg shadow-xl px-3 py-2 min-w-[120px]">
       <p className="text-[10px] text-muted-foreground font-medium mb-1">{label}</p>
-      {payload.map((entry: any, i: number) => (
+      {filtered.map((entry: any, i: number) => (
         <div key={i} className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full" style={{ background: entry.color || entry.stroke }} />
@@ -83,7 +85,7 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
             labelLine={{ stroke: 'hsl(215, 20%, 75%)', strokeWidth: 1 }}>
             {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
           </Pie>
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={renderTooltip} />
           {config.advanced.showLegend && <Legend wrapperStyle={{ fontSize: 10 }} />}
         </PieChart>
       </ResponsiveContainer>
@@ -147,7 +149,7 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
           />
         )}
 
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={renderTooltip} />
         {config.advanced.showLegend && <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} />}
 
         {/* Threshold reference lines (dashed red like reference) */}
@@ -227,7 +229,7 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
                     strokeWidth={2.5}
                     fill={`url(#grad-${m.kpi}-${i})`}
                     type={m.smoothCurve ? 'monotone' : 'linear'}
-                    dot={<RenderDot stroke={m.color} />}
+                    dot={renderDot}
                     activeDot={{ r: 5, fill: m.color, stroke: 'white', strokeWidth: 2 }}
                     name={m.kpi.replace(/_/g, ' ')}
                   />
@@ -271,7 +273,7 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
                     stroke={m.color}
                     strokeWidth={2.5}
                     type={m.smoothCurve ? 'monotone' : 'linear'}
-                    dot={<RenderDot stroke={m.color} />}
+                    dot={renderDot}
                     activeDot={{ r: 5, fill: m.color, stroke: 'white', strokeWidth: 2 }}
                     name={m.kpi.replace(/_/g, ' ')}
                   />
