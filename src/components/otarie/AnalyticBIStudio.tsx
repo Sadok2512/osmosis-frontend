@@ -2,9 +2,9 @@ import React, { useState, useCallback, useRef } from 'react';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { exportElementToPDF } from '@/lib/exportUtils';
+import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Filters } from '../../types';
@@ -12,6 +12,7 @@ import { ChartConfig, createDefaultChart } from '../bi/biTypes';
 import { WidgetItem, MapWidgetConfig, createDefaultMapWidget } from '../bi/dashboardTypes';
 import BIChartCard from '../bi/BIChartCard';
 import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/BITextWidget';
+import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../bi/BIImageWidget';
 import BIMapWidget from '../bi/BIMapWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
 import AIAssistantPanel from '../bi/AIAssistantPanel';
@@ -33,13 +34,24 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [newDashName, setNewDashName] = useState('');
   const [showCSVPanel, setShowCSVPanel] = useState(false);
+  const [pdfUserName, setPdfUserName] = useState('');
   const dashboardRef = useRef<HTMLDivElement>(null);
 
   const handleExportDashboardPDF = async () => {
     if (!dashboardRef.current) return;
     try {
-      await exportElementToPDF(dashboardRef.current, dm.activeTab?.name?.replace(/\s+/g, '_') || 'dashboard');
-      toast({ title: 'PDF exporté', description: 'Le dashboard a été exporté en PDF.' });
+      // Find first image widget to use as logo
+      const imageWidget = widgets.find(w => w.kind === 'image');
+      const logoDataUrl = imageWidget ? (imageWidget.config as ImageWidgetConfig).src : undefined;
+
+      const headerOptions: PDFHeaderOptions = {
+        dashboardName: dm.activeTab?.name || 'Dashboard',
+        logoDataUrl: logoDataUrl || undefined,
+        userName: pdfUserName || undefined,
+      };
+
+      await exportElementToPDF(dashboardRef.current, dm.activeTab?.name?.replace(/\s+/g, '_') || 'dashboard', headerOptions);
+      toast({ title: 'PDF exporté', description: 'Le dashboard a été exporté en PDF avec header.' });
     } catch {
       toast({ title: 'Erreur', description: "Export PDF échoué.", variant: 'destructive' });
     }
@@ -79,8 +91,8 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
     i: getId(w),
     x: w.layout.x, y: w.layout.y,
     w: w.layout.w, h: w.layout.h,
-    minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : 3,
-    minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : 2,
+    minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : w.kind === 'image' ? 2 : 3,
+    minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : w.kind === 'image' ? 2 : 2,
   }));
 
   const onLayoutChange = (newLayout: any[]) => {
@@ -106,6 +118,11 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const addMap = () => {
     const id = `map_${Date.now()}`;
     setWidgets(prev => [...prev, { kind: 'map', config: createDefaultMapWidget(id), layout: { x: 0, y: getMaxY(), w: 6, h: 5 } }]);
+  };
+
+  const addImage = () => {
+    const id = `image_${Date.now()}`;
+    setWidgets(prev => [...prev, { kind: 'image', config: createDefaultImageWidget(id), layout: { x: 0, y: getMaxY(), w: 3, h: 3 } }]);
   };
 
   const duplicateWidget = (id: string) => {
@@ -142,15 +159,21 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
     setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'map' ? { ...w, config } : w));
   };
 
+  const updateImageConfig = (id: string, config: ImageWidgetConfig) => {
+    setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'image' ? { ...w, config } : w));
+  };
+
   const editingChart = widgets.find(w => getId(w) === editingId && w.kind === 'chart');
   const chartCount = widgets.filter(w => w.kind === 'chart').length;
   const textCount = widgets.filter(w => w.kind === 'text').length;
   const mapCount = widgets.filter(w => w.kind === 'map').length;
+  const imageCount = widgets.filter(w => w.kind === 'image').length;
 
   const widgetCountLabel = [
     `${chartCount} chart(s)`,
     textCount > 0 ? `${textCount} text(s)` : '',
     mapCount > 0 ? `${mapCount} map(s)` : '',
+    imageCount > 0 ? `${imageCount} image(s)` : '',
   ].filter(Boolean).join(' · ');
 
   return (
@@ -183,6 +206,17 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             <button onClick={addText} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
               <Type className="w-3 h-3" /> Text
             </button>
+            <button onClick={addImage} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
+              <ImageIcon className="w-3 h-3" /> Image
+            </button>
+            <div className="w-px h-5 bg-border mx-0.5" />
+            <input
+              type="text"
+              placeholder="Nom utilisateur (PDF)..."
+              value={pdfUserName}
+              onChange={e => setPdfUserName(e.target.value)}
+              className="bg-muted border border-border rounded px-2 py-1 text-[10px] text-foreground w-28 outline-none focus:ring-1 focus:ring-primary/30"
+            />
             <button onClick={handleExportDashboardPDF} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
               <FileDown className="w-3 h-3" /> PDF
             </button>
@@ -241,6 +275,12 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
                     <BIMapWidget
                       config={w.config as MapWidgetConfig}
                       onChange={cfg => updateMapConfig(getId(w), cfg)}
+                      onDelete={() => deleteWidget(getId(w))}
+                    />
+                  ) : w.kind === 'image' ? (
+                    <BIImageWidget
+                      config={w.config as ImageWidgetConfig}
+                      onChange={cfg => updateImageConfig(getId(w), cfg)}
                       onDelete={() => deleteWidget(getId(w))}
                     />
                   ) : (
