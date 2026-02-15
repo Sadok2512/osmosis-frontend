@@ -5,7 +5,7 @@ import {
   DetectorConfig, AnalyticsResponse, AnalyticsQuery, Filters, KPIType,
   TimeSeriesPoint, GeoJSONFeature
 } from '../types';
-import topoRaw from '../data/topoData';
+import { fetchTopoSites, fetchTopoSiteDetail } from './topoService';
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 const randInt = (min: number, max: number) => Math.floor(rand(min, max));
@@ -23,95 +23,22 @@ function seededRand(seed: string, min: number, max: number): number {
   return min + (x - Math.floor(x)) * (max - min);
 }
 
-// Build sites from real topo data
-function buildSitesFromTopo(): SiteSummary[] {
-  const siteMap = new Map<string, typeof topoRaw>();
-
-  topoRaw.forEach(row => {
-    if (!siteMap.has(row.siteId)) siteMap.set(row.siteId, []);
-    siteMap.get(row.siteId)!.push(row);
-  });
-
-  const sites: SiteSummary[] = [];
-
-  siteMap.forEach((rows, siteId) => {
-    const first = rows[0];
-
-    // Use average coordinates of all cells for site center
-    const avgLat = rows.reduce((s, r) => s + r.lat, 0) / rows.length;
-    const avgLng = rows.reduce((s, r) => s + r.lng, 0) / rows.length;
-
-    const cells: CellProperties[] = rows.map(r => ({
-      cell_id: r.cellName,
-      techno: r.techno,
-      bande: r.bande,
-      azimut: r.azimut,
-      hba: r.hba,
-      qoe_score_avg: seededRand(r.cellName + 'qoe', 55, 98),
-      p95_rtt_ms: seededRand(r.cellName + 'rtt', 15, 180),
-      traffic_up_bytes: seededRand(r.cellName + 'traf', 1e9, 5e10),
-      dms_dl_3: seededRand(r.cellName + 'dms3', 75, 99),
-      dms_dl_8: seededRand(r.cellName + 'dms8', 55, 95),
-      dms_dl_30: seededRand(r.cellName + 'dms30', 15, 55),
-      dms_ul_3: seededRand(r.cellName + 'ul3', 65, 95),
-      p50_thr_dn_mbps: seededRand(r.cellName + 'thr', 8, 120),
-      sessions: Math.floor(seededRand(r.cellName + 'ses', 500, 50000)),
-    }));
-
-    const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
-
-    // Determine DOR from region
-    const dorMap: Record<string, string> = {
-      'UPR Nord-Est': 'DOR EST',
-      'UPR Sud-Est': 'DOR SUD',
-      'UPR Ouest': 'DOR OUEST',
-      'UPR Sud-Ouest': 'DOR SUD',
-    };
-
-    sites.push({
-      site_id: siteId,
-      site_name: first.siteName,
-      vendor: first.vendor.charAt(0).toUpperCase() + first.vendor.slice(1),
-      dor: dorMap[first.region] || 'DOR IDF',
-      plaque: first.plaque,
-      department: first.plaque.replace('DEPT_', ''),
-      cell_count: cells.length,
-      qoe_score_avg: avg(cells.map(c => c.qoe_score_avg)),
-      p50_thr_dn_mbps: avg(cells.map(c => c.p50_thr_dn_mbps)),
-      p50_thr_up_mbps: seededRand(siteId + 'thrup', 5, 40),
-      dms_dl_3: avg(cells.map(c => c.dms_dl_3)),
-      dms_dl_8: avg(cells.map(c => c.dms_dl_8)),
-      dms_dl_30: avg(cells.map(c => c.dms_dl_30)),
-      dms_ul_3: avg(cells.map(c => c.dms_ul_3)),
-      coordinates: [avgLat, avgLng] as [number, number],
-      cells,
-    });
-  });
-
-  return sites;
-}
-
+// Use topo service (DB-backed with local fallback)
 let cachedSites: SiteSummary[] | null = null;
 
-function getSites(): SiteSummary[] {
+async function getSites(): Promise<SiteSummary[]> {
   if (!cachedSites) {
-    cachedSites = buildSitesFromTopo();
+    cachedSites = await fetchTopoSites();
   }
   return cachedSites;
 }
 
-export function fetchSites(_filters: Filters): Promise<SiteSummary[]> {
-  return Promise.resolve(getSites());
+export async function fetchSites(_filters: Filters): Promise<SiteSummary[]> {
+  return getSites();
 }
 
-export function fetchSiteDetails(siteId: string): Promise<SiteDetail> {
-  const site = getSites().find(s => s.site_id === siteId) || getSites()[0];
-  return Promise.resolve({
-    ...site,
-    traffic_dn_bytes: seededRand(siteId + 'vol', 1e12, 8e12),
-    traffic_up_bytes: seededRand(siteId + 'volup', 1e11, 2e12),
-    p95_rtt_ms: seededRand(siteId + 'rtt', 20, 150),
-  });
+export async function fetchSiteDetails(siteId: string): Promise<SiteDetail> {
+  return fetchTopoSiteDetail(siteId);
 }
 
 export function fetchCellTimeSeries(
@@ -168,48 +95,47 @@ export function fetchDashboardSnapshot(_filters: Filters): Promise<Record<string
   });
 }
 
-export function fetchGlobalDistributions(_filters: Filters): Promise<Record<string, any>> {
-  const sites = getSites();
+export async function fetchGlobalDistributions(_filters: Filters): Promise<Record<string, any>> {
+  const sites = await getSites();
   const vendors = [...new Set(sites.map(s => s.vendor))];
   const technos = [...new Set(sites.flatMap(s => s.cells.map(c => c.techno)))];
   const plaques = [...new Set(sites.map(s => s.plaque))];
-  return Promise.resolve({
+  return {
     vendor: vendors.map(v => ({ name: v, value: sites.filter(s => s.vendor === v).length })),
     technology: technos.map(t => ({ name: t, value: sites.flatMap(s => s.cells).filter(c => c.techno === t).length })),
     region: plaques.slice(0, 5).map(p => ({ name: p, qoe: rand(70, 95) })),
-  });
+  };
 }
 
-export function fetchAlerts(_filters: Filters): Promise<Alert[]> {
+export async function fetchAlerts(_filters: Filters): Promise<Alert[]> {
   const severities: Alert['severity'][] = ['CRITIQUE', 'ELEVEE', 'MOYENNE', 'FAIBLE'];
   const statuses: Alert['status'][] = ['NEW', 'ACK', 'RESOLVED', 'FALSE_POSITIVE'];
-  const sites = getSites();
-  return Promise.resolve(
-    Array.from({ length: 12 }, (_, i) => ({
-      alert_id: `ALT-${String(i + 1).padStart(3, '0')}`,
-      severity: severities[i % 4],
-      scope_type: pick(['CELL', 'SITE', 'REGION']),
-      scope_id: sites[i % sites.length].site_id,
-      scope_name: sites[i % sites.length].site_name,
-      primary_kpi: pick(['qoe_score_avg', 'dms_dl_8', 'p95_rtt_ms', 'loss_dn_sum']),
-      baseline: rand(75, 92),
-      current: rand(45, 80),
-      delta_pct: -rand(5, 35),
-      evidence_signals: {
-        rtt_increase: `+${randInt(10, 50)}ms`,
-        loss_spike: `${rand(0.01, 0.5).toFixed(2)}%`,
-        session_drop: `${randInt(5, 30)}%`,
-        window_full: `${rand(0.5, 5).toFixed(1)}%`,
-      },
-      anomaly_score: rand(0.5, 1),
-      confidence: rand(0.6, 0.98),
-      status: statuses[i % 4],
-    }))
-  );
+  const sites = await getSites();
+  return Array.from({ length: 12 }, (_, i) => ({
+    alert_id: `ALT-${String(i + 1).padStart(3, '0')}`,
+    severity: severities[i % 4],
+    scope_type: pick(['CELL', 'SITE', 'REGION']),
+    scope_id: sites[i % sites.length].site_id,
+    scope_name: sites[i % sites.length].site_name,
+    primary_kpi: pick(['qoe_score_avg', 'dms_dl_8', 'p95_rtt_ms', 'loss_dn_sum']),
+    baseline: rand(75, 92),
+    current: rand(45, 80),
+    delta_pct: -rand(5, 35),
+    evidence_signals: {
+      rtt_increase: `+${randInt(10, 50)}ms`,
+      loss_spike: `${rand(0.01, 0.5).toFixed(2)}%`,
+      session_drop: `${randInt(5, 30)}%`,
+      window_full: `${rand(0.5, 5).toFixed(1)}%`,
+    },
+    anomaly_score: rand(0.5, 1),
+    confidence: rand(0.6, 0.98),
+    status: statuses[i % 4],
+  }));
 }
 
-export function fetchTCPAnalytics(_filters: Filters): Promise<TCPAnalyticsData> {
-  return Promise.resolve({
+export async function fetchTCPAnalytics(_filters: Filters): Promise<TCPAnalyticsData> {
+  const sites = await getSites();
+  return {
     congestion_index: randInt(15, 45),
     cards: [
       { metric: KPIType.WINDOW_FULL, label: 'Window Full', status: rand(0, 1) > 0.5 ? 'Critical' : 'OK', value: rand(0.5, 6), delta: rand(-2, 3), impacted_sessions: randInt(1000, 10000), total_sessions: randInt(100000, 500000) },
@@ -219,7 +145,7 @@ export function fetchTCPAnalytics(_filters: Filters): Promise<TCPAnalyticsData> 
     ],
     distributions: {},
     worst_cells: Array.from({ length: 5 }, (_, i) => ({
-      name: `CELL_${getSites()[i % getSites().length].site_name}_S${i + 1}`,
+      name: `CELL_${sites[i % sites.length].site_name}_S${i + 1}`,
       id: `C${randInt(1000, 9999)}`,
       value: `${rand(1, 8).toFixed(2)}%`,
       qoe_impact: `-${rand(2, 15).toFixed(1)}%`,
@@ -229,7 +155,7 @@ export function fetchTCPAnalytics(_filters: Filters): Promise<TCPAnalyticsData> 
       value: `${rand(0.5, 5).toFixed(2)}%`,
       qoe_impact: `-${rand(1, 10).toFixed(1)}%`,
     })),
-  });
+  };
 }
 
 export function fetchTCPTimeSeriesDistributions(
@@ -271,9 +197,9 @@ export function fetchTrafficOverview(_filters: Filters): Promise<TrafficTypeStat
   );
 }
 
-export function fetchSubscriberProfile(_hash: string): Promise<SubscriberExperienceData> {
-  const sites = getSites();
-  return Promise.resolve({
+export async function fetchSubscriberProfile(_hash: string): Promise<SubscriberExperienceData> {
+  const sites = await getSites();
+  return {
     total_traffic_gb: rand(5, 50),
     qoe_global: rand(65, 95),
     top_app: pick(['Netflix', 'YouTube', 'TikTok', 'Instagram']),
@@ -292,7 +218,7 @@ export function fetchSubscriberProfile(_hash: string): Promise<SubscriberExperie
       cell: `CELL_S${randInt(1, 4)}`,
       rat: pick(['5G', '4G', '3G']),
     })),
-  });
+  };
 }
 
 export function fetchDetectorConfigs(): Promise<DetectorConfig[]> {
@@ -304,8 +230,8 @@ export function fetchDetectorConfigs(): Promise<DetectorConfig[]> {
   ]);
 }
 
-export function fetchAnalyticsQuery(query: AnalyticsQuery): Promise<AnalyticsResponse> {
-  const labels = getLabelsForAggregation(query.aggregation);
+export async function fetchAnalyticsQuery(query: AnalyticsQuery): Promise<AnalyticsResponse> {
+  const labels = await getLabelsForAggregation(query.aggregation);
   const data = labels.map(label => {
     const row: any = { label, x: label, y: rand(40, 95) };
     query.y_metrics.forEach(m => {
@@ -313,19 +239,20 @@ export function fetchAnalyticsQuery(query: AnalyticsQuery): Promise<AnalyticsRes
     });
     return row;
   });
-  return Promise.resolve({
+  return {
     metadata: { x_label: query.aggregation, y_labels: query.y_metrics, unit: '%' },
     data,
-  });
+  };
 }
 
-function getLabelsForAggregation(agg: string): string[] {
+async function getLabelsForAggregation(agg: string): Promise<string[]> {
+  const sites = await getSites();
   switch (agg) {
     case 'date': return Array.from({ length: 14 }, (_, i) => { const d = new Date('2026-02-10'); d.setDate(d.getDate() - (13 - i)); return d.toISOString().slice(5, 10); });
-    case 'vendor': return [...new Set(getSites().map(s => s.vendor))];
-    case 'dor': return [...new Set(getSites().map(s => s.dor))];
-    case 'department': return [...new Set(getSites().map(s => s.department))];
-    case 'plaque': return [...new Set(getSites().map(s => s.plaque))];
+    case 'vendor': return [...new Set(sites.map(s => s.vendor))];
+    case 'dor': return [...new Set(sites.map(s => s.dor))];
+    case 'department': return [...new Set(sites.map(s => s.department))];
+    case 'plaque': return [...new Set(sites.map(s => s.plaque))];
     case 'traffic_type': return ['Streaming', 'Gaming', 'Web', 'Social', 'Cloud'];
     case 'rat': return ['5G', '4G', '3G', '2G'];
     default: return Array.from({ length: 10 }, (_, i) => `Item ${i + 1}`);

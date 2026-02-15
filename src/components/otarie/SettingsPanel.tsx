@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
+import { invalidateTopoCache } from '@/services/topoService';
 import type { SidebarTheme, AccentColor } from '../../pages/Index';
 
 interface SettingsPanelProps {
@@ -165,7 +166,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
       if (error) throw error;
 
       setTopoCount(result.inserted);
-      setTopoStatus({ message: `✓ ${result.inserted} cellules importées avec succès`, type: 'success' });
+      invalidateTopoCache();
+      setTopoStatus({ message: `✓ ${result.inserted} cellules importées avec succès. Rechargez la carte pour voir les nouvelles données.`, type: 'success' });
     } catch (err: any) {
       setTopoStatus({ message: `Erreur: ${err.message}`, type: 'error' });
     } finally {
