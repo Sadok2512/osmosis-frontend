@@ -311,4 +311,4 @@ export interface DetectorConfig {
   last_run?: string;
 }
 
-export type AppTab = 'list' | 'sites' | 'analytics' | 'bi' | 'radio' | 'traffic' | 'subscriber' | 'alerts' | 'detector';
+export type AppTab = 'list' | 'sites' | 'analytics' | 'bi' | 'radio' | 'traffic' | 'subscriber' | 'alerts' | 'detector' | 'settings';
