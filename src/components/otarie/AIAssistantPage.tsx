@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -205,7 +207,7 @@ const AIAssistantPage: React.FC = () => {
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
                 )}
-                <div className={`max-w-[85%] ${
+                <div className={`max-w-[85%] overflow-hidden ${
                   msg.role === 'user'
                     ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3'
                     : 'bg-card border border-border rounded-2xl rounded-bl-md px-5 py-4'
@@ -213,10 +215,7 @@ const AIAssistantPage: React.FC = () => {
                   {msg.role === 'user' ? (
                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                   ) : (
-                    <div
-                      className="prose prose-sm max-w-none text-foreground text-sm [&_table]:w-full [&_table]:border-collapse [&_table]:rounded-lg [&_table]:overflow-hidden [&_th]:bg-muted [&_th]:px-3 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:text-foreground [&_th]:text-left [&_th]:border-b [&_th]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:text-xs [&_td]:border-b [&_td]:border-border/50 [&_tr:nth-child(even)]:bg-muted/30 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-foreground [&_h3]:mt-4 [&_h3]:mb-2 [&_h2]:text-base [&_h2]:font-bold [&_p]:text-sm [&_p]:leading-relaxed [&_ul]:text-sm [&_ol]:text-sm [&_li]:text-sm [&_strong]:text-foreground [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded [&_code]:text-xs"
-                      dangerouslySetInnerHTML={{ __html: renderContent(msg.content) }}
-                    />
+                    <AssistantMessage content={msg.content} />
                   )}
                 </div>
                 {msg.role === 'user' && (
@@ -281,25 +280,82 @@ const AIAssistantPage: React.FC = () => {
 };
 
 /**
- * Renders content: if it contains HTML tags, render as HTML; otherwise treat as markdown-like text.
+ * AssistantMessage: renders mixed HTML + Markdown content.
+ * If content contains raw HTML (tables, divs), those parts are rendered via dangerouslySetInnerHTML.
+ * Pure text/markdown sections are rendered via ReactMarkdown with GFM support.
  */
-function renderContent(content: string): string {
-  // If the content has HTML tags, return as-is
-  if (/<(table|div|h[1-6]|p|ul|ol|span|strong|em|br)\b/i.test(content)) {
-    return content;
-  }
-  // Simple markdown-ish conversion
-  let html = content
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br/>');
-  return `<p>${html}</p>`;
-}
+const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
+  // Split content into HTML blocks and text blocks
+  const parts = useMemo(() => {
+    // Check if the content has HTML tags
+    const hasHtml = /<(table|div|style)\b/i.test(content);
+    if (hasHtml) {
+      // Render entirely as HTML since it's mixed
+      return [{ type: 'html' as const, content }];
+    }
+    // Pure markdown
+    return [{ type: 'md' as const, content }];
+  }, [content]);
+
+  return (
+    <div className="ai-msg-content space-y-3 text-sm leading-relaxed text-foreground">
+      {parts.map((part, i) =>
+        part.type === 'html' ? (
+          <div
+            key={i}
+            className="ai-html-block"
+            dangerouslySetInnerHTML={{ __html: part.content }}
+          />
+        ) : (
+          <ReactMarkdown
+            key={i}
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: ({ children }) => <h1 className="text-lg font-bold text-foreground mt-5 mb-2">{children}</h1>,
+              h2: ({ children }) => <h2 className="text-base font-bold text-foreground mt-4 mb-2 flex items-center gap-2"><span className="w-1 h-5 bg-primary rounded-full inline-block" />{children}</h2>,
+              h3: ({ children }) => <h3 className="text-sm font-bold text-foreground mt-3 mb-1.5">{children}</h3>,
+              p: ({ children }) => <p className="text-sm leading-relaxed text-foreground/90 mb-2">{children}</p>,
+              strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+              em: ({ children }) => <em className="text-foreground/70 italic">{children}</em>,
+              code: ({ children, className }) => {
+                const isBlock = className?.includes('language-');
+                if (isBlock) {
+                  return <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 overflow-x-auto my-2"><code className="text-xs font-mono text-foreground">{children}</code></pre>;
+                }
+                return <code className="bg-primary/10 text-primary font-mono text-xs px-1.5 py-0.5 rounded-md">{children}</code>;
+              },
+              ul: ({ children }) => <ul className="space-y-1.5 my-2 ml-1">{children}</ul>,
+              ol: ({ children }) => <ol className="space-y-1.5 my-2 ml-1 list-decimal list-inside">{children}</ol>,
+              li: ({ children }) => (
+                <li className="text-sm text-foreground/90 flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-2 shrink-0" />
+                  <span>{children}</span>
+                </li>
+              ),
+              table: ({ children }) => (
+                <div className="my-3 rounded-xl border border-border overflow-hidden shadow-sm">
+                  <table className="w-full border-collapse text-xs">{children}</table>
+                </div>
+              ),
+              thead: ({ children }) => <thead className="bg-muted">{children}</thead>,
+              th: ({ children }) => <th className="px-3 py-2.5 text-xs font-bold text-foreground text-left border-b border-border uppercase tracking-wider">{children}</th>,
+              td: ({ children }) => <td className="px-3 py-2 text-xs text-foreground/90 border-b border-border/40">{children}</td>,
+              tr: ({ children, ...props }) => <tr className="hover:bg-muted/30 transition-colors even:bg-muted/15">{children}</tr>,
+              blockquote: ({ children }) => (
+                <blockquote className="border-l-3 border-primary bg-primary/5 rounded-r-lg px-4 py-3 my-3 text-sm text-foreground/80 italic">
+                  {children}
+                </blockquote>
+              ),
+              hr: () => <hr className="border-border my-4" />,
+              a: ({ href, children }) => <a href={href} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors">{children}</a>,
+            }}
+          >
+            {part.content}
+          </ReactMarkdown>
+        )
+      )}
+    </div>
+  );
+};
 
 export default AIAssistantPage;
