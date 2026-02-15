@@ -129,6 +129,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showSidePanel, setShowSidePanel] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [panelMinimized, setPanelMinimized] = useState(false);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [localVendor, setLocalVendor] = useState('ALL');
   const [localDor, setLocalDor] = useState('ALL');
   const [localPlaque, setLocalPlaque] = useState('ALL');
@@ -573,7 +574,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating side panel with search, filters & site list */}
       {showSidePanel && viewMode === 'map' && (
-        <div className="absolute top-4 left-4 bottom-4 w-[340px] z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div className={`absolute top-4 left-4 ${panelCollapsed ? '' : 'bottom-4'} w-[340px] z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col`}>
           {/* Search bar */}
           <div className="px-4 py-3 border-b border-border shrink-0">
             <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5">
@@ -585,95 +586,105 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 onChange={(e) => setLocalSearch(e.target.value)}
                 className="flex-1 bg-transparent text-[12px] font-medium text-foreground outline-none placeholder:text-muted-foreground min-w-0"
               />
+              <button
+                onClick={() => setPanelCollapsed(!panelCollapsed)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0"
+                title={panelCollapsed ? 'Afficher la liste' : 'Masquer la liste'}
+              >
+                {panelCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+              </button>
             </div>
           </div>
-
-          {/* Collapsible filters */}
-          <div className="shrink-0 border-b border-border">
-            <button
-              onClick={() => setPanelMinimized(!panelMinimized)}
-              className="w-full px-4 py-2 flex items-center justify-between hover:bg-muted/50 transition-all"
-            >
-              <div className="flex items-center gap-2">
-                <Filter size={13} className="text-primary" />
-                <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">Filtres</span>
-              </div>
-              {panelMinimized ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground" />}
-            </button>
-            {!panelMinimized && (
-              <div className="px-4 pb-3 grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Vendor</span>
-                  <select value={localVendor} onChange={(e) => setLocalVendor(e.target.value)}
-                    className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                    {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">DOR</span>
-                  <select value={localDor} onChange={(e) => setLocalDor(e.target.value)}
-                    className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                    {DORS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Plaque</span>
-                  <select value={localPlaque} onChange={(e) => setLocalPlaque(e.target.value)}
-                    className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                    {PLAQUES.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Site</span>
-                  <select value={localSite} onChange={(e) => setLocalSite(e.target.value)}
-                    className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                    {uniqueSiteNames.slice(0, 500).map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Site list */}
-          <div className="flex-1 overflow-y-auto">
-            {filteredSites.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <Search size={28} className="mb-3 opacity-30" />
-                <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
-              </div>
-            ) : filteredSites.slice(0, 200).map(site => (
-              <div
-                key={site.site_id}
-                onClick={() => handleSiteClick(site)}
-                onMouseEnter={() => setHoveredSiteId(site.site_id)}
-                onMouseLeave={() => setHoveredSiteId(null)}
-                className={`px-4 py-3 border-b border-border/50 cursor-pointer transition-all hover:bg-primary/5 ${
-                  hoveredSiteId === site.site_id ? 'bg-primary/5' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-[12px] font-bold text-foreground tracking-tight uppercase">{site.site_name}</h4>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                      <span className="font-mono">{site.site_id}</span>
-                      <span className="uppercase">{site.vendor}</span>
+          {!panelCollapsed && (
+            <>
+              {/* Collapsible filters */}
+              <div className="shrink-0 border-b border-border">
+                <button
+                  onClick={() => setPanelMinimized(!panelMinimized)}
+                  className="w-full px-4 py-2 flex items-center justify-between hover:bg-muted/50 transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <Filter size={13} className="text-primary" />
+                    <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">Filtres</span>
+                  </div>
+                  {panelMinimized ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground" />}
+                </button>
+                {!panelMinimized && (
+                  <div className="px-4 pb-3 grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Vendor</span>
+                      <select value={localVendor} onChange={(e) => setLocalVendor(e.target.value)}
+                        className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                        {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">DOR</span>
+                      <select value={localDor} onChange={(e) => setLocalDor(e.target.value)}
+                        className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                        {DORS.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Plaque</span>
+                      <select value={localPlaque} onChange={(e) => setLocalPlaque(e.target.value)}
+                        className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                        {PLAQUES.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Site</span>
+                      <select value={localSite} onChange={(e) => setLocalSite(e.target.value)}
+                        className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                        {uniqueSiteNames.slice(0, 500).map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[14px] font-black tracking-tight" style={{ color: getQoEColor(site.qoe_score_avg) }}>
-                      {site.qoe_score_avg.toFixed(1)}%
-                    </span>
-                    <ChevronRight size={14} className="text-muted-foreground" />
+                )}
+              </div>
+
+              {/* Site list */}
+              <div className="flex-1 overflow-y-auto">
+                {filteredSites.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                    <Search size={28} className="mb-3 opacity-30" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
                   </div>
-                </div>
+                ) : filteredSites.slice(0, 200).map(site => (
+                  <div
+                    key={site.site_id}
+                    onClick={() => handleSiteClick(site)}
+                    onMouseEnter={() => setHoveredSiteId(site.site_id)}
+                    onMouseLeave={() => setHoveredSiteId(null)}
+                    className={`px-4 py-3 border-b border-border/50 cursor-pointer transition-all hover:bg-primary/5 ${
+                      hoveredSiteId === site.site_id ? 'bg-primary/5' : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-[12px] font-bold text-foreground tracking-tight uppercase">{site.site_name}</h4>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                          <span className="font-mono">{site.site_id}</span>
+                          <span className="uppercase">{site.vendor}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[14px] font-black tracking-tight" style={{ color: getQoEColor(site.qoe_score_avg) }}>
+                          {site.qoe_score_avg.toFixed(1)}%
+                        </span>
+                        <ChevronRight size={14} className="text-muted-foreground" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {filteredSites.length > 200 && (
+                  <div className="px-4 py-3 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    + {filteredSites.length - 200} more — zoom or filter to narrow
+                  </div>
+                )}
               </div>
-            ))}
-            {filteredSites.length > 200 && (
-              <div className="px-4 py-3 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                + {filteredSites.length - 200} more — zoom or filter to narrow
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       )}
 
