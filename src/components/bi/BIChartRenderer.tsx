@@ -309,14 +309,15 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
   const showBackgroundBars = effectiveYMetrics.length === 1 &&
     (firstMetric.chartType === 'line' || firstMetric.chartType === 'area');
 
-  const xTickFormatter = (value: string) => {
-    if (!value) return '';
+  const xTickFormatter = (value: any) => {
+    if (value == null) return '';
+    const str = String(value);
     // Format dates nicely
-    if (value.includes('-')) {
-      const parts = value.split('-');
+    if (str.includes('-')) {
+      const parts = str.split('-');
       return `${parts[1]}-${parts[2]?.split('T')[0] || ''}`;
     }
-    return value.length > 10 ? value.slice(0, 10) + '…' : value;
+    return str.length > 10 ? str.slice(0, 10) + '…' : str;
   };
 
   // Grouped bar sizing
