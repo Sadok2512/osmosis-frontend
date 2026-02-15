@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip } from 'react-leaflet';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { fetchSites, fetchSiteDetails } from '../../services/api';
@@ -19,26 +20,27 @@ interface SitesMonitorProps {
   onCellSelect: (cellId: string) => void;
 }
 
+// Zoom threshold: above this we show sectors, below we show clusters
+const SECTOR_ZOOM_THRESHOLD = 13;
+
 // Generate sector polygon points (wedge shape)
 const getSectorCoords = (
   center: [number, number],
-  azimuth: number, // degrees from north
+  azimuth: number,
   radiusMeters: number = 300,
-  aperture: number = 65 // degrees width of sector
+  aperture: number = 65
 ): [number, number][] => {
   const steps = 20;
   const startAngle = azimuth - aperture / 2;
   const endAngle = azimuth + aperture / 2;
   const points: [number, number][] = [center];
-  
   for (let i = 0; i <= steps; i++) {
     const angle = startAngle + (endAngle - startAngle) * (i / steps);
-    const rad = (angle - 90) * (Math.PI / 180); // convert to math angle (0=east)
+    const rad = (angle - 90) * (Math.PI / 180);
     const dlat = (radiusMeters / 111320) * Math.cos(rad);
     const dlng = (radiusMeters / (111320 * Math.cos(center[0] * Math.PI / 180))) * Math.sin(rad);
     points.push([center[0] + dlat, center[1] + dlng]);
   }
-  
   points.push(center);
   return points;
 };
@@ -50,6 +52,68 @@ const FlyToSite = ({ coords }: { coords: [number, number] | null }) => {
     if (coords) map.flyTo(coords, 15, { duration: 1 });
   }, [coords, map]);
   return null;
+};
+
+// Track map viewport (bounds + zoom)
+interface ViewportState {
+  bounds: L.LatLngBounds | null;
+  zoom: number;
+}
+
+const MapViewportTracker = ({ onViewportChange }: { onViewportChange: (v: ViewportState) => void }) => {
+  const map = useMapEvents({
+    moveend: () => {
+      onViewportChange({ bounds: map.getBounds(), zoom: map.getZoom() });
+    },
+    zoomend: () => {
+      onViewportChange({ bounds: map.getBounds(), zoom: map.getZoom() });
+    },
+  });
+
+  // Initial viewport
+  useEffect(() => {
+    onViewportChange({ bounds: map.getBounds(), zoom: map.getZoom() });
+  }, []);
+
+  return null;
+};
+
+// Create a custom cluster icon
+const createClusterCustomIcon = (cluster: any) => {
+  const count = cluster.getChildCount();
+  let size = 'small';
+  let dim = 36;
+  if (count >= 100) { size = 'large'; dim = 50; }
+  else if (count >= 10) { size = 'medium'; dim = 42; }
+
+  return L.divIcon({
+    html: `<div style="
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+      width: ${dim}px; height: ${dim}px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: ${dim > 42 ? 14 : 12}px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      border: 3px solid hsl(var(--background));
+    ">${count}</div>`,
+    className: 'custom-cluster-icon',
+    iconSize: L.point(dim, dim, true),
+  });
+};
+
+// Lightweight site marker icon
+const createSiteIcon = (color: string) => {
+  return L.divIcon({
+    html: `<div style="
+      width:12px;height:12px;border-radius:50%;
+      background:${color};border:2px solid #1e293b;
+      box-shadow:0 2px 6px rgba(0,0,0,0.3);
+    "></div>`,
+    className: 'site-dot-icon',
+    iconSize: L.point(12, 12),
+    iconAnchor: L.point(6, 6),
+  });
 };
 
 const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect }) => {
@@ -67,6 +131,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [mapKpi, setMapKpi] = useState('qoe_score_avg');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
+  const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
 
   const MAP_KPIS = [
     { id: 'qoe_score_avg', label: 'Score QoE Global', category: 'QUALITY' },
@@ -99,13 +164,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (value >= 500) return '#f59e0b';
       return '#ef4444';
     }
-    // Percentage-based KPIs (QoE, DMS)
     if (value >= 80) return '#10b981';
     if (value >= 60) return '#f59e0b';
     return '#ef4444';
   };
 
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'Score QoE Global';
+
   useEffect(() => {
     const loadSites = async () => {
       setLoading(true);
@@ -130,6 +195,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
   }, [selectedSiteId]);
 
+  // Filter sites by search/filters
   const filteredSites = useMemo(() => {
     return sites.filter(s => {
       const matchesSearch = s.site_name.toLowerCase().includes(localSearch.toLowerCase()) || s.site_id.toLowerCase().includes(localSearch.toLowerCase());
@@ -141,6 +207,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat;
     });
   }, [sites, localSearch, filters]);
+
+  // Sites visible in current viewport
+  const visibleSites = useMemo(() => {
+    if (!viewport.bounds) return filteredSites;
+    return filteredSites.filter(s => viewport.bounds!.contains(L.latLng(s.coordinates[0], s.coordinates[1])));
+  }, [filteredSites, viewport.bounds]);
+
+  const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD;
+
+  const handleViewportChange = useCallback((v: ViewportState) => {
+    setViewport(v);
+  }, []);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
@@ -171,7 +249,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       <div className="flex-1 flex flex-col bg-background overflow-hidden h-full">
         <div className="px-10 py-6 border-b border-border flex items-center justify-between bg-card z-20 shadow-sm shrink-0">
           <div className="flex items-center gap-8">
-            <button onClick={() => setSelectedSiteId(null)} className="w-12 h-12 bg-slate-900 text-white rounded-[1.25rem] flex items-center justify-center hover:bg-slate-800 transition-all shadow-lg">
+            <button onClick={() => setSelectedSiteId(null)} className="w-12 h-12 bg-sidebar text-sidebar-foreground rounded-[1.25rem] flex items-center justify-center hover:opacity-90 transition-all shadow-lg">
               <ChevronLeft className="w-6 h-6" />
             </button>
             <div>
@@ -199,7 +277,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <MiniStat label="Latence" value={`${siteDetail.p95_rtt_ms.toFixed(0)}ms`} icon={<Activity size={16} />} color="text-amber-600" />
           </div>
 
-          {/* Mini map for selected site */}
           <div className="rounded-[2rem] overflow-hidden border border-border shadow-sm h-[200px]">
             <MapContainer center={siteDetail.coordinates} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
               <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>' />
@@ -238,7 +315,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     );
   }
 
-  // Main view — full screen map with floating panels
+  // Main view — full screen map with clustering
   return (
     <div className="flex-1 flex flex-col bg-background overflow-hidden h-full relative">
       {/* FULL SCREEN MAP */}
@@ -253,11 +330,53 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
         />
         <FlyToSite coords={flyTarget} />
-        {filteredSites.map(site => {
+        <MapViewportTracker onViewportChange={handleViewportChange} />
+
+        {/* Clustered markers (shown at all zoom levels) */}
+        {!showSectors && (
+          <MarkerClusterGroup
+            chunkedLoading
+            iconCreateFunction={createClusterCustomIcon}
+            maxClusterRadius={60}
+            spiderfyOnMaxZoom
+            showCoverageOnHover={false}
+            zoomToBoundsOnClick
+            disableClusteringAtZoom={SECTOR_ZOOM_THRESHOLD}
+          >
+            {filteredSites.map(site => {
+              const color = getKpiColor(getCellKpiValue(site.cells[0] || {}));
+              return (
+                <Marker
+                  key={site.site_id}
+                  position={site.coordinates}
+                  icon={createSiteIcon(color)}
+                  eventHandlers={{
+                    click: () => handleSiteClick(site),
+                    mouseover: () => setHoveredSiteId(site.site_id),
+                    mouseout: () => setHoveredSiteId(null),
+                  }}
+                >
+                  <Popup>
+                    <div className="p-1">
+                      <div className="font-bold text-sm">{site.site_name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                      <div className="text-sm font-bold mt-2" style={{ color }}>
+                        {selectedKpiLabel}: {(site as any)[mapKpi]?.toFixed?.(1) ?? site.qoe_score_avg.toFixed(1)}
+                      </div>
+                      <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+          </MarkerClusterGroup>
+        )}
+
+        {/* Detailed sectors (only when zoomed in, only visible sites) */}
+        {showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           return (
             <React.Fragment key={site.site_id}>
-              {/* Sector wedges for each cell */}
               {site.cells.map(cell => {
                 const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, 350, 65);
                 const kpiVal = getCellKpiValue(cell);
@@ -267,7 +386,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     key={cell.cell_id}
                     positions={sectorCoords}
                     pathOptions={{
-                      color: color,
+                      color,
                       fillColor: color,
                       fillOpacity: isHovered ? 0.35 : 0.2,
                       weight: isHovered ? 2 : 1,
@@ -289,7 +408,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </Polygon>
                 );
               })}
-              {/* Center site dot */}
               <CircleMarker
                 center={site.coordinates}
                 radius={isHovered ? 7 : 5}
@@ -308,7 +426,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <Popup>
                   <div className="p-1">
                     <div className="font-bold text-sm">{site.site_name}</div>
-                    <div className="text-xs text-gray-500 mt-1">{site.site_id} • {site.vendor}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
                     <div className="text-sm font-bold mt-2" style={{ color: getKpiColor(getCellKpiValue(site.cells[0] || {})) }}>
                       {selectedKpiLabel}: {(site as any)[mapKpi]?.toFixed?.(1) ?? site.qoe_score_avg.toFixed(1)}
                     </div>
@@ -321,13 +439,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
       </MapContainer>
 
-      {/* Floating top bar — KPI selector + controls (right side only) */}
+      {/* Floating info badge — site count + zoom level */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-5 py-2.5 flex items-center gap-4">
+          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+            {filteredSites.length} sites
+          </span>
+          <span className="w-px h-4 bg-border" />
+          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+            Zoom {viewport.zoom}
+          </span>
+          <span className="w-px h-4 bg-border" />
+          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: showSectors ? '#10b981' : 'hsl(var(--primary))' }}>
+            {showSectors ? `${visibleSites.length} visible • Sectors` : 'Clusters'}
+          </span>
+        </div>
+      </div>
+
+      {/* Floating top bar — KPI selector + controls */}
       <div className="absolute top-4 right-4 z-[1000] flex items-start gap-3 pointer-events-none">
-        {/* KPI Selector dropdown */}
         <div className="pointer-events-auto relative">
           <button
             onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-            className="flex items-center gap-3 px-5 py-3 bg-sidebar text-white rounded-xl shadow-xl hover:bg-sidebar/90 transition-all"
+            className="flex items-center gap-3 px-5 py-3 bg-sidebar text-sidebar-foreground rounded-xl shadow-xl hover:opacity-90 transition-all"
           >
             <Zap size={16} className="text-sidebar-primary" />
             <span className="text-[12px] font-bold uppercase tracking-wider">{selectedKpiLabel}</span>
@@ -387,24 +521,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <div className="px-5 pb-4 pt-1 space-y-3 border-t border-border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Excellent</span>
+                    <div className="w-3 h-3 rounded-full" style={{ background: '#10b981' }} />
+                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#10b981' }}>Excellent</span>
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground">Excellent</span>
+                  <span className="text-[10px] font-bold text-muted-foreground">≥ 80%</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-3 h-3 rounded-full bg-amber-500" />
-                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Correct</span>
+                    <div className="w-3 h-3 rounded-full" style={{ background: '#f59e0b' }} />
+                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#f59e0b' }}>Correct</span>
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground">Correct</span>
+                  <span className="text-[10px] font-bold text-muted-foreground">60–80%</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Critique</span>
+                    <div className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
+                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#ef4444' }}>Critique</span>
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground">Critique</span>
+                  <span className="text-[10px] font-bold text-muted-foreground">{'< 60%'}</span>
                 </div>
               </div>
             )}
@@ -415,7 +549,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* Floating site list panel */}
       {showSidePanel && viewMode === 'map' && (
         <div className="absolute top-4 left-4 bottom-4 w-[380px] z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-          {/* Search bar */}
           <div className="px-5 py-4 border-b border-border shrink-0">
             <div className="flex items-center gap-3 bg-muted rounded-xl px-4 py-3">
               <Search className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -428,14 +561,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               />
             </div>
           </div>
-          {/* Site list */}
           <div className="flex-1 overflow-y-auto">
             {filteredSites.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                 <Search size={28} className="mb-3 opacity-30" />
                 <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
               </div>
-            ) : filteredSites.map(site => (
+            ) : filteredSites.slice(0, 200).map(site => (
               <div
                 key={site.site_id}
                 onClick={() => handleSiteClick(site)}
@@ -467,8 +599,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               </div>
             ))}
+            {filteredSites.length > 200 && (
+              <div className="px-5 py-4 text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                + {filteredSites.length - 200} more sites — zoom or filter to narrow
+              </div>
+            )}
           </div>
-          {/* Collapse toggle */}
           <button
             onClick={() => setShowSidePanel(false)}
             className="absolute top-1/2 -right-4 w-4 h-10 bg-card border border-border rounded-r-lg flex items-center justify-center text-muted-foreground hover:text-primary shadow-md"
@@ -533,7 +669,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <div className="text-[9px] font-bold text-muted-foreground mt-1 uppercase tracking-widest">{site.site_id} • {site.dor}</div>
                       </td>
                       <td className="px-6 py-6 text-center">
-                        <span className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-[8px] font-black uppercase">{site.vendor}</span>
+                        <span className="px-2.5 py-1 bg-sidebar text-sidebar-foreground rounded-lg text-[8px] font-black uppercase">{site.vendor}</span>
                       </td>
                       <td className="px-6 py-6 text-center font-black text-muted-foreground text-[11px]">{site.cell_count}</td>
                       <td className="px-6 py-6 text-center">
