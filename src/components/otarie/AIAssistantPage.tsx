@@ -285,7 +285,16 @@ const AIAssistantPage: React.FC = () => {
 const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
   // Strip any HTML tags the AI might still produce
   const cleaned = useMemo(() => {
-    return content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    // Remove HTML tags but preserve Markdown table pipes and structure
+    let text = content;
+    // Remove full HTML blocks (div, table, style tags with content)
+    text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+    text = text.replace(/<\/?(?:div|span|table|thead|tbody|tr|td|th|style|br|hr|img|p|ul|ol|li|h[1-6]|a|b|i|em|strong|code|pre)[^>]*>/gi, '');
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&amp;/g, '&');
+    return text;
   }, [content]);
 
   return (
