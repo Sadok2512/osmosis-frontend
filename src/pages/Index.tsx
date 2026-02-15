@@ -29,6 +29,18 @@ const Index: React.FC = () => {
   const [siteSearch, setSiteSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
+  const accentStyles: Record<AccentColor, Record<string, string>> = {
+    default: {},
+    orange: { '--primary': '25 95% 53%', '--accent': '25 95% 53%', '--ring': '25 95% 53%', '--sidebar-primary': '25 95% 53%', '--sidebar-ring': '25 95% 53%' },
+    red: { '--primary': '0 72% 51%', '--accent': '0 72% 51%', '--ring': '0 72% 51%', '--sidebar-primary': '0 72% 51%', '--sidebar-ring': '0 72% 51%' },
+    pink: { '--primary': '330 81% 60%', '--accent': '330 81% 60%', '--ring': '330 81% 60%', '--sidebar-primary': '330 81% 60%', '--sidebar-ring': '330 81% 60%' },
+    purple: { '--primary': '262 83% 58%', '--accent': '262 83% 58%', '--ring': '262 83% 58%', '--sidebar-primary': '262 83% 58%', '--sidebar-ring': '262 83% 58%' },
+    indigo: { '--primary': '239 84% 67%', '--accent': '239 84% 67%', '--ring': '239 84% 67%', '--sidebar-primary': '239 84% 67%', '--sidebar-ring': '239 84% 67%' },
+    cyan: { '--primary': '187 92% 39%', '--accent': '187 92% 39%', '--ring': '187 92% 39%', '--sidebar-primary': '187 92% 39%', '--sidebar-ring': '187 92% 39%' },
+    emerald: { '--primary': '160 84% 39%', '--accent': '160 84% 39%', '--ring': '160 84% 39%', '--sidebar-primary': '160 84% 39%', '--sidebar-ring': '160 84% 39%' },
+    amber: { '--primary': '38 92% 50%', '--accent': '38 92% 50%', '--ring': '38 92% 50%', '--sidebar-primary': '38 92% 50%', '--sidebar-ring': '38 92% 50%' },
+  };
+
   const [filters, setFilters] = useState<Filters>({
     dt: '2026-02-10',
     kpi: KPIType.QOE_SCORE,
@@ -69,7 +81,6 @@ const Index: React.FC = () => {
   };
 
   const sidebarClass = sidebarTheme === 'grey' ? 'sidebar-grey' : sidebarTheme === 'light' ? 'sidebar-light' : '';
-  const accentClass = accentColor !== 'default' ? `accent-${accentColor}` : '';
 
   const renderContent = () => {
     switch (activeTab) {
@@ -99,7 +110,7 @@ const Index: React.FC = () => {
   };
 
   return (
-    <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass} ${accentClass}`}>
+    <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass}`} style={accentStyles[accentColor] as React.CSSProperties}>
       <AppSidebar
         filters={filters}
         setFilters={setFilters}
