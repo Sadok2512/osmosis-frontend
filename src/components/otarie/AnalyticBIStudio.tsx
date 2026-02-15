@@ -308,9 +308,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
               <button onClick={addTable} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
                 <Table2 className="w-3 h-3" /> Table
               </button>
-            </div>
-            <div className="w-px h-5 bg-border mx-0.5" />
-            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
+              <div className="w-px h-4 bg-border mx-0.5" />
               <button onClick={handleSave} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
                 <Save className="w-3 h-3" /> Save
               </button>
@@ -323,9 +321,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
               <button onClick={handleExportDashboardPDF} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
                 <FileDown className="w-3 h-3" /> PDF
               </button>
-            </div>
-            <div className="w-px h-5 bg-border mx-0.5" />
-            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
+              <div className="w-px h-4 bg-border mx-0.5" />
               <button onClick={() => dm.setShowList(!dm.showList)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${dm.showList ? 'bg-primary text-primary-foreground' : 'hover:bg-primary hover:text-primary-foreground'}`}>
                 <FolderOpen className="w-3 h-3" /> Load
               </button>
