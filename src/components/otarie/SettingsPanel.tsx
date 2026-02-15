@@ -68,16 +68,77 @@ const DIMENSIONS_CONFIG: { icon: React.ReactNode; title: string; values: string[
 ];
 
 const METRICS_CONFIG: { name: string; id: string; numColors: number; thresholds: number[]; colors: string[] }[] = [
-  { name: 'Nb Sessions', id: 'session_nbr', numColors: 4, thresholds: [30,60,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'Volume Total', id: 'volume_totale', numColors: 4, thresholds: [30,60,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  // TRAFFIC & VOLUME
+  { name: 'Volume Totale', id: 'volume_totale', numColors: 4, thresholds: [30,60,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
   { name: 'Débit DL', id: 'debit_dl', numColors: 4, thresholds: [3,8,30,100], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
   { name: 'Débit UL', id: 'debit_ul', numColors: 4, thresholds: [1,3,10,50], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
-  { name: 'RTT Setup Avg', id: 'rtt_setup_avg', numColors: 4, thresholds: [50,100,200,500], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'RTT Setup 40ms', id: 'rtt_setup_40', numColors: 1, thresholds: [40], colors: ['#f59e0b'] },
-  { name: 'Loss DL Rate', id: 'loss_dl_rate', numColors: 4, thresholds: [0.5,1,3,5], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
-  { name: 'Loss DL 3%', id: 'loss_dl_3', numColors: 1, thresholds: [3], colors: ['#ef4444'] },
-  { name: 'TCP Retr Rate 3%', id: 'tcp_retr_rate_3', numColors: 1, thresholds: [3], colors: ['#ef4444'] },
+  { name: 'DL/UL Ratio', id: 'dl_ul_ratio', numColors: 4, thresholds: [1,3,5,10], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Débit DL Max', id: 'debit_dl_max', numColors: 4, thresholds: [10,30,100,300], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Débit UL Max', id: 'debit_ul_max', numColors: 4, thresholds: [5,10,50,100], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  // RTT
+  { name: 'RTT Setup Avg', id: 'rtt_setup_avg', numColors: 4, thresholds: [40,80,150,300], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'RTT Data Avg', id: 'rtt_data_avg', numColors: 4, thresholds: [40,80,150,300], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'RTT Setup <40ms', id: 'rtt_setup_40', numColors: 1, thresholds: [40], colors: ['#10b981'] },
+  { name: 'RTT Setup 40-80', id: 'rtt_setup_40_80', numColors: 1, thresholds: [80], colors: ['#3b82f6'] },
+  { name: 'RTT Setup 80-150', id: 'rtt_setup_80_150', numColors: 1, thresholds: [150], colors: ['#f59e0b'] },
+  { name: 'RTT Setup 150-300', id: 'rtt_setup_150_300', numColors: 1, thresholds: [300], colors: ['#ef4444'] },
+  { name: 'RTT Setup >300', id: 'rtt_setup_300', numColors: 1, thresholds: [300], colors: ['#dc2626'] },
+  { name: 'RTT Data <40ms', id: 'rtt_data_40', numColors: 1, thresholds: [40], colors: ['#10b981'] },
+  { name: 'RTT Data 40-80', id: 'rtt_data_40_80', numColors: 1, thresholds: [80], colors: ['#3b82f6'] },
+  { name: 'RTT Data 80-150', id: 'rtt_data_80_150', numColors: 1, thresholds: [150], colors: ['#f59e0b'] },
+  { name: 'RTT Data 150-300', id: 'rtt_data_150_300', numColors: 1, thresholds: [300], colors: ['#ef4444'] },
+  { name: 'RTT Data >300', id: 'rtt_data_300', numColors: 1, thresholds: [300], colors: ['#dc2626'] },
+  // LOSS
+  { name: 'Loss DL Rate', id: 'loss_dl_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Loss UL Rate', id: 'loss_ul_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Loss UL <1%', id: 'loss_ul_1', numColors: 1, thresholds: [1], colors: ['#10b981'] },
+  { name: 'Loss UL <3%', id: 'loss_ul_3', numColors: 1, thresholds: [3], colors: ['#3b82f6'] },
+  { name: 'Loss UL <5%', id: 'loss_ul_5', numColors: 1, thresholds: [5], colors: ['#f59e0b'] },
+  { name: 'Loss UL <10%', id: 'loss_ul_10', numColors: 1, thresholds: [10], colors: ['#ef4444'] },
+  { name: 'Loss DL <1%', id: 'loss_dl_1', numColors: 1, thresholds: [1], colors: ['#10b981'] },
+  { name: 'Loss DL <3%', id: 'loss_dl_3', numColors: 1, thresholds: [3], colors: ['#3b82f6'] },
+  { name: 'Loss DL <5%', id: 'loss_dl_5', numColors: 1, thresholds: [5], colors: ['#f59e0b'] },
+  { name: 'Loss DL <10%', id: 'loss_dl_10', numColors: 1, thresholds: [10], colors: ['#ef4444'] },
+  // TCP
+  { name: 'TCP Retr <1%', id: 'tcp_retr_rate_1', numColors: 1, thresholds: [1], colors: ['#10b981'] },
+  { name: 'TCP Retr <3%', id: 'tcp_retr_rate_3', numColors: 1, thresholds: [3], colors: ['#3b82f6'] },
+  { name: 'TCP Retr <5%', id: 'tcp_retr_rate_5', numColors: 1, thresholds: [5], colors: ['#f59e0b'] },
+  { name: 'TCP Retr <10%', id: 'tcp_retr_rate_10', numColors: 1, thresholds: [10], colors: ['#ef4444'] },
+  // DMS
+  { name: 'DMS DL >30 Mbps', id: 'dms_dl_30', numColors: 4, thresholds: [10,30,50,75], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DMS DL >8 Mbps', id: 'dms_dl_8', numColors: 4, thresholds: [30,50,70,90], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DMS DL >3 Mbps', id: 'dms_dl_3', numColors: 4, thresholds: [50,70,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DMS UL >5 Mbps', id: 'dms_ul_5', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DMS UL >3 Mbps', id: 'dms_ul_3', numColors: 4, thresholds: [30,50,70,90], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'DMS UL >1 Mbps', id: 'dms_ul_1', numColors: 4, thresholds: [50,70,85,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  // SESSIONS
+  { name: 'Sessions 3G/2G', id: 'session_3g2g_nbr', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Sessions 4G', id: 'session_4g_nbr', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Sessions 5G', id: 'session_5g_nbr', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Nb Sessions', id: 'session_nbr', numColors: 4, thresholds: [100,500,2000,10000], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Durée Moy Session', id: 'session_dur_moy', numColors: 4, thresholds: [10,30,60,120], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Session DCR', id: 'session_dcr', numColors: 4, thresholds: [0.5,1,3,5], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  // MOBILITY & FALLBACK
+  { name: 'Fallback 5G→4G Rate', id: 'fallback_5G_to_4G_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Fallback 4G→3G/2G Rate', id: 'fallback_4G_to_3G2G_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Instability Rate', id: 'instability_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Nbr Fallback 5G→4G', id: 'nbr_fullback_5g_4g', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Nbr Fallback 4G→3G/2G', id: 'nbr_fullback_4g_3g2g', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  // RAT TIME
+  { name: 'Time RAT 5G %', id: 'time_rat_5g_%', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Time RAT 4G %', id: 'time_rat_4g_%', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: 'Time RAT 3G/2G %', id: 'time_rat_3G2G_%', numColors: 4, thresholds: [1,5,10,20], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  // QOE & QUALITY
+  { name: 'Bad Session Rate', id: 'bad_session_rate', numColors: 4, thresholds: [1,3,5,10], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Bad Session Nbr', id: 'bad_session_nbr', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
   { name: 'QoE Index', id: 'qoe_index', numColors: 4, thresholds: [40,60,80,95], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: '5G Capable Rate', id: '5G_capable_rate', numColors: 4, thresholds: [20,40,60,80], colors: ['#ef4444','#f59e0b','#3b82f6','#10b981'] },
+  { name: '5GUE Attached 4G Rate', id: '5gue_attached_4G_rate', numColors: 4, thresholds: [5,15,30,50], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  // TCP WINDOW & ORDER
+  { name: 'Out of Order Nbr', id: 'out_of_order_nbr', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Out of Order Rate', id: 'out_of_order_rate', numColors: 4, thresholds: [0.5,1,3,5], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Window Full Nbr', id: 'wind_full_nbr', numColors: 4, thresholds: [10,50,200,1000], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
+  { name: 'Window Full Rate', id: 'wind_full_rate', numColors: 4, thresholds: [5,15,30,50], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
 ];
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarTheme, accentColor, setAccentColor }) => {
