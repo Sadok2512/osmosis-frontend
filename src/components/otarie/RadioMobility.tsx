@@ -11,18 +11,6 @@ const RadioMobility: React.FC<{ filters: Filters }> = ({ filters }) => {
   const [impact, setImpact] = useState<MobilityImpact[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const data = await fetchMobilityImpact(filters);
-      setImpact(data || []);
-      setLoading(false);
-    };
-    load();
-  }, [filters]);
-
-  if (loading) return <div className="p-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest">Analyse de la mobilité radio...</div>;
-
   // Generate stable matrix data
   const matrixData = React.useMemo(() => {
     const types = ['Streaming', 'Web/HTTP', 'Social', 'Gaming', 'Cloud', 'VoIP'];
@@ -34,6 +22,18 @@ const RadioMobility: React.FC<{ filters: Filters }> = ({ filters }) => {
       '5G': 85 + Math.random() * 15,
     }));
   }, []);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const data = await fetchMobilityImpact(filters);
+      setImpact(data || []);
+      setLoading(false);
+    };
+    load();
+  }, [filters]);
+
+  if (loading) return <div className="p-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest">Analyse de la mobilité radio...</div>;
 
   return (
     <div className="flex-1 overflow-auto bg-slate-50 p-8 space-y-8">
