@@ -180,7 +180,7 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
               <Save className="w-3 h-3" /> Save
             </button>
             <button onClick={() => dm.setShowList(!dm.showList)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${dm.showList ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
-              <FolderOpen className="w-3 h-3" /> Dashboards
+              <FolderOpen className="w-3 h-3" /> Load
             </button>
             <button onClick={() => { setShowAI(!showAI); setEditingId(null); }}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
