@@ -168,6 +168,115 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
     );
   }
 
+  // ── Heatmap ──
+  if (firstMetric.chartType === 'heatmap') {
+    // Build heatmap grid: X axis values × groupBy dimension values
+    const hasGroup = config.groupBy.length > 0;
+    const yLabels = hasGroup
+      ? [...new Set(rawData.map(d => d.group).filter(Boolean))] as string[]
+      : effectiveYMetrics.map(m => m.kpi.replace(/_/g, ' '));
+
+    const xLabels = [...new Set(rawData.map(d => d.x))] as string[];
+
+    // Build matrix of values
+    const cells: { x: string; y: string; value: number }[] = [];
+    let minVal = Infinity, maxVal = -Infinity;
+
+    for (const xLabel of xLabels) {
+      if (hasGroup) {
+        for (const yLabel of yLabels) {
+          const row = rawData.find(d => d.x === xLabel && d.group === yLabel);
+          const val = row ? (row[firstMetric.kpi] ?? 0) : 0;
+          cells.push({ x: xLabel, y: yLabel, value: val });
+          if (val < minVal) minVal = val;
+          if (val > maxVal) maxVal = val;
+        }
+      } else {
+        for (const m of effectiveYMetrics) {
+          const row = rawData.find(d => d.x === xLabel);
+          const val = row ? (row[m.kpi] ?? 0) : 0;
+          const yLabel = m.kpi.replace(/_/g, ' ');
+          cells.push({ x: xLabel, y: yLabel, value: val });
+          if (val < minVal) minVal = val;
+          if (val > maxVal) maxVal = val;
+        }
+      }
+    }
+
+    const range = maxVal - minVal || 1;
+    const getCellColor = (value: number) => {
+      const t = (value - minVal) / range;
+      // Blue to red gradient via HSL
+      const h = (1 - t) * 220; // 220 (blue) → 0 (red)
+      const s = 75 + t * 15;
+      const l = 55 - t * 15;
+      return `hsl(${h}, ${s}%, ${l}%)`;
+    };
+
+    const formatX = (v: string) => {
+      if (v.includes('-')) {
+        const parts = v.split('-');
+        return `${parts[1]}-${parts[2]?.split('T')[0] || ''}`;
+      }
+      return v.length > 8 ? v.slice(0, 8) + '…' : v;
+    };
+
+    const cellW = Math.max(28, Math.min(60, Math.floor(600 / xLabels.length)));
+    const cellH = Math.max(22, Math.min(40, Math.floor(300 / yLabels.length)));
+
+    return (
+      <div className="w-full h-full overflow-auto p-2">
+        <div className="inline-block">
+          {/* X-axis header */}
+          <div className="flex" style={{ marginLeft: 80 }}>
+            {xLabels.map(x => (
+              <div key={x} className="text-[9px] text-muted-foreground text-center truncate font-medium"
+                style={{ width: cellW, minWidth: cellW }}>
+                {formatX(x)}
+              </div>
+            ))}
+          </div>
+          {/* Rows */}
+          {yLabels.map(yLabel => (
+            <div key={yLabel} className="flex items-center">
+              <div className="text-[9px] text-muted-foreground truncate font-medium text-right pr-2"
+                style={{ width: 80, minWidth: 80 }}>
+                {yLabel}
+              </div>
+              {xLabels.map(xLabel => {
+                const cell = cells.find(c => c.x === xLabel && c.y === yLabel);
+                const val = cell?.value ?? 0;
+                return (
+                  <div key={`${xLabel}-${yLabel}`}
+                    className="border border-background/50 rounded-[2px] flex items-center justify-center cursor-default transition-transform hover:scale-110 hover:z-10"
+                    style={{
+                      width: cellW, height: cellH, minWidth: cellW,
+                      backgroundColor: getCellColor(val),
+                    }}
+                    title={`${yLabel} × ${xLabel}: ${val.toFixed(1)}`}
+                  >
+                    <span className="text-[8px] font-mono font-bold text-white/90 drop-shadow-sm">
+                      {val.toFixed(cellW > 40 ? 1 : 0)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+          {/* Color legend */}
+          <div className="flex items-center gap-2 mt-2" style={{ marginLeft: 80 }}>
+            <span className="text-[9px] text-muted-foreground">{minVal.toFixed(1)}</span>
+            <div className="h-2 flex-1 rounded-full" style={{
+              background: 'linear-gradient(to right, hsl(220, 75%, 55%), hsl(110, 80%, 45%), hsl(40, 90%, 50%), hsl(0, 90%, 40%))',
+              maxWidth: 200,
+            }} />
+            <span className="text-[9px] text-muted-foreground">{maxVal.toFixed(1)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Pie Chart ──
   if (firstMetric.chartType === 'pie') {
     return (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check, Grid3X3 } from 'lucide-react';
 import { ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine, MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI, Aggregation, ChartType, Granularity, AxisSide, LineStyle } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
@@ -51,6 +51,7 @@ const CHART_TYPE_OPTIONS: { type: ChartType; icon: React.ReactNode; label: strin
   { type: 'scatter', icon: <ScatterChart className="w-3.5 h-3.5" />, label: 'Scatter' },
   { type: 'stacked_bar', icon: <Layers className="w-3.5 h-3.5" />, label: 'Empilé' },
   { type: 'grouped_bar', icon: <Columns3 className="w-3.5 h-3.5" />, label: 'Superposé' },
+  { type: 'heatmap', icon: <Grid3X3 className="w-3.5 h-3.5" />, label: 'Heatmap' },
   { type: 'pie', icon: <PieChart className="w-3.5 h-3.5" />, label: 'Pie' },
   { type: 'kpi_card', icon: <Hash className="w-3.5 h-3.5" />, label: 'KPI' },
 ];
