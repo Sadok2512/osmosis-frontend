@@ -135,7 +135,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Mini map for selected site */}
           <div className="rounded-[2rem] overflow-hidden border border-border shadow-sm h-[200px]">
             <MapContainer center={siteDetail.coordinates} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
+              <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>' />
               <CircleMarker center={siteDetail.coordinates} radius={10} pathOptions={{ color: getQoEColor(siteDetail.qoe_score_avg), fillColor: getQoEColor(siteDetail.qoe_score_avg), fillOpacity: 0.8, weight: 3 }}>
                 <Popup><strong>{siteDetail.site_name}</strong></Popup>
               </CircleMarker>
@@ -182,8 +182,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         zoomControl={false}
       >
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
         />
         <FlyToSite coords={flyTarget} />
         {filteredSites.map(site => (
