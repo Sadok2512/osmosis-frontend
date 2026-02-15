@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
   Database, Activity, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
-  Sliders, Globe, FileText, BookOpen, ChevronDown, Cpu, Layers
+  Sliders, Globe, FileText, BookOpen
 } from 'lucide-react';
 import { Filters, AppTab } from '../../types';
 
@@ -26,20 +26,12 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'traffic', label: 'Analytic BI Studio', icon: <BarChart2 className="w-5 h-5" /> },
   { id: 'alerts', label: 'Alerts & RCA Monitor', icon: <Bell className="w-5 h-5" /> },
   { id: 'radio', label: 'Radio Mobility', icon: <Radio className="w-5 h-5" /> },
-];
-
-const docItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'doc-topo', label: 'Topology Reference', icon: <Globe className="w-4 h-4" /> },
-  { id: 'doc-metrics', label: 'KPI Catalog', icon: <BarChart2 className="w-4 h-4" /> },
-  { id: 'doc-dimensions', label: 'Network Dimensions', icon: <Layers className="w-4 h-4" /> },
+  { id: 'docs', label: 'Documentation', icon: <BookOpen className="w-5 h-5" /> },
 ];
 
 const AppSidebar: React.FC<SidebarProps> = ({
   filters, setFilters, activeTab, setActiveTab, isCollapsed, setIsCollapsed, theme, setTheme
 }) => {
-  const [docsOpen, setDocsOpen] = useState(activeTab.startsWith('doc-'));
-  const isDocActive = activeTab.startsWith('doc-');
-
   return (
     <div className={`relative h-full flex flex-col z-50 transition-all duration-300 bg-sidebar border-r border-sidebar-border ${isCollapsed ? 'w-[70px]' : 'w-[260px]'}`}>
 
@@ -92,61 +84,6 @@ const AppSidebar: React.FC<SidebarProps> = ({
           ))}
         </div>
 
-        {/* DOCUMENTATION SECTION */}
-        {!isCollapsed && (
-          <div className="px-3">
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-sidebar-foreground/50">Documentation</span>
-          </div>
-        )}
-        <div className="space-y-1">
-          {isCollapsed ? (
-            docItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-center p-3 rounded-xl transition-all ${
-                  activeTab === item.id
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
-                }`}
-                title={item.label}
-              >
-                <span className={activeTab === item.id ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground'}>{item.icon}</span>
-              </button>
-            ))
-          ) : (
-            <>
-              <button
-                onClick={() => setDocsOpen(!docsOpen)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left group ${
-                  isDocActive ? 'bg-sidebar-primary/20 text-sidebar-primary' : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
-                }`}
-              >
-                <BookOpen className="w-5 h-5" />
-                <span className="text-[12px] font-semibold tracking-tight flex-1">Documentation</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${docsOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {docsOpen && (
-                <div className="ml-4 pl-4 border-l border-sidebar-border space-y-0.5">
-                  {docItems.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => setActiveTab(item.id)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-left ${
-                        activeTab === item.id
-                          ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
-                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
-                      }`}
-                    >
-                      <span className={activeTab === item.id ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground/70'}>{item.icon}</span>
-                      <span className="text-[11px] font-semibold">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
       </div>
 
       {/* FOOTER */}

@@ -105,10 +105,8 @@ const Index: React.FC = () => {
         return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} />;
       case 'settings':
         return <SettingsPanel sidebarTheme={sidebarTheme} setSidebarTheme={setSidebarTheme} accentColor={accentColor} setAccentColor={setAccentColor} />;
-      case 'doc-topo':
-      case 'doc-metrics':
-      case 'doc-dimensions':
-        return <DocumentationPage activeDoc={activeTab as 'doc-topo' | 'doc-metrics' | 'doc-dimensions'} />;
+      case 'docs':
+        return <DocumentationPage />;
       default:
         return null;
     }
