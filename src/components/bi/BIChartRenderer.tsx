@@ -213,6 +213,18 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
                   name={m.kpi.replace(/_/g, ' ')}
                 />
               );
+            case 'grouped_bar':
+              return (
+                <Bar
+                  key={key}
+                  dataKey={m.kpi}
+                  yAxisId={m.axis}
+                  fill={m.color}
+                  fillOpacity={0.85}
+                  radius={[4, 4, 0, 0]}
+                  name={m.kpi.replace(/_/g, ' ')}
+                />
+              );
             case 'area':
               return (
                 <React.Fragment key={key}>
