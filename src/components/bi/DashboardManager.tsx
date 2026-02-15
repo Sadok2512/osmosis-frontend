@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Plus, X, Save, FolderOpen, Trash2, Clock, LayoutDashboard } from 'lucide-react';
+import { Plus, X, Save, FolderOpen, Trash2, Clock, LayoutDashboard, Download, Upload } from 'lucide-react';
 import { WidgetItem, createDefaultMapWidget } from './dashboardTypes';
 import { createDefaultChart } from './biTypes';
 import { createDefaultTextWidget } from './BITextWidget';
@@ -161,10 +161,67 @@ export function useDashboardManager() {
     setTabs(prev => prev.map(t => t.id === id ? { ...t, name, dirty: true } : t));
   }, []);
 
+  const exportDashboard = useCallback((id: string) => {
+    const all = loadAllDashboards();
+    const db = all.find(d => d.id === id);
+    if (!db) return;
+    const json = JSON.stringify(db, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${db.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const exportAll = useCallback(() => {
+    const all = loadAllDashboards();
+    if (all.length === 0) return;
+    const json = JSON.stringify(all, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dashboards_export_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const importDashboards = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target?.result as string);
+        const items: SavedDashboard[] = Array.isArray(parsed) ? parsed : [parsed];
+        const all = loadAllDashboards();
+        const allById = new Map(all.map(d => [d.id, d]));
+        const imported: OpenTab[] = [];
+        for (const item of items) {
+          if (!item.id || !item.name || !item.widgets) continue;
+          // Assign new id to avoid collisions
+          const newId = `db_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+          const entry: SavedDashboard = { ...item, id: newId, updatedAt: new Date().toISOString() };
+          allById.set(newId, entry);
+          imported.push({ id: newId, name: entry.name, widgets: entry.widgets, dirty: false });
+        }
+        saveAllDashboards(Array.from(allById.values()));
+        if (imported.length > 0) {
+          setTabs(prev => [...prev, ...imported]);
+          setActiveTabId(imported[0].id);
+        }
+      } catch {
+        // silently fail on bad JSON
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
   return {
     tabs, activeTab, activeTabId, setActiveTabId,
     updateActiveWidgets, createNew, openDashboard, closeTab,
     saveCurrent, deleteDashboard, renameTab,
+    exportDashboard, exportAll, importDashboards,
     showList, setShowList, savedDashboards,
   };
 }
@@ -176,9 +233,21 @@ interface DashboardListProps {
   onDelete: (id: string) => void;
   onCreate: () => void;
   onClose: () => void;
+  onExport: (id: string) => void;
+  onExportAll: () => void;
+  onImport: (file: File) => void;
 }
 
-export const DashboardListPanel: React.FC<DashboardListProps> = ({ dashboards, openIds, onOpen, onDelete, onCreate, onClose }) => {
+export const DashboardListPanel: React.FC<DashboardListProps> = ({ dashboards, openIds, onOpen, onDelete, onCreate, onClose, onExport, onExportAll, onImport }) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImportClick = () => fileInputRef.current?.click();
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onImport(file);
+    e.target.value = '';
+  };
+
   return (
     <div className="w-72 border-l border-border bg-card flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -188,6 +257,19 @@ export const DashboardListPanel: React.FC<DashboardListProps> = ({ dashboards, o
         </div>
         <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground">
           <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Import/Export toolbar */}
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-border">
+        <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleFileChange} />
+        <button onClick={handleImportClick}
+          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md bg-muted text-foreground text-[10px] font-medium hover:bg-muted/80 transition-colors">
+          <Upload className="w-3 h-3" /> Import JSON
+        </button>
+        <button onClick={onExportAll} disabled={dashboards.length === 0}
+          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md bg-muted text-foreground text-[10px] font-medium hover:bg-muted/80 transition-colors disabled:opacity-40">
+          <Download className="w-3 h-3" /> Export All
         </button>
       </div>
 
@@ -211,6 +293,13 @@ export const DashboardListPanel: React.FC<DashboardListProps> = ({ dashboards, o
                 </p>
               </div>
               {isOpen && <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-semibold">Open</span>}
+              <button
+                onClick={(e) => { e.stopPropagation(); onExport(db.id); }}
+                className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground hover:text-foreground transition-all"
+                title="Export JSON"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(db.id); }}
                 className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
