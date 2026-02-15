@@ -485,46 +485,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
       </MapContainer>
 
-      {/* Map controls — bottom right: techno filter + layer switcher */}
-      <div className="absolute bottom-6 right-4 z-[1000] flex items-end gap-2">
-        {/* Techno filter: ALL / 5G / 4G */}
-        <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
-          {(['ALL', '5G', '4G'] as const).map((tech) => (
-            <button
-              key={tech}
-              onClick={() => setMapTechnoFilter(tech)}
-              className={`w-10 h-10 flex items-center justify-center text-[10px] font-black tracking-wider transition-all ${
-                mapTechnoFilter === tech
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              {tech}
-            </button>
-          ))}
-        </div>
-
-        {/* Layer switcher: L / D / S */}
-        <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
-          {([
-            { key: 'light' as const, label: 'L' },
-            { key: 'dark' as const, label: 'D' },
-            { key: 'satellite' as const, label: 'S' },
-          ]).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setMapLayer(key)}
-              className={`w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all ${
-                mapLayer === key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Map controls removed — moved into legend group below */}
 
       {/* Floating info badge — site count + zoom level */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
@@ -590,9 +551,48 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </button>
       </div>
 
-      {/* Floating Legend panel (bottom-right) */}
+      {/* Floating bottom-right: techno filter + layer switcher + legend */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 right-6 z-[1000] pointer-events-auto">
+        <div className="absolute bottom-6 right-6 z-[1000] pointer-events-auto flex items-end gap-2">
+          {/* Techno filter: ALL / 5G / 4G */}
+          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+            {(['ALL', '5G', '4G'] as const).map((tech) => (
+              <button
+                key={tech}
+                onClick={() => setMapTechnoFilter(tech)}
+                className={`w-10 h-10 flex items-center justify-center text-[10px] font-black tracking-wider transition-all ${
+                  mapTechnoFilter === tech
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {tech}
+              </button>
+            ))}
+          </div>
+
+          {/* Layer switcher: L / D / S */}
+          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+            {([
+              { key: 'light' as const, label: 'L' },
+              { key: 'dark' as const, label: 'D' },
+              { key: 'satellite' as const, label: 'S' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setMapLayer(key)}
+                className={`w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all ${
+                  mapLayer === key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Legend */}
           <div className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden">
             <button
               onClick={() => setShowLegend(!showLegend)}
