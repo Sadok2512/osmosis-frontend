@@ -23,7 +23,7 @@ export const BI_KPIS = [
 export type BIKPI = typeof BI_KPIS[number];
 
 export type Aggregation = 'AVG' | 'SUM' | 'MAX' | 'MIN' | 'P50' | 'P95';
-export type ChartType = 'line' | 'bar' | 'area' | 'scatter' | 'stacked_bar' | 'heatmap' | 'pie' | 'kpi_card';
+export type ChartType = 'line' | 'bar' | 'area' | 'scatter' | 'stacked_bar' | 'grouped_bar' | 'heatmap' | 'pie' | 'kpi_card';
 export type Granularity = 'hour' | 'day' | 'week' | 'month';
 export type AxisSide = 'left' | 'right';
 

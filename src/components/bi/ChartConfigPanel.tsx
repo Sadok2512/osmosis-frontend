@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash } from 'lucide-react';
 import { ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI, Aggregation, ChartType, Granularity, AxisSide } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 
@@ -10,8 +10,18 @@ interface Props {
 }
 
 const AGGREGATIONS: Aggregation[] = ['AVG', 'SUM', 'MAX', 'MIN', 'P50', 'P95'];
-const CHART_TYPES: ChartType[] = ['line', 'bar', 'area', 'scatter', 'stacked_bar', 'pie', 'kpi_card'];
 const GRANULARITIES: Granularity[] = ['hour', 'day', 'week', 'month'];
+
+const CHART_TYPE_OPTIONS: { type: ChartType; icon: React.ReactNode; label: string }[] = [
+  { type: 'line', icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'Ligne' },
+  { type: 'bar', icon: <BarChart3 className="w-3.5 h-3.5" />, label: 'Barres' },
+  { type: 'area', icon: <AreaChart className="w-3.5 h-3.5" />, label: 'Aire' },
+  { type: 'scatter', icon: <ScatterChart className="w-3.5 h-3.5" />, label: 'Scatter' },
+  { type: 'stacked_bar', icon: <Layers className="w-3.5 h-3.5" />, label: 'Empilé' },
+  { type: 'grouped_bar', icon: <Columns3 className="w-3.5 h-3.5" />, label: 'Superposé' },
+  { type: 'pie', icon: <PieChart className="w-3.5 h-3.5" />, label: 'Pie' },
+  { type: 'kpi_card', icon: <Hash className="w-3.5 h-3.5" />, label: 'KPI' },
+];
 
 const SectionHeader: React.FC<{ title: string; number: string; open: boolean; toggle: () => void }> = ({ title, number, open, toggle }) => (
   <button onClick={toggle} className="flex items-center gap-2 w-full py-2 text-xs font-semibold text-foreground uppercase tracking-wider">
@@ -123,10 +133,16 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   <Select value={m.kpi} options={BI_KPIS} onChange={v => updateMetric(i, { kpi: v as BIKPI })} className="flex-1" />
                   <button onClick={() => removeMetric(i)} className="p-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
                 </div>
-                <div className="grid grid-cols-2 gap-1">
-                  <Select value={m.chartType} options={CHART_TYPES} onChange={v => updateMetric(i, { chartType: v as ChartType })} />
-                  <Select value={m.axis} options={['left', 'right'] as const} onChange={v => updateMetric(i, { axis: v as AxisSide })} />
+                <div className="flex flex-wrap gap-1">
+                  {CHART_TYPE_OPTIONS.map(opt => (
+                    <button key={opt.type} onClick={() => updateMetric(i, { chartType: opt.type })}
+                      title={opt.label}
+                      className={`p-1.5 rounded-md border transition-all ${m.chartType === opt.type ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted/50 text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'}`}>
+                      {opt.icon}
+                    </button>
+                  ))}
                 </div>
+                <Select value={m.axis} options={['left', 'right'] as const} onChange={v => updateMetric(i, { axis: v as AxisSide })} className="w-full" />
                 <div className="flex items-center gap-3 text-[10px]">
                   <label className="flex items-center gap-1 text-muted-foreground">
                     <input type="checkbox" checked={m.smoothCurve} onChange={e => updateMetric(i, { smoothCurve: e.target.checked })} className="rounded" /> Smooth
