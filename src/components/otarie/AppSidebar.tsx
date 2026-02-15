@@ -49,7 +49,7 @@ const AppSidebar: React.FC<SidebarProps> = ({
         </div>
         {!isCollapsed && (
           <div className="overflow-hidden">
-            <h1 className="text-lg font-black tracking-tight text-white">OTARIE</h1>
+            <h1 className="text-lg font-black tracking-tight text-sidebar-accent-foreground">OTARIE</h1>
             <p className="text-[10px] text-sidebar-primary uppercase tracking-widest font-bold">QOE Observatory</p>
           </div>
         )}
@@ -95,7 +95,7 @@ const AppSidebar: React.FC<SidebarProps> = ({
           <Settings className={`w-5 h-5 transition-transform group-hover:rotate-45 ${activeTab === 'settings' ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}`} />
           {!isCollapsed && (
             <div className="text-left">
-              <span className={`text-[11px] font-bold uppercase tracking-tight block ${activeTab === 'settings' ? 'text-sidebar-primary-foreground' : 'text-white'}`}>Settings</span>
+              <span className={`text-[11px] font-bold uppercase tracking-tight block ${activeTab === 'settings' ? 'text-sidebar-primary-foreground' : 'text-sidebar-accent-foreground'}`}>Settings</span>
               <span className={`text-[9px] font-medium ${activeTab === 'settings' ? 'text-sidebar-primary-foreground/70' : 'text-sidebar-foreground/60'}`}>Platform Config</span>
             </div>
           )}
