@@ -84,9 +84,37 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
 
   // ── KPI Card ──
   if (firstMetric.chartType === 'kpi_card') {
+    const unit = KPI_UNITS[firstMetric.kpi] || '';
+
+    // Grouped KPI card: show each group value
+    if (groupKeys.length > 0) {
+      return (
+        <div className="flex flex-wrap items-center justify-center h-full gap-3 px-2">
+          {groupKeys.map((g, gi) => {
+            const key = `${firstMetric.kpi}__${g}`;
+            const values = data.map(d => d[key]).filter(Boolean) as number[];
+            const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+            const color = CHART_COLORS[gi % CHART_COLORS.length];
+            return (
+              <div key={g} className="flex flex-col items-center gap-0.5">
+                <span className="text-xl font-bold font-mono tracking-tight" style={{ color }}>
+                  {avg.toFixed(1)}
+                </span>
+                <span className="text-[9px] text-muted-foreground font-semibold truncate max-w-[80px]">{g}</span>
+              </div>
+            );
+          })}
+          <div className="w-full text-center">
+            <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+              {firstMetric.kpi.replace(/_/g, ' ')} {unit && `(${unit})`}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     const values = data.map(d => d[firstMetric.kpi]).filter(Boolean);
     const avg = values.reduce((a: number, b: number) => a + b, 0) / values.length;
-    const unit = KPI_UNITS[firstMetric.kpi] || '';
     const prev = values.length > 1 ? values[values.length - 2] : avg;
     const delta = ((avg - prev) / prev * 100);
     return (
