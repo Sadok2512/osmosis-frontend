@@ -109,12 +109,20 @@ export const fetchGlobalDistributions = async (filters: Filters): Promise<Global
 // Fix: Add fetchSites mock
 export const fetchSites = async (filters: Filters): Promise<SiteSummary[]> => {
   const sites = [];
+  const parisCoords: [number, number][] = [
+    [48.8566, 2.3522], [48.8606, 2.3376], [48.8738, 2.2950], [48.8530, 2.3499],
+    [48.8462, 2.3464], [48.8649, 2.3800], [48.8700, 2.3200], [48.8400, 2.3100],
+    [48.8800, 2.3600], [48.8350, 2.3700], [48.8550, 2.2800], [48.8650, 2.3000]
+  ];
+  const vendors = ['Ericsson', 'Nokia', 'Huawei', 'Ericsson', 'Nokia', 'Ericsson', 'Huawei', 'Nokia', 'Ericsson', 'Nokia', 'Huawei', 'Ericsson'];
+  const dors = ['DOR IDF', 'DOR IDF', 'DOR SUD', 'DOR IDF', 'DOR NORD', 'DOR IDF', 'DOR SUD', 'DOR NORD', 'DOR IDF', 'DOR SUD', 'DOR NORD', 'DOR IDF'];
   for (let i = 0; i < 12; i++) {
     sites.push({
-      site_id: `SITE_${i}`, site_name: `Site Name ${i}`, vendor: 'Ericsson',
-      dor: 'DOR IDF', plaque: 'PARIS', department: '75', cell_count: 3,
+      site_id: `SITE_${i}`, site_name: `Site ${['Montparnasse','Opéra','Étoile','Bastille','Nation','Belleville','Ternes','Vaugirard','Buttes-Chaumont','Bercy','Auteuil','Pigalle'][i]}`,
+      vendor: vendors[i], dor: dors[i], plaque: 'PARIS', department: '75', cell_count: 3,
       qoe_score_avg: 70 + Math.random() * 20, p50_thr_dn_mbps: 120, p50_thr_up_mbps: 15,
       dms_dl_3: 98, dms_dl_8: 90, dms_dl_30: 40, dms_ul_3: 85,
+      coordinates: parisCoords[i],
       cells: [
         { cell_id: `SITE_${i}_1`, techno: '5G', bande: '3500', azimut: 0, hba: 30, qoe_score_avg: 88, p95_rtt_ms: 30, traffic_up_bytes: 5e9, dms_dl_3: 99, dms_dl_8: 95, dms_dl_30: 55, dms_ul_3: 92, p50_thr_dn_mbps: 200, sessions: 2000 },
         { cell_id: `SITE_${i}_2`, techno: '4G', bande: '2600', azimut: 120, hba: 30, qoe_score_avg: 82, p95_rtt_ms: 45, traffic_up_bytes: 3e9, dms_dl_3: 98, dms_dl_8: 92, dms_dl_30: 45, dms_ul_3: 88, p50_thr_dn_mbps: 100, sessions: 1500 },

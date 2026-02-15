@@ -66,6 +66,7 @@ function generateSite(name: string, idx: number): SiteSummary {
     dms_dl_8: avg(cells.map(c => c.dms_dl_8)),
     dms_dl_30: avg(cells.map(c => c.dms_dl_30)),
     dms_ul_3: avg(cells.map(c => c.dms_ul_3)),
+    coordinates: [48.83 + Math.random() * 0.06, 2.28 + Math.random() * 0.12] as [number, number],
     cells,
   };
 }

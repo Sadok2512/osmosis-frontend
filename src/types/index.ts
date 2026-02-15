@@ -243,6 +243,7 @@ export interface SiteSummary {
   dms_dl_8: number;
   dms_dl_30: number;
   dms_ul_3: number;
+  coordinates: [number, number];
   cells: CellProperties[];
 }
 
