@@ -8,7 +8,8 @@ import {
   Search, RefreshCw, ChevronLeft, MapPin,
   Zap, Network, Database, Activity, ArrowRight,
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
-  PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2
+  PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
+  ChevronDown, ChevronUp, BarChart2
 } from 'lucide-react';
 import { getQoEColor, VENDORS, DORS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
 
@@ -63,7 +64,48 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [showSidePanel, setShowSidePanel] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [mapKpi, setMapKpi] = useState('qoe_score_avg');
+  const [showKpiDropdown, setShowKpiDropdown] = useState(false);
+  const [showLegend, setShowLegend] = useState(true);
 
+  const MAP_KPIS = [
+    { id: 'qoe_score_avg', label: 'Score QoE Global', category: 'QUALITY' },
+    { id: 'dms_dl_3', label: 'DMS DL ≥ 3 Mbps', category: 'QUALITY' },
+    { id: 'dms_dl_8', label: 'DMS DL ≥ 8 Mbps', category: 'QUALITY' },
+    { id: 'dms_dl_30', label: 'DMS DL ≥ 30 Mbps', category: 'QUALITY' },
+    { id: 'dms_ul_3', label: 'DMS UL ≥ 3 Mbps', category: 'QUALITY' },
+    { id: 'p50_thr_dn_mbps', label: 'Débit DL Moyen (Mbps)', category: 'THROUGHPUT' },
+    { id: 'p50_thr_up_mbps', label: 'Débit UL Moyen (Mbps)', category: 'THROUGHPUT' },
+    { id: 'sessions', label: 'Nombre de Sessions', category: 'VOLUME' },
+  ];
+
+  const getCellKpiValue = (cell: any): number => {
+    return cell[mapKpi] ?? cell.qoe_score_avg ?? 0;
+  };
+
+  const getKpiColor = (value: number): string => {
+    if (mapKpi === 'p50_thr_dn_mbps') {
+      if (value >= 100) return '#10b981';
+      if (value >= 30) return '#f59e0b';
+      return '#ef4444';
+    }
+    if (mapKpi === 'p50_thr_up_mbps') {
+      if (value >= 20) return '#10b981';
+      if (value >= 5) return '#f59e0b';
+      return '#ef4444';
+    }
+    if (mapKpi === 'sessions') {
+      if (value >= 2000) return '#10b981';
+      if (value >= 500) return '#f59e0b';
+      return '#ef4444';
+    }
+    // Percentage-based KPIs (QoE, DMS)
+    if (value >= 80) return '#10b981';
+    if (value >= 60) return '#f59e0b';
+    return '#ef4444';
+  };
+
+  const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'Score QoE Global';
   useEffect(() => {
     const loadSites = async () => {
       setLoading(true);
@@ -218,7 +260,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* Sector wedges for each cell */}
               {site.cells.map(cell => {
                 const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, 350, 65);
-                const color = getQoEColor(cell.qoe_score_avg);
+                const kpiVal = getCellKpiValue(cell);
+                const color = getKpiColor(kpiVal);
                 return (
                   <Polygon
                     key={cell.cell_id}
@@ -240,7 +283,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <div className="text-center">
                         <div className="font-bold text-xs">{cell.azimut}° {cell.techno}</div>
                         <div className="text-[10px]">{cell.bande} MHz</div>
-                        <div className="font-bold text-xs" style={{ color }}>QoE: {cell.qoe_score_avg.toFixed(1)}%</div>
+                        <div className="font-bold text-xs" style={{ color }}>{selectedKpiLabel}: {kpiVal.toFixed(1)}</div>
                       </div>
                     </Tooltip>
                   </Polygon>
@@ -252,7 +295,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 radius={isHovered ? 7 : 5}
                 pathOptions={{
                   color: '#1e293b',
-                  fillColor: getQoEColor(site.qoe_score_avg),
+                  fillColor: getKpiColor(getCellKpiValue(site.cells[0] || {})),
                   fillOpacity: 1,
                   weight: 2,
                 }}
@@ -266,8 +309,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <div className="p-1">
                     <div className="font-bold text-sm">{site.site_name}</div>
                     <div className="text-xs text-gray-500 mt-1">{site.site_id} • {site.vendor}</div>
-                    <div className="text-sm font-bold mt-2" style={{ color: getQoEColor(site.qoe_score_avg) }}>
-                      QoE: {site.qoe_score_avg.toFixed(1)}%
+                    <div className="text-sm font-bold mt-2" style={{ color: getKpiColor(getCellKpiValue(site.cells[0] || {})) }}>
+                      {selectedKpiLabel}: {(site as any)[mapKpi]?.toFixed?.(1) ?? site.qoe_score_avg.toFixed(1)}
                     </div>
                     <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
                   </div>
@@ -279,48 +322,133 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       </MapContainer>
 
       {/* Floating top bar */}
-      <div className="absolute top-4 left-4 right-4 z-[1000] flex items-start gap-3 pointer-events-none">
-        {/* Toggle panel button */}
-        <button
-          onClick={() => setShowSidePanel(!showSidePanel)}
-          className="pointer-events-auto w-10 h-10 bg-card/95 backdrop-blur-sm border border-border rounded-xl flex items-center justify-center text-foreground shadow-lg hover:bg-card transition-all shrink-0"
-        >
-          {showSidePanel ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
-        </button>
-
-        {/* Search + filters bar */}
-        <div className="pointer-events-auto flex-1 max-w-xl bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-lg overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5">
-            <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-            <input
-              type="text"
-              placeholder="Search sites..."
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              className="flex-1 bg-transparent text-[12px] font-bold text-foreground outline-none placeholder:text-muted-foreground"
-            />
-            <button onClick={() => setShowFilters(!showFilters)} className={`p-1.5 rounded-lg transition-all ${showFilters ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>
-              <Filter size={14} />
-            </button>
-            <div className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black">{filteredSites.length}</div>
-          </div>
-          {showFilters && (
-            <div className="px-4 pb-3 pt-1 border-t border-border grid grid-cols-4 gap-2">
-              <FilterSelect label="Vendor" value={filters.vendor} options={VENDORS} onChange={(v: string) => updateFilter('vendor', v)} />
-              <FilterSelect label="DOR" value={filters.dor} options={DORS} onChange={(v: string) => updateFilter('dor', v)} />
-              <FilterSelect label="Dept" value={filters.department} options={DEPARTMENTS} onChange={(v: string) => updateFilter('department', v)} />
-              <FilterSelect label="RAT" value={filters.rat} options={RATS} onChange={(v: string) => updateFilter('rat', v)} />
+      <div className="absolute top-4 left-4 right-4 z-[1000] flex items-start justify-between pointer-events-none">
+        {/* Left: Toggle panel + search */}
+        <div className="flex items-center gap-3 pointer-events-auto">
+          <button
+            onClick={() => setShowSidePanel(!showSidePanel)}
+            className="w-10 h-10 bg-card/95 backdrop-blur-sm border border-border rounded-xl flex items-center justify-center text-foreground shadow-lg hover:bg-card transition-all"
+          >
+            {showSidePanel ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+          </button>
+          <div className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-lg overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2.5">
+              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                placeholder="Search sites..."
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                className="w-48 bg-transparent text-[12px] font-bold text-foreground outline-none placeholder:text-muted-foreground"
+              />
+              <button onClick={() => setShowFilters(!showFilters)} className={`p-1.5 rounded-lg transition-all ${showFilters ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>
+                <Filter size={14} />
+              </button>
+              <div className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black">{filteredSites.length}</div>
             </div>
-          )}
+            {showFilters && (
+              <div className="px-4 pb-3 pt-1 border-t border-border grid grid-cols-4 gap-2">
+                <FilterSelect label="Vendor" value={filters.vendor} options={VENDORS} onChange={(v: string) => updateFilter('vendor', v)} />
+                <FilterSelect label="DOR" value={filters.dor} options={DORS} onChange={(v: string) => updateFilter('dor', v)} />
+                <FilterSelect label="Dept" value={filters.department} options={DEPARTMENTS} onChange={(v: string) => updateFilter('department', v)} />
+                <FilterSelect label="RAT" value={filters.rat} options={RATS} onChange={(v: string) => updateFilter('rat', v)} />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* View mode toggle */}
+        {/* Center: KPI Selector dropdown */}
+        <div className="pointer-events-auto relative">
+          <button
+            onClick={() => setShowKpiDropdown(!showKpiDropdown)}
+            className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-full shadow-xl hover:bg-slate-800 transition-all"
+          >
+            <Zap size={16} />
+            <span className="text-[12px] font-black uppercase tracking-wider">{selectedKpiLabel}</span>
+            {showKpiDropdown ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          {showKpiDropdown && (
+            <div className="absolute top-14 left-1/2 -translate-x-1/2 w-[320px] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+              <div className="p-3 border-b border-border">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input type="text" placeholder="Search KPIs..." className="w-full pl-10 pr-4 py-2.5 bg-muted border border-border rounded-xl text-[11px] font-bold text-foreground outline-none" />
+                </div>
+              </div>
+              <div className="max-h-[300px] overflow-y-auto py-1">
+                {MAP_KPIS.map(kpi => (
+                  <button
+                    key={kpi.id}
+                    onClick={() => { setMapKpi(kpi.id); setShowKpiDropdown(false); }}
+                    className={`w-full text-left px-5 py-3.5 flex items-center justify-between transition-all ${
+                      mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
+                    }`}
+                  >
+                    <div>
+                      <div className="text-[12px] font-black uppercase tracking-tight">{kpi.label}</div>
+                      <div className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${mapKpi === kpi.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{kpi.category}</div>
+                    </div>
+                    {mapKpi === kpi.id && <span className="text-lg">✓</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <button className="ml-2 w-10 h-10 bg-card/95 backdrop-blur-sm border border-border rounded-xl flex items-center justify-center text-foreground shadow-lg hover:bg-card transition-all absolute top-0 -right-14">
+            <BarChart2 size={18} />
+          </button>
+        </div>
+
+        {/* Right: View mode toggle */}
         <div className="pointer-events-auto flex bg-card/95 backdrop-blur-sm p-1 rounded-xl border border-border shadow-lg shrink-0">
           <button onClick={() => setViewMode('map')} className={`p-2 rounded-lg transition-all ${viewMode === 'map' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}><MapIcon size={16} /></button>
           <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}><LayoutGrid size={16} /></button>
           <button onClick={() => setViewMode('table')} className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}><List size={16} /></button>
         </div>
       </div>
+
+      {/* Floating Legend panel (bottom-right) */}
+      {viewMode === 'map' && (
+        <div className="absolute bottom-6 right-6 z-[1000] pointer-events-auto">
+          <div className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden">
+            <button
+              onClick={() => setShowLegend(!showLegend)}
+              className="w-full px-5 py-3 flex items-center justify-between gap-6 hover:bg-muted/50 transition-all"
+            >
+              <div className="flex items-center gap-2.5">
+                <BarChart2 size={16} className="text-primary" />
+                <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Légende</span>
+              </div>
+              {showLegend ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground" />}
+            </button>
+            {showLegend && (
+              <div className="px-5 pb-4 pt-1 space-y-3 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Excellent</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-muted-foreground">Excellent</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-3 h-3 rounded-full bg-amber-500" />
+                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Correct</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-muted-foreground">Correct</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-3 h-3 rounded-full bg-red-500" />
+                    <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Critique</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-muted-foreground">Critique</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Floating site list panel */}
       {showSidePanel && viewMode === 'map' && (
