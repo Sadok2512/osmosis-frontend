@@ -209,6 +209,7 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
             <ReferenceLine
               key={`mst-${i}`}
               x={formatted}
+              yAxisId="left"
               stroke={m.color || '#8b5cf6'}
               strokeDasharray={lineStyleToDash(m.lineStyle || 'dashed')}
               strokeWidth={1.5}
