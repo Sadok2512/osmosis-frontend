@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -15,12 +15,14 @@ import BIMapWidget from '../bi/BIMapWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
 import AIAssistantPanel from '../bi/AIAssistantPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
+import { CSVDataProvider, CSVUploadButton, CSVDataPanel, useCSVData } from '../bi/CSVDataStore';
 
 const COLS = 12;
 const ROW_HEIGHT = 80;
 
-const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
+const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const dm = useDashboardManager();
+  const { datasets } = useCSVData();
   const widgets = dm.activeTab?.widgets || [];
   const setWidgets = dm.updateActiveWidgets;
 
@@ -29,6 +31,7 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
   const [containerWidth, setContainerWidth] = useState(1200);
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [newDashName, setNewDashName] = useState('');
+  const [showCSVPanel, setShowCSVPanel] = useState(false);
 
   const handleCreateNew = () => {
     setNewDashName('');
@@ -186,6 +189,12 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
               <Sparkles className="w-3 h-3" /> AI
             </button>
+            <CSVUploadButton />
+            <button onClick={() => { setShowCSVPanel(!showCSVPanel); }}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${showCSVPanel ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
+              <FileSpreadsheet className="w-3 h-3" /> Data
+              {datasets.length > 0 && <span className="ml-0.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">{datasets.length}</span>}
+            </button>
           </div>
         </div>
 
@@ -266,6 +275,9 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
           onClose={() => dm.setShowList(false)}
         />
       )}
+      {showCSVPanel && (
+        <CSVDataPanel onClose={() => setShowCSVPanel(false)} />
+      )}
       {/* Name dialog */}
       {showNameDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -289,5 +301,11 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
     </div>
   );
 };
+
+const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => (
+  <CSVDataProvider>
+    <AnalyticBIStudioInner filters={filters} />
+  </CSVDataProvider>
+);
 
 export default AnalyticBIStudio;
