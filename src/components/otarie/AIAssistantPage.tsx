@@ -345,7 +345,23 @@ const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
           ),
           thead: ({ children }) => <thead className="bg-muted/80">{children}</thead>,
           th: ({ children }) => <th className="px-3 py-2.5 text-[11px] font-bold text-foreground text-left border-b-2 border-border tracking-wide">{children}</th>,
-          td: ({ children }) => <td className="px-3 py-2.5 text-xs text-foreground/85 border-b border-border/30">{children}</td>,
+          td: ({ children }) => {
+            const text = String(children ?? '');
+            // Color based on status emojis
+            if (text.includes('🔴') || /critique|critical/i.test(text)) {
+              return <td className="px-3 py-2.5 text-xs font-semibold border-b border-border/30" style={{ color: 'hsl(0, 80%, 50%)' }}>{children}</td>;
+            }
+            if (text.includes('🟠') || /dégradé|bad|mauvais/i.test(text)) {
+              return <td className="px-3 py-2.5 text-xs font-semibold border-b border-border/30" style={{ color: 'hsl(25, 90%, 50%)' }}>{children}</td>;
+            }
+            if (text.includes('🟡') || /moyen|warning|attention/i.test(text)) {
+              return <td className="px-3 py-2.5 text-xs font-semibold border-b border-border/30" style={{ color: 'hsl(45, 90%, 45%)' }}>{children}</td>;
+            }
+            if (text.includes('🟢') || /excellent|good|bon/i.test(text)) {
+              return <td className="px-3 py-2.5 text-xs font-semibold border-b border-border/30" style={{ color: 'hsl(142, 70%, 40%)' }}>{children}</td>;
+            }
+            return <td className="px-3 py-2.5 text-xs text-foreground/85 border-b border-border/30">{children}</td>;
+          },
           tr: ({ children }) => <tr className="hover:bg-muted/30 transition-colors even:bg-muted/10">{children}</tr>,
           blockquote: ({ children }) => (
             <blockquote className="border-l-[3px] border-primary bg-primary/5 rounded-r-lg px-4 py-3 my-3 text-[13px] text-foreground/75 italic">
