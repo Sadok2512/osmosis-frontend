@@ -1,6 +1,7 @@
 import { ChartConfig } from './biTypes';
 import { TextWidgetConfig } from './BITextWidget';
 import { ImageWidgetConfig } from './BIImageWidget';
+import { TableWidgetConfig } from './BITableWidget';
 
 export interface MapWidgetConfig {
   id: string;
@@ -38,4 +39,5 @@ export type WidgetItem =
   | { kind: 'chart'; config: ChartConfig; layout: { x: number; y: number; w: number; h: number } }
   | { kind: 'text'; config: TextWidgetConfig; layout: { x: number; y: number; w: number; h: number } }
   | { kind: 'map'; config: MapWidgetConfig; layout: { x: number; y: number; w: number; h: number } }
-  | { kind: 'image'; config: ImageWidgetConfig; layout: { x: number; y: number; w: number; h: number } };
+  | { kind: 'image'; config: ImageWidgetConfig; layout: { x: number; y: number; w: number; h: number } }
+  | { kind: 'table'; config: TableWidgetConfig; layout: { x: number; y: number; w: number; h: number } };
