@@ -9,6 +9,7 @@ import {
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { invalidateSitesCache } from '@/services/mockData';
+import { useCSVData, type CSVDataset } from '@/components/bi/CSVDataStore';
 import type { SidebarTheme, AccentColor } from '../../pages/Index';
 
 interface SettingsPanelProps {
@@ -147,6 +148,7 @@ const METRICS_CONFIG: { name: string; id: string; numColors: number; thresholds:
 ];
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarTheme, accentColor, setAccentColor }) => {
+  const { datasets: csvDatasets, addDataset: addCsvDataset, removeDataset: removeCsvDataset } = useCSVData();
   const [results, setResults] = useState<LatencyResult[]>(
     ENDPOINTS.map(e => ({ endpoint: e.url, label: e.label, status: 'idle' }))
   );
@@ -159,7 +161,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
   const csvInputRef = useRef<HTMLInputElement>(null);
   const [csvUploading, setCsvUploading] = useState(false);
   const [csvStatus, setCsvStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
-  const [csvFiles, setCsvFiles] = useState<{ name: string; rows: number; cols: number; uploadedAt: string }[]>([]);
   const [settingsTab, setSettingsTab] = useState<'style' | 'data' | 'system'>('style');
   const [metricSearch, setMetricSearch] = useState('');
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(() => new Set(METRICS_CONFIG.map(m => m.id)));
@@ -392,10 +393,28 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
       const lines = text.trim().split(/\r?\n/);
       if (lines.length < 2) throw new Error('Fichier vide ou invalide');
       const sep = lines[0].includes(';') ? ';' : ',';
-      const cols = lines[0].split(sep).map(c => c.trim().replace(/^"|"$/g, ''));
-      const rows = lines.length - 1;
-      setCsvFiles(prev => [...prev, { name: file.name, rows, cols: cols.length, uploadedAt: new Date().toISOString() }]);
-      setCsvStatus({ message: `✓ "${file.name}" chargé : ${rows} lignes, ${cols.length} colonnes`, type: 'success' });
+      const columns = lines[0].split(sep).map(c => c.trim().replace(/^"|"$/g, ''));
+      const rows: Record<string, any>[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const values = lines[i].split(sep).map(v => v.trim().replace(/^"|"$/g, ''));
+        const row: Record<string, any> = {};
+        columns.forEach((col, ci) => {
+          const val = values[ci] ?? '';
+          const num = Number(val);
+          row[col] = val !== '' && !isNaN(num) ? num : val;
+        });
+        rows.push(row);
+      }
+      const ds: CSVDataset = {
+        id: `csv_${Date.now()}`,
+        filename: file.name,
+        columns,
+        rows,
+        uploadedAt: new Date().toISOString(),
+      };
+      addCsvDataset(ds);
+      setCsvStatus({ message: `✓ "${file.name}" chargé : ${rows.length} lignes, ${columns.length} colonnes`, type: 'success' });
     } catch (err: any) {
       setCsvStatus({ message: `Erreur: ${err.message}`, type: 'error' });
     } finally {
@@ -620,11 +639,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
                 {csvUploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                 {csvUploading ? 'Import...' : 'Importer CSV'}
               </button>
-              {csvFiles.length > 0 && (
+              {csvDatasets.length > 0 && (
                 <>
-                  <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-lg">{csvFiles.length} fichier(s)</span>
+                  <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-lg">{csvDatasets.length} fichier(s)</span>
                   <button
-                    onClick={() => { setCsvFiles([]); setCsvStatus({ message: 'Fichiers supprimés', type: 'info' }); }}
+                    onClick={() => { csvDatasets.forEach(d => removeCsvDataset(d.id)); setCsvStatus({ message: 'Fichiers supprimés', type: 'info' }); }}
                     className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
                     title="Supprimer tous les fichiers"
                   >
@@ -645,14 +664,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
             </div>
           )}
 
-          {csvFiles.length > 0 && (
+          {csvDatasets.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
-              {csvFiles.map((f, i) => (
-                <div key={i} className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5">
+              {csvDatasets.map((ds) => (
+                <div key={ds.id} className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5">
                   <FileSpreadsheet className="w-3 h-3 text-primary" />
-                  <span className="text-[10px] font-medium text-foreground">{f.name}</span>
-                  <span className="text-[9px] text-muted-foreground">{f.rows}r · {f.cols}c</span>
-                  <button onClick={() => setCsvFiles(prev => prev.filter((_, j) => j !== i))} className="p-0.5 hover:text-red-500 text-muted-foreground">
+                  <span className="text-[10px] font-medium text-foreground">{ds.filename}</span>
+                  <span className="text-[9px] text-muted-foreground">{ds.rows.length}r · {ds.columns.length}c</span>
+                  <button onClick={() => removeCsvDataset(ds.id)} className="p-0.5 hover:text-red-500 text-muted-foreground">
                     <X className="w-2.5 h-2.5" />
                   </button>
                 </div>
