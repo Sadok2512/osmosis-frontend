@@ -321,61 +321,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
       </MapContainer>
 
-      {/* Floating top bar */}
-      <div className="absolute top-4 left-4 right-4 z-[1000] flex items-start justify-between pointer-events-none">
-        {/* Left: Toggle panel + search */}
-        <div className="flex items-center gap-3 pointer-events-auto">
-          <button
-            onClick={() => setShowSidePanel(!showSidePanel)}
-            className="w-10 h-10 bg-card/95 backdrop-blur-sm border border-border rounded-xl flex items-center justify-center text-foreground shadow-lg hover:bg-card transition-all"
-          >
-            {showSidePanel ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
-          </button>
-          <div className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-lg overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-2.5">
-              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-              <input
-                type="text"
-                placeholder="Search sites..."
-                value={localSearch}
-                onChange={(e) => setLocalSearch(e.target.value)}
-                className="w-48 bg-transparent text-[12px] font-bold text-foreground outline-none placeholder:text-muted-foreground"
-              />
-              <button onClick={() => setShowFilters(!showFilters)} className={`p-1.5 rounded-lg transition-all ${showFilters ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>
-                <Filter size={14} />
-              </button>
-              <div className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black">{filteredSites.length}</div>
-            </div>
-            {showFilters && (
-              <div className="px-4 pb-3 pt-1 border-t border-border grid grid-cols-4 gap-2">
-                <FilterSelect label="Vendor" value={filters.vendor} options={VENDORS} onChange={(v: string) => updateFilter('vendor', v)} />
-                <FilterSelect label="DOR" value={filters.dor} options={DORS} onChange={(v: string) => updateFilter('dor', v)} />
-                <FilterSelect label="Dept" value={filters.department} options={DEPARTMENTS} onChange={(v: string) => updateFilter('department', v)} />
-                <FilterSelect label="RAT" value={filters.rat} options={RATS} onChange={(v: string) => updateFilter('rat', v)} />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Center: KPI Selector dropdown */}
+      {/* Floating top bar — KPI selector + controls (right side only) */}
+      <div className="absolute top-4 right-4 z-[1000] flex items-start gap-3 pointer-events-none">
+        {/* KPI Selector dropdown */}
         <div className="pointer-events-auto relative">
           <button
             onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-            className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-full shadow-xl hover:bg-slate-800 transition-all"
+            className="flex items-center gap-3 px-5 py-3 bg-sidebar text-white rounded-xl shadow-xl hover:bg-sidebar/90 transition-all"
           >
-            <Zap size={16} />
-            <span className="text-[12px] font-black uppercase tracking-wider">{selectedKpiLabel}</span>
+            <Zap size={16} className="text-sidebar-primary" />
+            <span className="text-[12px] font-bold uppercase tracking-wider">{selectedKpiLabel}</span>
             {showKpiDropdown ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
           {showKpiDropdown && (
-            <div className="absolute top-14 left-1/2 -translate-x-1/2 w-[320px] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="absolute top-14 right-0 w-[320px] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
               <div className="p-3 border-b border-border">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input type="text" placeholder="Search KPIs..." className="w-full pl-10 pr-4 py-2.5 bg-muted border border-border rounded-xl text-[11px] font-bold text-foreground outline-none" />
+                  <input type="text" placeholder="Search KPIs..." className="w-full pl-10 pr-4 py-2.5 bg-muted border border-border rounded-xl text-[12px] font-medium text-foreground outline-none placeholder:text-muted-foreground" />
                 </div>
               </div>
-              <div className="max-h-[300px] overflow-y-auto py-1">
+              <div className="max-h-[350px] overflow-y-auto py-1">
                 {MAP_KPIS.map(kpi => (
                   <button
                     key={kpi.id}
@@ -385,8 +351,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     }`}
                   >
                     <div>
-                      <div className="text-[12px] font-black uppercase tracking-tight">{kpi.label}</div>
-                      <div className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${mapKpi === kpi.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{kpi.category}</div>
+                      <div className="text-[12px] font-bold uppercase tracking-tight">{kpi.label}</div>
+                      <div className={`text-[9px] font-semibold uppercase tracking-widest mt-0.5 ${mapKpi === kpi.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{kpi.category}</div>
                     </div>
                     {mapKpi === kpi.id && <span className="text-lg">✓</span>}
                   </button>
@@ -394,17 +360,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
             </div>
           )}
-          <button className="ml-2 w-10 h-10 bg-card/95 backdrop-blur-sm border border-border rounded-xl flex items-center justify-center text-foreground shadow-lg hover:bg-card transition-all absolute top-0 -right-14">
-            <BarChart2 size={18} />
-          </button>
         </div>
-
-        {/* Right: View mode toggle */}
-        <div className="pointer-events-auto flex bg-card/95 backdrop-blur-sm p-1 rounded-xl border border-border shadow-lg shrink-0">
-          <button onClick={() => setViewMode('map')} className={`p-2 rounded-lg transition-all ${viewMode === 'map' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}><MapIcon size={16} /></button>
-          <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}><LayoutGrid size={16} /></button>
-          <button onClick={() => setViewMode('table')} className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}><List size={16} /></button>
-        </div>
+        <button className="pointer-events-auto w-10 h-10 bg-card border border-border rounded-xl flex items-center justify-center text-foreground shadow-lg hover:bg-muted transition-all">
+          <BarChart2 size={18} />
+        </button>
+        <button className="pointer-events-auto w-10 h-10 bg-card border border-border rounded-xl flex items-center justify-center text-foreground shadow-lg hover:bg-muted transition-all">
+          <Maximize2 size={18} />
+        </button>
       </div>
 
       {/* Floating Legend panel (bottom-right) */}
@@ -452,16 +414,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating site list panel */}
       {showSidePanel && viewMode === 'map' && (
-        <div className="absolute top-20 left-4 bottom-4 w-[340px] z-[1000] bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-          <div className="px-5 py-3 border-b border-border flex items-center justify-between shrink-0">
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Sites</span>
-            <button onClick={() => setShowSidePanel(false)} className="p-1 rounded-lg text-muted-foreground hover:bg-muted"><X size={14} /></button>
+        <div className="absolute top-4 left-4 bottom-4 w-[380px] z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+          {/* Search bar */}
+          <div className="px-5 py-4 border-b border-border shrink-0">
+            <div className="flex items-center gap-3 bg-muted rounded-xl px-4 py-3">
+              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                placeholder="Search Site ID or Name..."
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                className="flex-1 bg-transparent text-[13px] font-medium text-foreground outline-none placeholder:text-muted-foreground"
+              />
+            </div>
           </div>
+          {/* Site list */}
           <div className="flex-1 overflow-y-auto">
             {filteredSites.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                 <Search size={28} className="mb-3 opacity-30" />
-                <span className="text-[10px] font-black uppercase tracking-widest">No sites found</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
               </div>
             ) : filteredSites.map(site => (
               <div
@@ -473,29 +445,36 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   hoveredSiteId === site.site_id ? 'bg-primary/5' : ''
                 }`}
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <h4 className="text-[12px] font-black text-foreground tracking-tight uppercase truncate max-w-[180px]">{site.site_name}</h4>
-                  <span className="text-[13px] font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>
-                    {site.qoe_score_avg.toFixed(1)}%
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
-                  <span>{site.site_id}</span>
-                  <span className="w-1 h-1 rounded-full bg-border" />
-                  <span>{site.vendor}</span>
-                  <span className="w-1 h-1 rounded-full bg-border" />
-                  <span>{site.cell_count} cells</span>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  {site.cells.slice(0, 3).map(c => (
-                    <span key={c.cell_id} className={`text-[7px] font-black px-1.5 py-0.5 rounded text-white ${c.techno === '5G' ? 'bg-purple-600' : 'bg-blue-600'}`}>
-                      {c.techno} {c.bande}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground">
+                      <MapPin size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-[13px] font-bold text-foreground tracking-tight uppercase">{site.site_name}</h4>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                        <span className="font-mono">{site.site_id}</span>
+                        <span className="uppercase">{site.vendor}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[15px] font-black tracking-tight" style={{ color: getQoEColor(site.qoe_score_avg) }}>
+                      {site.qoe_score_avg.toFixed(1)}%
                     </span>
-                  ))}
+                    <ChevronRight size={16} className="text-muted-foreground" />
+                  </div>
                 </div>
               </div>
             ))}
           </div>
+          {/* Collapse toggle */}
+          <button
+            onClick={() => setShowSidePanel(false)}
+            className="absolute top-1/2 -right-4 w-4 h-10 bg-card border border-border rounded-r-lg flex items-center justify-center text-muted-foreground hover:text-primary shadow-md"
+          >
+            <ChevronLeft size={12} />
+          </button>
         </div>
       )}
 
