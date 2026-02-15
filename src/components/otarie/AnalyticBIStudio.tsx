@@ -112,25 +112,17 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
     const source = widgets.find(w => getId(w) === id);
     if (!source) return;
     const newId = `${source.kind}_${Date.now()}`;
-    if (source.kind === 'chart') {
-      setWidgets(prev => [...prev, {
-        kind: 'chart',
-        config: { ...source.config, id: newId, title: source.config.title + ' (copy)' },
-        layout: { ...source.layout, y: getMaxY() },
-      }]);
-    } else if (source.kind === 'map') {
-      setWidgets(prev => [...prev, {
-        kind: 'map',
-        config: { ...(source.config as MapWidgetConfig), id: newId, title: (source.config as MapWidgetConfig).title + ' (copy)' },
-        layout: { ...source.layout, y: getMaxY() },
-      }]);
-    } else {
-      setWidgets(prev => [...prev, {
-        kind: 'text',
-        config: { ...(source.config as TextWidgetConfig), id: newId },
-        layout: { ...source.layout, y: getMaxY() },
-      }]);
+    // Deep clone to preserve all nested settings (thresholds, milestones, metrics, filters, dataSource, etc.)
+    const clonedConfig = JSON.parse(JSON.stringify(source.config));
+    clonedConfig.id = newId;
+    if ('title' in clonedConfig && clonedConfig.title) {
+      clonedConfig.title = clonedConfig.title + ' (copy)';
     }
+    setWidgets(prev => [...prev, {
+      kind: source.kind,
+      config: clonedConfig,
+      layout: { ...source.layout, y: getMaxY() },
+    } as WidgetItem]);
   };
 
   const deleteWidget = (id: string) => {
