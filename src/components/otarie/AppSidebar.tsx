@@ -86,19 +86,24 @@ const AppSidebar: React.FC<SidebarProps> = ({
 
       {/* FOOTER */}
       <div className="p-4 border-t border-sidebar-border">
-        <button className={`w-full flex items-center transition-all group ${isCollapsed ? 'justify-center' : 'gap-3 px-3 py-2.5 hover:bg-sidebar-accent rounded-xl'}`}>
-          <Settings className="w-5 h-5 transition-transform group-hover:rotate-45 text-sidebar-foreground group-hover:text-sidebar-primary" />
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`w-full flex items-center transition-all group ${isCollapsed ? 'justify-center' : 'gap-3 px-3 py-2.5 rounded-xl'} ${
+            activeTab === 'settings' ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent'
+          }`}
+        >
+          <Settings className={`w-5 h-5 transition-transform group-hover:rotate-45 ${activeTab === 'settings' ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}`} />
           {!isCollapsed && (
             <div className="text-left">
-              <span className="text-[11px] font-bold uppercase tracking-tight block text-white">Settings</span>
-              <span className="text-[9px] text-sidebar-foreground/60 font-medium">Platform Config</span>
+              <span className={`text-[11px] font-bold uppercase tracking-tight block ${activeTab === 'settings' ? 'text-sidebar-primary-foreground' : 'text-white'}`}>Settings</span>
+              <span className={`text-[9px] font-medium ${activeTab === 'settings' ? 'text-sidebar-primary-foreground/70' : 'text-sidebar-foreground/60'}`}>Platform Config</span>
             </div>
           )}
         </button>
         {!isCollapsed && (
           <div className="flex items-center gap-2 mt-4 px-3 opacity-50">
             <div className="w-2 h-2 rounded-full bg-sidebar-primary" />
-            <span className="text-[10px] font-medium text-sidebar-foreground">V2.5 • PSN Team</span>
+            <span className="text-[10px] font-medium text-sidebar-foreground">V1.0 Beta • Orange France</span>
           </div>
         )}
       </div>
