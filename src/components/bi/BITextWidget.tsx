@@ -33,9 +33,14 @@ export function createDefaultTextWidget(id: string): TextWidgetConfig {
   };
 }
 
+const TEXT_COLORS = ['#ffffff', '#1e293b', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'];
+const BG_COLORS = ['', '#ffffff', '#1e293b', '#0f172a', '#fef2f2', '#fff7ed', '#fefce8', '#f0fdf4', '#eff6ff', '#f5f3ff', '#fdf2f8', '#ecfeff', '#3b82f6', '#22c55e', '#f97316', '#ef4444', '#8b5cf6'];
+
 const BITextWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [editing, setEditing] = useState(false);
   const [showToolbar, setShowToolbar] = useState(false);
+  const [showTextColors, setShowTextColors] = useState(false);
+  const [showBgColors, setShowBgColors] = useState(false);
 
   const update = (partial: Partial<TextWidgetConfig>) => onChange({ ...config, ...partial });
 
@@ -80,15 +85,43 @@ const BITextWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               <option key={s} value={s}>{s}px</option>
             ))}
           </select>
-          <input type="color" value={config.color.startsWith('hsl') ? '#ffffff' : config.color}
-            onChange={e => update({ color: e.target.value })}
-            className="w-5 h-5 rounded cursor-pointer border-0 ml-0.5" title="Text color" />
-          <input type="color" value={config.bgColor || '#ffffff'}
-            onChange={e => update({ bgColor: e.target.value })}
-            className="w-5 h-5 rounded cursor-pointer border-0" title="Background color" />
-          {config.bgColor && (
-            <button onClick={() => update({ bgColor: '' })} className="p-1 rounded hover:bg-muted text-muted-foreground text-[9px]" title="Remove background">✕</button>
-          )}
+          {/* Text color palette */}
+          <div className="relative">
+            <button onClick={() => { setShowTextColors(!showTextColors); setShowBgColors(false); }}
+              className="w-5 h-5 rounded border border-border cursor-pointer ml-0.5 flex items-center justify-center text-[8px] font-bold"
+              style={{ color: config.color.startsWith('hsl') ? undefined : config.color }}
+              title="Text color">A</button>
+            {showTextColors && (
+              <div className="absolute bottom-7 right-0 bg-card border border-border rounded-lg shadow-xl p-1.5 grid grid-cols-5 gap-1 z-50 animate-scale-in">
+                {TEXT_COLORS.map(c => (
+                  <button key={c} onClick={() => { update({ color: c }); setShowTextColors(false); }}
+                    className={`w-5 h-5 rounded-md border transition-transform hover:scale-110 ${config.color === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border'}`}
+                    style={{ backgroundColor: c }} />
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Background color palette */}
+          <div className="relative">
+            <button onClick={() => { setShowBgColors(!showBgColors); setShowTextColors(false); }}
+              className="w-5 h-5 rounded border border-border cursor-pointer flex items-center justify-center overflow-hidden"
+              title="Background color">
+              <Paintbrush className="w-3 h-3" style={{ color: config.bgColor || undefined }} />
+            </button>
+            {showBgColors && (
+              <div className="absolute bottom-7 right-0 bg-card border border-border rounded-lg shadow-xl p-1.5 z-50 animate-scale-in">
+                <div className="grid grid-cols-6 gap-1">
+                  {BG_COLORS.map((c, i) => (
+                    <button key={i} onClick={() => { update({ bgColor: c }); setShowBgColors(false); }}
+                      className={`w-5 h-5 rounded-md border transition-transform hover:scale-110 ${config.bgColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border'}`}
+                      style={{ backgroundColor: c || 'transparent' }}>
+                      {!c && <span className="text-[8px] text-muted-foreground">∅</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button onClick={onDelete} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors ml-1">
             <Trash2 className="w-3 h-3" />
           </button>
