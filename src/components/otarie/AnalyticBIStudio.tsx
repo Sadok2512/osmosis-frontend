@@ -324,19 +324,22 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
                 <FileDown className="w-3 h-3" /> PDF
               </button>
             </div>
-            <button onClick={() => dm.setShowList(!dm.showList)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${dm.showList ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
-              <FolderOpen className="w-3 h-3" /> Load
-            </button>
-            <button onClick={() => { setShowAI(!showAI); setEditingId(null); }}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
-              <Sparkles className="w-3 h-3" /> AI
-            </button>
-            <CSVUploadButton />
-            <button onClick={() => { setShowCSVPanel(!showCSVPanel); }}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${showCSVPanel ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
-              <FileSpreadsheet className="w-3 h-3" /> Data
-              {datasets.length > 0 && <span className="ml-0.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">{datasets.length}</span>}
-            </button>
+            <div className="w-px h-5 bg-border mx-0.5" />
+            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
+              <button onClick={() => dm.setShowList(!dm.showList)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${dm.showList ? 'bg-primary text-primary-foreground' : 'hover:bg-primary hover:text-primary-foreground'}`}>
+                <FolderOpen className="w-3 h-3" /> Load
+              </button>
+              <button onClick={() => { setShowAI(!showAI); setEditingId(null); }}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'hover:bg-primary hover:text-primary-foreground'}`}>
+                <Sparkles className="w-3 h-3" /> AI
+              </button>
+              <CSVUploadButton />
+              <button onClick={() => { setShowCSVPanel(!showCSVPanel); }}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${showCSVPanel ? 'bg-primary text-primary-foreground' : 'hover:bg-primary hover:text-primary-foreground'}`}>
+                <FileSpreadsheet className="w-3 h-3" /> Data
+                {datasets.length > 0 && <span className="ml-0.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">{datasets.length}</span>}
+              </button>
+            </div>
           </div>
         </div>
 
