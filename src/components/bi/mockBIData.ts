@@ -36,6 +36,13 @@ export function generateChartData(config: ChartConfig): any[] {
   const rng = seededRandom(config.id.charCodeAt(0) * 1000 + config.yMetrics.length);
   const data: any[] = [];
 
+  // Build a set of allowed values per dimension from filters
+  const activeFilters = (config.filters || []).filter(f => f.values.length > 0);
+  const filterMap = new Map<string, Set<string>>();
+  for (const f of activeFilters) {
+    filterMap.set(f.dimension, new Set(f.values));
+  }
+
   if (config.xAxis.type === 'date') {
     const start = new Date(config.xAxis.dateStart || '2026-02-01');
     const end = new Date(config.xAxis.dateEnd || '2026-02-15');
@@ -56,7 +63,11 @@ export function generateChartData(config: ChartConfig): any[] {
       // Group by support
       if (config.groupBy.length > 0) {
         const dim = config.groupBy[0];
-        const vals = getDimensionValues(dim);
+        let vals = getDimensionValues(dim);
+        // Apply filter if the groupBy dimension has an active filter
+        if (filterMap.has(dim)) {
+          vals = vals.filter(v => filterMap.get(dim)!.has(v));
+        }
         for (const val of vals.slice(0, 4)) {
           const grouped = { ...point, group: val };
           for (const metric of config.yMetrics) {
@@ -65,13 +76,28 @@ export function generateChartData(config: ChartConfig): any[] {
           data.push(grouped);
         }
       } else {
+        // Apply filters as a multiplier effect on the base values
+        if (activeFilters.length > 0) {
+          let factor = 1;
+          for (const f of activeFilters) {
+            const allVals = getDimensionValues(f.dimension);
+            factor *= f.values.length / allVals.length;
+          }
+          for (const metric of config.yMetrics) {
+            point[metric.kpi] = +(point[metric.kpi] * (0.8 + factor * 0.4)).toFixed(2);
+          }
+        }
         data.push(point);
       }
 
       current += step;
     }
   } else if (config.xAxis.type === 'dimension') {
-    const vals = getDimensionValues(config.xAxis.value);
+    let vals = getDimensionValues(config.xAxis.value);
+    // Apply filter on the X-axis dimension if present
+    if (filterMap.has(config.xAxis.value)) {
+      vals = vals.filter(v => filterMap.get(config.xAxis.value)!.has(v));
+    }
     for (const val of vals) {
       const point: any = { x: val };
       for (const metric of config.yMetrics) {
