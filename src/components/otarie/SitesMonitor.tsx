@@ -320,8 +320,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     <div className="flex-1 flex flex-col bg-background overflow-hidden h-full relative">
       {/* FULL SCREEN MAP */}
       <MapContainer
-        center={[47.5, 0.5]}
-        zoom={6}
+        center={[43.2965, 5.3698]}
+        zoom={15}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
       >
