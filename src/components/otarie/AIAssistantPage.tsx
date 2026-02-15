@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check, FileDown } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { exportElementToPDF } from '@/lib/exportUtils';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -217,7 +218,10 @@ const AIAssistantPage: React.FC = () => {
                   ) : (
                     <>
                       <AssistantMessage content={msg.content} />
-                      <CopyButton text={msg.content} />
+                      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <ExportPDFButton msgRef={msg.content} index={i} />
+                        <CopyButton text={msg.content} />
+                      </div>
                     </>
                   )}
                 </div>
@@ -283,6 +287,35 @@ const AIAssistantPage: React.FC = () => {
 };
 
 /**
+ * ExportPDFButton: exports a specific assistant message to PDF
+ */
+const ExportPDFButton: React.FC<{ msgRef: string; index: number }> = ({ msgRef, index }) => {
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    // Find the message container by traversing up from the button
+    const msgElements = document.querySelectorAll('.ai-msg-content');
+    const el = msgElements[index] as HTMLElement | null;
+    if (!el) return;
+    setExporting(true);
+    try {
+      await exportElementToPDF(el, `QOEBIT_response_${index + 1}`);
+      toast({ title: 'PDF exporté', description: 'La réponse a été exportée en PDF.' });
+    } catch {
+      toast({ title: 'Erreur', description: "Impossible d'exporter en PDF.", variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+  return (
+    <button onClick={handleExport} disabled={exporting}
+      className="p-1.5 rounded-lg bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+      title="Exporter en PDF">
+      {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+    </button>
+  );
+};
+
+/**
  * CopyButton: copies the raw text content to clipboard
  */
 const CopyButton: React.FC<{ text: string }> = ({ text }) => {
@@ -293,11 +326,9 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <button
-      onClick={handleCopy}
-      className="absolute top-2 right-2 p-1.5 rounded-lg bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
-      title="Copier"
-    >
+    <button onClick={handleCopy}
+      className="p-1.5 rounded-lg bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+      title="Copier">
       {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
     </button>
   );

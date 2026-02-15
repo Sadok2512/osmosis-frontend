@@ -1,9 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { exportElementToPDF } from '@/lib/exportUtils';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Filters } from '../../types';
@@ -32,6 +33,17 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [newDashName, setNewDashName] = useState('');
   const [showCSVPanel, setShowCSVPanel] = useState(false);
+  const dashboardRef = useRef<HTMLDivElement>(null);
+
+  const handleExportDashboardPDF = async () => {
+    if (!dashboardRef.current) return;
+    try {
+      await exportElementToPDF(dashboardRef.current, dm.activeTab?.name?.replace(/\s+/g, '_') || 'dashboard');
+      toast({ title: 'PDF exporté', description: 'Le dashboard a été exporté en PDF.' });
+    } catch {
+      toast({ title: 'Erreur', description: "Export PDF échoué.", variant: 'destructive' });
+    }
+  };
 
   const handleCreateNew = () => {
     setNewDashName('');
@@ -179,6 +191,9 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             <button onClick={addText} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
               <Type className="w-3 h-3" /> Text
             </button>
+            <button onClick={handleExportDashboardPDF} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
+              <FileDown className="w-3 h-3" /> PDF
+            </button>
             <button onClick={handleSave} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
               <Save className="w-3 h-3" /> Save
             </button>
@@ -199,7 +214,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
         </div>
 
         {/* Grid */}
-        <div ref={containerRef} className="flex-1 overflow-auto p-4">
+        <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
           {widgets.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">

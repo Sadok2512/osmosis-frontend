@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Settings, Copy, Trash2, Maximize2, Minimize2, BarChart3 } from 'lucide-react';
+import { Settings, Copy, Trash2, Maximize2, Minimize2, BarChart3, Image, FileDown } from 'lucide-react';
 import { ChartConfig, KPI_UNITS } from './biTypes';
 import BIChartRenderer from './BIChartRenderer';
+import { exportElementToPNG, exportElementToPDF } from '@/lib/exportUtils';
 
 interface Props {
   config: ChartConfig;
@@ -14,6 +15,8 @@ interface Props {
 const BIChartCard: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete }) => {
   const [fullscreen, setFullscreen] = useState(false);
   const [animating, setAnimating] = useState<'in' | 'out' | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const fsChartRef = useRef<HTMLDivElement>(null);
   const firstMetric = config.yMetrics[0];
   const unit = firstMetric ? KPI_UNITS[firstMetric.kpi] || '' : '';
   const titleLabel = config.title || firstMetric?.kpi.replace(/_/g, ' ') || 'Chart';
@@ -43,6 +46,18 @@ const BIChartCard: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete })
 
   const stopDrag = (e: React.MouseEvent) => { e.stopPropagation(); };
 
+  const handleExportPNG = async (isFs: boolean) => {
+    const el = isFs ? fsChartRef.current : chartRef.current;
+    if (!el) return;
+    await exportElementToPNG(el, titleLabel.replace(/\s+/g, '_'));
+  };
+
+  const handleExportPDF = async (isFs: boolean) => {
+    const el = isFs ? fsChartRef.current : chartRef.current;
+    if (!el) return;
+    await exportElementToPDF(el, titleLabel.replace(/\s+/g, '_'));
+  };
+
   const headerContent = (isFs: boolean) => (
     <div className={`flex items-center justify-between ${isFs ? 'px-6 py-4' : 'px-4 py-3'}`}>
       {/* Left: drag handle area */}
@@ -64,6 +79,12 @@ const BIChartCard: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete })
           {isFs ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-3.5 h-3.5" />}
         </button>
         <div className={`flex items-center gap-0.5 ${isFs ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
+          <button onClick={() => handleExportPNG(isFs)} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Export PNG">
+            <Image className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
+          </button>
+          <button onClick={() => handleExportPDF(isFs)} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Export PDF">
+            <FileDown className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
+          </button>
           <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit">
             <Settings className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
           </button>
@@ -102,7 +123,7 @@ const BIChartCard: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete })
       >
         {headerContent(true)}
         {thresholdBadge(true)}
-        <div className="flex-1 px-4 pb-4 min-h-0">
+        <div ref={fsChartRef} className="flex-1 px-4 pb-4 min-h-0">
           <BIChartRenderer config={config} />
         </div>
       </div>
@@ -117,7 +138,7 @@ const BIChartCard: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete })
         >
         {headerContent(false)}
         {thresholdBadge(false)}
-        <div className="flex-1 px-2 pb-3 min-h-0">
+        <div ref={chartRef} className="flex-1 px-2 pb-3 min-h-0">
           <BIChartRenderer config={config} />
         </div>
       </div>
