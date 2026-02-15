@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { CSVDataProvider } from '../components/bi/CSVDataStore';
 import AppSidebar from '../components/otarie/AppSidebar';
 import GlobalDashboard from '../components/otarie/GlobalDashboard';
 import SitesMonitor from '../components/otarie/SitesMonitor';
@@ -113,6 +114,7 @@ const Index: React.FC = () => {
   };
 
   return (
+    <CSVDataProvider>
     <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass}`} style={accentStyles[accentColor] as React.CSSProperties}>
       <AppSidebar
         filters={filters}
@@ -128,6 +130,7 @@ const Index: React.FC = () => {
         {renderContent()}
       </div>
     </div>
+    </CSVDataProvider>
   );
 };
 

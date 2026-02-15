@@ -72,6 +72,12 @@ export interface ChartConfig {
   yMetrics: YMetricConfig[];
   filters: FilterConfig[];
   groupBy: BIDimension[];
+  dataSource?: {
+    type: 'mock' | 'csv';
+    csvDatasetId?: string;
+    xColumn?: string;
+    yColumns?: string[];
+  };
   advanced: {
     thresholds: ThresholdLine[];
     milestones: MilestoneLine[];

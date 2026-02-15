@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database } from 'lucide-react';
 import { ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine, MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI, Aggregation, ChartType, Granularity, AxisSide, LineStyle } from './biTypes';
 import { getDimensionValues } from './mockBIData';
+import { useCSVData } from './CSVDataStore';
 
 interface Props {
   config: ChartConfig;
@@ -69,8 +70,9 @@ const Select: React.FC<{ value: string; options: readonly string[]; onChange: (v
 );
 
 const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
-  const [sections, setSections] = useState({ x: true, y: true, filters: false, group: false, advanced: false });
+  const [sections, setSections] = useState({ source: true, x: true, y: true, filters: false, group: false, advanced: false });
   const toggle = (s: keyof typeof sections) => setSections(p => ({ ...p, [s]: !p[s] }));
+  const { datasets } = useCSVData();
 
   const update = (partial: Partial<ChartConfig>) => onChange({ ...config, ...partial });
   const updateX = (partial: Partial<XAxisConfig>) => update({ xAxis: { ...config.xAxis, ...partial } });
@@ -127,6 +129,91 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
 
       {/* Scrollable sections */}
       <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+
+        {/* ── DATA SOURCE ── */}
+        {datasets.length > 0 && (<>
+          <SectionHeader title="Data Source" number="0" open={sections.source} toggle={() => toggle('source')} />
+          {sections.source && (
+            <div className="pl-5 space-y-2 pb-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => update({ dataSource: { type: 'mock' } })}
+                  className={`flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium border transition-colors ${
+                    (!config.dataSource || config.dataSource.type === 'mock')
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
+                  }`}
+                >
+                  <Database className="w-3 h-3" /> Simulé
+                </button>
+                <button
+                  onClick={() => update({ dataSource: { type: 'csv', csvDatasetId: datasets[0]?.id } })}
+                  className={`flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium border transition-colors ${
+                    config.dataSource?.type === 'csv'
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
+                  }`}
+                >
+                  <Database className="w-3 h-3" /> CSV
+                </button>
+              </div>
+              {config.dataSource?.type === 'csv' && (
+                <div className="space-y-2">
+                  <select
+                    value={config.dataSource.csvDatasetId || ''}
+                    onChange={e => update({ dataSource: { ...config.dataSource!, csvDatasetId: e.target.value } })}
+                    className="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    {datasets.map(ds => (
+                      <option key={ds.id} value={ds.id}>{ds.filename} ({ds.rows.length}r)</option>
+                    ))}
+                  </select>
+                  {(() => {
+                    const ds = datasets.find(d => d.id === config.dataSource?.csvDatasetId);
+                    if (!ds) return null;
+                    return (
+                      <>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground font-medium">Colonne X</span>
+                          <select
+                            value={config.dataSource?.xColumn || ds.columns[0]}
+                            onChange={e => update({ dataSource: { ...config.dataSource!, xColumn: e.target.value } })}
+                            className="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary mt-1"
+                          >
+                            {ds.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground font-medium">Colonnes Y (métriques)</span>
+                          <div className="flex flex-wrap gap-1 mt-1 max-h-24 overflow-y-auto">
+                            {ds.columns.filter(c => c !== (config.dataSource?.xColumn || ds.columns[0])).map(col => {
+                              const selected = config.dataSource?.yColumns?.includes(col);
+                              return (
+                                <button
+                                  key={col}
+                                  onClick={() => {
+                                    const current = config.dataSource?.yColumns || [];
+                                    const next = selected ? current.filter(c => c !== col) : [...current, col];
+                                    update({ dataSource: { ...config.dataSource!, yColumns: next } });
+                                  }}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] border transition-colors ${
+                                    selected ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground hover:border-primary/50'
+                                  }`}
+                                >
+                                  {col}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
+        </>)}
 
         {/* ── X AXIS ── */}
         <SectionHeader title="X Axis" number="1" open={sections.x} toggle={() => toggle('x')} />

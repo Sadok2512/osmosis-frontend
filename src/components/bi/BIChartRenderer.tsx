@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { ChartConfig, CHART_COLORS, KPI_UNITS } from './biTypes';
 import { generateChartData } from './mockBIData';
+import { useCSVData } from './CSVDataStore';
 
 interface Props {
   config: ChartConfig;
@@ -42,7 +43,21 @@ const renderTooltip = ({ active, payload, label }: any) => {
 };
 
 const BIChartRenderer: React.FC<Props> = ({ config }) => {
-  const rawData = useMemo(() => generateChartData(config), [config]);
+  const { getDataset } = useCSVData();
+  const csvDataset = config.dataSource?.type === 'csv' && config.dataSource.csvDatasetId
+    ? getDataset(config.dataSource.csvDatasetId) : null;
+
+  const rawData = useMemo(() => {
+    if (csvDataset && config.dataSource?.xColumn) {
+      return csvDataset.rows.map(row => ({
+        x: row[config.dataSource!.xColumn!],
+        ...Object.fromEntries(
+          (config.dataSource!.yColumns || []).map(col => [col, row[col]])
+        ),
+      }));
+    }
+    return generateChartData(config);
+  }, [config, csvDataset]);
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
 
   const toggleSeries = useCallback((dataKey: string) => {
@@ -53,9 +68,30 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
       return next;
     });
   }, []);
-  // Pivot grouped data: transform {x, group, kpi} rows into {x, kpi_groupA, kpi_groupB, ...}
+  // When using CSV, build virtual yMetrics from CSV columns
+  const effectiveYMetrics = useMemo(() => {
+    if (csvDataset && config.dataSource?.yColumns?.length) {
+      return config.dataSource.yColumns.map((col, i) => ({
+        kpi: col as any,
+        aggregation: 'AVG' as const,
+        axis: 'left' as const,
+        chartType: (config.yMetrics[0]?.chartType || 'line') as any,
+        color: CHART_COLORS[i % CHART_COLORS.length],
+        showMovingAvg: false,
+        smoothCurve: true,
+      }));
+    }
+    return config.yMetrics;
+  }, [csvDataset, config.dataSource?.yColumns, config.yMetrics]);
+
+  const effectiveConfig = useMemo(() => ({
+    ...config,
+    yMetrics: effectiveYMetrics,
+  }), [config, effectiveYMetrics]);
+
+  // Pivot grouped data
   const { data, groupKeys } = useMemo(() => {
-    const hasGroup = config.groupBy.length > 0 && rawData.some(d => d.group);
+    const hasGroup = effectiveConfig.groupBy.length > 0 && rawData.some(d => d.group);
     if (!hasGroup) return { data: rawData, groupKeys: [] as string[] };
     
     const groups = [...new Set(rawData.map(d => d.group))] as string[];
@@ -64,15 +100,15 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
     for (const row of rawData) {
       if (!byX.has(row.x)) byX.set(row.x, { x: row.x });
       const point = byX.get(row.x)!;
-      for (const m of config.yMetrics) {
+      for (const m of effectiveYMetrics) {
         point[`${m.kpi}__${row.group}`] = row[m.kpi];
       }
     }
     
     return { data: Array.from(byX.values()), groupKeys: groups };
-  }, [rawData, config.groupBy, config.yMetrics]);
+  }, [rawData, effectiveConfig.groupBy, effectiveYMetrics]);
   
-  const firstMetric = config.yMetrics[0];
+  const firstMetric = effectiveYMetrics[0];
 
   if (!firstMetric) {
     return (
@@ -153,15 +189,15 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
   const thresholds = config.advanced.thresholds;
   const milestones = config.advanced.milestones || [];
   const lineStyleToDash = (s: string) => s === 'dotted' ? '2 4' : s === 'dashed' ? '6 4' : '';
-  const hasRight = config.yMetrics.some(m => m.axis === 'right');
-  const isGroupedBar = config.yMetrics.some(m => m.chartType === 'grouped_bar');
-  const groupedBarCount = config.yMetrics.filter(m => m.chartType === 'grouped_bar').length;
+  const hasRight = effectiveYMetrics.some(m => m.axis === 'right');
+  const isGroupedBar = effectiveYMetrics.some(m => m.chartType === 'grouped_bar');
+  const groupedBarCount = effectiveYMetrics.filter(m => m.chartType === 'grouped_bar').length;
 
   // Use ComposedChart for maximum flexibility (mix line+bar+area)
-  const useComposed = config.yMetrics.length > 0;
+  const useComposed = effectiveYMetrics.length > 0;
 
   // For single-metric line/area, add subtle background bars like the reference
-  const showBackgroundBars = config.yMetrics.length === 1 &&
+  const showBackgroundBars = effectiveYMetrics.length === 1 &&
     (firstMetric.chartType === 'line' || firstMetric.chartType === 'area');
 
   const xTickFormatter = (value: string) => {
@@ -306,7 +342,7 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
         )}
 
         {/* Render each metric */}
-        {config.yMetrics.flatMap((m, i) => {
+        {effectiveYMetrics.flatMap((m, i) => {
           // If groupBy is active, render one series per group value
           const seriesList = groupKeys.length > 0
             ? groupKeys.map((g, gi) => ({

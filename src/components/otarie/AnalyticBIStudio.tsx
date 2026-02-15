@@ -303,9 +303,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
 };
 
 const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => (
-  <CSVDataProvider>
-    <AnalyticBIStudioInner filters={filters} />
-  </CSVDataProvider>
+  <AnalyticBIStudioInner filters={filters} />
 );
 
 export default AnalyticBIStudio;
