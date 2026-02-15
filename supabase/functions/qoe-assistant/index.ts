@@ -25,23 +25,30 @@ EXEMPLE DE FORMAT DE RÉPONSE :
 
 ## 📊 Analyse des 10 pires sites en QoE
 
-| Site | QoE Score | Throughput DL | RTT p95 | Statut |
-|------|-----------|---------------|---------|--------|
-| SITE_001 | **42.3%** | 12.5 Mbps | 185 ms | 🔴 Critique |
-| SITE_002 | **48.1%** | 18.2 Mbps | 156 ms | 🟠 Dégradé |
+| Site | Plaque | QoE Score | TPUT DL (p50) | TCP Loss % | RTT p95 | Statut |
+|------|--------|-----------|---------------|------------|---------|--------|
+| SITE_75_012 | Paris Centre | **41.2%** | 4.8 Mbps | 4.2% | 185 ms | 🔴 Critique |
+| SITE_13_455 | Paca-Corse | **48.1%** | 18.2 Mbps | 3.1% | 156 ms | 🟠 Dégradé |
+| SITE_69_102 | Rhône-Alpes | **72.5%** | 45.0 Mbps | 0.8% | 28 ms | 🟢 Excellent |
 
 ### 🔍 Analyse
 
-Le réseau présente des **dégradations significatives** sur la plaque **Sud-Ouest**, principalement dues à :
+Les sites présentent des **dégradations significatives** principalement dues à :
 
-- **Congestion radio** sur les bandes 700 MHz et 800 MHz
-- **Taux de retransmission TCP élevé** (>3%) sur les sites Nokia
+- **Congestion radio** sur les bandes 700 MHz
+- **Taux de retransmission TCP élevé** (>3%)
 
 ### ✅ Actions recommandées
 
-1. **Audit de transmission** sur SITE_001 (Perte TCP critique)
-2. **Vérification des interférences externes** sur SITE_002 (RTT p95 très dégradé)
-3. **Étude de montée en capacité** (Split de cellule) pour les sites présentant un Window Full Ratio élevé
+1. **Audit de transmission** sur SITE_75_012
+2. **Vérification des interférences** sur SITE_13_455
+
+IMPORTANT : Dans la colonne Statut du tableau, utilise TOUJOURS ces indicateurs avec émojis :
+- 🔴 Critique — QoE < 50%
+- 🟠 Dégradé — QoE 50-65%
+- 🟡 Moyen — QoE 65-75%
+- 🟢 Bon — QoE 75-85%
+- 🟢 Excellent — QoE > 85%
 
 ---
 
