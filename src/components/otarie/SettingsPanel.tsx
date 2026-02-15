@@ -156,6 +156,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
   const [topoStatus, setTopoStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
   const [topoCount, setTopoCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvStatus, setCsvStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
+  const [csvFiles, setCsvFiles] = useState<{ name: string; rows: number; cols: number; uploadedAt: string }[]>([]);
   const [settingsTab, setSettingsTab] = useState<'style' | 'data' | 'system'>('style');
   const [metricSearch, setMetricSearch] = useState('');
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(() => new Set(METRICS_CONFIG.map(m => m.id)));
@@ -374,6 +378,32 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
     }
   };
 
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      setCsvStatus({ message: 'Fichier trop volumineux (max 20 Mo)', type: 'error' });
+      return;
+    }
+    setCsvUploading(true);
+    setCsvStatus({ message: 'Lecture du fichier CSV...', type: 'info' });
+    try {
+      const text = await file.text();
+      const lines = text.trim().split(/\r?\n/);
+      if (lines.length < 2) throw new Error('Fichier vide ou invalide');
+      const sep = lines[0].includes(';') ? ';' : ',';
+      const cols = lines[0].split(sep).map(c => c.trim().replace(/^"|"$/g, ''));
+      const rows = lines.length - 1;
+      setCsvFiles(prev => [...prev, { name: file.name, rows, cols: cols.length, uploadedAt: new Date().toISOString() }]);
+      setCsvStatus({ message: `✓ "${file.name}" chargé : ${rows} lignes, ${cols.length} colonnes`, type: 'success' });
+    } catch (err: any) {
+      setCsvStatus({ message: `Erreur: ${err.message}`, type: 'error' });
+    } finally {
+      setCsvUploading(false);
+      if (csvInputRef.current) csvInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="flex-1 h-full overflow-y-auto bg-background">
       {/* Header */}
@@ -566,9 +596,86 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
             </div>
           )}
         </div>
-        </>)}
 
-        {/* ===== DATA MODEL TAB ===== */}
+        {/* QoE Data CSV Upload */}
+        <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <FileSpreadsheet className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Données QoE</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Importer des fichiers CSV pour le BI Studio</p>
+              </div>
+            </div>
+            {csvFiles.length > 0 && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl">
+                <Database className="w-4 h-4 text-primary" />
+                <span className="text-[11px] font-black text-primary">{csvFiles.length} fichier(s)</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv,.txt"
+              onChange={handleCsvUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => csvInputRef.current?.click()}
+              disabled={csvUploading}
+              className="flex items-center gap-3 px-6 py-3 bg-primary text-primary-foreground rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50 shadow-lg"
+            >
+              {csvUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {csvUploading ? 'Import en cours...' : 'Importer Fichier CSV'}
+            </button>
+            {csvFiles.length > 0 && (
+              <button
+                onClick={() => { setCsvFiles([]); setCsvStatus({ message: 'Tous les fichiers supprimés', type: 'info' }); }}
+                className="flex items-center gap-2 px-4 py-3 bg-red-500/10 text-red-500 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
+              >
+                <Trash2 className="w-4 h-4" />
+                Vider
+              </button>
+            )}
+          </div>
+
+          {csvStatus && (
+            <div className={`mt-4 px-4 py-3 rounded-xl text-[11px] font-bold ${
+              csvStatus.type === 'success' ? 'bg-emerald-500/10 text-emerald-600' :
+              csvStatus.type === 'error' ? 'bg-red-500/10 text-red-500' :
+              'bg-primary/10 text-primary'
+            }`}>
+              {csvStatus.message}
+            </div>
+          )}
+
+          {csvFiles.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {csvFiles.map((f, i) => (
+                <div key={i} className="flex items-center justify-between bg-muted/50 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <FileSpreadsheet className="w-4 h-4 text-primary" />
+                    <span className="text-[11px] font-bold text-foreground">{f.name}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-bold">
+                    <span>{f.rows} lignes</span>
+                    <span>·</span>
+                    <span>{f.cols} colonnes</span>
+                    <button onClick={() => setCsvFiles(prev => prev.filter((_, j) => j !== i))} className="p-1 hover:bg-red-500/20 rounded text-muted-foreground hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        </>)}
         {settingsTab === 'data' && (<>
         <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
           <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-8">
