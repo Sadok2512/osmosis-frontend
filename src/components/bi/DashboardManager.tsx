@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Plus, X, Save, FolderOpen, Trash2, Clock, LayoutDashboard } from 'lucide-react';
 import { WidgetItem, createDefaultMapWidget } from './dashboardTypes';
 import { createDefaultChart } from './biTypes';
@@ -69,8 +69,8 @@ export function useDashboardManager() {
   const [tabs, setTabs] = useState<OpenTab[]>(() => {
     const saved = loadAllDashboards();
     if (saved.length > 0) {
-      const first = saved[0];
-      return [{ id: first.id, name: first.name, widgets: first.widgets, dirty: false }];
+      // Open all saved dashboards as tabs
+      return saved.map(s => ({ id: s.id, name: s.name, widgets: s.widgets, dirty: false }));
     }
     const id = `db_${Date.now()}`;
     return [{ id, name: 'Dashboard 1', widgets: createDefaultWidgets(), dirty: true }];
@@ -82,6 +82,23 @@ export function useDashboardManager() {
   const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) || tabs[0], [tabs, activeTabId]);
 
   const savedDashboards = useMemo(() => loadAllDashboards(), [tabs]); // reload on tab changes
+
+  // Auto-save: persist all open tabs to localStorage whenever they change
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      const all = loadAllDashboards();
+      const allById = new Map(all.map(d => [d.id, d]));
+      for (const tab of tabs) {
+        allById.set(tab.id, { id: tab.id, name: tab.name, widgets: tab.widgets, updatedAt: new Date().toISOString() });
+      }
+      saveAllDashboards(Array.from(allById.values()));
+      // Mark all tabs as clean
+      setTabs(prev => prev.map(t => t.dirty ? { ...t, dirty: false } : t));
+    }, 1000); // debounce 1s
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [tabs]);
 
   const updateActiveWidgets = useCallback((updater: (prev: WidgetItem[]) => WidgetItem[]) => {
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, widgets: updater(t.widgets), dirty: true } : t));
