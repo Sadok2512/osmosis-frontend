@@ -5,7 +5,7 @@ import SitesMonitor from '../components/otarie/SitesMonitor';
 import AdvancedAnalytics from '../components/otarie/AdvancedAnalytics';
 import AlertsRCA from '../components/otarie/AlertsRCA';
 import RadioMobility from '../components/otarie/RadioMobility';
-import TrafficTypes from '../components/otarie/TrafficTypes';
+import AnalyticBIStudio from '../components/otarie/AnalyticBIStudio';
 import SubscriberExperience from '../components/otarie/SubscriberExperience';
 import DetectorConsole from '../components/otarie/DetectorConsole';
 import SettingsPanel from '../components/otarie/SettingsPanel';
@@ -96,7 +96,7 @@ const Index: React.FC = () => {
       case 'radio':
         return <RadioMobility filters={filters} />;
       case 'traffic':
-        return <TrafficTypes filters={filters} />;
+        return <AnalyticBIStudio filters={filters} />;
       case 'subscriber':
         return <SubscriberExperience filters={filters} />;
       case 'detector':
