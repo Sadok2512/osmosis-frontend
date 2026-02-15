@@ -6,7 +6,8 @@ import { SiteSummary, SiteDetail, Filters } from '../../types';
 import {
   Search, RefreshCw, ChevronLeft, MapPin,
   Zap, Network, Database, Activity, ArrowRight,
-  SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon
+  SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
+  PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2
 } from 'lucide-react';
 import { getQoEColor, VENDORS, DORS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
 
@@ -35,6 +36,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localSearch, setLocalSearch] = useState('');
   const [hoveredSiteId, setHoveredSiteId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const [showSidePanel, setShowSidePanel] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     const loadSites = async () => {
@@ -168,57 +171,107 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     );
   }
 
-  // Main view with list + map
+  // Main view — full screen map with floating panels
   return (
-    <div className="flex-1 flex flex-col bg-background overflow-hidden h-full">
-      {/* Header + filters */}
-      <div className="px-10 py-5 bg-card border-b border-border z-30 shadow-sm shrink-0">
-        <div className="flex flex-col gap-5 max-w-[1800px] mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                <SlidersHorizontal size={20} />
+    <div className="flex-1 flex flex-col bg-background overflow-hidden h-full relative">
+      {/* FULL SCREEN MAP */}
+      <MapContainer
+        center={[48.856, 2.352]}
+        zoom={13}
+        style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
+        zoomControl={false}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        />
+        <FlyToSite coords={flyTarget} />
+        {filteredSites.map(site => (
+          <CircleMarker
+            key={site.site_id}
+            center={site.coordinates}
+            radius={hoveredSiteId === site.site_id ? 14 : 9}
+            pathOptions={{
+              color: hoveredSiteId === site.site_id ? '#1e293b' : getQoEColor(site.qoe_score_avg),
+              fillColor: getQoEColor(site.qoe_score_avg),
+              fillOpacity: 0.85,
+              weight: hoveredSiteId === site.site_id ? 3 : 2,
+            }}
+            eventHandlers={{
+              click: () => handleSiteClick(site),
+              mouseover: () => setHoveredSiteId(site.site_id),
+              mouseout: () => setHoveredSiteId(null),
+            }}
+          >
+            <Popup>
+              <div className="p-1">
+                <div className="font-bold text-sm">{site.site_name}</div>
+                <div className="text-xs text-gray-500 mt-1">{site.site_id} • {site.vendor}</div>
+                <div className="text-sm font-bold mt-2" style={{ color: getQoEColor(site.qoe_score_avg) }}>
+                  QoE: {site.qoe_score_avg.toFixed(1)}%
+                </div>
+                <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
               </div>
-              <div>
-                <h2 className="text-xl font-black text-foreground tracking-tighter uppercase">Network Sites Monitor</h2>
-                <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1">Select a site to view its cells</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="px-5 py-2.5 bg-muted border border-border rounded-2xl text-[11px] font-black">
-                <span className="text-muted-foreground mr-2 uppercase tracking-widest">Sites:</span>
-                <span className="text-primary">{filteredSites.length}</span>
-              </div>
-              <div className="flex bg-muted p-1 rounded-2xl border border-border">
-                <button onClick={() => setViewMode('map')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'map' ? 'bg-card text-primary shadow-md' : 'text-muted-foreground'}`}><MapIcon size={18} /></button>
-                <button onClick={() => setViewMode('grid')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-card text-primary shadow-md' : 'text-muted-foreground'}`}><LayoutGrid size={18} /></button>
-                <button onClick={() => setViewMode('table')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'table' ? 'bg-card text-primary shadow-md' : 'text-muted-foreground'}`}><List size={18} /></button>
-              </div>
-            </div>
-          </div>
+            </Popup>
+          </CircleMarker>
+        ))}
+      </MapContainer>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            <div className="relative col-span-1 xl:col-span-2">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input type="text" placeholder="Search Site ID, Site name..." value={localSearch} onChange={(e) => setLocalSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-muted border border-border rounded-2xl text-[11px] font-black uppercase tracking-tight outline-none focus:ring-4 focus:ring-primary/5 focus:bg-card transition-all" />
-            </div>
-            <FilterSelect label="Vendor" value={filters.vendor} options={VENDORS} onChange={(v: string) => updateFilter('vendor', v)} />
-            <FilterSelect label="DOR" value={filters.dor} options={DORS} onChange={(v: string) => updateFilter('dor', v)} />
-            <FilterSelect label="Department" value={filters.department} options={DEPARTMENTS} onChange={(v: string) => updateFilter('department', v)} />
-            <FilterSelect label="Rat" value={filters.rat} options={RATS} onChange={(v: string) => updateFilter('rat', v)} />
+      {/* Floating top bar */}
+      <div className="absolute top-4 left-4 right-4 z-[1000] flex items-start gap-3 pointer-events-none">
+        {/* Toggle panel button */}
+        <button
+          onClick={() => setShowSidePanel(!showSidePanel)}
+          className="pointer-events-auto w-10 h-10 bg-card/95 backdrop-blur-sm border border-border rounded-xl flex items-center justify-center text-foreground shadow-lg hover:bg-card transition-all shrink-0"
+        >
+          {showSidePanel ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+        </button>
+
+        {/* Search + filters bar */}
+        <div className="pointer-events-auto flex-1 max-w-xl bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5">
+            <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              placeholder="Search sites..."
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              className="flex-1 bg-transparent text-[12px] font-bold text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            <button onClick={() => setShowFilters(!showFilters)} className={`p-1.5 rounded-lg transition-all ${showFilters ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>
+              <Filter size={14} />
+            </button>
+            <div className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black">{filteredSites.length}</div>
           </div>
+          {showFilters && (
+            <div className="px-4 pb-3 pt-1 border-t border-border grid grid-cols-4 gap-2">
+              <FilterSelect label="Vendor" value={filters.vendor} options={VENDORS} onChange={(v: string) => updateFilter('vendor', v)} />
+              <FilterSelect label="DOR" value={filters.dor} options={DORS} onChange={(v: string) => updateFilter('dor', v)} />
+              <FilterSelect label="Dept" value={filters.department} options={DEPARTMENTS} onChange={(v: string) => updateFilter('department', v)} />
+              <FilterSelect label="RAT" value={filters.rat} options={RATS} onChange={(v: string) => updateFilter('rat', v)} />
+            </div>
+          )}
+        </div>
+
+        {/* View mode toggle */}
+        <div className="pointer-events-auto flex bg-card/95 backdrop-blur-sm p-1 rounded-xl border border-border shadow-lg shrink-0">
+          <button onClick={() => setViewMode('map')} className={`p-2 rounded-lg transition-all ${viewMode === 'map' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}><MapIcon size={16} /></button>
+          <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}><LayoutGrid size={16} /></button>
+          <button onClick={() => setViewMode('table')} className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}><List size={16} /></button>
         </div>
       </div>
 
-      {/* Content area */}
-      {viewMode === 'map' ? (
-        <div className="flex-1 flex overflow-hidden">
-          {/* Site list sidebar */}
-          <div className="w-[380px] border-r border-border bg-card overflow-y-auto shrink-0">
+      {/* Floating site list panel */}
+      {showSidePanel && viewMode === 'map' && (
+        <div className="absolute top-20 left-4 bottom-4 w-[340px] z-[1000] bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+          <div className="px-5 py-3 border-b border-border flex items-center justify-between shrink-0">
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Sites</span>
+            <button onClick={() => setShowSidePanel(false)} className="p-1 rounded-lg text-muted-foreground hover:bg-muted"><X size={14} /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
             {filteredSites.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                <Search size={32} className="mb-3 opacity-30" />
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Search size={28} className="mb-3 opacity-30" />
                 <span className="text-[10px] font-black uppercase tracking-widest">No sites found</span>
               </div>
             ) : filteredSites.map(site => (
@@ -227,26 +280,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 onClick={() => handleSiteClick(site)}
                 onMouseEnter={() => setHoveredSiteId(site.site_id)}
                 onMouseLeave={() => setHoveredSiteId(null)}
-                className={`px-6 py-5 border-b border-border cursor-pointer transition-all hover:bg-primary/5 ${
+                className={`px-5 py-4 border-b border-border/50 cursor-pointer transition-all hover:bg-primary/5 ${
                   hoveredSiteId === site.site_id ? 'bg-primary/5' : ''
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-[13px] font-black text-foreground tracking-tight uppercase truncate max-w-[200px]">{site.site_name}</h4>
-                  <span className="text-[14px] font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <h4 className="text-[12px] font-black text-foreground tracking-tight uppercase truncate max-w-[180px]">{site.site_name}</h4>
+                  <span className="text-[13px] font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>
                     {site.qoe_score_avg.toFixed(1)}%
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                <div className="flex items-center gap-2 text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
                   <span>{site.site_id}</span>
                   <span className="w-1 h-1 rounded-full bg-border" />
                   <span>{site.vendor}</span>
                   <span className="w-1 h-1 rounded-full bg-border" />
                   <span>{site.cell_count} cells</span>
                 </div>
-                <div className="flex gap-3 mt-3">
+                <div className="flex gap-2 mt-2">
                   {site.cells.slice(0, 3).map(c => (
-                    <span key={c.cell_id} className={`text-[8px] font-black px-2 py-0.5 rounded text-white ${c.techno === '5G' ? 'bg-purple-600' : 'bg-blue-600'}`}>
+                    <span key={c.cell_id} className={`text-[7px] font-black px-1.5 py-0.5 rounded text-white ${c.techno === '5G' ? 'bg-purple-600' : 'bg-blue-600'}`}>
                       {c.techno} {c.bande}
                     </span>
                   ))}
@@ -254,54 +307,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
             ))}
           </div>
-
-          {/* Map */}
-          <div className="flex-1 relative">
-            <MapContainer
-              center={[48.856, 2.352]}
-              zoom={13}
-              style={{ height: '100%', width: '100%' }}
-              zoomControl={true}
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              />
-              <FlyToSite coords={flyTarget} />
-              {filteredSites.map(site => (
-                <CircleMarker
-                  key={site.site_id}
-                  center={site.coordinates}
-                  radius={hoveredSiteId === site.site_id ? 14 : 9}
-                  pathOptions={{
-                    color: hoveredSiteId === site.site_id ? '#1e293b' : getQoEColor(site.qoe_score_avg),
-                    fillColor: getQoEColor(site.qoe_score_avg),
-                    fillOpacity: 0.85,
-                    weight: hoveredSiteId === site.site_id ? 3 : 2,
-                  }}
-                  eventHandlers={{
-                    click: () => handleSiteClick(site),
-                    mouseover: () => setHoveredSiteId(site.site_id),
-                    mouseout: () => setHoveredSiteId(null),
-                  }}
-                >
-                  <Popup>
-                    <div className="p-1">
-                      <div className="font-bold text-sm">{site.site_name}</div>
-                      <div className="text-xs text-gray-500 mt-1">{site.site_id} • {site.vendor}</div>
-                      <div className="text-sm font-bold mt-2" style={{ color: getQoEColor(site.qoe_score_avg) }}>
-                        QoE: {site.qoe_score_avg.toFixed(1)}%
-                      </div>
-                      <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
-                    </div>
-                  </Popup>
-                </CircleMarker>
-              ))}
-            </MapContainer>
-          </div>
         </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto p-10 space-y-8 pb-32">
+      )}
+
+      {/* Grid/Table overlay when not in map mode */}
+      {viewMode !== 'map' && (
+        <div className="absolute inset-0 z-[999] bg-background overflow-y-auto pt-20 px-10 pb-32">
           {filteredSites.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 text-muted-foreground opacity-50">
               <Search size={48} className="mb-4" />
@@ -310,7 +321,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {filteredSites.map(site => (
-                <div key={site.site_id} onClick={() => handleSiteClick(site)}
+                <div key={site.site_id} onClick={() => { handleSiteClick(site); setViewMode('map'); }}
                   className="group bg-card border border-border rounded-[2.5rem] p-7 shadow-sm transition-all duration-300 hover:shadow-2xl hover:border-primary hover:-translate-y-1 cursor-pointer">
                   <div className="flex items-center justify-between mb-8">
                     <div className="w-14 h-14 bg-muted rounded-2xl flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all">
@@ -348,7 +359,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredSites.map(site => (
-                    <tr key={site.site_id} onClick={() => handleSiteClick(site)} className="group hover:bg-primary/5 transition-all cursor-pointer">
+                    <tr key={site.site_id} onClick={() => { handleSiteClick(site); setViewMode('map'); }} className="group hover:bg-primary/5 transition-all cursor-pointer">
                       <td className="px-10 py-6">
                         <div className="text-[14px] font-black text-foreground uppercase tracking-tight">{site.site_name}</div>
                         <div className="text-[9px] font-bold text-muted-foreground mt-1 uppercase tracking-widest">{site.site_id} • {site.dor}</div>
