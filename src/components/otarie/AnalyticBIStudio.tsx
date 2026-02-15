@@ -21,17 +21,68 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
     } catch {}
     // Default: 2 starter charts
     return [
-      { config: createDefaultChart('chart_1'), layout: { x: 0, y: 0, w: 6, h: 4 } },
+      {
+        config: {
+          ...createDefaultChart('chart_1'),
+          title: 'DMS DL ≥ 8 Mbps',
+          yMetrics: [{
+            kpi: 'dms_dl_8' as any, aggregation: 'AVG', axis: 'left' as const,
+            chartType: 'line' as const, color: 'hsl(262, 83%, 58%)', showMovingAvg: false, smoothCurve: true,
+          }],
+          advanced: {
+            thresholds: [{ value: 65, label: 'Seuil', color: 'hsl(0, 72%, 60%)' }],
+            highlightAnomalies: false, sortByValue: false, topN: null, showLegend: false,
+          },
+        },
+        layout: { x: 0, y: 0, w: 6, h: 4 },
+      },
       {
         config: {
           ...createDefaultChart('chart_2'),
+          title: 'QoE Index',
+          yMetrics: [{
+            kpi: 'qoe_index' as any, aggregation: 'AVG', axis: 'left' as const,
+            chartType: 'line' as const, color: 'hsl(210, 100%, 56%)', showMovingAvg: false, smoothCurve: true,
+          }],
+          advanced: {
+            thresholds: [{ value: 70, label: 'Seuil', color: 'hsl(0, 72%, 60%)' }],
+            highlightAnomalies: false, sortByValue: false, topN: null, showLegend: false,
+          },
+        },
+        layout: { x: 6, y: 0, w: 6, h: 4 },
+      },
+      {
+        config: {
+          ...createDefaultChart('chart_3'),
           title: 'Throughput DL',
           yMetrics: [{
             kpi: 'debit_dl' as any, aggregation: 'AVG', axis: 'left' as const,
             chartType: 'area' as const, color: 'hsl(160, 84%, 39%)', showMovingAvg: false, smoothCurve: true,
           }],
         },
-        layout: { x: 6, y: 0, w: 6, h: 4 },
+        layout: { x: 0, y: 4, w: 4, h: 4 },
+      },
+      {
+        config: {
+          ...createDefaultChart('chart_4'),
+          title: 'RTT Data',
+          yMetrics: [{
+            kpi: 'rtt_data_avg' as any, aggregation: 'AVG', axis: 'left' as const,
+            chartType: 'bar' as const, color: 'hsl(25, 95%, 53%)', showMovingAvg: false, smoothCurve: false,
+          }],
+        },
+        layout: { x: 4, y: 4, w: 4, h: 4 },
+      },
+      {
+        config: {
+          ...createDefaultChart('chart_5'),
+          title: 'Sessions',
+          yMetrics: [{
+            kpi: 'session_nbr' as any, aggregation: 'SUM', axis: 'left' as const,
+            chartType: 'kpi_card' as const, color: 'hsl(187, 92%, 39%)', showMovingAvg: false, smoothCurve: false,
+          }],
+        },
+        layout: { x: 8, y: 4, w: 4, h: 4 },
       },
     ];
   });
