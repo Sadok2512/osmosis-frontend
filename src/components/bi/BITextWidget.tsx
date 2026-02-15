@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GripVertical, Trash2, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { GripVertical, Trash2, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Paintbrush } from 'lucide-react';
 
 export interface TextWidgetConfig {
   id: string;
@@ -10,6 +10,7 @@ export interface TextWidgetConfig {
   fontStyle: 'normal' | 'italic';
   textAlign: 'left' | 'center' | 'right';
   color: string;
+  bgColor: string;
 }
 
 interface Props {
@@ -28,6 +29,7 @@ export function createDefaultTextWidget(id: string): TextWidgetConfig {
     fontStyle: 'normal',
     textAlign: 'left',
     color: 'hsl(var(--foreground))',
+    bgColor: '',
   };
 }
 
@@ -39,7 +41,8 @@ const BITextWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
 
   return (
     <div
-      className="h-full flex flex-col rounded-2xl bg-card border border-border shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)] overflow-hidden group transition-shadow hover:shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.1)]"
+      className="h-full flex flex-col rounded-2xl border border-border shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)] overflow-hidden group transition-shadow hover:shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.1)]"
+      style={{ backgroundColor: config.bgColor || undefined }}
       onMouseEnter={() => setShowToolbar(true)}
       onMouseLeave={() => setShowToolbar(false)}
     >
@@ -79,7 +82,13 @@ const BITextWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
           </select>
           <input type="color" value={config.color.startsWith('hsl') ? '#ffffff' : config.color}
             onChange={e => update({ color: e.target.value })}
-            className="w-5 h-5 rounded cursor-pointer border-0 ml-0.5" />
+            className="w-5 h-5 rounded cursor-pointer border-0 ml-0.5" title="Text color" />
+          <input type="color" value={config.bgColor || '#ffffff'}
+            onChange={e => update({ bgColor: e.target.value })}
+            className="w-5 h-5 rounded cursor-pointer border-0" title="Background color" />
+          {config.bgColor && (
+            <button onClick={() => update({ bgColor: '' })} className="p-1 rounded hover:bg-muted text-muted-foreground text-[9px]" title="Remove background">✕</button>
+          )}
           <button onClick={onDelete} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors ml-1">
             <Trash2 className="w-3 h-3" />
           </button>
