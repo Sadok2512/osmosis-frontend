@@ -76,10 +76,10 @@ export function useDashboardManager() {
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, widgets: updater(t.widgets), dirty: true } : t));
   }, [activeTabId]);
 
-  const createNew = useCallback(() => {
+  const createNew = useCallback((name?: string) => {
     const id = `db_${Date.now()}`;
-    const name = `Dashboard ${tabs.length + 1}`;
-    const newTab: OpenTab = { id, name, widgets: createDefaultWidgets(), dirty: true };
+    const dashName = name?.trim() || `Dashboard ${tabs.length + 1}`;
+    const newTab: OpenTab = { id, name: dashName, widgets: createDefaultWidgets(), dirty: true };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(id);
     setShowList(false);
@@ -110,9 +110,9 @@ export function useDashboardManager() {
     });
   }, [activeTabId]);
 
-  const saveCurrent = useCallback(() => {
+  const saveCurrent = useCallback((): string | null => {
     const tab = tabs.find(t => t.id === activeTabId);
-    if (!tab) return;
+    if (!tab) return null;
     const all = loadAllDashboards();
     const idx = all.findIndex(d => d.id === tab.id);
     const entry: SavedDashboard = { id: tab.id, name: tab.name, widgets: tab.widgets, updatedAt: new Date().toISOString() };
@@ -120,6 +120,7 @@ export function useDashboardManager() {
     else all.push(entry);
     saveAllDashboards(all);
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, dirty: false } : t));
+    return tab.name;
   }, [tabs, activeTabId]);
 
   const deleteDashboard = useCallback((id: string) => {
