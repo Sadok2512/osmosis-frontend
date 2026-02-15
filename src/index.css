@@ -48,6 +48,81 @@ All colors MUST be HSL.
     --sidebar-ring: 170 70% 45%;
   }
 
+  /* Sidebar themes */
+  .sidebar-grey {
+    --sidebar-background: 220 10% 40%;
+    --sidebar-foreground: 220 10% 90%;
+    --sidebar-accent: 220 10% 48%;
+    --sidebar-accent-foreground: 220 10% 95%;
+    --sidebar-border: 220 10% 35%;
+  }
+
+  .sidebar-light {
+    --sidebar-background: 220 20% 95%;
+    --sidebar-foreground: 220 20% 30%;
+    --sidebar-accent: 220 20% 88%;
+    --sidebar-accent-foreground: 220 20% 20%;
+    --sidebar-border: 220 15% 85%;
+  }
+
+  /* Accent color overrides */
+  .accent-orange {
+    --primary: 25 95% 53%;
+    --accent: 25 95% 53%;
+    --ring: 25 95% 53%;
+    --sidebar-primary: 25 95% 53%;
+    --sidebar-ring: 25 95% 53%;
+  }
+  .accent-red {
+    --primary: 0 72% 51%;
+    --accent: 0 72% 51%;
+    --ring: 0 72% 51%;
+    --sidebar-primary: 0 72% 51%;
+    --sidebar-ring: 0 72% 51%;
+  }
+  .accent-pink {
+    --primary: 330 81% 60%;
+    --accent: 330 81% 60%;
+    --ring: 330 81% 60%;
+    --sidebar-primary: 330 81% 60%;
+    --sidebar-ring: 330 81% 60%;
+  }
+  .accent-purple {
+    --primary: 262 83% 58%;
+    --accent: 262 83% 58%;
+    --ring: 262 83% 58%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-ring: 262 83% 58%;
+  }
+  .accent-indigo {
+    --primary: 239 84% 67%;
+    --accent: 239 84% 67%;
+    --ring: 239 84% 67%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-ring: 239 84% 67%;
+  }
+  .accent-cyan {
+    --primary: 187 92% 39%;
+    --accent: 187 92% 39%;
+    --ring: 187 92% 39%;
+    --sidebar-primary: 187 92% 39%;
+    --sidebar-ring: 187 92% 39%;
+  }
+  .accent-emerald {
+    --primary: 160 84% 39%;
+    --accent: 160 84% 39%;
+    --ring: 160 84% 39%;
+    --sidebar-primary: 160 84% 39%;
+    --sidebar-ring: 160 84% 39%;
+  }
+  .accent-amber {
+    --primary: 38 92% 50%;
+    --accent: 38 92% 50%;
+    --ring: 38 92% 50%;
+    --sidebar-primary: 38 92% 50%;
+    --sidebar-ring: 38 92% 50%;
+  }
+
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;

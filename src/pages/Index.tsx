@@ -14,10 +14,15 @@ import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
 import { getQoEColor, VENDORS, DORS, DEPARTMENTS, PLAQUES } from '../constants';
 
+export type SidebarTheme = 'dark' | 'grey' | 'light';
+export type AccentColor = 'default' | 'orange' | 'red' | 'pink' | 'purple' | 'indigo' | 'cyan' | 'emerald' | 'amber';
+
 const Index: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>('analytics');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarTheme, setSidebarTheme] = useState<SidebarTheme>('dark');
+  const [accentColor, setAccentColor] = useState<AccentColor>('default');
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [expandedSiteId, setExpandedSiteId] = useState<string | null>(null);
   const [sites, setSites] = useState<SiteSummary[]>([]);
@@ -63,6 +68,9 @@ const Index: React.FC = () => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
+  const sidebarClass = sidebarTheme === 'grey' ? 'sidebar-grey' : sidebarTheme === 'light' ? 'sidebar-light' : '';
+  const accentClass = accentColor !== 'default' ? `accent-${accentColor}` : '';
+
   const renderContent = () => {
     switch (activeTab) {
       case 'analytics':
@@ -84,14 +92,14 @@ const Index: React.FC = () => {
       case 'list':
         return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} />;
       case 'settings':
-        return <SettingsPanel />;
+        return <SettingsPanel sidebarTheme={sidebarTheme} setSidebarTheme={setSidebarTheme} accentColor={accentColor} setAccentColor={setAccentColor} />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground">
+    <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass} ${accentClass}`}>
       <AppSidebar
         filters={filters}
         setFilters={setFilters}
