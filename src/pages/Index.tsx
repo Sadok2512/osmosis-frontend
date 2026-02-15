@@ -88,7 +88,7 @@ const Index: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden font-sans bg-slate-100 text-slate-900">
+    <div className="flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground">
       <AppSidebar
         filters={filters}
         setFilters={setFilters}
