@@ -3,7 +3,7 @@ import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
   Database, Activity, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
-  Sliders, Globe, FileText, BookOpen
+  Sliders, Globe, FileText, BookOpen, Sparkles
 } from 'lucide-react';
 import { Filters, AppTab } from '../../types';
 
@@ -26,6 +26,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'traffic', label: 'Analytic BI Studio', icon: <BarChart2 className="w-5 h-5" /> },
   { id: 'alerts', label: 'Alerts & RCA Monitor', icon: <Bell className="w-5 h-5" /> },
   { id: 'radio', label: 'Radio Mobility', icon: <Radio className="w-5 h-5" /> },
+  { id: 'ai_assistant', label: 'AI Assistant', icon: <Sparkles className="w-5 h-5" /> },
   { id: 'docs', label: 'Documentation', icon: <BookOpen className="w-5 h-5" /> },
 ];
 
