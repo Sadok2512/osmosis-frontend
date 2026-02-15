@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check } from 'lucide-react';
 import { ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine, MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI, Aggregation, ChartType, Granularity, AxisSide, LineStyle } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
@@ -74,45 +74,63 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   const toggle = (s: keyof typeof sections) => setSections(p => ({ ...p, [s]: !p[s] }));
   const { datasets } = useCSVData();
 
-  const update = (partial: Partial<ChartConfig>) => onChange({ ...config, ...partial });
-  const updateX = (partial: Partial<XAxisConfig>) => update({ xAxis: { ...config.xAxis, ...partial } });
+  // Draft state — changes are buffered until Apply is clicked
+  const [draft, setDraft] = useState<ChartConfig>(() => JSON.parse(JSON.stringify(config)));
+  const [dirty, setDirty] = useState(false);
+
+  // Reset draft when external config changes (e.g. switching charts)
+  useEffect(() => {
+    setDraft(JSON.parse(JSON.stringify(config)));
+    setDirty(false);
+  }, [config.id]);
+
+  const update = (partial: Partial<ChartConfig>) => {
+    setDraft(prev => ({ ...prev, ...partial }));
+    setDirty(true);
+  };
+  const updateX = (partial: Partial<XAxisConfig>) => update({ xAxis: { ...draft.xAxis, ...partial } });
 
   const updateMetric = (idx: number, partial: Partial<YMetricConfig>) => {
-    const metrics = [...config.yMetrics];
+    const metrics = [...draft.yMetrics];
     metrics[idx] = { ...metrics[idx], ...partial };
     update({ yMetrics: metrics });
   };
 
   const addMetric = () => {
-    const used = config.yMetrics.map(m => m.kpi);
+    const used = draft.yMetrics.map(m => m.kpi);
     const next = BI_KPIS.find(k => !used.includes(k)) || BI_KPIS[0];
     update({
-      yMetrics: [...config.yMetrics, {
+      yMetrics: [...draft.yMetrics, {
         kpi: next, aggregation: 'AVG', axis: 'left',
-        chartType: 'line', color: CHART_COLORS[config.yMetrics.length % CHART_COLORS.length],
+        chartType: 'line', color: CHART_COLORS[draft.yMetrics.length % CHART_COLORS.length],
         showMovingAvg: false, smoothCurve: true,
       }]
     });
   };
 
   const removeMetric = (idx: number) => {
-    update({ yMetrics: config.yMetrics.filter((_, i) => i !== idx) });
+    update({ yMetrics: draft.yMetrics.filter((_, i) => i !== idx) });
   };
 
   const addFilter = () => {
-    const used = config.filters.map(f => f.dimension);
+    const used = draft.filters.map(f => f.dimension);
     const next = BI_DIMENSIONS.find(d => !used.includes(d)) || BI_DIMENSIONS[0];
-    update({ filters: [...config.filters, { dimension: next, values: [] }] });
+    update({ filters: [...draft.filters, { dimension: next, values: [] }] });
   };
 
   const updateFilter = (idx: number, partial: Partial<FilterConfig>) => {
-    const filters = [...config.filters];
+    const filters = [...draft.filters];
     filters[idx] = { ...filters[idx], ...partial };
     update({ filters });
   };
 
   const removeFilter = (idx: number) => {
-    update({ filters: config.filters.filter((_, i) => i !== idx) });
+    update({ filters: draft.filters.filter((_, i) => i !== idx) });
+  };
+
+  const handleApply = () => {
+    onChange(draft);
+    setDirty(false);
   };
 
   return (
@@ -121,7 +139,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex flex-col">
           <span className="text-xs font-semibold text-foreground">Chart Configuration</span>
-          <input value={config.title} onChange={e => update({ title: e.target.value })}
+          <input value={draft.title} onChange={e => update({ title: e.target.value })}
             className="mt-1 bg-transparent text-sm font-medium text-foreground outline-none border-b border-transparent focus:border-primary" />
         </div>
         <button onClick={onClose} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
@@ -139,7 +157,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 <button
                   onClick={() => update({ dataSource: { type: 'mock' } })}
                   className={`flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium border transition-colors ${
-                    (!config.dataSource || config.dataSource.type === 'mock')
+                    (!draft.dataSource || draft.dataSource.type === 'mock')
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
                   }`}
@@ -149,7 +167,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 <button
                   onClick={() => update({ dataSource: { type: 'csv', csvDatasetId: datasets[0]?.id } })}
                   className={`flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium border transition-colors ${
-                    config.dataSource?.type === 'csv'
+                    draft.dataSource?.type === 'csv'
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
                   }`}
@@ -157,11 +175,11 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   <Database className="w-3 h-3" /> CSV
                 </button>
               </div>
-              {config.dataSource?.type === 'csv' && (
+              {draft.dataSource?.type === 'csv' && (
                 <div className="space-y-2">
                   <select
-                    value={config.dataSource.csvDatasetId || ''}
-                    onChange={e => update({ dataSource: { ...config.dataSource!, csvDatasetId: e.target.value } })}
+                    value={draft.dataSource.csvDatasetId || ''}
+                    onChange={e => update({ dataSource: { ...draft.dataSource!, csvDatasetId: e.target.value } })}
                     className="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
                   >
                     {datasets.map(ds => (
@@ -169,15 +187,15 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                     ))}
                   </select>
                   {(() => {
-                    const ds = datasets.find(d => d.id === config.dataSource?.csvDatasetId);
+                    const ds = datasets.find(d => d.id === draft.dataSource?.csvDatasetId);
                     if (!ds) return null;
                     return (
                       <>
                         <div>
                           <span className="text-[10px] text-muted-foreground font-medium">Colonne X</span>
                           <select
-                            value={config.dataSource?.xColumn || ds.columns[0]}
-                            onChange={e => update({ dataSource: { ...config.dataSource!, xColumn: e.target.value } })}
+                            value={draft.dataSource?.xColumn || ds.columns[0]}
+                            onChange={e => update({ dataSource: { ...draft.dataSource!, xColumn: e.target.value } })}
                             className="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary mt-1"
                           >
                             {ds.columns.map(c => <option key={c} value={c}>{c}</option>)}
@@ -186,15 +204,15 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                         <div>
                           <span className="text-[10px] text-muted-foreground font-medium">Colonnes Y (métriques)</span>
                           <div className="flex flex-wrap gap-1 mt-1 max-h-24 overflow-y-auto">
-                            {ds.columns.filter(c => c !== (config.dataSource?.xColumn || ds.columns[0])).map(col => {
-                              const selected = config.dataSource?.yColumns?.includes(col);
+                            {ds.columns.filter(c => c !== (draft.dataSource?.xColumn || ds.columns[0])).map(col => {
+                              const selected = draft.dataSource?.yColumns?.includes(col);
                               return (
                                 <button
                                   key={col}
                                   onClick={() => {
-                                    const current = config.dataSource?.yColumns || [];
+                                    const current = draft.dataSource?.yColumns || [];
                                     const next = selected ? current.filter(c => c !== col) : [...current, col];
-                                    update({ dataSource: { ...config.dataSource!, yColumns: next } });
+                                    update({ dataSource: { ...draft.dataSource!, yColumns: next } });
                                   }}
                                   className={`px-1.5 py-0.5 rounded text-[10px] border transition-colors ${
                                     selected ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground hover:border-primary/50'
@@ -219,23 +237,23 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         <SectionHeader title="X Axis" number="1" open={sections.x} toggle={() => toggle('x')} />
         {sections.x && (
           <div className="pl-5 space-y-2 pb-3">
-            <Select value={config.xAxis.type} options={['date', 'dimension', 'kpi'] as const} onChange={v => updateX({ type: v as any })} className="w-full" />
-            {config.xAxis.type === 'date' && (
+            <Select value={draft.xAxis.type} options={['date', 'dimension', 'kpi'] as const} onChange={v => updateX({ type: v as any })} className="w-full" />
+            {draft.xAxis.type === 'date' && (
               <>
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="date" value={config.xAxis.dateStart} onChange={e => updateX({ dateStart: e.target.value })}
+                  <input type="date" value={draft.xAxis.dateStart} onChange={e => updateX({ dateStart: e.target.value })}
                     className="bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground" />
-                  <input type="date" value={config.xAxis.dateEnd} onChange={e => updateX({ dateEnd: e.target.value })}
+                  <input type="date" value={draft.xAxis.dateEnd} onChange={e => updateX({ dateEnd: e.target.value })}
                     className="bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground" />
                 </div>
-                <Select value={config.xAxis.granularity || 'day'} options={GRANULARITIES} onChange={v => updateX({ granularity: v as Granularity })} className="w-full" />
+                <Select value={draft.xAxis.granularity || 'day'} options={GRANULARITIES} onChange={v => updateX({ granularity: v as Granularity })} className="w-full" />
               </>
             )}
-            {config.xAxis.type === 'dimension' && (
-              <Select value={config.xAxis.value} options={BI_DIMENSIONS} onChange={v => updateX({ value: v })} className="w-full" />
+            {draft.xAxis.type === 'dimension' && (
+              <Select value={draft.xAxis.value} options={BI_DIMENSIONS} onChange={v => updateX({ value: v })} className="w-full" />
             )}
-            {config.xAxis.type === 'kpi' && (
-              <Select value={config.xAxis.value} options={BI_KPIS} onChange={v => updateX({ value: v })} className="w-full" />
+            {draft.xAxis.type === 'kpi' && (
+              <Select value={draft.xAxis.value} options={BI_KPIS} onChange={v => updateX({ value: v })} className="w-full" />
             )}
           </div>
         )}
@@ -244,7 +262,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         <SectionHeader title="Y Axis (Metrics)" number="2" open={sections.y} toggle={() => toggle('y')} />
         {sections.y && (
           <div className="pl-5 space-y-3 pb-3">
-            {config.yMetrics.map((m, i) => (
+            {draft.yMetrics.map((m, i) => (
               <div key={i} className="p-2 rounded-lg bg-muted/50 border border-border space-y-2">
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 rounded-full" style={{ background: m.color }} />
@@ -292,7 +310,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         <SectionHeader title="Filters" number="3" open={sections.filters} toggle={() => toggle('filters')} />
         {sections.filters && (
           <div className="pl-5 space-y-2 pb-3">
-            {config.filters.map((f, i) => (
+            {draft.filters.map((f, i) => (
               <div key={i} className="flex items-start gap-1">
                 <div className="flex-1 space-y-1">
                   <Select value={f.dimension} options={BI_DIMENSIONS} onChange={v => updateFilter(i, { dimension: v as BIDimension, values: [] })} className="w-full" />
@@ -322,7 +340,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         {sections.group && (
           <div className="pl-5 space-y-2 pb-3">
             <Select
-              value={config.groupBy[0] || ''}
+              value={draft.groupBy[0] || ''}
               options={['', ...BI_DIMENSIONS] as any}
               onChange={v => {
                 update({ groupBy: v ? [v as BIDimension] : [] });
@@ -335,18 +353,18 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         {sections.advanced && (
           <div className="pl-5 space-y-3 pb-3">
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input type="checkbox" checked={config.advanced.showLegend} onChange={e => update({ advanced: { ...config.advanced, showLegend: e.target.checked } })} /> Show Legend
+              <input type="checkbox" checked={draft.advanced.showLegend} onChange={e => update({ advanced: { ...draft.advanced, showLegend: e.target.checked } })} /> Show Legend
             </label>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input type="checkbox" checked={config.advanced.highlightAnomalies} onChange={e => update({ advanced: { ...config.advanced, highlightAnomalies: e.target.checked } })} /> Highlight Anomalies
+              <input type="checkbox" checked={draft.advanced.highlightAnomalies} onChange={e => update({ advanced: { ...draft.advanced, highlightAnomalies: e.target.checked } })} /> Highlight Anomalies
             </label>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input type="checkbox" checked={config.advanced.sortByValue} onChange={e => update({ advanced: { ...config.advanced, sortByValue: e.target.checked } })} /> Sort by Value
+              <input type="checkbox" checked={draft.advanced.sortByValue} onChange={e => update({ advanced: { ...draft.advanced, sortByValue: e.target.checked } })} /> Sort by Value
             </label>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Top N:</span>
-              <input type="number" min={0} max={100} value={config.advanced.topN || ''} placeholder="All"
-                onChange={e => update({ advanced: { ...config.advanced, topN: e.target.value ? Number(e.target.value) : null } })}
+              <input type="number" min={0} max={100} value={draft.advanced.topN || ''} placeholder="All"
+                onChange={e => update({ advanced: { ...draft.advanced, topN: e.target.value ? Number(e.target.value) : null } })}
                 className="w-16 bg-muted border border-border rounded px-2 py-1 text-xs text-foreground" />
             </div>
 
@@ -357,7 +375,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
               </span>
               <div className="flex flex-wrap gap-1">
                 {BG_PALETTE.map(c => (
-                  <ColorSwatch key={c} color={c} size="md" selected={(config.advanced.backgroundColor || 'transparent') === c} onClick={() => update({ advanced: { ...config.advanced, backgroundColor: c } })} />
+                  <ColorSwatch key={c} color={c} size="md" selected={(draft.advanced.backgroundColor || 'transparent') === c} onClick={() => update({ advanced: { ...draft.advanced, backgroundColor: c } })} />
                 ))}
               </div>
             </div>
@@ -365,43 +383,43 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             {/* ── THRESHOLDS ── */}
             <div className="space-y-2">
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Seuils (horizontaux)</span>
-              {config.advanced.thresholds.map((t, i) => (
+              {draft.advanced.thresholds.map((t, i) => (
                 <div key={i} className="p-2 rounded-lg bg-muted/50 border border-border space-y-1.5">
                   <div className="flex items-center gap-1">
                     <input type="number" value={t.value} onChange={e => {
-                      const thresholds = [...config.advanced.thresholds];
+                      const thresholds = [...draft.advanced.thresholds];
                       thresholds[i] = { ...t, value: Number(e.target.value) };
-                      update({ advanced: { ...config.advanced, thresholds } });
+                      update({ advanced: { ...draft.advanced, thresholds } });
                     }} className="w-16 bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" placeholder="Valeur" />
                     <input value={t.label} onChange={e => {
-                      const thresholds = [...config.advanced.thresholds];
+                      const thresholds = [...draft.advanced.thresholds];
                       thresholds[i] = { ...t, label: e.target.value };
-                      update({ advanced: { ...config.advanced, thresholds } });
+                      update({ advanced: { ...draft.advanced, thresholds } });
                     }} className="flex-1 bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" placeholder="Label" />
                     <button onClick={() => {
-                      update({ advanced: { ...config.advanced, thresholds: config.advanced.thresholds.filter((_, j) => j !== i) } });
+                      update({ advanced: { ...draft.advanced, thresholds: draft.advanced.thresholds.filter((_, j) => j !== i) } });
                     }} className="p-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
                   </div>
                   <div className="flex items-center gap-2">
                     <Select value={t.lineStyle} options={LINE_STYLES} onChange={v => {
-                      const thresholds = [...config.advanced.thresholds];
+                      const thresholds = [...draft.advanced.thresholds];
                       thresholds[i] = { ...t, lineStyle: v as LineStyle };
-                      update({ advanced: { ...config.advanced, thresholds } });
+                      update({ advanced: { ...draft.advanced, thresholds } });
                     }} className="flex-1" />
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {SIMPLE_PALETTE.map(c => (
                       <ColorSwatch key={c} color={c} selected={t.color === c} onClick={() => {
-                        const thresholds = [...config.advanced.thresholds];
+                        const thresholds = [...draft.advanced.thresholds];
                         thresholds[i] = { ...t, color: c };
-                        update({ advanced: { ...config.advanced, thresholds } });
+                        update({ advanced: { ...draft.advanced, thresholds } });
                       }} />
                     ))}
                   </div>
                 </div>
               ))}
               <button onClick={() => {
-                update({ advanced: { ...config.advanced, thresholds: [...config.advanced.thresholds, { value: 0, label: 'Seuil', color: '#ef4444', lineStyle: 'dashed' }] } });
+                update({ advanced: { ...draft.advanced, thresholds: [...draft.advanced.thresholds, { value: 0, label: 'Seuil', color: '#ef4444', lineStyle: 'dashed' }] } });
               }} className="flex items-center gap-1 text-xs text-primary hover:underline">
                 <Plus className="w-3 h-3" /> Ajouter un seuil
               </button>
@@ -410,49 +428,65 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             {/* ── MILESTONES ── */}
             <div className="space-y-2">
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Jalons (verticaux)</span>
-              {(config.advanced.milestones || []).map((m, i) => (
+              {(draft.advanced.milestones || []).map((m, i) => (
                 <div key={i} className="p-2 rounded-lg bg-muted/50 border border-border space-y-1.5">
                   <div className="flex items-center gap-1">
                     <input type="date" value={m.date} onChange={e => {
-                      const milestones = [...(config.advanced.milestones || [])];
+                      const milestones = [...(draft.advanced.milestones || [])];
                       milestones[i] = { ...m, date: e.target.value };
-                      update({ advanced: { ...config.advanced, milestones } });
+                      update({ advanced: { ...draft.advanced, milestones } });
                     }} className="flex-1 bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" />
                     <button onClick={() => {
-                      update({ advanced: { ...config.advanced, milestones: (config.advanced.milestones || []).filter((_, j) => j !== i) } });
+                      update({ advanced: { ...draft.advanced, milestones: (draft.advanced.milestones || []).filter((_, j) => j !== i) } });
                     }} className="p-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
                   </div>
                   <input value={m.label} onChange={e => {
-                    const milestones = [...(config.advanced.milestones || [])];
+                    const milestones = [...(draft.advanced.milestones || [])];
                     milestones[i] = { ...m, label: e.target.value };
-                    update({ advanced: { ...config.advanced, milestones } });
+                    update({ advanced: { ...draft.advanced, milestones } });
                   }} className="w-full bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" placeholder="Label du jalon" />
                   <div className="flex items-center gap-2">
                     <Select value={m.lineStyle} options={LINE_STYLES} onChange={v => {
-                      const milestones = [...(config.advanced.milestones || [])];
+                      const milestones = [...(draft.advanced.milestones || [])];
                       milestones[i] = { ...m, lineStyle: v as LineStyle };
-                      update({ advanced: { ...config.advanced, milestones } });
+                      update({ advanced: { ...draft.advanced, milestones } });
                     }} className="flex-1" />
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {SIMPLE_PALETTE.map(c => (
                       <ColorSwatch key={c} color={c} selected={m.color === c} onClick={() => {
-                        const milestones = [...(config.advanced.milestones || [])];
+                        const milestones = [...(draft.advanced.milestones || [])];
                         milestones[i] = { ...m, color: c };
-                        update({ advanced: { ...config.advanced, milestones } });
+                        update({ advanced: { ...draft.advanced, milestones } });
                       }} />
                     ))}
                   </div>
                 </div>
               ))}
               <button onClick={() => {
-                update({ advanced: { ...config.advanced, milestones: [...(config.advanced.milestones || []), { date: '2026-02-08', label: 'Jalon', color: '#8b5cf6', lineStyle: 'dashed' }] } });
+                update({ advanced: { ...draft.advanced, milestones: [...(draft.advanced.milestones || []), { date: '2026-02-08', label: 'Jalon', color: '#8b5cf6', lineStyle: 'dashed' }] } });
               }} className="flex items-center gap-1 text-xs text-primary hover:underline">
                 <Plus className="w-3 h-3" /> Ajouter un jalon
               </button>
             </div>
           </div>
         )}
+      </div>
+
+      {/* Apply Button — sticky bottom */}
+      <div className="px-4 py-3 border-t border-border bg-card">
+        <button
+          onClick={handleApply}
+          disabled={!dirty}
+          className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+            dirty
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
+          }`}
+        >
+          <Check className="w-4 h-4" />
+          {dirty ? 'Appliquer' : 'À jour'}
+        </button>
       </div>
     </div>
   );
