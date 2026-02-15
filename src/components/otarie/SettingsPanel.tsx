@@ -3,7 +3,7 @@ import {
   Settings, Server, Wifi, WifiOff, Clock, Building2, Users, Tag,
   CalendarDays, Activity, CheckCircle2, XCircle, RefreshCw, Zap,
   Globe, Database, Shield, Heart, ArrowRight, Play, BarChart3, Palette, Moon, Sun, Monitor,
-  Upload, FileSpreadsheet, Trash2, MapPin
+  Upload, FileSpreadsheet, Trash2, MapPin, Radio, Antenna, Signal, Gauge, Waves
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -397,6 +397,120 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               {topoStatus.message}
             </div>
           )}
+        </div>
+
+        {/* Paramètres Radio */}
+        <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Radio className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Paramètres Radio</h3>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Configuration des seuils et paramètres d'accès radio</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            {/* Technologies Radio */}
+            <div className="bg-muted/30 rounded-2xl border border-border/50 p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Antenna className="w-4 h-4 text-primary" />
+                <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Technologies Radio (RAT)</span>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { label: '5G NR', band: 'n78 / n1 / n28', color: 'bg-purple-500' },
+                  { label: '4G LTE', band: 'B1 / B3 / B7 / B20 / B28', color: 'bg-blue-500' },
+                  { label: '3G UMTS', band: 'B1 / B8', color: 'bg-amber-500' },
+                  { label: '2G GSM', band: '900 / 1800 MHz', color: 'bg-red-500' },
+                ].map((rat) => (
+                  <div key={rat.label} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${rat.color}`} />
+                      <span className="text-[11px] font-black text-foreground uppercase tracking-tight">{rat.label}</span>
+                    </div>
+                    <span className="text-[9px] font-bold text-muted-foreground font-mono">{rat.band}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Seuils Radio */}
+            <div className="bg-muted/30 rounded-2xl border border-border/50 p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Signal className="w-4 h-4 text-primary" />
+                <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Seuils Radio</span>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { label: 'RSRP Min (4G)', value: '-110 dBm', status: 'warning' },
+                  { label: 'RSRQ Min (4G)', value: '-15 dB', status: 'ok' },
+                  { label: 'SINR Min (4G)', value: '0 dB', status: 'ok' },
+                  { label: 'SS-RSRP Min (5G)', value: '-110 dBm', status: 'warning' },
+                  { label: 'SS-SINR Min (5G)', value: '-3 dB', status: 'ok' },
+                  { label: 'RSSI Max (2G/3G)', value: '-85 dBm', status: 'ok' },
+                ].map((th) => (
+                  <div key={th.label} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50">
+                    <span className="text-[10px] font-bold text-muted-foreground">{th.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-black text-foreground font-mono">{th.value}</span>
+                      <div className={`w-2 h-2 rounded-full ${th.status === 'ok' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Paramètres de Performance */}
+            <div className="bg-muted/30 rounded-2xl border border-border/50 p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Gauge className="w-4 h-4 text-primary" />
+                <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Performance Cible</span>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { label: 'Handover Success Rate', value: '≥ 98%' },
+                  { label: 'Call Drop Rate', value: '< 0.5%' },
+                  { label: 'RRC Setup Success', value: '≥ 99%' },
+                  { label: 'E-RAB Setup Success', value: '≥ 98%' },
+                  { label: 'Attach Success Rate', value: '≥ 99%' },
+                  { label: 'Paging Success Rate', value: '≥ 95%' },
+                ].map((perf) => (
+                  <div key={perf.label} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50">
+                    <span className="text-[10px] font-bold text-muted-foreground">{perf.label}</span>
+                    <span className="text-[11px] font-black text-primary font-mono">{perf.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Radio Summary Bar */}
+          <div className="mt-6 flex items-center justify-between p-4 rounded-2xl bg-muted/30 border border-border/50">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Waves className="w-4 h-4 text-muted-foreground" />
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Couverture</span>
+              </div>
+              <div className="flex items-center gap-4">
+                {[
+                  { label: '5G', pct: '35%', color: 'text-purple-500' },
+                  { label: '4G', pct: '97%', color: 'text-blue-500' },
+                  { label: '3G', pct: '92%', color: 'text-amber-500' },
+                  { label: '2G', pct: '99%', color: 'text-red-500' },
+                ].map((c) => (
+                  <span key={c.label} className="text-[11px] font-bold text-muted-foreground">
+                    {c.label}: <span className={`font-black ${c.color}`}>{c.pct}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-foreground">4 RATs Actives</span>
+            </div>
+          </div>
         </div>
 
         {/* Backend Connectivity Test */}
