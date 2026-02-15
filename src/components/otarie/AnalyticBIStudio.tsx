@@ -292,21 +292,23 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             <span className="text-[10px] text-muted-foreground font-mono ml-2">{widgetCountLabel}</span>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={addChart} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
-              <Plus className="w-3 h-3" /> Chart
-            </button>
-            <button onClick={addMap} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-accent text-accent-foreground text-xs font-medium hover:opacity-90 transition-opacity">
-              <MapIcon className="w-3 h-3" /> Map
-            </button>
-            <button onClick={addText} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
-              <Type className="w-3 h-3" /> Text
-            </button>
-            <button onClick={addImage} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
-              <ImageIcon className="w-3 h-3" /> Image
-            </button>
-            <button onClick={addTable} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
-              <Table2 className="w-3 h-3" /> Table
-            </button>
+            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
+              <button onClick={addChart} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <Plus className="w-3 h-3" /> Chart
+              </button>
+              <button onClick={addMap} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <MapIcon className="w-3 h-3" /> Map
+              </button>
+              <button onClick={addText} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <Type className="w-3 h-3" /> Text
+              </button>
+              <button onClick={addImage} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <ImageIcon className="w-3 h-3" /> Image
+              </button>
+              <button onClick={addTable} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <Table2 className="w-3 h-3" /> Table
+              </button>
+            </div>
             <div className="w-px h-5 bg-border mx-0.5" />
             <button onClick={() => setShowPrintPreview(true)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
               <Eye className="w-3 h-3" /> Preview
