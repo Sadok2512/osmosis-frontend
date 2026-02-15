@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2 } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
 import 'react-grid-layout/css/styles.css';
@@ -316,6 +316,9 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             </button>
             <button onClick={handleSave} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
               <Save className="w-3 h-3" /> Save
+            </button>
+            <button onClick={() => { dm.duplicateDashboard(dm.activeTabId); toast({ title: 'Dashboard dupliqué', description: 'Une copie a été créée.' }); }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
+              <Copy className="w-3 h-3" /> Duplicate
             </button>
             <button onClick={() => dm.setShowList(!dm.showList)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${dm.showList ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
               <FolderOpen className="w-3 h-3" /> Load
