@@ -65,60 +65,76 @@ All colors MUST be HSL.
     --sidebar-border: 220 15% 85%;
   }
 
-  /* Accent color overrides */
-  .accent-orange {
+  /* Accent color overrides — use higher specificity */
+  .accent-orange, .accent-orange * {
     --primary: 25 95% 53%;
     --accent: 25 95% 53%;
     --ring: 25 95% 53%;
+  }
+  .accent-orange {
     --sidebar-primary: 25 95% 53%;
     --sidebar-ring: 25 95% 53%;
   }
-  .accent-red {
+  .accent-red, .accent-red * {
     --primary: 0 72% 51%;
     --accent: 0 72% 51%;
     --ring: 0 72% 51%;
+  }
+  .accent-red {
     --sidebar-primary: 0 72% 51%;
     --sidebar-ring: 0 72% 51%;
   }
-  .accent-pink {
+  .accent-pink, .accent-pink * {
     --primary: 330 81% 60%;
     --accent: 330 81% 60%;
     --ring: 330 81% 60%;
+  }
+  .accent-pink {
     --sidebar-primary: 330 81% 60%;
     --sidebar-ring: 330 81% 60%;
   }
-  .accent-purple {
+  .accent-purple, .accent-purple * {
     --primary: 262 83% 58%;
     --accent: 262 83% 58%;
     --ring: 262 83% 58%;
+  }
+  .accent-purple {
     --sidebar-primary: 262 83% 58%;
     --sidebar-ring: 262 83% 58%;
   }
-  .accent-indigo {
+  .accent-indigo, .accent-indigo * {
     --primary: 239 84% 67%;
     --accent: 239 84% 67%;
     --ring: 239 84% 67%;
+  }
+  .accent-indigo {
     --sidebar-primary: 239 84% 67%;
     --sidebar-ring: 239 84% 67%;
   }
-  .accent-cyan {
+  .accent-cyan, .accent-cyan * {
     --primary: 187 92% 39%;
     --accent: 187 92% 39%;
     --ring: 187 92% 39%;
+  }
+  .accent-cyan {
     --sidebar-primary: 187 92% 39%;
     --sidebar-ring: 187 92% 39%;
   }
-  .accent-emerald {
+  .accent-emerald, .accent-emerald * {
     --primary: 160 84% 39%;
     --accent: 160 84% 39%;
     --ring: 160 84% 39%;
+  }
+  .accent-emerald {
     --sidebar-primary: 160 84% 39%;
     --sidebar-ring: 160 84% 39%;
   }
-  .accent-amber {
+  .accent-amber, .accent-amber * {
     --primary: 38 92% 50%;
     --accent: 38 92% 50%;
     --ring: 38 92% 50%;
+  }
+  .accent-amber {
     --sidebar-primary: 38 92% 50%;
     --sidebar-ring: 38 92% 50%;
   }
