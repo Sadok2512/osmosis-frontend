@@ -4,63 +4,21 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type } from 'lucide-react';
 import { Filters } from '../../types';
-import { ChartConfig, DashboardChart, createDefaultChart } from '../bi/biTypes';
+import { ChartConfig, createDefaultChart } from '../bi/biTypes';
+import { WidgetItem } from '../bi/dashboardTypes';
 import BIChartCard from '../bi/BIChartCard';
 import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/BITextWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
 import AIAssistantPanel from '../bi/AIAssistantPanel';
+import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
 
 const COLS = 12;
 const ROW_HEIGHT = 80;
 
-type WidgetItem =
-  | { kind: 'chart'; config: ChartConfig; layout: { x: number; y: number; w: number; h: number } }
-  | { kind: 'text'; config: TextWidgetConfig; layout: { x: number; y: number; w: number; h: number } };
-
 const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
-  const [widgets, setWidgets] = useState<WidgetItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('bi_dashboard_v2');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [
-      {
-        kind: 'chart' as const,
-        config: {
-          ...createDefaultChart('chart_1'),
-          title: 'DMS DL ≥ 8 Mbps',
-          yMetrics: [{ kpi: 'dms_dl_8' as any, aggregation: 'AVG', axis: 'left' as const, chartType: 'line' as const, color: 'hsl(262, 83%, 58%)', showMovingAvg: false, smoothCurve: true }],
-          advanced: { thresholds: [{ value: 65, label: 'Seuil', color: 'hsl(0, 72%, 60%)' }], highlightAnomalies: false, sortByValue: false, topN: null, showLegend: false },
-        },
-        layout: { x: 0, y: 0, w: 6, h: 4 },
-      },
-      {
-        kind: 'chart' as const,
-        config: {
-          ...createDefaultChart('chart_2'),
-          title: 'QoE Index',
-          yMetrics: [{ kpi: 'qoe_index' as any, aggregation: 'AVG', axis: 'left' as const, chartType: 'line' as const, color: 'hsl(210, 100%, 56%)', showMovingAvg: false, smoothCurve: true }],
-          advanced: { thresholds: [{ value: 70, label: 'Seuil', color: 'hsl(0, 72%, 60%)' }], highlightAnomalies: false, sortByValue: false, topN: null, showLegend: false },
-        },
-        layout: { x: 6, y: 0, w: 6, h: 4 },
-      },
-      {
-        kind: 'chart' as const,
-        config: { ...createDefaultChart('chart_3'), title: 'Throughput DL', yMetrics: [{ kpi: 'debit_dl' as any, aggregation: 'AVG', axis: 'left' as const, chartType: 'area' as const, color: 'hsl(160, 84%, 39%)', showMovingAvg: false, smoothCurve: true }] },
-        layout: { x: 0, y: 4, w: 4, h: 4 },
-      },
-      {
-        kind: 'chart' as const,
-        config: { ...createDefaultChart('chart_4'), title: 'RTT Data', yMetrics: [{ kpi: 'rtt_data_avg' as any, aggregation: 'AVG', axis: 'left' as const, chartType: 'bar' as const, color: 'hsl(25, 95%, 53%)', showMovingAvg: false, smoothCurve: false }] },
-        layout: { x: 4, y: 4, w: 4, h: 4 },
-      },
-      {
-        kind: 'chart' as const,
-        config: { ...createDefaultChart('chart_5'), title: 'Sessions', yMetrics: [{ kpi: 'session_nbr' as any, aggregation: 'SUM', axis: 'left' as const, chartType: 'kpi_card' as const, color: 'hsl(187, 92%, 39%)', showMovingAvg: false, smoothCurve: false }] },
-        layout: { x: 8, y: 4, w: 4, h: 4 },
-      },
-    ];
-  });
+  const dm = useDashboardManager();
+  const widgets = dm.activeTab?.widgets || [];
+  const setWidgets = dm.updateActiveWidgets;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAI, setShowAI] = useState(false);
@@ -137,17 +95,6 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
     setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'text' ? { ...w, config } : w));
   };
 
-  const saveDashboard = () => {
-    localStorage.setItem('bi_dashboard_v2', JSON.stringify(widgets));
-  };
-
-  const loadDashboard = () => {
-    try {
-      const saved = localStorage.getItem('bi_dashboard_v2');
-      if (saved) setWidgets(JSON.parse(saved));
-    } catch {}
-  };
-
   const editingChart = widgets.find(w => getId(w) === editingId && w.kind === 'chart');
   const chartCount = widgets.filter(w => w.kind === 'chart').length;
   const textCount = widgets.filter(w => w.kind === 'text').length;
@@ -155,11 +102,21 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
   return (
     <div className="flex-1 flex overflow-hidden bg-background">
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Tab bar */}
+        <DashboardTabBar
+          tabs={dm.tabs}
+          activeId={dm.activeTabId}
+          onSelect={dm.setActiveTabId}
+          onClose={dm.closeTab}
+          onRename={dm.renameTab}
+          onCreate={dm.createNew}
+        />
+
         {/* Toolbar */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/50">
           <div className="flex items-center gap-2">
             <LayoutGrid className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Analytic BI Studio</span>
+            <span className="text-sm font-semibold text-foreground truncate max-w-[200px]">{dm.activeTab?.name}</span>
             <span className="text-[10px] text-muted-foreground font-mono ml-2">{chartCount} chart(s){textCount > 0 ? ` · ${textCount} text(s)` : ''}</span>
           </div>
           <div className="flex items-center gap-1">
@@ -169,11 +126,11 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
             <button onClick={addText} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
               <Type className="w-3 h-3" /> Add Text
             </button>
-            <button onClick={saveDashboard} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
+            <button onClick={dm.saveCurrent} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
               <Save className="w-3 h-3" /> Save
             </button>
-            <button onClick={loadDashboard} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
-              <FolderOpen className="w-3 h-3" /> Load
+            <button onClick={() => dm.setShowList(!dm.showList)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${dm.showList ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
+              <FolderOpen className="w-3 h-3" /> Dashboards
             </button>
             <button onClick={() => { setShowAI(!showAI); setEditingId(null); }}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
@@ -228,7 +185,7 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
         </div>
       </div>
 
-      {/* Side panel */}
+      {/* Side panels */}
       {editingChart && editingChart.kind === 'chart' && (
         <ChartConfigPanel
           config={editingChart.config as ChartConfig}
@@ -241,6 +198,16 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
           charts={widgets.filter(w => w.kind === 'chart').map(w => w.config as ChartConfig)}
           onClose={() => setShowAI(false)}
           onApplySuggestion={() => {}}
+        />
+      )}
+      {dm.showList && (
+        <DashboardListPanel
+          dashboards={dm.savedDashboards}
+          openIds={dm.tabs.map(t => t.id)}
+          onOpen={dm.openDashboard}
+          onDelete={dm.deleteDashboard}
+          onCreate={dm.createNew}
+          onClose={() => dm.setShowList(false)}
         />
       )}
     </div>
