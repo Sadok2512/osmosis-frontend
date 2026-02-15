@@ -42,7 +42,27 @@ const renderTooltip = ({ active, payload, label }: any) => {
 };
 
 const BIChartRenderer: React.FC<Props> = ({ config }) => {
-  const data = useMemo(() => generateChartData(config), [config]);
+  const rawData = useMemo(() => generateChartData(config), [config]);
+  
+  // Pivot grouped data: transform {x, group, kpi} rows into {x, kpi_groupA, kpi_groupB, ...}
+  const { data, groupKeys } = useMemo(() => {
+    const hasGroup = config.groupBy.length > 0 && rawData.some(d => d.group);
+    if (!hasGroup) return { data: rawData, groupKeys: [] as string[] };
+    
+    const groups = [...new Set(rawData.map(d => d.group))] as string[];
+    const byX = new Map<string, any>();
+    
+    for (const row of rawData) {
+      if (!byX.has(row.x)) byX.set(row.x, { x: row.x });
+      const point = byX.get(row.x)!;
+      for (const m of config.yMetrics) {
+        point[`${m.kpi}__${row.group}`] = row[m.kpi];
+      }
+    }
+    
+    return { data: Array.from(byX.values()), groupKeys: groups };
+  }, [rawData, config.groupBy, config.yMetrics]);
+  
   const firstMetric = config.yMetrics[0];
 
   if (!firstMetric) {
@@ -191,137 +211,95 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
         )}
 
         {/* Render each metric */}
-        {config.yMetrics.map((m, i) => {
-          const key = `${m.kpi}-${i}`;
+        {config.yMetrics.flatMap((m, i) => {
+          // If groupBy is active, render one series per group value
+          const seriesList = groupKeys.length > 0
+            ? groupKeys.map((g, gi) => ({
+                dataKey: `${m.kpi}__${g}`,
+                name: `${m.kpi.replace(/_/g, ' ')} (${g})`,
+                color: CHART_COLORS[(i * groupKeys.length + gi) % CHART_COLORS.length],
+                seriesKey: `${m.kpi}-${i}-${g}`,
+                animDelay: gi * 100,
+              }))
+            : [{
+                dataKey: m.kpi,
+                name: m.kpi.replace(/_/g, ' '),
+                color: m.color,
+                seriesKey: `${m.kpi}-${i}`,
+                animDelay: i * 150,
+              }];
 
-          switch (m.chartType) {
-            case 'bar':
-              return (
-                <Bar
-                  key={key}
-                  dataKey={m.kpi}
-                  yAxisId={m.axis}
-                  fill={m.color}
-                  fillOpacity={0.85}
-                  radius={[4, 4, 0, 0]}
-                  name={m.kpi.replace(/_/g, ' ')}
-                  isAnimationActive={true}
-                  animationBegin={i * 150}
-                  animationDuration={800}
-                  animationEasing="ease-out"
-                />
-              );
-            case 'stacked_bar':
-              return (
-                <Bar
-                  key={key}
-                  dataKey={m.kpi}
-                  yAxisId={m.axis}
-                  fill={m.color}
-                  fillOpacity={0.85}
-                  stackId="stack"
-                  radius={i === config.yMetrics.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                  name={m.kpi.replace(/_/g, ' ')}
-                  isAnimationActive={true}
-                  animationBegin={i * 150}
-                  animationDuration={800}
-                  animationEasing="ease-out"
-                />
-              );
-            case 'grouped_bar': {
-              const groupedIndex = config.yMetrics.filter((mm, ii) => mm.chartType === 'grouped_bar' && ii <= i).length - 1;
-              return (
-                <React.Fragment key={key}>
-                  <defs>
-                    <linearGradient id={`gbar-grad-${i}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={m.color} stopOpacity={0.95} />
-                      <stop offset="100%" stopColor={m.color} stopOpacity={0.65} />
-                    </linearGradient>
-                  </defs>
-                  <Bar
-                    dataKey={m.kpi}
-                    yAxisId={m.axis}
-                    fill={`url(#gbar-grad-${i})`}
-                    stroke={m.color}
-                    strokeWidth={0.5}
-                    radius={[5, 5, 0, 0]}
-                    barSize={groupedBarSize}
-                    name={m.kpi.replace(/_/g, ' ')}
-                    isAnimationActive={true}
-                    animationBegin={i * 150}
-                    animationDuration={800}
-                    animationEasing="ease-out"
-                  />
-                </React.Fragment>
-              );
+          return seriesList.map(s => {
+            switch (m.chartType) {
+              case 'bar':
+                return (
+                  <Bar key={s.seriesKey} dataKey={s.dataKey} yAxisId={m.axis}
+                    fill={s.color} fillOpacity={0.85} radius={[4, 4, 0, 0]} name={s.name}
+                    isAnimationActive animationBegin={s.animDelay} animationDuration={800} animationEasing="ease-out" />
+                );
+              case 'stacked_bar':
+                return (
+                  <Bar key={s.seriesKey} dataKey={s.dataKey} yAxisId={m.axis}
+                    fill={s.color} fillOpacity={0.85} stackId="stack"
+                    radius={[0, 0, 0, 0]} name={s.name}
+                    isAnimationActive animationBegin={s.animDelay} animationDuration={800} animationEasing="ease-out" />
+                );
+              case 'grouped_bar':
+                return (
+                  <React.Fragment key={s.seriesKey}>
+                    <defs>
+                      <linearGradient id={`gbar-${s.seriesKey}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={s.color} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={s.color} stopOpacity={0.65} />
+                      </linearGradient>
+                    </defs>
+                    <Bar dataKey={s.dataKey} yAxisId={m.axis}
+                      fill={`url(#gbar-${s.seriesKey})`} stroke={s.color} strokeWidth={0.5}
+                      radius={[5, 5, 0, 0]} barSize={groupedBarSize} name={s.name}
+                      isAnimationActive animationBegin={s.animDelay} animationDuration={800} animationEasing="ease-out" />
+                  </React.Fragment>
+                );
+              case 'area':
+                return (
+                  <React.Fragment key={s.seriesKey}>
+                    <defs>
+                      <linearGradient id={`grad-${s.seriesKey}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={s.color} stopOpacity={0.25} />
+                        <stop offset="100%" stopColor={s.color} stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <Area dataKey={s.dataKey} yAxisId={m.axis} stroke={s.color} strokeWidth={2.5}
+                      fill={`url(#grad-${s.seriesKey})`} type={m.smoothCurve ? 'monotone' : 'linear'}
+                      dot={renderDot} activeDot={{ r: 5, fill: s.color, stroke: 'white', strokeWidth: 2 }}
+                      name={s.name} />
+                  </React.Fragment>
+                );
+              case 'scatter':
+                return (
+                  <Scatter key={s.seriesKey} dataKey={s.dataKey} yAxisId={m.axis}
+                    fill={s.color} name={s.name} />
+                );
+              case 'line':
+              default:
+                return (
+                  <React.Fragment key={s.seriesKey}>
+                    <defs>
+                      <linearGradient id={`linegrad-${s.seriesKey}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={s.color} stopOpacity={0.12} />
+                        <stop offset="100%" stopColor={s.color} stopOpacity={0.01} />
+                      </linearGradient>
+                    </defs>
+                    <Area dataKey={s.dataKey} yAxisId={m.axis} stroke="none"
+                      fill={`url(#linegrad-${s.seriesKey})`} type={m.smoothCurve ? 'monotone' : 'linear'}
+                      dot={false} activeDot={false} name={`${s.dataKey}_bg`} legendType="none" />
+                    <Line dataKey={s.dataKey} yAxisId={m.axis} stroke={s.color} strokeWidth={2.5}
+                      type={m.smoothCurve ? 'monotone' : 'linear'} dot={renderDot}
+                      activeDot={{ r: 5, fill: s.color, stroke: 'white', strokeWidth: 2 }}
+                      name={s.name} />
+                  </React.Fragment>
+                );
             }
-            case 'area':
-              return (
-                <React.Fragment key={key}>
-                  <defs>
-                    <linearGradient id={`grad-${m.kpi}-${i}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={m.color} stopOpacity={0.25} />
-                      <stop offset="100%" stopColor={m.color} stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <Area
-                    dataKey={m.kpi}
-                    yAxisId={m.axis}
-                    stroke={m.color}
-                    strokeWidth={2.5}
-                    fill={`url(#grad-${m.kpi}-${i})`}
-                    type={m.smoothCurve ? 'monotone' : 'linear'}
-                    dot={renderDot}
-                    activeDot={{ r: 5, fill: m.color, stroke: 'white', strokeWidth: 2 }}
-                    name={m.kpi.replace(/_/g, ' ')}
-                  />
-                </React.Fragment>
-              );
-            case 'scatter':
-              return (
-                <Scatter
-                  key={key}
-                  dataKey={m.kpi}
-                  yAxisId={m.axis}
-                  fill={m.color}
-                  name={m.kpi.replace(/_/g, ' ')}
-                />
-              );
-            case 'line':
-            default:
-              return (
-                <React.Fragment key={key}>
-                  {/* Subtle area fill behind line */}
-                  <defs>
-                    <linearGradient id={`linegrad-${m.kpi}-${i}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={m.color} stopOpacity={0.12} />
-                      <stop offset="100%" stopColor={m.color} stopOpacity={0.01} />
-                    </linearGradient>
-                  </defs>
-                  <Area
-                    dataKey={m.kpi}
-                    yAxisId={m.axis}
-                    stroke="none"
-                    fill={`url(#linegrad-${m.kpi}-${i})`}
-                    type={m.smoothCurve ? 'monotone' : 'linear'}
-                    dot={false}
-                    activeDot={false}
-                    name={`${m.kpi}_bg`}
-                    legendType="none"
-                  />
-                  <Line
-                    dataKey={m.kpi}
-                    yAxisId={m.axis}
-                    stroke={m.color}
-                    strokeWidth={2.5}
-                    type={m.smoothCurve ? 'monotone' : 'linear'}
-                    dot={renderDot}
-                    activeDot={{ r: 5, fill: m.color, stroke: 'white', strokeWidth: 2 }}
-                    name={m.kpi.replace(/_/g, ' ')}
-                  />
-                </React.Fragment>
-              );
-          }
+          });
         })}
       </ComposedChart>
     </ResponsiveContainer>
