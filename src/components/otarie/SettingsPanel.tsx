@@ -399,116 +399,145 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
           )}
         </div>
 
-        {/* Paramètres Radio */}
+        {/* Data Model & Radio Parameters */}
         <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Radio className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Paramètres Radio</h3>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Configuration des seuils et paramètres d'accès radio</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            {/* Technologies Radio */}
-            <div className="bg-muted/30 rounded-2xl border border-border/50 p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Antenna className="w-4 h-4 text-primary" />
-                <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Technologies Radio (RAT)</span>
+          {/* Header with dynamic schema breadcrumb */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Database className="w-5 h-5 text-primary" />
               </div>
-              <div className="space-y-3">
-                {[
-                  { label: '5G NR', band: 'n78 / n1 / n28', color: 'bg-purple-500' },
-                  { label: '4G LTE', band: 'B1 / B3 / B7 / B20 / B28', color: 'bg-blue-500' },
-                  { label: '3G UMTS', band: 'B1 / B8', color: 'bg-amber-500' },
-                  { label: '2G GSM', band: '900 / 1800 MHz', color: 'bg-red-500' },
-                ].map((rat) => (
-                  <div key={rat.label} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${rat.color}`} />
-                      <span className="text-[11px] font-black text-foreground uppercase tracking-tight">{rat.label}</span>
-                    </div>
-                    <span className="text-[9px] font-bold text-muted-foreground font-mono">{rat.band}</span>
-                  </div>
+              <div>
+                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Schéma Analytique Dynamique</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Dimensions réseau, segments & métriques radio</p>
+              </div>
+            </div>
+            {/* Schema breadcrumb bar */}
+            <div className="bg-muted/40 rounded-2xl border border-border/50 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                {['date_part','cellule','site','5g_sa','streaming','fwa','plaque'].map((tag, i) => (
+                  <React.Fragment key={tag}>
+                    {i > 0 && <span className="text-muted-foreground text-[10px]">›</span>}
+                    <span className="px-3 py-1 rounded-lg bg-primary/15 text-[10px] font-black text-primary uppercase tracking-wider">{tag}</span>
+                  </React.Fragment>
                 ))}
               </div>
-            </div>
-
-            {/* Seuils Radio */}
-            <div className="bg-muted/30 rounded-2xl border border-border/50 p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Signal className="w-4 h-4 text-primary" />
-                <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Seuils Radio</span>
-              </div>
-              <div className="space-y-3">
-                {[
-                  { label: 'RSRP Min (4G)', value: '-110 dBm', status: 'warning' },
-                  { label: 'RSRQ Min (4G)', value: '-15 dB', status: 'ok' },
-                  { label: 'SINR Min (4G)', value: '0 dB', status: 'ok' },
-                  { label: 'SS-RSRP Min (5G)', value: '-110 dBm', status: 'warning' },
-                  { label: 'SS-SINR Min (5G)', value: '-3 dB', status: 'ok' },
-                  { label: 'RSSI Max (2G/3G)', value: '-85 dBm', status: 'ok' },
-                ].map((th) => (
-                  <div key={th.label} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50">
-                    <span className="text-[10px] font-bold text-muted-foreground">{th.label}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-black text-foreground font-mono">{th.value}</span>
-                      <div className={`w-2 h-2 rounded-full ${th.status === 'ok' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Paramètres de Performance */}
-            <div className="bg-muted/30 rounded-2xl border border-border/50 p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Gauge className="w-4 h-4 text-primary" />
-                <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Performance Cible</span>
-              </div>
-              <div className="space-y-3">
-                {[
-                  { label: 'Handover Success Rate', value: '≥ 98%' },
-                  { label: 'Call Drop Rate', value: '< 0.5%' },
-                  { label: 'RRC Setup Success', value: '≥ 99%' },
-                  { label: 'E-RAB Setup Success', value: '≥ 98%' },
-                  { label: 'Attach Success Rate', value: '≥ 99%' },
-                  { label: 'Paging Success Rate', value: '≥ 95%' },
-                ].map((perf) => (
-                  <div key={perf.label} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50">
-                    <span className="text-[10px] font-bold text-muted-foreground">{perf.label}</span>
-                    <span className="text-[11px] font-black text-primary font-mono">{perf.value}</span>
-                  </div>
-                ))}
+              <div className="text-right">
+                <span className="text-2xl font-black text-foreground">14</span>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Fields in Pipeline</p>
               </div>
             </div>
           </div>
 
-          {/* Radio Summary Bar */}
-          <div className="mt-6 flex items-center justify-between p-4 rounded-2xl bg-muted/30 border border-border/50">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Waves className="w-4 h-4 text-muted-foreground" />
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Couverture</span>
-              </div>
-              <div className="flex items-center gap-4">
-                {[
-                  { label: '5G', pct: '35%', color: 'text-purple-500' },
-                  { label: '4G', pct: '97%', color: 'text-blue-500' },
-                  { label: '3G', pct: '92%', color: 'text-amber-500' },
-                  { label: '2G', pct: '99%', color: 'text-red-500' },
-                ].map((c) => (
-                  <span key={c.label} className="text-[11px] font-bold text-muted-foreground">
-                    {c.label}: <span className={`font-black ${c.color}`}>{c.pct}</span>
-                  </span>
-                ))}
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* LEFT: Dimensions */}
+            <div className="space-y-5">
+              {/* ORF NETWORK */}
+              <DimensionCard
+                icon={<Globe className="w-4 h-4" />}
+                title="ORF NETWORK"
+                values={['Nationale','Vendor','DOR','Plaque','Site','Cellule']}
+              />
+              {/* 5G Capability */}
+              <DimensionCard
+                icon={<Zap className="w-4 h-4" />}
+                title="CAPABILITY"
+                values={['5G_Capable','Non_5G_Capable']}
+              />
+              {/* ARCEP Zone */}
+              <DimensionCard
+                icon={<Shield className="w-4 h-4" />}
+                title="ARCEP ZONE"
+                values={['Top15','Intermédiaire','Rural','AXE','TGV']}
+              />
+              {/* Application */}
+              <DimensionCard
+                icon={<Activity className="w-4 h-4" />}
+                title="APPLICATION"
+                values={['Social','Streaming','WEB']}
+              />
+              {/* Service Provider */}
+              <DimensionCard
+                icon={<Server className="w-4 h-4" />}
+                title="SERVICE PROVIDER"
+                values={['Google','Meta','Microsoft','Amazone','Other']}
+              />
+              {/* RAT */}
+              <DimensionCard
+                icon={<Antenna className="w-4 h-4" />}
+                title="RAT"
+                values={['5G_SA','5G_NSA','4G','3G','2G','WiFi']}
+              />
+              {/* DOR */}
+              <DimensionCard
+                icon={<MapPin className="w-4 h-4" />}
+                title="DOR"
+                values={['Île-de-France','Nord-Est','Ouest','Sud-Est','Sud-Ouest']}
+              />
+              {/* POP */}
+              <DimensionCard
+                icon={<Building2 className="w-4 h-4" />}
+                title="POP"
+                values={['CNM','CNL']}
+              />
+              {/* Bande */}
+              <DimensionCard
+                icon={<Waves className="w-4 h-4" />}
+                title="BANDE"
+                values={['NR_3500','NR_700','LTE2600','LTE2100','LTE1800','LTE800','LTE700']}
+              />
+              {/* Device Brand */}
+              <DimensionCard
+                icon={<Wifi className="w-4 h-4" />}
+                title="DEVICE BRAND"
+                values={['iPhone','Samsung','Other']}
+              />
+              {/* OS */}
+              <DimensionCard
+                icon={<Monitor className="w-4 h-4" />}
+                title="OS"
+                values={['Android','iOS','Other']}
+              />
+              {/* Client */}
+              <DimensionCard
+                icon={<Users className="w-4 h-4" />}
+                title="CLIENT"
+                values={['FWA','Mobile']}
+              />
+              {/* Vendor */}
+              <DimensionCard
+                icon={<Tag className="w-4 h-4" />}
+                title="VENDOR"
+                values={['Ericsson','Nokia','Ransharing','Samsung']}
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-foreground">4 RATs Actives</span>
+
+            {/* RIGHT: Radio Metrics */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Radio className="w-4 h-4 text-primary" />
+                <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Métriques Radio & Performance</span>
+              </div>
+
+              {[
+                { name: 'Nb Sessions', id: 'SESSION_NBR', thresholds: [30,60,85,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
+                { name: 'Volume Total', id: 'VOLUME_TOTALE', thresholds: [30,60,85,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
+                { name: 'Volume DL Moy', id: 'VOLUME_DL_MOY', thresholds: [30,60,85,95], colors: ['bg-red-500','bg-red-400','bg-amber-500','bg-emerald-500'] },
+                { name: 'Volume UL Moy', id: 'VOLUME_UL_MOY', thresholds: [30,60,85,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
+                { name: 'Débit DL', id: 'DEBIT_DL', thresholds: [30,60,85,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
+                { name: 'Débit UL', id: 'DEBIT_UL', thresholds: [30,60,85,95], colors: ['bg-muted','bg-muted','bg-muted','bg-muted'] },
+                { name: 'RTT Moyen', id: 'RTT_AVG', thresholds: [50,100,200,500], colors: ['bg-emerald-500','bg-blue-500','bg-amber-500','bg-red-500'] },
+                { name: 'Packet Loss DL', id: 'LOSS_DL', thresholds: [0.5,1,3,5], colors: ['bg-emerald-500','bg-blue-500','bg-amber-500','bg-red-500'] },
+                { name: 'TCP Retransmission', id: 'RETRANS_RATE', thresholds: [1,3,5,10], colors: ['bg-emerald-500','bg-blue-500','bg-amber-500','bg-red-500'] },
+                { name: 'Window Full Ratio', id: 'WIN_FULL_RATIO', thresholds: [5,15,30,50], colors: ['bg-emerald-500','bg-blue-500','bg-amber-500','bg-red-500'] },
+                { name: 'DMS DL 3 Mbps', id: 'DMS_DL_3', thresholds: [50,70,85,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
+                { name: 'DMS DL 8 Mbps', id: 'DMS_DL_8', thresholds: [30,50,70,90], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
+                { name: 'DMS DL 30 Mbps', id: 'DMS_DL_30', thresholds: [10,30,50,75], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
+                { name: 'DMS UL 3 Mbps', id: 'DMS_UL_3', thresholds: [30,55,75,90], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
+                { name: 'QoE Score', id: 'QOE_SCORE', thresholds: [40,60,80,95], colors: ['bg-red-500','bg-amber-500','bg-blue-500','bg-emerald-500'] },
+              ].map((metric) => (
+                <MetricRow key={metric.id} metric={metric} />
+              ))}
             </div>
           </div>
         </div>
@@ -651,6 +680,44 @@ const HealthMetric = ({ label, value, color }: { label: string; value: string; c
   <div className="flex items-center justify-between">
     <span className="text-[11px] font-bold text-white/60 uppercase tracking-wider">{label}</span>
     <span className={`text-[15px] font-black tracking-tight ${color}`}>{value}</span>
+  </div>
+);
+
+const DimensionCard = ({ icon, title, values }: { icon: React.ReactNode; title: string; values: string[] }) => (
+  <div className="bg-muted/30 rounded-2xl border border-border/50 p-5">
+    <div className="flex items-center gap-2 mb-4">
+      <div className="text-primary">{icon}</div>
+      <span className="text-[10px] font-black text-foreground uppercase tracking-widest">{title}</span>
+    </div>
+    <div className="flex flex-wrap gap-2">
+      {values.map((v) => (
+        <span key={v} className="px-3 py-1.5 rounded-lg bg-card border border-border/50 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hover:border-primary/40 hover:text-primary transition-all cursor-default">
+          {v}
+        </span>
+      ))}
+    </div>
+  </div>
+);
+
+const MetricRow = ({ metric }: { metric: { name: string; id: string; thresholds: number[]; colors: string[] } }) => (
+  <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-border/50 hover:border-primary/30 transition-all group">
+    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+      <CheckCircle2 className="w-4 h-4 text-primary" />
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="text-[11px] font-black text-foreground uppercase tracking-tight">{metric.name}</p>
+      <p className="text-[9px] font-bold text-muted-foreground font-mono uppercase">{metric.id}</p>
+    </div>
+    <div className="flex items-center gap-2">
+      {metric.thresholds.map((t, i) => (
+        <div key={i} className="text-center">
+          <div className="px-3 py-1 rounded-lg bg-card border border-border/50 mb-1">
+            <span className="text-[10px] font-black text-foreground">{t}</span>
+          </div>
+          <div className={`h-1 rounded-full ${metric.colors[i]}`} />
+        </div>
+      ))}
+    </div>
   </div>
 );
 
