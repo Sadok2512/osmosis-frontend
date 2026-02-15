@@ -220,12 +220,20 @@ export interface CellProperties {
   qoe_score_avg: number;
   p95_rtt_ms: number;
   traffic_up_bytes: number;
+  traffic_dn_bytes: number;
   dms_dl_3: number;
   dms_dl_8: number;
   dms_dl_30: number;
   dms_ul_3: number;
   p50_thr_dn_mbps: number;
+  p50_thr_up_mbps: number;
   sessions: number;
+  window_full_ratio: number;
+  retransmission_rate: number;
+  tcp_loss_rate: number;
+  out_of_order_ratio: number;
+  p25_rtt_ms: number;
+  p75_rtt_ms: number;
 }
 
 export interface SiteSummary {

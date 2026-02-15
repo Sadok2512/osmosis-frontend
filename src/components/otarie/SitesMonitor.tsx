@@ -147,6 +147,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     { id: 'p50_thr_dn_mbps', label: 'Débit DL Moyen (Mbps)', category: 'THROUGHPUT' },
     { id: 'p50_thr_up_mbps', label: 'Débit UL Moyen (Mbps)', category: 'THROUGHPUT' },
     { id: 'sessions', label: 'Nombre de Sessions', category: 'VOLUME' },
+    { id: 'traffic_dn_bytes', label: 'Volume DL (bytes)', category: 'VOLUME' },
+    { id: 'traffic_up_bytes', label: 'Volume UL (bytes)', category: 'VOLUME' },
+    { id: 'p95_rtt_ms', label: 'RTT P95 (ms)', category: 'RTT' },
+    { id: 'p75_rtt_ms', label: 'RTT P75 (ms)', category: 'RTT' },
+    { id: 'p25_rtt_ms', label: 'RTT P25 (ms)', category: 'RTT' },
+    { id: 'window_full_ratio', label: 'Window Full Ratio (%)', category: 'TCP' },
+    { id: 'retransmission_rate', label: 'Taux Retransmission (%)', category: 'TCP' },
+    { id: 'tcp_loss_rate', label: 'Taux Pertes TCP (%)', category: 'TCP' },
+    { id: 'out_of_order_ratio', label: 'Out of Order Ratio (%)', category: 'TCP' },
   ];
 
   const getCellKpiValue = (cell: any): number => {
