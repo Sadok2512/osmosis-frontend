@@ -3,6 +3,24 @@ import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip,
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.heat';
+
+// Heatmap layer component using leaflet.heat
+const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom = 18 }: {
+  points: [number, number, number][];
+  radius?: number;
+  blur?: number;
+  maxZoom?: number;
+}) => {
+  const map = useMap();
+  useEffect(() => {
+    if (!points.length) return;
+    const heat = (L as any).heatLayer(points, { radius, blur, maxZoom, gradient: { 0.2: '#3b82f6', 0.4: '#10b981', 0.6: '#f59e0b', 0.8: '#f97316', 1.0: '#ef4444' } });
+    heat.addTo(map);
+    return () => { map.removeLayer(heat); };
+  }, [map, points, radius, blur, maxZoom]);
+  return null;
+};
 import { fetchSites, fetchSiteDetails } from '../../services/api';
 import { SiteSummary, SiteDetail, Filters } from '../../types';
 import {
@@ -138,6 +156,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
+  const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
   const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
 
   const TILE_URLS: Record<typeof mapLayer, { url: string; attribution: string }> = {
@@ -259,7 +278,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return filteredSites.filter(s => viewport.bounds!.contains(L.latLng(s.coordinates[0], s.coordinates[1])));
   }, [filteredSites, viewport.bounds]);
 
-  const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD;
+  const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD && mapDisplayMode === 'sites';
+
+  // Heatmap data points: [lat, lng, intensity]
+  const heatmapPoints = useMemo((): [number, number, number][] => {
+    if (mapDisplayMode !== 'heatmap') return [];
+    return filteredSites.map(s => {
+      const val = getCellKpiValue(s.cells[0] || {});
+      return [s.coordinates[0], s.coordinates[1], val / 100] as [number, number, number];
+    });
+  }, [filteredSites, mapDisplayMode, mapKpi]);
 
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
@@ -378,8 +406,45 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <FlyToSite coords={flyTarget} />
         <MapViewportTracker onViewportChange={handleViewportChange} />
 
-        {/* Clustered markers (shown at all zoom levels) */}
-        {!showSectors && (
+        {/* Heatmap layer */}
+        {mapDisplayMode === 'heatmap' && (
+          <HeatmapLayer points={heatmapPoints} radius={30} blur={20} />
+        )}
+
+        {/* Points mode — simple colored CircleMarkers, no clusters */}
+        {mapDisplayMode === 'points' && filteredSites.map(site => {
+          const val = getCellKpiValue(site.cells[0] || {});
+          const color = getKpiColor(val);
+          const isHovered = hoveredSiteId === site.site_id;
+          return (
+            <CircleMarker
+              key={site.site_id}
+              center={site.coordinates}
+              radius={isHovered ? 9 : 6}
+              pathOptions={{
+                color: 'transparent',
+                fillColor: color,
+                fillOpacity: 0.85,
+                weight: 0,
+              }}
+              eventHandlers={{
+                click: () => handleSiteClick(site),
+                mouseover: () => setHoveredSiteId(site.site_id),
+                mouseout: () => setHoveredSiteId(null),
+              }}
+            >
+              <Tooltip direction="top" offset={[0, -8]} permanent={false}>
+                <div className="text-center">
+                  <div className="font-bold text-xs">{site.site_name}</div>
+                  <div className="font-bold text-xs" style={{ color }}>{selectedKpiLabel}: {val.toFixed(1)}</div>
+                </div>
+              </Tooltip>
+            </CircleMarker>
+          );
+        })}
+
+        {/* Sites mode — Clustered markers (shown below sector zoom) */}
+        {mapDisplayMode === 'sites' && !showSectors && (
           <MarkerClusterGroup
             chunkedLoading
             iconCreateFunction={createClusterCustomIcon}
@@ -418,7 +483,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </MarkerClusterGroup>
         )}
 
-        {/* Detailed sectors (only when zoomed in, only visible sites) */}
+        {/* Detailed sectors (only when zoomed in, sites mode) */}
         {showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           return (
@@ -554,6 +619,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* Floating bottom-right: techno filter + layer switcher + legend */}
       {viewMode === 'map' && (
         <div className="absolute bottom-6 right-6 z-[1000] pointer-events-auto flex items-end gap-2">
+          {/* Display mode: Sites / Points / Heatmap */}
+          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+            {([
+              { key: 'sites' as const, label: '📍' },
+              { key: 'points' as const, label: '●' },
+              { key: 'heatmap' as const, label: '🔥' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setMapDisplayMode(key)}
+                className={`w-10 h-10 flex items-center justify-center text-sm transition-all ${
+                  mapDisplayMode === key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+                title={key.charAt(0).toUpperCase() + key.slice(1)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* Techno filter: ALL / 5G / 4G */}
           <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
             {(['ALL', '5G', '4G'] as const).map((tech) => (
