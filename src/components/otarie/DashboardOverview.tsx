@@ -104,19 +104,23 @@ const DashboardOverview: React.FC = () => {
 
         {/* Widgets grid */}
         <div className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-12 gap-4 auto-rows-[80px]">
-            {selected.widgets.map((widget, idx) => (
-              <div
-                key={idx}
-                className="bg-card border border-border rounded-xl overflow-hidden shadow-sm"
-                style={{
-                  gridColumn: `span ${widget.layout.w}`,
-                  gridRow: `span ${widget.layout.h}`,
-                }}
-              >
-                <ReadOnlyWidget widget={widget} />
-              </div>
-            ))}
+          <div className="grid grid-cols-12 gap-4" style={{ gridAutoRows: '80px' }}>
+            {selected.widgets.map((widget, idx) => {
+              const w = Math.min(widget.layout.w, 12);
+              const h = widget.layout.h;
+              return (
+                <div
+                  key={idx}
+                  className="bg-card border border-border rounded-xl overflow-hidden shadow-sm min-w-0"
+                  style={{
+                    gridColumn: `span ${w}`,
+                    gridRow: `span ${h}`,
+                  }}
+                >
+                  <ReadOnlyWidget widget={widget} />
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
