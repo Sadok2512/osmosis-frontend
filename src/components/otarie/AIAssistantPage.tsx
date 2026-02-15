@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -161,8 +161,8 @@ const AIAssistantPage: React.FC = () => {
             <Sparkles className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-foreground">AI QoE Assistant</h1>
-            <p className="text-[10px] text-muted-foreground">Analyse réseau intelligente • Tableaux & Graphiques</p>
+            <h1 className="text-sm font-bold text-foreground">QOEBIT</h1>
+            <p className="text-[10px] text-muted-foreground">Assistant IA réseau • Analyse QoE intelligente</p>
           </div>
         </div>
         {messages.length > 0 && (
@@ -180,9 +180,9 @@ const AIAssistantPage: React.FC = () => {
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
                 <Bot className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-lg font-bold text-foreground">Bonjour, comment puis-je vous aider ?</h2>
+              <h2 className="text-lg font-bold text-foreground">Bonjour, je suis QOEBIT 👋</h2>
               <p className="text-xs text-muted-foreground text-center max-w-md">
-                Posez vos questions sur la qualité réseau. Je peux générer des tableaux comparatifs, des classements de sites, et des analyses par dimension.
+                Votre assistant IA réseau. Posez vos questions sur la qualité réseau : tableaux comparatifs, classements de sites, analyses par dimension.
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-2xl">
@@ -207,7 +207,7 @@ const AIAssistantPage: React.FC = () => {
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
                 )}
-                <div className={`max-w-[85%] overflow-hidden ${
+                <div className={`max-w-[85%] overflow-hidden relative group ${
                   msg.role === 'user'
                     ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3'
                     : 'bg-card border border-border rounded-2xl rounded-bl-md px-5 py-4'
@@ -215,7 +215,10 @@ const AIAssistantPage: React.FC = () => {
                   {msg.role === 'user' ? (
                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                   ) : (
-                    <AssistantMessage content={msg.content} />
+                    <>
+                      <AssistantMessage content={msg.content} />
+                      <CopyButton text={msg.content} />
+                    </>
                   )}
                 </div>
                 {msg.role === 'user' && (
@@ -272,10 +275,31 @@ const AIAssistantPage: React.FC = () => {
           </button>
         </div>
         <p className="text-[10px] text-muted-foreground text-center mt-2">
-          AI QoE Assistant • Les données sont simulées à des fins de démonstration
+          QOEBIT • Les données sont simulées à des fins de démonstration
         </p>
       </div>
     </div>
+  );
+};
+
+/**
+ * CopyButton: copies the raw text content to clipboard
+ */
+const CopyButton: React.FC<{ text: string }> = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="absolute top-2 right-2 p-1.5 rounded-lg bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
+      title="Copier"
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+    </button>
   );
 };
 
@@ -345,7 +369,7 @@ const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
           ),
           thead: ({ children }) => <thead className="bg-muted/80">{children}</thead>,
           th: ({ children }) => <th className="px-3 py-2.5 text-[11px] font-bold text-foreground text-left border-b-2 border-border tracking-wide">{children}</th>,
-          td: ({ children }) => {
+          td: ({ children, node }) => {
             const text = String(children ?? '');
             const baseCls = "px-3 py-2.5 text-xs border-b border-border/30";
             
@@ -363,16 +387,50 @@ const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
               return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(142, 70%, 40%)' }}>{children}</td>;
             }
             
-            // Color QoE percentage values based on thresholds
+            // Color numeric metrics: percentages and values with units
             const pctMatch = text.match(/(\d+\.?\d*)%/);
             if (pctMatch) {
               const val = parseFloat(pctMatch[1]);
-              let color = 'hsl(142, 70%, 40%)'; // excellent >85
-              if (val < 50) color = 'hsl(0, 80%, 50%)';       // critique
-              else if (val < 65) color = 'hsl(25, 90%, 50%)';  // dégradé
-              else if (val < 75) color = 'hsl(45, 90%, 45%)';  // moyen
-              else if (val < 85) color = 'hsl(142, 50%, 45%)'; // bon
+              // Detect if this is a "bad when high" metric (TCP Loss, retransmission)
+              const isBadWhenHigh = val < 10; // TCP Loss values are small %
+              let color: string;
+              if (isBadWhenHigh) {
+                // For TCP Loss: >3% critical, >2% bad, >1% warning, <1% good
+                if (val > 3) color = 'hsl(0, 80%, 50%)';
+                else if (val > 2) color = 'hsl(25, 90%, 50%)';
+                else if (val > 1) color = 'hsl(45, 90%, 45%)';
+                else color = 'hsl(142, 70%, 40%)';
+              } else {
+                // For QoE Score: <50 critical, <65 bad, <75 warning, <85 good, >85 excellent
+                if (val < 50) color = 'hsl(0, 80%, 50%)';
+                else if (val < 65) color = 'hsl(25, 90%, 50%)';
+                else if (val < 75) color = 'hsl(45, 90%, 45%)';
+                else if (val < 85) color = 'hsl(142, 50%, 45%)';
+                else color = 'hsl(142, 70%, 40%)';
+              }
               return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
+            }
+            
+            // Color RTT values (ms)
+            const msMatch = text.match(/(\d+)\s*ms/i);
+            if (msMatch) {
+              const val = parseInt(msMatch[1]);
+              let color = 'hsl(142, 70%, 40%)';
+              if (val > 150) color = 'hsl(0, 80%, 50%)';
+              else if (val > 100) color = 'hsl(25, 90%, 50%)';
+              else if (val > 60) color = 'hsl(45, 90%, 45%)';
+              return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
+            }
+            
+            // Color throughput values (Mbps)
+            const mbpsMatch = text.match(/(\d+\.?\d*)\s*Mbps/i);
+            if (mbpsMatch) {
+              const val = parseFloat(mbpsMatch[1]);
+              let color = 'hsl(142, 70%, 40%)';
+              if (val < 10) color = 'hsl(0, 80%, 50%)';
+              else if (val < 25) color = 'hsl(25, 90%, 50%)';
+              else if (val < 50) color = 'hsl(45, 90%, 45%)';
+              return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
             }
             
             return <td className={`${baseCls} text-foreground/85`}>{children}</td>;

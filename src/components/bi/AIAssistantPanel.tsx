@@ -70,7 +70,7 @@ const AIAssistantPanel: React.FC<Props> = ({ charts, onClose, onApplySuggestion 
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-xs font-semibold text-foreground">AI Assistant</span>
+          <span className="text-xs font-semibold text-foreground">QOEBIT</span>
         </div>
         <button onClick={onClose} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
       </div>
