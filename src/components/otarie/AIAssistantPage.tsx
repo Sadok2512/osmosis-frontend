@@ -283,6 +283,11 @@ const AIAssistantPage: React.FC = () => {
  * AssistantMessage: always renders via ReactMarkdown with GFM for proper formatting.
  */
 const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
+  // Strip any HTML tags the AI might still produce
+  const cleaned = useMemo(() => {
+    return content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  }, [content]);
+
   return (
     <div className="ai-msg-content text-sm leading-relaxed text-foreground">
       <ReactMarkdown
@@ -342,7 +347,7 @@ const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
           a: ({ href, children }) => <a href={href} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors">{children}</a>,
         }}
       >
-        {content}
+        {cleaned}
       </ReactMarkdown>
     </div>
   );
