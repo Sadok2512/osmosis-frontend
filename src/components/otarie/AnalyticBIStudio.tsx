@@ -3,6 +3,9 @@ import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import { Filters } from '../../types';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
 import { WidgetItem, MapWidgetConfig, createDefaultMapWidget } from '../bi/dashboardTypes';
@@ -24,6 +27,27 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAI, setShowAI] = useState(false);
   const [containerWidth, setContainerWidth] = useState(1200);
+  const [showNameDialog, setShowNameDialog] = useState(false);
+  const [newDashName, setNewDashName] = useState('');
+
+  const handleCreateNew = () => {
+    setNewDashName('');
+    setShowNameDialog(true);
+  };
+
+  const confirmCreate = () => {
+    if (newDashName.trim()) {
+      dm.createNew(newDashName.trim());
+      setShowNameDialog(false);
+    }
+  };
+
+  const handleSave = () => {
+    const name = dm.saveCurrent();
+    if (name) {
+      toast({ title: `Dashboard "${name}" saved`, description: 'Your dashboard has been saved successfully.' });
+    }
+  };
 
   const containerRef = useCallback((node: HTMLDivElement | null) => {
     if (!node) return;
@@ -132,7 +156,7 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
           onSelect={dm.setActiveTabId}
           onClose={dm.closeTab}
           onRename={dm.renameTab}
-          onCreate={dm.createNew}
+          onCreate={handleCreateNew}
         />
 
         {/* Toolbar */}
@@ -152,7 +176,7 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
             <button onClick={addText} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
               <Type className="w-3 h-3" /> Text
             </button>
-            <button onClick={dm.saveCurrent} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
+            <button onClick={handleSave} className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-muted text-foreground text-xs hover:bg-muted/80">
               <Save className="w-3 h-3" /> Save
             </button>
             <button onClick={() => dm.setShowList(!dm.showList)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${dm.showList ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>
@@ -238,9 +262,29 @@ const AnalyticBIStudio: React.FC<{ filters: Filters }> = ({ filters }) => {
           openIds={dm.tabs.map(t => t.id)}
           onOpen={dm.openDashboard}
           onDelete={dm.deleteDashboard}
-          onCreate={dm.createNew}
+          onCreate={handleCreateNew}
           onClose={() => dm.setShowList(false)}
         />
+      )}
+      {/* Name dialog */}
+      {showNameDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-[360px] space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">New Dashboard</h3>
+            <input
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all"
+              placeholder="Dashboard name..."
+              value={newDashName}
+              onChange={e => setNewDashName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') confirmCreate(); if (e.key === 'Escape') setShowNameDialog(false); }}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowNameDialog(false)} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted transition-colors">Cancel</button>
+              <button onClick={confirmCreate} disabled={!newDashName.trim()} className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-40">Create</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
