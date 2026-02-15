@@ -44,12 +44,14 @@ const BITextWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
 
   const update = (partial: Partial<TextWidgetConfig>) => onChange({ ...config, ...partial });
 
+  const palettesOpen = showTextColors || showBgColors;
+
   return (
     <div
-      className="h-full flex flex-col rounded-2xl border border-border shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)] overflow-hidden group transition-shadow hover:shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.1)]"
-      style={{ backgroundColor: config.bgColor || undefined }}
+      className="h-full flex flex-col rounded-2xl border border-border shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)] group transition-shadow hover:shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.1)]"
+      style={{ backgroundColor: config.bgColor || undefined, overflow: palettesOpen ? 'visible' : 'hidden' }}
       onMouseEnter={() => setShowToolbar(true)}
-      onMouseLeave={() => setShowToolbar(false)}
+      onMouseLeave={() => { if (!palettesOpen) { setShowToolbar(false); } }}
     >
       {/* Toolbar header */}
       <div className="flex items-center justify-between px-3 py-1.5 drag-handle cursor-grab active:cursor-grabbing">
@@ -92,10 +94,11 @@ const BITextWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               style={{ color: config.color.startsWith('hsl') ? undefined : config.color }}
               title="Text color">A</button>
             {showTextColors && (
-              <div className="absolute bottom-7 right-0 bg-card border border-border rounded-lg shadow-xl p-1.5 grid grid-cols-5 gap-1 z-50 animate-scale-in">
+              <div className="absolute top-7 right-0 bg-card border border-border rounded-lg shadow-xl p-2 grid grid-cols-5 gap-1.5 z-[9999] animate-scale-in"
+                onMouseLeave={() => setShowTextColors(false)}>
                 {TEXT_COLORS.map(c => (
                   <button key={c} onClick={() => { update({ color: c }); setShowTextColors(false); }}
-                    className={`w-5 h-5 rounded-md border transition-transform hover:scale-110 ${config.color === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border'}`}
+                    className={`w-6 h-6 rounded-md border-2 transition-transform hover:scale-125 ${config.color === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border/50'}`}
                     style={{ backgroundColor: c }} />
                 ))}
               </div>
@@ -109,13 +112,13 @@ const BITextWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               <Paintbrush className="w-3 h-3" style={{ color: config.bgColor || undefined }} />
             </button>
             {showBgColors && (
-              <div className="absolute bottom-7 right-0 bg-card border border-border rounded-lg shadow-xl p-1.5 z-50 animate-scale-in">
-                <div className="grid grid-cols-6 gap-1">
+              <div className="absolute top-7 right-0 bg-card border border-border rounded-lg shadow-xl p-2 z-[9999] animate-scale-in"
+                onMouseLeave={() => setShowBgColors(false)}>
+                <div className="grid grid-cols-6 gap-1.5">
                   {BG_COLORS.map((c, i) => (
                     <button key={i} onClick={() => { update({ bgColor: c }); setShowBgColors(false); }}
-                      className={`w-5 h-5 rounded-md border transition-transform hover:scale-110 ${config.bgColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border'}`}
-                      style={{ backgroundColor: c || 'transparent' }}>
-                      {!c && <span className="text-[8px] text-muted-foreground">∅</span>}
+                      className={`w-6 h-6 rounded-md border-2 transition-transform hover:scale-125 ${config.bgColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border/50'}`}
+                      style={{ backgroundColor: c || 'transparent', backgroundImage: !c ? 'linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%)' : undefined, backgroundSize: !c ? '6px 6px' : undefined, backgroundPosition: !c ? '0 0, 3px 3px' : undefined }}>
                     </button>
                   ))}
                 </div>
