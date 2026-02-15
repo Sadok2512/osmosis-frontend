@@ -26,6 +26,7 @@ export type Aggregation = 'AVG' | 'SUM' | 'MAX' | 'MIN' | 'P50' | 'P95';
 export type ChartType = 'line' | 'bar' | 'area' | 'scatter' | 'stacked_bar' | 'grouped_bar' | 'heatmap' | 'pie' | 'kpi_card';
 export type Granularity = 'hour' | 'day' | 'week' | 'month';
 export type AxisSide = 'left' | 'right';
+export type LineStyle = 'solid' | 'dashed' | 'dotted';
 
 export interface YMetricConfig {
   kpi: BIKPI;
@@ -54,6 +55,14 @@ export interface ThresholdLine {
   value: number;
   label: string;
   color: string;
+  lineStyle: LineStyle;
+}
+
+export interface MilestoneLine {
+  date: string;
+  label: string;
+  color: string;
+  lineStyle: LineStyle;
 }
 
 export interface ChartConfig {
@@ -65,6 +74,7 @@ export interface ChartConfig {
   groupBy: BIDimension[];
   advanced: {
     thresholds: ThresholdLine[];
+    milestones: MilestoneLine[];
     highlightAnomalies: boolean;
     sortByValue: boolean;
     topN: number | null;
@@ -130,6 +140,7 @@ export function createDefaultChart(id: string): ChartConfig {
     groupBy: [],
     advanced: {
       thresholds: [],
+      milestones: [],
       highlightAnomalies: false,
       sortByValue: false,
       topN: null,

@@ -114,6 +114,8 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
 
   // ── Composed Chart ──
   const thresholds = config.advanced.thresholds;
+  const milestones = config.advanced.milestones || [];
+  const lineStyleToDash = (s: string) => s === 'dotted' ? '2 4' : s === 'dashed' ? '6 4' : '';
   const hasRight = config.yMetrics.some(m => m.axis === 'right');
   const isGroupedBar = config.yMetrics.some(m => m.chartType === 'grouped_bar');
   const groupedBarCount = config.yMetrics.filter(m => m.chartType === 'grouped_bar').length;
@@ -179,14 +181,14 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
         <Tooltip content={renderTooltip} />
         {config.advanced.showLegend && <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} />}
 
-        {/* Threshold reference lines (dashed red like reference) */}
+        {/* Threshold reference lines (horizontal) */}
         {thresholds.map((t, i) => (
           <ReferenceLine
             key={`thr-${i}`}
             y={t.value}
             yAxisId="left"
             stroke={t.color || 'hsl(0, 72%, 60%)'}
-            strokeDasharray="6 4"
+            strokeDasharray={lineStyleToDash(t.lineStyle || 'dashed')}
             strokeWidth={1.5}
             label={{
               value: `⊙ ${t.label}: ${t.value}`,
@@ -197,6 +199,30 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
             }}
           />
         ))}
+
+        {/* Milestone reference lines (vertical) */}
+        {milestones.map((m, i) => {
+          // Format date to match xAxis tick format
+          const xValue = m.date;
+          const formatted = xValue.includes('-') ? xValue.slice(5) : xValue;
+          return (
+            <ReferenceLine
+              key={`mst-${i}`}
+              x={formatted}
+              stroke={m.color || '#8b5cf6'}
+              strokeDasharray={lineStyleToDash(m.lineStyle || 'dashed')}
+              strokeWidth={1.5}
+              label={{
+                value: `▾ ${m.label}`,
+                position: 'insideTopRight',
+                fill: m.color || '#8b5cf6',
+                fontSize: 10,
+                fontWeight: 600,
+                angle: 0,
+              }}
+            />
+          );
+        })}
 
         {/* Background bars (subtle, like the reference image) */}
         {showBackgroundBars && (

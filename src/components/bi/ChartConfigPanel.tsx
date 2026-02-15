@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash } from 'lucide-react';
-import { ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI, Aggregation, ChartType, Granularity, AxisSide } from './biTypes';
+import { ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine, MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI, Aggregation, ChartType, Granularity, AxisSide, LineStyle } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
 
 const AGGREGATIONS: Aggregation[] = ['AVG', 'SUM', 'MAX', 'MIN', 'P50', 'P95'];
 const GRANULARITIES: Granularity[] = ['hour', 'day', 'week', 'month'];
+const LINE_STYLES: LineStyle[] = ['solid', 'dashed', 'dotted'];
 
 const CHART_TYPE_OPTIONS: { type: ChartType; icon: React.ReactNode; label: string }[] = [
   { type: 'line', icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'Ligne' },
@@ -212,7 +213,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         {/* ── ADVANCED ── */}
         <SectionHeader title="Advanced" number="5" open={sections.advanced} toggle={() => toggle('advanced')} />
         {sections.advanced && (
-          <div className="pl-5 space-y-2 pb-3">
+          <div className="pl-5 space-y-3 pb-3">
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <input type="checkbox" checked={config.advanced.showLegend} onChange={e => update({ advanced: { ...config.advanced, showLegend: e.target.checked } })} /> Show Legend
             </label>
@@ -227,6 +228,88 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
               <input type="number" min={0} max={100} value={config.advanced.topN || ''} placeholder="All"
                 onChange={e => update({ advanced: { ...config.advanced, topN: e.target.value ? Number(e.target.value) : null } })}
                 className="w-16 bg-muted border border-border rounded px-2 py-1 text-xs text-foreground" />
+            </div>
+
+            {/* ── THRESHOLDS ── */}
+            <div className="space-y-2">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Seuils (horizontaux)</span>
+              {config.advanced.thresholds.map((t, i) => (
+                <div key={i} className="p-2 rounded-lg bg-muted/50 border border-border space-y-1.5">
+                  <div className="flex items-center gap-1">
+                    <input type="number" value={t.value} onChange={e => {
+                      const thresholds = [...config.advanced.thresholds];
+                      thresholds[i] = { ...t, value: Number(e.target.value) };
+                      update({ advanced: { ...config.advanced, thresholds } });
+                    }} className="w-16 bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" placeholder="Valeur" />
+                    <input value={t.label} onChange={e => {
+                      const thresholds = [...config.advanced.thresholds];
+                      thresholds[i] = { ...t, label: e.target.value };
+                      update({ advanced: { ...config.advanced, thresholds } });
+                    }} className="flex-1 bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" placeholder="Label" />
+                    <button onClick={() => {
+                      update({ advanced: { ...config.advanced, thresholds: config.advanced.thresholds.filter((_, j) => j !== i) } });
+                    }} className="p-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select value={t.lineStyle} options={LINE_STYLES} onChange={v => {
+                      const thresholds = [...config.advanced.thresholds];
+                      thresholds[i] = { ...t, lineStyle: v as LineStyle };
+                      update({ advanced: { ...config.advanced, thresholds } });
+                    }} className="flex-1" />
+                    <input type="color" value={t.color} onChange={e => {
+                      const thresholds = [...config.advanced.thresholds];
+                      thresholds[i] = { ...t, color: e.target.value };
+                      update({ advanced: { ...config.advanced, thresholds } });
+                    }} className="w-5 h-5 rounded cursor-pointer border-0" />
+                  </div>
+                </div>
+              ))}
+              <button onClick={() => {
+                update({ advanced: { ...config.advanced, thresholds: [...config.advanced.thresholds, { value: 0, label: 'Seuil', color: '#ef4444', lineStyle: 'dashed' }] } });
+              }} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                <Plus className="w-3 h-3" /> Ajouter un seuil
+              </button>
+            </div>
+
+            {/* ── MILESTONES ── */}
+            <div className="space-y-2">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Jalons (verticaux)</span>
+              {(config.advanced.milestones || []).map((m, i) => (
+                <div key={i} className="p-2 rounded-lg bg-muted/50 border border-border space-y-1.5">
+                  <div className="flex items-center gap-1">
+                    <input type="date" value={m.date} onChange={e => {
+                      const milestones = [...(config.advanced.milestones || [])];
+                      milestones[i] = { ...m, date: e.target.value };
+                      update({ advanced: { ...config.advanced, milestones } });
+                    }} className="flex-1 bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" />
+                    <button onClick={() => {
+                      update({ advanced: { ...config.advanced, milestones: (config.advanced.milestones || []).filter((_, j) => j !== i) } });
+                    }} className="p-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
+                  </div>
+                  <input value={m.label} onChange={e => {
+                    const milestones = [...(config.advanced.milestones || [])];
+                    milestones[i] = { ...m, label: e.target.value };
+                    update({ advanced: { ...config.advanced, milestones } });
+                  }} className="w-full bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" placeholder="Label du jalon" />
+                  <div className="flex items-center gap-2">
+                    <Select value={m.lineStyle} options={LINE_STYLES} onChange={v => {
+                      const milestones = [...(config.advanced.milestones || [])];
+                      milestones[i] = { ...m, lineStyle: v as LineStyle };
+                      update({ advanced: { ...config.advanced, milestones } });
+                    }} className="flex-1" />
+                    <input type="color" value={m.color} onChange={e => {
+                      const milestones = [...(config.advanced.milestones || [])];
+                      milestones[i] = { ...m, color: e.target.value };
+                      update({ advanced: { ...config.advanced, milestones } });
+                    }} className="w-5 h-5 rounded cursor-pointer border-0" />
+                  </div>
+                </div>
+              ))}
+              <button onClick={() => {
+                update({ advanced: { ...config.advanced, milestones: [...(config.advanced.milestones || []), { date: '2026-02-08', label: 'Jalon', color: '#8b5cf6', lineStyle: 'dashed' }] } });
+              }} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                <Plus className="w-3 h-3" /> Ajouter un jalon
+              </button>
             </div>
           </div>
         )}
