@@ -106,7 +106,15 @@ export function useDashboardManager() {
 
   const createNew = useCallback((name?: string) => {
     const id = `db_${Date.now()}`;
-    const dashName = name?.trim() || `Dashboard ${tabs.length + 1}`;
+    let dashName = name?.trim() || `Dashboard ${tabs.length + 1}`;
+    // Ensure unique name
+    const existingNames = new Set([...loadAllDashboards().map(d => d.name.toLowerCase()), ...tabs.map(t => t.name.toLowerCase())]);
+    if (existingNames.has(dashName.toLowerCase())) {
+      let counter = 2;
+      const base = dashName;
+      while (existingNames.has(`${base} (${counter})`.toLowerCase())) counter++;
+      dashName = `${base} (${counter})`;
+    }
     const newTab: OpenTab = { id, name: dashName, widgets: createDefaultWidgets(), dirty: true };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(id);
@@ -158,8 +166,16 @@ export function useDashboardManager() {
   }, [closeTab]);
 
   const renameTab = useCallback((id: string, name: string) => {
-    setTabs(prev => prev.map(t => t.id === id ? { ...t, name, dirty: true } : t));
-  }, []);
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    // Check for duplicate name (excluding the tab being renamed)
+    const existingNames = new Set([
+      ...loadAllDashboards().filter(d => d.id !== id).map(d => d.name.toLowerCase()),
+      ...tabs.filter(t => t.id !== id).map(t => t.name.toLowerCase()),
+    ]);
+    if (existingNames.has(trimmed.toLowerCase())) return; // silently reject duplicate
+    setTabs(prev => prev.map(t => t.id === id ? { ...t, name: trimmed, dirty: true } : t));
+  }, [tabs]);
 
   const exportDashboard = useCallback((id: string) => {
     const all = loadAllDashboards();
@@ -197,13 +213,21 @@ export function useDashboardManager() {
         const all = loadAllDashboards();
         const allById = new Map(all.map(d => [d.id, d]));
         const imported: OpenTab[] = [];
+        const usedNames = new Set(Array.from(allById.values()).map(d => d.name.toLowerCase()));
         for (const item of items) {
           if (!item.id || !item.name || !item.widgets) continue;
-          // Assign new id to avoid collisions
           const newId = `db_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-          const entry: SavedDashboard = { ...item, id: newId, updatedAt: new Date().toISOString() };
+          // Ensure unique name on import
+          let importName = item.name;
+          if (usedNames.has(importName.toLowerCase())) {
+            let counter = 2;
+            while (usedNames.has(`${item.name} (${counter})`.toLowerCase())) counter++;
+            importName = `${item.name} (${counter})`;
+          }
+          usedNames.add(importName.toLowerCase());
+          const entry: SavedDashboard = { ...item, id: newId, name: importName, updatedAt: new Date().toISOString() };
           allById.set(newId, entry);
-          imported.push({ id: newId, name: entry.name, widgets: entry.widgets, dirty: false });
+          imported.push({ id: newId, name: importName, widgets: entry.widgets, dirty: false });
         }
         saveAllDashboards(Array.from(allById.values()));
         if (imported.length > 0) {
