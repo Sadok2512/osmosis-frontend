@@ -123,8 +123,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   <Select value={m.kpi} options={BI_KPIS} onChange={v => updateMetric(i, { kpi: v as BIKPI })} className="flex-1" />
                   <button onClick={() => removeMetric(i)} className="p-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
                 </div>
-                <div className="grid grid-cols-3 gap-1">
-                  <Select value={m.aggregation} options={AGGREGATIONS} onChange={v => updateMetric(i, { aggregation: v as Aggregation })} />
+                <div className="grid grid-cols-2 gap-1">
                   <Select value={m.chartType} options={CHART_TYPES} onChange={v => updateMetric(i, { chartType: v as ChartType })} />
                   <Select value={m.axis} options={['left', 'right'] as const} onChange={v => updateMetric(i, { axis: v as AxisSide })} />
                 </div>
