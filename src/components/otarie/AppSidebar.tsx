@@ -50,8 +50,8 @@ const AppSidebar: React.FC<SidebarProps> = ({
         </div>
         {!isCollapsed && (
           <div className="overflow-hidden">
-            <h1 className="text-lg font-black tracking-tight text-sidebar-accent-foreground">OTARIE</h1>
-            <p className="text-[10px] text-sidebar-primary uppercase tracking-widest font-bold">QOE Observatory</p>
+            <h1 className="text-lg font-bold tracking-tight text-sidebar-accent-foreground">OTARIE</h1>
+            <p className="text-[11px] text-sidebar-primary font-medium">QoE Observatory</p>
           </div>
         )}
       </div>
@@ -61,7 +61,7 @@ const AppSidebar: React.FC<SidebarProps> = ({
         {/* SECTION LABEL */}
         {!isCollapsed && (
           <div className="px-3">
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-sidebar-foreground/50">Main Modules</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">Main Modules</span>
           </div>
         )}
 
@@ -79,7 +79,7 @@ const AppSidebar: React.FC<SidebarProps> = ({
               title={isCollapsed ? item.label : undefined}
             >
               <span className={activeTab === item.id ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}>{item.icon}</span>
-              {!isCollapsed && <span className="text-[12px] font-semibold tracking-tight">{item.label}</span>}
+              {!isCollapsed && <span className="text-[13px] font-medium tracking-tight">{item.label}</span>}
             </button>
           ))}
         </div>
@@ -97,8 +97,8 @@ const AppSidebar: React.FC<SidebarProps> = ({
           <Settings className={`w-5 h-5 transition-transform group-hover:rotate-45 ${activeTab === 'settings' ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}`} />
           {!isCollapsed && (
             <div className="text-left">
-              <span className={`text-[11px] font-bold uppercase tracking-tight block ${activeTab === 'settings' ? 'text-sidebar-primary-foreground' : 'text-sidebar-accent-foreground'}`}>Settings</span>
-              <span className={`text-[9px] font-medium ${activeTab === 'settings' ? 'text-sidebar-primary-foreground/70' : 'text-sidebar-foreground/60'}`}>Platform Config</span>
+              <span className={`text-xs font-semibold block ${activeTab === 'settings' ? 'text-sidebar-primary-foreground' : 'text-sidebar-accent-foreground'}`}>Settings</span>
+              <span className={`text-[10px] font-normal ${activeTab === 'settings' ? 'text-sidebar-primary-foreground/70' : 'text-sidebar-foreground/60'}`}>Platform Config</span>
             </div>
           )}
         </button>
