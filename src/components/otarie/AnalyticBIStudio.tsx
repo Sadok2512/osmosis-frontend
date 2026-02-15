@@ -273,6 +273,9 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
           onDelete={dm.deleteDashboard}
           onCreate={handleCreateNew}
           onClose={() => dm.setShowList(false)}
+          onExport={dm.exportDashboard}
+          onExportAll={dm.exportAll}
+          onImport={dm.importDashboards}
         />
       )}
       {showCSVPanel && (
