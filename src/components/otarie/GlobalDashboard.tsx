@@ -111,7 +111,7 @@ const GlobalDashboard: React.FC<GlobalDashboardProps> = ({ filters, onFilterChan
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-foreground tracking-tight">{expandedChart.title}</h2>
-                <p className="text-xs text-muted-foreground mt-1">Focus Analytique · NOC OTARIE</p>
+                <p className="text-xs text-muted-foreground mt-1">Focus Analytique · NOC QOEBIT</p>
               </div>
             </div>
             <button onClick={() => setExpandedChart(null)} className="flex items-center gap-3 px-5 py-2.5 bg-foreground text-background rounded-xl font-semibold text-xs">

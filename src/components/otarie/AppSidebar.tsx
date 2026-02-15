@@ -49,7 +49,7 @@ const AppSidebar: React.FC<SidebarProps> = ({
         </div>
         {!isCollapsed && (
           <div className="overflow-hidden">
-            <h1 className="text-lg font-bold tracking-tight text-sidebar-accent-foreground">OTARIE</h1>
+            <h1 className="text-lg font-bold tracking-tight text-sidebar-accent-foreground">QOEBIT</h1>
             <p className="text-[11px] text-sidebar-primary font-medium">QoE Observatory</p>
           </div>
         )}

@@ -152,7 +152,7 @@ const DocumentationPage: React.FC = () => {
                 <BookOpen className="w-7 h-7 text-primary" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Otarie Catalogue Officiel</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">QOEBIT Catalogue Officiel</p>
                 <h1 className="text-2xl font-black tracking-tight text-foreground">Référentiel KPI Réseau</h1>
                 <p className="text-xs text-muted-foreground mt-0.5">Nouveau Standard • Focus 4G/5G v2.5</p>
               </div>
