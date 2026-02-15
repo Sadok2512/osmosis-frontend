@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   ResponsiveContainer, ComposedChart, LineChart, BarChart, AreaChart, ScatterChart, PieChart,
   Line, Bar, Area, Scatter, Pie, Cell,
@@ -43,7 +43,16 @@ const renderTooltip = ({ active, payload, label }: any) => {
 
 const BIChartRenderer: React.FC<Props> = ({ config }) => {
   const rawData = useMemo(() => generateChartData(config), [config]);
-  
+  const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
+
+  const toggleSeries = useCallback((dataKey: string) => {
+    setHiddenSeries(prev => {
+      const next = new Set(prev);
+      if (next.has(dataKey)) next.delete(dataKey);
+      else next.add(dataKey);
+      return next;
+    });
+  }, []);
   // Pivot grouped data: transform {x, group, kpi} rows into {x, kpi_groupA, kpi_groupB, ...}
   const { data, groupKeys } = useMemo(() => {
     const hasGroup = config.groupBy.length > 0 && rawData.some(d => d.group);
@@ -179,7 +188,38 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
         )}
 
         <Tooltip content={renderTooltip} />
-        {config.advanced.showLegend && <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} />}
+        {config.advanced.showLegend && (
+          <Legend
+            wrapperStyle={{ fontSize: 10, paddingTop: 4 }}
+            content={({ payload }: any) => {
+              if (!payload) return null;
+              const visible = payload.filter((e: any) => !e.value?.endsWith('_bg'));
+              if (!visible.length) return null;
+              return (
+                <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 pt-1">
+                  {visible.map((entry: any, i: number) => {
+                    const key = entry.dataKey || entry.value;
+                    const isHidden = hiddenSeries.has(key);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => toggleSeries(key)}
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-muted/50 transition-colors cursor-pointer select-none"
+                        style={{ opacity: isHidden ? 0.35 : 1 }}
+                      >
+                        <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: entry.color }} />
+                        <span className="text-[10px] text-muted-foreground" style={{ textDecoration: isHidden ? 'line-through' : 'none' }}>
+                          {entry.value?.replace(/_/g, ' ')}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            }}
+          />
+        )}
 
         {/* Threshold reference lines (horizontal) */}
         {thresholds.map((t, i) => (
@@ -257,6 +297,14 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
               }];
 
           return seriesList.map(s => {
+            const isHidden = hiddenSeries.has(s.dataKey);
+            if (isHidden) {
+              // Render invisible line to keep legend entry
+              return (
+                <Line key={s.seriesKey} dataKey={s.dataKey} yAxisId={m.axis}
+                  stroke="transparent" dot={false} activeDot={false} name={s.name} legendType="none" />
+              );
+            }
             switch (m.chartType) {
               case 'bar':
                 return (
