@@ -317,7 +317,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Main view — full screen map with clustering
   return (
-    <div className="flex-1 flex flex-col bg-background overflow-hidden h-full relative">
+    <div className="fixed inset-0 bg-background overflow-hidden z-0" style={{ width: '100vw', height: '100vh' }}>
       {/* FULL SCREEN MAP */}
       <MapContainer
         center={[43.2965, 5.3698]}
