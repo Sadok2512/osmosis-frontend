@@ -19,9 +19,7 @@ interface SidebarProps {
 }
 
 const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'analytics', label: 'Dashboard Overview', icon: <Layout className="w-5 h-5" /> },
   { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
-  { id: 'bi', label: 'Documents KPI', icon: <FileText className="w-5 h-5" /> },
   { id: 'sites', label: 'Network Topology', icon: <Network className="w-5 h-5" /> },
   { id: 'traffic', label: 'Analytic BI Studio', icon: <BarChart2 className="w-5 h-5" /> },
   { id: 'alerts', label: 'Alerts & RCA Monitor', icon: <Bell className="w-5 h-5" /> },
