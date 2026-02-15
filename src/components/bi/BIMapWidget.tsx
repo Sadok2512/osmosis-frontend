@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Tooltip, useMapEvents } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapWidgetConfig } from './dashboardTypes';
 import { fetchTopoSites } from '../../services/topoService';
 import { SiteSummary } from '../../types';
-import { Settings, Trash2, Map as MapIcon, ChevronDown } from 'lucide-react';
+import { Settings, Trash2, Map as MapIcon, Eye, EyeOff, Tag } from 'lucide-react';
 import { VENDORS, DORS, PLAQUES } from '../../constants';
 
 const TILE_URLS: Record<string, { url: string; attribution: string }> = {
@@ -43,7 +43,6 @@ const createClusterIcon = (cluster: any) => {
   });
 };
 
-// Syncs map center/zoom back to config
 const MapSync: React.FC<{ onChange: (c: [number, number], z: number) => void }> = ({ onChange }) => {
   useMapEvents({
     moveend: (e) => {
@@ -81,16 +80,16 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   }, [sites, config.vendorFilter, config.dorFilter, config.plaqueFilter, config.technoFilter]);
 
   const metricLabel = MAP_METRICS.find(m => m.id === config.metric)?.label || config.metric;
-
   const getSiteValue = (s: SiteSummary): number => (s as any)[config.metric] ?? s.qoe_score_avg;
 
-  const handleMapSync = useCallback((c: [number, number], z: number) => {
-    // Don't trigger re-render storm - only update on significant change
-  }, []);
-
+  const handleMapSync = useCallback(() => {}, []);
   const stopDrag = (e: React.MouseEvent) => e.stopPropagation();
-
   const selectClass = "bg-muted border border-border rounded-md px-2 py-1 text-[10px] text-foreground outline-none w-full";
+
+  const layerBtnClass = (active: boolean) =>
+    `px-2 py-1 rounded text-[9px] font-bold transition-all ${active ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-card/80 text-foreground hover:bg-muted'}`;
+  const techBtnClass = (active: boolean) =>
+    `px-2 py-1 rounded text-[9px] font-bold transition-all ${active ? 'bg-accent text-accent-foreground shadow-sm' : 'bg-card/80 text-foreground hover:bg-muted'}`;
 
   return (
     <div className="h-full flex flex-col rounded-2xl border border-border shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)] overflow-hidden group transition-shadow hover:shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.1)] bg-card">
@@ -104,7 +103,8 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
           <span className="text-[9px] text-muted-foreground font-mono">{filtered.length} sites · {metricLabel}</span>
         </div>
         <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onMouseDown={stopDrag}>
-          <button onClick={() => setShowConfig(!showConfig)} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
+          <button onClick={() => setShowConfig(!showConfig)}
+            className={`p-1.5 rounded-lg transition-colors ${showConfig ? 'bg-primary/10 text-primary' : 'hover:bg-primary/10 text-muted-foreground hover:text-primary'}`}>
             <Settings className="w-3.5 h-3.5" />
           </button>
           <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
@@ -130,19 +130,13 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               </select>
             </div>
             <div>
-              <label className="text-[9px] text-muted-foreground font-semibold uppercase">Techno</label>
-              <select className={selectClass} value={config.technoFilter} onChange={e => onChange({ ...config, technoFilter: e.target.value })}>
-                {['ALL', '5G', '4G'].map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            <div>
               <label className="text-[9px] text-muted-foreground font-semibold uppercase">DOR</label>
               <select className={selectClass} value={config.dorFilter} onChange={e => onChange({ ...config, dorFilter: e.target.value })}>
                 {DORS.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
             <div>
               <label className="text-[9px] text-muted-foreground font-semibold uppercase">Plaque</label>
               <select className={selectClass} value={config.plaqueFilter} onChange={e => onChange({ ...config, plaqueFilter: e.target.value })}>
@@ -150,17 +144,26 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               </select>
             </div>
             <div>
-              <label className="text-[9px] text-muted-foreground font-semibold uppercase">Fond</label>
-              <select className={selectClass} value={config.mapLayer} onChange={e => onChange({ ...config, mapLayer: e.target.value as any })}>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="satellite">Satellite</option>
-              </select>
+              <label className="text-[9px] text-muted-foreground font-semibold uppercase">Title</label>
+              <input className={selectClass} value={config.title} onChange={e => onChange({ ...config, title: e.target.value })} />
             </div>
           </div>
-          <div>
-            <label className="text-[9px] text-muted-foreground font-semibold uppercase">Title</label>
-            <input className={selectClass} value={config.title} onChange={e => onChange({ ...config, title: e.target.value })} />
+          {/* Display flags */}
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={() => onChange({ ...config, showSiteNames: !config.showSiteNames })}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-semibold transition-all ${config.showSiteNames ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}
+            >
+              <Tag className="w-3 h-3" />
+              Site Names {config.showSiteNames ? 'ON' : 'OFF'}
+            </button>
+            <button
+              onClick={() => onChange({ ...config, showMetricValues: !config.showMetricValues })}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-semibold transition-all ${config.showMetricValues ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}`}
+            >
+              {config.showMetricValues ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+              Metric {config.showMetricValues ? 'ON' : 'OFF'}
+            </button>
           </div>
         </div>
       )}
@@ -199,23 +202,45 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
                     radius={6}
                     pathOptions={{ color, fillColor: color, fillOpacity: 0.85, weight: 1.5 }}
                   >
-                    <Tooltip direction="top" offset={[0, -8]}>
+                    <Tooltip direction="top" offset={[0, -8]} permanent={config.showSiteNames}>
                       <div className="text-xs font-semibold">{site.site_name}</div>
                       <div className="text-[10px]">{site.vendor} · {site.cell_count} cells</div>
-                      <div className="text-[10px] font-bold" style={{ color }}>{metricLabel}: {typeof val === 'number' ? val.toFixed(1) : val}</div>
+                      {config.showMetricValues && (
+                        <div className="text-[10px] font-bold" style={{ color }}>
+                          {metricLabel}: {typeof val === 'number' ? val.toFixed(1) : val}
+                        </div>
+                      )}
                     </Tooltip>
                   </CircleMarker>
                 );
               })}
             </MarkerClusterGroup>
 
-            {/* Legend */}
-            <div className="absolute bottom-2 left-2 z-[1000] bg-card/90 backdrop-blur-sm border border-border rounded-lg px-2.5 py-1.5 text-[9px] space-y-0.5">
-              <div className="font-semibold text-foreground">{metricLabel}</div>
-              <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" /> Good</div>
-              <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" /> Medium</div>
-              <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" /> Bad</div>
+            {/* Layer control — bottom right */}
+            <div className="absolute bottom-2 right-2 z-[1000] flex flex-col gap-1.5">
+              {/* Map layer buttons */}
+              <div className="flex gap-0.5 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-0.5">
+                <button className={layerBtnClass(config.mapLayer === 'light')} onClick={() => onChange({ ...config, mapLayer: 'light' })}>L</button>
+                <button className={layerBtnClass(config.mapLayer === 'dark')} onClick={() => onChange({ ...config, mapLayer: 'dark' })}>D</button>
+                <button className={layerBtnClass(config.mapLayer === 'satellite')} onClick={() => onChange({ ...config, mapLayer: 'satellite' })}>S</button>
+              </div>
+              {/* Techno filter buttons */}
+              <div className="flex gap-0.5 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-0.5">
+                <button className={techBtnClass(config.technoFilter === 'ALL')} onClick={() => onChange({ ...config, technoFilter: 'ALL' })}>ALL</button>
+                <button className={techBtnClass(config.technoFilter === '5G')} onClick={() => onChange({ ...config, technoFilter: '5G' })}>5G</button>
+                <button className={techBtnClass(config.technoFilter === '4G')} onClick={() => onChange({ ...config, technoFilter: '4G' })}>4G</button>
+              </div>
             </div>
+
+            {/* Legend — bottom left */}
+            {config.showMetricValues && (
+              <div className="absolute bottom-2 left-2 z-[1000] bg-card/90 backdrop-blur-sm border border-border rounded-lg px-2.5 py-1.5 text-[9px] space-y-0.5">
+                <div className="font-semibold text-foreground">{metricLabel}</div>
+                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" /> Good</div>
+                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" /> Medium</div>
+                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" /> Bad</div>
+              </div>
+            )}
           </MapContainer>
         )}
       </div>
