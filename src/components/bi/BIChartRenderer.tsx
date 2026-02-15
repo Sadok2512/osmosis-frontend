@@ -92,9 +92,11 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
     );
   }
 
-  // ── Composed Chart (reference style: bars bg + line + area + dots) ──
+  // ── Composed Chart ──
   const thresholds = config.advanced.thresholds;
   const hasRight = config.yMetrics.some(m => m.axis === 'right');
+  const isGroupedBar = config.yMetrics.some(m => m.chartType === 'grouped_bar');
+  const groupedBarCount = config.yMetrics.filter(m => m.chartType === 'grouped_bar').length;
 
   // Use ComposedChart for maximum flexibility (mix line+bar+area)
   const useComposed = config.yMetrics.length > 0;
@@ -113,9 +115,14 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
     return value.length > 10 ? value.slice(0, 10) + '…' : value;
   };
 
+  // Grouped bar sizing
+  const groupedBarSize = isGroupedBar && groupedBarCount > 1
+    ? Math.max(8, Math.min(24, Math.floor(60 / groupedBarCount)))
+    : undefined;
+
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 12, right: 12, bottom: 4, left: -8 }}>
+      <ComposedChart data={data} margin={{ top: 12, right: 12, bottom: 4, left: -8 }} barGap={isGroupedBar ? 2 : 4} barCategoryGap={isGroupedBar ? '20%' : '10%'}>
         {/* Subtle grid */}
         <CartesianGrid
           strokeDasharray="none"
@@ -213,18 +220,29 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
                   name={m.kpi.replace(/_/g, ' ')}
                 />
               );
-            case 'grouped_bar':
+            case 'grouped_bar': {
+              const groupedIndex = config.yMetrics.filter((mm, ii) => mm.chartType === 'grouped_bar' && ii <= i).length - 1;
               return (
-                <Bar
-                  key={key}
-                  dataKey={m.kpi}
-                  yAxisId={m.axis}
-                  fill={m.color}
-                  fillOpacity={0.85}
-                  radius={[4, 4, 0, 0]}
-                  name={m.kpi.replace(/_/g, ' ')}
-                />
+                <React.Fragment key={key}>
+                  <defs>
+                    <linearGradient id={`gbar-grad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={m.color} stopOpacity={0.95} />
+                      <stop offset="100%" stopColor={m.color} stopOpacity={0.65} />
+                    </linearGradient>
+                  </defs>
+                  <Bar
+                    dataKey={m.kpi}
+                    yAxisId={m.axis}
+                    fill={`url(#gbar-grad-${i})`}
+                    stroke={m.color}
+                    strokeWidth={0.5}
+                    radius={[5, 5, 0, 0]}
+                    barSize={groupedBarSize}
+                    name={m.kpi.replace(/_/g, ' ')}
+                  />
+                </React.Fragment>
               );
+            }
             case 'area':
               return (
                 <React.Fragment key={key}>
