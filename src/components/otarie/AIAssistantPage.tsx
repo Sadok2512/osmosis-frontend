@@ -169,29 +169,20 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     return assistantSoFar;
   };
 
-  // Extract cell IDs from AI response using the extraction endpoint
-  const extractCellsFromResponse = async (responseText: string) => {
+  // Extract cell IDs from AI response by matching known cell IDs in the text
+  const extractCellsFromResponse = (responseText: string) => {
     if (!sites.length || !onShowWorstCells) return;
     try {
-      const resp = await fetch(MAP_EXTRACT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          assistantResponse: responseText,
-          availableCellIds: allCellIds.slice(0, 500),
-        }),
-      });
-      if (!resp.ok) return;
-      const data = await resp.json();
-      if (data.cell_ids?.length > 0) {
+      // Match cell IDs that appear in the response text
+      const foundIds = allCellIds.filter(id => responseText.includes(id));
+      // Deduplicate
+      const uniqueIds = [...new Set(foundIds)];
+      if (uniqueIds.length > 0) {
         setMessages(prev => {
           const newMsgs = [...prev];
           for (let i = newMsgs.length - 1; i >= 0; i--) {
             if (newMsgs[i].role === 'assistant') {
-              newMsgs[i] = { ...newMsgs[i], mapCellIds: data.cell_ids, mapDescription: data.description };
+              newMsgs[i] = { ...newMsgs[i], mapCellIds: uniqueIds, mapDescription: `${uniqueIds.length} cellule(s) identifiée(s)` };
               break;
             }
           }
@@ -337,16 +328,10 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                       {msg.mapCellIds && msg.mapCellIds.length > 0 && onShowWorstCells && (
                         <button
                           onClick={() => onShowWorstCells(msg.mapCellIds!)}
-                          className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left w-full group/map"
+                          className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-all text-xs font-semibold shadow-sm"
                         >
-                          <MapPin className="w-4 h-4 text-primary shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <span className="text-xs font-bold text-foreground">🗺️ Afficher sur la carte</span>
-                            <span className="text-[10px] text-muted-foreground block truncate">
-                              {msg.mapDescription || `${msg.mapCellIds.length} cellule(s) identifiée(s)`}
-                            </span>
-                          </div>
-                          <span className="text-[10px] font-bold text-primary opacity-0 group-hover/map:opacity-100 transition-opacity shrink-0">Voir →</span>
+                          <MapPin className="w-4 h-4" />
+                          Voir sur la carte ({msg.mapCellIds.length})
                         </button>
                       )}
                       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
