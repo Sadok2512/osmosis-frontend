@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine
 } from 'recharts';
 import { ChartConfig, CHART_COLORS, KPI_UNITS } from './biTypes';
-import { generateChartData } from './mockBIData';
+import { generateChartData, getKPIBase } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
 
 interface Props {
@@ -523,11 +523,45 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
                       name={s.name} />
                   </React.Fragment>
                 );
-              case 'scatter':
+              case 'scatter': {
+                // If colorBy is active, split data by color groups and render multiple Scatter series
+                if (config.colorBy) {
+                  const colorGroups = [...new Set(data.map((d: any) => d._colorGroup).filter(Boolean))] as string[];
+                  return colorGroups.map((group, gi) => {
+                    const groupData = data.filter((d: any) => d._colorGroup === group);
+                    const groupColor = CHART_COLORS[gi % CHART_COLORS.length];
+                    return (
+                      <Scatter key={`${s.seriesKey}-${group}`} data={groupData} dataKey={s.dataKey} yAxisId={m.axis}
+                        fill={groupColor} name={`${s.name} (${group})`}
+                        shape={(props: any) => {
+                          const size = config.sizeBy && props.payload?._size
+                            ? Math.max(4, Math.min(20, props.payload._size / (getKPIBase(config.sizeBy) || 50) * 12))
+                            : 6;
+                          return <circle cx={props.cx} cy={props.cy} r={size} fill={groupColor} fillOpacity={0.7} stroke={groupColor} strokeWidth={1} />;
+                        }}
+                      />
+                    );
+                  });
+                }
+                // If sizeBy is active (but no colorBy), render with variable size
+                if (config.sizeBy) {
+                  return (
+                    <Scatter key={s.seriesKey} data={data} dataKey={s.dataKey} yAxisId={m.axis}
+                      fill={s.color} name={s.name}
+                      shape={(props: any) => {
+                        const size = props.payload?._size
+                          ? Math.max(4, Math.min(20, props.payload._size / (getKPIBase(config.sizeBy!) || 50) * 12))
+                          : 6;
+                        return <circle cx={props.cx} cy={props.cy} r={size} fill={s.color} fillOpacity={0.7} stroke={s.color} strokeWidth={1} />;
+                      }}
+                    />
+                  );
+                }
                 return (
                   <Scatter key={s.seriesKey} dataKey={s.dataKey} yAxisId={m.axis}
                     fill={s.color} name={s.name} />
                 );
+              }
               case 'line':
               default:
                 return (

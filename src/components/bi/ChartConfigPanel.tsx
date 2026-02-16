@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check, Grid3X3 } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check, Grid3X3, ArrowLeftRight } from 'lucide-react';
 import { ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine, MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI, Aggregation, ChartType, Granularity, AxisSide, LineStyle } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
@@ -238,7 +238,30 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         <SectionHeader title="X Axis" number="1" open={sections.x} toggle={() => toggle('x')} />
         {sections.x && (
           <div className="pl-5 space-y-2 pb-3">
-            <Select value={draft.xAxis.type} options={['date', 'dimension', 'kpi'] as const} onChange={v => updateX({ type: v as any })} className="w-full" />
+            <div className="flex items-center gap-2">
+              <Select value={draft.xAxis.type} options={['date', 'dimension', 'kpi'] as const} onChange={v => updateX({ type: v as any })} className="flex-1" />
+              {/* Swap X ↔ Y button (only when X is a KPI and there's exactly 1 Y metric) */}
+              {draft.xAxis.type === 'kpi' && draft.yMetrics.length === 1 && (
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          const currentXKpi = draft.xAxis.value;
+                          const currentYKpi = draft.yMetrics[0].kpi;
+                          updateX({ value: currentYKpi });
+                          updateMetric(0, { kpi: currentXKpi as any });
+                        }}
+                        className="p-1.5 rounded-md border border-border bg-muted/50 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+                      >
+                        <ArrowLeftRight className="w-3.5 h-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-[11px]">Inverser X ↔ Y</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             {draft.xAxis.type === 'date' && (
               <>
                 <div className="grid grid-cols-2 gap-2">
@@ -337,15 +360,40 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         )}
 
         {/* ── GROUP BY ── */}
-        <SectionHeader title="Group By" number="4" open={sections.group} toggle={() => toggle('group')} />
+        <SectionHeader title="Group By / Scatter" number="4" open={sections.group} toggle={() => toggle('group')} />
         {sections.group && (
-          <div className="pl-5 space-y-2 pb-3">
-            <Select
-              value={draft.groupBy[0] || ''}
-              options={['', ...BI_DIMENSIONS] as any}
-              onChange={v => {
-                update({ groupBy: v ? [v as BIDimension] : [] });
-              }} className="w-full" />
+          <div className="pl-5 space-y-3 pb-3">
+            <div className="space-y-1">
+              <span className="text-[10px] text-muted-foreground font-medium">Group By</span>
+              <Select
+                value={draft.groupBy[0] || ''}
+                options={['', ...BI_DIMENSIONS] as any}
+                onChange={v => {
+                  update({ groupBy: v ? [v as BIDimension] : [] });
+                }} className="w-full" />
+            </div>
+
+            {/* Colored By — dimension to color scatter points */}
+            <div className="space-y-1">
+              <span className="text-[10px] text-muted-foreground font-medium">Colored By</span>
+              <Select
+                value={draft.colorBy || ''}
+                options={['', ...BI_DIMENSIONS] as any}
+                onChange={v => update({ colorBy: v ? v as BIDimension : undefined })}
+                className="w-full"
+              />
+            </div>
+
+            {/* Size By — KPI to size scatter points */}
+            <div className="space-y-1">
+              <span className="text-[10px] text-muted-foreground font-medium">Size By</span>
+              <Select
+                value={draft.sizeBy || ''}
+                options={['', ...BI_KPIS] as any}
+                onChange={v => update({ sizeBy: v ? v as BIKPI : undefined })}
+                className="w-full"
+              />
+            </div>
           </div>
         )}
 

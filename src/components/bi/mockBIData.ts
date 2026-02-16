@@ -118,6 +118,21 @@ export function generateChartData(config: ChartConfig): any[] {
         const base = getKPIBase(metric.kpi);
         point[metric.kpi] = +(base * (0.5 + rng())).toFixed(2);
       }
+      // Generate sizeBy value
+      if (config.sizeBy) {
+        const sizeBase = getKPIBase(config.sizeBy);
+        point._size = +(sizeBase * (0.3 + rng() * 0.7)).toFixed(2);
+        point[config.sizeBy] = point._size;
+      }
+      // Generate colorBy value
+      if (config.colorBy) {
+        const dim = config.colorBy;
+        let vals = getDimensionValues(dim);
+        if (filterMap.has(dim)) {
+          vals = vals.filter(v => filterMap.get(dim)!.has(v));
+        }
+        point._colorGroup = vals[Math.floor(rng() * vals.length)];
+      }
       if (config.groupBy.length > 0) {
         const dim = config.groupBy[0];
         let vals = getDimensionValues(dim);
@@ -133,7 +148,7 @@ export function generateChartData(config: ChartConfig): any[] {
   return data;
 }
 
-function getKPIBase(kpi: string): number {
+export function getKPIBase(kpi: string): number {
   const bases: Record<string, number> = {
     volume_totale: 1200, debit_dl: 45, debit_ul: 12, dl_ul_ratio: 3.5,
     debit_dl_max: 180, debit_ul_max: 55, rtt_setup_avg: 28, rtt_data_avg: 22,
