@@ -6,9 +6,10 @@ import remarkGfm from 'remark-gfm';
 import { exportElementToPDF } from '@/lib/exportUtils';
 import { SiteSummary } from '@/types';
 
-type Msg = { role: 'user' | 'assistant'; content: string };
+type Msg = { role: 'user' | 'assistant'; content: string; mapCellIds?: string[]; mapDescription?: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
+const MAP_EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-map-extract`;
 
 const SUGGESTIONS = [
   "Donne-moi les 10 pires sites en QoE",
@@ -35,14 +36,52 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const streamChat = async (allMessages: Msg[]) => {
+  // Build cell context from real site data for the AI
+  const cellContext = useMemo(() => {
+    if (!sites.length) return '';
+    // Send a summary of worst/best cells to the AI so it can reference real IDs
+    const allCells = sites.flatMap(s => s.cells.map(c => ({
+      cell_id: c.cell_id,
+      site_name: s.site_name,
+      site_id: s.site_id,
+      techno: c.techno,
+      bande: c.bande,
+      vendor: s.vendor,
+      dor: s.dor,
+      plaque: s.plaque,
+      qoe: c.qoe_score_avg,
+      tput_dl: c.p50_thr_dn_mbps,
+      rtt_p95: c.p95_rtt_ms,
+      dms_dl_3: c.dms_dl_3,
+      dms_dl_8: c.dms_dl_8,
+      dms_dl_30: c.dms_dl_30,
+      sessions: c.sessions,
+      tcp_loss: c.tcp_loss_rate,
+      retrans: c.retransmission_rate,
+    })));
+    // Sort by QoE and take worst 50 + best 20 for context
+    const sorted = [...allCells].sort((a, b) => a.qoe - b.qoe);
+    const subset = [...sorted.slice(0, 50), ...sorted.slice(-20)];
+    const header = 'cell_id | site_name | techno | bande | vendor | plaque | qoe | tput_dl | rtt_p95 | dms_dl_3 | tcp_loss | sessions';
+    const rows = subset.map(c => 
+      `${c.cell_id} | ${c.site_name} | ${c.techno} | ${c.bande} | ${c.vendor} | ${c.plaque} | ${c.qoe.toFixed(1)} | ${c.tput_dl.toFixed(1)} | ${c.rtt_p95.toFixed(0)} | ${c.dms_dl_3.toFixed(1)} | ${c.tcp_loss.toFixed(2)} | ${c.sessions}`
+    );
+    return `Total: ${sites.length} sites, ${allCells.length} cellules\n${header}\n${rows.join('\n')}`;
+  }, [sites]);
+
+  // All available cell IDs for extraction matching
+  const allCellIds = useMemo(() => {
+    return sites.flatMap(s => s.cells.map(c => c.cell_id));
+  }, [sites]);
+
+  const streamChat = async (allMessages: Msg[]): Promise<string> => {
     const resp = await fetch(CHAT_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ messages: allMessages }),
+      body: JSON.stringify({ messages: allMessages, cellContext }),
     });
 
     if (!resp.ok) {
@@ -127,6 +166,41 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
         } catch { /* ignore */ }
       }
     }
+    return assistantSoFar;
+  };
+
+  // Extract cell IDs from AI response using the extraction endpoint
+  const extractCellsFromResponse = async (responseText: string) => {
+    if (!sites.length || !onShowWorstCells) return;
+    try {
+      const resp = await fetch(MAP_EXTRACT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          assistantResponse: responseText,
+          availableCellIds: allCellIds.slice(0, 500),
+        }),
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.cell_ids?.length > 0) {
+        setMessages(prev => {
+          const newMsgs = [...prev];
+          for (let i = newMsgs.length - 1; i >= 0; i--) {
+            if (newMsgs[i].role === 'assistant') {
+              newMsgs[i] = { ...newMsgs[i], mapCellIds: data.cell_ids, mapDescription: data.description };
+              break;
+            }
+          }
+          return newMsgs;
+        });
+      }
+    } catch (e) {
+      console.error('Cell extraction failed:', e);
+    }
   };
 
   const send = async (text?: string) => {
@@ -139,7 +213,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     setIsLoading(true);
 
     try {
-      await streamChat(updatedMessages);
+      const finalText = await streamChat(updatedMessages);
+      extractCellsFromResponse(finalText);
     } catch (e) {
       console.error(e);
     } finally {
@@ -258,6 +333,22 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                   ) : (
                     <>
                       <AssistantMessage content={msg.content} />
+                      {/* Map action button */}
+                      {msg.mapCellIds && msg.mapCellIds.length > 0 && onShowWorstCells && (
+                        <button
+                          onClick={() => onShowWorstCells(msg.mapCellIds!)}
+                          className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left w-full group/map"
+                        >
+                          <MapPin className="w-4 h-4 text-primary shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs font-bold text-foreground">🗺️ Afficher sur la carte</span>
+                            <span className="text-[10px] text-muted-foreground block truncate">
+                              {msg.mapDescription || `${msg.mapCellIds.length} cellule(s) identifiée(s)`}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-primary opacity-0 group-hover/map:opacity-100 transition-opacity shrink-0">Voir →</span>
+                        </button>
+                      )}
                       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         <ExportPDFButton msgRef={msg.content} index={i} />
                         <CopyButton text={msg.content} />
