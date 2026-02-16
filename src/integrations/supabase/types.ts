@@ -17,21 +17,27 @@ export type Database = {
       dashboards: {
         Row: {
           created_at: string
+          description: string
           id: string
+          is_shared: boolean
           name: string
           updated_at: string
           widgets: Json
         }
         Insert: {
           created_at?: string
+          description?: string
           id: string
+          is_shared?: boolean
           name: string
           updated_at?: string
           widgets?: Json
         }
         Update: {
           created_at?: string
+          description?: string
           id?: string
+          is_shared?: boolean
           name?: string
           updated_at?: string
           widgets?: Json

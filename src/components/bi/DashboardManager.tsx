@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Plus, X, Save, FolderOpen, Trash2, Clock, LayoutDashboard, Download, Upload, Copy } from 'lucide-react';
+import { Plus, X, Save, FolderOpen, Trash2, Clock, LayoutDashboard, Download, Upload, Copy, Globe, Lock } from 'lucide-react';
 import { WidgetItem, createDefaultMapWidget } from './dashboardTypes';
 import { createDefaultChart } from './biTypes';
 import { createDefaultTextWidget } from './BITextWidget';
@@ -8,6 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 export interface SavedDashboard {
   id: string;
   name: string;
+  description: string;
+  isShared: boolean;
   widgets: WidgetItem[];
   updatedAt: string;
 }
@@ -15,6 +17,8 @@ export interface SavedDashboard {
 export interface OpenTab {
   id: string;
   name: string;
+  description: string;
+  isShared: boolean;
   widgets: WidgetItem[];
   dirty: boolean;
 }
@@ -68,6 +72,8 @@ async function loadAllDashboardsFromDB(): Promise<SavedDashboard[]> {
   return data.map((row: any) => ({
     id: row.id,
     name: row.name,
+    description: row.description || '',
+    isShared: row.is_shared ?? true,
     widgets: row.widgets as WidgetItem[],
     updatedAt: row.updated_at,
   }));
@@ -79,6 +85,8 @@ async function upsertDashboardToDB(db: SavedDashboard) {
     .upsert({
       id: db.id,
       name: db.name,
+      description: db.description,
+      is_shared: db.isShared,
       widgets: db.widgets as any,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'id' });
@@ -111,12 +119,12 @@ export function useDashboardManager() {
     loadAllDashboardsFromDB().then(saved => {
       setDbDashboards(saved);
       if (saved.length > 0) {
-        const openTabs = saved.map(s => ({ id: s.id, name: s.name, widgets: s.widgets, dirty: false }));
+        const openTabs = saved.map(s => ({ id: s.id, name: s.name, description: s.description, isShared: s.isShared, widgets: s.widgets, dirty: false }));
         setTabs(openTabs);
         setActiveTabId(openTabs[0].id);
       } else {
         const id = `db_${Date.now()}`;
-        const defaultTab: OpenTab = { id, name: 'Dashboard 1', widgets: createDefaultWidgets(), dirty: true };
+        const defaultTab: OpenTab = { id, name: 'Dashboard 1', description: '', isShared: true, widgets: createDefaultWidgets(), dirty: true };
         setTabs([defaultTab]);
         setActiveTabId(id);
       }
@@ -140,7 +148,7 @@ export function useDashboardManager() {
       // Upsert all dirty tabs in parallel
       await Promise.all(
         dirtyTabs.map(tab =>
-          upsertDashboardToDB({ id: tab.id, name: tab.name, widgets: tab.widgets, updatedAt: new Date().toISOString() })
+          upsertDashboardToDB({ id: tab.id, name: tab.name, description: tab.description, isShared: tab.isShared, widgets: tab.widgets, updatedAt: new Date().toISOString() })
         )
       );
 
@@ -168,7 +176,7 @@ export function useDashboardManager() {
       while (existingNames.has(`${base} (${counter})`.toLowerCase())) counter++;
       dashName = `${base} (${counter})`;
     }
-    const newTab: OpenTab = { id, name: dashName, widgets: createDefaultWidgets(), dirty: true };
+    const newTab: OpenTab = { id, name: dashName, description: '', isShared: true, widgets: createDefaultWidgets(), dirty: true };
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(id);
     setShowList(false);
@@ -179,7 +187,7 @@ export function useDashboardManager() {
     if (existing) {
       setActiveTabId(db.id);
     } else {
-      setTabs(prev => [...prev, { id: db.id, name: db.name, widgets: db.widgets, dirty: false }]);
+      setTabs(prev => [...prev, { id: db.id, name: db.name, description: db.description, isShared: db.isShared, widgets: db.widgets, dirty: false }]);
       setActiveTabId(db.id);
     }
     setShowList(false);
@@ -190,7 +198,7 @@ export function useDashboardManager() {
       const next = prev.filter(t => t.id !== id);
       if (next.length === 0) {
         const newId = `db_${Date.now()}`;
-        const fallback: OpenTab = { id: newId, name: 'Dashboard 1', widgets: createDefaultWidgets(), dirty: true };
+        const fallback: OpenTab = { id: newId, name: 'Dashboard 1', description: '', isShared: true, widgets: createDefaultWidgets(), dirty: true };
         setActiveTabId(newId);
         return [fallback];
       }
@@ -202,7 +210,7 @@ export function useDashboardManager() {
   const saveCurrent = useCallback(async (): Promise<string | null> => {
     const tab = tabs.find(t => t.id === activeTabId);
     if (!tab) return null;
-    await upsertDashboardToDB({ id: tab.id, name: tab.name, widgets: tab.widgets, updatedAt: new Date().toISOString() });
+    await upsertDashboardToDB({ id: tab.id, name: tab.name, description: tab.description, isShared: tab.isShared, widgets: tab.widgets, updatedAt: new Date().toISOString() });
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, dirty: false } : t));
     const refreshed = await loadAllDashboardsFromDB();
     setDbDashboards(refreshed);
@@ -271,9 +279,9 @@ export function useDashboardManager() {
           importName = `${item.name} (${counter})`;
         }
         usedNames.add(importName.toLowerCase());
-        const entry: SavedDashboard = { ...item, id: newId, name: importName, updatedAt: new Date().toISOString() };
+        const entry: SavedDashboard = { ...item, id: newId, name: importName, description: item.description || '', isShared: item.isShared ?? true, updatedAt: new Date().toISOString() };
         await upsertDashboardToDB(entry);
-        imported.push({ id: newId, name: importName, widgets: entry.widgets, dirty: false });
+        imported.push({ id: newId, name: importName, description: entry.description, isShared: entry.isShared, widgets: entry.widgets, dirty: false });
       }
 
       const refreshed = await loadAllDashboardsFromDB();
@@ -298,13 +306,21 @@ export function useDashboardManager() {
       while (existingNames.has(`${source.name} (copy ${counter})`.toLowerCase())) counter++;
       dupName = `${source.name} (copy ${counter})`;
     }
-    const cloned: SavedDashboard = { id: newId, name: dupName, widgets: JSON.parse(JSON.stringify(source.widgets)), updatedAt: new Date().toISOString() };
+    const cloned: SavedDashboard = { id: newId, name: dupName, description: source.description, isShared: source.isShared, widgets: JSON.parse(JSON.stringify(source.widgets)), updatedAt: new Date().toISOString() };
     await upsertDashboardToDB(cloned);
     const refreshed = await loadAllDashboardsFromDB();
     setDbDashboards(refreshed);
-    setTabs(prev => [...prev, { id: newId, name: dupName, widgets: cloned.widgets, dirty: false }]);
+    setTabs(prev => [...prev, { id: newId, name: dupName, description: cloned.description, isShared: cloned.isShared, widgets: cloned.widgets, dirty: false }]);
     setActiveTabId(newId);
   }, [tabs, dbDashboards]);
+
+  const updateDescription = useCallback((id: string, description: string) => {
+    setTabs(prev => prev.map(t => t.id === id ? { ...t, description, dirty: true } : t));
+  }, []);
+
+  const toggleShared = useCallback((id: string) => {
+    setTabs(prev => prev.map(t => t.id === id ? { ...t, isShared: !t.isShared, dirty: true } : t));
+  }, []);
 
   return {
     tabs, activeTab, activeTabId, setActiveTabId,
@@ -312,6 +328,7 @@ export function useDashboardManager() {
     saveCurrent, deleteDashboard, renameTab, duplicateDashboard,
     exportDashboard, exportAll, importDashboards,
     showList, setShowList, savedDashboards, loaded,
+    updateDescription, toggleShared,
   };
 }
 
@@ -371,38 +388,48 @@ export const DashboardListPanel: React.FC<DashboardListProps> = ({ dashboards, o
           const isOpen = openIds.includes(db.id);
           return (
             <div key={db.id}
-              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors group ${isOpen ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted border border-transparent'}`}
+              className={`flex flex-col gap-1 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${isOpen ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted border border-transparent'}`}
               onClick={() => onOpen(db)}
             >
-              <LayoutDashboard className={`w-4 h-4 shrink-0 ${isOpen ? 'text-primary' : 'text-muted-foreground'}`} />
-              <div className="flex-1 min-w-0">
-                <p className={`text-xs font-medium truncate ${isOpen ? 'text-primary' : 'text-foreground'}`}>{db.name}</p>
+              <div className="flex items-center gap-2">
+                <LayoutDashboard className={`w-4 h-4 shrink-0 ${isOpen ? 'text-primary' : 'text-muted-foreground'}`} />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs font-medium truncate ${isOpen ? 'text-primary' : 'text-foreground'}`}>{db.name}</p>
+                </div>
+                {db.isShared ? (
+                  <span className="text-[9px] bg-green-500/15 text-green-600 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5" title="Partagé">
+                    <Globe className="w-2.5 h-2.5" /> Public
+                  </span>
+                ) : (
+                  <span className="text-[9px] bg-orange-500/15 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5" title="Privé">
+                    <Lock className="w-2.5 h-2.5" /> Privé
+                  </span>
+                )}
+                {isOpen && <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-semibold">Open</span>}
+              </div>
+              {db.description && (
+                <p className="text-[10px] text-muted-foreground truncate pl-6">{db.description}</p>
+              )}
+              <div className="flex items-center justify-between pl-6">
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {new Date(db.updatedAt).toLocaleDateString()}
                 </p>
+                <div className="flex items-center gap-0.5">
+                  <button onClick={(e) => { e.stopPropagation(); onDuplicate(db.id); }}
+                    className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all" title="Duplicate">
+                    <Copy className="w-3 h-3" />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); onExport(db.id); }}
+                    className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all" title="Export JSON">
+                    <Download className="w-3 h-3" />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); onDelete(db.id); }}
+                    className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all" title="Supprimer">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
-              {isOpen && <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-semibold">Open</span>}
-              <button
-                onClick={(e) => { e.stopPropagation(); onDuplicate(db.id); }}
-                className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground hover:text-foreground transition-all"
-                title="Duplicate"
-              >
-                <Copy className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onExport(db.id); }}
-                className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground hover:text-foreground transition-all"
-                title="Export JSON"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(db.id); }}
-                className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
             </div>
           );
         })}
