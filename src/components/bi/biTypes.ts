@@ -72,6 +72,8 @@ export interface ChartConfig {
   yMetrics: YMetricConfig[];
   filters: FilterConfig[];
   groupBy: BIDimension[];
+  colorBy?: BIDimension;
+  sizeBy?: BIKPI;
   dataSource?: {
     type: 'mock' | 'csv';
     csvDatasetId?: string;
