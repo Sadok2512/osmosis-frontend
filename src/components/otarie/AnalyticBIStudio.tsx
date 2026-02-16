@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal, Globe, Lock } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
@@ -287,10 +287,31 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
 
         {/* Toolbar */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/50">
-          <div className="flex items-center gap-2">
-            <LayoutGrid className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground truncate max-w-[200px]">{dm.activeTab?.name}</span>
-            
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground truncate max-w-[200px]">{dm.activeTab?.name}</span>
+            </div>
+            {/* Description inline edit */}
+            <input
+              type="text"
+              placeholder="Ajouter une description..."
+              value={dm.activeTab?.description || ''}
+              onChange={e => dm.activeTab && dm.updateDescription(dm.activeTab.id, e.target.value)}
+              className="text-[11px] text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none px-1 py-0.5 w-[200px] transition-colors"
+            />
+            {/* Shared/Private toggle */}
+            <button
+              onClick={() => dm.activeTab && dm.toggleShared(dm.activeTab.id)}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors hover:bg-muted"
+              title={dm.activeTab?.isShared ? 'Cliquez pour rendre privé' : 'Cliquez pour rendre public'}
+            >
+              {dm.activeTab?.isShared ? (
+                <><Globe className="w-3 h-3 text-green-600" /><span className="text-green-600">Public</span></>
+              ) : (
+                <><Lock className="w-3 h-3 text-orange-600" /><span className="text-orange-600">Privé</span></>
+              )}
+            </button>
           </div>
           <div className="flex items-center gap-1">
             <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">

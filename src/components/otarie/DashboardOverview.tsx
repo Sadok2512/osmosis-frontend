@@ -1,20 +1,45 @@
-import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List, Copy } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List, Copy, Globe, Lock } from 'lucide-react';
 import { SavedDashboard } from '../bi/DashboardManager';
 import { WidgetItem } from '../bi/dashboardTypes';
 import { TableWidgetConfig } from '../bi/BITableWidget';
 import { KPI_UNITS } from '../bi/biTypes';
 import { getDimensionValues } from '../bi/mockBIData';
 import BIChartRenderer from '../bi/BIChartRenderer';
+import { supabase } from '@/integrations/supabase/client';
 
-const LS_KEY = 'bi_dashboards_v3';
+async function loadAllDashboardsFromDB(): Promise<SavedDashboard[]> {
+  const { data, error } = await supabase
+    .from('dashboards')
+    .select('*')
+    .order('updated_at', { ascending: false });
+  if (error || !data) return [];
+  return data.map((row: any) => ({
+    id: row.id,
+    name: row.name,
+    description: row.description || '',
+    isShared: row.is_shared ?? true,
+    widgets: row.widgets as WidgetItem[],
+    updatedAt: row.updated_at,
+  }));
+}
 
-function loadAllDashboards(): SavedDashboard[] {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return [];
+async function duplicateDashboardInDB(source: SavedDashboard, allDashboards: SavedDashboard[]): Promise<void> {
+  const existingNames = new Set(allDashboards.map(d => d.name.toLowerCase()));
+  let dupName = `${source.name} (copy)`;
+  if (existingNames.has(dupName.toLowerCase())) {
+    let counter = 2;
+    while (existingNames.has(`${source.name} (copy ${counter})`.toLowerCase())) counter++;
+    dupName = `${source.name} (copy ${counter})`;
+  }
+  await supabase.from('dashboards').insert({
+    id: `db_${Date.now()}`,
+    name: dupName,
+    description: source.description,
+    is_shared: source.isShared,
+    widgets: JSON.parse(JSON.stringify(source.widgets)) as any,
+    updated_at: new Date().toISOString(),
+  });
 }
 
 /** Read-only renderer for a single text widget */
@@ -48,7 +73,7 @@ const ReadOnlyImage: React.FC<{ config: any }> = ({ config }) => (
   </div>
 );
 
-/** Read-only renderer for map widget - simplified static placeholder */
+/** Read-only renderer for map widget */
 const ReadOnlyMap: React.FC<{ config: any }> = ({ config }) => (
   <div className="w-full h-full flex items-center justify-center rounded-xl bg-muted/30 border border-border">
     <div className="text-center text-muted-foreground">
@@ -61,7 +86,6 @@ const ReadOnlyMap: React.FC<{ config: any }> = ({ config }) => (
 
 /** Read-only table renderer */
 const ReadOnlyTable: React.FC<{ config: TableWidgetConfig }> = ({ config }) => {
-  // Simple seeded random for stable data
   const rng = (() => { let s = config.id.charCodeAt(0) * 100 + config.kpis.length; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; })();
   const dimValues = getDimensionValues(config.dimension);
   const kpiRanges: Record<string, [number, number]> = {
@@ -112,22 +136,12 @@ const ReadOnlyTable: React.FC<{ config: TableWidgetConfig }> = ({ config }) => {
 /** Read-only widget renderer */
 const ReadOnlyWidget: React.FC<{ widget: WidgetItem }> = ({ widget }) => {
   switch (widget.kind) {
-    case 'chart':
-      return (
-        <div className="w-full h-full">
-          <BIChartRenderer config={widget.config} />
-        </div>
-      );
-    case 'text':
-      return <ReadOnlyText config={widget.config} />;
-    case 'image':
-      return <ReadOnlyImage config={widget.config} />;
-    case 'map':
-      return <ReadOnlyMap config={widget.config} />;
-    case 'table':
-      return <ReadOnlyTable config={widget.config as TableWidgetConfig} />;
-    default:
-      return null;
+    case 'chart': return <div className="w-full h-full"><BIChartRenderer config={widget.config} /></div>;
+    case 'text': return <ReadOnlyText config={widget.config} />;
+    case 'image': return <ReadOnlyImage config={widget.config} />;
+    case 'map': return <ReadOnlyMap config={widget.config} />;
+    case 'table': return <ReadOnlyTable config={widget.config as TableWidgetConfig} />;
+    default: return null;
   }
 };
 
@@ -135,39 +149,31 @@ const DashboardOverview: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const [refreshKey, setRefreshKey] = useState(0);
-  const dashboards = useMemo(() => loadAllDashboards(), [refreshKey]);
+  const [dashboards, setDashboards] = useState<SavedDashboard[]>([]);
 
-  const duplicateDashboard = (id: string) => {
-    const all = loadAllDashboards();
-    const source = all.find(d => d.id === id);
+  useEffect(() => {
+    loadAllDashboardsFromDB().then(setDashboards);
+  }, []);
+
+  const duplicateDashboard = async (id: string) => {
+    const source = dashboards.find(d => d.id === id);
     if (!source) return;
-    const existingNames = new Set(all.map(d => d.name.toLowerCase()));
-    let dupName = `${source.name} (copy)`;
-    if (existingNames.has(dupName.toLowerCase())) {
-      let counter = 2;
-      while (existingNames.has(`${source.name} (copy ${counter})`.toLowerCase())) counter++;
-      dupName = `${source.name} (copy ${counter})`;
-    }
-    const cloned: SavedDashboard = { id: `db_${Date.now()}`, name: dupName, widgets: JSON.parse(JSON.stringify(source.widgets)), updatedAt: new Date().toISOString() };
-    all.push(cloned);
-    localStorage.setItem(LS_KEY, JSON.stringify(all));
-    setRefreshKey(k => k + 1);
+    await duplicateDashboardInDB(source, dashboards);
+    const refreshed = await loadAllDashboardsFromDB();
+    setDashboards(refreshed);
   };
 
   const filtered = useMemo(() => {
     if (!search.trim()) return dashboards;
     const q = search.toLowerCase();
-    return dashboards.filter(d => d.name.toLowerCase().includes(q));
+    return dashboards.filter(d => d.name.toLowerCase().includes(q) || d.description.toLowerCase().includes(q));
   }, [dashboards, search]);
 
   const selected = useMemo(() => dashboards.find(d => d.id === selectedId), [dashboards, selectedId]);
 
-
   if (selected) {
     return (
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
           <div className="flex items-center gap-3">
             <button onClick={() => setSelectedId(null)}
@@ -176,8 +182,22 @@ const DashboardOverview: React.FC = () => {
             </button>
             <LayoutDashboard className="w-5 h-5 text-primary" />
             <div>
-              <h2 className="text-sm font-bold text-foreground">{selected.name}</h2>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-foreground">{selected.name}</h2>
+                {selected.isShared ? (
+                  <span className="text-[9px] bg-green-500/15 text-green-600 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
+                    <Globe className="w-2.5 h-2.5" /> Public
+                  </span>
+                ) : (
+                  <span className="text-[9px] bg-orange-500/15 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
+                    <Lock className="w-2.5 h-2.5" /> Privé
+                  </span>
+                )}
+              </div>
+              {selected.description && (
+                <p className="text-[10px] text-muted-foreground mt-0.5">{selected.description}</p>
+              )}
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                 <Clock className="w-3 h-3" />
                 Dernière modification : {new Date(selected.updatedAt).toLocaleString('fr-FR')}
                 <span className="ml-2 px-1.5 py-0.5 rounded bg-muted text-[9px] font-semibold uppercase tracking-wider">Lecture seule</span>
@@ -190,21 +210,14 @@ const DashboardOverview: React.FC = () => {
           </div>
         </div>
 
-        {/* Widgets grid */}
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-12 gap-4" style={{ gridAutoRows: '80px' }}>
             {selected.widgets.map((widget, idx) => {
               const w = Math.min(widget.layout.w, 12);
               const h = widget.layout.h;
               return (
-                <div
-                  key={idx}
-                  className="bg-card border border-border rounded-xl overflow-hidden shadow-sm min-w-0"
-                  style={{
-                    gridColumn: `span ${w}`,
-                    gridRow: `span ${h}`,
-                  }}
-                >
+                <div key={idx} className="bg-card border border-border rounded-xl overflow-hidden shadow-sm min-w-0"
+                  style={{ gridColumn: `span ${w}`, gridRow: `span ${h}` }}>
                   <ReadOnlyWidget widget={widget} />
                 </div>
               );
@@ -217,7 +230,6 @@ const DashboardOverview: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
-      {/* Header with search */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-card">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -229,31 +241,22 @@ const DashboardOverview: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Rechercher un dashboard..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground w-[220px] outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
-            />
+            <input type="text" placeholder="Rechercher un dashboard..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground w-[220px] outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all" />
           </div>
-          {/* View toggle */}
           <div className="flex items-center rounded-lg border border-border overflow-hidden">
             <button onClick={() => setViewMode('grid')}
-              className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'}`}
-              title="Grille">
+              className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'}`}>
               <LayoutGrid className="w-3.5 h-3.5" />
             </button>
             <button onClick={() => setViewMode('list')}
-              className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'}`}
-              title="Liste">
+              className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'}`}>
               <List className="w-3.5 h-3.5" />
             </button>
           </div>
-          {/* User */}
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
             <User className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-semibold text-foreground">PSN TEAM</span>
@@ -261,7 +264,6 @@ const DashboardOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* Dashboard grid */}
       <div className="flex-1 overflow-auto p-6">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
@@ -278,80 +280,91 @@ const DashboardOverview: React.FC = () => {
         ) : (
           viewMode === 'grid' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filtered.map(db => {
-                return (
-                  <button
-                    key={db.id}
-                    onClick={() => setSelectedId(db.id)}
-                    className="group text-left bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-lg transition-all"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                        <LayoutDashboard className="w-4 h-4 text-primary" />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); duplicateDashboard(db.id); }}
-                          className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground hover:text-foreground transition-all" title="Dupliquer">
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
+              {filtered.map(db => (
+                <button key={db.id} onClick={() => setSelectedId(db.id)}
+                  className="group text-left bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-lg transition-all">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <LayoutDashboard className="w-4 h-4 text-primary" />
                     </div>
-                    <h3 className="text-sm font-semibold text-foreground mb-1 truncate">{db.name}</h3>
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1">
-                      <Clock className="w-3 h-3" />
-                      {new Date(db.updatedAt).toLocaleString('fr-FR')}
-                    </p>
+                    <div className="flex items-center gap-1">
+                      {db.isShared ? (
+                        <span className="text-[9px] bg-green-500/15 text-green-600 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
+                          <Globe className="w-2.5 h-2.5" /> Public
+                        </span>
+                      ) : (
+                        <span className="text-[9px] bg-orange-500/15 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
+                          <Lock className="w-2.5 h-2.5" /> Privé
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground mb-0.5 truncate">{db.name}</h3>
+                  {db.description && (
+                    <p className="text-[10px] text-muted-foreground truncate mb-1">{db.description}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1">
+                    <Clock className="w-3 h-3" />
+                    {new Date(db.updatedAt).toLocaleString('fr-FR')}
+                  </p>
+                  <div className="flex items-center justify-between">
                     <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      PSN TEAM
+                      <User className="w-3 h-3" /> PSN TEAM
                     </p>
-                  </button>
-                );
-              })}
+                    <div className="flex items-center gap-0.5">
+                      <span onClick={(e) => { e.stopPropagation(); duplicateDashboard(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Dupliquer">
+                        <Copy className="w-3.5 h-3.5" />
+                      </span>
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
           ) : (
-            /* List view */
             <div className="bg-card border border-border rounded-xl overflow-hidden">
-              {/* Table header */}
-              <div className="grid grid-cols-[1fr_160px_120px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="grid grid-cols-[1fr_200px_160px_120px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                 <span>Nom</span>
+                <span>Description</span>
                 <span>Dernière modification</span>
-                <span>Utilisateur</span>
+                <span>Visibilité</span>
                 <span className="text-center">Actions</span>
               </div>
-              {/* Rows */}
-              {filtered.map(db => {
-                return (
-                  <button
-                    key={db.id}
-                    onClick={() => setSelectedId(db.id)}
-                    className="w-full grid grid-cols-[1fr_160px_120px_80px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
-                      </div>
-                      <span className="text-xs font-semibold text-foreground truncate">{db.name}</span>
+              {filtered.map(db => (
+                <button key={db.id} onClick={() => setSelectedId(db.id)}
+                  className="w-full grid grid-cols-[1fr_200px_160px_120px_80px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
                     </div>
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-3 h-3 shrink-0" />
-                      {new Date(db.updatedAt).toLocaleString('fr-FR')}
+                    <span className="text-xs font-semibold text-foreground truncate">{db.name}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground truncate">{db.description || '—'}</span>
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3 shrink-0" />
+                    {new Date(db.updatedAt).toLocaleString('fr-FR')}
+                  </span>
+                  <span>
+                    {db.isShared ? (
+                      <span className="text-[9px] bg-green-500/15 text-green-600 px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5">
+                        <Globe className="w-2.5 h-2.5" /> Public
+                      </span>
+                    ) : (
+                      <span className="text-[9px] bg-orange-500/15 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5">
+                        <Lock className="w-2.5 h-2.5" /> Privé
+                      </span>
+                    )}
+                  </span>
+                  <div className="flex justify-center gap-0.5">
+                    <span onClick={(e) => { e.stopPropagation(); duplicateDashboard(db.id); }}
+                      className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Dupliquer">
+                      <Copy className="w-3.5 h-3.5" />
                     </span>
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <User className="w-3 h-3 shrink-0" />
-                      PSN TEAM
-                    </span>
-                    <div className="flex justify-center gap-1">
-                      <button onClick={(e) => { e.stopPropagation(); duplicateDashboard(db.id); }}
-                        className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-accent text-muted-foreground hover:text-foreground transition-all" title="Dupliquer">
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      <Eye className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </button>
-                );
-              })}
+                    <Eye className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </button>
+              ))}
             </div>
           )
         )}
