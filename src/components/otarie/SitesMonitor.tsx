@@ -6,19 +6,28 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 
 // Heatmap layer component using leaflet.heat
-const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom = 18 }: {
+const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
   points: [number, number, number][];
   radius?: number;
   blur?: number;
   maxZoom?: number;
+  minOpacity?: number;
 }) => {
   const map = useMap();
   useEffect(() => {
     if (!points.length) return;
-    const heat = (L as any).heatLayer(points, { radius, blur, maxZoom, gradient: { 0.2: '#3b82f6', 0.4: '#10b981', 0.6: '#f59e0b', 0.8: '#f97316', 1.0: '#ef4444' } });
+    const zoom = maxZoom ?? Math.max(map.getZoom(), 10);
+    const heat = (L as any).heatLayer(points, {
+      radius,
+      blur,
+      maxZoom: zoom,
+      minOpacity,
+      max: 1.0,
+      gradient: { 0.1: '#3b82f6', 0.3: '#10b981', 0.5: '#f59e0b', 0.7: '#f97316', 0.9: '#ef4444' },
+    });
     heat.addTo(map);
     return () => { map.removeLayer(heat); };
-  }, [map, points, radius, blur, maxZoom]);
+  }, [map, points, radius, blur, maxZoom, minOpacity]);
   return null;
 };
 import { fetchSites, fetchSiteDetails } from '../../services/api';
@@ -408,7 +417,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Heatmap layer */}
         {mapDisplayMode === 'heatmap' && (
-          <HeatmapLayer points={heatmapPoints} radius={30} blur={20} />
+          <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
         {/* Points mode — simple colored CircleMarkers, no clusters */}
