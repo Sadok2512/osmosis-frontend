@@ -45,6 +45,8 @@ interface SitesMonitorProps {
   filters: Filters;
   onFilterChange: (filters: Filters) => void;
   onCellSelect: (cellId: string) => void;
+  highlightedCellIds?: string[];
+  onClearHighlights?: () => void;
 }
 
 // Zoom threshold: above this we show sectors, below we show clusters
@@ -77,6 +79,18 @@ const FlyToSite = ({ coords }: { coords: [number, number] | null }) => {
   const map = useMap();
   useEffect(() => {
     if (coords) map.flyTo(coords, 15, { duration: 1 });
+  }, [coords, map]);
+  return null;
+};
+
+// Fit map bounds to highlighted cells
+const FitHighlightBounds = ({ coords }: { coords: [number, number][] }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (coords.length > 0) {
+      const bounds = L.latLngBounds(coords.map(c => L.latLng(c[0], c[1])));
+      map.fitBounds(bounds.pad(0.2), { duration: 1 });
+    }
   }, [coords, map]);
   return null;
 };
@@ -143,7 +157,7 @@ const createSiteIcon = (color: string) => {
   });
 };
 
-const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect }) => {
+const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
@@ -302,6 +316,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return [s.coordinates[0], s.coordinates[1], val / 100] as [number, number, number];
     });
   }, [mapFilteredSites, mapDisplayMode, mapKpi]);
+
+  // Compute highlighted cell coordinates for map display
+  const highlightedCellData = useMemo(() => {
+    if (!highlightedCellIds.length) return [];
+    const result: { cell: any; site: SiteSummary; lat: number; lng: number }[] = [];
+    for (const site of sites) {
+      for (let idx = 0; idx < site.cells.length; idx++) {
+        const cell = site.cells[idx];
+        if (highlightedCellIds.includes(cell.cell_id)) {
+          const offsetDist = 0.0003;
+          const rad = ((cell.azimut || idx * 120) - 90) * (Math.PI / 180);
+          result.push({
+            cell,
+            site,
+            lat: site.coordinates[0] + offsetDist * Math.cos(rad),
+            lng: site.coordinates[1] + offsetDist * Math.sin(rad),
+          });
+        }
+      }
+    }
+    return result;
+  }, [sites, highlightedCellIds]);
 
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
@@ -590,7 +626,64 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </React.Fragment>
           );
         })}
+
+        {/* Highlighted worst cells markers */}
+        {highlightedCellData.length > 0 && (
+          <>
+            <FitHighlightBounds coords={highlightedCellData.map(h => [h.lat, h.lng] as [number, number])} />
+            {highlightedCellData.map((h, i) => {
+              const val = getCellKpiValue(h.cell);
+              const color = getKpiColor(val);
+              return (
+                <CircleMarker
+                  key={`highlight-${h.cell.cell_id}`}
+                  center={[h.lat, h.lng]}
+                  radius={12}
+                  pathOptions={{
+                    color: '#ef4444',
+                    fillColor: color,
+                    fillOpacity: 0.9,
+                    weight: 3,
+                  }}
+                >
+                  <Tooltip direction="right" offset={[12, 0]} permanent className="cell-kpi-label">
+                    <span style={{ color: '#ef4444', fontWeight: 900, fontSize: '11px' }}>#{i + 1} {val.toFixed(1)}</span>
+                  </Tooltip>
+                  <Popup>
+                    <div className="p-1 min-w-[180px]">
+                      <div className="font-bold text-sm text-red-600">⚠️ Worst #{i + 1}</div>
+                      <div className="font-bold text-sm mt-1">{h.site.site_name}</div>
+                      <div className="text-xs text-gray-500">{h.cell.cell_id}</div>
+                      <div className="text-[10px] text-gray-400 mt-0.5">{h.cell.techno} • {h.cell.bande} MHz • {h.cell.azimut}°</div>
+                      <div className="mt-2 space-y-1">
+                        <div className="flex justify-between text-xs"><span>QoE</span><span className="font-bold" style={{ color: getKpiColor(h.cell.qoe_score_avg) }}>{h.cell.qoe_score_avg.toFixed(1)}%</span></div>
+                        <div className="flex justify-between text-xs"><span>Débit DL</span><span className="font-bold">{h.cell.p50_thr_dn_mbps.toFixed(1)} Mbps</span></div>
+                        <div className="flex justify-between text-xs"><span>RTT P95</span><span className="font-bold">{h.cell.p95_rtt_ms.toFixed(0)} ms</span></div>
+                      </div>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              );
+            })}
+          </>
+        )}
       </MapContainer>
+
+      {/* Floating worst cells panel */}
+      {highlightedCellData.length > 0 && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto">
+          <div className="bg-card/95 backdrop-blur-sm border-2 border-destructive/40 rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
+            <span className="text-destructive font-black text-xs">⚠️ Top {highlightedCellData.length} Worst Cells</span>
+            <span className="w-px h-5 bg-border" />
+            <span className="text-[10px] font-bold text-muted-foreground">{selectedKpiLabel}</span>
+            {onClearHighlights && (
+              <button onClick={onClearHighlights} className="ml-2 px-3 py-1 rounded-lg bg-muted hover:bg-destructive/10 text-xs font-bold text-muted-foreground hover:text-destructive transition-all">
+                ✕ Fermer
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Map controls removed — moved into legend group below */}
 

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check, FileDown } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check, FileDown, MapPin } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { exportElementToPDF } from '@/lib/exportUtils';
+import { SiteSummary } from '@/types';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -18,7 +19,12 @@ const SUGGESTIONS = [
   "Quel est l'état du réseau en zone rurale ?",
 ];
 
-const AIAssistantPage: React.FC = () => {
+interface AIAssistantPageProps {
+  sites?: SiteSummary[];
+  onShowWorstCells?: (cellIds: string[]) => void;
+}
+
+const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWorstCells }) => {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -148,6 +154,27 @@ const AIAssistantPage: React.FC = () => {
     }
   };
 
+  const handleShowWorstCells = (kpi: string = 'qoe_score_avg', count: number = 10) => {
+    // Flatten all cells with their site info, sort by KPI ascending (worst first)
+    const allCells = sites.flatMap(s => s.cells.map(c => ({ ...c, site_name: s.site_name })));
+    const sorted = [...allCells].sort((a, b) => (a as any)[kpi] - (b as any)[kpi]);
+    const worstCells = sorted.slice(0, count);
+    const cellIds = worstCells.map(c => c.cell_id);
+    
+    // Add a message showing the worst cells
+    const table = worstCells.map((c, i) => 
+      `| ${i + 1} | ${c.cell_id} | ${(c as any).site_name} | ${c.techno} | ${((c as any)[kpi] as number).toFixed(1)} |`
+    ).join('\n');
+    const kpiLabel = kpi === 'qoe_score_avg' ? 'QoE Score' : kpi;
+    const msg = `**🗺️ Top ${count} Worst Cells — ${kpiLabel}**\n\n| # | Cell ID | Site | Techno | ${kpiLabel} |\n|---|---------|------|--------|--------|\n${table}\n\n*→ Affichage sur la carte en cours...*`;
+    
+    setMessages(prev => [...prev, { role: 'assistant', content: msg }]);
+    
+    if (onShowWorstCells) {
+      onShowWorstCells(cellIds);
+    }
+  };
+
   const clearChat = () => {
     setMessages([]);
     setInput('');
@@ -197,6 +224,19 @@ const AIAssistantPage: React.FC = () => {
                   <span className="text-xs text-foreground/80 group-hover:text-foreground transition-colors">{s}</span>
                 </button>
               ))}
+              {/* Worst Cells Map Action */}
+              {sites.length > 0 && onShowWorstCells && (
+                <button
+                  onClick={() => handleShowWorstCells('qoe_score_avg', 10)}
+                  className="flex items-start gap-2.5 px-4 py-3 rounded-xl border-2 border-destructive/30 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/50 transition-all text-left group col-span-1 sm:col-span-2"
+                >
+                  <MapPin className="w-4 h-4 text-destructive mt-0.5 shrink-0 group-hover:text-destructive transition-colors" />
+                  <div>
+                    <span className="text-xs font-bold text-foreground group-hover:text-foreground transition-colors">🗺️ Top 10 Worst Cells → Afficher sur la Carte</span>
+                    <span className="text-[10px] text-muted-foreground block mt-0.5">Identifie et localise les 10 pires cellules en QoE sur le Sites Monitor</span>
+                  </div>
+                </button>
+              )}
             </div>
           </div>
         ) : (

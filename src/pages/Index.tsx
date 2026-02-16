@@ -32,6 +32,7 @@ const Index: React.FC = () => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [siteSearch, setSiteSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [highlightedCellIds, setHighlightedCellIds] = useState<string[]>([]);
 
   const accentStyles: Record<AccentColor, Record<string, string>> = {
     default: {},
@@ -95,7 +96,7 @@ const Index: React.FC = () => {
       case 'bi':
         return <AdvancedAnalytics filters={filters} theme={theme} />;
       case 'sites':
-        return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} />;
+        return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} />;
       case 'alerts':
         return <AlertsRCA filters={filters} />;
       case 'radio':
@@ -107,13 +108,13 @@ const Index: React.FC = () => {
       case 'detector':
         return <DetectorConsole />;
       case 'list':
-        return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} />;
+        return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} />;
       case 'settings':
         return <SettingsPanel sidebarTheme={sidebarTheme} setSidebarTheme={setSidebarTheme} accentColor={accentColor} setAccentColor={setAccentColor} />;
       case 'docs':
         return <DocumentationPage />;
       case 'ai_assistant':
-        return <AIAssistantPage />;
+        return <AIAssistantPage sites={sites} onShowWorstCells={(cellIds) => { setHighlightedCellIds(cellIds); setActiveTab('sites'); }} />;
       default:
         return null;
     }
