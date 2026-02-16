@@ -425,35 +425,63 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
-        {/* Points mode — simple colored CircleMarkers, no clusters */}
+        {/* Points mode — individual cell markers colored by KPI threshold */}
         {mapDisplayMode === 'points' && mapFilteredSites.map(site => {
-          const val = getCellKpiValue(site.cells[0] || {});
-          const color = getKpiColor(val);
-          const isHovered = hoveredSiteId === site.site_id;
+          const showCellLabels = viewport.zoom >= 13;
+          const cellsToRender = mapTechnoFilter === 'ALL' ? site.cells
+            : site.cells.filter(c => c.techno === mapTechnoFilter);
           return (
-            <CircleMarker
-              key={site.site_id}
-              center={site.coordinates}
-              radius={isHovered ? 9 : 6}
-              pathOptions={{
-                color: 'transparent',
-                fillColor: color,
-                fillOpacity: 0.85,
-                weight: 0,
-              }}
-              eventHandlers={{
-                click: () => handleSiteClick(site),
-                mouseover: () => setHoveredSiteId(site.site_id),
-                mouseout: () => setHoveredSiteId(null),
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -8]} permanent={false}>
-                <div className="text-center">
-                  <div className="font-bold text-xs">{site.site_name}</div>
-                  <div className="font-bold text-xs" style={{ color }}>{selectedKpiLabel}: {val.toFixed(1)}</div>
-                </div>
-              </Tooltip>
-            </CircleMarker>
+            <React.Fragment key={site.site_id}>
+              {cellsToRender.map((cell, idx) => {
+                const val = getCellKpiValue(cell);
+                const color = getKpiColor(val);
+                const isHovered = hoveredSiteId === site.site_id;
+                // Offset cells slightly from site center based on azimuth
+                const offsetDist = 0.0003;
+                const rad = ((cell.azimut || idx * 120) - 90) * (Math.PI / 180);
+                const cellLat = site.coordinates[0] + offsetDist * Math.cos(rad);
+                const cellLng = site.coordinates[1] + offsetDist * Math.sin(rad);
+                return (
+                  <CircleMarker
+                    key={cell.cell_id}
+                    center={[cellLat, cellLng]}
+                    radius={isHovered ? 9 : showCellLabels ? 7 : 5}
+                    pathOptions={{
+                      color: isHovered ? '#fff' : 'transparent',
+                      fillColor: color,
+                      fillOpacity: 0.9,
+                      weight: isHovered ? 2 : 0,
+                    }}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    {showCellLabels && (
+                      <Tooltip direction="right" offset={[8, 0]} permanent className="cell-kpi-label">
+                        <span style={{ color, fontWeight: 800, fontSize: '10px' }}>{val.toFixed(1)}</span>
+                      </Tooltip>
+                    )}
+                    <Popup>
+                      <div className="p-1 min-w-[180px]">
+                        <div className="font-bold text-sm">{site.site_name}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{cell.cell_id}</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">{cell.techno} • {cell.bande} MHz • {cell.azimut}°</div>
+                        <div className="mt-2 space-y-1">
+                          <div className="flex justify-between text-xs"><span>QoE</span><span className="font-bold" style={{ color: getKpiColor(cell.qoe_score_avg) }}>{cell.qoe_score_avg.toFixed(1)}%</span></div>
+                          <div className="flex justify-between text-xs"><span>DMS DL ≥3</span><span className="font-bold">{cell.dms_dl_3.toFixed(1)}%</span></div>
+                          <div className="flex justify-between text-xs"><span>DMS DL ≥8</span><span className="font-bold">{cell.dms_dl_8.toFixed(1)}%</span></div>
+                          <div className="flex justify-between text-xs"><span>Débit DL</span><span className="font-bold">{cell.p50_thr_dn_mbps.toFixed(1)} Mbps</span></div>
+                          <div className="flex justify-between text-xs"><span>RTT P95</span><span className="font-bold">{cell.p95_rtt_ms.toFixed(0)} ms</span></div>
+                          <div className="flex justify-between text-xs"><span>Sessions</span><span className="font-bold">{cell.sessions.toLocaleString()}</span></div>
+                        </div>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+            </React.Fragment>
           );
         })}
 
