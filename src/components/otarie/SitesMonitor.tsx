@@ -688,7 +688,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {(['ALL', '5G', '4G'] as const).map((tech) => (
               <button
                 key={tech}
-                onClick={() => setMapTechnoFilter(prev => prev === tech ? 'NONE' : tech)}
+                onClick={() => setMapTechnoFilter(tech)}
                 className={`w-10 h-10 flex items-center justify-center text-[10px] font-black tracking-wider transition-all ${
                   mapTechnoFilter === tech
                     ? 'bg-primary text-primary-foreground'
