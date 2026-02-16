@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      dashboards: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          widgets: Json
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          name: string
+          updated_at?: string
+          widgets?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          widgets?: Json
+        }
+        Relationships: []
+      }
       topo: {
         Row: {
           azimut: number | null

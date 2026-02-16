@@ -3,6 +3,7 @@ import { Plus, X, Save, FolderOpen, Trash2, Clock, LayoutDashboard, Download, Up
 import { WidgetItem, createDefaultMapWidget } from './dashboardTypes';
 import { createDefaultChart } from './biTypes';
 import { createDefaultTextWidget } from './BITextWidget';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface SavedDashboard {
   id: string;
@@ -16,20 +17,6 @@ export interface OpenTab {
   name: string;
   widgets: WidgetItem[];
   dirty: boolean;
-}
-
-const LS_KEY = 'bi_dashboards_v3';
-
-function loadAllDashboards(): SavedDashboard[] {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return [];
-}
-
-function saveAllDashboards(dashboards: SavedDashboard[]) {
-  localStorage.setItem(LS_KEY, JSON.stringify(dashboards));
 }
 
 function createDefaultWidgets(): WidgetItem[] {
@@ -65,40 +52,107 @@ function createDefaultWidgets(): WidgetItem[] {
   ];
 }
 
-export function useDashboardManager() {
-  const [tabs, setTabs] = useState<OpenTab[]>(() => {
-    const saved = loadAllDashboards();
-    if (saved.length > 0) {
-      // Open all saved dashboards as tabs
-      return saved.map(s => ({ id: s.id, name: s.name, widgets: s.widgets, dirty: false }));
-    }
-    const id = `db_${Date.now()}`;
-    return [{ id, name: 'Dashboard 1', widgets: createDefaultWidgets(), dirty: true }];
-  });
+// ── DB helpers ──
 
-  const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id || '');
+async function loadAllDashboardsFromDB(): Promise<SavedDashboard[]> {
+  const { data, error } = await supabase
+    .from('dashboards')
+    .select('*')
+    .order('updated_at', { ascending: false });
+
+  if (error || !data) {
+    console.error('[DashboardManager] Failed to load dashboards:', error);
+    return [];
+  }
+
+  return data.map((row: any) => ({
+    id: row.id,
+    name: row.name,
+    widgets: row.widgets as WidgetItem[],
+    updatedAt: row.updated_at,
+  }));
+}
+
+async function upsertDashboardToDB(db: SavedDashboard) {
+  const { error } = await supabase
+    .from('dashboards')
+    .upsert({
+      id: db.id,
+      name: db.name,
+      widgets: db.widgets as any,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+
+  if (error) {
+    console.error('[DashboardManager] Failed to save dashboard:', error);
+  }
+}
+
+async function deleteDashboardFromDB(id: string) {
+  const { error } = await supabase
+    .from('dashboards')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('[DashboardManager] Failed to delete dashboard:', error);
+  }
+}
+
+export function useDashboardManager() {
+  const [tabs, setTabs] = useState<OpenTab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string>('');
   const [showList, setShowList] = useState(false);
+  const [dbDashboards, setDbDashboards] = useState<SavedDashboard[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // Initial load from DB
+  useEffect(() => {
+    loadAllDashboardsFromDB().then(saved => {
+      setDbDashboards(saved);
+      if (saved.length > 0) {
+        const openTabs = saved.map(s => ({ id: s.id, name: s.name, widgets: s.widgets, dirty: false }));
+        setTabs(openTabs);
+        setActiveTabId(openTabs[0].id);
+      } else {
+        const id = `db_${Date.now()}`;
+        const defaultTab: OpenTab = { id, name: 'Dashboard 1', widgets: createDefaultWidgets(), dirty: true };
+        setTabs([defaultTab]);
+        setActiveTabId(id);
+      }
+      setLoaded(true);
+    });
+  }, []);
 
   const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) || tabs[0], [tabs, activeTabId]);
 
-  const savedDashboards = useMemo(() => loadAllDashboards(), [tabs]); // reload on tab changes
+  const savedDashboards = dbDashboards;
 
-  // Auto-save: persist all open tabs to localStorage whenever they change
+  // Auto-save dirty tabs to DB
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    if (!loaded) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      const all = loadAllDashboards();
-      const allById = new Map(all.map(d => [d.id, d]));
-      for (const tab of tabs) {
-        allById.set(tab.id, { id: tab.id, name: tab.name, widgets: tab.widgets, updatedAt: new Date().toISOString() });
-      }
-      saveAllDashboards(Array.from(allById.values()));
-      // Mark all tabs as clean
+    autoSaveTimer.current = setTimeout(async () => {
+      const dirtyTabs = tabs.filter(t => t.dirty);
+      if (dirtyTabs.length === 0) return;
+
+      // Upsert all dirty tabs in parallel
+      await Promise.all(
+        dirtyTabs.map(tab =>
+          upsertDashboardToDB({ id: tab.id, name: tab.name, widgets: tab.widgets, updatedAt: new Date().toISOString() })
+        )
+      );
+
+      // Mark tabs clean
       setTabs(prev => prev.map(t => t.dirty ? { ...t, dirty: false } : t));
-    }, 1000); // debounce 1s
+
+      // Refresh saved list
+      const refreshed = await loadAllDashboardsFromDB();
+      setDbDashboards(refreshed);
+    }, 1500);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-  }, [tabs]);
+  }, [tabs, loaded]);
 
   const updateActiveWidgets = useCallback((updater: (prev: WidgetItem[]) => WidgetItem[]) => {
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, widgets: updater(t.widgets), dirty: true } : t));
@@ -107,8 +161,7 @@ export function useDashboardManager() {
   const createNew = useCallback((name?: string) => {
     const id = `db_${Date.now()}`;
     let dashName = name?.trim() || `Dashboard ${tabs.length + 1}`;
-    // Ensure unique name
-    const existingNames = new Set([...loadAllDashboards().map(d => d.name.toLowerCase()), ...tabs.map(t => t.name.toLowerCase())]);
+    const existingNames = new Set([...dbDashboards.map(d => d.name.toLowerCase()), ...tabs.map(t => t.name.toLowerCase())]);
     if (existingNames.has(dashName.toLowerCase())) {
       let counter = 2;
       const base = dashName;
@@ -119,7 +172,7 @@ export function useDashboardManager() {
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(id);
     setShowList(false);
-  }, [tabs.length]);
+  }, [tabs.length, dbDashboards]);
 
   const openDashboard = useCallback((db: SavedDashboard) => {
     const existing = tabs.find(t => t.id === db.id);
@@ -146,42 +199,39 @@ export function useDashboardManager() {
     });
   }, [activeTabId]);
 
-  const saveCurrent = useCallback((): string | null => {
+  const saveCurrent = useCallback(async (): Promise<string | null> => {
     const tab = tabs.find(t => t.id === activeTabId);
     if (!tab) return null;
-    const all = loadAllDashboards();
-    const idx = all.findIndex(d => d.id === tab.id);
-    const entry: SavedDashboard = { id: tab.id, name: tab.name, widgets: tab.widgets, updatedAt: new Date().toISOString() };
-    if (idx >= 0) all[idx] = entry;
-    else all.push(entry);
-    saveAllDashboards(all);
+    await upsertDashboardToDB({ id: tab.id, name: tab.name, widgets: tab.widgets, updatedAt: new Date().toISOString() });
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, dirty: false } : t));
+    const refreshed = await loadAllDashboardsFromDB();
+    setDbDashboards(refreshed);
     return tab.name;
   }, [tabs, activeTabId]);
 
-  const deleteDashboard = useCallback((id: string) => {
-    const all = loadAllDashboards().filter(d => d.id !== id);
-    saveAllDashboards(all);
+  const deleteDashboard = useCallback(async (id: string) => {
+    await deleteDashboardFromDB(id);
+    const refreshed = await loadAllDashboardsFromDB();
+    setDbDashboards(refreshed);
     closeTab(id);
   }, [closeTab]);
 
   const renameTab = useCallback((id: string, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    // Check for duplicate name (excluding the tab being renamed)
     const existingNames = new Set([
-      ...loadAllDashboards().filter(d => d.id !== id).map(d => d.name.toLowerCase()),
+      ...dbDashboards.filter(d => d.id !== id).map(d => d.name.toLowerCase()),
       ...tabs.filter(t => t.id !== id).map(t => t.name.toLowerCase()),
     ]);
-    if (existingNames.has(trimmed.toLowerCase())) return; // silently reject duplicate
+    if (existingNames.has(trimmed.toLowerCase())) return;
     setTabs(prev => prev.map(t => t.id === id ? { ...t, name: trimmed, dirty: true } : t));
-  }, [tabs]);
+  }, [tabs, dbDashboards]);
 
   const exportDashboard = useCallback((id: string) => {
-    const all = loadAllDashboards();
-    const db = all.find(d => d.id === id);
+    const db = dbDashboards.find(d => d.id === id) || tabs.find(t => t.id === id);
     if (!db) return;
-    const json = JSON.stringify(db, null, 2);
+    const exportObj = { id: db.id, name: db.name, widgets: db.widgets, updatedAt: 'updatedAt' in db ? (db as any).updatedAt : new Date().toISOString() };
+    const json = JSON.stringify(exportObj, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -189,12 +239,11 @@ export function useDashboardManager() {
     a.download = `${db.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, []);
+  }, [dbDashboards, tabs]);
 
   const exportAll = useCallback(() => {
-    const all = loadAllDashboards();
-    if (all.length === 0) return;
-    const json = JSON.stringify(all, null, 2);
+    if (dbDashboards.length === 0) return;
+    const json = JSON.stringify(dbDashboards, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -202,52 +251,47 @@ export function useDashboardManager() {
     a.download = `dashboards_export_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, []);
+  }, [dbDashboards]);
 
-  const importDashboards = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const parsed = JSON.parse(e.target?.result as string);
-        const items: SavedDashboard[] = Array.isArray(parsed) ? parsed : [parsed];
-        const all = loadAllDashboards();
-        const allById = new Map(all.map(d => [d.id, d]));
-        const imported: OpenTab[] = [];
-        const usedNames = new Set(Array.from(allById.values()).map(d => d.name.toLowerCase()));
-        for (const item of items) {
-          if (!item.id || !item.name || !item.widgets) continue;
-          const newId = `db_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-          // Ensure unique name on import
-          let importName = item.name;
-          if (usedNames.has(importName.toLowerCase())) {
-            let counter = 2;
-            while (usedNames.has(`${item.name} (${counter})`.toLowerCase())) counter++;
-            importName = `${item.name} (${counter})`;
-          }
-          usedNames.add(importName.toLowerCase());
-          const entry: SavedDashboard = { ...item, id: newId, name: importName, updatedAt: new Date().toISOString() };
-          allById.set(newId, entry);
-          imported.push({ id: newId, name: importName, widgets: entry.widgets, dirty: false });
+  const importDashboards = useCallback(async (file: File) => {
+    const text = await file.text();
+    try {
+      const parsed = JSON.parse(text);
+      const items: SavedDashboard[] = Array.isArray(parsed) ? parsed : [parsed];
+      const usedNames = new Set(dbDashboards.map(d => d.name.toLowerCase()));
+
+      const imported: OpenTab[] = [];
+      for (const item of items) {
+        if (!item.id || !item.name || !item.widgets) continue;
+        const newId = `db_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        let importName = item.name;
+        if (usedNames.has(importName.toLowerCase())) {
+          let counter = 2;
+          while (usedNames.has(`${item.name} (${counter})`.toLowerCase())) counter++;
+          importName = `${item.name} (${counter})`;
         }
-        saveAllDashboards(Array.from(allById.values()));
-        if (imported.length > 0) {
-          setTabs(prev => [...prev, ...imported]);
-          setActiveTabId(imported[0].id);
-        }
-      } catch {
-        // silently fail on bad JSON
+        usedNames.add(importName.toLowerCase());
+        const entry: SavedDashboard = { ...item, id: newId, name: importName, updatedAt: new Date().toISOString() };
+        await upsertDashboardToDB(entry);
+        imported.push({ id: newId, name: importName, widgets: entry.widgets, dirty: false });
       }
-    };
-    reader.readAsText(file);
-  }, []);
 
-  const duplicateDashboard = useCallback((id: string) => {
-    const all = loadAllDashboards();
-    const source = all.find(d => d.id === id);
+      const refreshed = await loadAllDashboardsFromDB();
+      setDbDashboards(refreshed);
+      if (imported.length > 0) {
+        setTabs(prev => [...prev, ...imported]);
+        setActiveTabId(imported[0].id);
+      }
+    } catch {
+      console.error('[DashboardManager] Import failed: invalid JSON');
+    }
+  }, [dbDashboards]);
+
+  const duplicateDashboard = useCallback(async (id: string) => {
+    const source = dbDashboards.find(d => d.id === id);
     if (!source) return;
     const newId = `db_${Date.now()}`;
-    // Generate unique name
-    const existingNames = new Set([...all.map(d => d.name.toLowerCase()), ...tabs.map(t => t.name.toLowerCase())]);
+    const existingNames = new Set([...dbDashboards.map(d => d.name.toLowerCase()), ...tabs.map(t => t.name.toLowerCase())]);
     let dupName = `${source.name} (copy)`;
     if (existingNames.has(dupName.toLowerCase())) {
       let counter = 2;
@@ -255,18 +299,19 @@ export function useDashboardManager() {
       dupName = `${source.name} (copy ${counter})`;
     }
     const cloned: SavedDashboard = { id: newId, name: dupName, widgets: JSON.parse(JSON.stringify(source.widgets)), updatedAt: new Date().toISOString() };
-    all.push(cloned);
-    saveAllDashboards(all);
+    await upsertDashboardToDB(cloned);
+    const refreshed = await loadAllDashboardsFromDB();
+    setDbDashboards(refreshed);
     setTabs(prev => [...prev, { id: newId, name: dupName, widgets: cloned.widgets, dirty: false }]);
     setActiveTabId(newId);
-  }, [tabs]);
+  }, [tabs, dbDashboards]);
 
   return {
     tabs, activeTab, activeTabId, setActiveTabId,
     updateActiveWidgets, createNew, openDashboard, closeTab,
     saveCurrent, deleteDashboard, renameTab, duplicateDashboard,
     exportDashboard, exportAll, importDashboards,
-    showList, setShowList, savedDashboards,
+    showList, setShowList, savedDashboards, loaded,
   };
 }
 
@@ -435,9 +480,8 @@ export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelec
           )}
         </div>
       ))}
-      <button
-        onClick={onCreate}
-        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+      <button onClick={onCreate}
+        className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
         title="New Dashboard"
       >
         <Plus className="w-3.5 h-3.5" />

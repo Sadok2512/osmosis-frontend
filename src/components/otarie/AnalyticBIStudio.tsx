@@ -154,8 +154,8 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
     }
   };
 
-  const handleSave = () => {
-    const name = dm.saveCurrent();
+  const handleSave = async () => {
+    const name = await dm.saveCurrent();
     if (name) {
       toast({ title: `Dashboard "${name}" saved`, description: 'Your dashboard has been saved successfully.' });
     }
