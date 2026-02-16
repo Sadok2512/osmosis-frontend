@@ -256,7 +256,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
   }, [selectedSiteId]);
 
-  // Filter sites by search/filters
+  // Filter sites by search/filters (without techno filter — that only affects map rendering)
   const filteredSites = useMemo(() => {
     return sites.filter(s => {
       const matchesSearch = s.site_name.toLowerCase().includes(localSearch.toLowerCase()) || s.site_id.toLowerCase().includes(localSearch.toLowerCase());
@@ -265,15 +265,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesVendor = filters.vendor === 'ALL' || s.vendor === filters.vendor;
       const matchesDep = filters.department === 'ALL' || s.department === filters.department;
       const matchesRat = filters.rat === 'ALL' || s.cells.some(c => c.techno === filters.rat);
-      // Local filters
       const matchesLocalVendor = localVendor === 'ALL' || s.vendor === localVendor;
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
       const matchesLocalSite = localSite === 'ALL' || s.site_name === localSite;
-      const matchesTechnoFilter = mapTechnoFilter === 'NONE' ? false : mapTechnoFilter === 'ALL' || s.cells.some(c => c.techno === mapTechnoFilter);
-      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite && matchesTechnoFilter;
+      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite;
     });
-  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite, mapTechnoFilter]);
+  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite]);
+
+  // Sites filtered by techno (for map rendering only)
+  const mapFilteredSites = useMemo(() => {
+    if (mapTechnoFilter === 'NONE') return [];
+    if (mapTechnoFilter === 'ALL') return filteredSites;
+    return filteredSites.filter(s => s.cells.some(c => c.techno === mapTechnoFilter));
+  }, [filteredSites, mapTechnoFilter]);
 
   // Unique site names for site filter dropdown
   const uniqueSiteNames = useMemo(() => {
@@ -281,22 +286,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return ['ALL', ...names];
   }, [sites]);
 
-  // Sites visible in current viewport
+  // Sites visible in current viewport (for map rendering)
   const visibleSites = useMemo(() => {
-    if (!viewport.bounds) return filteredSites;
-    return filteredSites.filter(s => viewport.bounds!.contains(L.latLng(s.coordinates[0], s.coordinates[1])));
-  }, [filteredSites, viewport.bounds]);
+    if (!viewport.bounds) return mapFilteredSites;
+    return mapFilteredSites.filter(s => viewport.bounds!.contains(L.latLng(s.coordinates[0], s.coordinates[1])));
+  }, [mapFilteredSites, viewport.bounds]);
 
   const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD && mapDisplayMode === 'sites';
 
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
     if (mapDisplayMode !== 'heatmap') return [];
-    return filteredSites.map(s => {
+    return mapFilteredSites.map(s => {
       const val = getCellKpiValue(s.cells[0] || {});
       return [s.coordinates[0], s.coordinates[1], val / 100] as [number, number, number];
     });
-  }, [filteredSites, mapDisplayMode, mapKpi]);
+  }, [mapFilteredSites, mapDisplayMode, mapKpi]);
 
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
@@ -421,7 +426,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         )}
 
         {/* Points mode — simple colored CircleMarkers, no clusters */}
-        {mapDisplayMode === 'points' && filteredSites.map(site => {
+        {mapDisplayMode === 'points' && mapFilteredSites.map(site => {
           const val = getCellKpiValue(site.cells[0] || {});
           const color = getKpiColor(val);
           const isHovered = hoveredSiteId === site.site_id;
@@ -463,7 +468,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             zoomToBoundsOnClick
             disableClusteringAtZoom={SECTOR_ZOOM_THRESHOLD}
           >
-            {filteredSites.map(site => {
+            {mapFilteredSites.map(site => {
               const color = getKpiColor(getCellKpiValue(site.cells[0] || {}));
               return (
                 <Marker
