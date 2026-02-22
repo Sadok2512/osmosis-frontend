@@ -290,7 +290,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <LayoutGrid className="w-4 h-4 text-primary" />
-              <span className="text-sm font-semibold text-foreground truncate max-w-[200px]">{dm.activeTab?.name}</span>
+              <span className="text-base font-bold text-foreground truncate max-w-[300px]">{dm.activeTab?.name}</span>
             </div>
             {/* Description inline edit */}
             <input
