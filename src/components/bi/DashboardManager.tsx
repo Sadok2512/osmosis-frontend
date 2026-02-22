@@ -471,10 +471,10 @@ export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelec
   };
 
   return (
-    <div className="flex items-center gap-0.5 px-2 py-1 bg-muted/30 border-b border-border overflow-x-auto scrollbar-none">
+    <div className="flex items-center gap-1 px-3 py-1.5 bg-muted/30 border-b border-border overflow-x-auto scrollbar-none">
       {tabs.map(tab => (
         <div key={tab.id}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-t-lg cursor-pointer text-xs font-medium transition-all shrink-0 max-w-[180px] group ${
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-t-lg cursor-pointer text-sm font-medium transition-all shrink-0 max-w-[220px] group ${
             tab.id === activeId
               ? 'bg-card text-foreground border border-b-0 border-border shadow-sm -mb-px'
               : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
@@ -482,10 +482,10 @@ export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelec
           onClick={() => onSelect(tab.id)}
           onDoubleClick={() => startRename(tab)}
         >
-          <LayoutDashboard className="w-3 h-3 shrink-0" />
+          <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
           {editingId === tab.id ? (
             <input
-              className="w-20 bg-transparent border-b border-primary outline-none text-xs"
+              className="w-24 bg-transparent border-b border-primary outline-none text-sm"
               value={editName}
               onChange={e => setEditName(e.target.value)}
               onBlur={commitRename}
@@ -502,16 +502,16 @@ export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelec
               onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}
               className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
             >
-              <X className="w-3 h-3" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
       ))}
       <button onClick={onCreate}
-        className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
         title="New Dashboard"
       >
-        <Plus className="w-3.5 h-3.5" />
+        <Plus className="w-4 h-4" />
       </button>
     </div>
   );
