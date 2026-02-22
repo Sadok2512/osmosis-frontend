@@ -314,27 +314,27 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             </button>
           </div>
           <div className="flex items-center gap-1">
-            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
-              <button onClick={addChart} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Plus className="w-3 h-3" /> Chart
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
+              <button onClick={addChart} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Chart
               </button>
-              <button onClick={addMap} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <MapIcon className="w-3 h-3" /> Map
+              <button onClick={addMap} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <MapIcon className="w-3.5 h-3.5" /> Map
               </button>
-              <button onClick={addText} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Type className="w-3 h-3" /> Text
+              <button onClick={addText} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <Type className="w-3.5 h-3.5" /> Text
               </button>
-              <button onClick={addImage} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <ImageIcon className="w-3 h-3" /> Image
+              <button onClick={addImage} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <ImageIcon className="w-3.5 h-3.5" /> Image
               </button>
-              <button onClick={addTable} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Table2 className="w-3 h-3" /> Table
+              <button onClick={addTable} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                <Table2 className="w-3.5 h-3.5" /> Table
               </button>
-              <div className="w-px h-4 bg-border mx-0.5" />
+              <div className="w-px h-5 bg-border mx-1" />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                    <MoreHorizontal className="w-3 h-3" /> Actions
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                    <MoreHorizontal className="w-3.5 h-3.5" /> Actions
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
