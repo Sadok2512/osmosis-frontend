@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal, Globe, Lock } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal, Globe, Lock, Grid3X3, Move } from 'lucide-react';
+import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
@@ -11,7 +12,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Filters } from '../../types';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
-import { WidgetItem, MapWidgetConfig, createDefaultMapWidget } from '../bi/dashboardTypes';
+import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode } from '../bi/dashboardTypes';
 import BIChartCard from '../bi/BIChartCard';
 import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/BITextWidget';
 import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../bi/BIImageWidget';
@@ -120,6 +121,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const [newDashName, setNewDashName] = useState('');
   const [showCSVPanel, setShowCSVPanel] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
   const dashboardRef = useRef<HTMLDivElement>(null);
 
   const handleExportDashboardPDF = async () => {
@@ -184,8 +186,54 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
     setWidgets(prev => prev.map(w => {
       const l = newLayout.find(n => n.i === getId(w));
       if (!l) return w;
-      return { ...w, layout: { x: l.x, y: l.y, w: l.w, h: l.h } };
+      return { ...w, layout: { ...w.layout, x: l.x, y: l.y, w: l.w, h: l.h } };
     }));
+  };
+
+  // Convert grid positions to pixel positions for free mode
+  const colWidth = containerWidth / COLS;
+  const toFreeRect = (w: WidgetItem) => ({
+    id: getId(w),
+    x: w.layout.freeX ?? w.layout.x * colWidth,
+    y: w.layout.freeY ?? w.layout.y * ROW_HEIGHT,
+    w: w.layout.freeW ?? w.layout.w * colWidth,
+    h: w.layout.freeH ?? w.layout.h * ROW_HEIGHT,
+  });
+
+  const onFreeLayoutChange = useCallback((id: string, rect: Partial<{ x: number; y: number; w: number; h: number }>) => {
+    setWidgets(prev => prev.map(w => {
+      if (getId(w) !== id) return w;
+      const cur = toFreeRect(w);
+      return {
+        ...w,
+        layout: {
+          ...w.layout,
+          freeX: rect.x ?? cur.x,
+          freeY: rect.y ?? cur.y,
+          freeW: rect.w ?? cur.w,
+          freeH: rect.h ?? cur.h,
+        },
+      };
+    }));
+  }, [widgets, colWidth]);
+
+  const toggleLayoutMode = () => {
+    if (layoutMode === 'grid') {
+      // Convert grid positions to free pixel positions
+      setWidgets(prev => prev.map(w => ({
+        ...w,
+        layout: {
+          ...w.layout,
+          freeX: w.layout.freeX ?? w.layout.x * colWidth,
+          freeY: w.layout.freeY ?? w.layout.y * ROW_HEIGHT,
+          freeW: w.layout.freeW ?? w.layout.w * colWidth,
+          freeH: w.layout.freeH ?? w.layout.h * ROW_HEIGHT,
+        },
+      })));
+      setLayoutMode('free');
+    } else {
+      setLayoutMode('grid');
+    }
   };
 
   const getMaxY = () => widgets.reduce((max, w) => Math.max(max, w.layout.y + w.layout.h), 0);
@@ -272,6 +320,53 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
     tableCount > 0 ? `${tableCount} table(s)` : '',
   ].filter(Boolean).join(' · ');
 
+  const renderWidget = (w: WidgetItem) => {
+    if (w.kind === 'chart') {
+      return (
+        <BIChartCard
+          config={w.config as ChartConfig}
+          onEdit={() => { setEditingId(getId(w)); setShowAI(false); }}
+          onDuplicate={() => duplicateWidget(getId(w))}
+          onDelete={() => deleteWidget(getId(w))}
+        />
+      );
+    }
+    if (w.kind === 'map') {
+      return (
+        <BIMapWidget
+          config={w.config as MapWidgetConfig}
+          onChange={cfg => updateMapConfig(getId(w), cfg)}
+          onDelete={() => deleteWidget(getId(w))}
+        />
+      );
+    }
+    if (w.kind === 'image') {
+      return (
+        <BIImageWidget
+          config={w.config as ImageWidgetConfig}
+          onChange={cfg => updateImageConfig(getId(w), cfg)}
+          onDelete={() => deleteWidget(getId(w))}
+        />
+      );
+    }
+    if (w.kind === 'table') {
+      return (
+        <BITableWidget
+          config={w.config as TableWidgetConfig}
+          onChange={cfg => updateTableConfig(getId(w), cfg)}
+          onDelete={() => deleteWidget(getId(w))}
+        />
+      );
+    }
+    return (
+      <BITextWidget
+        config={w.config as TextWidgetConfig}
+        onChange={cfg => updateTextConfig(getId(w), cfg)}
+        onDelete={() => deleteWidget(getId(w))}
+      />
+    );
+  };
+
   return (
     <div className="flex-1 flex overflow-hidden bg-background">
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -350,11 +445,29 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
                 </DropdownMenuContent>
               </DropdownMenu>
               <CSVUploadButton />
+              <div className="w-px h-5 bg-border mx-1" />
+              {/* Layout mode toggle */}
+              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
+                <button
+                  onClick={() => layoutMode !== 'grid' && toggleLayoutMode()}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${layoutMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-card text-muted-foreground'}`}
+                  title="Grid Layout"
+                >
+                  <Grid3X3 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => layoutMode !== 'free' && toggleLayoutMode()}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${layoutMode === 'free' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-card text-muted-foreground'}`}
+                  title="Free Layout"
+                >
+                  <Move className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Grid */}
+        {/* Dashboard canvas */}
         <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
           {widgets.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
@@ -363,7 +476,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
               </div>
               <p className="text-sm text-muted-foreground">Click <strong>Chart</strong>, <strong>Map</strong> or <strong>Text</strong> to start</p>
             </div>
-          ) : (
+          ) : layoutMode === 'grid' ? (
             <GridLayout
               className="layout"
               layout={layout}
@@ -379,41 +492,21 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             >
               {widgets.map(w => (
                 <div key={getId(w)}>
-                  {w.kind === 'chart' ? (
-                    <BIChartCard
-                      config={w.config as ChartConfig}
-                      onEdit={() => { setEditingId(getId(w)); setShowAI(false); }}
-                      onDuplicate={() => duplicateWidget(getId(w))}
-                      onDelete={() => deleteWidget(getId(w))}
-                    />
-                  ) : w.kind === 'map' ? (
-                    <BIMapWidget
-                      config={w.config as MapWidgetConfig}
-                      onChange={cfg => updateMapConfig(getId(w), cfg)}
-                      onDelete={() => deleteWidget(getId(w))}
-                    />
-                  ) : w.kind === 'image' ? (
-                    <BIImageWidget
-                      config={w.config as ImageWidgetConfig}
-                      onChange={cfg => updateImageConfig(getId(w), cfg)}
-                      onDelete={() => deleteWidget(getId(w))}
-                    />
-                  ) : w.kind === 'table' ? (
-                    <BITableWidget
-                      config={w.config as TableWidgetConfig}
-                      onChange={cfg => updateTableConfig(getId(w), cfg)}
-                      onDelete={() => deleteWidget(getId(w))}
-                    />
-                  ) : (
-                    <BITextWidget
-                      config={w.config as TextWidgetConfig}
-                      onChange={cfg => updateTextConfig(getId(w), cfg)}
-                      onDelete={() => deleteWidget(getId(w))}
-                    />
-                  )}
+                  {renderWidget(w)}
                 </div>
               ))}
             </GridLayout>
+          ) : (
+            <FreeLayoutCanvas
+              items={widgets.map(toFreeRect)}
+              onLayoutChange={onFreeLayoutChange}
+            >
+              {widgets.map(w => (
+                <div key={getId(w)} className="w-full h-full">
+                  {renderWidget(w)}
+                </div>
+              ))}
+            </FreeLayoutCanvas>
           )}
         </div>
       </div>
