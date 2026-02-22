@@ -35,9 +35,17 @@ export function createDefaultMapWidget(id: string): MapWidgetConfig {
   };
 }
 
+export interface WidgetLayout {
+  x: number; y: number; w: number; h: number;
+  // Free-mode pixel positions (populated when switching to free mode)
+  freeX?: number; freeY?: number; freeW?: number; freeH?: number;
+}
+
+export type LayoutMode = 'grid' | 'free';
+
 export type WidgetItem =
-  | { kind: 'chart'; config: ChartConfig; layout: { x: number; y: number; w: number; h: number } }
-  | { kind: 'text'; config: TextWidgetConfig; layout: { x: number; y: number; w: number; h: number } }
-  | { kind: 'map'; config: MapWidgetConfig; layout: { x: number; y: number; w: number; h: number } }
-  | { kind: 'image'; config: ImageWidgetConfig; layout: { x: number; y: number; w: number; h: number } }
-  | { kind: 'table'; config: TableWidgetConfig; layout: { x: number; y: number; w: number; h: number } };
+  | { kind: 'chart'; config: ChartConfig; layout: WidgetLayout }
+  | { kind: 'text'; config: TextWidgetConfig; layout: WidgetLayout }
+  | { kind: 'map'; config: MapWidgetConfig; layout: WidgetLayout }
+  | { kind: 'image'; config: ImageWidgetConfig; layout: WidgetLayout }
+  | { kind: 'table'; config: TableWidgetConfig; layout: WidgetLayout };
