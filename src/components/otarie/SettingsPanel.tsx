@@ -328,21 +328,21 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
           return String(val);
         };
         return {
-          code_nidt: r['Code NIDT'] || '',
-          nom_site: r['Nom Site'] || '',
-          region: r['Région'] || null,
-          longitude: r['longitude'] ? parseFloat(r['longitude']) : null,
-          latitude: r['latitude'] ? parseFloat(r['latitude']) : null,
-          nom_cellule: r['Nom Cellule'] || '',
-          techno: r['Techno'] || null,
-          bande: r['Bande'] || null,
-          constructeur: r['Constructeur'] || null,
-          azimut: r['Azimut'] != null ? parseInt(r['Azimut']) : null,
-          date_mes: parseDate(r['Date MES']),
-          date_fn8: parseDate(r['Date FN8']),
-          plaque: r['Plaque'] || null,
-          hba: r['HBA'] != null ? parseInt(r['HBA']) : null,
-          tac: r['TAC'] != null ? parseInt(r['TAC']) : null,
+          code_nidt: r['site_code'] || r['Code NIDT'] || r['code_nidt'] || '',
+          nom_site: r['site_name'] || r['Nom Site'] || r['nom_site'] || '',
+          region: r['nom_dr'] || r['Région'] || r['region'] || null,
+          longitude: (r['longitude'] != null ? parseFloat(r['longitude']) : null),
+          latitude: (r['latitude'] != null ? parseFloat(r['latitude']) : null),
+          nom_cellule: r['cell_name'] || r['Nom Cellule'] || r['nom_cellule'] || '',
+          techno: r['bande'] ? (String(r['bande']).toUpperCase().includes('NR') ? '5G' : String(r['bande']).toUpperCase().includes('LTE') ? '4G' : r['bande']) : (r['Techno'] || r['techno'] || null),
+          bande: r['bande'] || r['Bande'] || null,
+          constructeur: r['vendor'] || r['Constructeur'] || r['constructeur'] || null,
+          azimut: r['azimut'] != null ? parseInt(r['azimut']) : (r['Azimut'] != null ? parseInt(r['Azimut']) : null),
+          date_mes: parseDate(r['date_mest'] || r['Date MES'] || r['date_mes']),
+          date_fn8: parseDate(r['date_fn8'] || r['Date FN8']),
+          plaque: r['cluster'] || r['Plaque'] || r['plaque'] || null,
+          hba: r['hba'] != null ? parseFloat(r['hba']) : (r['HBA'] != null ? parseInt(r['HBA']) : null),
+          tac: r['NrTAC'] != null ? parseInt(r['NrTAC']) : (r['TAC'] != null ? parseInt(r['TAC']) : null),
         };
       });
 
