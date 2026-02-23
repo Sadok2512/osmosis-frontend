@@ -395,16 +395,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </div>
           <div className="text-right">
             <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">QoE Site Avg</div>
-            <div className="text-3xl font-black tracking-tighter" style={{ color: getQoEColor(siteDetail.qoe_score_avg) }}>{siteDetail.qoe_score_avg.toFixed(1)}%</div>
+            <div className="text-3xl font-black tracking-tighter" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>{(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%</div>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-10 space-y-10">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <MiniStat label="Cells" value={siteDetail.cell_count.toString()} icon={<Network size={16} />} color="text-primary" />
-            <MiniStat label="Thr. DL" value={`${siteDetail.p50_thr_dn_mbps.toFixed(1)}M`} icon={<Zap size={16} />} color="text-emerald-600" />
-            <MiniStat label="Vol DL" value={`${(siteDetail.traffic_dn_bytes / 1e12).toFixed(1)}T`} icon={<Database size={16} />} color="text-purple-600" />
-            <MiniStat label="Latence" value={`${siteDetail.p95_rtt_ms.toFixed(0)}ms`} icon={<Activity size={16} />} color="text-amber-600" />
+            <MiniStat label="Thr. DL" value={`${(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(1)}M`} icon={<Zap size={16} />} color="text-emerald-600" />
+            <MiniStat label="Vol DL" value={`${((siteDetail.traffic_dn_bytes ?? 0) / 1e12).toFixed(1)}T`} icon={<Database size={16} />} color="text-purple-600" />
+            <MiniStat label="Latence" value={`${(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}ms`} icon={<Activity size={16} />} color="text-amber-600" />
           </div>
 
           <div className="rounded-[2rem] overflow-hidden border border-border shadow-sm h-[250px]">
@@ -579,7 +579,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <div className="font-bold text-sm">{site.site_name}</div>
                       <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
                       <div className="text-sm font-bold mt-2" style={{ color }}>
-                        {selectedKpiLabel}: {(site as any)[mapKpi]?.toFixed?.(1) ?? site.qoe_score_avg.toFixed(1)}
+                        {selectedKpiLabel}: {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
                       </div>
                       <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
                     </div>
