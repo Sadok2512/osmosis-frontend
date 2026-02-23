@@ -407,10 +407,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <MiniStat label="Latence" value={`${siteDetail.p95_rtt_ms.toFixed(0)}ms`} icon={<Activity size={16} />} color="text-amber-600" />
           </div>
 
-          <div className="rounded-[2rem] overflow-hidden border border-border shadow-sm h-[200px]">
-            <MapContainer center={siteDetail.coordinates} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+          <div className="rounded-[2rem] overflow-hidden border border-border shadow-sm h-[250px]">
+            <MapContainer center={siteDetail.coordinates} zoom={16} style={{ height: '100%', width: '100%' }} zoomControl={false}>
               <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>' />
-              <CircleMarker center={siteDetail.coordinates} radius={10} pathOptions={{ color: getQoEColor(siteDetail.qoe_score_avg), fillColor: getQoEColor(siteDetail.qoe_score_avg), fillOpacity: 0.8, weight: 3 }}>
+              {/* Sector wedges */}
+              {siteDetail.cells.map(cell => {
+                const sectorCoords = getSectorCoords(siteDetail.coordinates, cell.azimut, 200, 65);
+                const color = getKpiColor(getCellKpiValue(cell));
+                return (
+                  <Polygon
+                    key={`sector-${cell.cell_id}`}
+                    positions={sectorCoords}
+                    pathOptions={{
+                      color,
+                      fillColor: color,
+                      fillOpacity: 0.3,
+                      weight: 2,
+                    }}
+                  >
+                    <Tooltip direction="center" permanent className="cell-kpi-label">
+                      <span style={{ color, fontWeight: 800, fontSize: '9px' }}>{cell.azimut}° {cell.techno}</span>
+                    </Tooltip>
+                  </Polygon>
+                );
+              })}
+              {/* Center dot */}
+              <CircleMarker center={siteDetail.coordinates} radius={6} pathOptions={{ color: '#1e293b', fillColor: getQoEColor(siteDetail.qoe_score_avg), fillOpacity: 1, weight: 2 }}>
                 <Popup><strong>{siteDetail.site_name}</strong></Popup>
               </CircleMarker>
             </MapContainer>
