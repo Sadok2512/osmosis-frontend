@@ -36,21 +36,21 @@ Deno.serve(async (req) => {
 
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize).map((r: any) => ({
-        code_nidt: r.code_nidt || "",
-        nom_site: r.nom_site || "",
-        region: r.region || null,
-        longitude: r.longitude ? parseFloat(r.longitude) : null,
-        latitude: r.latitude ? parseFloat(r.latitude) : null,
-        nom_cellule: r.nom_cellule || "",
-        techno: r.techno || null,
+        code_nidt: r.site_code || r.code_nidt || "",
+        nom_site: r.site_name || r.nom_site || "",
+        region: r.nom_dr || r.region || null,
+        longitude: (r.longitude ? parseFloat(r.longitude) : null),
+        latitude: (r.latitude ? parseFloat(r.latitude) : null),
+        nom_cellule: r.cell_name || r.nom_cellule || "",
+        techno: r.bande ? (String(r.bande).toUpperCase().includes('NR') ? '5G' : String(r.bande).toUpperCase().includes('LTE') ? '4G' : r.bande) : (r.techno || null),
         bande: r.bande || null,
-        constructeur: r.constructeur || null,
-        azimut: r.azimut !== undefined ? parseInt(r.azimut) : (r.de_azimut !== undefined ? parseInt(r.de_azimut) : null),
-        date_mes: r.date_mes || null,
+        constructeur: r.vendor || r.constructeur || null,
+        azimut: r.azimut !== undefined && r.azimut !== '' ? parseInt(r.azimut) : (r.de_azimut !== undefined ? parseInt(r.de_azimut) : null),
+        date_mes: r.date_mest || r.date_mes || null,
         date_fn8: r.date_fn8 || null,
-        plaque: r.plaque || null,
-        hba: r.hba ? parseInt(r.hba) : null,
-        tac: r.tac ? parseInt(r.tac) : null,
+        plaque: r.cluster || r.plaque || null,
+        hba: r.hba ? parseFloat(r.hba) : null,
+        tac: r.NrTAC ? parseInt(r.NrTAC) : (r.tac ? parseInt(r.tac) : null),
       }));
 
       const { error } = await supabase.from("topo").insert(batch);
