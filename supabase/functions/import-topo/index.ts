@@ -17,6 +17,12 @@ Deno.serve(async (req) => {
 
     const { rows, clear_before } = await req.json();
 
+    console.log(`[import-topo] Received ${rows?.length || 0} rows, clear_before=${clear_before}`);
+    if (rows?.length > 0) {
+      console.log(`[import-topo] Sample row keys: ${Object.keys(rows[0]).join(', ')}`);
+      console.log(`[import-topo] Sample row: ${JSON.stringify(rows[0])}`);
+    }
+
     if (!Array.isArray(rows) || rows.length === 0) {
       return new Response(JSON.stringify({ error: "No rows provided" }), {
         status: 400,
@@ -24,9 +30,26 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Helper: parse date from various formats to YYYY-MM-DD
+    const parseDate = (val: any): string | null => {
+      if (!val) return null;
+      const s = String(val).trim();
+      if (!s) return null;
+      // Already YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      // DD/MM/YYYY
+      const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+      // MM/DD/YYYY
+      const mdy = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (mdy) return `${mdy[3]}-${mdy[1].padStart(2, '0')}-${mdy[2].padStart(2, '0')}`;
+      return null; // skip invalid dates
+    };
+
     // Optionally clear existing data
     if (clear_before) {
-      await supabase.from("topo").delete().neq("id", 0);
+      const { error: delErr } = await supabase.from("topo").delete().neq("id", 0);
+      console.log(`[import-topo] Clear result: ${delErr ? delErr.message : 'OK'}`);
     }
 
     // Insert in batches of 500
@@ -36,25 +59,30 @@ Deno.serve(async (req) => {
 
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize).map((r: any) => ({
-        code_nidt: r.site_code || r.code_nidt || "",
-        nom_site: r.site_name || r.nom_site || "",
-        region: r.nom_dr || r.region || null,
-        longitude: (r.longitude ? parseFloat(r.longitude) : null),
-        latitude: (r.latitude ? parseFloat(r.latitude) : null),
-        nom_cellule: r.cell_name || r.nom_cellule || "",
-        techno: r.bande ? (String(r.bande).toUpperCase().includes('NR') ? '5G' : String(r.bande).toUpperCase().includes('LTE') ? '4G' : r.bande) : (r.techno || null),
+        code_nidt: r.code_nidt || "",
+        nom_site: r.nom_site || "",
+        region: r.region || null,
+        longitude: r.longitude != null ? parseFloat(String(r.longitude)) : null,
+        latitude: r.latitude != null ? parseFloat(String(r.latitude)) : null,
+        nom_cellule: r.nom_cellule || "",
+        techno: r.techno || null,
         bande: r.bande || null,
-        constructeur: r.vendor || r.constructeur || null,
-        azimut: r.azimut !== undefined && r.azimut !== '' ? parseInt(r.azimut) : (r.de_azimut !== undefined ? parseInt(r.de_azimut) : null),
-        date_mes: r.date_mest || r.date_mes || null,
-        date_fn8: r.date_fn8 || null,
-        plaque: r.cluster || r.plaque || null,
-        hba: r.hba ? parseFloat(r.hba) : null,
-        tac: r.NrTAC ? parseInt(r.NrTAC) : (r.tac ? parseInt(r.tac) : null),
+        constructeur: r.constructeur || null,
+        azimut: r.azimut != null && r.azimut !== '' ? parseInt(String(r.azimut)) : null,
+        date_mes: parseDate(r.date_mes),
+        date_fn8: parseDate(r.date_fn8),
+        plaque: r.plaque || null,
+        hba: r.hba != null ? Math.round(parseFloat(String(r.hba))) : null,
+        tac: r.tac != null ? parseInt(String(r.tac)) : null,
       }));
+
+      if (i === 0) {
+        console.log(`[import-topo] First mapped row: ${JSON.stringify(batch[0])}`);
+      }
 
       const { error } = await supabase.from("topo").insert(batch);
       if (error) {
+        console.error(`[import-topo] Batch ${i / batchSize} error: ${error.message}`);
         errors.push(`Batch ${i / batchSize}: ${error.message}`);
       } else {
         inserted += batch.length;
