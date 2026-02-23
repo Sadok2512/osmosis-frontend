@@ -68,9 +68,16 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
 
 function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
   const siteMap = new Map<string, TopoRow[]>();
+  let autoIdx = 0;
   rows.forEach(row => {
-    if (!siteMap.has(row.code_nidt)) siteMap.set(row.code_nidt, []);
-    siteMap.get(row.code_nidt)!.push(row);
+    // When code_nidt is empty, treat each unique lat/lng pair as a distinct site
+    const key = row.code_nidt && row.code_nidt.trim() !== ''
+      ? row.code_nidt
+      : (row.latitude != null && row.longitude != null
+          ? `auto_${row.latitude.toFixed(6)}_${row.longitude.toFixed(6)}`
+          : `orphan_${autoIdx++}`);
+    if (!siteMap.has(key)) siteMap.set(key, []);
+    siteMap.get(key)!.push(row);
   });
 
   const sites: SiteSummary[] = [];
