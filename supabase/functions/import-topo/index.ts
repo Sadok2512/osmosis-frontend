@@ -36,7 +36,11 @@ Deno.serve(async (req) => {
       const s = String(val).trim();
       if (!s) return null;
       // Already YYYY-MM-DD
-      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        // Reject invalid dates like 0000-00-00
+        if (s.startsWith('0000')) return null;
+        return s;
+      }
       // DD/MM/YYYY
       const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
       if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
