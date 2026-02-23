@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
         techno: r.techno || null,
         bande: r.bande || null,
         constructeur: r.constructeur || null,
-        azimut: r.azimut ? parseInt(r.azimut) : null,
+        azimut: r.azimut !== undefined ? parseInt(r.azimut) : (r.de_azimut !== undefined ? parseInt(r.de_azimut) : null),
         date_mes: r.date_mes || null,
         date_fn8: r.date_fn8 || null,
         plaque: r.plaque || null,
