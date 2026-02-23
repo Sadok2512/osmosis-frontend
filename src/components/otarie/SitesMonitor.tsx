@@ -776,22 +776,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             ))}
           </div>
 
-          {/* Techno filter: ALL / 5G / 4G */}
-          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
-            {(['ALL', '5G', '4G'] as const).map((tech) => (
-              <button
-                key={tech}
-                onClick={() => setMapTechnoFilter(tech)}
-                className={`w-10 h-10 flex items-center justify-center text-[10px] font-black tracking-wider transition-all ${
-                  mapTechnoFilter === tech
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {tech}
-              </button>
-            ))}
-          </div>
+          {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
+          {sites.length > 0 && (
+            <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+              {(['ALL', '5G', '4G'] as const).map((tech) => (
+                <button
+                  key={tech}
+                  onClick={() => setMapTechnoFilter(tech)}
+                  className={`w-10 h-10 flex items-center justify-center text-[10px] font-black tracking-wider transition-all ${
+                    mapTechnoFilter === tech
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {tech}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Layer switcher: L / D / S */}
           <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
