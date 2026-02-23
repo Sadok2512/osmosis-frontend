@@ -182,12 +182,9 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
 
   if (cachedDbSites) return cachedDbSites;
 
-  // Fallback to local
-  if (!cachedLocalSites) {
-    cachedLocalSites = buildSitesFromLocalTopo();
-    console.log(`[TopoService] Using local topo: ${cachedLocalSites.length} sites`);
-  }
-  return cachedLocalSites;
+  // No DB data available, return empty
+  console.log('[TopoService] No topo data in database, returning empty list');
+  return [];
 }
 
 export function invalidateTopoCache() {
