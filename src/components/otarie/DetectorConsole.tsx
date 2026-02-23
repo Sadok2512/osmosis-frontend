@@ -1,9 +1,184 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DetectorConfig } from '../../types';
 import { fetchDetectorConfigs } from '../../services/mockData';
+import { supabase } from '@/integrations/supabase/client';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
-  Shield, Settings, Play, History, Sliders, Activity, Plus, RefreshCw, Cpu
+  Shield, Settings, Play, History, Sliders, Activity, Plus, RefreshCw, Cpu,
+  Bot, Send, Loader2, Database
 } from 'lucide-react';
+
+// --- AI Detector Analysis Panel ---
+const AIDetectorPanel: React.FC = () => {
+  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [topoStats, setTopoStats] = useState<string>('');
+  const [topoLoaded, setTopoLoaded] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load topo summary for AI context
+  useEffect(() => {
+    const loadTopo = async () => {
+      const { data, error } = await supabase.from('topo').select('*');
+      if (error || !data || data.length === 0) {
+        setTopoStats('Aucune donnée topo disponible.');
+        setTopoLoaded(true);
+        return;
+      }
+      const sites = [...new Set(data.map(r => r.nom_site))];
+      const technos = [...new Set(data.filter(r => r.techno).map(r => r.techno))];
+      const bandes = [...new Set(data.filter(r => r.bande).map(r => r.bande))];
+      const vendors = [...new Set(data.filter(r => r.constructeur).map(r => r.constructeur))];
+      const regions = [...new Set(data.filter(r => r.region).map(r => r.region))];
+
+      // Build a compact summary + sample of cells
+      const sample = data.slice(0, 80).map(r =>
+        `${r.nom_cellule} | site:${r.nom_site} | techno:${r.techno || '?'} | bande:${r.bande || '?'} | vendor:${r.constructeur || '?'} | region:${r.region || '?'} | azimut:${r.azimut ?? '?'} | lat:${r.latitude ?? '?'} | lon:${r.longitude ?? '?'}`
+      ).join('\n');
+
+      setTopoStats(
+        `RÉSUMÉ TOPO:\n- ${data.length} cellules, ${sites.length} sites\n- Technos: ${technos.join(', ')}\n- Bandes: ${bandes.join(', ')}\n- Vendors: ${vendors.join(', ')}\n- Régions: ${regions.join(', ')}\n\nÉCHANTILLON (${Math.min(80, data.length)} cellules):\n${sample}`
+      );
+      setTopoLoaded(true);
+    };
+    loadTopo();
+  }, []);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading) return;
+    const userMsg = { role: 'user' as const, content: input };
+    const allMessages = [...messages, userMsg];
+    setMessages(allMessages);
+    setInput('');
+    setIsLoading(true);
+
+    let assistantContent = '';
+    const upsert = (chunk: string) => {
+      assistantContent += chunk;
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.role === 'assistant') return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent } : m);
+        return [...prev, { role: 'assistant', content: assistantContent }];
+      });
+    };
+
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: allMessages.map(m => ({ role: m.role, content: m.content })),
+          cellContext: topoStats,
+        }),
+      });
+
+      if (!resp.ok || !resp.body) throw new Error('Stream error');
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buf.indexOf('\n')) !== -1) {
+          let line = buf.slice(0, idx);
+          buf = buf.slice(idx + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const json = line.slice(6).trim();
+          if (json === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(json);
+            const c = parsed.choices?.[0]?.delta?.content;
+            if (c) upsert(c);
+          } catch { /* partial */ }
+        }
+      }
+    } catch (e) {
+      upsert('\n\n⚠️ Erreur de connexion à l\'IA.');
+    }
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm flex flex-col h-[500px]">
+      <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+        <div className="w-10 h-10 bg-violet-600 rounded-2xl flex items-center justify-center text-white">
+          <Bot className="w-5 h-5" />
+        </div>
+        <div>
+          <h4 className="text-sm font-black text-slate-800">AI Anomaly Analyzer</h4>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+            <Database className="w-3 h-3" />
+            {topoLoaded ? `Topo chargée` : 'Chargement topo...'}
+          </p>
+        </div>
+      </div>
+
+      <div ref={scrollRef} className="flex-1 overflow-auto p-4 space-y-3">
+        {messages.length === 0 && (
+          <div className="text-center py-8 space-y-3">
+            <Bot className="w-10 h-10 mx-auto text-slate-300" />
+            <p className="text-xs text-slate-400 font-bold">Posez une question d'analyse ML sur vos données réseau</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {['Analyse les anomalies de couverture', 'Détecte les sites avec des secteurs manquants', 'Quels sites ont des configs atypiques?'].map(s => (
+                <button key={s} onClick={() => setInput(s)}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-[10px] font-bold text-slate-600 transition-colors">
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs ${
+              m.role === 'user'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-50 text-slate-800 border border-slate-100'
+            }`}>
+              {m.role === 'assistant' ? (
+                <div className="prose prose-xs prose-slate max-w-none [&_table]:text-[10px] [&_th]:px-2 [&_td]:px-2">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                </div>
+              ) : m.content}
+            </div>
+          </div>
+        ))}
+        {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+          <div className="flex justify-start">
+            <div className="bg-slate-50 rounded-2xl px-4 py-3 border border-slate-100">
+              <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="p-4 border-t border-slate-100">
+        <div className="flex gap-2">
+          <input value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && sendMessage()}
+            placeholder="Analyser les anomalies réseau..."
+            className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-violet-500/30" />
+          <button onClick={sendMessage} disabled={isLoading || !input.trim()}
+            className="px-4 py-3 bg-violet-600 text-white rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-colors">
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const DetectorConsole: React.FC = () => {
   const [configs, setConfigs] = useState<DetectorConfig[]>([]);
@@ -105,35 +280,12 @@ const DetectorConsole: React.FC = () => {
           </div>
         </div>
 
-        {/* Calibration */}
+        {/* AI Analysis Panel */}
         <div className="xl:col-span-4 space-y-6">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-            <Sliders className="w-4 h-4" /> Calibration
+            <Bot className="w-4 h-4" /> AI Analysis
           </h3>
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm space-y-8">
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Z-Score Sensitivity</span>
-                <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black">2.5σ</span>
-              </div>
-              <input type="range" className="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-full appearance-none cursor-pointer" />
-            </div>
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">MAD Multiplier</span>
-                <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-lg text-[10px] font-black">3.5x</span>
-              </div>
-              <input type="range" className="w-full accent-amber-500 h-1.5 bg-slate-100 rounded-full appearance-none cursor-pointer" />
-            </div>
-            <div className="pt-8 border-t border-slate-50 space-y-4">
-              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Precision</h5>
-              <div className="flex items-center gap-4">
-                <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 w-[88%]" /></div>
-                <span className="text-xs font-black text-slate-800">88%</span>
-              </div>
-            </div>
-            <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Apply</button>
-          </div>
+          <AIDetectorPanel />
 
           <div className="bg-slate-900 p-8 rounded-[2rem] text-white shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity"><History className="w-24 h-24" /></div>
