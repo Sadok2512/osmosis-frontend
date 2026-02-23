@@ -31,6 +31,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
   return null;
 };
 import { fetchSites, fetchSiteDetails } from '../../services/api';
+import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { invalidateSitesCache } from '../../services/mockData';
 import { SiteSummary, SiteDetail, Filters } from '../../types';
 import {
@@ -947,28 +948,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         </div>
                         <ChevronDown size={14} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                       </div>
-                      {/* Expanded: cell sector indicators */}
-                      {isExpanded && (
-                        <div className="px-4 pb-3 pt-1 border-t border-border/50">
-                          <div className="flex gap-2 flex-wrap">
-                            {site.cells.map((cell, idx) => {
-                              const techColor = cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500';
-                              const techBorder = selectedSiteId === site.site_id && idx === 0 ? 'border-primary' : 'border-border';
-                              return (
+                      {/* Expanded: cells grouped by sector */}
+                      {isExpanded && (() => {
+                        const { sectors, validation } = groupCellsBySector(site.cells);
+                        return (
+                          <div className="px-4 pb-3 pt-1 border-t border-border/50 space-y-2">
+                            {/* Validation flag */}
+                            {validation.status !== 'OK' && (
+                              <div className={`text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg ${
+                                validation.status === 'MISSING_SECTOR' ? 'bg-amber-500/10 text-amber-600' : 'bg-destructive/10 text-destructive'
+                              }`}>
+                                {validation.status === 'MISSING_SECTOR'
+                                  ? `⚠ Missing sector${validation.missingSectors.length > 1 ? 's' : ''}: ${validation.missingSectors.join(', ')}`
+                                  : `⚠ Duplicate sector detected`}
+                              </div>
+                            )}
+                            <div className="flex gap-2 flex-wrap">
+                              {sectors.map(({ sectorNumber, cells: sectorCells }) => (
                                 <button
-                                  key={cell.cell_id}
-                                  onClick={(e) => { e.stopPropagation(); onCellSelect(cell.cell_id); }}
-                                  className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg border ${techBorder} bg-card hover:border-primary transition-all min-w-[60px]`}
+                                  key={`sector-${sectorNumber}`}
+                                  onClick={(e) => { e.stopPropagation(); onCellSelect(sectorCells[0].cell_id); }}
+                                  className="flex flex-col items-center justify-center px-3 py-2 rounded-lg border border-border bg-card hover:border-primary transition-all min-w-[60px]"
                                 >
-                                  <span className="text-[9px] font-bold text-muted-foreground uppercase">{cell.techno}</span>
-                                  <div className={`w-2.5 h-2.5 rounded-full my-1 ${techColor}`} />
-                                  <span className="text-[10px] font-bold text-foreground">S{idx + 1}</span>
+                                  <div className="flex gap-1 mb-0.5">
+                                    {sectorCells.map(c => (
+                                      <span key={c.cell_id} className={`text-[7px] font-bold uppercase ${c.techno === '5G' ? 'text-primary' : 'text-amber-500'}`}>
+                                        {c.techno === '5G' ? '5G' : '4G'}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <div className={`w-2.5 h-2.5 rounded-full my-0.5 ${sectorCells.some(c => c.techno === '5G') ? 'bg-primary' : 'bg-amber-500'}`} />
+                                  <span className="text-[10px] font-bold text-foreground">S{sectorNumber}</span>
                                 </button>
-                              );
-                            })}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   );
                 })}
@@ -1161,35 +1177,65 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </button>
             </div>
 
-            {/* Cell Inventory */}
+            {/* Cell Inventory — grouped by sector */}
             <div className="space-y-3">
               <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
                 <BarChart2 size={13} className="text-primary" />
-                Cell Inventory
+                Sector Inventory
               </h5>
-              <div className="space-y-2">
-                {siteDetail.cells.map((cell, idx) => (
-                  <div
-                    key={cell.cell_id}
-                    onClick={() => onCellSelect(cell.cell_id)}
-                    className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card hover:border-primary transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2.5 h-2.5 rounded-full ${cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
-                      <div>
-                        <div className="text-[11px] font-bold text-foreground">S{idx + 1} • {cell.techno} {cell.bande}MHz</div>
-                        <div className="text-[9px] text-muted-foreground font-mono">{cell.cell_id.split('_').pop()} • {cell.azimut}°</div>
+              {(() => {
+                const { sectors, validation } = groupCellsBySector(siteDetail.cells);
+                return (
+                  <div className="space-y-3">
+                    {/* Validation badge */}
+                    {validation.status !== 'OK' && (
+                      <div className={`text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl ${
+                        validation.status === 'MISSING_SECTOR' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
+                      }`}>
+                        {validation.status === 'MISSING_SECTOR'
+                          ? `⚠ Missing sector${validation.missingSectors.length > 1 ? 's' : ''}: ${validation.missingSectors.join(', ')} — Expected ${validation.totalSectors + validation.missingSectors.length} sectors`
+                          : `⚠ Duplicate sector detected`}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[13px] font-black tracking-tight" style={{ color: getQoEColor(cell.qoe_score_avg) }}>
-                        {cell.qoe_score_avg.toFixed(1)}%
-                      </span>
-                      <ArrowRight size={14} className="text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
+                    )}
+                    {validation.status === 'OK' && (
+                      <div className="text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20">
+                        ✓ {validation.totalSectors} sectors — All OK
+                      </div>
+                    )}
+                    {sectors.map(({ sectorNumber, cells: sectorCells }) => (
+                      <div key={sectorNumber} className="rounded-xl border border-border overflow-hidden">
+                        <div className="px-4 py-2 bg-muted/50 flex items-center justify-between">
+                          <span className="text-[10px] font-black text-foreground uppercase tracking-wider">Sector {sectorNumber}</span>
+                          <span className="text-[9px] font-bold text-muted-foreground">{sectorCells.length} cell{sectorCells.length > 1 ? 's' : ''} • {sectorCells[0]?.azimut ?? '?'}°</span>
+                        </div>
+                        <div className="divide-y divide-border/50">
+                          {sectorCells.map(cell => (
+                            <div
+                              key={cell.cell_id}
+                              onClick={() => onCellSelect(cell.cell_id)}
+                              className="flex items-center justify-between px-4 py-2.5 bg-card hover:bg-primary/5 transition-all cursor-pointer group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-2 h-2 rounded-full ${cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
+                                <div>
+                                  <div className="text-[10px] font-bold text-foreground">{cell.techno} • {cell.bande}MHz</div>
+                                  <div className="text-[8px] text-muted-foreground font-mono">{cell.cell_id.split('_').pop()}</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[12px] font-black tracking-tight" style={{ color: getQoEColor(cell.qoe_score_avg) }}>
+                                  {cell.qoe_score_avg.toFixed(1)}%
+                                </span>
+                                <ArrowRight size={12} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
           </div>
         </div>
