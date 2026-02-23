@@ -379,99 +379,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     </div>
   );
 
-  // Drill-down view
-  if (siteDetail) {
-    return (
-      <div className="flex-1 flex flex-col bg-background overflow-hidden h-full">
-        <div className="px-10 py-6 border-b border-border flex items-center justify-between bg-card z-20 shadow-sm shrink-0">
-          <div className="flex items-center gap-8">
-            <button onClick={() => setSelectedSiteId(null)} className="w-12 h-12 bg-sidebar text-sidebar-foreground rounded-[1.25rem] flex items-center justify-center hover:opacity-90 transition-all shadow-lg">
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-black text-foreground tracking-tighter uppercase">{siteDetail.site_name}</h2>
-                <div className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[9px] font-black uppercase tracking-widest">{siteDetail.vendor}</div>
-              </div>
-              <div className="flex items-center gap-2.5 mt-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                <MapPin className="w-3.5 h-3.5" />
-                <span>{siteDetail.site_id} • {siteDetail.dor} • {siteDetail.plaque}</span>
-              </div>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">QoE Site Avg</div>
-            <div className="text-3xl font-black tracking-tighter" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>{(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%</div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-10 space-y-10">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <MiniStat label="Cells" value={siteDetail.cell_count.toString()} icon={<Network size={16} />} color="text-primary" />
-            <MiniStat label="Thr. DL" value={`${(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(1)}M`} icon={<Zap size={16} />} color="text-emerald-600" />
-            <MiniStat label="Vol DL" value={`${((siteDetail.traffic_dn_bytes ?? 0) / 1e12).toFixed(1)}T`} icon={<Database size={16} />} color="text-purple-600" />
-            <MiniStat label="Latence" value={`${(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}ms`} icon={<Activity size={16} />} color="text-amber-600" />
-          </div>
-
-          <div className="rounded-[2rem] overflow-hidden border border-border shadow-sm h-[250px]">
-            <MapContainer center={siteDetail.coordinates} zoom={16} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>' />
-              {/* Sector wedges */}
-              {siteDetail.cells.map(cell => {
-                const sectorCoords = getSectorCoords(siteDetail.coordinates, cell.azimut, 150, 60);
-                const color = getTechnoColor(cell.techno);
-                return (
-                  <Polygon
-                    key={`sector-${cell.cell_id}`}
-                    positions={sectorCoords}
-                    pathOptions={{
-                      color,
-                      fillColor: color,
-                      fillOpacity: 0.75,
-                      weight: 1,
-                    }}
-                  >
-                    <Tooltip direction="center" permanent className="cell-kpi-label">
-                      <span style={{ color: '#0f172a', fontWeight: 800, fontSize: '9px' }}>{cell.azimut}°</span>
-                    </Tooltip>
-                  </Polygon>
-                );
-              })}
-              {/* Center dot */}
-              <CircleMarker center={siteDetail.coordinates} radius={5} pathOptions={{ color: '#0f172a', fillColor: '#0f172a', fillOpacity: 1, weight: 1 }}>
-                <Popup><strong>{siteDetail.site_name}</strong></Popup>
-              </CircleMarker>
-            </MapContainer>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between px-2">
-              <h4 className="text-[11px] font-black text-foreground uppercase tracking-widest">Cell Inventory</h4>
-              <span className="text-[9px] font-black px-2 py-0.5 bg-primary/10 text-primary rounded">{siteDetail.cells.length} sectors</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {siteDetail.cells.map(cell => (
-                <div key={cell.cell_id} onClick={() => onCellSelect(cell.cell_id)}
-                  className="bg-card p-6 rounded-[2.5rem] border border-border shadow-sm hover:border-primary transition-all cursor-pointer group hover:shadow-2xl">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="text-[11px] font-black text-muted-foreground tracking-widest">{cell.cell_id.split('_').pop()}</div>
-                    <div className={`px-2 py-0.5 rounded text-[8px] font-black text-white ${cell.techno === '5G' ? 'bg-purple-600' : 'bg-primary'}`}>{cell.techno}</div>
-                  </div>
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <div className="text-[15px] font-black text-foreground tracking-tighter">QoE: {cell.qoe_score_avg.toFixed(1)}%</div>
-                      <div className="text-[10px] font-bold text-muted-foreground mt-0.5 uppercase tracking-widest">{cell.bande} MHz • {cell.azimut}°</div>
-                    </div>
-                    <div className="p-3 bg-muted rounded-xl text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-all"><ArrowRight size={18} /></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // No early return for siteDetail — rendered as right panel inside the main view
 
   // Main view — full screen map with clustering
   return (
@@ -735,51 +643,55 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       </div>
 
-      {/* Floating top bar — KPI selector + controls */}
-      <div className="absolute top-4 right-4 z-[1000] flex items-start gap-3 pointer-events-none">
-        <div className="pointer-events-auto relative">
-          <button
-            onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-            className="flex items-center gap-3 px-5 py-3 bg-sidebar text-sidebar-foreground rounded-xl shadow-xl hover:opacity-90 transition-all"
-          >
-            <Zap size={16} className="text-sidebar-primary" />
-            <span className="text-[12px] font-bold uppercase tracking-wider">{selectedKpiLabel}</span>
-            {showKpiDropdown ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-          {showKpiDropdown && (
-            <div className="absolute top-14 right-0 w-[320px] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
-              <div className="p-3 border-b border-border">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input type="text" placeholder="Search KPIs..." className="w-full pl-10 pr-4 py-2.5 bg-muted border border-border rounded-xl text-[12px] font-medium text-foreground outline-none placeholder:text-muted-foreground" />
+      {/* Floating top bar — horizontal KPI quick-select tabs matching reference */}
+      <div className="absolute top-4 left-[420px] right-[420px] z-[1000] pointer-events-auto">
+        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-2 py-1.5 flex items-center gap-1 overflow-x-auto">
+          {MAP_KPIS.filter(k => ['dms_dl_30', 'dms_dl_8', 'dms_dl_3', 'dms_ul_3', 'p50_thr_dn_mbps', 'p50_thr_up_mbps'].includes(k.id)).map(kpi => (
+            <button
+              key={kpi.id}
+              onClick={() => setMapKpi(kpi.id)}
+              className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                mapKpi === kpi.id
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              <Zap size={11} />
+              {kpi.label.replace('Débit ', '').replace(' Moyen (Mbps)', '').replace(' ≥ ', ' ')}
+            </button>
+          ))}
+          <div className="relative ml-auto">
+            <button
+              onClick={() => setShowKpiDropdown(!showKpiDropdown)}
+              className="px-3 py-2 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center gap-1"
+            >
+              <SlidersHorizontal size={12} />
+              Plus
+              {showKpiDropdown ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+            {showKpiDropdown && (
+              <div className="absolute top-10 right-0 w-[280px] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+                <div className="max-h-[350px] overflow-y-auto py-1">
+                  {MAP_KPIS.map(kpi => (
+                    <button
+                      key={kpi.id}
+                      onClick={() => { setMapKpi(kpi.id); setShowKpiDropdown(false); }}
+                      className={`w-full text-left px-4 py-3 flex items-center justify-between transition-all ${
+                        mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
+                      }`}
+                    >
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-tight">{kpi.label}</div>
+                        <div className={`text-[9px] font-semibold uppercase tracking-widest mt-0.5 ${mapKpi === kpi.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{kpi.category}</div>
+                      </div>
+                      {mapKpi === kpi.id && <span className="text-sm">✓</span>}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <div className="max-h-[350px] overflow-y-auto py-1">
-                {MAP_KPIS.map(kpi => (
-                  <button
-                    key={kpi.id}
-                    onClick={() => { setMapKpi(kpi.id); setShowKpiDropdown(false); }}
-                    className={`w-full text-left px-5 py-3.5 flex items-center justify-between transition-all ${
-                      mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
-                    }`}
-                  >
-                    <div>
-                      <div className="text-[12px] font-bold uppercase tracking-tight">{kpi.label}</div>
-                      <div className={`text-[9px] font-semibold uppercase tracking-widest mt-0.5 ${mapKpi === kpi.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{kpi.category}</div>
-                    </div>
-                    {mapKpi === kpi.id && <span className="text-lg">✓</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-        <button className="pointer-events-auto w-10 h-10 bg-card border border-border rounded-xl flex items-center justify-center text-foreground shadow-lg hover:bg-muted transition-all">
-          <BarChart2 size={18} />
-        </button>
-        <button className="pointer-events-auto w-10 h-10 bg-card border border-border rounded-xl flex items-center justify-center text-foreground shadow-lg hover:bg-muted transition-all">
-          <Maximize2 size={18} />
-        </button>
       </div>
 
       {/* Floating bottom-right: techno filter + layer switcher + legend */}
@@ -847,51 +759,91 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             ))}
           </div>
 
-          {/* Legend */}
-          <div className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden">
-            <button
-              onClick={() => setShowLegend(!showLegend)}
-              className="w-full px-5 py-3 flex items-center justify-between gap-6 hover:bg-muted/50 transition-all"
-            >
-              <div className="flex items-center gap-2.5">
-                <BarChart2 size={16} className="text-primary" />
-                <span className="text-[11px] font-black text-foreground uppercase tracking-widest">Légende</span>
+          {/* Legend — floating card with close button matching reference */}
+          {showLegend && (
+            <div className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[220px]">
+              <div className="flex items-center justify-between px-5 py-3">
+                <button
+                  onClick={() => setShowLegend(false)}
+                  className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-foreground transition-all"
+                >
+                  <X size={12} />
+                </button>
+                <div className="flex items-center gap-2.5">
+                  <BarChart2 size={16} className="text-primary" />
+                  <div>
+                    <span className="text-[11px] font-black text-foreground uppercase tracking-widest block">Légende</span>
+                    <span className="text-[8px] font-bold text-primary uppercase tracking-wider">{selectedKpiLabel}</span>
+                  </div>
+                </div>
               </div>
-              {showLegend ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground" />}
-            </button>
-            {showLegend && (
-              <div className="px-5 pb-4 pt-1 space-y-3 border-t border-border">
+              <div className="px-5 pb-4 pt-1 space-y-3 border-t border-border relative">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#10b981' }} />
+                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: '#10b981' }} />
                     <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#10b981' }}>Excellent</span>
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground">≥ 80%</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground">Excellent</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#f59e0b' }} />
+                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: '#f59e0b' }} />
                     <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#f59e0b' }}>Correct</span>
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground">60–80%</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground">Correct</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
+                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: '#f97316' }} />
+                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#f97316' }}>Dégradé</span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-muted-foreground">Dégradé</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: '#ef4444' }} />
                     <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#ef4444' }}>Critique</span>
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground">{'< 60%'}</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground">Critique</span>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+          {!showLegend && (
+            <button
+              onClick={() => setShowLegend(true)}
+              className="w-10 h-10 bg-card/95 backdrop-blur-sm border border-border rounded-xl flex items-center justify-center shadow-lg hover:bg-muted transition-all"
+            >
+              <BarChart2 size={16} className="text-primary" />
+            </button>
+          )}
         </div>
       )}
 
-      {/* Floating side panel with search, filters & site list */}
+      {/* Floating side panel with search, filters & site list — INVENTORY INDEX style */}
       {showSidePanel && viewMode === 'map' && (
-        <div className={`absolute top-4 left-4 ${panelCollapsed ? '' : 'bottom-4'} w-[340px] z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col`}>
-          {/* Search bar */}
+        <div className={`absolute top-4 left-4 ${panelCollapsed ? '' : 'bottom-4'} w-[380px] z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col`}>
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-border shrink-0">
+            <div className="flex items-center justify-between mb-1">
+              <div>
+                <h3 className="text-[11px] font-black text-foreground uppercase tracking-[0.15em]">Inventory Index</h3>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mt-0.5">Sites Navigation List</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPanelMinimized(!panelMinimized)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                >
+                  <Filter size={14} />
+                </button>
+                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-black">
+                  {filteredSites.length}
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Search */}
           <div className="px-4 py-3 border-b border-border shrink-0">
             <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5">
               <Search className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -905,7 +857,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <button
                 onClick={() => setPanelCollapsed(!panelCollapsed)}
                 className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0"
-                title={panelCollapsed ? 'Afficher la liste' : 'Masquer la liste'}
               >
                 {panelCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
               </button>
@@ -914,85 +865,113 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {!panelCollapsed && (
             <>
               {/* Collapsible filters */}
-              <div className="shrink-0 border-b border-border">
-                <button
-                  onClick={() => setPanelMinimized(!panelMinimized)}
-                  className="w-full px-4 py-2 flex items-center justify-between hover:bg-muted/50 transition-all"
-                >
-                  <div className="flex items-center gap-2">
-                    <Filter size={13} className="text-primary" />
-                    <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">Filtres</span>
+              {panelMinimized && (
+                <div className="shrink-0 border-b border-border px-4 pb-3 pt-2 grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Vendor</span>
+                    <select value={localVendor} onChange={(e) => setLocalVendor(e.target.value)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
                   </div>
-                  {panelMinimized ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground" />}
-                </button>
-                {!panelMinimized && (
-                  <div className="px-4 pb-3 grid grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Vendor</span>
-                      <select value={localVendor} onChange={(e) => setLocalVendor(e.target.value)}
-                        className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                        {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">DOR</span>
-                      <select value={localDor} onChange={(e) => setLocalDor(e.target.value)}
-                        className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                        {DORS.map(d => <option key={d} value={d}>{d}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Plaque</span>
-                      <select value={localPlaque} onChange={(e) => setLocalPlaque(e.target.value)}
-                        className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                        {PLAQUES.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Site</span>
-                      <select value={localSite} onChange={(e) => setLocalSite(e.target.value)}
-                        className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                        {uniqueSiteNames.slice(0, 500).map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">DOR</span>
+                    <select value={localDor} onChange={(e) => setLocalDor(e.target.value)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      {DORS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
                   </div>
-                )}
-              </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Plaque</span>
+                    <select value={localPlaque} onChange={(e) => setLocalPlaque(e.target.value)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      {PLAQUES.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Site</span>
+                    <select value={localSite} onChange={(e) => setLocalSite(e.target.value)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      {uniqueSiteNames.slice(0, 500).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
 
-              {/* Site list */}
-              <div className="flex-1 overflow-y-auto">
+              {/* Site list — expandable cards matching reference */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 {filteredSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <Search size={28} className="mb-3 opacity-30" />
                     <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
                   </div>
-                ) : filteredSites.slice(0, 200).map(site => (
-                  <div
-                    key={site.site_id}
-                    onClick={() => handleSiteClick(site)}
-                    onMouseEnter={() => setHoveredSiteId(site.site_id)}
-                    onMouseLeave={() => setHoveredSiteId(null)}
-                    className={`px-4 py-3 border-b border-border/50 cursor-pointer transition-all hover:bg-primary/5 ${
-                      hoveredSiteId === site.site_id ? 'bg-primary/5' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-[12px] font-bold text-foreground tracking-tight uppercase">{site.site_name}</h4>
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                          <span className="font-mono">{site.site_id}</span>
-                          <span className="uppercase">{site.vendor}</span>
+                ) : filteredSites.slice(0, 200).map(site => {
+                  const isSelected = selectedSiteId === site.site_id;
+                  const isExpanded = isSelected;
+                  return (
+                    <div
+                      key={site.site_id}
+                      onClick={() => handleSiteClick(site)}
+                      onMouseEnter={() => setHoveredSiteId(site.site_id)}
+                      onMouseLeave={() => setHoveredSiteId(null)}
+                      className={`rounded-xl border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-primary bg-primary/5 shadow-md'
+                          : 'border-border bg-card hover:border-primary/40 hover:bg-primary/5'
+                      }`}
+                    >
+                      <div className="px-4 py-3 flex items-center gap-3">
+                        {/* Site icon */}
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                        }`}>
+                          <MapPin size={18} />
                         </div>
+                        {/* Site info */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-[13px] font-bold text-foreground tracking-tight uppercase truncate">{site.site_name}</h4>
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                            <span className="font-mono">{site.site_id}</span>
+                            <span>•</span>
+                            <span className="uppercase font-semibold">{site.vendor}</span>
+                          </div>
+                        </div>
+                        {/* QoE + cell count */}
+                        <div className="text-right shrink-0">
+                          <div className="text-[15px] font-black tracking-tight" style={{ color: getQoEColor(site.qoe_score_avg) }}>
+                            {site.qoe_score_avg.toFixed(1)}%
+                          </div>
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase">
+                            {site.cell_count} Cells
+                          </div>
+                        </div>
+                        <ChevronDown size={14} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[14px] font-black tracking-tight" style={{ color: getQoEColor(site.qoe_score_avg) }}>
-                          {site.qoe_score_avg.toFixed(1)}%
-                        </span>
-                        <ChevronRight size={14} className="text-muted-foreground" />
-                      </div>
+                      {/* Expanded: cell sector indicators */}
+                      {isExpanded && (
+                        <div className="px-4 pb-3 pt-1 border-t border-border/50">
+                          <div className="flex gap-2 flex-wrap">
+                            {site.cells.map((cell, idx) => {
+                              const techColor = cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500';
+                              const techBorder = selectedSiteId === site.site_id && idx === 0 ? 'border-primary' : 'border-border';
+                              return (
+                                <button
+                                  key={cell.cell_id}
+                                  onClick={(e) => { e.stopPropagation(); onCellSelect(cell.cell_id); }}
+                                  className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg border ${techBorder} bg-card hover:border-primary transition-all min-w-[60px]`}
+                                >
+                                  <span className="text-[9px] font-bold text-muted-foreground uppercase">{cell.techno}</span>
+                                  <div className={`w-2.5 h-2.5 rounded-full my-1 ${techColor}`} />
+                                  <span className="text-[10px] font-bold text-foreground">S{idx + 1}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {filteredSites.length > 200 && (
                   <div className="px-4 py-3 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     + {filteredSites.length - 200} more — zoom or filter to narrow
@@ -1074,6 +1053,145 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* RIGHT SIDE DETAIL PANEL — Analyse Détaillée */}
+      {siteDetail && (
+        <div className="absolute top-4 right-4 bottom-4 w-[400px] z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-border shrink-0 flex items-center justify-between">
+            <div>
+              <h3 className="text-[13px] font-black text-foreground uppercase tracking-[0.12em]">Analyse Détaillée</h3>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mt-0.5">Focus Cellule • NOC Monitoring</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+                <Maximize2 size={14} />
+              </button>
+              <button
+                onClick={() => setSelectedSiteId(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* Site Simulation header */}
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-sidebar rounded-xl flex items-center justify-center">
+                <BarChart2 size={22} className="text-sidebar-primary" />
+              </div>
+              <div>
+                <h4 className="text-[16px] font-black text-foreground uppercase tracking-tight">Site Simulation</h4>
+                <div className="flex items-center gap-2 text-[10px] mt-0.5">
+                  <span className="font-mono text-muted-foreground">{siteDetail.site_id}</span>
+                  <span>•</span>
+                  <span className="font-bold text-primary uppercase">{siteDetail.cells[0]?.techno} {siteDetail.cells[0]?.bande}MHz</span>
+                </div>
+              </div>
+            </div>
+
+            {/* DMS KPI row */}
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: 'DMS DL 3M', value: siteDetail.cells[0]?.dms_dl_3 },
+                { label: 'DMS DL 8M', value: siteDetail.cells[0]?.dms_dl_8 },
+                { label: 'DMS DL 30M', value: siteDetail.cells[0]?.dms_dl_30 },
+                { label: 'DMS UL 3M', value: siteDetail.cells[0]?.dms_ul_3 },
+              ].map((kpi, i) => (
+                <div key={i} className="text-center p-3 rounded-xl border border-border bg-card">
+                  <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{kpi.label}</div>
+                  <div className="text-[14px] font-black tracking-tight" style={{ color: getKpiColor(kpi.value ?? 0) }}>
+                    {(kpi.value ?? 0).toFixed(1)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* QoE Score + Throughput */}
+            <div className="grid grid-cols-4 gap-3 items-end">
+              <div className="text-center">
+                <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Score QoE Global</div>
+                <div className="text-[28px] font-black tracking-tighter leading-none" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>
+                  {(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%
+                </div>
+                <div className="w-full h-1 rounded-full mt-2" style={{ background: getQoEColor(siteDetail.qoe_score_avg ?? 0) }} />
+              </div>
+              <div className="text-center p-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
+                  <Zap size={14} className="text-primary" />
+                </div>
+                <div className="text-[8px] font-bold text-muted-foreground uppercase">Débit DL</div>
+                <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
+              </div>
+              <div className="text-center p-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
+                  <Network size={14} className="text-primary" />
+                </div>
+                <div className="text-[8px] font-bold text-muted-foreground uppercase">Débit UL</div>
+                <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
+              </div>
+              <div className="text-center p-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
+                  <Activity size={14} className="text-primary" />
+                </div>
+                <div className="text-[8px] font-bold text-muted-foreground uppercase">RTT</div>
+                <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">MS</span></div>
+              </div>
+            </div>
+
+            {/* AI Diagnostic card */}
+            <div className="bg-sidebar rounded-2xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
+                  <Zap size={18} className="text-primary" />
+                </div>
+                <div>
+                  <div className="text-[12px] font-black text-sidebar-foreground uppercase tracking-tight">AI Diagnostic</div>
+                  <div className="text-[9px] font-bold text-sidebar-foreground/60 uppercase tracking-wider">RCA Analysis</div>
+                </div>
+              </div>
+              <button className="px-4 py-2 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2">
+                <Zap size={12} />
+                Lancer
+              </button>
+            </div>
+
+            {/* Cell Inventory */}
+            <div className="space-y-3">
+              <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                <BarChart2 size={13} className="text-primary" />
+                Cell Inventory
+              </h5>
+              <div className="space-y-2">
+                {siteDetail.cells.map((cell, idx) => (
+                  <div
+                    key={cell.cell_id}
+                    onClick={() => onCellSelect(cell.cell_id)}
+                    className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card hover:border-primary transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
+                      <div>
+                        <div className="text-[11px] font-bold text-foreground">S{idx + 1} • {cell.techno} {cell.bande}MHz</div>
+                        <div className="text-[9px] text-muted-foreground font-mono">{cell.cell_id.split('_').pop()} • {cell.azimut}°</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[13px] font-black tracking-tight" style={{ color: getQoEColor(cell.qoe_score_avg) }}>
+                        {cell.qoe_score_avg.toFixed(1)}%
+                      </span>
+                      <ArrowRight size={14} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
