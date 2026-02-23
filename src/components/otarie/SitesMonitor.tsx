@@ -31,6 +31,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
   return null;
 };
 import { fetchSites, fetchSiteDetails } from '../../services/api';
+import { invalidateSitesCache } from '../../services/mockData';
 import { SiteSummary, SiteDetail, Filters } from '../../types';
 import {
   Search, RefreshCw, ChevronLeft, MapPin,
@@ -255,6 +256,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     };
     loadSites();
   }, [filters]);
+
+  // Force reload when component mounts (e.g. switching from Settings after import)
+  useEffect(() => {
+    invalidateSitesCache();
+    fetchSites(filters).then(data => setSites(data || []));
+  }, []);
 
   useEffect(() => {
     if (selectedSiteId) {
