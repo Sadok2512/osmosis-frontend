@@ -51,7 +51,13 @@ interface SitesMonitorProps {
 }
 
 // Zoom threshold: above this we show sectors, below we show clusters
-const SECTOR_ZOOM_THRESHOLD = 13;
+const SECTOR_ZOOM_THRESHOLD = 12;
+
+// Techno-based sector colors matching reference style
+const getTechnoColor = (techno: string): string => {
+  if (techno === '5G') return '#14b8a6'; // teal
+  return '#f59e0b'; // amber/orange for 4G
+};
 
 // Generate sector polygon points (wedge shape)
 const getSectorCoords = (
@@ -412,8 +418,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>' />
               {/* Sector wedges */}
               {siteDetail.cells.map(cell => {
-                const sectorCoords = getSectorCoords(siteDetail.coordinates, cell.azimut, 200, 65);
-                const color = getKpiColor(getCellKpiValue(cell));
+                const sectorCoords = getSectorCoords(siteDetail.coordinates, cell.azimut, 150, 60);
+                const color = getTechnoColor(cell.techno);
                 return (
                   <Polygon
                     key={`sector-${cell.cell_id}`}
@@ -421,18 +427,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pathOptions={{
                       color,
                       fillColor: color,
-                      fillOpacity: 0.3,
-                      weight: 2,
+                      fillOpacity: 0.75,
+                      weight: 1,
                     }}
                   >
                     <Tooltip direction="center" permanent className="cell-kpi-label">
-                      <span style={{ color, fontWeight: 800, fontSize: '9px' }}>{cell.azimut}° {cell.techno}</span>
+                      <span style={{ color: '#0f172a', fontWeight: 800, fontSize: '9px' }}>{cell.azimut}°</span>
                     </Tooltip>
                   </Polygon>
                 );
               })}
               {/* Center dot */}
-              <CircleMarker center={siteDetail.coordinates} radius={6} pathOptions={{ color: '#1e293b', fillColor: getQoEColor(siteDetail.qoe_score_avg), fillOpacity: 1, weight: 2 }}>
+              <CircleMarker center={siteDetail.coordinates} radius={5} pathOptions={{ color: '#0f172a', fillColor: '#0f172a', fillOpacity: 1, weight: 1 }}>
                 <Popup><strong>{siteDetail.site_name}</strong></Popup>
               </CircleMarker>
             </MapContainer>
@@ -593,22 +599,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Detailed sectors (only when zoomed in, sites mode) */}
         {showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
+          const zoomRadius = viewport.zoom >= 15 ? 250 : viewport.zoom >= 14 ? 180 : 120;
           return (
             <React.Fragment key={site.site_id}>
               {site.cells.map(cell => {
-                const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, 350, 65);
-                const kpiVal = getCellKpiValue(cell);
-                const color = getKpiColor(kpiVal);
+                const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, zoomRadius, 60);
+                const color = getTechnoColor(cell.techno);
                 return (
                   <Polygon
                     key={cell.cell_id}
                     positions={sectorCoords}
                     pathOptions={{
-                      color,
+                      color: isHovered ? '#1e293b' : color,
                       fillColor: color,
-                      fillOpacity: isHovered ? 0.35 : 0.2,
+                      fillOpacity: isHovered ? 0.9 : 0.75,
                       weight: isHovered ? 2 : 1,
-                      dashArray: '6 4',
                     }}
                     eventHandlers={{
                       click: () => handleSiteClick(site),
@@ -618,22 +623,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   >
                     <Tooltip direction="top" offset={[0, -10]} permanent={false}>
                       <div className="text-center">
-                        <div className="font-bold text-xs">{cell.azimut}° {cell.techno}</div>
-                        <div className="text-[10px]">{cell.bande} MHz</div>
-                        <div className="font-bold text-xs" style={{ color }}>{selectedKpiLabel}: {kpiVal.toFixed(1)}</div>
+                        <div className="font-bold text-xs">{cell.cell_id.split('_').pop()} • {cell.azimut}°</div>
+                        <div className="text-[10px]">{cell.techno} • {cell.bande}</div>
                       </div>
                     </Tooltip>
                   </Polygon>
                 );
               })}
+              {/* Dark center dot */}
               <CircleMarker
                 center={site.coordinates}
-                radius={isHovered ? 7 : 5}
+                radius={isHovered ? 6 : 4}
                 pathOptions={{
-                  color: '#1e293b',
-                  fillColor: getKpiColor(getCellKpiValue(site.cells[0] || {})),
+                  color: '#0f172a',
+                  fillColor: '#0f172a',
                   fillOpacity: 1,
-                  weight: 2,
+                  weight: 1,
                 }}
                 eventHandlers={{
                   click: () => handleSiteClick(site),
@@ -645,9 +650,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <div className="p-1">
                     <div className="font-bold text-sm">{site.site_name}</div>
                     <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                    <div className="text-sm font-bold mt-2" style={{ color: getKpiColor(getCellKpiValue(site.cells[0] || {})) }}>
-                      {selectedKpiLabel}: {(site as any)[mapKpi]?.toFixed?.(1) ?? site.qoe_score_avg.toFixed(1)}
-                    </div>
                     <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
                   </div>
                 </Popup>
