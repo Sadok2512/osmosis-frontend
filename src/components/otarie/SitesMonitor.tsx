@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker } from 'react-leaflet';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -1177,7 +1178,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </button>
             </div>
 
-            {/* Cell Inventory — grouped by sector */}
+            {/* Evolution Temporelle des KPIs */}
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                <BarChart2 size={13} className="text-primary" />
+                Evolution Temporelle des KPIs
+              </h5>
+              {/* KPI toggle chips */}
+              <SiteKpiChart siteDetail={siteDetail} />
+            </div>
+
+
             <div className="space-y-3">
               <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
                 <BarChart2 size={13} className="text-primary" />
@@ -1261,5 +1272,109 @@ const FilterSelect = ({ label, value, options, onChange }: { label: string; valu
     </select>
   </div>
 );
+
+// Generate mock time-series data for a site's KPIs (seeded from site values)
+const generateSiteTimeSeries = (siteDetail: any) => {
+  const days = 14;
+  const baseDate = new Date('2026-02-09');
+  const baseQoE = siteDetail.qoe_score_avg ?? 75;
+  const baseDms3 = siteDetail.dms_dl_3 ?? 85;
+  const baseDms8 = siteDetail.dms_dl_8 ?? 78;
+  const baseDms30 = siteDetail.dms_dl_30 ?? 32;
+  const baseDmsUl = siteDetail.dms_ul_3 ?? 70;
+
+  const data = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + i);
+    const seed = Math.sin(i * 3.7 + (siteDetail.site_id?.charCodeAt(0) ?? 0)) * 0.5;
+    data.push({
+      date: d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+      QoE: Math.max(0, Math.min(100, baseQoE + seed * 8 + Math.sin(i * 0.9) * 3)),
+      'DMS 3M': Math.max(0, Math.min(100, baseDms3 + seed * 5 + Math.cos(i * 1.1) * 4)),
+      'DMS 8M': Math.max(0, Math.min(100, baseDms8 + seed * 6 + Math.sin(i * 1.3) * 5)),
+      'DMS 30M': Math.max(0, Math.min(100, baseDms30 + seed * 10 + Math.cos(i * 0.7) * 6)),
+      'DMS UL': Math.max(0, Math.min(100, baseDmsUl + seed * 7 + Math.sin(i * 1.5) * 4)),
+    });
+  }
+  return data;
+};
+
+const KPI_SERIES = [
+  { key: 'QoE', color: '#1e293b', label: 'QOE' },
+  { key: 'DMS 3M', color: '#10b981', label: 'DMS 3M' },
+  { key: 'DMS 8M', color: '#f59e0b', label: 'DMS 8M' },
+  { key: 'DMS 30M', color: '#f97316', label: 'DMS 30M' },
+  { key: 'DMS UL', color: '#ec4899', label: 'DMS UL' },
+];
+
+const SiteKpiChart = ({ siteDetail }: { siteDetail: any }) => {
+  const [activeSeries, setActiveSeries] = useState<Set<string>>(new Set(KPI_SERIES.map(k => k.key)));
+  const data = useMemo(() => generateSiteTimeSeries(siteDetail), [siteDetail]);
+
+  const toggleSeries = (key: string) => {
+    setActiveSeries(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Toggle chips */}
+      <div className="flex flex-wrap gap-1.5">
+        {KPI_SERIES.map(s => {
+          const isActive = activeSeries.has(s.key);
+          return (
+            <button
+              key={s.key}
+              onClick={() => toggleSeries(s.key)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all ${
+                isActive
+                  ? 'text-white shadow-sm'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+              style={isActive ? { background: s.color } : undefined}
+            >
+              <div className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+              {s.label}
+            </button>
+          );
+        })}
+      </div>
+      {/* Chart */}
+      <div className="h-[200px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
+            <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
+            <RechartsTooltip
+              contentStyle={{
+                background: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                fontSize: '11px',
+              }}
+            />
+            {KPI_SERIES.filter(s => activeSeries.has(s.key)).map(s => (
+              <Line
+                key={s.key}
+                type="monotone"
+                dataKey={s.key}
+                stroke={s.color}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 3 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
 
 export default SitesMonitor;
