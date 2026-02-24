@@ -40,7 +40,7 @@ import {
   Zap, Network, Database, Activity, ArrowRight,
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
-  ChevronDown, ChevronUp, BarChart2
+  ChevronDown, ChevronUp, BarChart2, Signal, Settings2
 } from 'lucide-react';
 import { getQoEColor, VENDORS, DORS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
 
@@ -1112,8 +1112,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="flex flex-col gap-5 overflow-y-auto pr-2">
                   {/* Site header */}
                   <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 bg-sidebar rounded-xl flex items-center justify-center">
-                      <BarChart2 size={24} className="text-sidebar-primary" />
+                    <div className="w-14 h-14 bg-sidebar rounded-2xl flex items-center justify-center shadow-lg">
+                      <Signal size={26} className="text-sidebar-primary" />
                     </div>
                     <div>
                       <h4 className="text-[18px] font-black text-foreground uppercase tracking-tight">{siteDetail.site_name}</h4>
@@ -1171,18 +1171,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
 
                   {/* AI Diagnostic card */}
-                  <div className="bg-sidebar rounded-2xl p-4 flex items-center justify-between">
+                  <div className="bg-sidebar rounded-2xl p-5 flex items-center justify-between shadow-lg">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
-                        <Zap size={18} className="text-primary" />
+                      <div className="w-11 h-11 bg-sidebar-primary/20 rounded-xl flex items-center justify-center">
+                        <Settings2 size={20} className="text-sidebar-primary" />
                       </div>
                       <div>
-                        <div className="text-[12px] font-black text-sidebar-foreground uppercase tracking-tight">AI Diagnostic</div>
-                        <div className="text-[9px] font-bold text-sidebar-foreground/60 uppercase tracking-wider">RCA Analysis</div>
+                        <div className="text-[13px] font-black text-sidebar-foreground uppercase tracking-tight">AI Diagnostic</div>
+                        <div className="text-[9px] font-bold text-sidebar-foreground/50 uppercase tracking-wider">RCA Analysis</div>
                       </div>
                     </div>
-                    <button className="px-4 py-2 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2">
-                      <Zap size={12} />
+                    <button className="px-5 py-2.5 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 shadow-sm">
+                      <Zap size={13} />
                       Lancer
                     </button>
                   </div>
@@ -1319,16 +1319,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               /* ===== COMPACT SIDEBAR LAYOUT (original) ===== */
               <div className="space-y-5">
                 {/* Site Simulation header */}
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-sidebar rounded-xl flex items-center justify-center">
-                    <BarChart2 size={22} className="text-sidebar-primary" />
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-sidebar rounded-2xl flex items-center justify-center shadow-lg">
+                    <Signal size={26} className="text-sidebar-primary" />
                   </div>
                   <div>
-                    <h4 className="text-[16px] font-black text-foreground uppercase tracking-tight">Site Simulation</h4>
-                    <div className="flex items-center gap-2 text-[10px] mt-0.5">
+                    <h4 className="text-[18px] font-black text-foreground uppercase tracking-tight leading-tight">Site Simulation</h4>
+                    <div className="flex items-center gap-2 text-[11px] mt-1">
                       <span className="font-mono text-muted-foreground">{siteDetail.site_id}</span>
-                      <span>•</span>
-                      <span className="font-bold text-primary uppercase">{siteDetail.cells[0]?.techno} {siteDetail.cells[0]?.bande}MHz</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="font-black text-primary uppercase">{siteDetail.cells[0]?.techno} {siteDetail.cells[0]?.bande}MHz</span>
                     </div>
                   </div>
                 </div>
@@ -1342,8 +1342,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     { label: 'DMS UL 3M', value: siteDetail.cells[0]?.dms_ul_3 },
                   ].map((kpi, i) => (
                     <div key={i} className="text-center p-3 rounded-xl border border-border bg-card">
-                      <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{kpi.label}</div>
-                      <div className="text-[14px] font-black tracking-tight" style={{ color: getKpiColor(kpi.value ?? 0) }}>
+                      <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">{kpi.label}</div>
+                      <div className="text-[16px] font-black tracking-tight" style={{ color: getKpiColor(kpi.value ?? 0) }}>
                         {(kpi.value ?? 0).toFixed(1)}%
                       </div>
                     </div>
@@ -1354,47 +1354,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="grid grid-cols-4 gap-3 items-end">
                   <div className="text-center">
                     <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Score QoE Global</div>
-                    <div className="text-[28px] font-black tracking-tighter leading-none" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>
+                    <div className="text-[32px] font-black tracking-tighter leading-none" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>
                       {(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%
                     </div>
-                    <div className="w-full h-1 rounded-full mt-2" style={{ background: getQoEColor(siteDetail.qoe_score_avg ?? 0) }} />
+                    <div className="w-full h-1.5 rounded-full mt-2.5" style={{ background: getQoEColor(siteDetail.qoe_score_avg ?? 0) }} />
                   </div>
                   <div className="text-center p-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
-                      <Zap size={14} className="text-primary" />
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1.5">
+                      <Zap size={16} className="text-primary" />
                     </div>
                     <div className="text-[8px] font-bold text-muted-foreground uppercase">Débit DL</div>
-                    <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
+                    <div className="text-[18px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
                   </div>
                   <div className="text-center p-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
-                      <Network size={14} className="text-primary" />
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1.5">
+                      <Network size={16} className="text-primary" />
                     </div>
                     <div className="text-[8px] font-bold text-muted-foreground uppercase">Débit UL</div>
-                    <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
+                    <div className="text-[18px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
                   </div>
                   <div className="text-center p-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
-                      <Activity size={14} className="text-primary" />
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1.5">
+                      <Activity size={16} className="text-primary" />
                     </div>
                     <div className="text-[8px] font-bold text-muted-foreground uppercase">RTT</div>
-                    <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">MS</span></div>
+                    <div className="text-[18px] font-black text-foreground tracking-tight">{(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">MS</span></div>
                   </div>
                 </div>
 
-                {/* AI Diagnostic card */}
-                <div className="bg-sidebar rounded-2xl p-4 flex items-center justify-between">
+                {/* AI Diagnostic card — dark themed */}
+                <div className="bg-sidebar rounded-2xl p-5 flex items-center justify-between shadow-lg">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
-                      <Zap size={18} className="text-primary" />
+                    <div className="w-11 h-11 bg-sidebar-primary/20 rounded-xl flex items-center justify-center">
+                      <Settings2 size={20} className="text-sidebar-primary" />
                     </div>
                     <div>
-                      <div className="text-[12px] font-black text-sidebar-foreground uppercase tracking-tight">AI Diagnostic</div>
-                      <div className="text-[9px] font-bold text-sidebar-foreground/60 uppercase tracking-wider">RCA Analysis</div>
+                      <div className="text-[13px] font-black text-sidebar-foreground uppercase tracking-tight">AI Diagnostic</div>
+                      <div className="text-[9px] font-bold text-sidebar-foreground/50 uppercase tracking-wider">RCA Analysis</div>
                     </div>
                   </div>
-                  <button className="px-4 py-2 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2">
-                    <Zap size={12} />
+                  <button className="px-5 py-2.5 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 shadow-sm">
+                    <Zap size={13} />
                     Lancer
                   </button>
                 </div>
