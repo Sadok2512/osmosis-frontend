@@ -58,6 +58,7 @@ interface SitesMonitorProps {
   onCellSelect: (cellId: string) => void;
   highlightedCellIds?: string[];
   onClearHighlights?: () => void;
+  onLaunchAI?: (siteName: string) => void;
 }
 
 // Zoom threshold: above this we show sectors, below we show clusters
@@ -215,7 +216,7 @@ const createSiteIcon = (color: string) => {
   });
 };
 
-const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights }) => {
+const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
@@ -1603,7 +1604,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <div className="text-[9px] font-bold text-sidebar-foreground/50 uppercase tracking-wider">RCA Analysis</div>
                       </div>
                     </div>
-                    <button className="px-5 py-2.5 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 shadow-sm">
+                    <button
+                      onClick={() => { if (siteDetail && onLaunchAI) onLaunchAI(siteDetail.site_name); }}
+                      className="px-5 py-2.5 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 shadow-sm">
                       <Zap size={13} />
                       Lancer
                     </button>
@@ -1835,7 +1838,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <div className="text-[9px] font-bold text-sidebar-foreground/50 uppercase tracking-wider">RCA Analysis</div>
                     </div>
                   </div>
-                  <button className="px-5 py-2.5 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 shadow-sm">
+                  <button
+                    onClick={() => { if (siteDetail && onLaunchAI) onLaunchAI(siteDetail.site_name); }}
+                    className="px-5 py-2.5 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 shadow-sm">
                     <Zap size={13} />
                     Lancer
                   </button>

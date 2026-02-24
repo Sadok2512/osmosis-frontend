@@ -23,9 +23,11 @@ const SUGGESTIONS = [
 interface AIAssistantPageProps {
   sites?: SiteSummary[];
   onShowWorstCells?: (cellIds: string[]) => void;
+  initialPrompt?: string;
+  onPromptConsumed?: () => void;
 }
 
-const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWorstCells }) => {
+const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWorstCells, initialPrompt, onPromptConsumed }) => {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -35,6 +37,17 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto-send initial prompt from Sites Monitor AI Diagnostic
+  const initialPromptSentRef = useRef(false);
+  useEffect(() => {
+    if (initialPrompt && !initialPromptSentRef.current && !isLoading) {
+      initialPromptSentRef.current = true;
+      onPromptConsumed?.();
+      // Small delay to ensure component is mounted
+      setTimeout(() => send(initialPrompt), 300);
+    }
+  }, [initialPrompt]);
 
   // Build cell context from real site data for the AI
   const cellContext = useMemo(() => {

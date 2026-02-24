@@ -35,6 +35,7 @@ const Index: React.FC = () => {
   const [siteSearch, setSiteSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [highlightedCellIds, setHighlightedCellIds] = useState<string[]>([]);
+  const [aiInitialPrompt, setAiInitialPrompt] = useState<string | undefined>();
 
   const accentStyles: Record<AccentColor, Record<string, string>> = {
     default: {},
@@ -98,7 +99,7 @@ const Index: React.FC = () => {
       case 'bi':
         return <AdvancedAnalytics filters={filters} theme={theme} />;
       case 'sites':
-        return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} />;
+        return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />;
       case 'alerts':
         return <AlertsRCA filters={filters} />;
       case 'radio':
@@ -110,13 +111,13 @@ const Index: React.FC = () => {
       case 'detector':
         return <DetectorConsole />;
       case 'list':
-        return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} />;
+        return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />;
       case 'settings':
         return <SettingsPanel sidebarTheme={sidebarTheme} setSidebarTheme={setSidebarTheme} accentColor={accentColor} setAccentColor={setAccentColor} />;
       case 'docs':
         return <DocumentationPage />;
       case 'ai_assistant':
-        return <AIAssistantPage sites={sites} onShowWorstCells={(cellIds) => { setHighlightedCellIds(cellIds); setActiveTab('sites'); }} />;
+        return <AIAssistantPage sites={sites} onShowWorstCells={(cellIds) => { setHighlightedCellIds(cellIds); setActiveTab('sites'); }} initialPrompt={aiInitialPrompt} onPromptConsumed={() => setAiInitialPrompt(undefined)} />;
       case 'radio_profile':
         return <RadioProfilePage />;
       case 'rag':
