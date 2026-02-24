@@ -1,10 +1,60 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// Generate a deterministic 768-dim embedding from text (same algo as rag-embed)
+function generateSimpleEmbedding(text: string): number[] {
+  const dim = 768;
+  const vec = new Array(dim).fill(0);
+  const normalized = text.toLowerCase();
+  for (let i = 0; i < normalized.length; i++) {
+    const code = normalized.charCodeAt(i);
+    const idx = (code * (i + 1) * 31) % dim;
+    vec[idx] += 1;
+  }
+  const mag = Math.sqrt(vec.reduce((s: number, v: number) => s + v * v, 0)) || 1;
+  return vec.map((v: number) => v / mag);
+}
+
+async function searchRAGDocuments(query: string): Promise<string> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const queryEmbedding = generateSimpleEmbedding(query);
+    const embeddingStr = `[${queryEmbedding.join(",")}]`;
+
+    const { data, error } = await supabase.rpc("match_documents", {
+      query_embedding: embeddingStr,
+      match_threshold: 0.3,
+      match_count: 5,
+    });
+
+    if (error) {
+      console.error("RAG search error:", error);
+      return "";
+    }
+
+    if (!data || data.length === 0) return "";
+
+    const ragContext = data
+      .map((doc: { filename: string; content: string; similarity: number }) =>
+        `[${doc.filename} (score: ${doc.similarity.toFixed(2)})]\n${doc.content.slice(0, 800)}`
+      )
+      .join("\n\n---\n\n");
+
+    return ragContext;
+  } catch (e) {
+    console.error("RAG search failed:", e);
+    return "";
+  }
+}
 
 const SYSTEM_PROMPT = `Tu es un assistant expert en analyse de Qualité d'Expérience (QoE) réseau mobile pour l'opérateur Orange France.
 
@@ -61,6 +111,9 @@ Valeurs réalistes à utiliser :
 - DMS DL 30M: 15-65%
 - Loss Rate: 0.01-5%
 
+DOCUMENTS RAG :
+Si des documents de la base de connaissances RAG sont fournis dans le contexte, utilise-les pour enrichir tes réponses avec des informations techniques précises. Cite la source du document quand tu utilises une information provenant du RAG.
+
 Réponds TOUJOURS en français.`;
 
 serve(async (req) => {
@@ -73,6 +126,20 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    // Extract the last user message for RAG search
+    const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === "user")?.content || "";
+    
+    // Search RAG documents for relevant context
+    const ragContext = await searchRAGDocuments(lastUserMessage);
+
+    let systemContent = SYSTEM_PROMPT;
+    if (cellContext) {
+      systemContent += `\n\nDONNÉES RÉSEAU RÉELLES DISPONIBLES :\n${cellContext}`;
+    }
+    if (ragContext) {
+      systemContent += `\n\n📚 DOCUMENTS RAG PERTINENTS :\n${ragContext}`;
+    }
+
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
@@ -84,7 +151,7 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: SYSTEM_PROMPT + (cellContext ? `\n\nDONNÉES RÉSEAU RÉELLES DISPONIBLES :\n${cellContext}` : '') },
+            { role: "system", content: systemContent },
             ...messages,
           ],
           stream: true,
