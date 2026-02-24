@@ -256,6 +256,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   };
 
   const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'OFF'>('ALL');
+  const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(BAND_COLORS)));
+  const [showBandPanel, setShowBandPanel] = useState(false);
   const [detailFullscreen, setDetailFullscreen] = useState(false);
 
   // LOS / Radio Profile state
@@ -424,6 +426,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite]);
 
+  // Check if a cell's band passes the band filter
+  const isBandEnabled = useCallback((bande: string) => {
+    if (!bande) return true;
+    const normalized = bande.replace(/\s+/g, '').toUpperCase();
+    for (const key of enabledBands) {
+      if (normalized.includes(key)) return true;
+    }
+    return false;
+  }, [enabledBands]);
+
+  const toggleBand = useCallback((band: string) => {
+    setEnabledBands(prev => {
+      const next = new Set(prev);
+      if (next.has(band)) next.delete(band);
+      else next.add(band);
+      return next;
+    });
+  }, []);
+
+  const toggleAllBands = useCallback((group: 'NR' | 'LTE') => {
+    const bands = group === 'NR' ? ['NR3500', 'NR700', 'NR2100'] : ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
+    setEnabledBands(prev => {
+      const next = new Set(prev);
+      const allOn = bands.every(b => next.has(b));
+      bands.forEach(b => allOn ? next.delete(b) : next.add(b));
+      return next;
+    });
+  }, []);
+
   // Sites filtered by techno (for map rendering only)
   const mapFilteredSites = useMemo(() => {
     if (mapTechnoFilter === 'OFF') return [];
@@ -532,8 +563,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Points mode — individual cell markers colored by KPI threshold */}
         {mapDisplayMode === 'points' && mapFilteredSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
-          const cellsToRender = mapTechnoFilter === 'ALL' ? site.cells
-            : site.cells.filter(c => c.techno === mapTechnoFilter);
+          const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells
+            : site.cells.filter(c => c.techno === mapTechnoFilter)).filter(c => isBandEnabled(c.bande));
           return (
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
@@ -635,7 +666,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const zoomRadius = viewport.zoom >= 15 ? 250 : viewport.zoom >= 14 ? 180 : 120;
           return (
             <React.Fragment key={site.site_id}>
-              {site.cells.map(cell => {
+              {site.cells.filter(c => isBandEnabled(c.bande)).map(cell => {
                 const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, zoomRadius, 60);
                 const color = getBandColor(cell.bande);
                 return (
@@ -1003,7 +1034,75 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             ))}
           </div>
 
-          {/* Legend — floating card with close button matching reference */}
+          {/* Band layer toggle panel */}
+          <div className="relative">
+            <button
+              onClick={() => setShowBandPanel(!showBandPanel)}
+              className={`w-10 h-10 flex items-center justify-center rounded-full shadow-lg transition-all ${
+                showBandPanel
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card/95 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+              title="Band Layers"
+            >
+              <Signal size={16} />
+            </button>
+            {showBandPanel && (
+              <div className="absolute right-12 top-0 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px]">
+                {/* NR group */}
+                <div className="px-4 py-2 border-b border-border">
+                  <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline">
+                    NR (5G)
+                  </button>
+                  <div className="mt-1.5 space-y-1">
+                    {(['NR3500', 'NR700', 'NR2100'] as const).map(band => (
+                      <button
+                        key={band}
+                        onClick={() => toggleBand(band)}
+                        className="flex items-center gap-2 w-full group"
+                      >
+                        <div
+                          className={`w-3.5 h-3.5 rounded-sm border transition-all ${
+                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground bg-transparent'
+                          }`}
+                          style={{ background: enabledBands.has(band) ? BAND_COLORS[band] : 'transparent' }}
+                        />
+                        <span className={`text-[10px] font-bold transition-all ${
+                          enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
+                        }`}>{band}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* LTE group */}
+                <div className="px-4 py-2">
+                  <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black text-accent-foreground uppercase tracking-widest hover:underline">
+                    LTE (4G)
+                  </button>
+                  <div className="mt-1.5 space-y-1">
+                    {(['L2600', 'L2100', 'L1800', 'L800', 'L700'] as const).map(band => (
+                      <button
+                        key={band}
+                        onClick={() => toggleBand(band)}
+                        className="flex items-center gap-2 w-full group"
+                      >
+                        <div
+                          className={`w-3.5 h-3.5 rounded-sm border transition-all ${
+                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground bg-transparent'
+                          }`}
+                          style={{ background: enabledBands.has(band) ? BAND_COLORS[band] : 'transparent' }}
+                        />
+                        <span className={`text-[10px] font-bold transition-all ${
+                          enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
+                        }`}>{band}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {showLegend && (
             <div className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[220px]">
               <div className="flex items-center justify-between px-5 py-3">
