@@ -26,6 +26,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'alerts', label: 'Alerts & RCA Monitor', icon: <Bell className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
   { id: 'ai_assistant', label: 'QOEBIT', icon: <Sparkles className="w-5 h-5" /> },
+  { id: 'rag', label: 'RAG Knowledge Base', icon: <Database className="w-5 h-5" /> },
   { id: 'docs', label: 'Documentation', icon: <BookOpen className="w-5 h-5" /> },
 ];
 
