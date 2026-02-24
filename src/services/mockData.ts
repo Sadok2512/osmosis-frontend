@@ -116,6 +116,7 @@ export async function fetchAlerts(_filters: Filters): Promise<Alert[]> {
   const severities: Alert['severity'][] = ['CRITIQUE', 'ELEVEE', 'MOYENNE', 'FAIBLE'];
   const statuses: Alert['status'][] = ['NEW', 'ACK', 'RESOLVED', 'FALSE_POSITIVE'];
   const sites = await getSites();
+  if (sites.length === 0) return [];
   return Array.from({ length: 12 }, (_, i) => ({
     alert_id: `ALT-${String(i + 1).padStart(3, '0')}`,
     severity: severities[i % 4],
@@ -140,6 +141,7 @@ export async function fetchAlerts(_filters: Filters): Promise<Alert[]> {
 
 export async function fetchTCPAnalytics(_filters: Filters): Promise<TCPAnalyticsData> {
   const sites = await getSites();
+  const safeSiteName = (i: number) => sites.length > 0 ? sites[i % sites.length].site_name : `SITE_${i}`;
   return {
     congestion_index: randInt(15, 45),
     cards: [
@@ -150,7 +152,7 @@ export async function fetchTCPAnalytics(_filters: Filters): Promise<TCPAnalytics
     ],
     distributions: {},
     worst_cells: Array.from({ length: 5 }, (_, i) => ({
-      name: `CELL_${sites[i % sites.length].site_name}_S${i + 1}`,
+      name: `CELL_${safeSiteName(i)}_S${i + 1}`,
       id: `C${randInt(1000, 9999)}`,
       value: `${rand(1, 8).toFixed(2)}%`,
       qoe_impact: `-${rand(2, 15).toFixed(1)}%`,
@@ -204,13 +206,14 @@ export function fetchTrafficOverview(_filters: Filters): Promise<TrafficTypeStat
 
 export async function fetchSubscriberProfile(_hash: string): Promise<SubscriberExperienceData> {
   const sites = await getSites();
+  const safeSiteName = (i: number) => sites.length > 0 ? sites[i % sites.length].site_name : `SITE_${i}`;
   return {
     total_traffic_gb: rand(5, 50),
     qoe_global: rand(65, 95),
     top_app: pick(['Netflix', 'YouTube', 'TikTok', 'Instagram']),
     sessions: Array.from({ length: 6 }, (_, i) => ({
       type: pick(['Streaming', 'Gaming', 'Web', 'Social']),
-      cell: `CELL_${sites[i % sites.length].site_name}_S${randInt(1, 4)}`,
+      cell: `CELL_${safeSiteName(i)}_S${randInt(1, 4)}`,
       rtt: randInt(15, 250),
       loss: rand(0, 2),
       status: rand(0, 1) > 0.3 ? 'OK' : 'DEGRADED',
