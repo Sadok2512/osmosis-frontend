@@ -229,6 +229,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showFilters, setShowFilters] = useState(false);
   const [panelMinimized, setPanelMinimized] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [showAllSites, setShowAllSites] = useState(false);
   const [localVendor, setLocalVendor] = useState('ALL');
   const [localDor, setLocalDor] = useState('ALL');
   const [localPlaque, setLocalPlaque] = useState('ALL');
@@ -1297,9 +1298,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   )}
                 </div>
                 {/* Site count badge */}
-                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-black shrink-0">
+                <button
+                  onClick={() => setShowAllSites(!showAllSites)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 transition-all cursor-pointer hover:scale-110 ${
+                    showAllSites ? 'bg-primary text-primary-foreground ring-2 ring-primary/30' : 'bg-primary text-primary-foreground'
+                  }`}
+                  title={showAllSites ? 'Hide all sites' : 'Show all sites'}
+                >
                   {filteredSites.length}
-                </div>
+                </button>
                 {/* Filter toggle */}
                 <button
                   onClick={() => setPanelMinimized(!panelMinimized)}
@@ -1354,8 +1361,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               )}
 
-              {/* Dynamic search results dropdown — only shown when typing or has results */}
-              {localSearch.length > 0 && (
+              {/* Dynamic search results dropdown — shown when typing or showAllSites */}
+              {(localSearch.length > 0 || showAllSites) && (
                 <div className="border-t border-border max-h-[360px] overflow-y-auto">
                   {filteredSites.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
@@ -1370,7 +1377,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         return (
                           <button
                             key={site.site_id}
-                            onClick={() => { handleSiteClick(site); setLocalSearch(''); }}
+                            onClick={() => { handleSiteClick(site); setLocalSearch(''); setShowAllSites(false); }}
                             onMouseEnter={() => setHoveredSiteId(site.site_id)}
                             onMouseLeave={() => setHoveredSiteId(null)}
                             className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-all ${
