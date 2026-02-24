@@ -32,18 +32,37 @@ const RAGManager: React.FC = () => {
 
   useEffect(() => { fetchFiles(); }, [fetchFiles]);
 
+  const BINARY_EXTENSIONS = ['pptx', 'docx', 'xlsx'];
+  
   const processFile = async (file: File) => {
-    const text = await file.text();
-    if (!text.trim()) {
-      toast.error(`Le fichier ${file.name} est vide`);
-      return;
-    }
+    const ext = file.name.toLowerCase().split('.').pop() || '';
+    const isBinary = BINARY_EXTENSIONS.includes(ext);
 
     setUploading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('rag-embed', {
-        body: { filename: file.name, content: text },
-      });
+      let body: Record<string, string>;
+
+      if (isBinary) {
+        // Send as base64 for binary formats (PPTX, DOCX, XLSX)
+        const arrayBuffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+        body = { filename: file.name, base64 };
+      } else {
+        const text = await file.text();
+        if (!text.trim()) {
+          toast.error(`Le fichier ${file.name} est vide`);
+          setUploading(false);
+          return;
+        }
+        body = { filename: file.name, content: text };
+      }
+
+      const { data, error } = await supabase.functions.invoke('rag-embed', { body });
       if (error) throw error;
       toast.success(`${file.name} indexé : ${data.chunks} chunks créés`);
       fetchFiles();
@@ -113,7 +132,7 @@ const RAGManager: React.FC = () => {
           <input
             type="file"
             multiple
-            accept=".txt,.md,.csv,.json,.xml,.log,.html,.css,.js,.ts,.py"
+            accept=".txt,.md,.csv,.json,.xml,.log,.html,.css,.js,.ts,.py,.pptx,.docx,.xlsx"
             onChange={handleFileInput}
             className="absolute inset-0 opacity-0 cursor-pointer"
             disabled={uploading}
@@ -131,7 +150,7 @@ const RAGManager: React.FC = () => {
                 Glissez vos fichiers ici ou <span className="text-primary underline">parcourez</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                Formats supportés : TXT, MD, CSV, JSON, XML, LOG, HTML, CSS, JS, TS, PY
+                Formats supportés : TXT, MD, CSV, JSON, XML, PPTX, DOCX, XLSX
               </p>
             </div>
           )}
