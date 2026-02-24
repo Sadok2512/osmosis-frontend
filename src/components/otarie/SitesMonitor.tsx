@@ -207,6 +207,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   };
 
   const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'NONE'>('ALL');
+  const [detailFullscreen, setDetailFullscreen] = useState(false);
 
   const MAP_KPIS = [
     { id: 'qoe_score_avg', label: 'Score QoE Global', category: 'QUALITY' },
@@ -1075,7 +1076,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* RIGHT SIDE DETAIL PANEL — Analyse Détaillée */}
       {siteDetail && (
-        <div className="absolute top-4 right-4 bottom-4 w-[400px] z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div className={`absolute z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ${
+          detailFullscreen
+            ? 'inset-3'
+            : 'top-4 right-4 bottom-4 w-[400px]'
+        }`}>
           {/* Header */}
           <div className="px-5 py-4 border-b border-border shrink-0 flex items-center justify-between">
             <div>
@@ -1083,11 +1088,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mt-0.5">Focus Cellule • NOC Monitoring</p>
             </div>
             <div className="flex items-center gap-2">
-              <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
-                <Maximize2 size={14} />
+              <button
+                onClick={() => setDetailFullscreen(!detailFullscreen)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+              >
+                {detailFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
               </button>
               <button
-                onClick={() => setSelectedSiteId(null)}
+                onClick={() => { setSelectedSiteId(null); setDetailFullscreen(false); }}
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
               >
                 <X size={14} />
@@ -1095,159 +1103,372 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </div>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-5">
-            {/* Site Simulation header */}
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-sidebar rounded-xl flex items-center justify-center">
-                <BarChart2 size={22} className="text-sidebar-primary" />
-              </div>
-              <div>
-                <h4 className="text-[16px] font-black text-foreground uppercase tracking-tight">Site Simulation</h4>
-                <div className="flex items-center gap-2 text-[10px] mt-0.5">
-                  <span className="font-mono text-muted-foreground">{siteDetail.site_id}</span>
-                  <span>•</span>
-                  <span className="font-bold text-primary uppercase">{siteDetail.cells[0]?.techno} {siteDetail.cells[0]?.bande}MHz</span>
-                </div>
-              </div>
-            </div>
-
-            {/* DMS KPI row */}
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { label: 'DMS DL 3M', value: siteDetail.cells[0]?.dms_dl_3 },
-                { label: 'DMS DL 8M', value: siteDetail.cells[0]?.dms_dl_8 },
-                { label: 'DMS DL 30M', value: siteDetail.cells[0]?.dms_dl_30 },
-                { label: 'DMS UL 3M', value: siteDetail.cells[0]?.dms_ul_3 },
-              ].map((kpi, i) => (
-                <div key={i} className="text-center p-3 rounded-xl border border-border bg-card">
-                  <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{kpi.label}</div>
-                  <div className="text-[14px] font-black tracking-tight" style={{ color: getKpiColor(kpi.value ?? 0) }}>
-                    {(kpi.value ?? 0).toFixed(1)}%
+          {/* Content — adaptive layout */}
+          <div className={`flex-1 overflow-y-auto p-5 ${detailFullscreen ? '' : 'space-y-5'}`}>
+            {detailFullscreen ? (
+              /* ===== FULLSCREEN LAYOUT ===== */
+              <div className="grid grid-cols-3 gap-5 h-full">
+                {/* LEFT COLUMN — Site Identity + KPIs */}
+                <div className="flex flex-col gap-5 overflow-y-auto pr-2">
+                  {/* Site header */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 bg-sidebar rounded-xl flex items-center justify-center">
+                      <BarChart2 size={24} className="text-sidebar-primary" />
+                    </div>
+                    <div>
+                      <h4 className="text-[18px] font-black text-foreground uppercase tracking-tight">{siteDetail.site_name}</h4>
+                      <div className="flex items-center gap-2 text-[11px] mt-0.5">
+                        <span className="font-mono text-muted-foreground">{siteDetail.site_id}</span>
+                        <span>•</span>
+                        <span className="font-bold text-primary uppercase">{siteDetail.vendor}</span>
+                        <span>•</span>
+                        <span className="font-bold text-muted-foreground uppercase">{siteDetail.dor}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
 
-            {/* QoE Score + Throughput */}
-            <div className="grid grid-cols-4 gap-3 items-end">
-              <div className="text-center">
-                <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Score QoE Global</div>
-                <div className="text-[28px] font-black tracking-tighter leading-none" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>
-                  {(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%
-                </div>
-                <div className="w-full h-1 rounded-full mt-2" style={{ background: getQoEColor(siteDetail.qoe_score_avg ?? 0) }} />
-              </div>
-              <div className="text-center p-3">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
-                  <Zap size={14} className="text-primary" />
-                </div>
-                <div className="text-[8px] font-bold text-muted-foreground uppercase">Débit DL</div>
-                <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
-              </div>
-              <div className="text-center p-3">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
-                  <Network size={14} className="text-primary" />
-                </div>
-                <div className="text-[8px] font-bold text-muted-foreground uppercase">Débit UL</div>
-                <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
-              </div>
-              <div className="text-center p-3">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
-                  <Activity size={14} className="text-primary" />
-                </div>
-                <div className="text-[8px] font-bold text-muted-foreground uppercase">RTT</div>
-                <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">MS</span></div>
-              </div>
-            </div>
+                  {/* QoE Score hero */}
+                  <div className="bg-sidebar rounded-2xl p-5 text-center">
+                    <div className="text-[9px] font-bold text-sidebar-foreground/60 uppercase tracking-widest mb-2">Score QoE Global</div>
+                    <div className="text-[48px] font-black tracking-tighter leading-none" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>
+                      {(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%
+                    </div>
+                    <div className="w-full h-1.5 rounded-full mt-3 bg-muted overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${siteDetail.qoe_score_avg ?? 0}%`, background: getQoEColor(siteDetail.qoe_score_avg ?? 0) }} />
+                    </div>
+                  </div>
 
-            {/* AI Diagnostic card */}
-            <div className="bg-sidebar rounded-2xl p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
-                  <Zap size={18} className="text-primary" />
-                </div>
-                <div>
-                  <div className="text-[12px] font-black text-sidebar-foreground uppercase tracking-tight">AI Diagnostic</div>
-                  <div className="text-[9px] font-bold text-sidebar-foreground/60 uppercase tracking-wider">RCA Analysis</div>
-                </div>
-              </div>
-              <button className="px-4 py-2 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2">
-                <Zap size={12} />
-                Lancer
-              </button>
-            </div>
-
-            {/* Evolution Temporelle des KPIs */}
-            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-              <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
-                <BarChart2 size={13} className="text-primary" />
-                Evolution Temporelle des KPIs
-              </h5>
-              {/* KPI toggle chips */}
-              <SiteKpiChart siteDetail={siteDetail} />
-            </div>
-
-
-            <div className="space-y-3">
-              <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
-                <BarChart2 size={13} className="text-primary" />
-                Sector Inventory
-              </h5>
-              {(() => {
-                const { sectors, validation } = groupCellsBySector(siteDetail.cells);
-                return (
-                  <div className="space-y-3">
-                    {/* Validation badge */}
-                    {validation.status !== 'OK' && (
-                      <div className={`text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl ${
-                        validation.status === 'MISSING_SECTOR' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
-                      }`}>
-                        {validation.status === 'MISSING_SECTOR'
-                          ? `⚠ Missing sector${validation.missingSectors.length > 1 ? 's' : ''}: ${validation.missingSectors.join(', ')} — Expected ${validation.totalSectors + validation.missingSectors.length} sectors`
-                          : `⚠ Duplicate sector detected`}
-                      </div>
-                    )}
-                    {validation.status === 'OK' && (
-                      <div className="text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20">
-                        ✓ {validation.totalSectors} sectors — All OK
-                      </div>
-                    )}
-                    {sectors.map(({ sectorNumber, cells: sectorCells }) => (
-                      <div key={sectorNumber} className="rounded-xl border border-border overflow-hidden">
-                        <div className="px-4 py-2 bg-muted/50 flex items-center justify-between">
-                          <span className="text-[10px] font-black text-foreground uppercase tracking-wider">Sector {sectorNumber}</span>
-                          <span className="text-[9px] font-bold text-muted-foreground">{sectorCells.length} cell{sectorCells.length > 1 ? 's' : ''} • {sectorCells[0]?.azimut ?? '?'}°</span>
-                        </div>
-                        <div className="divide-y divide-border/50">
-                          {sectorCells.map(cell => (
-                            <div
-                              key={cell.cell_id}
-                              onClick={() => onCellSelect(cell.cell_id)}
-                              className="flex items-center justify-between px-4 py-2.5 bg-card hover:bg-primary/5 transition-all cursor-pointer group"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
-                                <div>
-                                  <div className="text-[10px] font-bold text-foreground">{cell.techno} • {cell.bande}MHz</div>
-                                  <div className="text-[8px] text-muted-foreground font-mono">{cell.cell_id.split('_').pop()}</div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[12px] font-black tracking-tight" style={{ color: getQoEColor(cell.qoe_score_avg) }}>
-                                  {cell.qoe_score_avg.toFixed(1)}%
-                                </span>
-                                <ArrowRight size={12} className="text-muted-foreground group-hover:text-primary transition-colors" />
-                              </div>
-                            </div>
-                          ))}
+                  {/* DMS KPIs */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: 'DMS DL 3M', value: siteDetail.dms_dl_3 },
+                      { label: 'DMS DL 8M', value: siteDetail.dms_dl_8 },
+                      { label: 'DMS DL 30M', value: siteDetail.dms_dl_30 },
+                      { label: 'DMS UL 3M', value: siteDetail.dms_ul_3 },
+                    ].map((kpi, i) => (
+                      <div key={i} className="text-center p-3 rounded-xl border border-border bg-card">
+                        <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{kpi.label}</div>
+                        <div className="text-[18px] font-black tracking-tight" style={{ color: getKpiColor(kpi.value ?? 0) }}>
+                          {(kpi.value ?? 0).toFixed(1)}%
                         </div>
                       </div>
                     ))}
                   </div>
-                );
-              })()}
-            </div>
+
+                  {/* Throughput & RTT row */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Débit DL', value: `${(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}`, unit: 'Mbps', icon: <Zap size={16} className="text-primary" /> },
+                      { label: 'Débit UL', value: `${(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}`, unit: 'Mbps', icon: <Network size={16} className="text-primary" /> },
+                      { label: 'RTT P95', value: `${(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}`, unit: 'ms', icon: <Activity size={16} className="text-primary" /> },
+                    ].map((m, i) => (
+                      <div key={i} className="text-center p-3 rounded-xl border border-border bg-card">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">{m.icon}</div>
+                        <div className="text-[8px] font-bold text-muted-foreground uppercase">{m.label}</div>
+                        <div className="text-[18px] font-black text-foreground tracking-tight">{m.value}<span className="text-[9px] font-bold text-muted-foreground ml-0.5">{m.unit}</span></div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* AI Diagnostic card */}
+                  <div className="bg-sidebar rounded-2xl p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
+                        <Zap size={18} className="text-primary" />
+                      </div>
+                      <div>
+                        <div className="text-[12px] font-black text-sidebar-foreground uppercase tracking-tight">AI Diagnostic</div>
+                        <div className="text-[9px] font-bold text-sidebar-foreground/60 uppercase tracking-wider">RCA Analysis</div>
+                      </div>
+                    </div>
+                    <button className="px-4 py-2 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2">
+                      <Zap size={12} />
+                      Lancer
+                    </button>
+                  </div>
+                </div>
+
+                {/* CENTER COLUMN — KPI Evolution Graph (full height) */}
+                <div className="flex flex-col gap-5 overflow-y-auto">
+                  <div className="rounded-xl border border-border bg-card p-5 flex-1 flex flex-col">
+                    <h5 className="text-[11px] font-black text-foreground uppercase tracking-widest flex items-center gap-2 mb-3">
+                      <BarChart2 size={14} className="text-primary" />
+                      Evolution Temporelle des KPIs
+                    </h5>
+                    <div className="flex-1 min-h-[300px]">
+                      <SiteKpiChart siteDetail={siteDetail} fullHeight />
+                    </div>
+                  </div>
+
+                  {/* Mini-map with site location */}
+                  <div className="rounded-xl border border-border bg-card overflow-hidden h-[200px]">
+                    <MapContainer
+                      center={siteDetail.coordinates}
+                      zoom={14}
+                      style={{ height: '100%', width: '100%' }}
+                      zoomControl={false}
+                      dragging={false}
+                      scrollWheelZoom={false}
+                    >
+                      <TileLayer url={TILE_URLS[mapLayer].url} attribution="" />
+                      {siteDetail.cells.map((cell: any, idx: number) => {
+                        const color = getTechnoColor(cell.techno);
+                        const coords = getSectorCoords(siteDetail.coordinates, cell.azimut || idx * 120, 200, 65);
+                        return (
+                          <Polygon
+                            key={cell.cell_id}
+                            positions={coords}
+                            pathOptions={{ color, fillColor: color, fillOpacity: 0.4, weight: 2 }}
+                          />
+                        );
+                      })}
+                      <CircleMarker center={siteDetail.coordinates} radius={5} pathOptions={{ color: '#1e293b', fillColor: '#1e293b', fillOpacity: 1, weight: 2 }} />
+                    </MapContainer>
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN — Sector Inventory + Topology */}
+                <div className="flex flex-col gap-5 overflow-y-auto pl-2">
+                  {/* Topology info */}
+                  <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                    <h5 className="text-[11px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                      <Database size={14} className="text-primary" />
+                      Topologie
+                    </h5>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: 'Vendor', value: siteDetail.vendor },
+                        { label: 'DOR', value: siteDetail.dor },
+                        { label: 'Plaque', value: siteDetail.plaque || '—' },
+                        { label: 'Department', value: siteDetail.department || '—' },
+                        { label: 'Latitude', value: siteDetail.coordinates[0].toFixed(5) },
+                        { label: 'Longitude', value: siteDetail.coordinates[1].toFixed(5) },
+                        { label: 'Total Cells', value: `${siteDetail.cell_count}` },
+                        { label: 'Technologies', value: [...new Set(siteDetail.cells.map((c: any) => c.techno))].join(' / ') },
+                      ].map((item, i) => (
+                        <div key={i} className="px-3 py-2 bg-muted/50 rounded-lg">
+                          <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">{item.label}</div>
+                          <div className="text-[11px] font-bold text-foreground mt-0.5">{item.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sector Inventory */}
+                  <div className="rounded-xl border border-border bg-card p-4 space-y-3 flex-1">
+                    <h5 className="text-[11px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                      <BarChart2 size={14} className="text-primary" />
+                      Sector Inventory
+                    </h5>
+                    {(() => {
+                      const { sectors, validation } = groupCellsBySector(siteDetail.cells);
+                      return (
+                        <div className="space-y-2">
+                          {validation.status !== 'OK' && (
+                            <div className={`text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl ${
+                              validation.status === 'MISSING_SECTOR' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
+                            }`}>
+                              {validation.status === 'MISSING_SECTOR'
+                                ? `⚠ Missing: ${validation.missingSectors.join(', ')}`
+                                : `⚠ Duplicate sector`}
+                            </div>
+                          )}
+                          {validation.status === 'OK' && (
+                            <div className="text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20">
+                              ✓ {validation.totalSectors} sectors — All OK
+                            </div>
+                          )}
+                          {sectors.map(({ sectorNumber, cells: sectorCells }) => (
+                            <div key={sectorNumber} className="rounded-xl border border-border overflow-hidden">
+                              <div className="px-3 py-2 bg-muted/50 flex items-center justify-between">
+                                <span className="text-[10px] font-black text-foreground uppercase tracking-wider">Sector {sectorNumber}</span>
+                                <span className="text-[9px] font-bold text-muted-foreground">{sectorCells.length} cell{sectorCells.length > 1 ? 's' : ''} • {sectorCells[0]?.azimut ?? '?'}°</span>
+                              </div>
+                              <div className="divide-y divide-border/50">
+                                {sectorCells.map(cell => (
+                                  <div
+                                    key={cell.cell_id}
+                                    onClick={() => onCellSelect(cell.cell_id)}
+                                    className="flex items-center justify-between px-3 py-2 bg-card hover:bg-primary/5 transition-all cursor-pointer group"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-2 h-2 rounded-full ${cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
+                                      <div>
+                                        <div className="text-[10px] font-bold text-foreground">{cell.techno} • {cell.bande}MHz</div>
+                                        <div className="text-[8px] text-muted-foreground font-mono">{cell.cell_id.split('_').pop()}</div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] font-black tracking-tight" style={{ color: getQoEColor(cell.qoe_score_avg) }}>
+                                        {cell.qoe_score_avg.toFixed(1)}%
+                                      </span>
+                                      <ArrowRight size={12} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ===== COMPACT SIDEBAR LAYOUT (original) ===== */
+              <div className="space-y-5">
+                {/* Site Simulation header */}
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-sidebar rounded-xl flex items-center justify-center">
+                    <BarChart2 size={22} className="text-sidebar-primary" />
+                  </div>
+                  <div>
+                    <h4 className="text-[16px] font-black text-foreground uppercase tracking-tight">Site Simulation</h4>
+                    <div className="flex items-center gap-2 text-[10px] mt-0.5">
+                      <span className="font-mono text-muted-foreground">{siteDetail.site_id}</span>
+                      <span>•</span>
+                      <span className="font-bold text-primary uppercase">{siteDetail.cells[0]?.techno} {siteDetail.cells[0]?.bande}MHz</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DMS KPI row */}
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: 'DMS DL 3M', value: siteDetail.cells[0]?.dms_dl_3 },
+                    { label: 'DMS DL 8M', value: siteDetail.cells[0]?.dms_dl_8 },
+                    { label: 'DMS DL 30M', value: siteDetail.cells[0]?.dms_dl_30 },
+                    { label: 'DMS UL 3M', value: siteDetail.cells[0]?.dms_ul_3 },
+                  ].map((kpi, i) => (
+                    <div key={i} className="text-center p-3 rounded-xl border border-border bg-card">
+                      <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{kpi.label}</div>
+                      <div className="text-[14px] font-black tracking-tight" style={{ color: getKpiColor(kpi.value ?? 0) }}>
+                        {(kpi.value ?? 0).toFixed(1)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* QoE Score + Throughput */}
+                <div className="grid grid-cols-4 gap-3 items-end">
+                  <div className="text-center">
+                    <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Score QoE Global</div>
+                    <div className="text-[28px] font-black tracking-tighter leading-none" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>
+                      {(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%
+                    </div>
+                    <div className="w-full h-1 rounded-full mt-2" style={{ background: getQoEColor(siteDetail.qoe_score_avg ?? 0) }} />
+                  </div>
+                  <div className="text-center p-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
+                      <Zap size={14} className="text-primary" />
+                    </div>
+                    <div className="text-[8px] font-bold text-muted-foreground uppercase">Débit DL</div>
+                    <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
+                  </div>
+                  <div className="text-center p-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
+                      <Network size={14} className="text-primary" />
+                    </div>
+                    <div className="text-[8px] font-bold text-muted-foreground uppercase">Débit UL</div>
+                    <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
+                  </div>
+                  <div className="text-center p-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
+                      <Activity size={14} className="text-primary" />
+                    </div>
+                    <div className="text-[8px] font-bold text-muted-foreground uppercase">RTT</div>
+                    <div className="text-[16px] font-black text-foreground tracking-tight">{(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">MS</span></div>
+                  </div>
+                </div>
+
+                {/* AI Diagnostic card */}
+                <div className="bg-sidebar rounded-2xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
+                      <Zap size={18} className="text-primary" />
+                    </div>
+                    <div>
+                      <div className="text-[12px] font-black text-sidebar-foreground uppercase tracking-tight">AI Diagnostic</div>
+                      <div className="text-[9px] font-bold text-sidebar-foreground/60 uppercase tracking-wider">RCA Analysis</div>
+                    </div>
+                  </div>
+                  <button className="px-4 py-2 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2">
+                    <Zap size={12} />
+                    Lancer
+                  </button>
+                </div>
+
+                {/* Evolution Temporelle des KPIs */}
+                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                  <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                    <BarChart2 size={13} className="text-primary" />
+                    Evolution Temporelle des KPIs
+                  </h5>
+                  <SiteKpiChart siteDetail={siteDetail} />
+                </div>
+
+                {/* Sector Inventory */}
+                <div className="space-y-3">
+                  <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                    <BarChart2 size={13} className="text-primary" />
+                    Sector Inventory
+                  </h5>
+                  {(() => {
+                    const { sectors, validation } = groupCellsBySector(siteDetail.cells);
+                    return (
+                      <div className="space-y-3">
+                        {validation.status !== 'OK' && (
+                          <div className={`text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl ${
+                            validation.status === 'MISSING_SECTOR' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
+                          }`}>
+                            {validation.status === 'MISSING_SECTOR'
+                              ? `⚠ Missing sector${validation.missingSectors.length > 1 ? 's' : ''}: ${validation.missingSectors.join(', ')} — Expected ${validation.totalSectors + validation.missingSectors.length} sectors`
+                              : `⚠ Duplicate sector detected`}
+                          </div>
+                        )}
+                        {validation.status === 'OK' && (
+                          <div className="text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20">
+                            ✓ {validation.totalSectors} sectors — All OK
+                          </div>
+                        )}
+                        {sectors.map(({ sectorNumber, cells: sectorCells }) => (
+                          <div key={sectorNumber} className="rounded-xl border border-border overflow-hidden">
+                            <div className="px-4 py-2 bg-muted/50 flex items-center justify-between">
+                              <span className="text-[10px] font-black text-foreground uppercase tracking-wider">Sector {sectorNumber}</span>
+                              <span className="text-[9px] font-bold text-muted-foreground">{sectorCells.length} cell{sectorCells.length > 1 ? 's' : ''} • {sectorCells[0]?.azimut ?? '?'}°</span>
+                            </div>
+                            <div className="divide-y divide-border/50">
+                              {sectorCells.map(cell => (
+                                <div
+                                  key={cell.cell_id}
+                                  onClick={() => onCellSelect(cell.cell_id)}
+                                  className="flex items-center justify-between px-4 py-2.5 bg-card hover:bg-primary/5 transition-all cursor-pointer group"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-2 h-2 rounded-full ${cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
+                                    <div>
+                                      <div className="text-[10px] font-bold text-foreground">{cell.techno} • {cell.bande}MHz</div>
+                                      <div className="text-[8px] text-muted-foreground font-mono">{cell.cell_id.split('_').pop()}</div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[12px] font-black tracking-tight" style={{ color: getQoEColor(cell.qoe_score_avg) }}>
+                                      {cell.qoe_score_avg.toFixed(1)}%
+                                    </span>
+                                    <ArrowRight size={12} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1308,7 +1529,7 @@ const KPI_SERIES = [
   { key: 'DMS UL', color: '#ec4899', label: 'DMS UL' },
 ];
 
-const SiteKpiChart = ({ siteDetail }: { siteDetail: any }) => {
+const SiteKpiChart = ({ siteDetail, fullHeight }: { siteDetail: any; fullHeight?: boolean }) => {
   const [activeSeries, setActiveSeries] = useState<Set<string>>(new Set(KPI_SERIES.map(k => k.key)));
   const data = useMemo(() => generateSiteTimeSeries(siteDetail), [siteDetail]);
 
@@ -1345,7 +1566,7 @@ const SiteKpiChart = ({ siteDetail }: { siteDetail: any }) => {
         })}
       </div>
       {/* Chart */}
-      <div className="h-[200px]">
+      <div className={fullHeight ? "flex-1 min-h-[250px]" : "h-[200px]"}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
