@@ -54,35 +54,47 @@ const ProfileChart: React.FC<Props> = ({
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
           <defs>
-            <linearGradient id="terrainGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-              <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
+            <linearGradient id="terrainGradGlass" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(56,189,248,0.35)" />
+              <stop offset="60%" stopColor="rgba(56,189,248,0.12)" />
+              <stop offset="100%" stopColor="rgba(56,189,248,0.02)" />
             </linearGradient>
-            <linearGradient id="fresnelGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="hsl(45 93% 47%)" stopOpacity={0.15} />
-              <stop offset="100%" stopColor="hsl(45 93% 47%)" stopOpacity={0.05} />
+            <linearGradient id="fresnelGradGlass" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(250,204,21,0.18)" />
+              <stop offset="100%" stopColor="rgba(250,204,21,0.03)" />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+          <CartesianGrid
+            strokeDasharray="3 6"
+            stroke="rgba(255,255,255,0.08)"
+            vertical={false}
+          />
           <XAxis
             dataKey="distance"
             tickFormatter={(v) => `${v.toFixed(1)}`}
-            label={{ value: 'Distance (km)', position: 'insideBottomRight', offset: -5, style: { fontSize: 11, fill: 'hsl(var(--muted-foreground))' } }}
-            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-            stroke="hsl(var(--border))"
+            label={{ value: 'Distance (km)', position: 'insideBottomRight', offset: -5, style: { fontSize: 10, fill: 'rgba(255,255,255,0.5)', fontWeight: 600 } }}
+            tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.45)' }}
+            stroke="rgba(255,255,255,0.1)"
+            axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+            tickLine={{ stroke: 'rgba(255,255,255,0.08)' }}
           />
           <YAxis
             domain={[Math.floor(minAlt - 10), Math.ceil(maxAlt + 20)]}
-            label={{ value: 'Altitude (m)', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 11, fill: 'hsl(var(--muted-foreground))' } }}
-            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-            stroke="hsl(var(--border))"
+            label={{ value: 'Alt (m)', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: 'rgba(255,255,255,0.5)', fontWeight: 600 } }}
+            tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.45)' }}
+            stroke="rgba(255,255,255,0.1)"
+            axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+            tickLine={{ stroke: 'rgba(255,255,255,0.08)' }}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'hsl(var(--card))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: 8,
+              background: 'rgba(15,23,42,0.85)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 12,
               fontSize: 11,
+              color: 'rgba(255,255,255,0.9)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
             }}
             formatter={(value: number, name: string) => {
               const labels: Record<string, string> = {
@@ -98,13 +110,13 @@ const ProfileChart: React.FC<Props> = ({
             labelFormatter={(v) => `${Number(v).toFixed(2)} km`}
           />
           <Legend
-            wrapperStyle={{ fontSize: 11 }}
+            wrapperStyle={{ fontSize: 10, opacity: 0.7 }}
             formatter={(value: string) => {
               const labels: Record<string, string> = {
-                terrain: 'Terrain effectif',
-                beam: 'Faisceau radio',
+                terrain: 'Terrain',
+                beam: 'Faisceau RF',
                 rawTerrain: 'Terrain brut',
-                clutter: 'Terrain+Clutter',
+                clutter: 'Clutter',
                 fresnelUpper: 'Fresnel F1',
                 fresnelLower: 'Fresnel F1',
               };
@@ -116,9 +128,9 @@ const ProfileChart: React.FC<Props> = ({
           <Area
             type="monotone"
             dataKey="terrain"
-            stroke="hsl(var(--primary))"
-            fill="url(#terrainGrad)"
-            strokeWidth={2}
+            stroke="rgba(56,189,248,0.7)"
+            fill="url(#terrainGradGlass)"
+            strokeWidth={1.5}
             dot={false}
             isAnimationActive={false}
           />
@@ -128,11 +140,11 @@ const ProfileChart: React.FC<Props> = ({
             <Line
               type="monotone"
               dataKey="rawTerrain"
-              stroke="hsl(var(--muted-foreground))"
+              stroke="rgba(255,255,255,0.2)"
               strokeWidth={1}
-              strokeDasharray="3 3"
+              strokeDasharray="4 4"
               dot={false}
-              opacity={0.5}
+              opacity={0.6}
               isAnimationActive={false}
             />
           )}
@@ -142,7 +154,7 @@ const ProfileChart: React.FC<Props> = ({
             <Line
               type="monotone"
               dataKey="clutter"
-              stroke="hsl(25 95% 53%)"
+              stroke="rgba(251,146,60,0.7)"
               strokeWidth={1.5}
               strokeDasharray="5 3"
               dot={false}
@@ -156,7 +168,7 @@ const ProfileChart: React.FC<Props> = ({
               <Line
                 type="monotone"
                 dataKey="fresnelUpper"
-                stroke="hsl(45 93% 47%)"
+                stroke="rgba(250,204,21,0.5)"
                 strokeWidth={1}
                 strokeDasharray="4 2"
                 dot={false}
@@ -165,7 +177,7 @@ const ProfileChart: React.FC<Props> = ({
               <Line
                 type="monotone"
                 dataKey="fresnelLower"
-                stroke="hsl(45 93% 47%)"
+                stroke="rgba(250,204,21,0.5)"
                 strokeWidth={1}
                 strokeDasharray="4 2"
                 dot={false}
@@ -178,7 +190,7 @@ const ProfileChart: React.FC<Props> = ({
           <Line
             type="monotone"
             dataKey="beam"
-            stroke="hsl(0 84% 60%)"
+            stroke="rgba(248,113,113,0.85)"
             strokeWidth={2}
             strokeDasharray="8 4"
             dot={false}
@@ -190,9 +202,9 @@ const ProfileChart: React.FC<Props> = ({
             <ReferenceDot
               x={obstructionPoint.distance}
               y={obstructionPoint.altitude}
-              r={6}
-              fill="hsl(0 84% 60%)"
-              stroke="hsl(var(--card))"
+              r={7}
+              fill="rgba(239,68,68,0.9)"
+              stroke="rgba(255,255,255,0.6)"
               strokeWidth={2}
             />
           )}

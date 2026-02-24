@@ -785,66 +785,130 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Floating LOS Analysis Panel */}
+      {/* Floating LOS Analysis Panel — Glassmorphism */}
       {showLosPanel && losAnalysis && !losLoading && (
-        <div className="absolute bottom-4 left-[400px] right-4 z-[1001] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden pointer-events-auto max-h-[45%] flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+        <div
+          className="absolute bottom-4 left-4 right-4 z-[1001] overflow-hidden pointer-events-auto max-h-[48%] flex flex-col animate-fade-in"
+          style={{
+            background: 'rgba(15,23,42,0.55)',
+            backdropFilter: 'blur(22px)',
+            WebkitBackdropFilter: 'blur(22px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 20,
+            boxShadow: '0 8px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}
+        >
+          {/* Header — translucent */}
+          <div
+            className="flex items-center justify-between px-6 py-3.5 shrink-0"
+            style={{
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+            }}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Radio className="w-4 h-4 text-primary" />
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{
+                  background: 'rgba(56,189,248,0.12)',
+                  border: '1px solid rgba(56,189,248,0.2)',
+                  boxShadow: '0 0 16px rgba(56,189,248,0.08)',
+                }}
+              >
+                <Radio className="w-4 h-4 text-sky-400" />
               </div>
               <div>
-                <h3 className="text-[11px] font-black text-foreground uppercase tracking-[0.1em]">Profil Radio — {losSelectedCell?.name}</h3>
-                <p className="text-[9px] text-muted-foreground font-bold">{losSelectedCell?.techno} • {losSelectedCell?.bande} MHz • Az: {losSelectedCell?.azimuth}° • HBA: {losSelectedCell?.hba}m</p>
+                <h3 className="text-[11px] font-black text-white/90 uppercase tracking-[0.12em]">Profil Radio</h3>
+                <p className="text-[9px] text-white/40 font-semibold mt-0.5">
+                  {losSelectedCell?.name} • {losSelectedCell?.techno} • {losSelectedCell?.bande} MHz • Az: {losSelectedCell?.azimuth}° • HBA: {losSelectedCell?.hba}m
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {/* RF Toggles */}
-              <div className="flex items-center gap-3 mr-3">
-                <div className="flex items-center gap-1.5">
+              {/* RF Toggles — glass pills */}
+              <div className="flex items-center gap-2.5 mr-2">
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                  style={{
+                    background: losEnableCurvature ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
                   <Switch checked={losEnableCurvature} onCheckedChange={(v) => { setLosEnableCurvature(v); }} />
-                  <Label className="text-[10px]">k=4/3</Label>
+                  <Label className="text-[10px] text-white/60">k=4/3</Label>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                  style={{
+                    background: losEnableFresnel ? 'rgba(250,204,21,0.08)' : 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
                   <Switch checked={losEnableFresnel} onCheckedChange={setLosEnableFresnel} />
-                  <Label className="text-[10px]">Fresnel</Label>
+                  <Label className="text-[10px] text-white/60">Fresnel</Label>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                  style={{
+                    background: losEnableClutter ? 'rgba(251,146,60,0.08)' : 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
                   <Switch checked={losEnableClutter} onCheckedChange={(v) => {
                     setLosEnableClutter(v);
                     if (!v) setLosClutterHeight(0);
                     else setLosClutterHeight(10);
                   }} />
-                  <Label className="text-[10px]">Clutter</Label>
+                  <Label className="text-[10px] text-white/60">Clutter</Label>
                 </div>
                 {losEnableClutter && (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <input type="range" min="0" max="30" step="1" value={losClutterHeight}
-                      onChange={e => setLosClutterHeight(Number(e.target.value))} className="w-14 accent-primary" />
-                    <span className="text-[9px] font-mono text-foreground">{losClutterHeight}m</span>
+                      onChange={e => setLosClutterHeight(Number(e.target.value))}
+                      className="w-14 accent-sky-400" />
+                    <span className="text-[9px] font-mono text-white/50">{losClutterHeight}m</span>
                   </div>
                 )}
               </div>
               <button onClick={handleLosRecompute}
-                className="px-3 py-1.5 rounded-lg bg-muted text-foreground text-[10px] font-bold hover:bg-accent transition-colors flex items-center gap-1.5">
+                className="px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all duration-200 hover:scale-105"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.7)',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
                 <Settings2 className="w-3 h-3" />
                 Recalculer
               </button>
               <button onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
-                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5">
+                className="px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all duration-200 hover:scale-105"
+                style={{
+                  background: 'rgba(56,189,248,0.15)',
+                  border: '1px solid rgba(56,189,248,0.25)',
+                  color: 'rgba(56,189,248,0.95)',
+                  boxShadow: '0 0 12px rgba(56,189,248,0.08)',
+                }}
+              >
                 <Crosshair className="w-3 h-3" />
                 Nouveau
               </button>
-              <button onClick={handleCloseLos} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+              <button onClick={handleCloseLos}
+                className="p-2 rounded-xl transition-all duration-200 hover:scale-105"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.5)',
+                }}
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
           </div>
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 flex gap-4">
+          <div className="flex-1 overflow-y-auto p-5 flex gap-5">
             {/* Chart */}
-            <div className="flex-1 h-[240px] min-w-0">
+            <div className="flex-1 h-[260px] min-w-0">
               <ProfileChart
                 profilePoints={losProfilePoints}
                 analysis={losAnalysis}
@@ -855,7 +919,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               />
             </div>
             {/* Info panel */}
-            <div className="w-[300px] shrink-0 overflow-y-auto">
+            <div className="w-[300px] shrink-0 overflow-y-auto pr-1">
               <InfoPanel
                 site={{
                   name: losSelectedCell!.name,
@@ -877,9 +941,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* LOS Loading indicator */}
       {losLoading && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-5 py-3 flex items-center gap-3 pointer-events-auto">
-          <RefreshCw className="w-5 h-5 text-primary animate-spin" />
-          <span className="text-xs font-bold text-foreground">Calcul du profil terrain...</span>
+        <div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] px-6 py-3.5 flex items-center gap-3 pointer-events-auto animate-fade-in"
+          style={{
+            background: 'rgba(15,23,42,0.6)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 16,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          }}
+        >
+          <RefreshCw className="w-5 h-5 text-sky-400 animate-spin" />
+          <span className="text-xs font-bold text-white/80">Calcul du profil terrain...</span>
         </div>
       )}
 
