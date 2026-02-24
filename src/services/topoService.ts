@@ -203,6 +203,30 @@ export function invalidateTopoCache() {
 export async function fetchTopoSiteDetail(siteId: string): Promise<SiteDetail> {
   const sites = await fetchTopoSites();
   const site = sites.find(s => s.site_id === siteId) || sites[0];
+  if (!site) {
+    // Return a safe fallback when no sites exist
+    return {
+      site_id: siteId,
+      site_name: 'Unknown',
+      vendor: 'Unknown',
+      dor: '',
+      plaque: '',
+      department: '',
+      cell_count: 0,
+      qoe_score_avg: 0,
+      p50_thr_dn_mbps: 0,
+      p50_thr_up_mbps: 0,
+      dms_dl_3: 0,
+      dms_dl_8: 0,
+      dms_dl_30: 0,
+      dms_ul_3: 0,
+      coordinates: [46.6, 2.2] as [number, number],
+      cells: [],
+      traffic_dn_bytes: 0,
+      traffic_up_bytes: 0,
+      p95_rtt_ms: 0,
+    };
+  }
   return {
     ...site,
     traffic_dn_bytes: seededRand(siteId + 'vol', 1e12, 8e12),
