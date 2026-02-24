@@ -13,6 +13,7 @@ import SettingsPanel from '../components/otarie/SettingsPanel';
 import DocumentationPage from '../components/otarie/DocumentationPage';
 import AIAssistantPage from '../components/otarie/AIAssistantPage';
 import DashboardOverview from '../components/otarie/DashboardOverview';
+import RAGManager from '../components/otarie/RAGManager';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
@@ -115,6 +116,8 @@ const Index: React.FC = () => {
         return <DocumentationPage />;
       case 'ai_assistant':
         return <AIAssistantPage sites={sites} onShowWorstCells={(cellIds) => { setHighlightedCellIds(cellIds); setActiveTab('sites'); }} />;
+      case 'rag':
+        return <RAGManager />;
       default:
         return null;
     }
