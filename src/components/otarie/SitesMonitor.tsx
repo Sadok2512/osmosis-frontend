@@ -231,7 +231,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     },
   };
 
-  const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'NONE'>('ALL');
+  const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'OFF'>('ALL');
   const [detailFullscreen, setDetailFullscreen] = useState(false);
 
   // LOS / Radio Profile state
@@ -402,7 +402,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Sites filtered by techno (for map rendering only)
   const mapFilteredSites = useMemo(() => {
-    if (mapTechnoFilter === 'NONE') return [];
+    if (mapTechnoFilter === 'OFF') return [];
     if (mapTechnoFilter === 'ALL') return filteredSites;
     return filteredSites.filter(s => s.cells.some(c => c.techno === mapTechnoFilter));
   }, [filteredSites, mapTechnoFilter]);
@@ -942,7 +942,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
           {sites.length > 0 && (
             <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
-              {(['ALL', '5G', '4G'] as const).map((tech) => (
+              {(['ALL', '5G', '4G', 'OFF'] as const).map((tech) => (
                 <button
                   key={tech}
                   onClick={() => setMapTechnoFilter(tech)}
