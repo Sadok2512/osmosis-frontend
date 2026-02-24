@@ -21,35 +21,156 @@ function generateSimpleEmbedding(text: string): number[] {
   return vec.map((v: number) => v / mag);
 }
 
+type RAGDoc = {
+  filename: string;
+  content: string;
+  similarity?: number;
+  chunk_index?: number;
+};
+
+function normalizeQueryForLike(query: string): string {
+  return query
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, "%");
+}
+
+function extractSearchTerms(query: string): string[] {
+  return Array.from(
+    new Set(
+      query
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .match(/[\p{L}\p{N}]{3,}/gu) || []
+    )
+  ).slice(0, 8);
+}
+
+function isDocumentFocusedQuery(query: string): boolean {
+  const normalized = query.toLowerCase();
+  const docHints = [
+    "document", "fichier", "ppt", "pptx", "docx", "xlsx", "slide",
+    "ctce", "ul_data_split", "data split", "rag"
+  ];
+  const networkHints = [
+    "qoe", "rtt", "throughput", "site", "cell", "cellule", "plaque",
+    "vendor", "tcp", "latence", "débit", "debit", "sessions", "5g", "4g"
+  ];
+
+  const hasDocHint = docHints.some((hint) => normalized.includes(hint));
+  const hasNetworkHint = networkHints.some((hint) => normalized.includes(hint));
+
+  return hasDocHint && !hasNetworkHint;
+}
+
+function buildRAGContext(docs: RAGDoc[]): string {
+  return docs
+    .slice(0, 5)
+    .map((doc) => {
+      const score = typeof doc.similarity === "number"
+        ? `score: ${doc.similarity.toFixed(2)}`
+        : "score: lexical";
+      const chunk = typeof doc.chunk_index === "number" ? ` | chunk: ${doc.chunk_index}` : "";
+      return `[${doc.filename}${chunk} | ${score}]\n${doc.content.slice(0, 900)}`;
+    })
+    .join("\n\n---\n\n");
+}
+
 async function searchRAGDocuments(query: string): Promise<string> {
   try {
+    const cleanedQuery = query.trim();
+    if (!cleanedQuery) return "";
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const queryEmbedding = generateSimpleEmbedding(query);
+    const isShortQuery = cleanedQuery.length < 36 || cleanedQuery.split(/\s+/).length <= 5;
+    const queryEmbedding = generateSimpleEmbedding(cleanedQuery);
     const embeddingStr = `[${queryEmbedding.join(",")}]`;
 
-    const { data, error } = await supabase.rpc("match_documents", {
+    const semanticThreshold = isShortQuery ? 0.12 : 0.22;
+    const semanticCount = isShortQuery ? 8 : 5;
+
+    const { data: semanticData, error: semanticError } = await supabase.rpc("match_documents", {
       query_embedding: embeddingStr,
-      match_threshold: 0.3,
-      match_count: 5,
+      match_threshold: semanticThreshold,
+      match_count: semanticCount,
     });
 
-    if (error) {
-      console.error("RAG search error:", error);
-      return "";
+    if (semanticError) {
+      console.error("RAG semantic search error:", semanticError);
     }
 
-    if (!data || data.length === 0) return "";
+    const semanticDocs: RAGDoc[] = (semanticData || []).filter(
+      (doc: RAGDoc) => Boolean(doc?.content?.trim())
+    );
 
-    const ragContext = data
-      .map((doc: { filename: string; content: string; similarity: number }) =>
-        `[${doc.filename} (score: ${doc.similarity.toFixed(2)})]\n${doc.content.slice(0, 800)}`
-      )
-      .join("\n\n---\n\n");
+    const normalizedLikeQuery = normalizeQueryForLike(cleanedQuery);
+    const terms = extractSearchTerms(cleanedQuery);
 
-    return ragContext;
+    const lexicalQueries: Promise<any>[] = [];
+
+    if (normalizedLikeQuery) {
+      lexicalQueries.push(
+        supabase
+          .from("rag_documents")
+          .select("filename, content, chunk_index")
+          .ilike("filename", `%${normalizedLikeQuery}%`)
+          .order("created_at", { ascending: false })
+          .limit(6),
+        supabase
+          .from("rag_documents")
+          .select("filename, content, chunk_index")
+          .ilike("content", `%${normalizedLikeQuery}%`)
+          .order("created_at", { ascending: false })
+          .limit(6)
+      );
+    }
+
+    for (const term of terms) {
+      lexicalQueries.push(
+        supabase
+          .from("rag_documents")
+          .select("filename, content, chunk_index")
+          .ilike("filename", `%${term}%`)
+          .order("created_at", { ascending: false })
+          .limit(3),
+        supabase
+          .from("rag_documents")
+          .select("filename, content, chunk_index")
+          .ilike("content", `%${term}%`)
+          .order("created_at", { ascending: false })
+          .limit(3)
+      );
+    }
+
+    const lexicalResults = lexicalQueries.length > 0 ? await Promise.all(lexicalQueries) : [];
+    const lexicalDocs: RAGDoc[] = [];
+
+    for (const result of lexicalResults) {
+      if (result?.error) {
+        console.error("RAG lexical search error:", result.error);
+        continue;
+      }
+      for (const doc of result?.data || []) {
+        if (doc?.content?.trim()) lexicalDocs.push(doc as RAGDoc);
+      }
+    }
+
+    const merged = new Map<string, RAGDoc>();
+    for (const doc of [...semanticDocs, ...lexicalDocs]) {
+      const key = `${doc.filename}::${doc.chunk_index ?? "na"}::${doc.content.slice(0, 80)}`;
+      if (!merged.has(key)) merged.set(key, doc);
+    }
+
+    const mergedDocs = Array.from(merged.values());
+    console.log(`RAG retrieval for "${cleanedQuery}": semantic=${semanticDocs.length}, lexical=${lexicalDocs.length}, merged=${mergedDocs.length}`);
+    if (mergedDocs.length === 0) return "";
+
+    return buildRAGContext(mergedDocs);
   } catch (e) {
     console.error("RAG search failed:", e);
     return "";
@@ -112,7 +233,8 @@ Valeurs réalistes à utiliser :
 - Loss Rate: 0.01-5%
 
 DOCUMENTS RAG :
-Si des documents de la base de connaissances RAG sont fournis dans le contexte, utilise-les pour enrichir tes réponses avec des informations techniques précises. Cite la source du document quand tu utilises une information provenant du RAG.
+Si des documents de la base de connaissances RAG sont fournis dans le contexte, utilise-les en priorité dès que la question mentionne un mot-clé documentaire (ex: CTCE, UL_DATA_SPLIT, nom de fichier). Cite toujours la source [fichier + chunk] quand tu utilises une information RAG.
+Si aucun extrait RAG pertinent n'est disponible, indique explicitement que la réponse se base uniquement sur les données réseau live.
 
 Réponds TOUJOURS en français.`;
 
@@ -133,11 +255,16 @@ serve(async (req) => {
     const ragContext = await searchRAGDocuments(lastUserMessage);
 
     let systemContent = SYSTEM_PROMPT;
-    if (cellContext) {
-      systemContent += `\n\nDONNÉES RÉSEAU RÉELLES DISPONIBLES :\n${cellContext}`;
-    }
+    const documentFocusedQuery = isDocumentFocusedQuery(lastUserMessage);
+    console.log(`QOE query routing: docFocused=${documentFocusedQuery}, ragFound=${Boolean(ragContext)}`);
+
     if (ragContext) {
       systemContent += `\n\n📚 DOCUMENTS RAG PERTINENTS :\n${ragContext}`;
+      systemContent += "\n\nINSTRUCTION PRIORITAIRE : la question est potentiellement documentaire. Base d'abord l'analyse sur les extraits RAG, cite les sources [fichier + chunk], puis complète avec les données réseau uniquement si utile.";
+    }
+
+    if (cellContext && !(ragContext && documentFocusedQuery)) {
+      systemContent += `\n\nDONNÉES RÉSEAU RÉELLES DISPONIBLES :\n${cellContext}`;
     }
 
     const response = await fetch(
