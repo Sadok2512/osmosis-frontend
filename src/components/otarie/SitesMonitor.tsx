@@ -63,10 +63,34 @@ interface SitesMonitorProps {
 // Zoom threshold: above this we show sectors, below we show clusters
 const SECTOR_ZOOM_THRESHOLD = 12;
 
-// Techno-based sector colors matching reference style
+// Band-based color mapping for sector rendering
+const BAND_COLORS: Record<string, string> = {
+  // NR (5G)
+  NR3500: '#0ea5e9',  // sky-500
+  NR700:  '#8b5cf6',  // violet-500
+  NR2100: '#14b8a6',  // teal-500
+  // LTE (4G)
+  L2600:  '#f97316',  // orange-500
+  L2100:  '#eab308',  // yellow-500
+  L1800:  '#22c55e',  // green-500
+  L800:   '#ef4444',  // red-500
+  L700:   '#ec4899',  // pink-500
+};
+
+const getBandColor = (bande: string): string => {
+  if (!bande) return '#94a3b8'; // slate fallback
+  // Normalize: "NR 3500" → "NR3500", "2100" with techno context
+  const normalized = bande.replace(/\s+/g, '').toUpperCase();
+  for (const [key, color] of Object.entries(BAND_COLORS)) {
+    if (normalized.includes(key)) return color;
+  }
+  return '#94a3b8';
+};
+
+// Keep legacy techno color for modes that don't have bande info
 const getTechnoColor = (techno: string): string => {
-  if (techno === '5G') return '#14b8a6'; // teal
-  return '#f59e0b'; // amber/orange for 4G
+  if (techno === '5G') return '#14b8a6';
+  return '#f59e0b';
 };
 
 // Generate sector polygon points (wedge shape)
@@ -613,7 +637,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <React.Fragment key={site.site_id}>
               {site.cells.map(cell => {
                 const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, zoomRadius, 60);
-                const color = getTechnoColor(cell.techno);
+                const color = getBandColor(cell.bande);
                 return (
                   <Polygon
                     key={cell.cell_id}
@@ -997,34 +1021,52 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </div>
               </div>
-              <div className="px-5 pb-4 pt-1 space-y-3 border-t border-border relative">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: '#10b981' }} />
-                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#10b981' }}>Excellent</span>
+              {/* KPI thresholds */}
+              <div className="px-5 pb-3 pt-1 space-y-2 border-t border-border">
+                {[
+                  { color: '#10b981', label: 'Excellent' },
+                  { color: '#f59e0b', label: 'Correct' },
+                  { color: '#f97316', label: 'Dégradé' },
+                  { color: '#ef4444', label: 'Critique' },
+                ].map(({ color, label }) => (
+                  <div key={label} className="flex items-center gap-2.5">
+                    <div className="w-3 h-3 rounded-full" style={{ background: color }} />
+                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color }}>{label}</span>
                   </div>
-                  <span className="text-[10px] font-semibold text-muted-foreground">Excellent</span>
+                ))}
+              </div>
+              {/* Band colors — NR */}
+              <div className="px-5 pb-2 pt-2 border-t border-border">
+                <span className="text-[9px] font-black text-primary uppercase tracking-widest">NR (5G)</span>
+                <div className="mt-1.5 space-y-1.5">
+                  {[
+                    { band: 'NR3500', color: BAND_COLORS.NR3500 },
+                    { band: 'NR700', color: BAND_COLORS.NR700 },
+                    { band: 'NR2100', color: BAND_COLORS.NR2100 },
+                  ].map(({ band, color }) => (
+                    <div key={band} className="flex items-center gap-2.5">
+                      <div className="w-3 h-3 rounded-sm" style={{ background: color }} />
+                      <span className="text-[10px] font-bold text-foreground">{band}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: '#f59e0b' }} />
-                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#f59e0b' }}>Correct</span>
-                  </div>
-                  <span className="text-[10px] font-semibold text-muted-foreground">Correct</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: '#f97316' }} />
-                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#f97316' }}>Dégradé</span>
-                  </div>
-                  <span className="text-[10px] font-semibold text-muted-foreground">Dégradé</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-3.5 h-3.5 rounded-full" style={{ background: '#ef4444' }} />
-                    <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#ef4444' }}>Critique</span>
-                  </div>
-                  <span className="text-[10px] font-semibold text-muted-foreground">Critique</span>
+              </div>
+              {/* Band colors — LTE */}
+              <div className="px-5 pb-4 pt-2 border-t border-border">
+                <span className="text-[9px] font-black text-accent-foreground uppercase tracking-widest">LTE (4G)</span>
+                <div className="mt-1.5 space-y-1.5">
+                  {[
+                    { band: 'L2600', color: BAND_COLORS.L2600 },
+                    { band: 'L2100', color: BAND_COLORS.L2100 },
+                    { band: 'L1800', color: BAND_COLORS.L1800 },
+                    { band: 'L800', color: BAND_COLORS.L800 },
+                    { band: 'L700', color: BAND_COLORS.L700 },
+                  ].map(({ band, color }) => (
+                    <div key={band} className="flex items-center gap-2.5">
+                      <div className="w-3 h-3 rounded-sm" style={{ background: color }} />
+                      <span className="text-[10px] font-bold text-foreground">{band}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
