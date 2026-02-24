@@ -1,10 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
+import { useTerrainProfile } from '@/hooks/useTerrainProfile';
+import { useFresnel } from '@/hooks/useFresnel';
+import { haversineDistance, LatLng } from '@/utils/geodesicUtils';
+import ProfileChart from './radio-profile/ProfileChart';
+import InfoPanel from './radio-profile/InfoPanel';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 // Heatmap layer component using leaflet.heat
 const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
@@ -40,7 +47,8 @@ import {
   Zap, Network, Database, Activity, ArrowRight,
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
-  ChevronDown, ChevronUp, BarChart2, Signal, Settings2
+  ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
+  Crosshair, MousePointerClick, Radio
 } from 'lucide-react';
 import { getQoEColor, VENDORS, DORS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
 
@@ -91,6 +99,23 @@ const FlyToSite = ({ coords }: { coords: [number, number] | null }) => {
   }, [coords, map]);
   return null;
 };
+
+// LOS MapClickHandler
+const LOSMapClickHandler: React.FC<{ onMapClick: (latlng: LatLng) => void; drawing: boolean }> = ({ onMapClick, drawing }) => {
+  useMapEvents({
+    click(e) {
+      if (drawing) onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+  });
+  return null;
+};
+
+const losTargetIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:14px;height:14px;border-radius:50%;background:hsl(0,84%,60%);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+});
 
 // Fit map bounds to highlighted cells
 const FitHighlightBounds = ({ coords }: { coords: [number, number][] }) => {
@@ -208,6 +233,78 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'NONE'>('ALL');
   const [detailFullscreen, setDetailFullscreen] = useState(false);
+
+  // LOS / Radio Profile state
+  const [losDrawingMode, setLosDrawingMode] = useState(false);
+  const [losTargetPoint, setLosTargetPoint] = useState<LatLng | null>(null);
+  const [losSelectedCell, setLosSelectedCell] = useState<{ lat: number; lng: number; azimuth: number; hba: number; tilt: number; techno: string; bande: string; name: string } | null>(null);
+  const [losEnableCurvature, setLosEnableCurvature] = useState(true);
+  const [losEnableFresnel, setLosEnableFresnel] = useState(false);
+  const [losEnableClutter, setLosEnableClutter] = useState(false);
+  const [losClutterHeight, setLosClutterHeight] = useState(0);
+  const [losTiltOverride, setLosTiltOverride] = useState(0);
+  const [showLosPanel, setShowLosPanel] = useState(false);
+
+  const { loading: losLoading, error: losError, profilePoints: losProfilePoints, analysis: losAnalysis, computeProfile: losComputeProfile } = useTerrainProfile();
+
+  const losTotalDistance = losSelectedCell && losTargetPoint
+    ? haversineDistance({ lat: losSelectedCell.lat, lng: losSelectedCell.lng }, losTargetPoint)
+    : 0;
+
+  const losFrequencyGHz = losSelectedCell ? (parseFloat(losSelectedCell.bande) > 0 ? parseFloat(losSelectedCell.bande) / 1000 : 1.8) : 1.8;
+  const losFresnel = useFresnel(losProfilePoints, losAnalysis, losTotalDistance, losFrequencyGHz, losEnableFresnel);
+
+  const handleLosMapClick = useCallback((latlng: LatLng) => {
+    if (!losDrawingMode || !losSelectedCell) return;
+    setLosTargetPoint(latlng);
+    setLosDrawingMode(false);
+    setShowLosPanel(true);
+    losComputeProfile(
+      { lat: losSelectedCell.lat, lng: losSelectedCell.lng },
+      latlng,
+      losSelectedCell.hba,
+      losTiltOverride,
+      losSelectedCell.azimuth,
+      losEnableCurvature
+    );
+  }, [losDrawingMode, losSelectedCell, losComputeProfile, losTiltOverride, losEnableCurvature]);
+
+  const handleStartLosDrawing = useCallback((site: SiteDetail | SiteSummary) => {
+    const cell = site.cells[0];
+    if (!cell) return;
+    setLosSelectedCell({
+      lat: site.coordinates[0],
+      lng: site.coordinates[1],
+      azimuth: cell.azimut ?? 0,
+      hba: cell.hba ?? 30,
+      tilt: 0,
+      techno: cell.techno ?? 'LTE',
+      bande: cell.bande ?? '1800',
+      name: site.site_name,
+    });
+    setLosDrawingMode(true);
+    setLosTargetPoint(null);
+    setShowLosPanel(false);
+  }, []);
+
+  const handleLosRecompute = useCallback(() => {
+    if (!losSelectedCell || !losTargetPoint) return;
+    losComputeProfile(
+      { lat: losSelectedCell.lat, lng: losSelectedCell.lng },
+      losTargetPoint,
+      losSelectedCell.hba,
+      losTiltOverride,
+      losSelectedCell.azimuth,
+      losEnableCurvature
+    );
+  }, [losSelectedCell, losTargetPoint, losComputeProfile, losTiltOverride, losEnableCurvature]);
+
+  const handleCloseLos = useCallback(() => {
+    setShowLosPanel(false);
+    setLosTargetPoint(null);
+    setLosDrawingMode(false);
+    setLosSelectedCell(null);
+  }, []);
 
   const MAP_KPIS = [
     { id: 'qoe_score_avg', label: 'Score QoE Global', category: 'QUALITY' },
@@ -401,6 +498,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         />
         <FlyToSite coords={flyTarget} />
         <MapViewportTracker onViewportChange={handleViewportChange} />
+        <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
 
         {/* Heatmap layer */}
         {mapDisplayMode === 'heatmap' && (
@@ -609,7 +707,126 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             })}
           </>
         )}
+        {/* LOS line + target marker */}
+        {losTargetPoint && (
+          <Marker position={[losTargetPoint.lat, losTargetPoint.lng]} icon={losTargetIcon} />
+        )}
+        {losSelectedCell && losTargetPoint && (
+          <Polyline
+            positions={[[losSelectedCell.lat, losSelectedCell.lng], [losTargetPoint.lat, losTargetPoint.lng]]}
+            color="hsl(0,84%,60%)" weight={2} dashArray="8 4"
+          />
+        )}
       </MapContainer>
+
+      {/* LOS Drawing mode banner */}
+      {losDrawingMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-primary text-primary-foreground px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 text-sm font-semibold animate-pulse pointer-events-auto">
+          <MousePointerClick className="w-4 h-4" />
+          Cliquez sur la carte pour définir le point cible LOS
+          <button onClick={() => { setLosDrawingMode(false); }} className="ml-3 px-2 py-0.5 bg-primary-foreground/20 rounded-lg text-xs font-bold hover:bg-primary-foreground/30 transition-colors">
+            Annuler
+          </button>
+        </div>
+      )}
+
+      {/* Floating LOS Analysis Panel */}
+      {showLosPanel && losAnalysis && !losLoading && (
+        <div className="absolute bottom-4 left-[400px] right-4 z-[1001] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden pointer-events-auto max-h-[45%] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Radio className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-[11px] font-black text-foreground uppercase tracking-[0.1em]">Profil Radio — {losSelectedCell?.name}</h3>
+                <p className="text-[9px] text-muted-foreground font-bold">{losSelectedCell?.techno} • {losSelectedCell?.bande} MHz • Az: {losSelectedCell?.azimuth}° • HBA: {losSelectedCell?.hba}m</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* RF Toggles */}
+              <div className="flex items-center gap-3 mr-3">
+                <div className="flex items-center gap-1.5">
+                  <Switch checked={losEnableCurvature} onCheckedChange={(v) => { setLosEnableCurvature(v); }} />
+                  <Label className="text-[10px]">k=4/3</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Switch checked={losEnableFresnel} onCheckedChange={setLosEnableFresnel} />
+                  <Label className="text-[10px]">Fresnel</Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Switch checked={losEnableClutter} onCheckedChange={(v) => {
+                    setLosEnableClutter(v);
+                    if (!v) setLosClutterHeight(0);
+                    else setLosClutterHeight(10);
+                  }} />
+                  <Label className="text-[10px]">Clutter</Label>
+                </div>
+                {losEnableClutter && (
+                  <div className="flex items-center gap-1">
+                    <input type="range" min="0" max="30" step="1" value={losClutterHeight}
+                      onChange={e => setLosClutterHeight(Number(e.target.value))} className="w-14 accent-primary" />
+                    <span className="text-[9px] font-mono text-foreground">{losClutterHeight}m</span>
+                  </div>
+                )}
+              </div>
+              <button onClick={handleLosRecompute}
+                className="px-3 py-1.5 rounded-lg bg-muted text-foreground text-[10px] font-bold hover:bg-accent transition-colors flex items-center gap-1.5">
+                <Settings2 className="w-3 h-3" />
+                Recalculer
+              </button>
+              <button onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
+                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5">
+                <Crosshair className="w-3 h-3" />
+                Nouveau
+              </button>
+              <button onClick={handleCloseLos} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4 flex gap-4">
+            {/* Chart */}
+            <div className="flex-1 h-[240px] min-w-0">
+              <ProfileChart
+                profilePoints={losProfilePoints}
+                analysis={losAnalysis}
+                fresnel={losFresnel}
+                showFresnel={losEnableFresnel}
+                showCurvature={losEnableCurvature}
+                clutterHeight={losEnableClutter ? losClutterHeight : 0}
+              />
+            </div>
+            {/* Info panel */}
+            <div className="w-[300px] shrink-0 overflow-y-auto">
+              <InfoPanel
+                site={{
+                  name: losSelectedCell!.name,
+                  techno: losSelectedCell!.techno,
+                  bande: losSelectedCell!.bande,
+                  azimuth: losSelectedCell!.azimuth,
+                  hba: losSelectedCell!.hba,
+                  tilt: losTiltOverride,
+                }}
+                analysis={losAnalysis}
+                totalDistance={losTotalDistance}
+                enableCurvature={losEnableCurvature}
+                fresnel={losFresnel}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LOS Loading indicator */}
+      {losLoading && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-5 py-3 flex items-center gap-3 pointer-events-auto">
+          <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+          <span className="text-xs font-bold text-foreground">Calcul du profil terrain...</span>
+        </div>
+      )}
 
       {/* Floating worst cells panel */}
       {highlightedCellData.length > 0 && (
@@ -1186,6 +1403,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       Lancer
                     </button>
                   </div>
+
+                  {/* Radio Profile LOS button */}
+                  <button
+                    onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
+                    className="w-full bg-primary/10 border border-primary/30 rounded-2xl p-4 flex items-center justify-between hover:bg-primary/20 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 bg-primary/20 rounded-xl flex items-center justify-center">
+                        <Radio size={20} className="text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-[13px] font-black text-foreground uppercase tracking-tight">Profil Radio</div>
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">LOS / Fresnel / Terrain</div>
+                      </div>
+                    </div>
+                    <div className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 shadow-sm group-hover:opacity-90 transition-opacity">
+                      <Crosshair size={13} />
+                      Tracer
+                    </div>
+                  </button>
                 </div>
 
                 {/* CENTER COLUMN — KPI Evolution Graph (full height) */}
@@ -1399,7 +1636,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </button>
                 </div>
 
-                {/* Evolution Temporelle des KPIs */}
+                {/* Radio Profile LOS button */}
+                <button
+                  onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
+                  className="w-full bg-primary/10 border border-primary/30 rounded-2xl p-4 flex items-center justify-between hover:bg-primary/20 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 bg-primary/20 rounded-xl flex items-center justify-center">
+                      <Radio size={20} className="text-primary" />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-[13px] font-black text-foreground uppercase tracking-tight">Profil Radio</div>
+                      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">LOS / Fresnel / Terrain</div>
+                    </div>
+                  </div>
+                  <div className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 shadow-sm group-hover:opacity-90 transition-opacity">
+                    <Crosshair size={13} />
+                    Tracer
+                  </div>
+                </button>
+
                 <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                   <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
                     <BarChart2 size={13} className="text-primary" />
