@@ -184,7 +184,7 @@ serve(async (req) => {
 
     for (let i = 0; i < chunks.length; i++) {
       // Use Lovable AI to generate keywords for embedding
-      const embResponse = await fetch("https://api.lovable.dev/api/ai/chat", {
+      const embResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
