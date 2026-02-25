@@ -131,10 +131,10 @@ const BackendAdmin: React.FC = () => {
       try { return JSON.parse(saved); } catch { /* ignore */ }
     }
     return {
-      provider: 'openrouter',
+      provider: 'lovable',
       apiKey: '',
-      model: 'google/gemini-2.5-flash-preview-05-20',
-      baseUrl: 'https://openrouter.ai/api/v1',
+      model: 'google/gemini-3-flash-preview',
+      baseUrl: 'https://ai.gateway.lovable.dev/v1',
     };
   });
 
@@ -360,18 +360,24 @@ const BackendAdmin: React.FC = () => {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              Configuration LLM (OpenRouter)
+              Configuration LLM
+              <Badge variant="outline" className="text-[10px] ml-auto">
+                {llmConfig.apiKey ? 'OpenRouter' : 'Lovable AI'}
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="rounded-md bg-muted/50 border border-border p-2 text-[10px] text-muted-foreground">
+              💡 Par défaut, l'assistant utilise <strong>Lovable AI</strong> (clé auto-configurée). Pour utiliser <strong>OpenRouter</strong>, renseignez une API Key ci-dessous.
+            </div>
             <div>
               <Label className="text-xs">Base URL</Label>
               <Input value={llmConfig.baseUrl} onChange={e => setLlmConfig(p => ({ ...p, baseUrl: e.target.value }))} className="h-8 text-xs" />
             </div>
             <div>
-              <Label className="text-xs">API Key</Label>
+              <Label className="text-xs">API Key (optionnelle — OpenRouter)</Label>
               <div className="relative">
-                <Input type={showApiKey ? 'text' : 'password'} value={llmConfig.apiKey} onChange={e => setLlmConfig(p => ({ ...p, apiKey: e.target.value }))} placeholder="sk-or-..." className="h-8 text-xs pr-8" />
+                <Input type={showApiKey ? 'text' : 'password'} value={llmConfig.apiKey} onChange={e => setLlmConfig(p => ({ ...p, apiKey: e.target.value }))} placeholder="Laisser vide pour Lovable AI" className="h-8 text-xs pr-8" />
                 <button onClick={() => setShowApiKey(!showApiKey)} className="absolute right-2 top-1.5 text-muted-foreground hover:text-foreground">
                   {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -384,7 +390,7 @@ const BackendAdmin: React.FC = () => {
 
             <div className="pt-2 space-y-2">
               <StatusBadge status={llmTestStatus} msg={llmTestMsg} />
-              <Button size="sm" onClick={testLLM} disabled={llmTestStatus === 'loading' || !llmConfig.apiKey} className="gap-1.5 text-xs">
+              <Button size="sm" onClick={testLLM} disabled={llmTestStatus === 'loading'} className="gap-1.5 text-xs">
                 {llmTestStatus === 'loading' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                 Tester LLM
               </Button>
