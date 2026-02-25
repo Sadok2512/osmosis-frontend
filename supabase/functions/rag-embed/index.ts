@@ -88,7 +88,7 @@ async function extractXLSXText(base64Data: string): Promise<string> {
   const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
   const zip = await JSZip.loadAsync(binary);
   
-  // Get shared strings
+  // Get shared strings lookup
   const ssXml = await zip.files["xl/sharedStrings.xml"]?.async("text");
   const sharedStrings: string[] = [];
   if (ssXml) {
@@ -97,7 +97,70 @@ async function extractXLSXText(base64Data: string): Promise<string> {
       if (m[1]) sharedStrings.push(m[1]);
     }
   }
-  return sharedStrings.join(" | ");
+
+  // Get sheet names from workbook.xml
+  const wbXml = await zip.files["xl/workbook.xml"]?.async("text");
+  const sheetNames: string[] = [];
+  if (wbXml) {
+    const nameMatches = wbXml.matchAll(/<sheet[^>]+name="([^"]+)"/g);
+    for (const m of nameMatches) {
+      sheetNames.push(m[1]);
+    }
+  }
+
+  // Extract data from each sheet with structure
+  const sheetFiles = Object.keys(zip.files)
+    .filter(name => name.match(/^xl\/worksheets\/sheet\d+\.xml$/))
+    .sort((a, b) => {
+      const na = parseInt(a.match(/sheet(\d+)/)?.[1] || "0");
+      const nb = parseInt(b.match(/sheet(\d+)/)?.[1] || "0");
+      return na - nb;
+    });
+
+  const texts: string[] = [];
+  for (let si = 0; si < sheetFiles.length; si++) {
+    const sheetPath = sheetFiles[si];
+    const sheetName = sheetNames[si] || `Sheet${si + 1}`;
+    const xml = await zip.files[sheetPath].async("text");
+
+    // Extract rows with cell values
+    const rowMatches = xml.matchAll(/<row[^>]*>(.*?)<\/row>/gs);
+    const rows: string[] = [];
+    let rowCount = 0;
+    const MAX_ROWS_PER_SHEET = 2000; // Limit per sheet to avoid huge output
+
+    for (const rm of rowMatches) {
+      if (rowCount >= MAX_ROWS_PER_SHEET) break;
+      const rowXml = rm[1];
+      const cellValues: string[] = [];
+      const cellMatches = rowXml.matchAll(/<c[^>]*(?:t="([^"]*)")?[^>]*>(?:.*?<v>([^<]*)<\/v>)?/gs);
+      
+      for (const cm of cellMatches) {
+        const cellType = cm[1] || "";
+        const rawValue = cm[2] || "";
+        if (!rawValue) continue;
+        
+        // 's' = shared string reference, '' or 'n' = number/inline
+        if (cellType === "s") {
+          const idx = parseInt(rawValue);
+          cellValues.push(sharedStrings[idx] || rawValue);
+        } else {
+          cellValues.push(rawValue);
+        }
+      }
+      
+      if (cellValues.length > 0) {
+        rows.push(cellValues.join(" | "));
+      }
+      rowCount++;
+    }
+
+    if (rows.length > 0) {
+      texts.push(`[Sheet: ${sheetName}]\n${rows.join("\n")}`);
+    }
+  }
+
+  return texts.join("\n\n");
 }
 
 serve(async (req) => {
