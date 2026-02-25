@@ -200,7 +200,8 @@ function isDistributionQuery(query: string): boolean {
 }
 
 function extractParamName(query: string): string | null {
-  const matchFull = query.match(/\b((?:LNCEL|LNBTS|LNCELL|MRBTS|GNBTS)[.\s_]?t\d{3,4})\b/i);
+  // Match "SIB.t300", "NRCELL.t300", "LNCEL.T300", "CATMPR.t300ModeACatM" etc.
+  const matchFull = query.match(/\b((?:LNCEL|LNBTS|LNCELL|MRBTS|GNBTS|SIB|NRCELL|CATMPR|NOKLTE|NRBTS|GNBCUCP|GNBCUUP|GNBDU|LNHOIF|LNRELIF|IRFIM)[.\s_]?\w+)\b/i);
   if (matchFull) return matchFull[1].replace(/\s/g, ".");
   const match = query.match(/\b(t\d{3,4})\b/i);
   return match ? match[1] : null;
@@ -220,8 +221,13 @@ function extractGroupByColumn(query: string): string {
 }
 
 function extractSiteName(query: string): string | null {
-  const match = query.match(/\b([A-Z][A-Z0-9_]{3,}(?:_[A-Z0-9]+)*)\b/);
-  return match ? match[1] : null;
+  const paramPrefixes = /^(LNCEL|LNBTS|LNCELL|MRBTS|GNBTS|SIB|NRCELL|CATMPR|NOKLTE|NRBTS|GNBCUCP|GNBCUUP|GNBDU|LNHOIF|LNRELIF|IRFIM|DUMP|TABLE)$/i;
+  const matches = query.match(/\b([A-Z][A-Z0-9_]{3,}(?:_[A-Z0-9]+)+)\b/g);
+  if (!matches) return null;
+  for (const m of matches) {
+    if (!paramPrefixes.test(m)) return m;
+  }
+  return null;
 }
 
 async function searchDumpParameters(query: string): Promise<string> {
