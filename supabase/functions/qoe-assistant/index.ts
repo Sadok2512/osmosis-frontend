@@ -65,6 +65,18 @@ function isDocumentFocusedQuery(query: string): boolean {
   return hasDocHint && !hasNetworkHint;
 }
 
+function isParameterFocusedQuery(query: string): boolean {
+  const normalized = query.toLowerCase();
+  const paramHints = [
+    "paramètre", "parametre", "parameter", "param", "config",
+    "configuration", "dump", "mrbts", "lnbts", "enodeb", "gnodeb",
+    "template", "dn", "version", "hw.", "sw", "vendor",
+    "nokia", "ericsson", "huawei", "cell_dn", "blockingstate",
+    "imsemer", "btsname", "netype", "managedelement",
+  ];
+  return paramHints.some((hint) => normalized.includes(hint));
+}
+
 function buildRAGContext(docs: RAGDoc[]): string {
   return docs
     .slice(0, 5)
@@ -177,6 +189,60 @@ async function searchRAGDocuments(query: string): Promise<string> {
   }
 }
 
+async function searchDumpParameters(query: string): Promise<string> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Extract search terms from query
+    const terms = extractSearchTerms(query);
+    if (terms.length === 0) {
+      // Return a sample of parameters
+      const { data, error } = await supabase
+        .from("dump_parameter")
+        .select("dn, enodeb_id, mrbts_id, cell_name, vendor, site_name, parameter, version, value")
+        .limit(50);
+      if (error || !data?.length) return "";
+      return formatParamResults(data);
+    }
+
+    // Search by parameter name, site_name, dn, or value
+    const queries = terms.slice(0, 4).map((term) =>
+      supabase
+        .from("dump_parameter")
+        .select("dn, enodeb_id, mrbts_id, gnodeb_id, cell_name, vendor, site_name, bande, parameter, version, value")
+        .or(`parameter.ilike.%${term}%,site_name.ilike.%${term}%,dn.ilike.%${term}%,value.ilike.%${term}%,vendor.ilike.%${term}%`)
+        .limit(30)
+    );
+
+    const results = await Promise.all(queries);
+    const merged = new Map<string, any>();
+    for (const r of results) {
+      if (r.error) { console.error("dump_parameter search error:", r.error); continue; }
+      for (const row of r.data || []) {
+        const key = `${row.dn}::${row.parameter}`;
+        if (!merged.has(key)) merged.set(key, row);
+      }
+    }
+
+    const rows = Array.from(merged.values());
+    if (rows.length === 0) return "";
+    return formatParamResults(rows);
+  } catch (e) {
+    console.error("dump_parameter search failed:", e);
+    return "";
+  }
+}
+
+function formatParamResults(rows: any[]): string {
+  const header = "dn | enodeb_id | mrbts_id | cell_name | vendor | site_name | parameter | version | value";
+  const lines = rows.slice(0, 60).map((r) =>
+    `${r.dn || ""} | ${r.enodeb_id || ""} | ${r.mrbts_id || ""} | ${r.cell_name || ""} | ${r.vendor || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.version || ""} | ${r.value || ""}`
+  );
+  return `Total résultats paramètres: ${rows.length}\n${header}\n${lines.join("\n")}`;
+}
+
 const SYSTEM_PROMPT = `Tu es un assistant expert en analyse de Qualité d'Expérience (QoE) réseau mobile pour l'opérateur Orange France.
 
 KPIs disponibles : QoE Score, DMS DL 3/8/30 Mbps, Throughput DL/UL (p50), RTT (p95), Taux de perte TCP, Retransmission Rate, Window Full Ratio, Sessions, Volume DL.
@@ -238,6 +304,11 @@ DOCUMENTS RAG :
 Si des documents de la base de connaissances RAG sont fournis dans le contexte, utilise-les en priorité dès que la question mentionne un mot-clé documentaire (ex: CTCE, UL_DATA_SPLIT, nom de fichier). Cite toujours la source [fichier + chunk] quand tu utilises une information RAG.
 Si aucun extrait RAG pertinent n'est disponible, indique explicitement que la réponse se base uniquement sur les données réseau live.
 
+PARAMÈTRES RÉSEAU (DUMP CM) :
+Si des données de paramètres réseau (dump_parameter) sont fournies dans le contexte, utilise-les pour répondre aux questions sur la configuration des équipements (MRBTS, LNBTS, eNodeB, gNodeB, versions SW, templates, etc.).
+Présente les paramètres sous forme de tableau Markdown avec les colonnes pertinentes (DN, Site, Parameter, Value, Version).
+Quand on te demande la configuration d'un site ou équipement, cherche dans ces données et présente les résultats de manière structurée.
+
 VISUALISATIONS INTERACTIVES :
 Tu peux intégrer des graphiques, cartes et cartes KPI directement dans ta réponse en utilisant des blocs de code spéciaux.
 
@@ -293,13 +364,21 @@ serve(async (req) => {
     // Search RAG documents for relevant context
     const ragContext = await searchRAGDocuments(lastUserMessage);
 
+    // Search dump_parameter if query is parameter-focused
+    const paramFocused = isParameterFocusedQuery(lastUserMessage);
+    const paramContext = paramFocused ? await searchDumpParameters(lastUserMessage) : "";
+
     let systemContent = SYSTEM_PROMPT;
     const documentFocusedQuery = isDocumentFocusedQuery(lastUserMessage);
-    console.log(`QOE query routing: docFocused=${documentFocusedQuery}, ragFound=${Boolean(ragContext)}, gateway=${useLovable ? 'lovable' : 'openrouter'}`);
+    console.log(`QOE query routing: docFocused=${documentFocusedQuery}, paramFocused=${paramFocused}, ragFound=${Boolean(ragContext)}, paramFound=${Boolean(paramContext)}, gateway=${useLovable ? 'lovable' : 'openrouter'}`);
 
     if (ragContext) {
       systemContent += `\n\n📚 DOCUMENTS RAG PERTINENTS :\n${ragContext}`;
       systemContent += "\n\nINSTRUCTION PRIORITAIRE : la question est potentiellement documentaire. Base d'abord l'analyse sur les extraits RAG, cite les sources [fichier + chunk], puis complète avec les données réseau uniquement si utile.";
+    }
+
+    if (paramContext) {
+      systemContent += `\n\n⚙️ PARAMÈTRES RÉSEAU (DUMP CM) :\n${paramContext}`;
     }
 
     if (cellContext && !(ragContext && documentFocusedQuery)) {
