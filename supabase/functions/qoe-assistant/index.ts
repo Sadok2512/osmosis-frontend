@@ -236,30 +236,49 @@ async function searchDumpParameters(query: string): Promise<string> {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const tableCandidates = ["dump_parametre", "dump_parameter"];
+    let activeDumpTable: string | null = null;
+    for (const tableName of tableCandidates) {
+      const probe = await supabase.from(tableName).select("id").limit(1);
+      if (!probe.error) {
+        activeDumpTable = tableName;
+        break;
+      }
+      const msg = probe.error?.message?.toLowerCase() || "";
+      if (!msg.includes("does not exist") && !msg.includes("relation") && !msg.includes("could not find")) {
+        activeDumpTable = tableName;
+        break;
+      }
+    }
+
+    if (!activeDumpTable) {
+      return "AUCUNE TABLE de paramètres trouvée (dump_parameter / dump_parametre).";
+    }
+
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
     const siteName = extractSiteName(query);
 
     // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
     if (paramName && siteName && !isDistrib) {
-      console.log(`[dump_parameter] Site+param search: param=${paramName}, site=${siteName}`);
+      console.log(`[${activeDumpTable}] Site+param search: param=${paramName}, site=${siteName}`);
       const { data, error } = await supabase
-        .from("dump_parameter")
+        .from(activeDumpTable)
         .select("dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque")
         .ilike("parameter", `%${paramName}%`)
         .ilike("site_name", `%${siteName}%`)
         .order("cell_name")
         .limit(200);
 
-      if (error) { console.error("dump_parameter site search error:", error); return ""; }
+      if (error) { console.error(`${activeDumpTable} site search error:`, error); return ""; }
       if (!data?.length) {
         // Check if site/param exist separately
-        const { data: siteData } = await supabase.from("dump_parameter").select("site_name").ilike("site_name", `%${siteName}%`).limit(5);
-        const { data: paramData } = await supabase.from("dump_parameter").select("parameter").ilike("parameter", `%${paramName}%`).limit(10);
+        const { data: siteData } = await supabase.from(activeDumpTable).select("site_name").ilike("site_name", `%${siteName}%`).limit(5);
+        const { data: paramData } = await supabase.from(activeDumpTable).select("parameter").ilike("parameter", `%${paramName}%`).limit(10);
         const uniqueSites = [...new Set((siteData || []).map((r: any) => r.site_name))];
         const uniqueParams = [...new Set((paramData || []).map((r: any) => r.parameter))];
         let msg = `RÉSULTAT DE RECHERCHE : AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" sur le site "${siteName}".\n`;
-        if (!uniqueSites.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base dump_parameter.\n`;
+        if (!uniqueSites.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base ${activeDumpTable}.\n`;
         else msg += `Sites similaires : ${uniqueSites.join(", ")}\n`;
         if (!uniqueParams.length) msg += `⚠️ Le paramètre "${paramName}" n'existe pas dans la base.\n`;
         else msg += `Paramètres contenant "${paramName}" : ${uniqueParams.join(", ")}\n`;
@@ -275,16 +294,16 @@ async function searchDumpParameters(query: string): Promise<string> {
     // Aggregated distribution query
     if (isDistrib && paramName) {
       const groupCol = extractGroupByColumn(query);
-      console.log(`[dump_parameter] Aggregation: param=${paramName}, groupBy=${groupCol}`);
+      console.log(`[${activeDumpTable}] Aggregation: param=${paramName}, groupBy=${groupCol}`);
 
       const { data, error } = await supabase
-        .from("dump_parameter")
+        .from(activeDumpTable)
         .select(`${groupCol}, value, parameter`)
         .ilike("parameter", `%${paramName}%`)
         .limit(1000);
 
-      if (error) { console.error("dump_parameter aggregation error:", error); return ""; }
-      if (!data?.length) return `AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" dans la base dump_parameter.`;
+      if (error) { console.error(`${activeDumpTable} aggregation error:`, error); return ""; }
+      if (!data?.length) return `AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" dans la base ${activeDumpTable}.`;
 
       const agg = new Map<string, number>();
       for (const row of data) {
@@ -309,7 +328,7 @@ async function searchDumpParameters(query: string): Promise<string> {
     const terms = extractSearchTerms(query);
     if (terms.length === 0) {
       const { data, error } = await supabase
-        .from("dump_parameter")
+        .from(activeDumpTable)
         .select("dn, enodeb_id, mrbts_id, cell_name, vendor, site_name, parameter, version, value")
         .limit(50);
       if (error || !data?.length) return "";
@@ -318,7 +337,7 @@ async function searchDumpParameters(query: string): Promise<string> {
 
     const queries = terms.slice(0, 4).map((term) =>
       supabase
-        .from("dump_parameter")
+        .from(activeDumpTable)
         .select("dn, enodeb_id, mrbts_id, gnodeb_id, cell_name, vendor, site_name, bande, parameter, version, value")
         .or(`parameter.ilike.%${term}%,site_name.ilike.%${term}%,dn.ilike.%${term}%,value.ilike.%${term}%,vendor.ilike.%${term}%`)
         .limit(30)
@@ -327,7 +346,7 @@ async function searchDumpParameters(query: string): Promise<string> {
     const results = await Promise.all(queries);
     const merged = new Map<string, any>();
     for (const r of results) {
-      if (r.error) { console.error("dump_parameter search error:", r.error); continue; }
+      if (r.error) { console.error(`${activeDumpTable} search error:`, r.error); continue; }
       for (const row of r.data || []) {
         const key = `${row.dn}::${row.parameter}`;
         if (!merged.has(key)) merged.set(key, row);
@@ -335,7 +354,7 @@ async function searchDumpParameters(query: string): Promise<string> {
     }
 
     const rows = Array.from(merged.values());
-    if (rows.length === 0) return `AUCUNE DONNÉE trouvée dans dump_parameter pour: ${terms.join(", ")}`;
+    if (rows.length === 0) return `AUCUNE DONNÉE trouvée dans ${activeDumpTable} pour: ${terms.join(", ")}`;
     return formatParamResults(rows);
   } catch (e) {
     console.error("dump_parameter search failed:", e);

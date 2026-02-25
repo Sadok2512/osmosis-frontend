@@ -19,8 +19,30 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const tableCandidates = ["dump_parametre", "dump_parameter"];
+    let activeDumpTable: string | null = null;
+    for (const tableName of tableCandidates) {
+      const probe = await supabase.from(tableName).select("id").limit(1);
+      if (!probe.error) {
+        activeDumpTable = tableName;
+        break;
+      }
+      const msg = probe.error?.message?.toLowerCase() || "";
+      if (!msg.includes("does not exist") && !msg.includes("relation") && !msg.includes("could not find")) {
+        activeDumpTable = tableName;
+        break;
+      }
+    }
+
+    if (!activeDumpTable) {
+      return new Response(JSON.stringify({ success: false, error: "Aucune table dump_parameter/dump_parametre trouvée" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (clear_before) {
-      const { error: delErr } = await supabase.from("dump_parameter").delete().neq("id", 0);
+      const { error: delErr } = await supabase.from(activeDumpTable).delete().neq("id", 0);
       if (delErr) console.error("Clear error:", delErr);
     }
 
@@ -30,7 +52,6 @@ serve(async (req) => {
       });
     }
 
-    // Insert in batches of 500
     const BATCH = 500;
     let inserted = 0;
     for (let i = 0; i < rows.length; i += BATCH) {
@@ -60,7 +81,7 @@ serve(async (req) => {
         version: r.version || null,
       }));
 
-      const { error } = await supabase.from("dump_parameter").insert(batch);
+      const { error } = await supabase.from(activeDumpTable).insert(batch);
       if (error) {
         console.error(`Batch insert error at ${i}:`, error);
         return new Response(
@@ -72,7 +93,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, inserted, total: rows.length }),
+      JSON.stringify({ success: true, table: activeDumpTable, inserted, total: rows.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

@@ -369,16 +369,27 @@ app.post('/api/rag-embed', async (req, res) => {
   }
 });
 
-// ─── /api/import-dump (import dump_parameter CSV rows) ───
+// ─── /api/import-dump (import dump_parameter/dump_parametre CSV rows) ───
 app.post('/api/import-dump', async (req, res) => {
   const { rows, clear_before, config } = req.body;
   const pool = createPool(config || { host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
 
   try {
-    await pool.query(ENSURE_DUMP_PARAMETER_SQL);
+    const tableChoice = await pool.query(`
+      SELECT CASE
+        WHEN to_regclass('public.dump_parametre') IS NOT NULL THEN 'dump_parametre'
+        WHEN to_regclass('public.dump_parameter') IS NOT NULL THEN 'dump_parameter'
+        ELSE 'dump_parameter'
+      END AS table_name
+    `);
+    const dumpTable = tableChoice.rows[0]?.table_name || 'dump_parameter';
+
+    if (dumpTable === 'dump_parameter') {
+      await pool.query(ENSURE_DUMP_PARAMETER_SQL);
+    }
 
     if (clear_before) {
-      await pool.query('DELETE FROM dump_parameter');
+      await pool.query(`DELETE FROM ${dumpTable}`);
     }
 
     let inserted = 0;
@@ -389,26 +400,26 @@ app.post('/api/import-dump', async (req, res) => {
       const placeholders = [];
       let idx = 1;
       for (const r of batch) {
-        placeholders.push(`($${idx},$${idx+1},$${idx+2},$${idx+3},$${idx+4},$${idx+5},$${idx+6},$${idx+7},$${idx+8},$${idx+9},$${idx+10},$${idx+11},$${idx+12},$${idx+13},$${idx+14},$${idx+15},$${idx+16},$${idx+17},$${idx+18},$${idx+19},$${idx+20},$${idx+21})`);
+        placeholders.push(`($${idx},$${idx+1},$${idx+2},$${idx+3},$${idx+4},$${idx+5},$${idx+6},$${idx+7},$${idx+8},$${idx+9},$${idx+10},$${idx+11},$${idx+12},$${idx+13},$${idx+14},$${idx+15},$${idx+16},$${idx+17},$${idx+18},$${idx+19},$${idx+20},$${idx+21},$${idx+22})`);
         values.push(
-          r.dn||null, r.enodeb_id||null, r.mrbts_id||null, r.gnodeb_id||null,
-          r.cell_dn||null, r.cell_name||null, r.vendor||null, r.dor||null,
-          r.omc||null, r.plaque||null, r.longitude||null, r.latitude||null,
-          r.site_name||null, r.freq_downlink||null, r.bande||null, r.ur||null,
-          r.dr||null, r.zone_arcep||null, r.tgv||null, r.city||null,
-          r.parameter||'UNKNOWN', r.value||null
+          r.dn || null, r.enodeb_id || null, r.mrbts_id || null, r.gnodeb_id || null,
+          r.cell_dn || null, r.cell_name || null, r.vendor || null, r.dor || null,
+          r.omc || null, r.plaque || null, r.longitude || null, r.latitude || null,
+          r.site_name || null, r.freq_downlink || null, r.bande || null, r.ur || null,
+          r.dr || null, r.zone_arcep || null, r.tgv || null, r.city || null,
+          r.parameter || 'UNKNOWN', r.value || null, r.version || null
         );
-        idx += 22;
+        idx += 23;
       }
       await pool.query(
-        `INSERT INTO dump_parameter (dn, enodeb_id, mrbts_id, gnodeb_id, cell_dn, cell_name, vendor, dor, omc, plaque, longitude, latitude, site_name, freq_downlink, bande, ur, dr, zone_arcep, tgv, city, parameter, value)
+        `INSERT INTO ${dumpTable} (dn, enodeb_id, mrbts_id, gnodeb_id, cell_dn, cell_name, vendor, dor, omc, plaque, longitude, latitude, site_name, freq_downlink, bande, ur, dr, zone_arcep, tgv, city, parameter, value, version)
          VALUES ${placeholders.join(',')}`,
         values
       );
       inserted += batch.length;
     }
 
-    res.json({ success: true, inserted, total: rows.length });
+    res.json({ success: true, table: dumpTable, inserted, total: rows.length });
   } catch (e) {
     res.json({ success: false, error: e.message });
   } finally {
@@ -458,25 +469,37 @@ function extractSiteName(query) {
 async function searchDumpParameterLocal(query) {
   const pool = createPool({ host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
   try {
+    const tableChoice = await pool.query(`
+      SELECT CASE
+        WHEN to_regclass('public.dump_parametre') IS NOT NULL THEN 'dump_parametre'
+        WHEN to_regclass('public.dump_parameter') IS NOT NULL THEN 'dump_parameter'
+        ELSE 'dump_parameter'
+      END AS table_name
+    `);
+    const dumpTable = tableChoice.rows[0]?.table_name || 'dump_parameter';
+    if (dumpTable === 'dump_parameter') {
+      await pool.query(ENSURE_DUMP_PARAMETER_SQL);
+    }
+
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
     const siteName = extractSiteName(query);
 
     // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
     if (paramName && siteName && !isDistrib) {
-      console.log(`[dump_parameter] Site+param search: param=${paramName}, site=${siteName}`);
+      console.log(`[${dumpTable}] Site+param search: param=${paramName}, site=${siteName}`);
       const result = await pool.query(
         `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque
-         FROM dump_parameter
+         FROM ${dumpTable}
          WHERE parameter ILIKE $1 AND site_name ILIKE $2
          ORDER BY cell_name, parameter LIMIT 200`,
         [`%${paramName}%`, `%${siteName}%`]
       );
       if (!result.rows.length) {
-        const siteCheck = await pool.query(`SELECT DISTINCT site_name FROM dump_parameter WHERE site_name ILIKE $1 LIMIT 5`, [`%${siteName}%`]);
-        const paramCheck = await pool.query(`SELECT DISTINCT parameter FROM dump_parameter WHERE parameter ILIKE $1 LIMIT 10`, [`%${paramName}%`]);
+        const siteCheck = await pool.query(`SELECT DISTINCT site_name FROM ${dumpTable} WHERE site_name ILIKE $1 LIMIT 5`, [`%${siteName}%`]);
+        const paramCheck = await pool.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`, [`%${paramName}%`]);
         let msg = `RÉSULTAT DE RECHERCHE : AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" sur le site "${siteName}".\n`;
-        if (!siteCheck.rows.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base dump_parameter.\n`;
+        if (!siteCheck.rows.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base ${dumpTable}.\n`;
         else msg += `Sites similaires : ${siteCheck.rows.map(r => r.site_name).join(', ')}\n`;
         if (!paramCheck.rows.length) msg += `⚠️ Le paramètre "${paramName}" n'existe pas dans la base.\n`;
         else msg += `Paramètres contenant "${paramName}" : ${paramCheck.rows.map(r => r.parameter).join(', ')}\n`;
@@ -491,16 +514,16 @@ async function searchDumpParameterLocal(query) {
 
     if (isDistrib && paramName) {
       const groupCol = extractGroupByColumn(query);
-      console.log(`[dump_parameter] Aggregation: param=${paramName}, groupBy=${groupCol}`);
+      console.log(`[${dumpTable}] Aggregation: param=${paramName}, groupBy=${groupCol}`);
       const result = await pool.query(
         `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
-         FROM dump_parameter WHERE parameter ILIKE $1
+         FROM ${dumpTable} WHERE parameter ILIKE $1
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC`,
         [`%${paramName}%`]
       );
       if (!result.rows.length) {
-        return `AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" dans la base dump_parameter.`;
+        return `AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" dans la base ${dumpTable}.`;
       }
       const header = `dimension | valeur_${paramName} | nb_cellules`;
       const lines = result.rows.map(r => `${r.dimension} | ${r.param_value} | ${r.nb_cells}`);
@@ -517,10 +540,10 @@ async function searchDumpParameterLocal(query) {
     const params = terms.map(t => `%${t}%`);
     const result = await pool.query(
       `SELECT dn, enodeb_id, mrbts_id, gnodeb_id, cell_name, vendor, site_name, bande, plaque, parameter, version, value
-       FROM dump_parameter WHERE ${conditions} LIMIT 80`,
+       FROM ${dumpTable} WHERE ${conditions} LIMIT 80`,
       params
     );
-    if (!result.rows.length) return `AUCUNE DONNÉE trouvée dans dump_parameter pour: ${terms.join(', ')}`;
+    if (!result.rows.length) return `AUCUNE DONNÉE trouvée dans ${dumpTable} pour: ${terms.join(', ')}`;
     const header = 'dn | enodeb_id | mrbts_id | cell_name | vendor | site_name | bande | plaque | parameter | version | value';
     const lines = result.rows.map(r =>
       `${r.dn||''} | ${r.enodeb_id||''} | ${r.mrbts_id||''} | ${r.cell_name||''} | ${r.vendor||''} | ${r.site_name||''} | ${r.bande||''} | ${r.plaque||''} | ${r.parameter||''} | ${r.version||''} | ${r.value||''}`
