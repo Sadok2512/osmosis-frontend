@@ -377,6 +377,9 @@ function isDistributionQuery(query) {
 }
 
 function extractParamName(query) {
+  // Match "LNCEL.T300", "LNBTS.T300" or plain "T300"
+  const matchFull = query.match(/\b((?:LNCEL|LNBTS|LNCELL|MRBTS|GNBTS)[.\s_]?t\d{3,4})\b/i);
+  if (matchFull) return matchFull[1].replace(/\s/g, '.');
   const match = query.match(/\b(t\d{3,4})\b/i);
   return match ? match[1] : null;
 }
