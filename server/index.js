@@ -369,10 +369,65 @@ app.post('/api/rag-embed', async (req, res) => {
   }
 });
 
+// ─── Helper: detect distribution/aggregation questions ───
+function isDistributionQuery(query) {
+  const normalized = query.toLowerCase();
+  return ['distribution', 'répartition', 'repartition', 'distrubition', 'distrubtion',
+    'par plaque', 'par upr', 'par vendor', 'par site', 'par bande', 'par dor', 'par region', 'par zone'].some(h => normalized.includes(h));
+}
+
+function extractParamName(query) {
+  const match = query.match(/\b(t\d{3,4})\b/i);
+  return match ? match[1] : null;
+}
+
+function extractGroupByColumn(query) {
+  const normalized = query.toLowerCase();
+  const mappings = {
+    'plaque': 'plaque', 'upr': 'ur', 'vendor': 'vendor', 'site': 'site_name',
+    'bande': 'bande', 'dor': 'dor', 'region': 'dr', 'zone': 'zone_arcep',
+    'omc': 'omc', 'city': 'city', 'ville': 'city',
+  };
+  for (const [hint, col] of Object.entries(mappings)) {
+    if (normalized.includes(hint)) return col;
+  }
+  return 'plaque';
+}
+
 // ─── Helper: search dump_parameter locally ───
 async function searchDumpParameterLocal(query) {
   const pool = createPool({ host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
   try {
+    const paramName = extractParamName(query);
+    const isDistrib = isDistributionQuery(query);
+
+    if (isDistrib && paramName) {
+      const groupCol = extractGroupByColumn(query);
+      console.log(`[dump_parameter] Aggregation: param=${paramName}, groupBy=${groupCol}`);
+      const result = await pool.query(
+        `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
+         FROM dump_parameter WHERE parameter ILIKE $1
+         GROUP BY COALESCE(${groupCol}, 'N/A'), value
+         ORDER BY dimension, nb_cells DESC`,
+        [`%${paramName}%`]
+      );
+      if (!result.rows.length) {
+        const fallback = await pool.query(
+          `SELECT DISTINCT parameter FROM dump_parameter WHERE parameter ILIKE $1 LIMIT 20`,
+          [`%${paramName}%`]
+        );
+        if (fallback.rows.length) {
+          return `Paramètres trouvés contenant "${paramName}": ${fallback.rows.map(r => r.parameter).join(', ')}`;
+        }
+        return '';
+      }
+      const header = `dimension | valeur_${paramName} | nb_cellules`;
+      const lines = result.rows.map(r => `${r.dimension} | ${r.param_value} | ${r.nb_cells}`);
+      const total = result.rows.reduce((s, r) => s + parseInt(r.nb_cells), 0);
+      return `DISTRIBUTION AGRÉGÉE du paramètre ${paramName} par ${groupCol} (${total} cellules au total):\n${header}\n${lines.join('\n')}`;
+    }
+
+    // Standard search
     const terms = (query.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []).slice(0, 6);
     if (terms.length === 0) return '';
     const conditions = terms.map((_, i) =>
