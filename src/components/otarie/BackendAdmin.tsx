@@ -401,6 +401,7 @@ const BackendAdmin: React.FC = () => {
                   <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku</option>
                 </optgroup>
                 <optgroup label="OpenAI">
+                  <option value="openai/gpt-5.3-codex">GPT-5.3 Codex</option>
                   <option value="openai/gpt-4o">GPT-4o</option>
                   <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
                   <option value="openai/o3-mini">O3 Mini</option>
