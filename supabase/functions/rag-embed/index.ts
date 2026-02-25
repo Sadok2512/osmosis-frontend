@@ -8,7 +8,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function chunkText(text: string, chunkSize = 1000, overlap = 200): string[] {
+function chunkText(text: string, chunkSize = 2000, overlap = 300): string[] {
   const chunks: string[] = [];
   let i = 0;
   while (i < text.length) {
@@ -256,7 +256,7 @@ serve(async (req) => {
     await supabase.from("rag_documents").delete().eq("filename", filename);
 
     // Limit chunks to avoid CPU timeout — large files get sampled
-    const MAX_CHUNKS = 500;
+    const MAX_CHUNKS = 1500;
     const allChunks = chunkText(textContent);
     let chunks = allChunks;
     let sampled = false;
