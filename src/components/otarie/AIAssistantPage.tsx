@@ -539,6 +539,21 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
       em: ({ children }) => <em className="text-foreground/60 italic">{children}</em>,
       code: ({ children, className }) => {
         const isBlock = className?.includes('language-');
+        // Intercept chart/map/kpi code blocks that the parser missed
+        if (className?.includes('language-chart') || className?.includes('language-map') || className?.includes('language-kpi')) {
+          const raw = String(children).trim();
+          try {
+            const config = JSON.parse(raw);
+            const blockType = className.includes('language-chart') ? 'chart' : className.includes('language-map') ? 'map' : 'kpi';
+            if (blockType === 'chart') return <InlineChart config={config} />;
+            if (blockType === 'map') return (
+              <Suspense fallback={<div className="h-[250px] bg-muted animate-pulse rounded-xl my-4" />}>
+                <InlineMap config={config} />
+              </Suspense>
+            );
+            if (blockType === 'kpi') return <InlineKPICards config={config} />;
+          } catch { /* fall through to normal code rendering */ }
+        }
         if (isBlock) {
           return <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 overflow-x-auto my-3"><code className="text-xs font-mono text-foreground">{children}</code></pre>;
         }
