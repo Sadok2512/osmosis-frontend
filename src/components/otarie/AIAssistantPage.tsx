@@ -110,14 +110,31 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       }
     } catch { /* ignore */ }
 
-    const resp = await fetch(getRuntimeFunctionUrl('qoe-assistant'), {
+    const payload = JSON.stringify({ messages: allMessages, cellContext, openrouter_key: openrouterKey, model: llmModel });
+    const primaryUrl = getRuntimeFunctionUrl('qoe-assistant');
+    const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
+
+    let resp = await fetch(primaryUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ messages: allMessages, cellContext, openrouter_key: openrouterKey, model: llmModel }),
+      body: payload,
     });
+
+    // Safety fallback: if local API fails, retry via Cloud edge function
+    if (!resp.ok && primaryUrl.includes('localhost:3001')) {
+      console.warn(`[qoe-assistant] Local API failed (${resp.status}), retrying on Cloud`);
+      resp = await fetch(cloudUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: payload,
+      });
+    }
 
     if (!resp.ok) {
       if (resp.status === 429) {
