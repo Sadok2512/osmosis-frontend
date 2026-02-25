@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Upload, FileText, Trash2, Database, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Trash2, Database, Loader2, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -32,6 +32,11 @@ const RAGManager: React.FC = () => {
 
   useEffect(() => { fetchFiles(); }, [fetchFiles]);
 
+  const getDownloadUrl = (filename: string) => {
+    const { data } = supabase.storage.from('rag-files').getPublicUrl(filename);
+    return data?.publicUrl || '';
+  };
+
   const BINARY_EXTENSIONS = ['pptx', 'docx', 'xlsx'];
   
   const processFile = async (file: File) => {
@@ -40,10 +45,17 @@ const RAGManager: React.FC = () => {
 
     setUploading(true);
     try {
+      // Upload original file to storage
+      const { error: storageError } = await supabase.storage
+        .from('rag-files')
+        .upload(file.name, file, { upsert: true });
+      if (storageError) {
+        console.warn('Storage upload warning:', storageError.message);
+      }
+
       let body: Record<string, string>;
 
       if (isBinary) {
-        // Send as base64 for binary formats (PPTX, DOCX, XLSX)
         const arrayBuffer = await file.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
         let binary = '';
@@ -92,6 +104,8 @@ const RAGManager: React.FC = () => {
 
   const deleteFile = async (filename: string) => {
     try {
+      // Delete from storage too
+      await supabase.storage.from('rag-files').remove([filename]);
       await supabase.functions.invoke('rag-embed', {
         body: { action: 'delete', filename },
       });
@@ -100,6 +114,25 @@ const RAGManager: React.FC = () => {
     } catch (e: any) {
       toast.error(`Erreur: ${e.message}`);
     }
+  };
+
+  const getFileExtBadge = (filename: string) => {
+    const ext = filename.split('.').pop()?.toUpperCase() || '?';
+    const colors: Record<string, string> = {
+      PPTX: 'bg-orange-500/10 text-orange-600',
+      DOCX: 'bg-blue-500/10 text-blue-600',
+      XLSX: 'bg-green-500/10 text-green-600',
+      CSV: 'bg-emerald-500/10 text-emerald-600',
+      TXT: 'bg-muted text-muted-foreground',
+      MD: 'bg-muted text-muted-foreground',
+      JSON: 'bg-yellow-500/10 text-yellow-600',
+      XML: 'bg-purple-500/10 text-purple-600',
+    };
+    return (
+      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${colors[ext] || 'bg-muted text-muted-foreground'}`}>
+        {ext}
+      </span>
+    );
   };
 
   return (
@@ -201,18 +234,33 @@ const RAGManager: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-primary/70" />
                     <div>
-                      <p className="text-sm font-medium text-foreground">{f.filename}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-foreground">{f.filename}</p>
+                        {getFileExtBadge(f.filename)}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {f.chunks} chunks • {new Date(f.created_at).toLocaleDateString('fr-FR')}
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => deleteFile(f.filename)}
-                    className="opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <a
+                      href={getDownloadUrl(f.filename)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={f.filename}
+                      className="p-2 rounded-lg hover:bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-all"
+                      title="Télécharger le document original"
+                    >
+                      <Download className="w-4 h-4" />
+                    </a>
+                    <button
+                      onClick={() => deleteFile(f.filename)}
+                      className="opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -224,7 +272,7 @@ const RAGManager: React.FC = () => {
           <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <div className="text-xs text-muted-foreground space-y-1">
             <p className="font-medium text-foreground">Comment fonctionne le RAG ?</p>
-            <p>Les documents sont découpés en chunks, enrichis de mots-clés par IA, puis stockés avec des embeddings vectoriels dans pgvector. L'assistant QOEBIT peut ensuite chercher dans cette base pour enrichir ses réponses.</p>
+            <p>Les documents sont découpés en chunks, enrichis de mots-clés par IA, puis stockés avec des embeddings vectoriels dans pgvector. L'assistant QOEBIT peut ensuite chercher dans cette base pour enrichir ses réponses. Les fichiers originaux sont conservés et téléchargeables.</p>
           </div>
         </div>
       </div>
