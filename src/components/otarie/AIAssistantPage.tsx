@@ -9,17 +9,7 @@ import { SiteSummary } from '@/types';
 
 type Msg = { role: 'user' | 'assistant'; content: string; mapCellIds?: string[]; mapDescription?: string };
 
-const getRuntimeFunctionUrl = (functionName: string) => {
-  const host = typeof window !== 'undefined' ? window.location.hostname : '';
-  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
-  const localApi = import.meta.env.VITE_LOCAL_API;
-
-  if (localApi && isLocalHost) {
-    return `${localApi}/api/${functionName}`;
-  }
-
-  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`;
-};
+const SUPABASE_FUNCTIONS_BASE = `https://nmblfljpqiyxayaswmwn.supabase.co/functions/v1`;
 
 const SUGGESTIONS = [
   "Donne-moi les 10 pires sites en QoE",
@@ -111,10 +101,9 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     } catch { /* ignore */ }
 
     const payload = JSON.stringify({ messages: allMessages, cellContext, openrouter_key: openrouterKey, model: llmModel });
-    const primaryUrl = getRuntimeFunctionUrl('qoe-assistant');
-    const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
+    const url = `${SUPABASE_FUNCTIONS_BASE}/qoe-assistant`;
 
-    let resp = await fetch(primaryUrl, {
+    let resp = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -122,19 +111,6 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       },
       body: payload,
     });
-
-    // Safety fallback: if local API fails, retry via Cloud edge function
-    if (!resp.ok && primaryUrl.includes('localhost:3001')) {
-      console.warn(`[qoe-assistant] Local API failed (${resp.status}), retrying on Cloud`);
-      resp = await fetch(cloudUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: payload,
-      });
-    }
 
     if (!resp.ok) {
       if (resp.status === 429) {
