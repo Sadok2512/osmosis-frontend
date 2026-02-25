@@ -20,11 +20,12 @@ function createPool(config) {
   });
 }
 
-const TABLE_SQL = `
-DO $$ BEGIN
-  CREATE EXTENSION IF NOT EXISTS vector;
-EXCEPTION WHEN OTHERS THEN NULL;
-END $$;
+// Build TABLE_SQL dynamically based on pgvector availability
+function buildTableSQL(hasVector) {
+  const embeddingType = hasVector ? 'VECTOR(768)' : 'TEXT';
+  const vectorExt = hasVector ? "CREATE EXTENSION IF NOT EXISTS vector;" : "-- pgvector not available, using TEXT for embeddings";
+  return `
+${vectorExt}
 
 CREATE TABLE IF NOT EXISTS topo (
   id BIGSERIAL PRIMARY KEY,
@@ -61,7 +62,7 @@ CREATE TABLE IF NOT EXISTS rag_documents (
   filename TEXT NOT NULL,
   content TEXT NOT NULL,
   chunk_index INTEGER DEFAULT 0,
-  embedding VECTOR(768),
+  embedding ${embeddingType},
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -98,6 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_qoe_cell_dt ON qoe_metrics(cell_id, dt);
 CREATE INDEX IF NOT EXISTS idx_qoe_dt ON qoe_metrics(dt);
 CREATE INDEX IF NOT EXISTS idx_qoe_service ON qoe_metrics(service);
 `;
+}
 
 // ─── /api/backend-admin ───
 app.post('/api/backend-admin', async (req, res) => {
@@ -112,8 +114,16 @@ app.post('/api/backend-admin', async (req, res) => {
     }
 
     if (action === 'create_tables') {
-      await pool.query(TABLE_SQL);
-      return res.json({ success: true, tables_created: 4 });
+      // Check if pgvector is available
+      let hasVector = false;
+      try {
+        await pool.query("CREATE EXTENSION IF NOT EXISTS vector");
+        hasVector = true;
+      } catch {
+        // pgvector not installed, will use TEXT for embeddings
+      }
+      await pool.query(buildTableSQL(hasVector));
+      return res.json({ success: true, tables_created: 4, pgvector: hasVector });
     }
 
     if (action === 'query_tables') {
