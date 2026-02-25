@@ -369,9 +369,60 @@ app.post('/api/rag-embed', async (req, res) => {
   }
 });
 
-// ─── /api/qoe-assistant (proxy to OpenRouter) ───
+// ─── Helper: search dump_parameter locally ───
+async function searchDumpParameterLocal(query) {
+  const pool = createPool({ host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
+  try {
+    const terms = (query.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []).slice(0, 6);
+    if (terms.length === 0) return '';
+    const conditions = terms.map((_, i) =>
+      `parameter ILIKE $${i+1} OR site_name ILIKE $${i+1} OR value ILIKE $${i+1} OR dn ILIKE $${i+1}`
+    ).join(' OR ');
+    const params = terms.map(t => `%${t}%`);
+    const result = await pool.query(
+      `SELECT dn, enodeb_id, mrbts_id, gnodeb_id, cell_name, vendor, site_name, bande, plaque, parameter, version, value
+       FROM dump_parameter WHERE ${conditions} LIMIT 80`,
+      params
+    );
+    if (!result.rows.length) return '';
+    const header = 'dn | enodeb_id | mrbts_id | cell_name | vendor | site_name | bande | plaque | parameter | version | value';
+    const lines = result.rows.map(r =>
+      `${r.dn||''} | ${r.enodeb_id||''} | ${r.mrbts_id||''} | ${r.cell_name||''} | ${r.vendor||''} | ${r.site_name||''} | ${r.bande||''} | ${r.plaque||''} | ${r.parameter||''} | ${r.version||''} | ${r.value||''}`
+    );
+    return `Total résultats paramètres: ${result.rows.length}\n${header}\n${lines.join('\n')}`;
+  } catch (e) {
+    console.error('[dump_parameter search error]', e.message);
+    return '';
+  } finally {
+    await pool.end();
+  }
+}
+
+// ─── Helper: search RAG documents locally ───
+async function searchRAGLocal(query) {
+  const pool = createPool({ host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
+  try {
+    const terms = (query.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []).slice(0, 4);
+    if (terms.length === 0) return '';
+    const conditions = terms.map((_, i) => `content ILIKE $${i+1} OR filename ILIKE $${i+1}`).join(' OR ');
+    const params = terms.map(t => `%${t}%`);
+    const result = await pool.query(
+      `SELECT filename, content, chunk_index FROM rag_documents WHERE ${conditions} ORDER BY created_at DESC LIMIT 10`,
+      params
+    );
+    if (!result.rows.length) return '';
+    return result.rows.map(r => `[${r.filename} | chunk: ${r.chunk_index}]\n${r.content.slice(0, 900)}`).join('\n\n---\n\n');
+  } catch (e) {
+    console.error('[RAG search error]', e.message);
+    return '';
+  } finally {
+    await pool.end();
+  }
+}
+
+// ─── /api/qoe-assistant (proxy to OpenRouter with local context) ───
 app.post('/api/qoe-assistant', async (req, res) => {
-  const { messages, openrouter_key, model } = req.body;
+  const { messages, cellContext, openrouter_key, model } = req.body;
   const apiKey = openrouter_key || process.env.OPENROUTER_API_KEY;
 
   console.log('[qoe-assistant] API key present:', !!apiKey, '| env key present:', !!process.env.OPENROUTER_API_KEY);
@@ -381,6 +432,34 @@ app.post('/api/qoe-assistant', async (req, res) => {
   }
 
   try {
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || '';
+    
+    const [paramContext, ragContext] = await Promise.all([
+      searchDumpParameterLocal(lastUserMsg),
+      searchRAGLocal(lastUserMsg),
+    ]);
+
+    console.log(`[qoe-assistant] Context: params=${paramContext ? paramContext.split('\\n').length + ' lines' : 'none'}, rag=${ragContext ? 'found' : 'none'}`);
+
+    let systemContent = messages.find(m => m.role === 'system')?.content || '';
+    if (!systemContent) {
+      systemContent = `Tu es un assistant expert en analyse de Qualité d'Expérience (QoE) réseau mobile. Réponds en français. Utilise du Markdown pur (pas de HTML). Présente les données en tableaux Markdown.`;
+    }
+    if (paramContext) {
+      systemContent += `\n\n⚙️ PARAMÈTRES RÉSEAU (DUMP CM LOCAL) :\n${paramContext}`;
+    }
+    if (ragContext) {
+      systemContent += `\n\n📚 DOCUMENTS RAG PERTINENTS :\n${ragContext}`;
+    }
+    if (cellContext) {
+      systemContent += `\n\nDONNÉES RÉSEAU RÉELLES DISPONIBLES :\n${cellContext}`;
+    }
+
+    const enrichedMessages = [
+      { role: 'system', content: systemContent },
+      ...messages.filter(m => m.role !== 'system'),
+    ];
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -391,12 +470,11 @@ app.post('/api/qoe-assistant', async (req, res) => {
       },
       body: JSON.stringify({
         model: model || 'google/gemini-2.5-flash-preview-05-20',
-        messages,
+        messages: enrichedMessages,
         stream: true,
       }),
     });
 
-    // Stream the response
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');

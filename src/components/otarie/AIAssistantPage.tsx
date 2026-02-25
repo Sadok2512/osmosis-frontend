@@ -8,11 +8,10 @@ import { SiteSummary } from '@/types';
 import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizationBlocks';
 import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
+import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
 type Msg = { role: 'user' | 'assistant'; content: string; mapCellIds?: string[]; mapDescription?: string };
-
-const SUPABASE_FUNCTIONS_BASE = `https://nmblfljpqiyxayaswmwn.supabase.co/functions/v1`;
 
 const SUGGESTIONS = [
   "Donne-moi les 10 pires sites en QoE",
@@ -106,14 +105,17 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     } catch { /* ignore */ }
 
     const payload = JSON.stringify({ messages: allMessages, cellContext, openrouter_key: openrouterKey, model: llmModel });
-    const url = `${SUPABASE_FUNCTIONS_BASE}/qoe-assistant`;
+    const url = getApiUrl('qoe-assistant');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (!isLocalMode()) {
+      headers['Authorization'] = `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
+    }
 
     let resp = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
+      headers,
       body: payload,
     });
 
