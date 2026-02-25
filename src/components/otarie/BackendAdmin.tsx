@@ -150,7 +150,7 @@ const BackendAdmin: React.FC = () => {
   const [dbConfig, setDbConfig] = useState<DbConfig>({
     host: 'localhost',
     port: '5432',
-    database: 'postgres',
+    database: 'RAN_OP',
     user: 'postgres',
     password: '',
     schema: 'public',
@@ -229,7 +229,7 @@ const BackendAdmin: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         setCreateStatus('success');
-        setCreateMsg(`${data.tables_created || 3} tables créées avec succès`);
+        setCreateMsg(`${data.tables_created || 5} tables créées avec succès`);
         toast.success('Tables créées avec succès');
       } else {
         setCreateStatus('error');
@@ -345,7 +345,7 @@ const BackendAdmin: React.FC = () => {
             </div>
             <div>
               <Label className="text-xs">Database</Label>
-              <Input value={dbConfig.database} onChange={e => setDbConfig(p => ({ ...p, database: e.target.value }))} placeholder="postgres" className="h-8 text-xs" />
+              <Input value={dbConfig.database} onChange={e => setDbConfig(p => ({ ...p, database: e.target.value }))} placeholder="RAN_OP" className="h-8 text-xs" />
             </div>
             <div>
               <Label className="text-xs">User</Label>
