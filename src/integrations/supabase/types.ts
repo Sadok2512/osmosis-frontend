@@ -44,6 +44,87 @@ export type Database = {
         }
         Relationships: []
       }
+      qoe_metrics: {
+        Row: {
+          bande: string | null
+          cell_id: string
+          created_at: string | null
+          dms_dl_3: number | null
+          dms_dl_30: number | null
+          dms_dl_8: number | null
+          dms_ul_3: number | null
+          dt: string
+          id: number
+          loss_dn_sum: number | null
+          out_of_order_rate: number | null
+          p50_thr_dn_mbps: number | null
+          p50_thr_up_mbps: number | null
+          p95_rtt_ms: number | null
+          qoe_score_avg: number | null
+          retransmission_rate: number | null
+          service: string
+          sessions: number | null
+          site_id: string | null
+          tcp_loss_rate: number | null
+          techno: string | null
+          traffic_dn_bytes: number | null
+          traffic_up_bytes: number | null
+          window_full_ratio: number | null
+        }
+        Insert: {
+          bande?: string | null
+          cell_id: string
+          created_at?: string | null
+          dms_dl_3?: number | null
+          dms_dl_30?: number | null
+          dms_dl_8?: number | null
+          dms_ul_3?: number | null
+          dt: string
+          id?: number
+          loss_dn_sum?: number | null
+          out_of_order_rate?: number | null
+          p50_thr_dn_mbps?: number | null
+          p50_thr_up_mbps?: number | null
+          p95_rtt_ms?: number | null
+          qoe_score_avg?: number | null
+          retransmission_rate?: number | null
+          service?: string
+          sessions?: number | null
+          site_id?: string | null
+          tcp_loss_rate?: number | null
+          techno?: string | null
+          traffic_dn_bytes?: number | null
+          traffic_up_bytes?: number | null
+          window_full_ratio?: number | null
+        }
+        Update: {
+          bande?: string | null
+          cell_id?: string
+          created_at?: string | null
+          dms_dl_3?: number | null
+          dms_dl_30?: number | null
+          dms_dl_8?: number | null
+          dms_ul_3?: number | null
+          dt?: string
+          id?: number
+          loss_dn_sum?: number | null
+          out_of_order_rate?: number | null
+          p50_thr_dn_mbps?: number | null
+          p50_thr_up_mbps?: number | null
+          p95_rtt_ms?: number | null
+          qoe_score_avg?: number | null
+          retransmission_rate?: number | null
+          service?: string
+          sessions?: number | null
+          site_id?: string | null
+          tcp_loss_rate?: number | null
+          techno?: string | null
+          traffic_dn_bytes?: number | null
+          traffic_up_bytes?: number | null
+          window_full_ratio?: number | null
+        }
+        Relationships: []
+      }
       rag_documents: {
         Row: {
           chunk_index: number
