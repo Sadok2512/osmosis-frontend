@@ -73,6 +73,9 @@ function isParameterFocusedQuery(query: string): boolean {
     "template", "dn", "version", "hw.", "sw", "vendor",
     "nokia", "ericsson", "huawei", "cell_dn", "blockingstate",
     "imsemer", "btsname", "netype", "managedelement",
+    "t300", "t301", "t304", "t310", "t311", "t320", "t321",
+    "timer", "rrc", "handover", "reselection", "plaque",
+    "distribution", "valeur", "valeurs",
   ];
   return paramHints.some((hint) => normalized.includes(hint));
 }
@@ -364,9 +367,9 @@ serve(async (req) => {
     // Search RAG documents for relevant context
     const ragContext = await searchRAGDocuments(lastUserMessage);
 
-    // Search dump_parameter if query is parameter-focused
-    const paramFocused = isParameterFocusedQuery(lastUserMessage);
-    const paramContext = paramFocused ? await searchDumpParameters(lastUserMessage) : "";
+    // Always search dump_parameter for context enrichment
+    const paramContext = await searchDumpParameters(lastUserMessage);
+    const paramFocused = isParameterFocusedQuery(lastUserMessage) || Boolean(paramContext);
 
     let systemContent = SYSTEM_PROMPT;
     const documentFocusedQuery = isDocumentFocusedQuery(lastUserMessage);
