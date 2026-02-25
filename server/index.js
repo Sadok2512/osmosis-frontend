@@ -185,7 +185,16 @@ app.post('/api/backend-admin', async (req, res) => {
       await pool.query(buildTableSQL(hasVector));
       await pool.query(ENSURE_DUMP_PARAMETER_SQL); // safety net for legacy instances
 
-      return res.json({ success: true, tables_created: 5, pgvector: hasVector });
+      // Count actual tables created
+      const schema = config.schema || 'public';
+      const countRes = await pool.query(
+        `SELECT COUNT(*)::int as cnt FROM information_schema.tables
+         WHERE table_schema = $1 AND table_type = 'BASE TABLE'
+         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'dump_parameter')`, [schema]
+      );
+      const tablesCreated = countRes.rows[0]?.cnt || 0;
+
+      return res.json({ success: true, tables_created: tablesCreated, pgvector: hasVector });
     }
 
     if (action === 'query_tables') {
