@@ -2,3 +2,6 @@ project_id = "nmblfljpqiyxayaswmwn"
 
 [functions.backend-admin]
 verify_jwt = false
+
+[functions.import-dump]
+verify_jwt = false
