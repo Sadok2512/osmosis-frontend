@@ -89,13 +89,25 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   }, [sites]);
 
   const streamChat = async (allMessages: Msg[]): Promise<string> => {
+    // Read LLM config from localStorage (set by BackendAdmin)
+    let openrouterKey = '';
+    let llmModel = '';
+    try {
+      const saved = localStorage.getItem('qoebit_llm_config');
+      if (saved) {
+        const cfg = JSON.parse(saved);
+        openrouterKey = cfg.apiKey || '';
+        llmModel = cfg.model || '';
+      }
+    } catch { /* ignore */ }
+
     const resp = await fetch(CHAT_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ messages: allMessages, cellContext }),
+      body: JSON.stringify({ messages: allMessages, cellContext, openrouter_key: openrouterKey, model: llmModel }),
     });
 
     if (!resp.ok) {
