@@ -394,12 +394,45 @@ function extractGroupByColumn(query) {
   return 'plaque';
 }
 
+function extractSiteName(query) {
+  const match = query.match(/\b([A-Z][A-Z0-9_]{3,}(?:_[A-Z0-9]+)*)\b/);
+  return match ? match[1] : null;
+}
+
 // ─── Helper: search dump_parameter locally ───
 async function searchDumpParameterLocal(query) {
   const pool = createPool({ host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
   try {
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
+    const siteName = extractSiteName(query);
+
+    // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
+    if (paramName && siteName && !isDistrib) {
+      console.log(`[dump_parameter] Site+param search: param=${paramName}, site=${siteName}`);
+      const result = await pool.query(
+        `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque
+         FROM dump_parameter
+         WHERE parameter ILIKE $1 AND site_name ILIKE $2
+         ORDER BY cell_name, parameter LIMIT 200`,
+        [`%${paramName}%`, `%${siteName}%`]
+      );
+      if (!result.rows.length) {
+        const siteCheck = await pool.query(`SELECT DISTINCT site_name FROM dump_parameter WHERE site_name ILIKE $1 LIMIT 5`, [`%${siteName}%`]);
+        const paramCheck = await pool.query(`SELECT DISTINCT parameter FROM dump_parameter WHERE parameter ILIKE $1 LIMIT 10`, [`%${paramName}%`]);
+        let msg = `RÉSULTAT DE RECHERCHE : AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" sur le site "${siteName}".\n`;
+        if (!siteCheck.rows.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base dump_parameter.\n`;
+        else msg += `Sites similaires : ${siteCheck.rows.map(r => r.site_name).join(', ')}\n`;
+        if (!paramCheck.rows.length) msg += `⚠️ Le paramètre "${paramName}" n'existe pas dans la base.\n`;
+        else msg += `Paramètres contenant "${paramName}" : ${paramCheck.rows.map(r => r.parameter).join(', ')}\n`;
+        return msg;
+      }
+      const header = 'dn | cell_name | site_name | parameter | value | version | vendor | bande | ur | plaque';
+      const lines = result.rows.map(r =>
+        `${r.dn||''} | ${r.cell_name||''} | ${r.site_name||''} | ${r.parameter||''} | ${r.value||''} | ${r.version||''} | ${r.vendor||''} | ${r.bande||''} | ${r.ur||''} | ${r.plaque||''}`
+      );
+      return `DONNÉES RÉELLES pour ${paramName} sur ${siteName} (${result.rows.length} résultats) :\n${header}\n${lines.join('\n')}`;
+    }
 
     if (isDistrib && paramName) {
       const groupCol = extractGroupByColumn(query);
@@ -412,14 +445,7 @@ async function searchDumpParameterLocal(query) {
         [`%${paramName}%`]
       );
       if (!result.rows.length) {
-        const fallback = await pool.query(
-          `SELECT DISTINCT parameter FROM dump_parameter WHERE parameter ILIKE $1 LIMIT 20`,
-          [`%${paramName}%`]
-        );
-        if (fallback.rows.length) {
-          return `Paramètres trouvés contenant "${paramName}": ${fallback.rows.map(r => r.parameter).join(', ')}`;
-        }
-        return '';
+        return `AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" dans la base dump_parameter.`;
       }
       const header = `dimension | valeur_${paramName} | nb_cellules`;
       const lines = result.rows.map(r => `${r.dimension} | ${r.param_value} | ${r.nb_cells}`);
@@ -439,7 +465,7 @@ async function searchDumpParameterLocal(query) {
        FROM dump_parameter WHERE ${conditions} LIMIT 80`,
       params
     );
-    if (!result.rows.length) return '';
+    if (!result.rows.length) return `AUCUNE DONNÉE trouvée dans dump_parameter pour: ${terms.join(', ')}`;
     const header = 'dn | enodeb_id | mrbts_id | cell_name | vendor | site_name | bande | plaque | parameter | version | value';
     const lines = result.rows.map(r =>
       `${r.dn||''} | ${r.enodeb_id||''} | ${r.mrbts_id||''} | ${r.cell_name||''} | ${r.vendor||''} | ${r.site_name||''} | ${r.bande||''} | ${r.plaque||''} | ${r.parameter||''} | ${r.version||''} | ${r.value||''}`
@@ -504,8 +530,9 @@ Dimensions : Vendor (Ericsson, Nokia), DOR, Plaque, RAT (2G/3G/4G/5G), Site, Cel
 RÈGLE ABSOLUE — DONNÉES RÉELLES UNIQUEMENT :
 - Tu reçois dans le contexte des données RÉELLES extraites de la base locale (dump_parameter, topo, rag_documents).
 - Tu dois EXCLUSIVEMENT utiliser les noms de sites, cellules, plaques, vendors EXACTS qui apparaissent dans les données fournies.
-- Il est STRICTEMENT INTERDIT d'inventer ou halluciner des noms de sites, plaques ou valeurs. Si une donnée n'est pas dans le contexte, dis-le explicitement.
+- Il est STRICTEMENT INTERDIT d'inventer ou halluciner des noms de sites, plaques, valeurs de paramètres ou données. Si une donnée n'est pas dans le contexte, dis-le EXPLICITEMENT : "Ce paramètre/site n'a pas été trouvé dans la base."
 - Ne JAMAIS inventer des plaques comme "LYON_TOP15" ou "MARSEILLE" si elles n'apparaissent pas dans les données.
+- Si le contexte contient "AUCUNE DONNÉE trouvée", tu DOIS le rapporter tel quel à l'utilisateur. NE JAMAIS inventer de valeurs pour compenser l'absence de données.
 
 RÈGLES DE FORMATAGE ABSOLUES :
 - JAMAIS de HTML. Utilise UNIQUEMENT du Markdown pur avec | et --- pour les tableaux.

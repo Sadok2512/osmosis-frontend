@@ -217,6 +217,11 @@ function extractGroupByColumn(query: string): string {
   return "plaque";
 }
 
+function extractSiteName(query: string): string | null {
+  const match = query.match(/\b([A-Z][A-Z0-9_]{3,}(?:_[A-Z0-9]+)*)\b/);
+  return match ? match[1] : null;
+}
+
 async function searchDumpParameters(query: string): Promise<string> {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -225,14 +230,45 @@ async function searchDumpParameters(query: string): Promise<string> {
 
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
+    const siteName = extractSiteName(query);
+
+    // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
+    if (paramName && siteName && !isDistrib) {
+      console.log(`[dump_parameter] Site+param search: param=${paramName}, site=${siteName}`);
+      const { data, error } = await supabase
+        .from("dump_parameter")
+        .select("dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque")
+        .ilike("parameter", `%${paramName}%`)
+        .ilike("site_name", `%${siteName}%`)
+        .order("cell_name")
+        .limit(200);
+
+      if (error) { console.error("dump_parameter site search error:", error); return ""; }
+      if (!data?.length) {
+        // Check if site/param exist separately
+        const { data: siteData } = await supabase.from("dump_parameter").select("site_name").ilike("site_name", `%${siteName}%`).limit(5);
+        const { data: paramData } = await supabase.from("dump_parameter").select("parameter").ilike("parameter", `%${paramName}%`).limit(10);
+        const uniqueSites = [...new Set((siteData || []).map((r: any) => r.site_name))];
+        const uniqueParams = [...new Set((paramData || []).map((r: any) => r.parameter))];
+        let msg = `RÉSULTAT DE RECHERCHE : AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" sur le site "${siteName}".\n`;
+        if (!uniqueSites.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base dump_parameter.\n`;
+        else msg += `Sites similaires : ${uniqueSites.join(", ")}\n`;
+        if (!uniqueParams.length) msg += `⚠️ Le paramètre "${paramName}" n'existe pas dans la base.\n`;
+        else msg += `Paramètres contenant "${paramName}" : ${uniqueParams.join(", ")}\n`;
+        return msg;
+      }
+      const header = "dn | cell_name | site_name | parameter | value | version | vendor | bande | ur | plaque";
+      const lines = data.map((r: any) =>
+        `${r.dn || ""} | ${r.cell_name || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""} | ${r.version || ""} | ${r.vendor || ""} | ${r.bande || ""} | ${r.ur || ""} | ${r.plaque || ""}`
+      );
+      return `DONNÉES RÉELLES pour ${paramName} sur ${siteName} (${data.length} résultats) :\n${header}\n${lines.join("\n")}`;
+    }
 
     // Aggregated distribution query
     if (isDistrib && paramName) {
       const groupCol = extractGroupByColumn(query);
       console.log(`[dump_parameter] Aggregation: param=${paramName}, groupBy=${groupCol}`);
 
-      // Use RPC or raw query via supabase - since we can't do GROUP BY easily with supabase-js,
-      // we fetch matching rows and aggregate in code
       const { data, error } = await supabase
         .from("dump_parameter")
         .select(`${groupCol}, value, parameter`)
@@ -240,9 +276,8 @@ async function searchDumpParameters(query: string): Promise<string> {
         .limit(1000);
 
       if (error) { console.error("dump_parameter aggregation error:", error); return ""; }
-      if (!data?.length) return "";
+      if (!data?.length) return `AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" dans la base dump_parameter.`;
 
-      // Aggregate in code
       const agg = new Map<string, number>();
       for (const row of data) {
         const key = `${(row as any)[groupCol] || "N/A"}::${row.value || "N/A"}`;
@@ -292,7 +327,7 @@ async function searchDumpParameters(query: string): Promise<string> {
     }
 
     const rows = Array.from(merged.values());
-    if (rows.length === 0) return "";
+    if (rows.length === 0) return `AUCUNE DONNÉE trouvée dans dump_parameter pour: ${terms.join(", ")}`;
     return formatParamResults(rows);
   } catch (e) {
     console.error("dump_parameter search failed:", e);
@@ -316,7 +351,8 @@ Dimensions : Vendor (Ericsson, Nokia), DOR, Plaque, RAT (2G/3G/4G/5G), Site, Cel
 RÈGLE ABSOLUE — DONNÉES RÉELLES UNIQUEMENT :
 - Tu reçois dans le contexte un tableau de données réseau RÉELLES avec les vrais noms de cellules (cell_id), sites (site_name), vendors, plaques, technos et KPIs mesurés.
 - Tu dois EXCLUSIVEMENT utiliser les cell_id et site_name EXACTS qui apparaissent dans ce tableau. Copie-colle les noms tels quels.
-- Il est STRICTEMENT INTERDIT d'inventer, générer ou halluciner des noms de cellules ou de sites (ex: ne JAMAIS écrire "ERICSSON_cell_1", "NOKIA_site_X", "Cell_A", etc.).
+- Il est STRICTEMENT INTERDIT d'inventer, générer ou halluciner des noms de cellules, sites ou VALEURS DE PARAMÈTRES.
+- Si le contexte contient "AUCUNE DONNÉE trouvée", tu DOIS le rapporter tel quel. NE JAMAIS inventer de valeurs pour compenser l'absence de données.
 - Si tu ne trouves pas de données pertinentes dans le contexte fourni, dis-le explicitement au lieu d'inventer des données.
 - Chaque cellule ou site mentionné dans ta réponse DOIT exister dans le tableau de données fourni.
 - Dans les tableaux, inclus toujours les colonnes "Cell ID" et "Site" avec les noms EXACTS copiés depuis les données.
