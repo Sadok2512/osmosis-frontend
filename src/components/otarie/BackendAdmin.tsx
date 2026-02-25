@@ -125,12 +125,23 @@ const BackendAdmin: React.FC = () => {
     schema: 'public',
   });
 
-  const [llmConfig, setLlmConfig] = useState<LLMConfig>({
-    provider: 'openrouter',
-    apiKey: '',
-    model: 'google/gemini-2.5-flash-preview-05-20',
-    baseUrl: 'https://openrouter.ai/api/v1',
+  const [llmConfig, setLlmConfig] = useState<LLMConfig>(() => {
+    const saved = localStorage.getItem('qoebit_llm_config');
+    if (saved) {
+      try { return JSON.parse(saved); } catch { /* ignore */ }
+    }
+    return {
+      provider: 'openrouter',
+      apiKey: '',
+      model: 'google/gemini-2.5-flash-preview-05-20',
+      baseUrl: 'https://openrouter.ai/api/v1',
+    };
   });
+
+  // Persist LLM config to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem('qoebit_llm_config', JSON.stringify(llmConfig));
+  }, [llmConfig]);
 
   const [dbTestStatus, setDbTestStatus] = useState<TestStatus>('idle');
   const [dbTestMsg, setDbTestMsg] = useState('');
