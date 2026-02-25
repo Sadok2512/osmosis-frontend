@@ -179,51 +179,83 @@ serve(async (req) => {
     // Delete existing chunks for this file
     await supabase.from("rag_documents").delete().eq("filename", filename);
 
-    const chunks = chunkText(textContent);
+    // Limit chunks to avoid CPU timeout — large files get sampled
+    const MAX_CHUNKS = 500;
+    const allChunks = chunkText(textContent);
+    let chunks = allChunks;
+    let sampled = false;
+    if (allChunks.length > MAX_CHUNKS) {
+      // Sample evenly across the document
+      const step = Math.floor(allChunks.length / MAX_CHUNKS);
+      chunks = allChunks.filter((_, idx) => idx % step === 0).slice(0, MAX_CHUNKS);
+      sampled = true;
+      console.log(`Large file: sampled ${chunks.length} chunks from ${allChunks.length} total`);
+    }
+
+    // Use AI keywords only for small files (≤50 chunks), otherwise skip to avoid rate limits
+    const useAIKeywords = chunks.length <= 50;
     let embedded = 0;
 
-    for (let i = 0; i < chunks.length; i++) {
-      // Use Lovable AI to generate keywords for embedding
-      const embResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: "Tu es un extracteur de mots-clés techniques. Retourne UNIQUEMENT une liste de 20 mots-clés techniques séparés par des virgules qui résument le texte suivant. Concentre-toi sur les termes techniques, acronymes, noms propres et concepts clés. Pas d'explication.",
-            },
-            { role: "user", content: chunks[i].slice(0, 2000) },
-          ],
-        }),
-      });
+    // Process in batches of 10 for DB inserts
+    const BATCH_SIZE = 10;
+    for (let batchStart = 0; batchStart < chunks.length; batchStart += BATCH_SIZE) {
+      const batch = chunks.slice(batchStart, batchStart + BATCH_SIZE);
+      const rows = [];
 
-      let keywords = "";
-      if (embResponse.ok) {
-        const embData = await embResponse.json();
-        keywords = embData.choices?.[0]?.message?.content || "";
-      } else {
-        console.error("Keyword extraction failed for chunk", i);
+      for (let j = 0; j < batch.length; j++) {
+        const i = batchStart + j;
+        let keywords = "";
+
+        if (useAIKeywords) {
+          try {
+            const embResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash-lite",
+                messages: [
+                  {
+                    role: "system",
+                    content: "Retourne UNIQUEMENT 15 mots-clés techniques séparés par des virgules. Pas d'explication.",
+                  },
+                  { role: "user", content: batch[j].slice(0, 1500) },
+                ],
+              }),
+            });
+            if (embResponse.ok) {
+              const embData = await embResponse.json();
+              keywords = embData.choices?.[0]?.message?.content || "";
+            } else {
+              await embResponse.text(); // consume body
+            }
+          } catch {
+            // Skip keyword extraction on error
+          }
+        }
+
+        const embedding = generateSimpleEmbedding(keywords + " " + batch[j].slice(0, 500));
+        rows.push({
+          filename,
+          content: batch[j],
+          chunk_index: i,
+          embedding: embedding,
+          metadata: { keywords: keywords || undefined },
+        });
       }
 
-      const embedding = generateSimpleEmbedding(keywords + " " + chunks[i].slice(0, 500));
-
-      await supabase.from("rag_documents").insert({
-        filename,
-        content: chunks[i],
-        chunk_index: i,
-        embedding: embedding,
-        metadata: { keywords },
-      });
-      embedded++;
+      // Batch insert
+      const { error: insertError } = await supabase.from("rag_documents").insert(rows);
+      if (insertError) {
+        console.error(`Batch insert error at ${batchStart}:`, insertError.message);
+      }
+      embedded += rows.length;
     }
 
     return new Response(
-      JSON.stringify({ success: true, chunks: embedded, total: chunks.length, extractedChars: textContent.length }),
+      JSON.stringify({ success: true, chunks: embedded, total: allChunks.length, sampled, extractedChars: textContent.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
