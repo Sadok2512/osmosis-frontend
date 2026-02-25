@@ -244,9 +244,17 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, cellContext } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const { messages, cellContext, openrouter_key, model: requestedModel } = await req.json();
+    
+    // Determine which AI gateway to use
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENROUTER_API_KEY = openrouter_key || Deno.env.get("OPENROUTER_API_KEY");
+    
+    const useLovable = !!LOVABLE_API_KEY && !OPENROUTER_API_KEY;
+    
+    if (!LOVABLE_API_KEY && !OPENROUTER_API_KEY) {
+      throw new Error("No AI API key configured");
+    }
 
     // Extract the last user message for RAG search
     const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === "user")?.content || "";
@@ -256,7 +264,7 @@ serve(async (req) => {
 
     let systemContent = SYSTEM_PROMPT;
     const documentFocusedQuery = isDocumentFocusedQuery(lastUserMessage);
-    console.log(`QOE query routing: docFocused=${documentFocusedQuery}, ragFound=${Boolean(ragContext)}`);
+    console.log(`QOE query routing: docFocused=${documentFocusedQuery}, ragFound=${Boolean(ragContext)}, gateway=${useLovable ? 'lovable' : 'openrouter'}`);
 
     if (ragContext) {
       systemContent += `\n\n📚 DOCUMENTS RAG PERTINENTS :\n${ragContext}`;
@@ -267,26 +275,36 @@ serve(async (req) => {
       systemContent += `\n\nDONNÉES RÉSEAU RÉELLES DISPONIBLES :\n${cellContext}`;
     }
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": Deno.env.get("SUPABASE_URL") || "",
-          "X-Title": "QOEBIT Assistant",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-preview-05-20",
-          messages: [
-            { role: "system", content: systemContent },
-            ...messages,
-          ],
-          stream: true,
-        }),
-      }
-    );
+    const aiUrl = useLovable
+      ? "https://ai.gateway.lovable.dev/v1/chat/completions"
+      : "https://openrouter.ai/api/v1/chat/completions";
+    
+    const aiHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    if (useLovable) {
+      aiHeaders["Authorization"] = `Bearer ${LOVABLE_API_KEY}`;
+    } else {
+      aiHeaders["Authorization"] = `Bearer ${OPENROUTER_API_KEY}`;
+      aiHeaders["HTTP-Referer"] = Deno.env.get("SUPABASE_URL") || "";
+      aiHeaders["X-Title"] = "QOEBIT Assistant";
+    }
+
+    const aiModel = requestedModel || (useLovable ? "google/gemini-3-flash-preview" : "google/gemini-2.5-flash-preview-05-20");
+
+    const response = await fetch(aiUrl, {
+      method: "POST",
+      headers: aiHeaders,
+      body: JSON.stringify({
+        model: aiModel,
+        messages: [
+          { role: "system", content: systemContent },
+          ...messages,
+        ],
+        stream: true,
+      }),
+    });
 
     if (!response.ok) {
       if (response.status === 429) {
