@@ -202,10 +202,18 @@ serve(async (req) => {
       const sql = await connectPg(config);
       try {
         await sql.unsafe(TABLE_SQL);
-        await sql.unsafe(ENSURE_DUMP_PARAMETER_SQL); // safety net for legacy instances
+        await sql.unsafe(ENSURE_DUMP_PARAMETER_SQL);
+        // Count actual tables created
+        const schema = config.schema || "public";
+        const countRes = await sql`
+          SELECT COUNT(*)::int as cnt FROM information_schema.tables
+          WHERE table_schema = ${schema} AND table_type = 'BASE TABLE'
+          AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'dump_parameter')
+        `;
+        const tablesCreated = countRes[0]?.cnt || 0;
         await sql.end();
         return new Response(
-          JSON.stringify({ success: true, tables_created: 5 }),
+          JSON.stringify({ success: true, tables_created: tablesCreated }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (e: any) {
