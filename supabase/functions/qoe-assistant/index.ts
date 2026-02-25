@@ -192,16 +192,79 @@ async function searchRAGDocuments(query: string): Promise<string> {
   }
 }
 
+function isDistributionQuery(query: string): boolean {
+  const normalized = query.toLowerCase();
+  return ["distribution", "répartition", "repartition", "distrubition", "distrubtion",
+    "par plaque", "par upr", "par vendor", "par site", "par bande", "par dor", "par region", "par zone"
+  ].some((h) => normalized.includes(h));
+}
+
+function extractParamName(query: string): string | null {
+  const match = query.match(/\b(t\d{3,4})\b/i);
+  return match ? match[1] : null;
+}
+
+function extractGroupByColumn(query: string): string {
+  const normalized = query.toLowerCase();
+  const mappings: Record<string, string> = {
+    plaque: "plaque", upr: "ur", vendor: "vendor", site: "site_name",
+    bande: "bande", dor: "dor", region: "dr", zone: "zone_arcep",
+    omc: "omc", city: "city", ville: "city",
+  };
+  for (const [hint, col] of Object.entries(mappings)) {
+    if (normalized.includes(hint)) return col;
+  }
+  return "plaque";
+}
+
 async function searchDumpParameters(query: string): Promise<string> {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Extract search terms from query
+    const paramName = extractParamName(query);
+    const isDistrib = isDistributionQuery(query);
+
+    // Aggregated distribution query
+    if (isDistrib && paramName) {
+      const groupCol = extractGroupByColumn(query);
+      console.log(`[dump_parameter] Aggregation: param=${paramName}, groupBy=${groupCol}`);
+
+      // Use RPC or raw query via supabase - since we can't do GROUP BY easily with supabase-js,
+      // we fetch matching rows and aggregate in code
+      const { data, error } = await supabase
+        .from("dump_parameter")
+        .select(`${groupCol}, value, parameter`)
+        .ilike("parameter", `%${paramName}%`)
+        .limit(1000);
+
+      if (error) { console.error("dump_parameter aggregation error:", error); return ""; }
+      if (!data?.length) return "";
+
+      // Aggregate in code
+      const agg = new Map<string, number>();
+      for (const row of data) {
+        const key = `${(row as any)[groupCol] || "N/A"}::${row.value || "N/A"}`;
+        agg.set(key, (agg.get(key) || 0) + 1);
+      }
+
+      const header = `dimension | valeur_${paramName} | nb_cellules`;
+      const lines = Array.from(agg.entries())
+        .map(([key, count]) => {
+          const [dim, val] = key.split("::");
+          return { dim, val, count };
+        })
+        .sort((a, b) => a.dim.localeCompare(b.dim) || b.count - a.count)
+        .map((r) => `${r.dim} | ${r.val} | ${r.count}`);
+
+      const total = data.length;
+      return `DISTRIBUTION AGRÉGÉE du paramètre ${paramName} par ${groupCol} (${total} cellules au total):\n${header}\n${lines.join("\n")}`;
+    }
+
+    // Standard search
     const terms = extractSearchTerms(query);
     if (terms.length === 0) {
-      // Return a sample of parameters
       const { data, error } = await supabase
         .from("dump_parameter")
         .select("dn, enodeb_id, mrbts_id, cell_name, vendor, site_name, parameter, version, value")
@@ -210,7 +273,6 @@ async function searchDumpParameters(query: string): Promise<string> {
       return formatParamResults(data);
     }
 
-    // Search by parameter name, site_name, dn, or value
     const queries = terms.slice(0, 4).map((term) =>
       supabase
         .from("dump_parameter")
