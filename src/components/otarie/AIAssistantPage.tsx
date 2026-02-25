@@ -537,6 +537,27 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
       p: ({ children }) => <p className="text-[13px] leading-[1.75] text-foreground/85 mb-3">{children}</p>,
       strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
       em: ({ children }) => <em className="text-foreground/60 italic">{children}</em>,
+      pre: ({ children }) => {
+        // Try to detect viz JSON blocks rendered inside <pre> that the parser missed
+        const raw = String(
+          React.Children.toArray(
+            React.isValidElement(children) ? (children.props as any).children : children
+          ).join('')
+        ).trim();
+        if (raw.startsWith('{') || raw.startsWith('[')) {
+          try {
+            const config = JSON.parse(raw);
+            if (config.cards && Array.isArray(config.cards)) return <InlineKPICards config={config} />;
+            if (config.chartType || config.type === 'line' || config.type === 'bar' || config.type === 'area') return <InlineChart config={config} />;
+            if (config.markers || config.center) return (
+              <Suspense fallback={<div className="h-[250px] bg-muted animate-pulse rounded-xl my-4" />}>
+                <InlineMap config={config} />
+              </Suspense>
+            );
+          } catch { /* not JSON, fall through */ }
+        }
+        return <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 overflow-x-auto my-3 text-xs font-mono text-foreground">{children}</pre>;
+      },
       code: ({ children, className }) => {
         const isBlock = className?.includes('language-');
         // Intercept chart/map/kpi code blocks that the parser missed
@@ -555,7 +576,7 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
           } catch { /* fall through to normal code rendering */ }
         }
         if (isBlock) {
-          return <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 overflow-x-auto my-3"><code className="text-xs font-mono text-foreground">{children}</code></pre>;
+          return <code className="text-xs font-mono text-foreground">{children}</code>;
         }
         return <code className="bg-primary/10 text-primary font-mono text-[11px] px-1.5 py-0.5 rounded-md font-semibold">{children}</code>;
       },
