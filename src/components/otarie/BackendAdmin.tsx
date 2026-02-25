@@ -385,7 +385,43 @@ const BackendAdmin: React.FC = () => {
             </div>
             <div>
               <Label className="text-xs">Model</Label>
-              <Input value={llmConfig.model} onChange={e => setLlmConfig(p => ({ ...p, model: e.target.value }))} className="h-8 text-xs" />
+              <select
+                value={llmConfig.model}
+                onChange={e => setLlmConfig(p => ({ ...p, model: e.target.value }))}
+                className="w-full h-8 text-xs rounded-md border border-border bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <optgroup label="Google Gemini">
+                  <option value="google/gemini-2.5-pro-preview">Gemini 2.5 Pro Preview</option>
+                  <option value="google/gemini-2.5-flash-preview">Gemini 2.5 Flash Preview</option>
+                  <option value="google/gemini-2.5-flash-preview:thinking">Gemini 2.5 Flash Thinking</option>
+                </optgroup>
+                <optgroup label="Anthropic Claude">
+                  <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
+                  <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                  <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku</option>
+                </optgroup>
+                <optgroup label="OpenAI">
+                  <option value="openai/gpt-4o">GPT-4o</option>
+                  <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="openai/o3-mini">O3 Mini</option>
+                </optgroup>
+                <optgroup label="Meta Llama">
+                  <option value="meta-llama/llama-4-maverick">Llama 4 Maverick</option>
+                  <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
+                </optgroup>
+                <optgroup label="DeepSeek">
+                  <option value="deepseek/deepseek-r1">DeepSeek R1</option>
+                  <option value="deepseek/deepseek-chat-v3-0324">DeepSeek V3</option>
+                </optgroup>
+                <optgroup label="Qwen">
+                  <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B</option>
+                  <option value="qwen/qwq-32b">QwQ 32B</option>
+                </optgroup>
+                <optgroup label="Mistral">
+                  <option value="mistralai/mistral-large-2411">Mistral Large</option>
+                  <option value="mistralai/codestral-2501">Codestral</option>
+                </optgroup>
+              </select>
             </div>
 
             <div className="pt-2 space-y-2">
