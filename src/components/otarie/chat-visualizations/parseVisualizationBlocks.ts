@@ -16,7 +16,8 @@ export type VizBlock =
 export function parseVisualizationBlocks(content: string): VizBlock[] {
   const blocks: VizBlock[] = [];
   // Match ```chart {...} ```, ```map {...} ```, ```kpi {...} ```
-  const regex = /```(chart|map|kpi)\s*\n([\s\S]*?)```/g;
+  // More permissive: allow optional spaces, optional newline, handle both ``` and ````
+  const regex = /`{3,}(chart|map|kpi)\s*\n?([\s\S]*?)`{3,}/g;
   
   let lastIndex = 0;
   let match: RegExpExecArray | null;
