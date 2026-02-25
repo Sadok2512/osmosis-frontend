@@ -93,6 +93,34 @@ CREATE TABLE IF NOT EXISTS qoe_metrics (
 CREATE INDEX IF NOT EXISTS idx_qoe_cell_dt ON qoe_metrics(cell_id, dt);
 CREATE INDEX IF NOT EXISTS idx_qoe_dt ON qoe_metrics(dt);
 CREATE INDEX IF NOT EXISTS idx_qoe_service ON qoe_metrics(service);
+
+CREATE TABLE IF NOT EXISTS dump_parameter (
+  id BIGSERIAL PRIMARY KEY,
+  dn TEXT,
+  enodeb_id INTEGER,
+  mrbts_id INTEGER,
+  gnodeb_id INTEGER,
+  cell_dn TEXT,
+  cell_name TEXT,
+  vendor TEXT,
+  dor TEXT,
+  omc TEXT,
+  plaque TEXT,
+  longitude DOUBLE PRECISION,
+  latitude DOUBLE PRECISION,
+  site_name TEXT,
+  freq_downlink DOUBLE PRECISION,
+  bande TEXT,
+  ur TEXT,
+  dr TEXT,
+  zone_arcep TEXT,
+  tgv INTEGER,
+  city TEXT,
+  parameter TEXT NOT NULL,
+  version TEXT,
+  value TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 `;
 
 async function connectPg(config: DbConfig) {
@@ -147,7 +175,7 @@ serve(async (req) => {
         await sql.unsafe(TABLE_SQL);
         await sql.end();
         return new Response(
-          JSON.stringify({ success: true, tables_created: 4 }),
+          JSON.stringify({ success: true, tables_created: 5 }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (e: any) {
@@ -168,7 +196,7 @@ serve(async (req) => {
           SELECT table_name FROM information_schema.tables
           WHERE table_schema = ${schema}
             AND table_type = 'BASE TABLE'
-            AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics')
+            AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'dump_parameter')
           ORDER BY table_name
         `;
 
