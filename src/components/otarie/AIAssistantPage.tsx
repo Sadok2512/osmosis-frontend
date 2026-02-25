@@ -5,11 +5,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { exportElementToPDF } from '@/lib/exportUtils';
 import { SiteSummary } from '@/types';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
 type Msg = { role: 'user' | 'assistant'; content: string; mapCellIds?: string[]; mapDescription?: string };
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
-const MAP_EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-map-extract`;
+const CHAT_URL = getApiUrl('qoe-assistant');
+const MAP_EXTRACT_URL = getApiUrl('qoe-map-extract');
 
 const SUGGESTIONS = [
   "Donne-moi les 10 pires sites en QoE",

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Database, CheckCircle, XCircle, Loader2, Play, Table2, Sparkles, Server, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -151,17 +152,11 @@ const BackendAdmin: React.FC = () => {
     setDbTestMsg('');
     try {
       // We test by hitting a lightweight query via edge function
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/backend-admin`,
-        {
+      const res = await fetch(getApiUrl('backend-admin'), {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+          headers: getApiHeaders(),
           body: JSON.stringify({ action: 'test_connection', config: dbConfig }),
-        }
-      );
+        });
       const data = await res.json();
       if (data.success) {
         setDbTestStatus('success');
@@ -184,17 +179,11 @@ const BackendAdmin: React.FC = () => {
     setCreateStatus('loading');
     setCreateMsg('');
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/backend-admin`,
-        {
+      const res = await fetch(getApiUrl('backend-admin'), {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+          headers: getApiHeaders(),
           body: JSON.stringify({ action: 'create_tables', config: dbConfig }),
-        }
-      );
+        });
       const data = await res.json();
       if (data.success) {
         setCreateStatus('success');
@@ -216,17 +205,11 @@ const BackendAdmin: React.FC = () => {
     setQueryStatus('loading');
     setTableInfos([]);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/backend-admin`,
-        {
+      const res = await fetch(getApiUrl('backend-admin'), {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+          headers: getApiHeaders(),
           body: JSON.stringify({ action: 'query_tables', config: dbConfig }),
-        }
-      );
+        });
       const data = await res.json();
       if (data.success) {
         setQueryStatus('success');

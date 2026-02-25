@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
+import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 import { invalidateSitesCache } from '@/services/mockData';
 import { useCSVData, type CSVDataset } from '@/components/bi/CSVDataStore';
 import type { SidebarTheme, AccentColor } from '../../pages/Index';
@@ -346,12 +347,23 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
         };
       });
 
-      // Call edge function
-      const { data: result, error } = await supabase.functions.invoke('import-topo', {
-        body: { rows, clear_before: true },
-      });
-
-      if (error) throw error;
+      // Call API (local or cloud)
+      let result: any;
+      if (isLocalMode()) {
+        const res = await fetch(getApiUrl('import-topo'), {
+          method: 'POST',
+          headers: getApiHeaders(),
+          body: JSON.stringify({ rows, clear_before: true }),
+        });
+        result = await res.json();
+        if (!result.success) throw new Error(result.error);
+      } else {
+        const { data, error } = await supabase.functions.invoke('import-topo', {
+          body: { rows, clear_before: true },
+        });
+        if (error) throw error;
+        result = data;
+      }
 
       setTopoCount(result.inserted);
       invalidateSitesCache();
