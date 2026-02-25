@@ -14,6 +14,18 @@ export interface SavedDashboard {
   updatedAt: string;
 }
 
+export const TAB_COLOR_PALETTE = [
+  '', // no color (default)
+  'hsl(210, 100%, 56%)',  // blue
+  'hsl(160, 84%, 39%)',   // green
+  'hsl(25, 95%, 53%)',    // orange
+  'hsl(262, 83%, 58%)',   // purple
+  'hsl(330, 81%, 60%)',   // pink
+  'hsl(0, 72%, 51%)',     // red
+  'hsl(187, 92%, 39%)',   // teal
+  'hsl(45, 93%, 47%)',    // yellow
+];
+
 export interface OpenTab {
   id: string;
   name: string;
@@ -21,6 +33,7 @@ export interface OpenTab {
   isShared: boolean;
   widgets: WidgetItem[];
   dirty: boolean;
+  color?: string;
 }
 
 function createDefaultWidgets(): WidgetItem[] {
@@ -322,13 +335,17 @@ export function useDashboardManager() {
     setTabs(prev => prev.map(t => t.id === id ? { ...t, isShared: !t.isShared, dirty: true } : t));
   }, []);
 
+  const setTabColor = useCallback((id: string, color: string) => {
+    setTabs(prev => prev.map(t => t.id === id ? { ...t, color, dirty: true } : t));
+  }, []);
+
   return {
     tabs, activeTab, activeTabId, setActiveTabId,
     updateActiveWidgets, createNew, openDashboard, closeTab,
     saveCurrent, deleteDashboard, renameTab, duplicateDashboard,
     exportDashboard, exportAll, importDashboards,
     showList, setShowList, savedDashboards, loaded,
-    updateDescription, toggleShared,
+    updateDescription, toggleShared, setTabColor,
   };
 }
 
@@ -452,11 +469,13 @@ interface TabBarProps {
   onClose: (id: string) => void;
   onRename: (id: string, name: string) => void;
   onCreate: () => void;
+  onSetColor?: (id: string, color: string) => void;
 }
 
-export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelect, onClose, onRename, onCreate }) => {
+export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelect, onClose, onRename, onCreate, onSetColor }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [colorPickerId, setColorPickerId] = useState<string | null>(null);
 
   const startRename = (tab: OpenTab) => {
     setEditingId(tab.id);
@@ -472,41 +491,82 @@ export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelec
 
   return (
     <div className="flex items-center gap-1 px-3 py-1.5 bg-muted/30 border-b border-border overflow-x-auto scrollbar-none">
-      {tabs.map(tab => (
-        <div key={tab.id}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-t-lg cursor-pointer text-sm font-medium transition-all shrink-0 max-w-[220px] group ${
-            tab.id === activeId
-              ? 'bg-card text-foreground border border-b-0 border-border shadow-sm -mb-px'
-              : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
-          }`}
-          onClick={() => onSelect(tab.id)}
-          onDoubleClick={() => startRename(tab)}
-        >
-          <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
-          {editingId === tab.id ? (
-            <input
-              className="w-24 bg-transparent border-b border-primary outline-none text-sm"
-              value={editName}
-              onChange={e => setEditName(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setEditingId(null); }}
-              autoFocus
-              onClick={e => e.stopPropagation()}
-            />
-          ) : (
-            <span className="truncate">{tab.name}</span>
-          )}
-          {tab.dirty && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Unsaved" />}
-          {tabs.length > 1 && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}
-              className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+      {tabs.map(tab => {
+        const tabColor = tab.color || '';
+        const isActive = tab.id === activeId;
+        const colorStyle: React.CSSProperties = tabColor ? {
+          borderLeft: `3px solid ${tabColor}`,
+          backgroundColor: isActive ? `color-mix(in srgb, ${tabColor} 8%, transparent)` : undefined,
+        } : {};
+
+        return (
+          <div key={tab.id} className="relative shrink-0">
+            <div
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-t-lg cursor-pointer text-sm font-medium transition-all max-w-[220px] group ${
+                isActive
+                  ? 'bg-card text-foreground border border-b-0 border-border shadow-sm -mb-px'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+              }`}
+              style={colorStyle}
+              onClick={() => onSelect(tab.id)}
+              onDoubleClick={() => startRename(tab)}
+              onContextMenu={(e) => { e.preventDefault(); setColorPickerId(colorPickerId === tab.id ? null : tab.id); }}
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      ))}
+              {tabColor ? (
+                <span className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-white/20" style={{ backgroundColor: tabColor }} />
+              ) : (
+                <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+              )}
+              {editingId === tab.id ? (
+                <input
+                  className="w-24 bg-transparent border-b border-primary outline-none text-sm"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setEditingId(null); }}
+                  autoFocus
+                  onClick={e => e.stopPropagation()}
+                />
+              ) : (
+                <span className="truncate">{tab.name}</span>
+              )}
+              {tab.dirty && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Unsaved" />}
+              {tabs.length > 1 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}
+                  className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Color picker popover */}
+            {colorPickerId === tab.id && (
+              <div
+                className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg p-2 flex gap-1 flex-wrap w-[148px]"
+                onClick={e => e.stopPropagation()}
+              >
+                <p className="text-[10px] text-muted-foreground w-full mb-1">Couleur de l'onglet</p>
+                {TAB_COLOR_PALETTE.map((c, i) => (
+                  <button
+                    key={i}
+                    className={`w-6 h-6 rounded-md border-2 transition-all hover:scale-110 ${
+                      (tab.color || '') === c ? 'border-foreground scale-110' : 'border-transparent'
+                    }`}
+                    style={{
+                      backgroundColor: c || 'transparent',
+                      backgroundImage: !c ? 'linear-gradient(135deg, transparent 45%, hsl(0 72% 51%) 45%, hsl(0 72% 51%) 55%, transparent 55%)' : undefined,
+                    }}
+                    title={c || 'Aucune couleur'}
+                    onClick={() => { onSetColor?.(tab.id, c); setColorPickerId(null); }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
       <button onClick={onCreate}
         className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
         title="New Dashboard"

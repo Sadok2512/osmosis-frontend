@@ -378,6 +378,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
           onClose={dm.closeTab}
           onRename={dm.renameTab}
           onCreate={handleCreateNew}
+          onSetColor={dm.setTabColor}
         />
 
         {/* Toolbar */}
