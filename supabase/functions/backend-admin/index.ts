@@ -123,6 +123,36 @@ CREATE TABLE IF NOT EXISTS dump_parameter (
 );
 `;
 
+const ENSURE_DUMP_PARAMETER_SQL = `
+CREATE TABLE IF NOT EXISTS dump_parameter (
+  id BIGSERIAL PRIMARY KEY,
+  dn TEXT,
+  enodeb_id INTEGER,
+  mrbts_id INTEGER,
+  gnodeb_id INTEGER,
+  cell_dn TEXT,
+  cell_name TEXT,
+  vendor TEXT,
+  dor TEXT,
+  omc TEXT,
+  plaque TEXT,
+  longitude DOUBLE PRECISION,
+  latitude DOUBLE PRECISION,
+  site_name TEXT,
+  freq_downlink DOUBLE PRECISION,
+  bande TEXT,
+  ur TEXT,
+  dr TEXT,
+  zone_arcep TEXT,
+  tgv INTEGER,
+  city TEXT,
+  parameter TEXT NOT NULL,
+  version TEXT,
+  value TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+`;
+
 async function connectPg(config: DbConfig) {
   // Dynamic import of postgres driver for Deno
   const { default: postgres } = await import(
@@ -171,8 +201,8 @@ serve(async (req) => {
     if (action === "create_tables") {
       const sql = await connectPg(config);
       try {
-        // Split and execute statements
         await sql.unsafe(TABLE_SQL);
+        await sql.unsafe(ENSURE_DUMP_PARAMETER_SQL); // safety net for legacy instances
         await sql.end();
         return new Response(
           JSON.stringify({ success: true, tables_created: 5 }),

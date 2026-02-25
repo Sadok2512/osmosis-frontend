@@ -130,6 +130,36 @@ CREATE INDEX IF NOT EXISTS idx_qoe_service ON qoe_metrics(service);
 `;
 }
 
+const ENSURE_DUMP_PARAMETER_SQL = `
+CREATE TABLE IF NOT EXISTS dump_parameter (
+  id BIGSERIAL PRIMARY KEY,
+  dn TEXT,
+  enodeb_id INTEGER,
+  mrbts_id INTEGER,
+  gnodeb_id INTEGER,
+  cell_dn TEXT,
+  cell_name TEXT,
+  vendor TEXT,
+  dor TEXT,
+  omc TEXT,
+  plaque TEXT,
+  longitude DOUBLE PRECISION,
+  latitude DOUBLE PRECISION,
+  site_name TEXT,
+  freq_downlink DOUBLE PRECISION,
+  bande TEXT,
+  ur TEXT,
+  dr TEXT,
+  zone_arcep TEXT,
+  tgv INTEGER,
+  city TEXT,
+  parameter TEXT NOT NULL,
+  version TEXT,
+  value TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+`;
+
 // ─── /api/backend-admin ───
 app.post('/api/backend-admin', async (req, res) => {
   const { action, config } = req.body;
@@ -151,7 +181,10 @@ app.post('/api/backend-admin', async (req, res) => {
       } catch {
         // pgvector not installed, will use TEXT for embeddings
       }
+
       await pool.query(buildTableSQL(hasVector));
+      await pool.query(ENSURE_DUMP_PARAMETER_SQL); // safety net for legacy instances
+
       return res.json({ success: true, tables_created: 5, pgvector: hasVector });
     }
 
