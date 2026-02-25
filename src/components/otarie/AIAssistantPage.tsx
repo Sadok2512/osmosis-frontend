@@ -5,12 +5,21 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { exportElementToPDF } from '@/lib/exportUtils';
 import { SiteSummary } from '@/types';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+
 
 type Msg = { role: 'user' | 'assistant'; content: string; mapCellIds?: string[]; mapDescription?: string };
 
-const CHAT_URL = getApiUrl('qoe-assistant');
-const MAP_EXTRACT_URL = getApiUrl('qoe-map-extract');
+const getRuntimeFunctionUrl = (functionName: string) => {
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+  const localApi = import.meta.env.VITE_LOCAL_API;
+
+  if (localApi && isLocalHost) {
+    return `${localApi}/api/${functionName}`;
+  }
+
+  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`;
+};
 
 const SUGGESTIONS = [
   "Donne-moi les 10 pires sites en QoE",
@@ -101,7 +110,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       }
     } catch { /* ignore */ }
 
-    const resp = await fetch(CHAT_URL, {
+    const resp = await fetch(getRuntimeFunctionUrl('qoe-assistant'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
