@@ -369,6 +369,53 @@ app.post('/api/rag-embed', async (req, res) => {
   }
 });
 
+// ─── /api/import-dump (import dump_parameter CSV rows) ───
+app.post('/api/import-dump', async (req, res) => {
+  const { rows, clear_before, config } = req.body;
+  const pool = createPool(config || { host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
+
+  try {
+    await pool.query(ENSURE_DUMP_PARAMETER_SQL);
+
+    if (clear_before) {
+      await pool.query('DELETE FROM dump_parameter');
+    }
+
+    let inserted = 0;
+    const BATCH = 100;
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const batch = rows.slice(i, i + BATCH);
+      const values = [];
+      const placeholders = [];
+      let idx = 1;
+      for (const r of batch) {
+        placeholders.push(`($${idx},$${idx+1},$${idx+2},$${idx+3},$${idx+4},$${idx+5},$${idx+6},$${idx+7},$${idx+8},$${idx+9},$${idx+10},$${idx+11},$${idx+12},$${idx+13},$${idx+14},$${idx+15},$${idx+16},$${idx+17},$${idx+18},$${idx+19},$${idx+20},$${idx+21})`);
+        values.push(
+          r.dn||null, r.enodeb_id||null, r.mrbts_id||null, r.gnodeb_id||null,
+          r.cell_dn||null, r.cell_name||null, r.vendor||null, r.dor||null,
+          r.omc||null, r.plaque||null, r.longitude||null, r.latitude||null,
+          r.site_name||null, r.freq_downlink||null, r.bande||null, r.ur||null,
+          r.dr||null, r.zone_arcep||null, r.tgv||null, r.city||null,
+          r.parameter||'UNKNOWN', r.value||null
+        );
+        idx += 22;
+      }
+      await pool.query(
+        `INSERT INTO dump_parameter (dn, enodeb_id, mrbts_id, gnodeb_id, cell_dn, cell_name, vendor, dor, omc, plaque, longitude, latitude, site_name, freq_downlink, bande, ur, dr, zone_arcep, tgv, city, parameter, value)
+         VALUES ${placeholders.join(',')}`,
+        values
+      );
+      inserted += batch.length;
+    }
+
+    res.json({ success: true, inserted, total: rows.length });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  } finally {
+    await pool.end();
+  }
+});
+
 // ─── Helper: detect distribution/aggregation questions ───
 function isDistributionQuery(query) {
   const normalized = query.toLowerCase();

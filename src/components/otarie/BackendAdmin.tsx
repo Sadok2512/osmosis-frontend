@@ -190,6 +190,79 @@ const BackendAdmin: React.FC = () => {
   const [dumpStatus, setDumpStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
   const dumpFileRef = useRef<HTMLInputElement>(null);
 
+  // ─── Import dump_parameter CSV/XLSX ───
+  const handleDumpImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDumpImporting(true);
+    setDumpStatus({ message: `Lecture de ${file.name}...`, type: 'info' });
+
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const jsonRows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      if (jsonRows.length === 0) {
+        setDumpStatus({ message: 'Fichier vide ou format non reconnu', type: 'error' });
+        setDumpImporting(false);
+        return;
+      }
+
+      // Normalize column names (lowercase, trim)
+      const normalized = jsonRows.map(row => {
+        const out: any = {};
+        for (const [key, val] of Object.entries(row)) {
+          out[key.trim().toLowerCase()] = val;
+        }
+        return out;
+      });
+
+      setDumpStatus({ message: `Envoi de ${normalized.length} lignes...`, type: 'info' });
+
+      const clearBefore = (document.getElementById('dump-clear') as HTMLInputElement)?.checked || false;
+
+      // Send in chunks of 2000 to avoid payload limits
+      const CHUNK = 2000;
+      let totalInserted = 0;
+      for (let i = 0; i < normalized.length; i += CHUNK) {
+        const chunk = normalized.slice(i, i + CHUNK);
+        const url = getApiUrl('import-dump');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (!isLocalMode()) {
+          headers['Authorization'] = `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
+        }
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            rows: chunk,
+            clear_before: clearBefore && i === 0,
+            config: isLocalMode() ? dbConfig : undefined,
+          }),
+        });
+        const result = await res.json();
+        if (!result.success) {
+          setDumpStatus({ message: `Erreur: ${result.error}`, type: 'error' });
+          setDumpImporting(false);
+          return;
+        }
+        totalInserted += result.inserted || chunk.length;
+        setDumpStatus({ message: `${totalInserted}/${normalized.length} lignes importées...`, type: 'info' });
+      }
+
+      setDumpStatus({ message: `✅ ${totalInserted} paramètres importés depuis ${file.name}`, type: 'success' });
+      toast.success(`${totalInserted} paramètres importés`);
+    } catch (err: any) {
+      setDumpStatus({ message: `Erreur: ${err.message}`, type: 'error' });
+      toast.error(err.message);
+    } finally {
+      setDumpImporting(false);
+      if (dumpFileRef.current) dumpFileRef.current.value = '';
+    }
+  };
+
   const buildConnString = () =>
     `postgresql://${dbConfig.user}:${dbConfig.password}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`;
 
@@ -471,6 +544,48 @@ const BackendAdmin: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* ─── Import dump_parameter CSV ─── */}
+      <Card className="border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Upload className="w-4 h-4 text-primary" />
+            Import CSV — dump_parameter
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="rounded-md bg-muted/50 border border-border p-2 text-[10px] text-muted-foreground">
+            📂 Importez un fichier CSV/XLSX contenant les paramètres réseau (CM dump).
+            Les colonnes attendues : <strong>dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, plaque, omc, dor, dr, ur, city, zone_arcep, enodeb_id, mrbts_id, gnodeb_id, freq_downlink, tgv, latitude, longitude</strong>.
+            Le mapping est automatique (insensible à la casse).
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <input
+              ref={dumpFileRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={handleDumpImport}
+            />
+            <Button size="sm" variant="outline" onClick={() => dumpFileRef.current?.click()} disabled={dumpImporting} className="gap-1.5 text-xs">
+              {dumpImporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileSpreadsheet className="w-3 h-3" />}
+              {dumpImporting ? 'Import en cours...' : 'Choisir fichier CSV/XLSX'}
+            </Button>
+            <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <input type="checkbox" id="dump-clear" className="rounded" />
+              Vider la table avant import
+            </label>
+          </div>
+          {dumpStatus && (
+            <Badge variant={dumpStatus.type === 'success' ? 'default' : dumpStatus.type === 'error' ? 'destructive' : 'outline'}
+              className={`text-xs ${dumpStatus.type === 'success' ? 'bg-primary/20 text-primary border-primary/30' : ''}`}>
+              {dumpStatus.type === 'success' ? <CheckCircle className="w-3 h-3 mr-1" /> :
+               dumpStatus.type === 'error' ? <XCircle className="w-3 h-3 mr-1" /> : null}
+              {dumpStatus.message}
+            </Badge>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ─── Table Definitions ─── */}
       <Card className="border-border">
