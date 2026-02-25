@@ -61,6 +61,38 @@ CREATE TABLE IF NOT EXISTS rag_documents (
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS qoe_metrics (
+  id BIGSERIAL PRIMARY KEY,
+  cell_id TEXT NOT NULL,
+  site_id TEXT,
+  dt DATE NOT NULL,
+  service TEXT NOT NULL DEFAULT 'ALL',
+  techno TEXT,
+  bande TEXT,
+  qoe_score_avg DOUBLE PRECISION,
+  p50_thr_dn_mbps DOUBLE PRECISION,
+  p50_thr_up_mbps DOUBLE PRECISION,
+  p95_rtt_ms DOUBLE PRECISION,
+  dms_dl_3 DOUBLE PRECISION,
+  dms_dl_8 DOUBLE PRECISION,
+  dms_dl_30 DOUBLE PRECISION,
+  dms_ul_3 DOUBLE PRECISION,
+  loss_dn_sum DOUBLE PRECISION,
+  traffic_dn_bytes DOUBLE PRECISION,
+  traffic_up_bytes DOUBLE PRECISION,
+  sessions INTEGER,
+  window_full_ratio DOUBLE PRECISION,
+  retransmission_rate DOUBLE PRECISION,
+  tcp_loss_rate DOUBLE PRECISION,
+  out_of_order_rate DOUBLE PRECISION,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(cell_id, dt, service)
+);
+
+CREATE INDEX IF NOT EXISTS idx_qoe_cell_dt ON qoe_metrics(cell_id, dt);
+CREATE INDEX IF NOT EXISTS idx_qoe_dt ON qoe_metrics(dt);
+CREATE INDEX IF NOT EXISTS idx_qoe_service ON qoe_metrics(service);
 `;
 
 async function connectPg(config: DbConfig) {
@@ -115,7 +147,7 @@ serve(async (req) => {
         await sql.unsafe(TABLE_SQL);
         await sql.end();
         return new Response(
-          JSON.stringify({ success: true, tables_created: 3 }),
+          JSON.stringify({ success: true, tables_created: 4 }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (e: any) {
@@ -136,7 +168,7 @@ serve(async (req) => {
           SELECT table_name FROM information_schema.tables
           WHERE table_schema = ${schema}
             AND table_type = 'BASE TABLE'
-            AND table_name IN ('topo', 'dashboards', 'rag_documents')
+            AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics')
           ORDER BY table_name
         `;
 
