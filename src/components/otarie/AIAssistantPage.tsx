@@ -353,7 +353,12 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                     : 'bg-card border border-border rounded-2xl rounded-bl-md px-5 py-4'
                 }`}>
                   {msg.role === 'user' ? (
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <>
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <CopyButton text={msg.content} />
+                      </div>
+                    </>
                   ) : (
                     <>
                       <AssistantMessage content={msg.content} />
