@@ -1,11 +1,14 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check, FileDown, MapPin } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { exportElementToPDF } from '@/lib/exportUtils';
 import { SiteSummary } from '@/types';
-
+import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizationBlocks';
+import InlineChart from './chat-visualizations/InlineChart';
+import InlineKPICards from './chat-visualizations/InlineKPICards';
+const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
 type Msg = { role: 'user' | 'assistant'; content: string; mapCellIds?: string[]; mapDescription?: string };
 
@@ -57,6 +60,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       cell_id: c.cell_id,
       site_name: s.site_name,
       site_id: s.site_id,
+      lat: s.coordinates?.[0],
+      lng: s.coordinates?.[1],
       techno: c.techno,
       bande: c.bande,
       vendor: s.vendor,
@@ -75,9 +80,9 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     // Sort by QoE and take worst 50 + best 20 for context
     const sorted = [...allCells].sort((a, b) => a.qoe - b.qoe);
     const subset = [...sorted.slice(0, 50), ...sorted.slice(-20)];
-    const header = 'cell_id | site_name | techno | bande | vendor | plaque | qoe | tput_dl | rtt_p95 | dms_dl_3 | tcp_loss | sessions';
+    const header = 'cell_id | site_name | lat | lng | techno | bande | vendor | plaque | qoe | tput_dl | rtt_p95 | dms_dl_3 | tcp_loss | sessions';
     const rows = subset.map(c => 
-      `${c.cell_id} | ${c.site_name} | ${c.techno} | ${c.bande} | ${c.vendor} | ${c.plaque} | ${c.qoe.toFixed(1)} | ${c.tput_dl.toFixed(1)} | ${c.rtt_p95.toFixed(0)} | ${c.dms_dl_3.toFixed(1)} | ${c.tcp_loss.toFixed(2)} | ${c.sessions}`
+      `${c.cell_id} | ${c.site_name} | ${c.lat} | ${c.lng} | ${c.techno} | ${c.bande} | ${c.vendor} | ${c.plaque} | ${c.qoe.toFixed(1)} | ${c.tput_dl.toFixed(1)} | ${c.rtt_p95.toFixed(0)} | ${c.dms_dl_3.toFixed(1)} | ${c.tcp_loss.toFixed(2)} | ${c.sessions}`
     );
     return `Total: ${sites.length} sites, ${allCells.length} cellules\n${header}\n${rows.join('\n')}`;
   }, [sites]);
@@ -484,9 +489,7 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
 const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
   // Strip any HTML tags the AI might still produce
   const cleaned = useMemo(() => {
-    // Remove HTML tags but preserve Markdown table pipes and structure
     let text = content;
-    // Remove full HTML blocks (div, table, style tags with content)
     text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
     text = text.replace(/<\/?(?:div|span|table|thead|tbody|tr|td|th|style|br|hr|img|p|ul|ol|li|h[1-6]|a|b|i|em|strong|code|pre)[^>]*>/gi, '');
     text = text.replace(/&nbsp;/g, ' ');
@@ -496,134 +499,147 @@ const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
     return text;
   }, [content]);
 
+  const vizBlocks = useMemo(() => parseVisualizationBlocks(cleaned), [cleaned]);
+  const hasViz = vizBlocks.some(b => b.type !== 'markdown');
+
   return (
     <div className="ai-msg-content text-sm leading-relaxed text-foreground">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          h1: ({ children }) => <h1 className="text-lg font-bold text-foreground mt-5 mb-3">{children}</h1>,
-          h2: ({ children }) => (
-            <h2 className="text-[15px] font-bold text-foreground mt-5 mb-2.5 flex items-center gap-2 pb-1.5 border-b border-border/50">
-              <span className="w-1 h-5 bg-primary rounded-full inline-block shrink-0" />
-              {children}
-            </h2>
-          ),
-          h3: ({ children }) => <h3 className="text-sm font-bold text-foreground mt-4 mb-2">{children}</h3>,
-          p: ({ children }) => <p className="text-[13px] leading-[1.75] text-foreground/85 mb-3">{children}</p>,
-          strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
-          em: ({ children }) => <em className="text-foreground/60 italic">{children}</em>,
-          code: ({ children, className }) => {
-            const isBlock = className?.includes('language-');
-            if (isBlock) {
-              return <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 overflow-x-auto my-3"><code className="text-xs font-mono text-foreground">{children}</code></pre>;
-            }
-            return <code className="bg-primary/10 text-primary font-mono text-[11px] px-1.5 py-0.5 rounded-md font-semibold">{children}</code>;
-          },
-          ul: ({ children }) => <ul className="space-y-2 my-3 ml-0.5">{children}</ul>,
-          ol: ({ children }) => <ol className="space-y-2 my-3 ml-0.5 counter-reset-item">{children}</ol>,
-          li: ({ children, ...props }) => {
-            const ordered = (props as any).ordered;
-            const index = (props as any).index;
-            return (
-              <li className="text-[13px] text-foreground/85 flex items-start gap-2.5 leading-[1.7]">
-                {ordered ? (
-                  <span className="w-5 h-5 rounded-md bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{(index ?? 0) + 1}</span>
-                ) : (
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/50 mt-[9px] shrink-0" />
-                )}
-                <span className="flex-1">{children}</span>
-              </li>
-            );
-          },
-          table: ({ children }) => (
-            <div className="my-4 rounded-xl border border-border overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-xs">{children}</table>
-              </div>
-            </div>
-          ),
-          thead: ({ children }) => <thead className="bg-muted/80">{children}</thead>,
-          th: ({ children }) => <th className="px-3 py-2.5 text-[11px] font-bold text-foreground text-left border-b-2 border-border tracking-wide">{children}</th>,
-          td: ({ children, node }) => {
-            const text = String(children ?? '');
-            const baseCls = "px-3 py-2.5 text-xs border-b border-border/30";
-            
-            // Color status column (emojis or status words)
-            if (text.includes('🔴') || /critique|critical/i.test(text)) {
-              return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(0, 80%, 50%)' }}>{children}</td>;
-            }
-            if (text.includes('🟠') || /dégradé|bad|mauvais/i.test(text)) {
-              return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(25, 90%, 50%)' }}>{children}</td>;
-            }
-            if (text.includes('🟡') || /moyen|warning|attention/i.test(text)) {
-              return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(45, 90%, 45%)' }}>{children}</td>;
-            }
-            if (text.includes('🟢') || /excellent|good|bon/i.test(text)) {
-              return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(142, 70%, 40%)' }}>{children}</td>;
-            }
-            
-            // Color numeric metrics: percentages and values with units
-            const pctMatch = text.match(/(\d+\.?\d*)%/);
-            if (pctMatch) {
-              const val = parseFloat(pctMatch[1]);
-              // Detect if this is a "bad when high" metric (TCP Loss, retransmission)
-              const isBadWhenHigh = val < 10; // TCP Loss values are small %
-              let color: string;
-              if (isBadWhenHigh) {
-                // For TCP Loss: >3% critical, >2% bad, >1% warning, <1% good
-                if (val > 3) color = 'hsl(0, 80%, 50%)';
-                else if (val > 2) color = 'hsl(25, 90%, 50%)';
-                else if (val > 1) color = 'hsl(45, 90%, 45%)';
-                else color = 'hsl(142, 70%, 40%)';
-              } else {
-                // For QoE Score: <50 critical, <65 bad, <75 warning, <85 good, >85 excellent
-                if (val < 50) color = 'hsl(0, 80%, 50%)';
-                else if (val < 65) color = 'hsl(25, 90%, 50%)';
-                else if (val < 75) color = 'hsl(45, 90%, 45%)';
-                else if (val < 85) color = 'hsl(142, 50%, 45%)';
-                else color = 'hsl(142, 70%, 40%)';
-              }
-              return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
-            }
-            
-            // Color RTT values (ms)
-            const msMatch = text.match(/(\d+)\s*ms/i);
-            if (msMatch) {
-              const val = parseInt(msMatch[1]);
-              let color = 'hsl(142, 70%, 40%)';
-              if (val > 150) color = 'hsl(0, 80%, 50%)';
-              else if (val > 100) color = 'hsl(25, 90%, 50%)';
-              else if (val > 60) color = 'hsl(45, 90%, 45%)';
-              return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
-            }
-            
-            // Color throughput values (Mbps)
-            const mbpsMatch = text.match(/(\d+\.?\d*)\s*Mbps/i);
-            if (mbpsMatch) {
-              const val = parseFloat(mbpsMatch[1]);
-              let color = 'hsl(142, 70%, 40%)';
-              if (val < 10) color = 'hsl(0, 80%, 50%)';
-              else if (val < 25) color = 'hsl(25, 90%, 50%)';
-              else if (val < 50) color = 'hsl(45, 90%, 45%)';
-              return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
-            }
-            
-            return <td className={`${baseCls} text-foreground/85`}>{children}</td>;
-          },
-          tr: ({ children }) => <tr className="hover:bg-muted/30 transition-colors even:bg-muted/10">{children}</tr>,
-          blockquote: ({ children }) => (
-            <blockquote className="border-l-[3px] border-primary bg-primary/5 rounded-r-lg px-4 py-3 my-3 text-[13px] text-foreground/75 italic">
-              {children}
-            </blockquote>
-          ),
-          hr: () => <hr className="border-border/50 my-5" />,
-          a: ({ href, children }) => <a href={href} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors">{children}</a>,
-        }}
-      >
-        {cleaned}
-      </ReactMarkdown>
+      {hasViz ? (
+        vizBlocks.map((block, i) => {
+          if (block.type === 'chart') return <InlineChart key={i} config={block.config} />;
+          if (block.type === 'map') return (
+            <Suspense key={i} fallback={<div className="h-[250px] bg-muted animate-pulse rounded-xl my-4" />}>
+              <InlineMap config={block.config} />
+            </Suspense>
+          );
+          if (block.type === 'kpi') return <InlineKPICards key={i} config={block.config} />;
+          return <MarkdownBlock key={i} content={block.content} />;
+        })
+      ) : (
+        <MarkdownBlock content={cleaned} />
+      )}
     </div>
   );
 };
+
+const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm]}
+    components={{
+      h1: ({ children }) => <h1 className="text-lg font-bold text-foreground mt-5 mb-3">{children}</h1>,
+      h2: ({ children }) => (
+        <h2 className="text-[15px] font-bold text-foreground mt-5 mb-2.5 flex items-center gap-2 pb-1.5 border-b border-border/50">
+          <span className="w-1 h-5 bg-primary rounded-full inline-block shrink-0" />
+          {children}
+        </h2>
+      ),
+      h3: ({ children }) => <h3 className="text-sm font-bold text-foreground mt-4 mb-2">{children}</h3>,
+      p: ({ children }) => <p className="text-[13px] leading-[1.75] text-foreground/85 mb-3">{children}</p>,
+      strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
+      em: ({ children }) => <em className="text-foreground/60 italic">{children}</em>,
+      code: ({ children, className }) => {
+        const isBlock = className?.includes('language-');
+        if (isBlock) {
+          return <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 overflow-x-auto my-3"><code className="text-xs font-mono text-foreground">{children}</code></pre>;
+        }
+        return <code className="bg-primary/10 text-primary font-mono text-[11px] px-1.5 py-0.5 rounded-md font-semibold">{children}</code>;
+      },
+      ul: ({ children }) => <ul className="space-y-2 my-3 ml-0.5">{children}</ul>,
+      ol: ({ children }) => <ol className="space-y-2 my-3 ml-0.5 counter-reset-item">{children}</ol>,
+      li: ({ children, ...props }) => {
+        const ordered = (props as any).ordered;
+        const index = (props as any).index;
+        return (
+          <li className="text-[13px] text-foreground/85 flex items-start gap-2.5 leading-[1.7]">
+            {ordered ? (
+              <span className="w-5 h-5 rounded-md bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{(index ?? 0) + 1}</span>
+            ) : (
+              <span className="w-1.5 h-1.5 rounded-full bg-primary/50 mt-[9px] shrink-0" />
+            )}
+            <span className="flex-1">{children}</span>
+          </li>
+        );
+      },
+      table: ({ children }) => (
+        <div className="my-4 rounded-xl border border-border overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">{children}</table>
+          </div>
+        </div>
+      ),
+      thead: ({ children }) => <thead className="bg-muted/80">{children}</thead>,
+      th: ({ children }) => <th className="px-3 py-2.5 text-[11px] font-bold text-foreground text-left border-b-2 border-border tracking-wide">{children}</th>,
+      td: ({ children }) => {
+        const text = String(children ?? '');
+        const baseCls = "px-3 py-2.5 text-xs border-b border-border/30";
+        
+        if (text.includes('🔴') || /critique|critical/i.test(text)) {
+          return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(0, 80%, 50%)' }}>{children}</td>;
+        }
+        if (text.includes('🟠') || /dégradé|bad|mauvais/i.test(text)) {
+          return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(25, 90%, 50%)' }}>{children}</td>;
+        }
+        if (text.includes('🟡') || /moyen|warning|attention/i.test(text)) {
+          return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(45, 90%, 45%)' }}>{children}</td>;
+        }
+        if (text.includes('🟢') || /excellent|good|bon/i.test(text)) {
+          return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(142, 70%, 40%)' }}>{children}</td>;
+        }
+        
+        const pctMatch = text.match(/(\d+\.?\d*)%/);
+        if (pctMatch) {
+          const val = parseFloat(pctMatch[1]);
+          const isBadWhenHigh = val < 10;
+          let color: string;
+          if (isBadWhenHigh) {
+            if (val > 3) color = 'hsl(0, 80%, 50%)';
+            else if (val > 2) color = 'hsl(25, 90%, 50%)';
+            else if (val > 1) color = 'hsl(45, 90%, 45%)';
+            else color = 'hsl(142, 70%, 40%)';
+          } else {
+            if (val < 50) color = 'hsl(0, 80%, 50%)';
+            else if (val < 65) color = 'hsl(25, 90%, 50%)';
+            else if (val < 75) color = 'hsl(45, 90%, 45%)';
+            else if (val < 85) color = 'hsl(142, 50%, 45%)';
+            else color = 'hsl(142, 70%, 40%)';
+          }
+          return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
+        }
+        
+        const msMatch = text.match(/(\d+)\s*ms/i);
+        if (msMatch) {
+          const val = parseInt(msMatch[1]);
+          let color = 'hsl(142, 70%, 40%)';
+          if (val > 150) color = 'hsl(0, 80%, 50%)';
+          else if (val > 100) color = 'hsl(25, 90%, 50%)';
+          else if (val > 60) color = 'hsl(45, 90%, 45%)';
+          return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
+        }
+        
+        const mbpsMatch = text.match(/(\d+\.?\d*)\s*Mbps/i);
+        if (mbpsMatch) {
+          const val = parseFloat(mbpsMatch[1]);
+          let color = 'hsl(142, 70%, 40%)';
+          if (val < 10) color = 'hsl(0, 80%, 50%)';
+          else if (val < 25) color = 'hsl(25, 90%, 50%)';
+          else if (val < 50) color = 'hsl(45, 90%, 45%)';
+          return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
+        }
+        
+        return <td className={`${baseCls} text-foreground/85`}>{children}</td>;
+      },
+      tr: ({ children }) => <tr className="hover:bg-muted/30 transition-colors even:bg-muted/10">{children}</tr>,
+      blockquote: ({ children }) => (
+        <blockquote className="border-l-[3px] border-primary bg-primary/5 rounded-r-lg px-4 py-3 my-3 text-[13px] text-foreground/75 italic">
+          {children}
+        </blockquote>
+      ),
+      hr: () => <hr className="border-border/50 my-5" />,
+      a: ({ href, children }) => <a href={href} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors">{children}</a>,
+    }}
+  >
+    {content}
+  </ReactMarkdown>
+);
 
 export default AIAssistantPage;

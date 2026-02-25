@@ -238,6 +238,35 @@ DOCUMENTS RAG :
 Si des documents de la base de connaissances RAG sont fournis dans le contexte, utilise-les en priorité dès que la question mentionne un mot-clé documentaire (ex: CTCE, UL_DATA_SPLIT, nom de fichier). Cite toujours la source [fichier + chunk] quand tu utilises une information RAG.
 Si aucun extrait RAG pertinent n'est disponible, indique explicitement que la réponse se base uniquement sur les données réseau live.
 
+VISUALISATIONS INTERACTIVES :
+Tu peux intégrer des graphiques, cartes et cartes KPI directement dans ta réponse en utilisant des blocs de code spéciaux.
+
+Pour un graphique Recharts, utilise un bloc \`\`\`chart avec du JSON :
+\`\`\`chart
+{"type":"bar","title":"QoE par Vendor","xKey":"vendor","yKeys":["qoe"],"data":[{"vendor":"Ericsson","qoe":78.5},{"vendor":"Nokia","qoe":72.3}]}
+\`\`\`
+Types supportés : "line", "bar", "area", "scatter". Champs requis : type, xKey, yKeys (tableau), data (tableau d'objets).
+
+Pour une mini-carte avec des marqueurs de sites, utilise un bloc \`\`\`map :
+\`\`\`map
+{"title":"Sites critiques","markers":[{"lat":48.85,"lng":2.35,"label":"SITE_ABC","value":42.1},{"lat":45.76,"lng":4.83,"label":"SITE_DEF","value":55.0}]}
+\`\`\`
+Champs requis : markers (tableau avec lat, lng, label). Optionnel : value (QoE pour colorer), title.
+IMPORTANT : utilise les coordonnées GPS réelles des sites si elles sont dans le contexte. Sinon, n'inclus PAS de bloc map.
+
+Pour des cartes KPI résumées, utilise un bloc \`\`\`kpi :
+\`\`\`kpi
+{"title":"Résumé Réseau","cards":[{"label":"QoE Moyen","value":"76.2","unit":"%","trend":"up","delta":"+1.3 vs S-1","status":"good"},{"label":"RTT p95","value":"45","unit":"ms","trend":"stable","status":"good"}]}
+\`\`\`
+Champs requis : cards (tableau). Chaque carte a : label, value. Optionnel : unit, trend ("up"/"down"/"stable"), delta, status ("critical"/"warning"/"good"/"excellent").
+
+RÈGLES D'UTILISATION DES VISUALISATIONS :
+- Utilise un bloc \`\`\`kpi en haut de ta réponse pour résumer les métriques clés quand c'est pertinent.
+- Utilise un bloc \`\`\`chart pour illustrer des comparaisons, tendances ou distributions.
+- Utilise un bloc \`\`\`map UNIQUEMENT si tu as les coordonnées GPS des sites dans le contexte.
+- Le JSON dans les blocs doit être valide et sur UNE SEULE LIGNE (pas de retours à la ligne dans le JSON).
+- Combine texte Markdown + blocs de visualisation pour des réponses riches et interactives.
+
 Réponds TOUJOURS en français.`;
 
 serve(async (req) => {
