@@ -127,23 +127,36 @@ async function extractXLSXText(base64Data: string): Promise<string> {
     const rowMatches = xml.matchAll(/<row[^>]*>(.*?)<\/row>/gs);
     const rows: string[] = [];
     let rowCount = 0;
-    const MAX_ROWS_PER_SHEET = 2000; // Limit per sheet to avoid huge output
+    const MAX_ROWS_PER_SHEET = 2000;
 
     for (const rm of rowMatches) {
       if (rowCount >= MAX_ROWS_PER_SHEET) break;
       const rowXml = rm[1];
       const cellValues: string[] = [];
-      const cellMatches = rowXml.matchAll(/<c[^>]*(?:t="([^"]*)")?[^>]*>(?:.*?<v>([^<]*)<\/v>)?/gs);
+      // Match each <c> element with its attributes and value
+      const cellMatches = rowXml.matchAll(/<c\s([^>]*)>([^]*?)<\/c>/gs);
       
       for (const cm of cellMatches) {
-        const cellType = cm[1] || "";
-        const rawValue = cm[2] || "";
-        if (!rawValue) continue;
+        const attrs = cm[1] || "";
+        const inner = cm[2] || "";
         
-        // 's' = shared string reference, '' or 'n' = number/inline
+        // Extract cell type from attributes
+        const typeMatch = attrs.match(/t="([^"]*)"/);
+        const cellType = typeMatch ? typeMatch[1] : "";
+        
+        // Extract value
+        const valueMatch = inner.match(/<v>([^<]*)<\/v>/);
+        if (!valueMatch) continue;
+        const rawValue = valueMatch[1];
+        
         if (cellType === "s") {
           const idx = parseInt(rawValue);
-          cellValues.push(sharedStrings[idx] || rawValue);
+          if (!isNaN(idx) && idx < sharedStrings.length) {
+            cellValues.push(sharedStrings[idx]);
+          }
+        } else if (cellType === "inlineStr") {
+          const isMatch = inner.match(/<t>([^<]*)<\/t>/);
+          if (isMatch) cellValues.push(isMatch[1]);
         } else {
           cellValues.push(rawValue);
         }
