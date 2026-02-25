@@ -291,7 +291,37 @@ serve(async (req) => {
       aiHeaders["X-Title"] = "QOEBIT Assistant";
     }
 
-    const aiModel = requestedModel || (useLovable ? "google/gemini-3-flash-preview" : "google/gemini-2.5-flash-preview-05-20");
+    let aiModel = requestedModel || (useLovable ? "google/gemini-3-flash-preview" : "google/gemini-2.5-flash-preview-05-20");
+
+    // Normalize model names when using Lovable AI gateway
+    if (useLovable) {
+      const modelAliases: Record<string, string> = {
+        "google/gemini-2.5-flash-preview-05-20": "google/gemini-2.5-flash",
+        "google/gemini-2.5-flash-preview": "google/gemini-2.5-flash",
+        "google/gemini-flash-latest": "google/gemini-2.5-flash",
+      };
+
+      aiModel = modelAliases[aiModel] || aiModel;
+
+      const allowedLovableModels = new Set([
+        "openai/gpt-5-mini",
+        "openai/gpt-5",
+        "openai/gpt-5-nano",
+        "openai/gpt-5.2",
+        "google/gemini-2.5-pro",
+        "google/gemini-2.5-flash",
+        "google/gemini-2.5-flash-lite",
+        "google/gemini-2.5-flash-image",
+        "google/gemini-3-pro-preview",
+        "google/gemini-3-flash-preview",
+        "google/gemini-3-pro-image-preview",
+      ]);
+
+      if (!allowedLovableModels.has(aiModel)) {
+        console.warn(`Unsupported model for Lovable AI gateway: ${aiModel}. Falling back to google/gemini-3-flash-preview`);
+        aiModel = "google/gemini-3-flash-preview";
+      }
+    }
 
     const response = await fetch(aiUrl, {
       method: "POST",
@@ -322,7 +352,7 @@ serve(async (req) => {
       const t = await response.text();
       console.error("AI gateway error:", response.status, t);
       return new Response(
-        JSON.stringify({ error: "AI gateway error" }),
+        JSON.stringify({ error: "AI gateway error", status: response.status, details: t.slice(0, 800) }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
