@@ -186,6 +186,9 @@ const BackendAdmin: React.FC = () => {
   const [queryStatus, setQueryStatus] = useState<TestStatus>('idle');
   const [showPassword, setShowPassword] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [dumpImporting, setDumpImporting] = useState(false);
+  const [dumpStatus, setDumpStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
+  const dumpFileRef = useRef<HTMLInputElement>(null);
 
   const buildConnString = () =>
     `postgresql://${dbConfig.user}:${dbConfig.password}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`;
