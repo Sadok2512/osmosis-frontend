@@ -96,6 +96,34 @@ CREATE TABLE IF NOT EXISTS qoe_metrics (
   UNIQUE(cell_id, dt, service)
 );
 
+CREATE TABLE IF NOT EXISTS dump_parameter (
+  id BIGSERIAL PRIMARY KEY,
+  dn TEXT,
+  cell_dn TEXT,
+  cell_name TEXT,
+  site_name TEXT,
+  parameter TEXT NOT NULL,
+  value TEXT,
+  version TEXT,
+  vendor TEXT,
+  mrbts_id INTEGER,
+  enodeb_id INTEGER,
+  gnodeb_id INTEGER,
+  bande TEXT,
+  freq_downlink DOUBLE PRECISION,
+  tgv INTEGER,
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+  city TEXT,
+  dr TEXT,
+  ur TEXT,
+  dor TEXT,
+  plaque TEXT,
+  omc TEXT,
+  zone_arcep TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_qoe_cell_dt ON qoe_metrics(cell_id, dt);
 CREATE INDEX IF NOT EXISTS idx_qoe_dt ON qoe_metrics(dt);
 CREATE INDEX IF NOT EXISTS idx_qoe_service ON qoe_metrics(service);
@@ -124,7 +152,7 @@ app.post('/api/backend-admin', async (req, res) => {
         // pgvector not installed, will use TEXT for embeddings
       }
       await pool.query(buildTableSQL(hasVector));
-      return res.json({ success: true, tables_created: 4, pgvector: hasVector });
+      return res.json({ success: true, tables_created: 5, pgvector: hasVector });
     }
 
     if (action === 'query_tables') {
@@ -132,7 +160,7 @@ app.post('/api/backend-admin', async (req, res) => {
       const tables = await pool.query(
         `SELECT table_name FROM information_schema.tables
          WHERE table_schema = $1 AND table_type = 'BASE TABLE'
-         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics')
+         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'dump_parameter')
          ORDER BY table_name`, [schema]
       );
 
