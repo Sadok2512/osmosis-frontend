@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { Database, CheckCircle, XCircle, Loader2, Play, Table2, Sparkles, Server, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Database, CheckCircle, XCircle, Loader2, Play, Table2, Sparkles, Server, Eye, EyeOff, RefreshCw, Upload, FileSpreadsheet } from 'lucide-react';
 import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
+import { supabase } from '@/integrations/supabase/client';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
