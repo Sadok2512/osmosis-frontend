@@ -304,8 +304,10 @@ app.post('/api/qoe-assistant', async (req, res) => {
   const { messages, openrouter_key, model } = req.body;
   const apiKey = openrouter_key || process.env.OPENROUTER_API_KEY;
 
+  console.log('[qoe-assistant] API key present:', !!apiKey, '| env key present:', !!process.env.OPENROUTER_API_KEY);
+
   if (!apiKey) {
-    return res.status(400).json({ error: 'OPENROUTER_API_KEY manquante' });
+    return res.status(400).json({ error: 'OPENROUTER_API_KEY manquante. Créez server/.env avec OPENROUTER_API_KEY=sk-or-v1-...' });
   }
 
   try {
