@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DetectorConfig } from '../../types';
 import { fetchDetectorConfigs } from '../../services/mockData';
 import { supabase } from '@/integrations/supabase/client';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -69,12 +70,9 @@ const AIDetectorPanel: React.FC = () => {
     };
 
     try {
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`, {
+      const resp = await fetch(getApiUrl('qoe-assistant'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           messages: allMessages.map(m => ({ role: m.role, content: m.content })),
           cellContext: topoStats,
