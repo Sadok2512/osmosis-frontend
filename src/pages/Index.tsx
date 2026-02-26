@@ -27,7 +27,7 @@ export type AccentColor = 'default' | 'orange' | 'red' | 'pink' | 'purple' | 'in
 
 const Index: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard_overview');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarTheme, setSidebarTheme] = useState<SidebarTheme>('dark');
   const [accentColor, setAccentColor] = useState<AccentColor>('default');
@@ -135,7 +135,7 @@ const Index: React.FC = () => {
 
   return (
     <CSVDataProvider>
-    <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass}`} style={accentStyles[accentColor] as React.CSSProperties}>
+    <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass} ${theme === 'dark' ? 'dark' : ''}`} style={accentStyles[accentColor] as React.CSSProperties}>
       <AppSidebar
         filters={filters}
         setFilters={setFilters}
