@@ -3,7 +3,7 @@ import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
   Database, Activity, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
-  Sliders, Globe, FileText, BookOpen, Sparkles
+  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon
 } from 'lucide-react';
 import { Filters, AppTab } from '../../types';
 
@@ -91,7 +91,22 @@ const AppSidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* FOOTER */}
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-4 border-t border-sidebar-border space-y-3">
+        {/* Theme toggle */}
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2 px-3'}`}>
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all hover:bg-sidebar-accent text-sidebar-foreground"
+            title={theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+          >
+            {theme === 'dark' ? <Moon className="w-4 h-4 text-sidebar-primary" /> : <Sun className="w-4 h-4 text-amber-400" />}
+            {!isCollapsed && (
+              <span className="text-[10px] font-bold uppercase tracking-wider">
+                {theme === 'dark' ? 'Dark Monitor' : 'Light Mode'}
+              </span>
+            )}
+          </button>
+        </div>
         <button
           onClick={() => setActiveTab('settings')}
           className={`w-full flex items-center transition-all group ${isCollapsed ? 'justify-center' : 'gap-3 px-3 py-2.5 rounded-xl'} ${
@@ -107,7 +122,7 @@ const AppSidebar: React.FC<SidebarProps> = ({
           )}
         </button>
         {!isCollapsed && (
-          <div className="flex items-center gap-2 mt-4 px-3 opacity-50">
+          <div className="flex items-center gap-2 mt-2 px-3 opacity-50">
             <div className="w-2 h-2 rounded-full bg-sidebar-primary" />
             <span className="text-[10px] font-medium text-sidebar-foreground">V1.0 Beta • Orange France</span>
           </div>

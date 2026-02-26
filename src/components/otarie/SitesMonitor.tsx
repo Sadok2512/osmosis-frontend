@@ -312,7 +312,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [mapRendering, setMapRendering] = useState(false);
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
-  const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
+  const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('dark');
 
   const TILE_URLS: Record<typeof mapLayer, { url: string; attribution: string }> = {
     light: {
@@ -433,22 +433,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const getKpiColor = (value: number): string => {
     if (mapKpi === 'p50_thr_dn_mbps') {
-      if (value >= 100) return '#10b981';
+      if (value >= 100) return '#22c55e';
       if (value >= 30) return '#f59e0b';
       return '#ef4444';
     }
     if (mapKpi === 'p50_thr_up_mbps') {
-      if (value >= 20) return '#10b981';
+      if (value >= 20) return '#22c55e';
       if (value >= 5) return '#f59e0b';
       return '#ef4444';
     }
     if (mapKpi === 'sessions') {
-      if (value >= 2000) return '#10b981';
+      if (value >= 2000) return '#22c55e';
       if (value >= 500) return '#f59e0b';
       return '#ef4444';
     }
-    if (value >= 80) return '#10b981';
+    if (value >= 80) return '#22c55e';
     if (value >= 60) return '#f59e0b';
+    if (value >= 40) return '#f97316';
     return '#ef4444';
   };
 
@@ -1430,7 +1431,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* KPI thresholds */}
               <div className="px-5 pb-3 pt-1 space-y-2 border-t border-border">
                 {[
-                  { color: '#10b981', label: 'Excellent' },
+                  { color: '#22c55e', label: 'Excellent' },
                   { color: '#f59e0b', label: 'Correct' },
                   { color: '#f97316', label: 'Dégradé' },
                   { color: '#ef4444', label: 'Critique' },
