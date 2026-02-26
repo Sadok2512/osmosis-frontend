@@ -338,6 +338,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Focus mode: 'global' | 'site' | 'cell'
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
+  const [expandedSector, setExpandedSector] = useState<number | null>(null);
 
   // LOS / Radio Profile state
   const [losDrawingMode, setLosDrawingMode] = useState(false);
@@ -1713,45 +1714,89 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           {/* Expanded sector pills */}
                           {isExpanded && (
                             <div className="px-4 pb-4 pt-1 animate-fade-in">
-                              <div className="flex items-center gap-2 flex-wrap">
+                              {/* Sector pills row */}
+                              <div className="flex items-center gap-2 flex-wrap mb-2">
                                 {sortedSec.map(([sNum, cells]) => {
                                   const techs = [...new Set(cells.map(c => c.techno))].filter(Boolean).sort((a, b) => (a.includes('5G') ? -1 : 1));
-                                  const isCellFocused = cells.some(c => c.cell_id === focusCellId);
+                                  const isSectorExpanded = expandedSector === sNum;
+                                  const hasFocusedCell = cells.some(c => c.cell_id === focusCellId);
                                   return (
                                     <button
                                       key={sNum}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleCellClick(cells[0].cell_id);
+                                        setExpandedSector(isSectorExpanded ? null : sNum);
                                       }}
                                       className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-xl border-2 transition-all min-w-[64px] ${
-                                        isCellFocused
+                                        isSectorExpanded || hasFocusedCell
                                           ? 'bg-primary text-primary-foreground border-primary shadow-md'
                                           : 'bg-muted/40 border-border hover:border-primary/30 text-foreground'
                                       }`}
                                     >
-                                      <span className={`text-[10px] font-bold uppercase ${isCellFocused ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                                      <span className={`text-[10px] font-bold uppercase ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
                                         {techs.join(' / ')}
                                       </span>
                                       <div className="flex items-center gap-1">
                                         {techs.map(tech => (
                                           <div key={tech} className={`w-2.5 h-2.5 rounded-full ${
-                                            isCellFocused
+                                            isSectorExpanded || hasFocusedCell
                                               ? 'bg-primary-foreground'
                                               : tech.includes('5G') ? 'bg-emerald-500' : 'bg-amber-500'
                                           }`} />
                                         ))}
                                       </div>
-                                      <span className={`text-[11px] font-extrabold ${isCellFocused ? 'text-primary-foreground' : 'text-foreground'}`}>
+                                      <span className={`text-[11px] font-extrabold ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground' : 'text-foreground'}`}>
                                         S{sNum}
                                       </span>
-                                      <span className={`text-[8px] font-semibold ${isCellFocused ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+                                      <span className={`text-[8px] font-semibold ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
                                         {cells.length} cell{cells.length > 1 ? 's' : ''}
                                       </span>
                                     </button>
                                   );
                                 })}
                               </div>
+
+                              {/* Expanded sector → cell list */}
+                              {expandedSector != null && (() => {
+                                const secCells = sortedSec.find(([s]) => s === expandedSector)?.[1] || [];
+                                if (!secCells.length) return null;
+                                return (
+                                  <div className="border border-border rounded-xl overflow-hidden animate-fade-in">
+                                    {secCells.map((cell, idx) => {
+                                      const isSel = focusCellId === cell.cell_id;
+                                      return (
+                                        <button
+                                          key={cell.cell_id}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleCellClick(cell.cell_id);
+                                          }}
+                                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-all ${
+                                            idx > 0 ? 'border-t border-border/50' : ''
+                                          } ${
+                                            isSel
+                                              ? 'bg-primary/10 border-l-[3px] border-l-primary'
+                                              : 'hover:bg-muted/40 border-l-[3px] border-l-transparent'
+                                          }`}
+                                        >
+                                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(cell.bande, cell.techno) }} />
+                                          <div className="flex-1 min-w-0">
+                                            <div className={`text-[11px] font-mono truncate ${isSel ? 'font-bold text-foreground' : 'text-foreground'}`}>
+                                              {cell.cell_id}
+                                            </div>
+                                            <div className="text-[9px] text-muted-foreground">
+                                              {cell.techno} • {cell.bande} MHz • Az {cell.azimut}°
+                                            </div>
+                                          </div>
+                                          <div className="text-[12px] font-bold shrink-0" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
+                                            {cell.qoe_score_avg.toFixed(1)}%
+                                          </div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
                         </div>
