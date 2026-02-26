@@ -491,10 +491,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return ['ALL', ...names];
   }, [sites]);
 
-  // Sites visible in current viewport (for map rendering)
+  // Sites visible in current viewport (for map rendering) — with cap to prevent hangs
+  const MAX_RENDER_SITES = 5000;
+
   const visibleSites = useMemo(() => {
-    if (!viewport.bounds) return mapFilteredSites;
-    return mapFilteredSites.filter(s => viewport.bounds!.contains(L.latLng(s.coordinates[0], s.coordinates[1])));
+    let candidates = mapFilteredSites;
+    // Viewport culling
+    if (viewport.bounds) {
+      candidates = candidates.filter(s => viewport.bounds!.contains(L.latLng(s.coordinates[0], s.coordinates[1])));
+    }
+    // If still too many, sample evenly to keep the map responsive
+    if (candidates.length > MAX_RENDER_SITES) {
+      const step = Math.ceil(candidates.length / MAX_RENDER_SITES);
+      const sampled: typeof candidates = [];
+      for (let i = 0; i < candidates.length; i += step) {
+        sampled.push(candidates[i]);
+      }
+      return sampled;
+    }
+    return candidates;
   }, [mapFilteredSites, viewport.bounds]);
 
   const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD && mapDisplayMode === 'sites';
@@ -502,7 +517,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
     if (mapDisplayMode !== 'heatmap') return [];
-    return mapFilteredSites.map(s => {
+    return visibleSites.map(s => {
       const val = getCellKpiValue(s.cells[0] || {});
       return [s.coordinates[0], s.coordinates[1], val / 100] as [number, number, number];
     });
@@ -603,7 +618,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         )}
 
         {/* Points mode — individual cell markers colored by KPI threshold */}
-        {mapDisplayMode === 'points' && mapFilteredSites.map(site => {
+        {mapDisplayMode === 'points' && visibleSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells
             : site.cells.filter(c => c.techno === mapTechnoFilter)).filter(c => isBandEnabled(c.bande));
@@ -673,7 +688,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             showCoverageOnHover={false}
             zoomToBoundsOnClick
           >
-            {mapFilteredSites.map(site => {
+            {visibleSites.map(site => {
               const color = getKpiColor(getCellKpiValue(site.cells[0] || {}));
               return (
                 <Marker
