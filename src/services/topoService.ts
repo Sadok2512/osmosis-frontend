@@ -152,7 +152,7 @@ let cachedLocalSites: SiteSummary[] | null = null;
 export async function fetchTopoSites(): Promise<SiteSummary[]> {
   if (cachedLocalSites) return cachedLocalSites;
 
-  // 1) Try local Express server
+  // 1) Try local Express server only
   try {
     const resp = await fetch(`${LOCAL_API}/api/topo?limit=100000`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -166,58 +166,10 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
       return cachedLocalSites;
     }
   } catch (err) {
-    console.warn('[TopoService] LOCAL fetch failed, trying Cloud…', err);
+    console.warn('[TopoService] LOCAL fetch failed, falling back to embedded data', err);
   }
 
-  // 2) Try Lovable Cloud (Supabase topo table)
-  try {
-    const PAGE_SIZE = 10000;
-    let allRows: TopoRow[] = [];
-    let offset = 0;
-    let hasMore = true;
-
-    while (hasMore && offset < 100000) {
-      const { data, error } = await supabase
-        .from('topo')
-        .select('*')
-        .range(offset, offset + PAGE_SIZE - 1);
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        hasMore = false;
-      } else {
-        const mapped: TopoRow[] = data.map((r: any) => ({
-          code_nidt: r.code_nidt,
-          nom_site: r.nom_site,
-          region: r.region,
-          longitude: r.longitude,
-          latitude: r.latitude,
-          nom_cellule: r.nom_cellule,
-          techno: r.techno,
-          bande: r.bande,
-          constructeur: r.constructeur,
-          azimut: r.azimut,
-          plaque: r.plaque,
-          hba: r.hba,
-          tac: r.tac,
-        }));
-        allRows = allRows.concat(mapped);
-        offset += PAGE_SIZE;
-        if (data.length < PAGE_SIZE) hasMore = false;
-      }
-    }
-
-    if (allRows.length > 0) {
-      console.log(`[TopoService] CLOUD: received ${allRows.length} cells`);
-      cachedLocalSites = buildSitesFromRows(allRows);
-      console.log(`[TopoService] CLOUD: Built ${cachedLocalSites.length} sites`);
-      return cachedLocalSites;
-    }
-  } catch (err) {
-    console.warn('[TopoService] CLOUD fetch failed, falling back to embedded data', err);
-  }
-
-  // 3) Fallback to embedded static data
+  // 2) Fallback to embedded static data
   cachedLocalSites = buildSitesFromLocalTopo();
   console.log(`[TopoService] FALLBACK: Built ${cachedLocalSites.length} sites from embedded data`);
   return cachedLocalSites;
