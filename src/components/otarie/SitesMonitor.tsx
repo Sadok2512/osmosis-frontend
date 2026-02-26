@@ -1786,116 +1786,231 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* RIGHT SIDE PANEL — Engineering-grade Topology Panel */}
-      <div className={`absolute z-[1000] bg-card border border-border overflow-hidden flex flex-col transition-all duration-300 ${
+      {/* RIGHT SIDE PANEL — Professional NOC Topology Panel */}
+      <div className={`absolute z-[1000] bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ${
         detailFullscreen
           ? 'inset-0'
-          : 'top-0 right-0 bottom-0 w-[440px]'
+          : 'top-0 right-0 bottom-0 w-[450px]'
       }`}>
-        {/* Breadcrumb */}
-        <div className="px-4 py-2 border-b border-border flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-1 text-[11px] font-medium">
+        {/* Breadcrumb bar */}
+        <div className="px-4 py-2 border-b border-border flex items-center justify-between shrink-0 bg-muted/30">
+          <div className="flex items-center gap-1.5 text-[11px]">
             <button onClick={handleBackToGlobal} className={`transition-colors ${focusMode === 'global' ? 'text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'}`}>
               Global
             </button>
             {focusMode !== 'global' && siteDetail && (
               <>
-                <ChevronRight size={11} className="text-muted-foreground" />
-                <button onClick={handleBackToSite} className={`transition-colors truncate max-w-[140px] ${focusMode === 'site' ? 'text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'}`}>
+                <ChevronRight size={10} className="text-muted-foreground" />
+                <button onClick={handleBackToSite} className={`transition-colors truncate max-w-[160px] ${focusMode === 'site' ? 'text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'}`}>
                   {siteDetail.site_name}
                 </button>
               </>
             )}
             {focusMode === 'cell' && focusCellId && (
               <>
-                <ChevronRight size={11} className="text-muted-foreground" />
-                <span className="text-foreground font-semibold font-mono text-[10px] truncate max-w-[100px]">{focusCellId}</span>
+                <ChevronRight size={10} className="text-muted-foreground" />
+                <span className="text-foreground font-semibold font-mono text-[10px] truncate max-w-[120px]">{focusCellId}</span>
               </>
             )}
           </div>
-          <div className="flex items-center gap-1">
-            <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-medium uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
               {focusMode === 'global' ? 'NETWORK' : focusMode === 'site' ? 'SITE' : 'CELL'} LEVEL
             </span>
-            <button onClick={() => setDetailFullscreen(!detailFullscreen)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground transition-colors">
-              {detailFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            <button onClick={() => setDetailFullscreen(!detailFullscreen)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground transition-colors">
+              {detailFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
             </button>
           </div>
         </div>
 
-        {/* Content */}
+        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* ===== GLOBAL MODE ===== */}
-          {focusMode === 'global' && (
-            <div className="p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-px bg-border rounded-md overflow-hidden">
-                {[
-                  { label: 'Sites', value: filteredSites.length.toLocaleString() },
-                  { label: 'Cells', value: filteredSites.reduce((acc, s) => acc + s.cell_count, 0).toLocaleString() },
-                  { label: 'Avg QoE', value: `${(filteredSites.reduce((acc, s) => acc + (s.qoe_score_avg || 0), 0) / Math.max(filteredSites.length, 1)).toFixed(1)}%`, color: getKpiColor(filteredSites.reduce((acc, s) => acc + (s.qoe_score_avg || 0), 0) / Math.max(filteredSites.length, 1)) },
-                  { label: 'Technologies', value: [...new Set(filteredSites.flatMap(s => s.cells.map(c => c.techno)))].join(' / ') },
-                ].map((item, i) => (
-                  <div key={i} className="bg-card px-3 py-2.5">
-                    <div className="text-[10px] text-muted-foreground">{item.label}</div>
-                    <div className="text-[14px] font-semibold text-foreground mt-0.5" style={item.color ? { color: item.color } : undefined}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-muted-foreground text-center py-6">
-                Select a site to view topology details
-              </p>
-            </div>
-          )}
+          {/* ========== GLOBAL MODE ========== */}
+          {focusMode === 'global' && (() => {
+            const allCells = filteredSites.flatMap(s => s.cells);
+            const totalCells = allCells.length;
+            const totalSites = filteredSites.length;
+            const avgQoE = totalSites > 0 ? filteredSites.reduce((a, s) => a + (s.qoe_score_avg || 0), 0) / totalSites : 0;
+            const techs = [...new Set(allCells.map(c => c.techno))].sort();
+            
+            // Tech distribution
+            const techStats = techs.map(tech => {
+              const cells = allCells.filter(c => c.techno === tech);
+              const avg = cells.length > 0 ? cells.reduce((a, c) => a + (c.qoe_score_avg || 0), 0) / cells.length : 0;
+              const bands = [...new Set(cells.map(c => c.bande).filter(Boolean))].sort();
+              return { tech, count: cells.length, avgQoE: avg, bands };
+            });
 
-          {/* ===== SITE MODE ===== */}
+            // Band distribution
+            const bandStats = [...new Set(allCells.map(c => `${c.techno}|${c.bande}`))].map(key => {
+              const [tech, band] = key.split('|');
+              const cells = allCells.filter(c => c.techno === tech && c.bande === band);
+              const avg = cells.length > 0 ? cells.reduce((a, c) => a + (c.qoe_score_avg || 0), 0) / cells.length : 0;
+              return { tech, band, count: cells.length, avgQoE: avg };
+            }).sort((a, b) => b.count - a.count);
+
+            // Performance distribution
+            const excellent = allCells.filter(c => c.qoe_score_avg >= 80).length;
+            const correct = allCells.filter(c => c.qoe_score_avg >= 60 && c.qoe_score_avg < 80).length;
+            const degraded = allCells.filter(c => c.qoe_score_avg >= 40 && c.qoe_score_avg < 60).length;
+            const critical = allCells.filter(c => c.qoe_score_avg < 40).length;
+            const perfTotal = Math.max(totalCells, 1);
+
+            return (
+              <div className="divide-y divide-border">
+                {/* Header */}
+                <div className="px-4 py-3">
+                  <h3 className="text-[14px] font-semibold text-foreground">Global Network</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{selectedKpiLabel}</p>
+                </div>
+
+                {/* Network Summary Table */}
+                <div className="px-4 py-3">
+                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Network Summary</h4>
+                  <div className="space-y-0">
+                    {[
+                      { label: 'Sites', value: totalSites.toLocaleString() },
+                      { label: 'Cells', value: totalCells.toLocaleString() },
+                      { label: 'Technologies', value: techs.join(' / ') },
+                      { label: 'Avg QoE', value: `${avgQoE.toFixed(1)}%`, color: getKpiColor(avgQoE) },
+                    ].map((row, i) => (
+                      <div key={i} className="flex items-center justify-between py-1.5 text-[12px]">
+                        <span className="text-muted-foreground">{row.label}</span>
+                        <span className="font-medium text-foreground" style={row.color ? { color: row.color } : undefined}>{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Technology Distribution */}
+                <div className="px-4 py-3">
+                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Technology Distribution</h4>
+                  <div className="space-y-2">
+                    {techStats.map(ts => (
+                      <div key={ts.tech} className="flex items-start gap-2">
+                        <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${ts.tech === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between text-[12px]">
+                            <span className="font-medium text-foreground">{ts.tech === '5G' ? '5G NR' : '4G LTE'}</span>
+                            <span className="font-medium" style={{ color: getKpiColor(ts.avgQoE) }}>{ts.avgQoE.toFixed(1)}%</span>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                            {ts.count} cells • {ts.bands.join(' / ')}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Band Distribution Table */}
+                <div className="px-4 py-3">
+                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Band Distribution</h4>
+                  <div className="border border-border rounded-md overflow-hidden">
+                    <table className="w-full text-[11px]">
+                      <thead>
+                        <tr className="bg-muted/50 text-muted-foreground text-[10px] uppercase tracking-wider">
+                          <th className="text-left px-3 py-1.5 font-medium">Band</th>
+                          <th className="text-right px-3 py-1.5 font-medium">Cells</th>
+                          <th className="text-right px-3 py-1.5 font-medium">Avg QoE</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/50">
+                        {bandStats.map((bs, i) => (
+                          <tr key={i} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-3 py-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ background: getBandColor(bs.band, bs.tech) }} />
+                                <span className="text-foreground">{bs.band}</span>
+                                <span className="text-muted-foreground text-[10px]">({bs.tech})</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-1.5 text-right text-foreground">{bs.count.toLocaleString()}</td>
+                            <td className="px-3 py-1.5 text-right font-medium" style={{ color: getKpiColor(bs.avgQoE) }}>{bs.avgQoE.toFixed(1)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Performance Distribution */}
+                <div className="px-4 py-3">
+                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Performance Distribution</h4>
+                  {/* Horizontal bar */}
+                  <div className="flex h-2 rounded-sm overflow-hidden mb-2">
+                    {excellent > 0 && <div style={{ width: `${(excellent / perfTotal) * 100}%`, background: '#22c55e' }} />}
+                    {correct > 0 && <div style={{ width: `${(correct / perfTotal) * 100}%`, background: '#f59e0b' }} />}
+                    {degraded > 0 && <div style={{ width: `${(degraded / perfTotal) * 100}%`, background: '#f97316' }} />}
+                    {critical > 0 && <div style={{ width: `${(critical / perfTotal) * 100}%`, background: '#ef4444' }} />}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-[11px]">
+                    {[
+                      { label: 'Excellent', value: excellent, pct: ((excellent / perfTotal) * 100).toFixed(0), color: '#22c55e' },
+                      { label: 'Correct', value: correct, pct: ((correct / perfTotal) * 100).toFixed(0), color: '#f59e0b' },
+                      { label: 'Degraded', value: degraded, pct: ((degraded / perfTotal) * 100).toFixed(0), color: '#f97316' },
+                      { label: 'Critical', value: critical, pct: ((critical / perfTotal) * 100).toFixed(0), color: '#ef4444' },
+                    ].map((p, i) => (
+                      <div key={i} className="text-center">
+                        <div className="font-medium" style={{ color: p.color }}>{p.pct}%</div>
+                        <div className="text-muted-foreground text-[10px]">{p.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ========== SITE FOCUS MODE ========== */}
           {focusMode === 'site' && siteDetail && (
             <div className="divide-y divide-border">
 
-              {/* SECTION 1: Compact Header */}
+              {/* Header */}
               <div className="px-4 py-3">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0">
-                    <h3 className="text-[16px] font-semibold text-foreground leading-tight truncate">{siteDetail.site_name}</h3>
-                    <div className="flex items-center gap-2 mt-1 text-[12px] text-muted-foreground">
+                    <h3 className="text-[15px] font-semibold text-foreground leading-tight truncate">{siteDetail.site_name}</h3>
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
                       <span className="font-mono">{siteDetail.site_id}</span>
                       <span>•</span>
                       <span>{siteDetail.vendor}</span>
+                      <span>•</span>
+                      <span>{siteDetail.cell_count} cells</span>
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                    <div className="text-[10px] text-muted-foreground mt-0.5 font-mono">
                       {siteDetail.coordinates[0].toFixed(5)}, {siteDetail.coordinates[1].toFixed(5)}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                  <div className="flex items-center gap-1.5 shrink-0 ml-3 mt-0.5">
                     {[...new Set(siteDetail.cells.map((c: any) => c.techno))].sort().map((tech: any) => (
-                      <span key={tech} className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                        tech === '5G' ? 'bg-primary/15 text-primary' : 'bg-amber-500/15 text-amber-500'
+                      <span key={tech} className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+                        tech === '5G' ? 'border-primary/30 text-primary' : 'border-amber-500/30 text-amber-500'
                       }`}>{tech}</span>
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 mt-2 text-[12px] text-muted-foreground">
-                  <span>{siteDetail.cell_count} cells</span>
-                  <span>•</span>
-                  <span>{siteDetail.dor}</span>
-                </div>
               </div>
 
-              {/* SECTION 1b: Inline KPI summary */}
-              <div className="px-4 py-2.5 flex items-center justify-between text-[12px]">
-                <span className="text-muted-foreground">QoE:</span>
-                <span className="font-semibold" style={{ color: getKpiColor(siteDetail.qoe_score_avg ?? 0) }}>{(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%</span>
-                <span className="text-muted-foreground ml-3">DL:</span>
-                <span className="font-semibold text-foreground">{(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)} <span className="text-[10px] text-muted-foreground">Mbps</span></span>
-                <span className="text-muted-foreground ml-3">UL:</span>
-                <span className="font-semibold text-foreground">{(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)} <span className="text-[10px] text-muted-foreground">Mbps</span></span>
-                <span className="text-muted-foreground ml-3">RTT:</span>
-                <span className="font-semibold text-foreground">{(siteDetail.p95_rtt_ms ?? 0).toFixed(0)} <span className="text-[10px] text-muted-foreground">ms</span></span>
+              {/* Inline KPI row */}
+              <div className="px-4 py-2 grid grid-cols-4 gap-2 text-[12px]">
+                {[
+                  { label: 'QoE', value: `${(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%`, color: getKpiColor(siteDetail.qoe_score_avg ?? 0) },
+                  { label: 'DL', value: `${(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)} Mbps` },
+                  { label: 'UL', value: `${(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)} Mbps` },
+                  { label: 'RTT', value: `${(siteDetail.p95_rtt_ms ?? 0).toFixed(0)} ms` },
+                ].map((kpi, i) => (
+                  <div key={i}>
+                    <div className="text-[10px] text-muted-foreground">{kpi.label}</div>
+                    <div className="font-medium text-foreground" style={kpi.color ? { color: kpi.color } : undefined}>{kpi.value}</div>
+                  </div>
+                ))}
               </div>
 
-              {/* SECTION 2: Topology Structure */}
+              {/* Topology Structure */}
               <div className="px-4 py-3">
-                <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Topology</h4>
+                <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Topology</h4>
                 {(() => {
                   const techGroups = new Map<string, Map<string, typeof siteDetail.cells>>();
                   siteDetail.cells.forEach(cell => {
@@ -1907,22 +2022,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     bandMap.get(band)!.push(cell);
                   });
                   return (
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       {Array.from(techGroups.entries()).sort(([a], [b]) => (a === '5G' ? -1 : b === '5G' ? 1 : a.localeCompare(b))).map(([tech, bands]) => (
                         <details key={tech} open className="group">
-                          <summary className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted/50 transition-colors list-none">
-                            <ChevronRight size={12} className="text-muted-foreground transition-transform group-open:rotate-90 shrink-0" />
+                          <summary className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted/40 transition-colors list-none text-[12px]">
+                            <ChevronRight size={11} className="text-muted-foreground transition-transform group-open:rotate-90 shrink-0" />
                             <div className={`w-2 h-2 rounded-full shrink-0 ${tech.includes('5G') ? 'bg-primary' : 'bg-amber-500'}`} />
-                            <span className="text-[12px] font-semibold text-foreground">{tech === '5G' ? '5G NR' : '4G LTE'}</span>
-                            <span className="text-[10px] text-muted-foreground ml-auto">{Array.from(bands.values()).flat().length}</span>
+                            <span className="font-medium text-foreground">{tech === '5G' ? '5G NR' : '4G LTE'}</span>
+                            <span className="text-[10px] text-muted-foreground ml-auto">{Array.from(bands.values()).flat().length} cells</span>
                           </summary>
                           <div className="ml-4 border-l border-border">
                             {Array.from(bands.entries()).map(([band, cells]) => (
                               <details key={band} open className="group/band">
-                                <summary className="flex items-center gap-2 px-3 py-1 cursor-pointer hover:bg-muted/30 transition-colors list-none">
-                                  <ChevronRight size={10} className="text-muted-foreground transition-transform group-open/band:rotate-90 shrink-0" />
+                                <summary className="flex items-center gap-2 px-3 py-1 cursor-pointer hover:bg-muted/30 transition-colors list-none text-[11px]">
+                                  <ChevronRight size={9} className="text-muted-foreground transition-transform group-open/band:rotate-90 shrink-0" />
                                   <div className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ background: getBandColor(band, tech) }} />
-                                  <span className="text-[11px] text-muted-foreground font-medium">{band} MHz</span>
+                                  <span className="text-muted-foreground">{band} MHz</span>
                                   <span className="text-[10px] text-muted-foreground ml-auto">{cells.length}</span>
                                 </summary>
                                 <div className="ml-3">
@@ -1930,16 +2045,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                     <button
                                       key={cell.cell_id}
                                       onClick={() => handleCellClick(cell.cell_id)}
-                                      className={`w-full flex items-center gap-2 px-3 py-1.5 text-left transition-all text-[12px] ${
+                                      className={`w-full flex items-center gap-2 px-3 py-[5px] text-left transition-all text-[11px] ${
                                         focusCellId === cell.cell_id
                                           ? 'bg-primary/10 border-l-[3px] border-primary'
-                                          : 'hover:bg-muted/40 border-l-[3px] border-transparent'
+                                          : 'hover:bg-muted/30 border-l-[3px] border-transparent'
                                       }`}
                                     >
-                                      <Radio size={10} className={focusCellId === cell.cell_id ? 'text-primary' : 'text-muted-foreground'} />
-                                      <span className="font-medium text-foreground truncate">{cell.cell_id.split('_').pop() || cell.cell_id}</span>
-                                      <span className="text-[11px] text-muted-foreground ml-auto shrink-0">Az {cell.azimut}°</span>
-                                      {cell.hba && <span className="text-[10px] text-muted-foreground shrink-0">• {cell.hba}m</span>}
+                                      <Radio size={9} className={focusCellId === cell.cell_id ? 'text-primary' : 'text-muted-foreground'} />
+                                      <span className={`truncate ${focusCellId === cell.cell_id ? 'font-medium text-foreground' : 'text-foreground'}`}>
+                                        {cell.cell_id.split('_').pop() || cell.cell_id}
+                                      </span>
+                                      <span className="text-muted-foreground ml-auto shrink-0">Az {cell.azimut}°</span>
+                                      {(cell as any).remote_electrical_tilt != null && (
+                                        <span className="text-muted-foreground shrink-0">T {(cell as any).remote_electrical_tilt}°</span>
+                                      )}
                                     </button>
                                   ))}
                                 </div>
@@ -1953,62 +2072,62 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 })()}
               </div>
 
-              {/* SECTION 3: Cell KPI Table (Compact) */}
+              {/* Cell KPI Table */}
               <div className="px-4 py-3">
-                <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Cell KPI Table</h4>
-                <div className="border border-border rounded-md overflow-hidden">
+                <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Cell KPI Table</h4>
+                <div className="border border-border rounded overflow-hidden">
                   <table className="w-full text-[11px]">
                     <thead>
-                      <tr className="bg-muted/50 text-muted-foreground text-[10px] uppercase tracking-wider">
+                      <tr className="bg-muted/40 text-muted-foreground text-[9px] uppercase tracking-wider">
                         <th className="text-left px-2 py-1.5 font-medium">Cell</th>
-                        <th className="text-left px-1.5 py-1.5 font-medium">Tech</th>
-                        <th className="text-left px-1.5 py-1.5 font-medium">Band</th>
-                        <th className="text-right px-1.5 py-1.5 font-medium">Az</th>
-                        <th className="text-right px-1.5 py-1.5 font-medium">QoE</th>
-                        <th className="text-right px-1.5 py-1.5 font-medium">DL</th>
-                        <th className="text-right px-1.5 py-1.5 font-medium">UL</th>
+                        <th className="text-left px-1 py-1.5 font-medium">Tech</th>
+                        <th className="text-left px-1 py-1.5 font-medium">Band</th>
+                        <th className="text-right px-1 py-1.5 font-medium">Az</th>
+                        <th className="text-right px-1 py-1.5 font-medium">QoE</th>
+                        <th className="text-right px-1 py-1.5 font-medium">DL</th>
+                        <th className="text-right px-1 py-1.5 font-medium">UL</th>
                         <th className="text-right px-2 py-1.5 font-medium">RTT</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border/50">
+                    <tbody className="divide-y divide-border/40">
                       {siteDetail.cells.map(cell => {
                         const isSelected = focusCellId === cell.cell_id;
                         return (
                           <React.Fragment key={cell.cell_id}>
                             <tr
                               onClick={() => handleCellClick(cell.cell_id)}
-                              className={`cursor-pointer transition-colors ${
+                              className={`cursor-pointer transition-colors h-[36px] ${
                                 isSelected ? 'bg-primary/8' : 'hover:bg-muted/30'
                               }`}
                             >
-                              <td className={`px-2 py-1.5 font-mono truncate max-w-[80px] ${isSelected ? 'font-semibold text-foreground' : 'text-foreground'}`}>
-                                {isSelected && <span className="inline-block w-[3px] h-3 bg-primary rounded-full mr-1.5 -mb-0.5" />}
+                              <td className={`px-2 py-1 font-mono text-[10px] truncate max-w-[80px] ${isSelected ? 'font-semibold text-foreground' : 'text-foreground'}`}>
+                                {isSelected && <span className="inline-block w-[3px] h-3 bg-primary rounded-full mr-1 align-middle" />}
                                 {cell.cell_id.split('_').pop() || cell.cell_id}
                               </td>
-                              <td className="px-1.5 py-1.5 text-muted-foreground">{cell.techno}</td>
-                              <td className="px-1.5 py-1.5 text-muted-foreground">{cell.bande}</td>
-                              <td className="px-1.5 py-1.5 text-right text-muted-foreground">{cell.azimut}°</td>
-                              <td className="px-1.5 py-1.5 text-right font-semibold" style={{ color: getKpiColor(cell.qoe_score_avg) }}>{cell.qoe_score_avg.toFixed(1)}%</td>
-                              <td className="px-1.5 py-1.5 text-right text-foreground">{(cell.p50_thr_dn_mbps ?? 0).toFixed(0)}</td>
-                              <td className="px-1.5 py-1.5 text-right text-foreground">{(cell.p50_thr_up_mbps ?? 0).toFixed(0)}</td>
-                              <td className="px-2 py-1.5 text-right text-foreground">{(cell.p95_rtt_ms ?? 0).toFixed(0)}</td>
+                              <td className="px-1 py-1 text-muted-foreground">{cell.techno}</td>
+                              <td className="px-1 py-1 text-muted-foreground">{cell.bande}</td>
+                              <td className="px-1 py-1 text-right text-muted-foreground">{cell.azimut}°</td>
+                              <td className="px-1 py-1 text-right font-medium" style={{ color: getKpiColor(cell.qoe_score_avg) }}>{cell.qoe_score_avg.toFixed(1)}%</td>
+                              <td className="px-1 py-1 text-right text-foreground">{(cell.p50_thr_dn_mbps ?? 0).toFixed(0)}</td>
+                              <td className="px-1 py-1 text-right text-foreground">{(cell.p50_thr_up_mbps ?? 0).toFixed(0)}</td>
+                              <td className="px-2 py-1 text-right text-foreground">{(cell.p95_rtt_ms ?? 0).toFixed(0)}</td>
                             </tr>
-                            {/* SECTION 4: Inline Cell Detail (expand) */}
+                            {/* Inline expand on select */}
                             {isSelected && (
                               <tr>
-                                <td colSpan={8} className="px-0 py-0">
-                                  <div className="bg-muted/20 border-t border-border px-4 py-2.5">
-                                    <div className="grid grid-cols-4 gap-x-4 gap-y-1.5 text-[11px]">
+                                <td colSpan={8} className="p-0">
+                                  <div className="bg-muted/15 border-t border-border px-4 py-2">
+                                    <div className="grid grid-cols-4 gap-x-4 gap-y-1 text-[11px]">
                                       {[
                                         { label: 'PCI', value: (cell as any).pci ?? '—' },
                                         { label: 'Azimuth', value: `${cell.azimut}°` },
                                         { label: 'HBA', value: `${cell.hba ?? '—'} m` },
-                                        { label: 'Tilt', value: `${(cell as any).tilt ?? (cell as any).remote_electrical_tilt ?? '—'}°` },
+                                        { label: 'E-Tilt', value: `${(cell as any).remote_electrical_tilt ?? '—'}°` },
                                         { label: 'DMS 3M', value: `${(cell.dms_dl_3 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_3 ?? 0) },
                                         { label: 'DMS 8M', value: `${(cell.dms_dl_8 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_8 ?? 0) },
                                         { label: 'DMS 30M', value: `${(cell.dms_dl_30 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_30 ?? 0) },
                                         { label: 'DMS UL', value: `${(cell.dms_ul_3 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_ul_3 ?? 0) },
-                                        { label: 'Sessions', value: cell.sessions ?? '—' },
+                                        { label: 'Sessions', value: cell.sessions?.toLocaleString() ?? '—' },
                                         { label: 'Band', value: `${cell.bande} MHz` },
                                         { label: 'Tech', value: cell.techno },
                                         { label: 'Status', value: (cell as any).etat_cellule ?? 'Active' },
@@ -2031,36 +2150,107 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               </div>
 
-              {/* KPI Evolution Chart (compact) */}
+              {/* KPI Evolution */}
               <div className="px-4 py-3">
-                <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">KPI Evolution</h4>
+                <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">KPI Evolution</h4>
                 <SiteKpiChart siteDetail={siteDetail} />
               </div>
 
-              {/* Action row */}
-              <div className="px-4 py-3 flex gap-2">
+              {/* Actions */}
+              <div className="px-4 py-2.5 flex gap-2">
                 <button
                   onClick={() => { if (siteDetail && onLaunchAI) onLaunchAI(siteDetail.site_name); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-border text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded border border-border text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
                 >
-                  <Settings2 size={13} />
+                  <Settings2 size={12} />
                   AI Diagnostic
                 </button>
                 <button
                   onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-primary/40 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded border border-primary/30 text-[11px] font-medium text-primary hover:bg-primary/10 transition-colors"
                 >
-                  <Crosshair size={13} />
+                  <Crosshair size={12} />
                   Radio Profile
                 </button>
               </div>
             </div>
           )}
 
-          {/* ===== CELL MODE (standalone — when reached NOT from table) ===== */}
-          {focusMode === 'cell' && focusCellId && siteDetail && !siteDetail.cells.find(c => c.cell_id === focusCellId) && (
-            <div className="p-4 text-muted-foreground text-[12px]">Cell not found in site data.</div>
-          )}
+          {/* ========== CELL FOCUS MODE ========== */}
+          {focusMode === 'cell' && focusCellId && siteDetail && (() => {
+            const cell = siteDetail.cells.find(c => c.cell_id === focusCellId);
+            if (!cell) return <div className="p-4 text-muted-foreground text-[12px]">Cell not found.</div>;
+            return (
+              <div className="divide-y divide-border">
+                {/* Cell Header */}
+                <div className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
+                    <h3 className="text-[14px] font-semibold text-foreground font-mono">{cell.cell_id}</h3>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-1">
+                    {siteDetail.site_name} • {cell.techno} • {cell.bande} MHz
+                  </div>
+                </div>
+
+                {/* Cell Technical Parameters */}
+                <div className="px-4 py-3">
+                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">RF Parameters</h4>
+                  <div className="space-y-0">
+                    {[
+                      { label: 'Technology', value: cell.techno },
+                      { label: 'Band', value: `${cell.bande} MHz` },
+                      { label: 'Cell ID', value: cell.cell_id },
+                      { label: 'Azimuth', value: `${cell.azimut}°` },
+                      { label: 'HBA', value: `${cell.hba ?? '—'} m` },
+                      { label: 'Electrical Tilt', value: `${(cell as any).remote_electrical_tilt ?? '—'}°` },
+                      { label: 'PCI', value: `${(cell as any).pci ?? '—'}` },
+                      { label: 'Status', value: (cell as any).etat_cellule ?? 'Active' },
+                    ].map((p, i) => (
+                      <div key={i} className="flex items-center justify-between py-1 text-[12px] border-b border-border/30 last:border-0">
+                        <span className="text-muted-foreground">{p.label}</span>
+                        <span className="font-medium text-foreground">{p.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cell KPI */}
+                <div className="px-4 py-3">
+                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Performance</h4>
+                  <div className="space-y-0">
+                    {[
+                      { label: 'QoE Score', value: `${cell.qoe_score_avg.toFixed(1)}%`, color: getKpiColor(cell.qoe_score_avg) },
+                      { label: 'DMS DL ≥3 Mbps', value: `${(cell.dms_dl_3 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_3 ?? 0) },
+                      { label: 'DMS DL ≥8 Mbps', value: `${(cell.dms_dl_8 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_8 ?? 0) },
+                      { label: 'DMS DL ≥30 Mbps', value: `${(cell.dms_dl_30 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_30 ?? 0) },
+                      { label: 'DMS UL ≥3 Mbps', value: `${(cell.dms_ul_3 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_ul_3 ?? 0) },
+                      { label: 'Throughput DL', value: `${(cell.p50_thr_dn_mbps ?? 0).toFixed(1)} Mbps` },
+                      { label: 'Throughput UL', value: `${(cell.p50_thr_up_mbps ?? 0).toFixed(1)} Mbps` },
+                      { label: 'RTT P95', value: `${(cell.p95_rtt_ms ?? 0).toFixed(0)} ms` },
+                      { label: 'Sessions', value: cell.sessions?.toLocaleString() ?? '—' },
+                    ].map((kpi, i) => (
+                      <div key={i} className="flex items-center justify-between py-1 text-[12px] border-b border-border/30 last:border-0">
+                        <span className="text-muted-foreground">{kpi.label}</span>
+                        <span className="font-medium" style={kpi.color ? { color: kpi.color } : undefined}>{kpi.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Back to site */}
+                <div className="px-4 py-2.5">
+                  <button
+                    onClick={handleBackToSite}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded border border-border text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <ChevronLeft size={12} />
+                    Back to Site
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
