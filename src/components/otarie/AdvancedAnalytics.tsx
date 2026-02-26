@@ -9,7 +9,7 @@ import {
   Tooltip, ResponsiveContainer, Legend, Scatter, ZAxis, ScatterChart
 } from 'recharts';
 import { Filters, AnalyticsQuery, AnalyticsResponse, AggregationLevel } from '../../types';
-import { BI_KPIS, BI_AGGREGATIONS, VENDORS, DORS, DEPARTMENTS, PLAQUES } from '../../constants';
+import { BI_KPIS, BI_AGGREGATIONS, VENDORS, URS, DEPARTMENTS, PLAQUES } from '../../constants';
 import { fetchAnalyticsQuery } from '../../services/mockData';
 
 const AdvancedAnalytics: React.FC<{ filters: Filters; theme: 'light' | 'dark' }> = ({ filters }) => {

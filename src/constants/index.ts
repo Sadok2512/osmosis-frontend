@@ -18,7 +18,7 @@ export const BI_KPIS: BIKPI[] = [
 export const BI_AGGREGATIONS = [
   { id: 'date', label: 'Date (Temporel)' },
   { id: 'vendor', label: 'Vendor (Constructeur)' },
-  { id: 'dor', label: 'DOR / Direction' },
+  { id: 'ur', label: 'UR (Unité Régionale)' },
   { id: 'department', label: 'Department' },
   { id: 'plaque', label: 'Plaque Régionale' },
   { id: 'traffic_type', label: 'Traffic Type' },
@@ -51,7 +51,7 @@ export const SERVICES = ['ALL', 'Streaming', 'Gaming', 'Web', 'Social'];
 export const RATS = ['ALL', '5G', '4G', '3G', '2G'];
 export const DEPARTMENTS = ['ALL', 'LITTORAL_DUNKERQUE', 'Zones_Blanches_A1', '57', '62', 'FREJUS', 'AUTRES41', 'BAYONNE'];
 export const VENDORS = ['ALL', 'Ericsson', 'Nokia'];
-export const DORS = ['ALL', 'DOR EST', 'DOR SUD', 'DOR OUEST', 'DOR IDF'];
+export const URS = ['ALL'];
 
 export const getQoEColor = (qoe: number) => {
   if (qoe >= 85) return '#10b981';

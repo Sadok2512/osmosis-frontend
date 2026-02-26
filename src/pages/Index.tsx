@@ -20,7 +20,7 @@ import TopologiePage from '../components/otarie/TopologiePage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
-import { getQoEColor, VENDORS, DORS, DEPARTMENTS, PLAQUES } from '../constants';
+import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES } from '../constants';
 
 export type SidebarTheme = 'dark' | 'grey' | 'light';
 export type AccentColor = 'default' | 'orange' | 'red' | 'pink' | 'purple' | 'indigo' | 'cyan' | 'emerald' | 'amber';
