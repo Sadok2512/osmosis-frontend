@@ -16,6 +16,7 @@ import DashboardOverview from '../components/otarie/DashboardOverview';
 import RAGManager from '../components/otarie/RAGManager';
 import RadioProfilePage from '../components/otarie/RadioProfilePage';
 import BackendAdmin from '../components/otarie/BackendAdmin';
+import TopologiePage from '../components/otarie/TopologiePage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
@@ -125,6 +126,8 @@ const Index: React.FC = () => {
         return <RAGManager />;
       case 'backend_admin':
         return <BackendAdmin />;
+      case 'topologie':
+        return <TopologiePage />;
       default:
         return null;
     }
