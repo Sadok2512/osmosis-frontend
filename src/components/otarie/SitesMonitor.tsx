@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import MarkerClusterGroup from 'react-leaflet-cluster';
@@ -2236,6 +2237,72 @@ const generateSiteTimeSeries = (siteDetail: any) => {
   return data;
 };
 
+// Fetch real QoE metrics from Cloud for a site's cells
+const useCloudQoeMetrics = (siteDetail: any) => {
+  const [cloudData, setCloudData] = useState<any[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [source, setSource] = useState<'cloud' | 'mock'>('mock');
+
+  useEffect(() => {
+    if (!siteDetail?.cells?.length) { setCloudData(null); return; }
+    let cancelled = false;
+    const cellIds = siteDetail.cells.map((c: any) => c.cell_id);
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('qoe_metrics')
+          .select('dt, qoe_score_avg, dms_dl_3, dms_dl_8, dms_dl_30, dms_ul_3, p50_thr_dn_mbps, p50_thr_up_mbps, p95_rtt_ms, cell_id, site_id')
+          .or(`site_id.eq.${siteDetail.site_id},${cellIds.map((id: string) => `cell_id.eq.${id}`).join(',')}`)
+          .order('dt', { ascending: true })
+          .limit(500);
+
+        if (error || !data || data.length === 0) {
+          if (!cancelled) { setCloudData(null); setSource('mock'); }
+          return;
+        }
+
+        // Group by date and average
+        const byDate = new Map<string, any[]>();
+        data.forEach((row: any) => {
+          const d = row.dt;
+          if (!byDate.has(d)) byDate.set(d, []);
+          byDate.get(d)!.push(row);
+        });
+
+        const avgVal = (arr: any[], key: string) => {
+          const vals = arr.map(r => r[key]).filter((v: any) => v != null);
+          return vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+        };
+
+        const series = Array.from(byDate.entries()).map(([dt, rows]) => ({
+          date: new Date(dt).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+          QoE: avgVal(rows, 'qoe_score_avg'),
+          'DMS 3M': avgVal(rows, 'dms_dl_3'),
+          'DMS 8M': avgVal(rows, 'dms_dl_8'),
+          'DMS 30M': avgVal(rows, 'dms_dl_30'),
+          'DMS UL': avgVal(rows, 'dms_ul_3'),
+          'Débit DL': avgVal(rows, 'p50_thr_dn_mbps'),
+          'Débit UL': avgVal(rows, 'p50_thr_up_mbps'),
+          'RTT P95': avgVal(rows, 'p95_rtt_ms'),
+        }));
+
+        if (!cancelled) { setCloudData(series); setSource('cloud'); }
+      } catch {
+        if (!cancelled) { setCloudData(null); setSource('mock'); }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => { cancelled = true; };
+  }, [siteDetail?.site_id]);
+
+  return { cloudData, loading, source };
+};
+
 const KPI_SERIES = [
   { key: 'QoE', color: '#1e293b', label: 'QOE' },
   { key: 'DMS 3M', color: '#10b981', label: 'DMS 3M' },
@@ -2246,7 +2313,9 @@ const KPI_SERIES = [
 
 const SiteKpiChart = ({ siteDetail, fullHeight }: { siteDetail: any; fullHeight?: boolean }) => {
   const [activeSeries, setActiveSeries] = useState<Set<string>>(new Set(KPI_SERIES.map(k => k.key)));
-  const data = useMemo(() => generateSiteTimeSeries(siteDetail), [siteDetail]);
+  const { cloudData, loading: cloudLoading, source } = useCloudQoeMetrics(siteDetail);
+  const mockData = useMemo(() => generateSiteTimeSeries(siteDetail), [siteDetail]);
+  const data = cloudData ?? mockData;
 
   const toggleSeries = (key: string) => {
     setActiveSeries(prev => {
@@ -2259,26 +2328,33 @@ const SiteKpiChart = ({ siteDetail, fullHeight }: { siteDetail: any; fullHeight?
 
   return (
     <div className="space-y-3">
-      {/* Toggle chips */}
-      <div className="flex flex-wrap gap-1.5">
-        {KPI_SERIES.map(s => {
-          const isActive = activeSeries.has(s.key);
-          return (
-            <button
-              key={s.key}
-              onClick={() => toggleSeries(s.key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all ${
-                isActive
-                  ? 'text-white shadow-sm'
-                  : 'bg-muted text-muted-foreground'
-              }`}
-              style={isActive ? { background: s.color } : undefined}
-            >
-              <div className="w-2 h-2 rounded-full" style={{ background: s.color }} />
-              {s.label}
-            </button>
-          );
-        })}
+      {/* Source badge */}
+      <div className="flex items-center justify-between">
+        <div className="flex flex-wrap gap-1.5">
+          {KPI_SERIES.map(s => {
+            const isActive = activeSeries.has(s.key);
+            return (
+              <button
+                key={s.key}
+                onClick={() => toggleSeries(s.key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all ${
+                  isActive
+                    ? 'text-white shadow-sm'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+                style={isActive ? { background: s.color } : undefined}
+              >
+                <div className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+        <span className={`text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg ${
+          source === 'cloud' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+        }`}>
+          {cloudLoading ? '⏳' : source === 'cloud' ? '☁ Cloud' : '◈ Simul'}
+        </span>
       </div>
       {/* Chart */}
       <div className={fullHeight ? "flex-1 min-h-[250px]" : "h-[200px]"}>
@@ -2304,6 +2380,7 @@ const SiteKpiChart = ({ siteDetail, fullHeight }: { siteDetail: any; fullHeight?
                 strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 3 }}
+                connectNulls
               />
             ))}
           </LineChart>
