@@ -78,14 +78,31 @@ const BAND_COLORS: Record<string, string> = {
   L700:   '#1d4ed8',  // blue-700
 };
 
-const getBandColor = (bande: string): string => {
-  if (!bande) return '#94a3b8'; // slate fallback
-  // Normalize: "NR 3500" → "NR3500", "2100" with techno context
-  const normalized = bande.replace(/\s+/g, '').toUpperCase();
-  for (const [key, color] of Object.entries(BAND_COLORS)) {
-    if (normalized.includes(key)) return color;
+const normalizeBandKey = (bande: string, techno?: string): keyof typeof BAND_COLORS | null => {
+  if (!bande) return null;
+  const normalized = bande.replace(/\s+/g, '').replace(/MHZ/gi, '').toUpperCase();
+  const is5G = (techno || '').toUpperCase().includes('5G') || normalized.includes('NR') || /^N\d+$/i.test(normalized);
+
+  if (normalized.includes('3500') || normalized.includes('NR3500') || normalized.includes('N78')) return 'NR3500';
+  if (normalized.includes('2600') || normalized.includes('L2600') || normalized.includes('B7')) return 'L2600';
+  if (normalized.includes('1800') || normalized.includes('L1800') || normalized.includes('B3')) return 'L1800';
+  if (normalized.includes('800') || normalized.includes('L800') || normalized.includes('B20') || normalized.includes('B8')) return 'L800';
+
+  if (normalized.includes('2100') || normalized.includes('NR2100') || normalized.includes('L2100') || normalized === 'N1' || normalized === 'B1') {
+    return is5G ? 'NR2100' : 'L2100';
   }
-  return '#94a3b8';
+
+  if (normalized.includes('700') || normalized.includes('NR700') || normalized.includes('L700') || normalized === 'N28' || normalized === 'B28') {
+    return is5G ? 'NR700' : 'L700';
+  }
+
+  return null;
+};
+
+const getBandColor = (bande: string, techno?: string): string => {
+  const key = normalizeBandKey(bande, techno);
+  if (!key) return '#94a3b8';
+  return BAND_COLORS[key];
 };
 
 // Keep legacy techno color for modes that don't have bande info
@@ -450,13 +467,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite]);
 
   // Check if a cell's band passes the band filter
-  const isBandEnabled = useCallback((bande: string) => {
-    if (!bande) return true;
-    const normalized = bande.replace(/\s+/g, '').toUpperCase();
-    for (const key of enabledBands) {
-      if (normalized.includes(key)) return true;
-    }
-    return false;
+  const isBandEnabled = useCallback((bande: string, techno?: string) => {
+    const key = normalizeBandKey(bande, techno);
+    // Unknown formats stay visible instead of disappearing
+    if (!key) return true;
+    return enabledBands.has(key);
   }, [enabledBands]);
 
   const toggleBand = useCallback((band: string) => {
@@ -624,7 +639,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {mapDisplayMode === 'points' && visibleSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells
-            : site.cells.filter(c => c.techno === mapTechnoFilter)).filter(c => isBandEnabled(c.bande));
+            : site.cells.filter(c => c.techno === mapTechnoFilter)).filter(c => isBandEnabled(c.bande, c.techno));
           return (
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
@@ -722,9 +737,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const zoomRadius = viewport.zoom >= 15 ? 900 : viewport.zoom >= 14 ? 700 : viewport.zoom >= 13 ? 550 : 400;
           return (
             <React.Fragment key={site.site_id}>
-              {site.cells.filter(c => isBandEnabled(c.bande)).map(cell => {
+              {site.cells.filter(c => isBandEnabled(c.bande, c.techno)).map(cell => {
                 const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, zoomRadius, 60);
-                const color = sectorColorMode === 'topo' ? getBandColor(cell.bande) : getKpiColor(getCellKpiValue(cell));
+                const color = sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell));
                 return (
                   <Polygon
                     key={cell.cell_id}
