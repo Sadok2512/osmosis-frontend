@@ -9,7 +9,22 @@ const LOCAL_API = import.meta.env.VITE_LOCAL_API;
 const isBrowserRunningLocally = (): boolean => {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname;
-  return host === 'localhost' || host === '127.0.0.1';
+
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') {
+    return true;
+  }
+
+  if (host.endsWith('.local') || host.startsWith('192.168.') || host.startsWith('10.')) {
+    return true;
+  }
+
+  const private172 = host.match(/^172\.(\d{1,3})\./);
+  if (private172) {
+    const octet = Number(private172[1]);
+    return octet >= 16 && octet <= 31;
+  }
+
+  return false;
 };
 
 export const isLocalMode = (): boolean => !!LOCAL_API && isBrowserRunningLocally();

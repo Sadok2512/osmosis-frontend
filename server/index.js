@@ -21,6 +21,16 @@ function createPool(config) {
   });
 }
 
+function getLocalDbConfig(overrides = {}) {
+  return {
+    host: overrides.host || process.env.PG_HOST || 'localhost',
+    port: overrides.port || process.env.PG_PORT || '5432',
+    database: overrides.database || process.env.PG_DATABASE || 'RAN_OP',
+    user: overrides.user || process.env.PG_USER || 'postgres',
+    password: overrides.password ?? process.env.PG_PASSWORD ?? 'root',
+  };
+}
+
 // Build TABLE_SQL dynamically based on pgvector availability
 function buildTableSQL(hasVector) {
   const embeddingType = hasVector ? 'VECTOR(768)' : 'TEXT';
@@ -372,7 +382,7 @@ app.post('/api/rag-embed', async (req, res) => {
 // ─── /api/import-dump (import dump_parameter/dump_parametre CSV rows) ───
 app.post('/api/import-dump', async (req, res) => {
   const { rows, clear_before, config } = req.body;
-  const pool = createPool(config || { host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
+  const pool = createPool(config || getLocalDbConfig());
 
   try {
     const tableChoice = await pool.query(`
@@ -467,7 +477,7 @@ function extractSiteName(query) {
 
 // ─── Helper: search dump_parameter locally ───
 async function searchDumpParameterLocal(query) {
-  const pool = createPool({ host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
+  const pool = createPool(getLocalDbConfig());
   try {
     const tableChoice = await pool.query(`
       SELECT CASE
@@ -559,7 +569,7 @@ async function searchDumpParameterLocal(query) {
 
 // ─── Helper: search RAG documents locally ───
 async function searchRAGLocal(query) {
-  const pool = createPool({ host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
+  const pool = createPool(getLocalDbConfig());
   try {
     const terms = (query.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []).slice(0, 4);
     if (terms.length === 0) return '';
@@ -693,7 +703,7 @@ Réponds TOUJOURS en français.`;
 
 // ─── /api/dump-parameter (query with filters) ───
 app.get('/api/dump-parameter', async (req, res) => {
-  const pool = createPool({ host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
+  const pool = createPool(getLocalDbConfig());
   try {
     const tableChoice = await pool.query(`
       SELECT CASE
@@ -708,7 +718,7 @@ app.get('/api/dump-parameter', async (req, res) => {
 
     // Special mode: get distinct values for a column
     if (distinct_col) {
-      const allowedCols = ['site_name', 'cell_name', 'parameter', 'dor', 'plaque', 'vendor'];
+      const allowedCols = ['site_name', 'cell_name', 'parameter', 'dor', 'plaque', 'vendor', 'ur', 'dr', 'bande'];
       if (!allowedCols.includes(distinct_col)) return res.json([]);
       let q = `SELECT DISTINCT ${distinct_col} FROM ${dumpTable} WHERE ${distinct_col} IS NOT NULL`;
       const params = [];
