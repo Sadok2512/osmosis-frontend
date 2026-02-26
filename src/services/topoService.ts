@@ -152,7 +152,7 @@ let cachedLocalSites: SiteSummary[] | null = null;
 export async function fetchTopoSites(): Promise<SiteSummary[]> {
   if (cachedLocalSites) return cachedLocalSites;
 
-  // 1) Try local Express server only
+  // 1) Try local Express server
   try {
     const resp = await fetch(`${LOCAL_API}/api/topo?limit=100000`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -166,10 +166,43 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
       return cachedLocalSites;
     }
   } catch (err) {
-    console.warn('[TopoService] LOCAL fetch failed, falling back to embedded data', err);
+    console.warn('[TopoService] LOCAL fetch failed, trying Cloud...', err);
   }
 
-  // 2) Fallback to embedded static data
+  // 2) Try Lovable Cloud (Supabase topo table)
+  try {
+    const PAGE_SIZE = 1000;
+    let allRows: TopoRow[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('topo')
+        .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac')
+        .range(offset, offset + PAGE_SIZE - 1);
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        hasMore = false;
+      } else {
+        allRows = allRows.concat(data as TopoRow[]);
+        offset += PAGE_SIZE;
+        if (data.length < PAGE_SIZE) hasMore = false;
+      }
+    }
+
+    console.log(`[TopoService] CLOUD: received ${allRows.length} cells`);
+    if (allRows.length > 0) {
+      cachedLocalSites = buildSitesFromRows(allRows);
+      console.log(`[TopoService] CLOUD: Built ${cachedLocalSites.length} sites`);
+      return cachedLocalSites;
+    }
+  } catch (err) {
+    console.warn('[TopoService] CLOUD fetch failed, falling back to embedded data', err);
+  }
+
+  // 3) Fallback to embedded static data
   cachedLocalSites = buildSitesFromLocalTopo();
   console.log(`[TopoService] FALLBACK: Built ${cachedLocalSites.length} sites from embedded data`);
   return cachedLocalSites;
