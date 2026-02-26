@@ -243,59 +243,86 @@ export type Database = {
         Row: {
           azimut: number | null
           bande: string | null
+          cid: number | null
           code_nidt: string
           constructeur: string | null
           created_at: string | null
           date_fn8: string | null
           date_mes: string | null
+          dor: string | null
+          eci: number | null
+          essentiel: string | null
+          etat_cellule: string | null
           hba: number | null
           id: number
           latitude: number | null
           longitude: number | null
+          nci: number | null
           nom_cellule: string
           nom_site: string
+          pci: number | null
           plaque: string | null
           region: string | null
+          remote_electrical_tilt: number | null
           tac: number | null
           techno: string | null
+          zone_arcep: string | null
         }
         Insert: {
           azimut?: number | null
           bande?: string | null
+          cid?: number | null
           code_nidt: string
           constructeur?: string | null
           created_at?: string | null
           date_fn8?: string | null
           date_mes?: string | null
+          dor?: string | null
+          eci?: number | null
+          essentiel?: string | null
+          etat_cellule?: string | null
           hba?: number | null
           id?: never
           latitude?: number | null
           longitude?: number | null
+          nci?: number | null
           nom_cellule: string
           nom_site: string
+          pci?: number | null
           plaque?: string | null
           region?: string | null
+          remote_electrical_tilt?: number | null
           tac?: number | null
           techno?: string | null
+          zone_arcep?: string | null
         }
         Update: {
           azimut?: number | null
           bande?: string | null
+          cid?: number | null
           code_nidt?: string
           constructeur?: string | null
           created_at?: string | null
           date_fn8?: string | null
           date_mes?: string | null
+          dor?: string | null
+          eci?: number | null
+          essentiel?: string | null
+          etat_cellule?: string | null
           hba?: number | null
           id?: never
           latitude?: number | null
           longitude?: number | null
+          nci?: number | null
           nom_cellule?: string
           nom_site?: string
+          pci?: number | null
           plaque?: string | null
           region?: string | null
+          remote_electrical_tilt?: number | null
           tac?: number | null
           techno?: string | null
+          zone_arcep?: string | null
         }
         Relationships: []
       }
