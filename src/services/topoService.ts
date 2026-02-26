@@ -159,16 +159,16 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
       const resp = await fetch(getApiUrl('topo') + '?limit=100000');
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const json = await resp.json();
-      // Support both old format (array) and new format ({ rows, total })
-      const rows = Array.isArray(json) ? json : (json.rows || []);
-      const total = json.total || rows.length;
-      if (rows.length > 0) {
-        cachedLocalSites = buildSitesFromRows(rows as TopoRow[]);
-        console.log(`[TopoService] LOCAL: Loaded ${rows.length}/${total} cells → ${cachedLocalSites.length} sites`);
-        return cachedLocalSites;
+      const rows: TopoRow[] = json.rows ?? [];
+      const total: number = json.total ?? rows.length;
+      console.log(`[TopoService] LOCAL: received ${rows.length}/${total} cells`);
+      if (rows.length === 0) {
+        console.warn('[TopoService] LOCAL: topo table is empty or returned 0 rows');
+        return [];
       }
-      console.log('[TopoService] LOCAL: topo table empty');
-      return [];
+      cachedLocalSites = buildSitesFromRows(rows);
+      console.log(`[TopoService] LOCAL: Built ${cachedLocalSites.length} sites`);
+      return cachedLocalSites;
     } catch (err) {
       console.warn('[TopoService] LOCAL fetch failed', err);
       return [];
