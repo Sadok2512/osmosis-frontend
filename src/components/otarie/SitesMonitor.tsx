@@ -1021,75 +1021,127 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       </div>
 
-      {/* Floating top bar — horizontal KPI quick-select tabs matching reference */}
-      <div className="absolute top-4 left-[420px] right-[420px] z-[1000] pointer-events-auto">
-        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-2 py-1.5 flex items-center gap-1 overflow-x-auto">
-          {/* Sector color mode toggle: Topo vs KPI */}
-          <div className="flex items-center bg-muted rounded-lg overflow-hidden mr-1 border border-border">
+      {/* Floating top bar — redesigned KPI selector with grouped tabs */}
+      <div className="absolute top-4 left-[420px] right-[80px] z-[1000] pointer-events-auto">
+        <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl px-3 py-2 flex items-center gap-2">
+          {/* Sector color mode toggle */}
+          <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
             <button
               onClick={() => setSectorColorMode('kpi')}
-              className={`px-2.5 py-2 text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${
+              className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
                 sectorColorMode === 'kpi'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Zap size={10} />
+              <Zap size={11} />
               QoE
             </button>
             <button
               onClick={() => setSectorColorMode('topo')}
-              className={`px-2.5 py-2 text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${
+              className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
                 sectorColorMode === 'topo'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Radio size={10} />
+              <Radio size={11} />
               Topo
             </button>
           </div>
-          <span className="w-px h-5 bg-border" />
-          {MAP_KPIS.filter(k => ['dms_dl_30', 'dms_dl_8', 'dms_dl_3', 'dms_ul_3', 'p50_thr_dn_mbps', 'p50_thr_up_mbps'].includes(k.id)).map(kpi => (
-            <button
-              key={kpi.id}
-              onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-              className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                mapKpi === kpi.id
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              <Zap size={11} />
-              {kpi.label.replace('Débit ', '').replace(' Moyen (Mbps)', '').replace(' ≥ ', ' ')}
-            </button>
-          ))}
-          <div className="relative ml-auto">
+
+          <span className="w-px h-6 bg-border/50 shrink-0" />
+
+          {/* DL group */}
+          <div className="flex items-center gap-0.5 shrink-0">
+            <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬇ DL</span>
+            {MAP_KPIS.filter(k => ['qoe_score_avg', 'dms_dl_3', 'dms_dl_8', 'dms_dl_30', 'p50_thr_dn_mbps'].includes(k.id)).map(kpi => {
+              const shortLabels: Record<string, string> = {
+                'qoe_score_avg': 'QoE',
+                'dms_dl_3': '≥3',
+                'dms_dl_8': '≥8',
+                'dms_dl_30': '≥30',
+                'p50_thr_dn_mbps': 'Débit',
+              };
+              return (
+                <button
+                  key={kpi.id}
+                  onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
+                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                    mapKpi === kpi.id
+                      ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                  }`}
+                  title={kpi.label}
+                >
+                  {shortLabels[kpi.id] || kpi.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <span className="w-px h-6 bg-border/50 shrink-0" />
+
+          {/* UL group */}
+          <div className="flex items-center gap-0.5 shrink-0">
+            <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬆ UL</span>
+            {MAP_KPIS.filter(k => ['dms_ul_3', 'p50_thr_up_mbps'].includes(k.id)).map(kpi => {
+              const shortLabels: Record<string, string> = {
+                'dms_ul_3': '≥3',
+                'p50_thr_up_mbps': 'Débit',
+              };
+              return (
+                <button
+                  key={kpi.id}
+                  onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
+                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                    mapKpi === kpi.id
+                      ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                  }`}
+                  title={kpi.label}
+                >
+                  {shortLabels[kpi.id] || kpi.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <span className="w-px h-6 bg-border/50 shrink-0" />
+
+          {/* Plus dropdown for TCP/RTT/Volume */}
+          <div className="relative shrink-0">
             <button
               onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-              className="px-3 py-2 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center gap-1"
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
+                ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
+                  ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
+              }`}
             >
               <SlidersHorizontal size={12} />
               Plus
-              {showKpiDropdown ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
             </button>
             {showKpiDropdown && (
-              <div className="absolute top-10 right-0 w-[280px] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
-                <div className="max-h-[350px] overflow-y-auto py-1">
-                  {MAP_KPIS.map(kpi => (
-                    <button
-                      key={kpi.id}
-                      onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); }}
-                      className={`w-full text-left px-4 py-3 flex items-center justify-between transition-all ${
-                        mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
-                      }`}
-                    >
-                      <div>
-                        <div className="text-[11px] font-bold uppercase tracking-tight">{kpi.label}</div>
-                        <div className={`text-[9px] font-semibold uppercase tracking-widest mt-0.5 ${mapKpi === kpi.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{kpi.category}</div>
-                      </div>
-                      {mapKpi === kpi.id && <span className="text-sm">✓</span>}
-                    </button>
+              <div className="absolute top-10 right-0 w-[300px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
+                <div className="max-h-[400px] overflow-y-auto py-1">
+                  {['RTT', 'TCP', 'VOLUME'].map(cat => (
+                    <div key={cat}>
+                      <div className="px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30">{cat}</div>
+                      {MAP_KPIS.filter(k => k.category === cat).map(kpi => (
+                        <button
+                          key={kpi.id}
+                          onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); }}
+                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-all ${
+                            mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
+                          }`}
+                        >
+                          <div className="text-[11px] font-bold">{kpi.label}</div>
+                          {mapKpi === kpi.id && <span className="text-xs">✓</span>}
+                        </button>
+                      ))}
+                    </div>
                   ))}
                 </div>
               </div>
