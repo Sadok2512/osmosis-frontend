@@ -64,19 +64,34 @@ interface SitesMonitorProps {
 // Zoom threshold: above this we show sectors, below we show clusters
 const SECTOR_ZOOM_THRESHOLD = 13;
 
-// Band-based color mapping for sector rendering
+// Band-based color mapping — desaturated engineering palette
 const BAND_COLORS: Record<string, string> = {
-  // NR (5G) — purple tones
-  NR3500: '#a855f7',  // purple-500
-  NR700:  '#c084fc',  // purple-400
-  NR2100: '#7c3aed',  // violet-600
-  // LTE (4G) — blue tones
-  L2600:  '#3b82f6',  // blue-500
-  L2100:  '#60a5fa',  // blue-400
-  L1800:  '#2563eb',  // blue-600
-  L800:   '#93c5fd',  // blue-300
-  L700:   '#1d4ed8',  // blue-700
+  // NR (5G) — muted violet tones
+  NR3500: '#8b7ec8',  // muted violet
+  NR700:  '#9f8fdb',  // soft lavender
+  NR2100: '#7565b0',  // deeper muted violet
+  // LTE (4G) — steel blue tones
+  L2600:  '#5b8db8',  // steel blue
+  L2100:  '#6d9ec5',  // lighter steel
+  L1800:  '#4a7da8',  // deeper steel
+  L800:   '#7eaed0',  // soft steel
+  L700:   '#3d6d98',  // dark steel
 };
+
+// Stroke colors — slightly darker than fills
+const BAND_STROKE_COLORS: Record<string, string> = {
+  NR3500: '#6b5eaa',
+  NR700:  '#7f6fbb',
+  NR2100: '#5545a0',
+  L2600:  '#3b6d98',
+  L2100:  '#4d7ea5',
+  L1800:  '#2a5d88',
+  L800:   '#5e8eb0',
+  L700:   '#1d4d78',
+};
+
+// Inactive/faded color for technology hierarchy mode
+const FADED_COLOR = '#94a3b8';
 
 const normalizeBandKey = (bande: string, techno?: string): keyof typeof BAND_COLORS | null => {
   if (!bande) return null;
@@ -107,8 +122,15 @@ const getBandColor = (bande: string, techno?: string): string => {
 
 // Keep legacy techno color for modes that don't have bande info
 const getTechnoColor = (techno: string): string => {
-  if (techno === '5G') return '#a855f7'; // purple
-  return '#3b82f6'; // blue
+  if (techno === '5G') return '#8b7ec8'; // muted violet
+  return '#5b8db8'; // steel blue
+};
+
+// Get stroke color for a band
+const getBandStrokeColor = (bande: string, techno?: string): string => {
+  const key = normalizeBandKey(bande, techno);
+  if (!key) return '#64748b';
+  return BAND_STROKE_COLORS[key] || '#64748b';
 };
 
 // Compute meters-per-pixel at a given latitude and zoom level
@@ -116,12 +138,11 @@ const metersPerPixel = (lat: number, zoom: number): number => {
   return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
 };
 
-// Sector radius in meters that keeps a constant ~60px visual size on screen
+// Sector radius in meters — constant ~45px visual size, calmer proportions
 const getZoomAwareRadius = (lat: number, zoom: number): number => {
-  const TARGET_PX = 60; // constant pixel radius on screen
+  const TARGET_PX = 45; // reduced from 60 for cleaner look
   const mpp = metersPerPixel(lat, zoom);
-  // Clamp between 50m and 2000m to stay reasonable
-  return Math.max(50, Math.min(2000, TARGET_PX * mpp));
+  return Math.max(40, Math.min(1500, TARGET_PX * mpp));
 };
 
 // Generate sector polygon points (wedge shape)
@@ -294,11 +315,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const TILE_URLS: Record<typeof mapLayer, { url: string; attribution: string }> = {
     light: {
-      url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      url: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
     },
     dark: {
-      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
     },
     satellite: {
@@ -744,25 +765,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           );
         })}
 
-        {/* Detailed sectors (only when zoomed in, sites mode) */}
+        {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
         {showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom);
+          // Smart overlap: reduce opacity further when many sites visible
+          const overlapFactor = visibleSites.length > 200 ? 0.08 : visibleSites.length > 80 ? 0.12 : 0.15;
           return (
             <React.Fragment key={site.site_id}>
               {site.cells.filter(c => isBandEnabled(c.bande, c.techno)).map(cell => {
                 const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, zoomRadius, 60);
-                const color = sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell));
+                const is5G = (cell.techno || '').toUpperCase().includes('5G');
+                // Technology hierarchy: when a specific tech is selected, fade the other
+                const isFaded = (mapTechnoFilter === '5G' && !is5G) || (mapTechnoFilter === '4G' && is5G);
+                const fillColor = isFaded ? FADED_COLOR : (sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
+                const strokeColor = isFaded ? '#cbd5e1' : (sectorColorMode === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
+                const baseOpacity = isFaded ? 0.06 : overlapFactor;
                 return (
                   <Polygon
                     key={cell.cell_id}
                     positions={sectorCoords}
                     pathOptions={{
-                      color: isHovered ? '#fff' : color,
-                      fillColor: color,
-                      fillOpacity: isHovered ? 0.45 : 0.3,
-                      weight: isHovered ? 1.5 : 0.5,
-                      opacity: isHovered ? 0.9 : 0.6,
+                      color: isHovered ? '#fff' : strokeColor,
+                      fillColor: fillColor,
+                      fillOpacity: isHovered ? 0.28 : baseOpacity,
+                      weight: isHovered ? 1.5 : 1,
+                      opacity: isHovered ? 0.9 : (isFaded ? 0.2 : 0.55),
                     }}
                     eventHandlers={{
                       click: () => handleSiteClick(site),
@@ -772,7 +800,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   >
                     <Tooltip direction="top" offset={[0, -8]} permanent={false} className="sector-tooltip">
                       <div className="px-3 py-2 min-w-[150px]">
-                        <div className="text-[10px] font-black uppercase tracking-wider" style={{ color }}>{site.site_name}</div>
+                        <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: fillColor }}>{site.site_name}</div>
                         <div className="text-[9px] opacity-60 font-mono mt-0.5">{site.site_id}</div>
                         <div className="mt-1.5 space-y-0.5 text-[10px]">
                           <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{cell.techno}</span></div>
@@ -801,13 +829,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   mouseout: () => setHoveredSiteId(null),
                 }}
               >
-                {viewport.zoom >= 14 && (
+                {viewport.zoom >= 15 && (
                   <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
                     <span style={{
-                      fontSize: viewport.zoom >= 16 ? '10px' : '8px',
-                      fontWeight: 600,
+                      fontSize: viewport.zoom >= 17 ? '10px' : '8px',
+                      fontWeight: 500,
                       letterSpacing: '0.03em',
-                      color: '#334155',
+                      color: '#4B5563',
                       textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 1px 2px rgba(255,255,255,0.9)',
                       background: 'none',
                       border: 'none',
