@@ -62,7 +62,7 @@ interface SitesMonitorProps {
 }
 
 // Zoom threshold: above this we show sectors, below we show clusters
-const SECTOR_ZOOM_THRESHOLD = 12;
+const SECTOR_ZOOM_THRESHOLD = 13;
 
 // Band-based color mapping for sector rendering
 const BAND_COLORS: Record<string, string> = {
@@ -734,7 +734,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Detailed sectors (only when zoomed in, sites mode) */}
         {showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
-          const zoomRadius = viewport.zoom >= 15 ? 900 : viewport.zoom >= 14 ? 700 : viewport.zoom >= 13 ? 550 : 400;
+          const zoomRadius = viewport.zoom >= 15 ? 280 : viewport.zoom >= 14 ? 220 : 170;
           return (
             <React.Fragment key={site.site_id}>
               {site.cells.filter(c => isBandEnabled(c.bande, c.techno)).map(cell => {
@@ -747,9 +747,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pathOptions={{
                       color: isHovered ? 'rgba(255,255,255,0.6)' : color,
                       fillColor: color,
-                      fillOpacity: isHovered ? 0.7 : 0.55,
-                      weight: isHovered ? 2 : 1,
-                      opacity: 0.85,
+                      fillOpacity: isHovered ? 0.5 : 0.32,
+                      weight: isHovered ? 1.5 : 1,
+                      opacity: 0.7,
                     }}
                     eventHandlers={{
                       click: () => handleSiteClick(site),
