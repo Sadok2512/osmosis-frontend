@@ -757,21 +757,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </Polygon>
                 );
               })}
-              {/* Antenna center icon */}
+              {/* Small invisible click target + labels (no antenna icon) */}
               <Marker
                 position={site.coordinates}
                 icon={L.divIcon({
-                  html: `<div style="display:flex;align-items:center;justify-content:center;width:16px;height:16px;">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${isHovered ? '#fff' : '#334155'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M12 20V10"/>
-                      <path d="M18 6l-6 4-6-4"/>
-                      <path d="M6 6l6-4 6 4"/>
-                      <circle cx="12" cy="10" r="1.5" fill="${isHovered ? '#fff' : '#334155'}" stroke="none"/>
-                    </svg>
-                  </div>`,
-                  className: 'site-antenna-icon',
-                  iconSize: L.point(16, 16),
-                  iconAnchor: L.point(8, 8),
+                  html: `<div style="width:6px;height:6px;"></div>`,
+                  className: '',
+                  iconSize: L.point(6, 6),
+                  iconAnchor: L.point(3, 3),
                 })}
                 eventHandlers={{
                   click: () => handleSiteClick(site),
