@@ -276,6 +276,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'OFF'>('ALL');
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(BAND_COLORS)));
   const [showBandPanel, setShowBandPanel] = useState(false);
+  const [sectorColorMode, setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
   const [detailFullscreen, setDetailFullscreen] = useState(false);
 
   // LOS / Radio Profile state
@@ -697,7 +698,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <React.Fragment key={site.site_id}>
               {site.cells.filter(c => isBandEnabled(c.bande)).map(cell => {
                 const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, zoomRadius, 60);
-                const color = getBandColor(cell.bande);
+                const color = sectorColorMode === 'topo' ? getBandColor(cell.bande) : getKpiColor(getCellKpiValue(cell));
                 return (
                   <Polygon
                     key={cell.cell_id}
@@ -1023,10 +1024,36 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* Floating top bar — horizontal KPI quick-select tabs matching reference */}
       <div className="absolute top-4 left-[420px] right-[420px] z-[1000] pointer-events-auto">
         <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-2 py-1.5 flex items-center gap-1 overflow-x-auto">
+          {/* Sector color mode toggle: Topo vs KPI */}
+          <div className="flex items-center bg-muted rounded-lg overflow-hidden mr-1 border border-border">
+            <button
+              onClick={() => setSectorColorMode('kpi')}
+              className={`px-2.5 py-2 text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${
+                sectorColorMode === 'kpi'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Zap size={10} />
+              QoE
+            </button>
+            <button
+              onClick={() => setSectorColorMode('topo')}
+              className={`px-2.5 py-2 text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${
+                sectorColorMode === 'topo'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Radio size={10} />
+              Topo
+            </button>
+          </div>
+          <span className="w-px h-5 bg-border" />
           {MAP_KPIS.filter(k => ['dms_dl_30', 'dms_dl_8', 'dms_dl_3', 'dms_ul_3', 'p50_thr_dn_mbps', 'p50_thr_up_mbps'].includes(k.id)).map(kpi => (
             <button
               key={kpi.id}
-              onClick={() => setMapKpi(kpi.id)}
+              onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
               className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 mapKpi === kpi.id
                   ? 'bg-primary text-primary-foreground shadow-sm'
@@ -1052,7 +1079,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   {MAP_KPIS.map(kpi => (
                     <button
                       key={kpi.id}
-                      onClick={() => { setMapKpi(kpi.id); setShowKpiDropdown(false); }}
+                      onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); }}
                       className={`w-full text-left px-4 py-3 flex items-center justify-between transition-all ${
                         mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
                       }`}
