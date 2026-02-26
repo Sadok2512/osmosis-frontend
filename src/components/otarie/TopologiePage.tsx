@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isLocalMode, getApiUrl } from '@/lib/apiConfig';
-import { Search, Filter, Download, BarChart3, TableIcon, Loader2, ChevronDown } from 'lucide-react';
+import { Search, Filter, Download, BarChart3, TableIcon, Loader2, ChevronDown, Wifi, WifiOff, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -34,6 +34,8 @@ type ColorBy = 'value' | 'aggregator';
 
 const TopologiePage: React.FC = () => {
   const [data, setData] = useState<DumpRow[]>([]);
+  const [cnxStatus, setCnxStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
+  const [cnxMessage, setCnxMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -205,6 +207,34 @@ const TopologiePage: React.FC = () => {
   };
 
   const aggLabel = aggregator === 'ur' ? 'UR' : 'Plaque';
+  const isLocal = isLocalMode();
+  const backendLabel = isLocal ? 'Local (RAN_OP)' : 'Cloud';
+  const tableTarget = 'dump_parameter';
+
+  const testConnection = async () => {
+    setCnxStatus('testing');
+    setCnxMessage('');
+    try {
+      if (isLocal) {
+        const resp = await fetch(`${getApiUrl('dump-parameter')}?${new URLSearchParams({ distinct_col: 'parameter' })}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const rows = await resp.json();
+        setCnxStatus('ok');
+        setCnxMessage(`✅ Connecté — ${rows.length} paramètres trouvés`);
+      } else {
+        const { data, error } = await supabase.from('dump_parameter').select('parameter', { count: 'exact', head: false }).limit(1);
+        if (error) throw error;
+        const { count } = await supabase.from('dump_parameter').select('*', { count: 'exact', head: true });
+        setCnxStatus('ok');
+        setCnxMessage(`✅ Connecté — ${count ?? '?'} lignes dans dump_parameter`);
+      }
+    } catch (err: any) {
+      setCnxStatus('error');
+      setCnxMessage(`❌ Erreur: ${err.message || err}`);
+    }
+  };
+
+
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
@@ -215,13 +245,40 @@ const TopologiePage: React.FC = () => {
             <h1 className="text-xl font-bold text-foreground">Topologie Réseau</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Exploration des paramètres CM Dump</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Backend info badge */}
+            <Badge variant="outline" className="text-xs gap-1">
+              <Database className="w-3 h-3" />
+              {backendLabel} → <span className="font-mono">{tableTarget}</span>
+            </Badge>
+            {/* Connection test button */}
+            <button
+              onClick={testConnection}
+              disabled={cnxStatus === 'testing'}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                cnxStatus === 'ok' ? 'bg-green-600 text-white' :
+                cnxStatus === 'error' ? 'bg-destructive text-destructive-foreground' :
+                'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              }`}
+            >
+              {cnxStatus === 'testing' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
+               cnxStatus === 'ok' ? <Wifi className="w-3.5 h-3.5" /> :
+               cnxStatus === 'error' ? <WifiOff className="w-3.5 h-3.5" /> :
+               <Wifi className="w-3.5 h-3.5" />}
+              Test CNX
+            </button>
             <Badge variant="secondary" className="text-xs">{data.length} cellules</Badge>
             <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
               <Download className="w-3.5 h-3.5" /> Export CSV
             </button>
           </div>
         </div>
+        {/* Connection test result */}
+        {cnxMessage && (
+          <div className={`text-xs px-3 py-2 rounded-md ${cnxStatus === 'ok' ? 'bg-green-500/10 text-green-400' : 'bg-destructive/10 text-destructive'}`}>
+            {cnxMessage}
+          </div>
+        )}
 
         {/* Row 1: Search Parameter */}
         <div className="space-y-1">
