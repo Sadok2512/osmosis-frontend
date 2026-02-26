@@ -157,49 +157,48 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
     if (cachedDbSites) return cachedDbSites;
     try {
       const resp = await fetch(getApiUrl('topo'));
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const rows = await resp.json();
       if (Array.isArray(rows) && rows.length > 0) {
         cachedDbSites = buildSitesFromRows(rows as TopoRow[]);
         console.log(`[TopoService] LOCAL: Loaded ${rows.length} cells → ${cachedDbSites.length} sites`);
         return cachedDbSites;
       }
-      console.log('[TopoService] LOCAL: topo table empty');
-      return [];
+      console.log('[TopoService] LOCAL: topo table empty, trying cloud fallback');
     } catch (err) {
-      console.warn('[TopoService] LOCAL fetch failed', err);
-      return [];
+      console.warn('[TopoService] LOCAL fetch failed, trying cloud fallback', err);
     }
   }
 
-  // Cloud mode — try DB first (only check once per session, then cache)
+  // Cloud mode — paginated fetch (no fragile HEAD count pre-check)
   if (!dbChecked) {
     dbChecked = true;
     try {
-      const { count } = await supabase.from('topo').select('id', { count: 'exact', head: true });
-      if (count && count > 0) {
-        const allRows: TopoRow[] = [];
-        const pageSize = 1000;
-        let from = 0;
-        let hasMore = true;
-        while (hasMore) {
-          const { data, error } = await supabase
-            .from('topo')
-            .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac')
-            .range(from, from + pageSize - 1);
-          if (error || !data || data.length === 0) {
-            hasMore = false;
-          } else {
-            allRows.push(...(data as TopoRow[]));
-            from += pageSize;
-            if (data.length < pageSize) hasMore = false;
-          }
-        }
-        if (allRows.length > 0) {
-          cachedDbSites = buildSitesFromRows(allRows);
-          console.log(`[TopoService] CLOUD: Loaded ${allRows.length} cells → ${cachedDbSites.length} sites`);
-          return cachedDbSites;
-        }
+      const allRows: TopoRow[] = [];
+      const pageSize = 1000;
+      let from = 0;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('topo')
+          .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac')
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allRows.push(...(data as TopoRow[]));
+        from += pageSize;
+        if (data.length < pageSize) break;
       }
+
+      if (allRows.length > 0) {
+        cachedDbSites = buildSitesFromRows(allRows);
+        console.log(`[TopoService] CLOUD: Loaded ${allRows.length} cells → ${cachedDbSites.length} sites`);
+        return cachedDbSites;
+      }
+
+      console.log('[TopoService] CLOUD: topo table empty');
     } catch (err) {
       console.warn('[TopoService] Cloud DB fetch failed', err);
     }
