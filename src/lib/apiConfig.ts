@@ -1,10 +1,17 @@
 /**
  * API URL helper — switches between Lovable Cloud and local Express server.
- * 
- * Set VITE_LOCAL_API=http://localhost:3001 in .env.local to use local mode.
+ *
+ * Source selection priority:
+ * 1) URL query param: ?source=local|cloud
+ * 2) localStorage key: qoebit_data_source
+ * 3) Auto-detect localhost/LAN => local, otherwise cloud
  */
 
-const LOCAL_API = import.meta.env.VITE_LOCAL_API;
+const LOCAL_API_ENV = import.meta.env.VITE_LOCAL_API;
+const DEFAULT_LOCAL_API = 'http://localhost:3001';
+const DATA_SOURCE_KEY = 'qoebit_data_source';
+
+type DataSource = 'local' | 'cloud';
 
 const isBrowserRunningLocally = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -27,7 +34,30 @@ const isBrowserRunningLocally = (): boolean => {
   return false;
 };
 
-export const isLocalMode = (): boolean => !!LOCAL_API && isBrowserRunningLocally();
+const isDataSource = (value: string | null): value is DataSource => value === 'local' || value === 'cloud';
+
+const getLocalApiBase = (): string => LOCAL_API_ENV || DEFAULT_LOCAL_API;
+
+export const getPreferredDataSource = (): DataSource => {
+  if (typeof window === 'undefined') {
+    return LOCAL_API_ENV ? 'local' : 'cloud';
+  }
+
+  const querySource = new URLSearchParams(window.location.search).get('source');
+  if (isDataSource(querySource)) return querySource;
+
+  const stored = window.localStorage.getItem(DATA_SOURCE_KEY);
+  if (isDataSource(stored)) return stored;
+
+  return isBrowserRunningLocally() ? 'local' : 'cloud';
+};
+
+export const setPreferredDataSource = (source: DataSource): void => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DATA_SOURCE_KEY, source);
+};
+
+export const isLocalMode = (): boolean => getPreferredDataSource() === 'local';
 
 /**
  * Get the base URL for an edge function / API endpoint.
@@ -36,7 +66,7 @@ export const isLocalMode = (): boolean => !!LOCAL_API && isBrowserRunningLocally
  */
 export function getApiUrl(functionName: string): string {
   if (isLocalMode()) {
-    return `${LOCAL_API}/api/${functionName}`;
+    return `${getLocalApiBase()}/api/${functionName}`;
   }
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`;
 }
@@ -55,3 +85,4 @@ export function getApiHeaders(): Record<string, string> {
   }
   return headers;
 }
+

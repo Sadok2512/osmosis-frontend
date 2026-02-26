@@ -154,15 +154,15 @@ let dbChecked = false;
 export async function fetchTopoSites(): Promise<SiteSummary[]> {
   // Try local mode first
   if (isLocalMode()) {
-    if (cachedDbSites) return cachedDbSites;
+    if (cachedLocalSites) return cachedLocalSites;
     try {
       const resp = await fetch(getApiUrl('topo'));
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const rows = await resp.json();
       if (Array.isArray(rows) && rows.length > 0) {
-        cachedDbSites = buildSitesFromRows(rows as TopoRow[]);
-        console.log(`[TopoService] LOCAL: Loaded ${rows.length} cells → ${cachedDbSites.length} sites`);
-        return cachedDbSites;
+        cachedLocalSites = buildSitesFromRows(rows as TopoRow[]);
+        console.log(`[TopoService] LOCAL: Loaded ${rows.length} cells → ${cachedLocalSites.length} sites`);
+        return cachedLocalSites;
       }
       console.log('[TopoService] LOCAL: topo table empty, trying cloud fallback');
     } catch (err) {
