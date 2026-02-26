@@ -1899,12 +1899,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <PanelLeftClose size={16} />
         </button>
       )}
+      {showRightPanel && (
       <div className={`absolute z-[1000] bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ${
-        !showRightPanel
-          ? 'translate-x-full'
-          : detailFullscreen
-            ? 'inset-0'
-            : 'top-0 right-0 bottom-0 w-[450px]'
+        detailFullscreen
+          ? 'inset-0'
+          : 'top-0 right-0 bottom-0 w-[450px]'
       }`}>
         {/* Breadcrumb bar */}
         <div className="px-4 py-2 border-b border-border flex items-center justify-between shrink-0 bg-muted/30">
@@ -2394,6 +2393,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           })()}
         </div>
       </div>
+      )}
     </div>
   );
 };
