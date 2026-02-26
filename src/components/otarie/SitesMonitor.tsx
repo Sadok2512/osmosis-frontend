@@ -279,7 +279,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'OFF'>('ALL');
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(BAND_COLORS)));
-  const [showBandPanel, setShowBandPanel] = useState(false);
+  const [showBandPanel, setShowBandPanel] = useState(true);
   const [sectorColorMode, setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
   const [detailFullscreen, setDetailFullscreen] = useState(false);
 
@@ -1367,25 +1367,34 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 ))}
               </div>
-              {/* Band colors — NR */}
+              {/* Band colors — NR (clickable toggles) */}
               <div className="px-5 pb-2 pt-2 border-t border-border">
-              <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#a855f7' }}>5G NR</span>
+                <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: '#a855f7' }}>5G NR</button>
                 <div className="mt-1.5 space-y-1.5">
                   {[
                     { band: 'NR3500', color: BAND_COLORS.NR3500 },
                     { band: 'NR700', color: BAND_COLORS.NR700 },
                     { band: 'NR2100', color: BAND_COLORS.NR2100 },
                   ].map(({ band, color }) => (
-                    <div key={band} className="flex items-center gap-2.5">
-                      <div className="w-3 h-3 rounded-sm" style={{ background: color, opacity: 0.35, border: `1.5px solid ${color}` }} />
-                      <span className="text-[10px] font-bold text-foreground">{band}</span>
-                    </div>
+                    <button key={band} onClick={() => toggleBand(band)} className="flex items-center gap-2.5 w-full group cursor-pointer">
+                      <div
+                        className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${
+                          enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
+                        }`}
+                        style={{ background: enabledBands.has(band) ? color : 'transparent' }}
+                      >
+                        {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
+                      </div>
+                      <span className={`text-[10px] font-bold transition-all ${
+                        enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
+                      }`}>{band}</span>
+                    </button>
                   ))}
                 </div>
               </div>
-              {/* Band colors — LTE */}
+              {/* Band colors — LTE (clickable toggles) */}
               <div className="px-5 pb-4 pt-2 border-t border-border">
-                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#3b82f6' }}>4G LTE</span>
+                <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: '#3b82f6' }}>4G LTE</button>
                 <div className="mt-1.5 space-y-1.5">
                   {[
                     { band: 'L2600', color: BAND_COLORS.L2600 },
@@ -1394,10 +1403,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     { band: 'L800', color: BAND_COLORS.L800 },
                     { band: 'L700', color: BAND_COLORS.L700 },
                   ].map(({ band, color }) => (
-                    <div key={band} className="flex items-center gap-2.5">
-                      <div className="w-3 h-3 rounded-sm" style={{ background: color, opacity: 0.35, border: `1.5px solid ${color}` }} />
-                      <span className="text-[10px] font-bold text-foreground">{band}</span>
-                    </div>
+                    <button key={band} onClick={() => toggleBand(band)} className="flex items-center gap-2.5 w-full group cursor-pointer">
+                      <div
+                        className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${
+                          enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
+                        }`}
+                        style={{ background: enabledBands.has(band) ? color : 'transparent' }}
+                      >
+                        {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
+                      </div>
+                      <span className={`text-[10px] font-bold transition-all ${
+                        enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
+                      }`}>{band}</span>
+                    </button>
                   ))}
                 </div>
               </div>
