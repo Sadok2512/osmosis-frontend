@@ -231,6 +231,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
+  const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
   const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
 
@@ -503,7 +504,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
-  }, []);
+    if (v.zoom >= 8 && !clusteringUnlocked) {
+      setClusteringUnlocked(true);
+    }
+  }, [clusteringUnlocked]);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
@@ -619,8 +623,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <MarkerClusterGroup
             chunkedLoading
             iconCreateFunction={createClusterCustomIcon}
-            maxClusterRadius={60}
-            disableClusteringAtZoom={8}
+            maxClusterRadius={clusteringUnlocked ? 0 : 60}
+            disableClusteringAtZoom={clusteringUnlocked ? 0 : 8}
             spiderfyOnMaxZoom
             showCoverageOnHover={false}
             zoomToBoundsOnClick
