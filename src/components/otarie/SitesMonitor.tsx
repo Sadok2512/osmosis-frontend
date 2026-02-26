@@ -541,12 +541,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setSelectedSiteId(site.site_id);
   };
 
-  if (loading) return (
-    <div className="flex-1 flex flex-col items-center justify-center h-full gap-3 bg-background">
-      <RefreshCw className="w-10 h-10 text-primary animate-spin" />
-      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Loading sites...</p>
+  // Loading overlay rendered inside the map area instead of blocking
+  const loadingOverlay = loading ? (
+    <div className="absolute inset-0 z-[1100] flex items-center justify-center bg-background/60 backdrop-blur-sm pointer-events-none animate-fade-in">
+      <div className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-card/90 backdrop-blur-md border border-border shadow-2xl">
+        <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Chargement des sites…</p>
+      </div>
     </div>
-  );
+  ) : null;
 
   if (selectedSiteId && detailLoading) return (
     <div className="flex-1 flex flex-col items-center justify-center h-full gap-4 bg-background">
@@ -560,6 +563,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Main view — full screen map with clustering
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
+      {loadingOverlay}
       {/* FULL SCREEN MAP */}
       <MapContainer
         center={[43.2965, 5.3698]}
