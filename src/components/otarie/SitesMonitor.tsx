@@ -1715,9 +1715,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <div className="px-4 pb-4 pt-1 animate-fade-in">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {sortedSec.map(([sNum, cells]) => {
-                                  const techs = [...new Set(cells.map(c => c.techno))].filter(Boolean);
-                                  const mainTech = techs[0] || '4G';
-                                  const is5G = mainTech.includes('5G');
+                                  const techs = [...new Set(cells.map(c => c.techno))].filter(Boolean).sort((a, b) => (a.includes('5G') ? -1 : 1));
                                   const isCellFocused = cells.some(c => c.cell_id === focusCellId);
                                   return (
                                     <button
@@ -1726,22 +1724,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                         e.stopPropagation();
                                         handleCellClick(cells[0].cell_id);
                                       }}
-                                      className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 transition-all min-w-[64px] ${
+                                      className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-xl border-2 transition-all min-w-[64px] ${
                                         isCellFocused
                                           ? 'bg-primary text-primary-foreground border-primary shadow-md'
                                           : 'bg-muted/40 border-border hover:border-primary/30 text-foreground'
                                       }`}
                                     >
                                       <span className={`text-[10px] font-bold uppercase ${isCellFocused ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                                        {mainTech}
+                                        {techs.join(' / ')}
                                       </span>
-                                      <div className={`w-2.5 h-2.5 rounded-full ${
-                                        isCellFocused
-                                          ? 'bg-primary-foreground'
-                                          : is5G ? 'bg-emerald-500' : 'bg-amber-500'
-                                      }`} />
+                                      <div className="flex items-center gap-1">
+                                        {techs.map(tech => (
+                                          <div key={tech} className={`w-2.5 h-2.5 rounded-full ${
+                                            isCellFocused
+                                              ? 'bg-primary-foreground'
+                                              : tech.includes('5G') ? 'bg-emerald-500' : 'bg-amber-500'
+                                          }`} />
+                                        ))}
+                                      </div>
                                       <span className={`text-[11px] font-extrabold ${isCellFocused ? 'text-primary-foreground' : 'text-foreground'}`}>
                                         S{sNum}
+                                      </span>
+                                      <span className={`text-[8px] font-semibold ${isCellFocused ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+                                        {cells.length} cell{cells.length > 1 ? 's' : ''}
                                       </span>
                                     </button>
                                   );
