@@ -680,45 +680,41 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           );
         })}
 
-        {/* Sites mode — Clustered markers (shown from zoom 12+) */}
-        {mapDisplayMode === 'sites' && !showSectors && viewport.zoom >= 12 && (
-          <MarkerClusterGroup
-            chunkedLoading
-            iconCreateFunction={createClusterCustomIcon}
-            maxClusterRadius={clusteringUnlocked ? 0 : 60}
-            disableClusteringAtZoom={clusteringUnlocked ? 0 : 8}
-            spiderfyOnMaxZoom
-            showCoverageOnHover={false}
-            zoomToBoundsOnClick
-          >
-            {visibleSites.map(site => {
-              const color = getKpiColor(getCellKpiValue(site.cells[0] || {}));
-              return (
-                <Marker
-                  key={site.site_id}
-                  position={site.coordinates}
-                  icon={createSiteIcon(color)}
-                  eventHandlers={{
-                    click: () => handleSiteClick(site),
-                    mouseover: () => setHoveredSiteId(site.site_id),
-                    mouseout: () => setHoveredSiteId(null),
-                  }}
-                >
-                  <Popup>
-                    <div className="p-1">
-                      <div className="font-bold text-sm">{site.site_name}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                      <div className="text-sm font-bold mt-2" style={{ color }}>
-                        {selectedKpiLabel}: {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
-                      </div>
-                      <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
-          </MarkerClusterGroup>
-        )}
+        {/* Sites mode — Circle markers when sectors not visible */}
+        {mapDisplayMode === 'sites' && !showSectors && visibleSites.map(site => {
+          const color = getKpiColor(getCellKpiValue(site.cells[0] || {}));
+          const isHovered = hoveredSiteId === site.site_id;
+          const radius = viewport.zoom >= 10 ? (isHovered ? 7 : 5) : (isHovered ? 5 : 3);
+          return (
+            <CircleMarker
+              key={site.site_id}
+              center={site.coordinates}
+              radius={radius}
+              pathOptions={{
+                color: isHovered ? '#fff' : '#1e293b',
+                fillColor: color,
+                fillOpacity: 0.85,
+                weight: isHovered ? 2 : 1,
+              }}
+              eventHandlers={{
+                click: () => handleSiteClick(site),
+                mouseover: () => setHoveredSiteId(site.site_id),
+                mouseout: () => setHoveredSiteId(null),
+              }}
+            >
+              <Popup>
+                <div className="p-1">
+                  <div className="font-bold text-sm">{site.site_name}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                  <div className="text-sm font-bold mt-2" style={{ color }}>
+                    {selectedKpiLabel}: {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                  </div>
+                  <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
+                </div>
+              </Popup>
+            </CircleMarker>
+          );
+        })}
 
         {/* Detailed sectors (only when zoomed in, sites mode) */}
         {showSectors && visibleSites.map(site => {
