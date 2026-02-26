@@ -719,7 +719,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Detailed sectors (only when zoomed in, sites mode) */}
         {showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
-          const zoomRadius = viewport.zoom >= 15 ? 250 : viewport.zoom >= 14 ? 180 : 120;
+          const zoomRadius = viewport.zoom >= 15 ? 400 : viewport.zoom >= 14 ? 300 : viewport.zoom >= 13 ? 220 : 160;
           return (
             <React.Fragment key={site.site_id}>
               {site.cells.filter(c => isBandEnabled(c.bande)).map(cell => {
@@ -732,9 +732,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pathOptions={{
                       color: isHovered ? 'rgba(255,255,255,0.6)' : color,
                       fillColor: color,
-                      fillOpacity: isHovered ? 0.5 : 0.35,
-                      weight: isHovered ? 1.5 : 0.5,
-                      opacity: 0.7,
+                      fillOpacity: isHovered ? 0.7 : 0.55,
+                      weight: isHovered ? 2 : 1,
+                      opacity: 0.85,
                     }}
                     eventHandlers={{
                       click: () => handleSiteClick(site),
