@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const CHART_COLORS = [
   'hsl(210, 80%, 55%)', 'hsl(25, 95%, 53%)', 'hsl(160, 84%, 39%)', 'hsl(262, 83%, 58%)',
@@ -28,18 +28,28 @@ interface DumpRow {
   ur: string | null;
 }
 
+type AggregatorKey = 'dor' | 'plaque';
+type ColorBy = 'value' | 'aggregator';
+
 const TopologiePage: React.FC = () => {
   const [data, setData] = useState<DumpRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter states
+  // Search parameter (main)
+  const [paramSearch, setParamSearch] = useState('');
+  const [selectedParam, setSelectedParam] = useState('ALL');
+
+  // Filters
   const [selectedSite, setSelectedSite] = useState('ALL');
   const [selectedCell, setSelectedCell] = useState('ALL');
-  const [selectedParam, setSelectedParam] = useState('ALL');
   const [selectedDor, setSelectedDor] = useState('ALL');
   const [selectedPlaque, setSelectedPlaque] = useState('ALL');
   const [selectedVendor, setSelectedVendor] = useState('ALL');
+
+  // Aggregator & color
+  const [aggregator, setAggregator] = useState<AggregatorKey>('dor');
+  const [colorBy, setColorBy] = useState<ColorBy>('value');
 
   // Available filter options
   const [sites, setSites] = useState<string[]>([]);
@@ -59,7 +69,6 @@ const TopologiePage: React.FC = () => {
         supabase.from('dump_parameter').select('plaque').not('plaque', 'is', null).limit(1000),
         supabase.from('dump_parameter').select('vendor').not('vendor', 'is', null).limit(1000),
       ]);
-
       const unique = (arr: any[], key: string) => [...new Set(arr?.map(r => r[key]).filter(Boolean))].sort() as string[];
       setSites(unique(siteRes.data || [], 'site_name'));
       setParams(unique(paramRes.data || [], 'parameter'));
@@ -69,6 +78,13 @@ const TopologiePage: React.FC = () => {
     };
     loadFilters();
   }, []);
+
+  // Filtered params for search
+  const filteredParams = useMemo(() => {
+    if (!paramSearch) return params;
+    const s = paramSearch.toLowerCase();
+    return params.filter(p => p.toLowerCase().includes(s));
+  }, [params, paramSearch]);
 
   // Load cells when site changes
   useEffect(() => {
@@ -84,81 +100,73 @@ const TopologiePage: React.FC = () => {
   // Load data
   useEffect(() => {
     const loadData = async () => {
-      if (selectedParam === 'ALL') {
-        setData([]);
-        return;
-      }
+      if (selectedParam === 'ALL') { setData([]); return; }
       setLoading(true);
       let query = supabase.from('dump_parameter')
         .select('id, site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur')
         .eq('parameter', selectedParam);
-
       if (selectedSite !== 'ALL') query = query.eq('site_name', selectedSite);
       if (selectedCell !== 'ALL') query = query.eq('cell_name', selectedCell);
       if (selectedDor !== 'ALL') query = query.eq('dor', selectedDor);
       if (selectedPlaque !== 'ALL') query = query.eq('plaque', selectedPlaque);
       if (selectedVendor !== 'ALL') query = query.eq('vendor', selectedVendor);
-
-      const { data: rows, error } = await query.order('site_name').limit(5000);
+      const { data: rows } = await query.order('site_name').limit(5000);
       setData(rows || []);
       setLoading(false);
     };
     loadData();
   }, [selectedParam, selectedSite, selectedCell, selectedDor, selectedPlaque, selectedVendor]);
 
-  // Search filter
+  // Table search
   const filteredData = useMemo(() => {
     if (!searchTerm) return data;
     const s = searchTerm.toLowerCase();
     return data.filter(r =>
-      r.site_name?.toLowerCase().includes(s) ||
-      r.cell_name?.toLowerCase().includes(s) ||
-      r.value?.toLowerCase().includes(s)
+      r.site_name?.toLowerCase().includes(s) || r.cell_name?.toLowerCase().includes(s) || r.value?.toLowerCase().includes(s)
     );
   }, [data, searchTerm]);
 
-  // Distribution by DOR
-  const dorDistribution = useMemo(() => {
-    const map: Record<string, Record<string, number>> = {};
-    data.forEach(r => {
-      const dor = r.dor || 'N/A';
-      const val = r.value || 'N/A';
-      if (!map[dor]) map[dor] = {};
-      map[dor][val] = (map[dor][val] || 0) + 1;
-    });
-    return Object.entries(map).map(([dor, vals]) => {
-      const total = Object.values(vals).reduce((a, b) => a + b, 0);
-      return { dor, total, ...vals, _details: Object.entries(vals).map(([v, c]) => ({ value: v, count: c, pct: ((c / total) * 100).toFixed(1) })) };
-    }).sort((a, b) => b.total - a.total);
-  }, [data]);
+  // All unique values & aggregator keys
+  const allValues = useMemo(() => [...new Set(data.map(r => r.value || 'N/A'))].sort(), [data]);
+  const allAggKeys = useMemo(() => [...new Set(data.map(r => r[aggregator] || 'N/A'))].sort(), [data, aggregator]);
 
-  // Distribution by Plaque
-  const plaqueDistribution = useMemo(() => {
-    const map: Record<string, Record<string, number>> = {};
-    data.forEach(r => {
-      const plaque = r.plaque || 'N/A';
-      const val = r.value || 'N/A';
-      if (!map[plaque]) map[plaque] = {};
-      map[plaque][val] = (map[plaque][val] || 0) + 1;
-    });
-    return Object.entries(map).map(([plaque, vals]) => {
-      const total = Object.values(vals).reduce((a, b) => a + b, 0);
-      return { plaque, total, ...vals, _details: Object.entries(vals).map(([v, c]) => ({ value: v, count: c, pct: ((c / total) * 100).toFixed(1) })) };
-    }).sort((a, b) => b.total - a.total);
-  }, [data]);
+  // Distribution: aggregator dimension, colored by value or aggregator
+  const chartData = useMemo(() => {
+    if (colorBy === 'value') {
+      // Group by aggregator key, stack by value
+      const map: Record<string, Record<string, number>> = {};
+      data.forEach(r => {
+        const key = r[aggregator] || 'N/A';
+        const val = r.value || 'N/A';
+        if (!map[key]) map[key] = {};
+        map[key][val] = (map[key][val] || 0) + 1;
+      });
+      return Object.entries(map).map(([key, vals]) => {
+        const total = Object.values(vals).reduce((a, b) => a + b, 0);
+        return { _key: key, total, ...vals, _details: Object.entries(vals).map(([v, c]) => ({ value: v, count: c, pct: ((c / total) * 100).toFixed(1) })) };
+      }).sort((a, b) => b.total - a.total);
+    } else {
+      // Group by value, stack by aggregator key
+      const map: Record<string, Record<string, number>> = {};
+      data.forEach(r => {
+        const val = r.value || 'N/A';
+        const key = r[aggregator] || 'N/A';
+        if (!map[val]) map[val] = {};
+        map[val][key] = (map[val][key] || 0) + 1;
+      });
+      return Object.entries(map).map(([val, keys]) => {
+        const total = Object.values(keys).reduce((a, b) => a + b, 0);
+        return { _key: val, total, ...keys, _details: Object.entries(keys).map(([k, c]) => ({ value: k, count: c, pct: ((c / total) * 100).toFixed(1) })) };
+      }).sort((a, b) => b.total - a.total);
+    }
+  }, [data, aggregator, colorBy]);
 
-  // All unique values for chart keys
-  const allValues = useMemo(() => {
-    return [...new Set(data.map(r => r.value || 'N/A'))].sort();
-  }, [data]);
+  const stackKeys = colorBy === 'value' ? allValues : allAggKeys;
 
   // Global distribution
   const globalDistribution = useMemo(() => {
     const map: Record<string, number> = {};
-    data.forEach(r => {
-      const val = r.value || 'N/A';
-      map[val] = (map[val] || 0) + 1;
-    });
+    data.forEach(r => { const val = r.value || 'N/A'; map[val] = (map[val] || 0) + 1; });
     const total = data.length;
     return Object.entries(map).map(([value, count]) => ({
       value, count, pct: total > 0 ? ((count / total) * 100).toFixed(1) : '0'
@@ -172,18 +180,19 @@ const TopologiePage: React.FC = () => {
     const csv = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `topologie_${selectedParam}.csv`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `topologie_${selectedParam}.csv`; a.click();
   };
+
+  const aggLabel = aggregator === 'dor' ? 'DOR' : 'Plaque';
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="border-b border-border bg-card px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="border-b border-border bg-card px-6 py-4 space-y-3">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-foreground">Topologie Réseau</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Exploration des paramètres CM Dump — Distribution par DOR & Plaque</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Exploration des paramètres CM Dump</p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">{data.length} cellules</Badge>
@@ -193,15 +202,91 @@ const TopologiePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <FilterSelect label="Paramètre" value={selectedParam} options={['ALL', ...params]} onChange={setSelectedParam} />
-          <FilterSelect label="Site" value={selectedSite} options={['ALL', ...sites]} onChange={setSelectedSite} />
-          <FilterSelect label="Cellule" value={selectedCell} options={['ALL', ...cells]} onChange={setSelectedCell} />
+        {/* Row 1: Search Parameter */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">🔍 Rechercher un paramètre</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="flex items-center justify-between w-full max-w-md h-9 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/50 transition-colors text-left">
+                <span className={`truncate ${selectedParam === 'ALL' ? 'text-muted-foreground' : 'font-medium text-foreground'}`}>
+                  {selectedParam === 'ALL' ? 'Sélectionner un paramètre…' : selectedParam}
+                </span>
+                <Search className="w-3.5 h-3.5 shrink-0 opacity-50 ml-1" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[400px] p-0" align="start">
+              <div className="flex items-center border-b border-border px-3">
+                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                <input
+                  className="flex h-9 w-full bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground"
+                  placeholder="Rechercher paramètre..."
+                  value={paramSearch}
+                  onChange={e => setParamSearch(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="max-h-[280px] overflow-auto p-1">
+                {filteredParams.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground">Aucun paramètre trouvé</div>
+                ) : (
+                  filteredParams.map(p => (
+                    <button
+                      key={p}
+                      onClick={() => { setSelectedParam(p); setParamSearch(''); }}
+                      className={`flex items-center w-full px-3 py-2 text-xs rounded-sm hover:bg-accent transition-colors ${selectedParam === p ? 'bg-accent font-semibold' : ''}`}
+                    >
+                      {p}
+                    </button>
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Row 2: Filters */}
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
+            <Filter className="w-3 h-3" /> Filtres
+          </div>
           <FilterSelect label="DOR" value={selectedDor} options={['ALL', ...dors]} onChange={setSelectedDor} />
           <FilterSelect label="Plaque" value={selectedPlaque} options={['ALL', ...plaques]} onChange={setSelectedPlaque} />
           <FilterSelect label="Vendor" value={selectedVendor} options={['ALL', ...vendors]} onChange={setSelectedVendor} />
+          <FilterSelect label="Site" value={selectedSite} options={['ALL', ...sites]} onChange={setSelectedSite} />
+          <FilterSelect label="Cellule" value={selectedCell} options={['ALL', ...cells]} onChange={setSelectedCell} />
         </div>
+
+        {/* Row 3: Aggregator & Color */}
+        {selectedParam !== 'ALL' && (
+          <div className="flex items-center gap-4 pt-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Agréger par</span>
+              <div className="flex rounded-md border border-input overflow-hidden">
+                <button
+                  onClick={() => setAggregator('dor')}
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${aggregator === 'dor' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}
+                >DOR</button>
+                <button
+                  onClick={() => setAggregator('plaque')}
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${aggregator === 'plaque' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}
+                >Plaque</button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Couleur par</span>
+              <div className="flex rounded-md border border-input overflow-hidden">
+                <button
+                  onClick={() => setColorBy('value')}
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${colorBy === 'value' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}
+                >Valeur</button>
+                <button
+                  onClick={() => setColorBy('aggregator')}
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${colorBy === 'aggregator' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}
+                >{aggLabel}</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -209,9 +294,9 @@ const TopologiePage: React.FC = () => {
         {selectedParam === 'ALL' ? (
           <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
             <div className="text-center">
-              <Filter className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Sélectionnez un paramètre</p>
-              <p className="text-xs mt-1">Choisissez un paramètre CM Dump pour afficher les données</p>
+              <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">Recherchez un paramètre</p>
+              <p className="text-xs mt-1">Utilisez la barre de recherche ci-dessus pour trouver un paramètre CM Dump</p>
             </div>
           </div>
         ) : loading ? (
@@ -219,11 +304,57 @@ const TopologiePage: React.FC = () => {
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
         ) : (
-          <Tabs defaultValue="table" className="space-y-4">
+          <Tabs defaultValue="distribution" className="space-y-4">
             <TabsList>
-              <TabsTrigger value="table" className="gap-1.5"><TableIcon className="w-3.5 h-3.5" /> Données</TabsTrigger>
               <TabsTrigger value="distribution" className="gap-1.5"><BarChart3 className="w-3.5 h-3.5" /> Distribution</TabsTrigger>
+              <TabsTrigger value="table" className="gap-1.5"><TableIcon className="w-3.5 h-3.5" /> Données</TabsTrigger>
             </TabsList>
+
+            {/* Distribution View */}
+            <TabsContent value="distribution" className="space-y-6">
+              {/* Global Summary */}
+              <div className="border border-border rounded-lg bg-card p-4">
+                <h3 className="text-sm font-semibold text-foreground mb-3">Distribution globale — {selectedParam}</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {globalDistribution.map((g, i) => (
+                    <div key={g.value} className="rounded-lg border border-border p-3 text-center bg-muted/20">
+                      <div className="text-lg font-bold text-foreground">{g.pct}%</div>
+                      <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{g.value}</div>
+                      <div className="text-[10px] text-muted-foreground">{g.count} cellules</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Chart */}
+              <div className="border border-border rounded-lg bg-card p-4">
+                <h3 className="text-sm font-semibold text-foreground mb-3">
+                  Distribution par {aggLabel}
+                  <span className="text-muted-foreground font-normal ml-2 text-xs">
+                    — coloré par {colorBy === 'value' ? 'valeur' : aggLabel}
+                  </span>
+                </h3>
+                {chartData.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="h-[320px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 50 }}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                          <XAxis dataKey="_key" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <Tooltip formatter={(v: number, name: string) => [`${v} cellules`, name]} contentStyle={{ fontSize: 11 }} />
+                          <Legend wrapperStyle={{ fontSize: 10 }} />
+                          {stackKeys.map((key, i) => (
+                            <Bar key={key} dataKey={key} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                          ))}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <DistributionTable data={chartData} dimensionLabel={colorBy === 'value' ? aggLabel : 'Valeur'} />
+                  </div>
+                ) : <p className="text-xs text-muted-foreground">Aucune donnée</p>}
+              </div>
+            </TabsContent>
 
             {/* Table View */}
             <TabsContent value="table" className="space-y-3">
@@ -234,7 +365,6 @@ const TopologiePage: React.FC = () => {
                 </div>
                 <span className="text-xs text-muted-foreground">{filteredData.length} résultats</span>
               </div>
-
               <div className="border border-border rounded-lg overflow-hidden bg-card">
                 <div className="max-h-[400px] overflow-auto">
                   <Table>
@@ -271,71 +401,6 @@ const TopologiePage: React.FC = () => {
                 )}
               </div>
             </TabsContent>
-
-            {/* Distribution View */}
-            <TabsContent value="distribution" className="space-y-6">
-              {/* Global Summary */}
-              <div className="border border-border rounded-lg bg-card p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-3">Distribution globale — {selectedParam}</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {globalDistribution.map((g, i) => (
-                    <div key={g.value} className="rounded-lg border border-border p-3 text-center bg-muted/20">
-                      <div className="text-lg font-bold text-foreground">{g.pct}%</div>
-                      <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{g.value}</div>
-                      <div className="text-[10px] text-muted-foreground">{g.count} cellules</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Distribution by DOR */}
-              <div className="border border-border rounded-lg bg-card p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-3">Distribution par DOR</h3>
-                {dorDistribution.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={dorDistribution} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                          <XAxis dataKey="dor" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(v: number, name: string) => [`${v} cellules`, name]} contentStyle={{ fontSize: 11 }} />
-                          <Legend wrapperStyle={{ fontSize: 10 }} />
-                          {allValues.map((val, i) => (
-                            <Bar key={val} dataKey={val} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                          ))}
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <DistributionTable data={dorDistribution} dimensionKey="dor" dimensionLabel="DOR" />
-                  </div>
-                ) : <p className="text-xs text-muted-foreground">Aucune donnée</p>}
-              </div>
-
-              {/* Distribution by Plaque */}
-              <div className="border border-border rounded-lg bg-card p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-3">Distribution par Plaque</h3>
-                {plaqueDistribution.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={plaqueDistribution} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                          <XAxis dataKey="plaque" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(v: number, name: string) => [`${v} cellules`, name]} contentStyle={{ fontSize: 11 }} />
-                          <Legend wrapperStyle={{ fontSize: 10 }} />
-                          {allValues.map((val, i) => (
-                            <Bar key={val} dataKey={val} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                          ))}
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <DistributionTable data={plaqueDistribution} dimensionKey="plaque" dimensionLabel="Plaque" />
-                  </div>
-                ) : <p className="text-xs text-muted-foreground">Aucune donnée</p>}
-              </div>
-            </TabsContent>
           </Tabs>
         )}
       </div>
@@ -343,21 +408,21 @@ const TopologiePage: React.FC = () => {
   );
 };
 
-// Reusable distribution table
-const DistributionTable: React.FC<{ data: any[]; dimensionKey: string; dimensionLabel: string }> = ({ data, dimensionKey, dimensionLabel }) => (
+// Distribution table
+const DistributionTable: React.FC<{ data: any[]; dimensionLabel: string }> = ({ data, dimensionLabel }) => (
   <div className="overflow-auto max-h-[250px]">
     <Table>
       <TableHeader>
         <TableRow className="bg-muted/50">
           <TableHead className="text-xs font-semibold">{dimensionLabel}</TableHead>
           <TableHead className="text-xs font-semibold">Total</TableHead>
-          <TableHead className="text-xs font-semibold">Valeurs (count / %)</TableHead>
+          <TableHead className="text-xs font-semibold">Détails (count / %)</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {data.map((row, i) => (
           <TableRow key={i}>
-            <TableCell className="text-xs font-medium">{row[dimensionKey]}</TableCell>
+            <TableCell className="text-xs font-medium">{row._key}</TableCell>
             <TableCell className="text-xs font-mono">{row.total}</TableCell>
             <TableCell className="text-xs">
               <div className="flex flex-wrap gap-1.5">
@@ -376,35 +441,32 @@ const DistributionTable: React.FC<{ data: any[]; dimensionKey: string; dimension
   </div>
 );
 
-// Filter select component with search
+// Filter select with search
 const FilterSelect: React.FC<{ label: string; value: string; options: string[]; onChange: (v: string) => void }> = ({ label, value, options, onChange }) => {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
-
   const filtered = useMemo(() => {
     if (!search) return options;
     const s = search.toLowerCase();
     return options.filter(o => o === 'ALL' || o.toLowerCase().includes(s));
   }, [options, search]);
-
   const displayValue = value === 'ALL' ? 'Tous' : value;
-
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 min-w-[120px]">
       <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
       <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
         <PopoverTrigger asChild>
-          <button className="flex items-center justify-between w-full h-8 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/50 transition-colors text-left">
-            <span className="truncate">{displayValue}</span>
-            <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-50 ml-1" />
+          <button className="flex items-center justify-between w-full h-7 px-2.5 text-xs rounded-md border border-input bg-background hover:bg-accent/50 transition-colors text-left">
+            <span className="truncate max-w-[100px]">{displayValue}</span>
+            <ChevronDown className="w-3 h-3 shrink-0 opacity-50 ml-1" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-[220px] p-0" align="start">
+        <PopoverContent className="w-[200px] p-0" align="start">
           <div className="flex items-center border-b border-border px-2">
             <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <input
               className="flex h-8 w-full bg-transparent px-2 py-1 text-xs outline-none placeholder:text-muted-foreground"
-              placeholder={`Rechercher ${label.toLowerCase()}...`}
+              placeholder={`Rechercher...`}
               value={search}
               onChange={e => setSearch(e.target.value)}
               autoFocus
@@ -413,17 +475,15 @@ const FilterSelect: React.FC<{ label: string; value: string; options: string[]; 
           <div className="max-h-[200px] overflow-auto p-1">
             {filtered.length === 0 ? (
               <div className="py-4 text-center text-xs text-muted-foreground">Aucun résultat</div>
-            ) : (
-              filtered.map(opt => (
-                <button
-                  key={opt}
-                  onClick={() => { onChange(opt); setOpen(false); setSearch(''); }}
-                  className={`flex items-center w-full px-2 py-1.5 text-xs rounded-sm hover:bg-accent transition-colors ${value === opt ? 'bg-accent font-medium' : ''}`}
-                >
-                  {opt === 'ALL' ? 'Tous' : opt}
-                </button>
-              ))
-            )}
+            ) : filtered.map(opt => (
+              <button
+                key={opt}
+                onClick={() => { onChange(opt); setOpen(false); setSearch(''); }}
+                className={`flex items-center w-full px-2 py-1.5 text-xs rounded-sm hover:bg-accent transition-colors ${value === opt ? 'bg-accent font-medium' : ''}`}
+              >
+                {opt === 'ALL' ? 'Tous' : opt}
+              </button>
+            ))}
           </div>
         </PopoverContent>
       </Popover>
