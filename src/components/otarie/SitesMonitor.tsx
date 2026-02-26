@@ -111,6 +111,19 @@ const getTechnoColor = (techno: string): string => {
   return '#3b82f6'; // blue
 };
 
+// Compute meters-per-pixel at a given latitude and zoom level
+const metersPerPixel = (lat: number, zoom: number): number => {
+  return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
+};
+
+// Sector radius in meters that keeps a constant ~60px visual size on screen
+const getZoomAwareRadius = (lat: number, zoom: number): number => {
+  const TARGET_PX = 60; // constant pixel radius on screen
+  const mpp = metersPerPixel(lat, zoom);
+  // Clamp between 50m and 2000m to stay reasonable
+  return Math.max(50, Math.min(2000, TARGET_PX * mpp));
+};
+
 // Generate sector polygon points (wedge shape)
 const getSectorCoords = (
   center: [number, number],
@@ -734,7 +747,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Detailed sectors (only when zoomed in, sites mode) */}
         {showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
-          const zoomRadius = viewport.zoom >= 15 ? 280 : viewport.zoom >= 14 ? 220 : 170;
+          const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom);
           return (
             <React.Fragment key={site.site_id}>
               {site.cells.filter(c => isBandEnabled(c.bande, c.techno)).map(cell => {
@@ -745,11 +758,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     key={cell.cell_id}
                     positions={sectorCoords}
                     pathOptions={{
-                      color: isHovered ? 'rgba(255,255,255,0.6)' : color,
+                      color: isHovered ? '#fff' : color,
                       fillColor: color,
-                      fillOpacity: isHovered ? 0.5 : 0.32,
-                      weight: isHovered ? 1.5 : 1,
-                      opacity: 0.7,
+                      fillOpacity: isHovered ? 0.45 : 0.3,
+                      weight: isHovered ? 1.5 : 0.5,
+                      opacity: isHovered ? 0.9 : 0.6,
                     }}
                     eventHandlers={{
                       click: () => handleSiteClick(site),
@@ -757,15 +770,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       mouseout: () => setHoveredSiteId(null),
                     }}
                   >
-                    <Tooltip direction="top" offset={[0, -10]} permanent={false} className="sector-tooltip">
-                      <div className="px-3 py-2.5 min-w-[160px]">
-                        <div className="text-[10px] font-black text-white/90 uppercase tracking-wider">{site.site_name}</div>
-                        <div className="text-[9px] text-white/50 font-mono mt-0.5">{site.site_id}</div>
-                        <div className="mt-2 space-y-1">
-                          <div className="flex justify-between text-[10px]"><span className="text-white/50">Technology</span><span className="font-bold text-white/90">{cell.techno}</span></div>
-                          <div className="flex justify-between text-[10px]"><span className="text-white/50">Band</span><span className="font-bold text-white/90">{cell.bande} MHz</span></div>
-                          <div className="flex justify-between text-[10px]"><span className="text-white/50">Azimuth</span><span className="font-bold text-white/90">{cell.azimut}°</span></div>
-                          <div className="flex justify-between text-[10px]"><span className="text-white/50">Tilt</span><span className="font-bold text-white/90">{(cell as any).remote_electrical_tilt ?? '—'}°</span></div>
+                    <Tooltip direction="top" offset={[0, -8]} permanent={false} className="sector-tooltip">
+                      <div className="px-3 py-2 min-w-[150px]">
+                        <div className="text-[10px] font-black uppercase tracking-wider" style={{ color }}>{site.site_name}</div>
+                        <div className="text-[9px] opacity-60 font-mono mt-0.5">{site.site_id}</div>
+                        <div className="mt-1.5 space-y-0.5 text-[10px]">
+                          <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{cell.techno}</span></div>
+                          <div className="flex justify-between"><span className="opacity-50">Band</span><span className="font-bold">{cell.bande}</span></div>
+                          <div className="flex justify-between"><span className="opacity-50">Azimut</span><span className="font-bold">{cell.azimut}°</span></div>
+                          <div className="flex justify-between"><span className="opacity-50">Tilt</span><span className="font-bold">{(cell as any).remote_electrical_tilt ?? '—'}°</span></div>
+                          <div className="flex justify-between"><span className="opacity-50">HBA</span><span className="font-bold">{cell.hba ?? '—'} m</span></div>
                         </div>
                       </div>
                     </Tooltip>
@@ -787,14 +801,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   mouseout: () => setHoveredSiteId(null),
                 }}
               >
-                {viewport.zoom >= 15 && (
-                  <Tooltip direction="bottom" offset={[0, 6]} permanent className="site-name-label">
+                {viewport.zoom >= 14 && (
+                  <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
                     <span style={{
-                      fontSize: '9px',
-                      fontWeight: 700,
-                      letterSpacing: '0.04em',
-                      color: '#1e293b',
-                      textShadow: '0 0 4px rgba(255,255,255,0.9), 0 1px 2px rgba(255,255,255,0.8)',
+                      fontSize: viewport.zoom >= 16 ? '10px' : '8px',
+                      fontWeight: 600,
+                      letterSpacing: '0.03em',
+                      color: '#334155',
+                      textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 1px 2px rgba(255,255,255,0.9)',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
                     }}>{site.site_name}</span>
                   </Tooltip>
                 )}

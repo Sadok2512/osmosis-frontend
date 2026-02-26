@@ -203,27 +203,30 @@ All colors MUST be HSL.
 }
 
 /* Site name labels on map — transparent, no box */
-.site-name-label {
+.site-name-label,
+.site-name-label-clean {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
   font-family: 'Inter', system-ui, sans-serif;
 }
-.site-name-label::before {
+.site-name-label::before,
+.site-name-label-clean::before {
   display: none !important;
 }
 
-/* Sector hover tooltip — engineering style */
+/* Sector hover tooltip — clean engineering style */
 .sector-tooltip {
   font-family: 'Inter', system-ui, sans-serif;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   padding: 0 !important;
-  border: 1px solid rgba(255,255,255,0.15) !important;
-  background: rgba(15,23,42,0.92) !important;
-  backdrop-filter: blur(12px) !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  background: rgba(15,23,42,0.88) !important;
+  backdrop-filter: blur(16px) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important;
+  color: #e2e8f0 !important;
 }
 .sector-tooltip::before {
-  border-top-color: rgba(15,23,42,0.92) !important;
+  border-top-color: rgba(15,23,42,0.88) !important;
 }
