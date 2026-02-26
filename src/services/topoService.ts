@@ -152,7 +152,7 @@ let cachedLocalSites: SiteSummary[] | null = null;
 let dbChecked = false;
 
 export async function fetchTopoSites(): Promise<SiteSummary[]> {
-  // Try local mode first
+  // Local-only mode: only fetch from local Express server
   if (isLocalMode()) {
     if (cachedLocalSites) return cachedLocalSites;
     try {
@@ -164,9 +164,11 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
         console.log(`[TopoService] LOCAL: Loaded ${rows.length} cells → ${cachedLocalSites.length} sites`);
         return cachedLocalSites;
       }
-      console.log('[TopoService] LOCAL: topo table empty, trying cloud fallback');
+      console.log('[TopoService] LOCAL: topo table empty');
+      return [];
     } catch (err) {
-      console.warn('[TopoService] LOCAL fetch failed, trying cloud fallback', err);
+      console.warn('[TopoService] LOCAL fetch failed', err);
+      return [];
     }
   }
 
@@ -176,9 +178,8 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
     try {
       const allRows: TopoRow[] = [];
       const pageSize = 1000;
-      const maxRows = 100000; // Cap to avoid browser memory issues
+      const maxRows = 100000;
 
-      // First, get total count
       const { count, error: countError } = await supabase
         .from('topo')
         .select('id', { count: 'exact', head: true });
@@ -191,13 +192,11 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
       if (totalRows === 0) {
         console.log('[TopoService] CLOUD: topo table empty');
       } else {
-        // Build all page ranges and fetch in parallel batches
         const pages: { from: number; to: number }[] = [];
         for (let i = 0; i < totalRows; i += pageSize) {
           pages.push({ from: i, to: Math.min(i + pageSize - 1, totalRows - 1) });
         }
 
-        // Fetch in parallel batches of 10 to avoid overwhelming the API
         const batchSize = 10;
         for (let b = 0; b < pages.length; b += batchSize) {
           const batch = pages.slice(b, b + batchSize);
