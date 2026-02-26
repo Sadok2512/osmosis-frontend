@@ -170,35 +170,58 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
     }
   }
 
-  // Cloud mode — paginated fetch (no fragile HEAD count pre-check)
+  // Cloud mode — parallel paginated fetch for large tables
   if (!dbChecked) {
     dbChecked = true;
     try {
       const allRows: TopoRow[] = [];
       const pageSize = 1000;
-      let from = 0;
+      const maxRows = 100000; // Cap to avoid browser memory issues
 
-      while (true) {
-        const { data, error } = await supabase
-          .from('topo')
-          .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac')
-          .range(from, from + pageSize - 1);
+      // First, get total count
+      const { count, error: countError } = await supabase
+        .from('topo')
+        .select('id', { count: 'exact', head: true });
 
-        if (error) throw error;
-        if (!data || data.length === 0) break;
+      if (countError) throw countError;
 
-        allRows.push(...(data as TopoRow[]));
-        from += pageSize;
-        if (data.length < pageSize) break;
+      const totalRows = Math.min(count || 0, maxRows);
+      console.log(`[TopoService] CLOUD: Total rows = ${count}, fetching up to ${totalRows}`);
+
+      if (totalRows === 0) {
+        console.log('[TopoService] CLOUD: topo table empty');
+      } else {
+        // Build all page ranges and fetch in parallel batches
+        const pages: { from: number; to: number }[] = [];
+        for (let i = 0; i < totalRows; i += pageSize) {
+          pages.push({ from: i, to: Math.min(i + pageSize - 1, totalRows - 1) });
+        }
+
+        // Fetch in parallel batches of 10 to avoid overwhelming the API
+        const batchSize = 10;
+        for (let b = 0; b < pages.length; b += batchSize) {
+          const batch = pages.slice(b, b + batchSize);
+          const results = await Promise.all(
+            batch.map(({ from, to }) =>
+              supabase
+                .from('topo')
+                .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac')
+                .range(from, to)
+            )
+          );
+          for (const { data, error } of results) {
+            if (error) throw error;
+            if (data) allRows.push(...(data as TopoRow[]));
+          }
+          console.log(`[TopoService] CLOUD: Fetched ${allRows.length}/${totalRows} rows...`);
+        }
+
+        if (allRows.length > 0) {
+          cachedDbSites = buildSitesFromRows(allRows);
+          console.log(`[TopoService] CLOUD: Loaded ${allRows.length} cells → ${cachedDbSites.length} sites`);
+          return cachedDbSites;
+        }
       }
-
-      if (allRows.length > 0) {
-        cachedDbSites = buildSitesFromRows(allRows);
-        console.log(`[TopoService] CLOUD: Loaded ${allRows.length} cells → ${cachedDbSites.length} sites`);
-        return cachedDbSites;
-      }
-
-      console.log('[TopoService] CLOUD: topo table empty');
     } catch (err) {
       console.warn('[TopoService] Cloud DB fetch failed', err);
     }
