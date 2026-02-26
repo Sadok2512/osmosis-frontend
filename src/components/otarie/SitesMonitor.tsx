@@ -677,8 +677,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           );
         })}
 
-        {/* Sites mode — Clustered markers (shown below sector zoom) */}
-        {mapDisplayMode === 'sites' && !showSectors && (
+        {/* Sites mode — Clustered markers (shown from zoom 12+) */}
+        {mapDisplayMode === 'sites' && !showSectors && viewport.zoom >= 12 && (
           <MarkerClusterGroup
             chunkedLoading
             iconCreateFunction={createClusterCustomIcon}
