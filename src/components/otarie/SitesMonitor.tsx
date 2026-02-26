@@ -2166,123 +2166,91 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               </div>
 
-              {/* ── Sector-based Topology ── */}
-              <div className="px-5 py-4">
-                <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider mb-3">Sectors / Cells</h4>
-                <div className="space-y-1">
-                  {sortedSectors.map(([sectorNum, cells]) => {
-                    const sectorTechs = [...new Set(cells.map(c => c.techno))].filter(Boolean);
-                    const avgAz = cells[0]?.azimut ?? 0;
-                    return (
-                      <details key={sectorNum} open className="group border border-border rounded-lg overflow-hidden">
-                        <summary className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors list-none">
-                          <ChevronRight size={12} className="text-muted-foreground transition-transform group-open:rotate-90 shrink-0" />
-                          <div className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center text-[11px] font-black text-foreground shrink-0">
-                            S{sectorNum}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[12px] font-bold text-foreground">Sector {sectorNum}</div>
-                            <div className="text-[10px] text-muted-foreground">Az {avgAz}° • {cells.length} cells</div>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {sectorTechs.map(tech => (
-                              <span key={tech} className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                                tech === '5G' ? 'bg-primary/10 text-primary' : 'bg-amber-500/10 text-amber-600'
-                              }`}>{tech}</span>
-                            ))}
-                          </div>
-                        </summary>
-                        <div className="border-t border-border divide-y divide-border/40">
-                          {cells.map(cell => {
-                            const isSel = focusCellId === cell.cell_id;
-                            return (
-                              <div key={cell.cell_id}>
-                                <button
-                                  onClick={() => handleCellClick(cell.cell_id)}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-all ${
-                                    isSel
-                                      ? 'bg-primary/8 border-l-[3px] border-primary'
-                                      : 'hover:bg-muted/30 border-l-[3px] border-transparent'
-                                  }`}
-                                >
-                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(cell.bande, cell.techno) }} />
-                                  <div className="flex-1 min-w-0">
-                                    <div className={`text-[11px] font-mono truncate ${isSel ? 'font-bold text-foreground' : 'text-foreground'}`}>
-                                      {cell.cell_id}
-                                    </div>
-                                    <div className="text-[10px] text-muted-foreground">
-                                      {cell.techno} • {cell.bande} MHz • Az {cell.azimut}°
-                                    </div>
-                                  </div>
-                                  <div className="text-right shrink-0">
-                                    <div className="text-[12px] font-bold" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
-                                      {cell.qoe_score_avg.toFixed(1)}%
-                                    </div>
-                                  </div>
-                                  <ChevronRight size={12} className={`text-muted-foreground shrink-0 transition-transform ${isSel ? 'rotate-90' : ''}`} />
-                                </button>
+              {/* ── Selected Cell Detail (from left panel) ── */}
+              {focusCellId && (() => {
+                const cell = siteDetail.cells.find(c => c.cell_id === focusCellId);
+                if (!cell) return null;
+                return (
+                  <div className="px-5 py-4 space-y-4">
+                    {/* Cell header */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: getBandColor(cell.bande, cell.techno) }} />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-[14px] font-extrabold text-foreground font-mono truncate">{cell.cell_id}</h4>
+                        <div className="text-[11px] text-muted-foreground">{cell.techno} • {cell.bande} MHz • Az {cell.azimut}°</div>
+                      </div>
+                      <button onClick={handleBackToSite} className="text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                        ✕
+                      </button>
+                    </div>
 
-                                {/* ── Expanded cell detail ── */}
-                                {isSel && (
-                                  <div className="bg-muted/15 border-t border-border px-4 py-3 animate-fade-in">
-                                    {/* RF Parameters */}
-                                    <h5 className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">RF Parameters</h5>
-                                    <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 text-[11px] mb-3">
-                                      {[
-                                        { label: 'PCI', value: (cell as any).pci ?? '—' },
-                                        { label: 'Azimuth', value: `${cell.azimut}°` },
-                                        { label: 'HBA', value: `${cell.hba ?? '—'} m` },
-                                        { label: 'E-Tilt', value: `${(cell as any).remote_electrical_tilt ?? '—'}°` },
-                                        { label: 'Band', value: `${cell.bande} MHz` },
-                                        { label: 'Status', value: (cell as any).etat_cellule ?? 'Active' },
-                                      ].map((p, i) => (
-                                        <div key={i} className="flex items-center justify-between">
-                                          <span className="text-muted-foreground">{p.label}</span>
-                                          <span className="font-medium text-foreground">{p.value}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-
-                                    {/* KPI Grid */}
-                                    <h5 className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Performance</h5>
-                                    <div className="grid grid-cols-4 gap-2 mb-3">
-                                      {[
-                                        { label: 'DMS 3M', value: cell.dms_dl_3 ?? 0 },
-                                        { label: 'DMS 8M', value: cell.dms_dl_8 ?? 0 },
-                                        { label: 'DMS 30M', value: cell.dms_dl_30 ?? 0 },
-                                        { label: 'DMS UL', value: cell.dms_ul_3 ?? 0 },
-                                      ].map((m, i) => (
-                                        <div key={i} className="bg-card rounded-lg border border-border px-2 py-2 text-center">
-                                          <div className="text-[8px] font-semibold text-muted-foreground uppercase">{m.label}</div>
-                                          <div className="text-[13px] font-bold mt-0.5" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
-                                        </div>
-                                      ))}
-                                    </div>
-
-                                    <div className="grid grid-cols-4 gap-2">
-                                      {[
-                                        { label: 'QoE', value: `${cell.qoe_score_avg.toFixed(1)}%`, color: getKpiColor(cell.qoe_score_avg) },
-                                        { label: 'DL', value: `${(cell.p50_thr_dn_mbps ?? 0).toFixed(0)} M` },
-                                        { label: 'UL', value: `${(cell.p50_thr_up_mbps ?? 0).toFixed(0)} M` },
-                                        { label: 'RTT', value: `${(cell.p95_rtt_ms ?? 0).toFixed(0)} ms` },
-                                      ].map((k, i) => (
-                                        <div key={i} className="text-center">
-                                          <div className="text-[8px] font-semibold text-muted-foreground uppercase">{k.label}</div>
-                                          <div className="text-[13px] font-bold text-foreground mt-0.5" style={k.color ? { color: k.color } : undefined}>{k.value}</div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                    {/* DMS cards for this cell */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { label: 'DMS DL 3M', value: cell.dms_dl_3 ?? 0 },
+                        { label: 'DMS DL 8M', value: cell.dms_dl_8 ?? 0 },
+                        { label: 'DMS DL 30M', value: cell.dms_dl_30 ?? 0 },
+                        { label: 'DMS UL 3M', value: cell.dms_ul_3 ?? 0 },
+                      ].map((m, i) => (
+                        <div key={i} className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
+                          <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{m.label}</div>
+                          <div className="text-[14px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
                         </div>
-                      </details>
-                    );
-                  })}
-                </div>
-              </div>
+                      ))}
+                    </div>
+
+                    {/* QoE + DL + UL + RTT */}
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                        <div className="text-[8px] font-bold text-muted-foreground uppercase">QoE</div>
+                        <div className="text-[22px] font-black leading-none mt-1" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
+                          {cell.qoe_score_avg.toFixed(1)}%
+                        </div>
+                      </div>
+                      <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                        <div className="text-[8px] font-bold text-muted-foreground uppercase">DL</div>
+                        <div className="text-[18px] font-black text-foreground leading-none mt-1">
+                          {(cell.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">M</span>
+                        </div>
+                      </div>
+                      <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                        <div className="text-[8px] font-bold text-muted-foreground uppercase">UL</div>
+                        <div className="text-[18px] font-black text-foreground leading-none mt-1">
+                          {(cell.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">M</span>
+                        </div>
+                      </div>
+                      <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                        <div className="text-[8px] font-bold text-muted-foreground uppercase">RTT</div>
+                        <div className="text-[18px] font-black text-foreground leading-none mt-1">
+                          {(cell.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">ms</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RF Parameters */}
+                    <div>
+                      <h5 className="text-[10px] font-extrabold text-foreground uppercase tracking-wider mb-2">RF Parameters</h5>
+                      <div className="space-y-0 border border-border rounded-lg overflow-hidden">
+                        {[
+                          { label: 'Technology', value: cell.techno },
+                          { label: 'Band', value: `${cell.bande} MHz` },
+                          { label: 'Azimuth', value: `${cell.azimut}°` },
+                          { label: 'HBA', value: `${cell.hba ?? '—'} m` },
+                          { label: 'E-Tilt', value: `${(cell as any).remote_electrical_tilt ?? '—'}°` },
+                          { label: 'PCI', value: `${(cell as any).pci ?? '—'}` },
+                          { label: 'Status', value: (cell as any).etat_cellule ?? 'Active' },
+                          { label: 'Sessions', value: cell.sessions?.toLocaleString() ?? '—' },
+                        ].map((p, i) => (
+                          <div key={i} className={`flex items-center justify-between px-3 py-1.5 text-[11px] ${i > 0 ? 'border-t border-border/40' : ''}`}>
+                            <span className="text-muted-foreground">{p.label}</span>
+                            <span className="font-medium text-foreground">{p.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* ── AI Diagnostic Card — dark style ── */}
               <div className="px-5 py-4">
