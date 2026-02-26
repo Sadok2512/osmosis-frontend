@@ -48,7 +48,7 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio
+  Crosshair, MousePointerClick, Radio, Plus, Minus
 } from 'lucide-react';
 import { getQoEColor, VENDORS, DORS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
 
@@ -154,7 +154,30 @@ const FitHighlightBounds = ({ coords }: { coords: [number, number][] }) => {
   return null;
 };
 
-// Track map viewport (bounds + zoom)
+// Custom Zoom Control — top-right, glassmorphism style
+const CustomZoomControl: React.FC = () => {
+  const map = useMap();
+  return (
+    <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-1">
+      <button
+        onClick={() => map.zoomIn()}
+        className="w-9 h-9 flex items-center justify-center rounded-t-xl bg-card/90 backdrop-blur-md border border-border shadow-lg hover:bg-accent text-foreground transition-all"
+        aria-label="Zoom in"
+      >
+        <Plus size={16} strokeWidth={2.5} />
+      </button>
+      <button
+        onClick={() => map.zoomOut()}
+        className="w-9 h-9 flex items-center justify-center rounded-b-xl bg-card/90 backdrop-blur-md border border-border border-t-0 shadow-lg hover:bg-accent text-foreground transition-all"
+        aria-label="Zoom out"
+      >
+        <Minus size={16} strokeWidth={2.5} />
+      </button>
+    </div>
+  );
+};
+
+
 interface ViewportState {
   bounds: L.LatLngBounds | null;
   zoom: number;
@@ -542,8 +565,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         center={[43.2965, 5.3698]}
         zoom={15}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
-        zoomControl={true}
+        zoomControl={false}
       >
+        <CustomZoomControl />
         <TileLayer
           key={mapLayer}
           url={TILE_URLS[mapLayer].url}
