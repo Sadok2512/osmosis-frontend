@@ -27,7 +27,6 @@ interface TopoRow {
   code_nidt: string;
   nom_site: string;
   region: string | null;
-  dor: string | null;
   longitude: number | null;
   latitude: number | null;
   nom_cellule: string;
@@ -38,14 +37,6 @@ interface TopoRow {
   plaque: string | null;
   hba: number | null;
   tac: number | null;
-  eci: number | null;
-  nci: number | null;
-  cid: number | null;
-  pci: number | null;
-  remote_electrical_tilt: number | null;
-  etat_cellule: string | null;
-  zone_arcep: string | null;
-  essentiel: string | null;
 }
 
 function buildCellProperties(cellName: string, techno: string, bande: string, azimut: number, hba: number): CellProperties {
@@ -116,7 +107,7 @@ function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       site_id: siteId,
       site_name: first.nom_site,
       vendor,
-      dor: first.dor || DOR_MAP[first.region || ''] || 'DOR IDF',
+      dor: DOR_MAP[first.region || ''] || 'DOR IDF',
       plaque: first.plaque || '',
       department: (first.plaque || '').replace('DEPT_', ''),
       cell_count: cells.length,
@@ -175,7 +166,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
         while (hasMore) {
           const { data, error } = await supabase
             .from('topo')
-            .select('code_nidt, nom_site, region, dor, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac, eci, nci, cid, pci, remote_electrical_tilt, etat_cellule, zone_arcep, essentiel')
+            .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac')
             .range(from, from + pageSize - 1);
           if (error || !data || data.length === 0) {
             hasMore = false;
