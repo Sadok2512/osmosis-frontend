@@ -287,20 +287,31 @@ app.post('/api/import-topo', async (req, res) => {
   }
 });
 
-// ─── /api/topo (read all — paginated) ───
+// ─── /api/topo (read — paginated, default limit 100k) ───
 app.get('/api/topo', async (req, res) => {
   const pool = createPool(getLocalDbConfig());
   try {
+    const limit = Math.min(parseInt(req.query.limit) || 100000, 500000);
+    const offset = parseInt(req.query.offset) || 0;
+
+    // First return count for client awareness
+    const countRes = await pool.query('SELECT COUNT(*)::int AS total FROM topo');
+    const total = countRes.rows[0]?.total || 0;
+
     const result = await pool.query(
       `SELECT code_nidt, nom_site, region, longitude, latitude, nom_cellule,
               techno, bande, constructeur, azimut, plaque, hba, tac,
               dor, pci, cid, eci, nci, etat_cellule, zone_arcep, essentiel,
               remote_electrical_tilt, date_mes, date_fn8
-       FROM topo ORDER BY id`
+       FROM topo ORDER BY id LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
-    res.json(result.rows);
+    
+    console.log(`[/api/topo] Serving ${result.rows.length}/${total} rows (offset=${offset}, limit=${limit})`);
+    res.json({ rows: result.rows, total });
   } catch (e) {
-    res.json({ error: e.message });
+    console.error('[/api/topo]', e.message);
+    res.status(500).json({ error: e.message });
   } finally {
     await pool.end();
   }
