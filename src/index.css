@@ -8,23 +8,24 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 210 20% 96%;
-    --foreground: 222 84% 4.9%;
+    /* Light Mode — Corporate / Reporting */
+    --background: 210 20% 98%;
+    --foreground: 220 30% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 84% 4.9%;
+    --card-foreground: 220 30% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 84% 4.9%;
+    --popover-foreground: 220 30% 10%;
 
     --primary: 170 70% 35%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 30% 95%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 30% 10%;
 
-    --muted: 210 30% 95%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
 
     --accent: 170 70% 35%;
     --accent-foreground: 0 0% 100%;
@@ -32,8 +33,8 @@ All colors MUST be HSL.
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
     --ring: 170 70% 35%;
 
     --radius: 0.75rem;
