@@ -480,7 +480,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return filteredSites.filter(s => s.cells.some(c => c.techno === mapTechnoFilter));
   }, [filteredSites, mapTechnoFilter]);
 
-  // Unique site names for site filter dropdown
+  // Dynamic filter options based on actual data
+  const uniqueVendors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.vendor).filter(Boolean))].sort(), [sites]);
+  const uniqueDors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.dor).filter(Boolean))].sort(), [sites]);
+  const uniquePlaques = useMemo(() => ['ALL', ...new Set(sites.map(s => s.plaque).filter(Boolean))].sort(), [sites]);
   const uniqueSiteNames = useMemo(() => {
     const names = [...new Set(sites.map(s => s.site_name))].sort();
     return ['ALL', ...names];
@@ -1359,21 +1362,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Vendor</span>
                     <select value={localVendor} onChange={(e) => setLocalVendor(e.target.value)}
                       className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                      {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
+                      {uniqueVendors.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">DOR</span>
                     <select value={localDor} onChange={(e) => setLocalDor(e.target.value)}
                       className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                      {DORS.map(d => <option key={d} value={d}>{d}</option>)}
+                      {uniqueDors.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Plaque</span>
                     <select value={localPlaque} onChange={(e) => setLocalPlaque(e.target.value)}
                       className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                      {PLAQUES.map(p => <option key={p} value={p}>{p}</option>)}
+                      {uniquePlaques.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
