@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { isLocalMode, getApiUrl } from '@/lib/apiConfig';
 import { Search, Filter, Download, BarChart3, TableIcon, Loader2, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -59,22 +60,45 @@ const TopologiePage: React.FC = () => {
   const [plaques, setPlaques] = useState<string[]>([]);
   const [vendors, setVendors] = useState<string[]>([]);
 
+  // Helper: fetch from local API or Supabase
+  const fetchDistinct = async (col: string, extraParams?: Record<string, string>) => {
+    if (isLocalMode()) {
+      const params = new URLSearchParams({ distinct_col: col, ...extraParams });
+      const resp = await fetch(`${getApiUrl('dump-parameter')}?${params}`);
+      const rows = await resp.json();
+      return [...new Set(rows.map((r: any) => r[col]).filter(Boolean))].sort() as string[];
+    }
+    let query = supabase.from('dump_parameter').select(col).not(col, 'is', null) as any;
+    if (extraParams) {
+      Object.entries(extraParams).forEach(([k, v]) => { query = query.eq(k, v); });
+    }
+    const { data } = await query.limit(5000);
+    return [...new Set((data || []).map((r: any) => r[col]).filter(Boolean))].sort() as string[];
+  };
+
+  const fetchRows = async (filters: Record<string, string>, cols: string, limit = 5000) => {
+    if (isLocalMode()) {
+      const params = new URLSearchParams({ select: cols, limit: String(limit), ...filters });
+      const resp = await fetch(`${getApiUrl('dump-parameter')}?${params}`);
+      return await resp.json();
+    }
+    let query: any = supabase.from('dump_parameter').select(cols);
+    Object.entries(filters).forEach(([k, v]) => { query = query.eq(k, v); });
+    const { data } = await query.order('site_name').limit(limit);
+    return data || [];
+  };
+
   // Load filter options
   useEffect(() => {
     const loadFilters = async () => {
-      const [siteRes, paramRes, dorRes, plaqueRes, vendorRes] = await Promise.all([
-        supabase.from('dump_parameter').select('site_name').not('site_name', 'is', null).limit(1000),
-        supabase.from('dump_parameter').select('parameter').limit(1000),
-        supabase.from('dump_parameter').select('dor').not('dor', 'is', null).limit(1000),
-        supabase.from('dump_parameter').select('plaque').not('plaque', 'is', null).limit(1000),
-        supabase.from('dump_parameter').select('vendor').not('vendor', 'is', null).limit(1000),
+      const [s, p, d, pl, v] = await Promise.all([
+        fetchDistinct('site_name'),
+        fetchDistinct('parameter'),
+        fetchDistinct('dor'),
+        fetchDistinct('plaque'),
+        fetchDistinct('vendor'),
       ]);
-      const unique = (arr: any[], key: string) => [...new Set(arr?.map(r => r[key]).filter(Boolean))].sort() as string[];
-      setSites(unique(siteRes.data || [], 'site_name'));
-      setParams(unique(paramRes.data || [], 'parameter'));
-      setDors(unique(dorRes.data || [], 'dor'));
-      setPlaques(unique(plaqueRes.data || [], 'plaque'));
-      setVendors(unique(vendorRes.data || [], 'vendor'));
+      setSites(s); setParams(p); setDors(d); setPlaques(pl); setVendors(v);
     };
     loadFilters();
   }, []);
@@ -89,10 +113,9 @@ const TopologiePage: React.FC = () => {
   // Load cells when site changes
   useEffect(() => {
     const loadCells = async () => {
-      let query = supabase.from('dump_parameter').select('cell_name').not('cell_name', 'is', null);
-      if (selectedSite !== 'ALL') query = query.eq('site_name', selectedSite);
-      const { data } = await query.limit(1000);
-      setCells([...new Set((data || []).map(r => r.cell_name).filter(Boolean))].sort() as string[]);
+      const extra = selectedSite !== 'ALL' ? { site_name: selectedSite } : undefined;
+      const c = await fetchDistinct('cell_name', extra);
+      setCells(c);
     };
     loadCells();
   }, [selectedSite]);
@@ -102,15 +125,13 @@ const TopologiePage: React.FC = () => {
     const loadData = async () => {
       if (selectedParam === 'ALL') { setData([]); return; }
       setLoading(true);
-      let query = supabase.from('dump_parameter')
-        .select('id, site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur')
-        .eq('parameter', selectedParam);
-      if (selectedSite !== 'ALL') query = query.eq('site_name', selectedSite);
-      if (selectedCell !== 'ALL') query = query.eq('cell_name', selectedCell);
-      if (selectedDor !== 'ALL') query = query.eq('dor', selectedDor);
-      if (selectedPlaque !== 'ALL') query = query.eq('plaque', selectedPlaque);
-      if (selectedVendor !== 'ALL') query = query.eq('vendor', selectedVendor);
-      const { data: rows } = await query.order('site_name').limit(5000);
+      const filters: Record<string, string> = { parameter: selectedParam };
+      if (selectedSite !== 'ALL') filters.site_name = selectedSite;
+      if (selectedCell !== 'ALL') filters.cell_name = selectedCell;
+      if (selectedDor !== 'ALL') filters.dor = selectedDor;
+      if (selectedPlaque !== 'ALL') filters.plaque = selectedPlaque;
+      if (selectedVendor !== 'ALL') filters.vendor = selectedVendor;
+      const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur');
       setData(rows || []);
       setLoading(false);
     };

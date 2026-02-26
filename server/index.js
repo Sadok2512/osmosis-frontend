@@ -691,6 +691,54 @@ Réponds TOUJOURS en français.`;
   }
 });
 
+// ─── /api/dump-parameter (query with filters) ───
+app.get('/api/dump-parameter', async (req, res) => {
+  const pool = createPool({ host: 'localhost', port: '5432', database: 'RAN_OP', user: 'postgres', password: 'root' });
+  try {
+    const tableChoice = await pool.query(`
+      SELECT CASE
+        WHEN to_regclass('public.dump_parametre') IS NOT NULL THEN 'dump_parametre'
+        WHEN to_regclass('public.dump_parameter') IS NOT NULL THEN 'dump_parameter'
+        ELSE 'dump_parameter'
+      END AS table_name
+    `);
+    const dumpTable = tableChoice.rows[0]?.table_name || 'dump_parameter';
+
+    const { select, parameter, site_name, cell_name, dor, plaque, vendor, order, limit: lim, distinct_col } = req.query;
+
+    // Special mode: get distinct values for a column
+    if (distinct_col) {
+      const allowedCols = ['site_name', 'cell_name', 'parameter', 'dor', 'plaque', 'vendor'];
+      if (!allowedCols.includes(distinct_col)) return res.json([]);
+      let q = `SELECT DISTINCT ${distinct_col} FROM ${dumpTable} WHERE ${distinct_col} IS NOT NULL`;
+      const params = [];
+      if (site_name) { params.push(site_name); q += ` AND site_name = $${params.length}`; }
+      q += ` ORDER BY ${distinct_col} LIMIT 5000`;
+      const result = await pool.query(q, params);
+      return res.json(result.rows);
+    }
+
+    // Normal query mode
+    const cols = select || 'id, site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
+    let q = `SELECT ${cols} FROM ${dumpTable} WHERE 1=1`;
+    const params = [];
+    if (parameter) { params.push(parameter); q += ` AND parameter = $${params.length}`; }
+    if (site_name) { params.push(site_name); q += ` AND site_name = $${params.length}`; }
+    if (cell_name) { params.push(cell_name); q += ` AND cell_name = $${params.length}`; }
+    if (dor) { params.push(dor); q += ` AND dor = $${params.length}`; }
+    if (plaque) { params.push(plaque); q += ` AND plaque = $${params.length}`; }
+    if (vendor) { params.push(vendor); q += ` AND vendor = $${params.length}`; }
+    q += ` ORDER BY ${order || 'site_name'} LIMIT ${parseInt(lim) || 5000}`;
+
+    const result = await pool.query(q, params);
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  } finally {
+    await pool.end();
+  }
+});
+
 // ─── Health check ───
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', mode: 'local', timestamp: new Date().toISOString() });
@@ -707,5 +755,6 @@ app.listen(PORT, () => {
   console.log(`   POST /api/dashboards`);
   console.log(`   POST /api/rag-embed`);
   console.log(`   POST /api/qoe-assistant`);
+  console.log(`   GET  /api/dump-parameter`);
   console.log(`   GET  /api/health\n`);
 });
