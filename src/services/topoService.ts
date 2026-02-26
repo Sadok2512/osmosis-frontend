@@ -165,8 +165,10 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
     console.log(`[TopoService] LOCAL: Built ${cachedLocalSites.length} sites`);
     return cachedLocalSites;
   } catch (err) {
-    console.warn('[TopoService] LOCAL fetch failed', err);
-    return [];
+    console.warn('[TopoService] LOCAL fetch failed, falling back to embedded topoData', err);
+    cachedLocalSites = buildSitesFromLocalTopo();
+    console.log(`[TopoService] FALLBACK: Built ${cachedLocalSites.length} sites from embedded data`);
+    return cachedLocalSites;
   }
 }
 
