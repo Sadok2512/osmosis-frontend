@@ -66,16 +66,16 @@ const SECTOR_ZOOM_THRESHOLD = 12;
 
 // Band-based color mapping for sector rendering
 const BAND_COLORS: Record<string, string> = {
-  // NR (5G)
-  NR3500: '#0ea5e9',  // sky-500
-  NR700:  '#8b5cf6',  // violet-500
-  NR2100: '#14b8a6',  // teal-500
-  // LTE (4G)
-  L2600:  '#f97316',  // orange-500
-  L2100:  '#eab308',  // yellow-500
-  L1800:  '#22c55e',  // green-500
-  L800:   '#ef4444',  // red-500
-  L700:   '#ec4899',  // pink-500
+  // NR (5G) — purple tones
+  NR3500: '#a855f7',  // purple-500
+  NR700:  '#c084fc',  // purple-400
+  NR2100: '#7c3aed',  // violet-600
+  // LTE (4G) — blue tones
+  L2600:  '#3b82f6',  // blue-500
+  L2100:  '#60a5fa',  // blue-400
+  L1800:  '#2563eb',  // blue-600
+  L800:   '#93c5fd',  // blue-300
+  L700:   '#1d4ed8',  // blue-700
 };
 
 const getBandColor = (bande: string): string => {
@@ -90,8 +90,8 @@ const getBandColor = (bande: string): string => {
 
 // Keep legacy techno color for modes that don't have bande info
 const getTechnoColor = (techno: string): string => {
-  if (techno === '5G') return '#14b8a6';
-  return '#f59e0b';
+  if (techno === '5G') return '#a855f7'; // purple
+  return '#3b82f6'; // blue
 };
 
 // Generate sector polygon points (wedge shape)
@@ -217,17 +217,20 @@ const createClusterCustomIcon = (_cluster: any) => {
   });
 };
 
-// Lightweight site marker icon
+// Antenna site marker icon — clean engineering look
 const createSiteIcon = (color: string) => {
   return L.divIcon({
-    html: `<div style="
-      width:12px;height:12px;border-radius:50%;
-      background:${color};border:2px solid #1e293b;
-      box-shadow:0 2px 6px rgba(0,0,0,0.3);
-    "></div>`,
-    className: 'site-dot-icon',
-    iconSize: L.point(12, 12),
-    iconAnchor: L.point(6, 6),
+    html: `<div style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20V10"/>
+        <path d="M18 6l-6 4-6-4"/>
+        <path d="M6 6l6-4 6 4"/>
+        <circle cx="12" cy="10" r="1.5" fill="${color}" stroke="none"/>
+      </svg>
+    </div>`,
+    className: 'site-antenna-icon',
+    iconSize: L.point(18, 18),
+    iconAnchor: L.point(9, 9),
   });
 };
 
@@ -731,10 +734,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     key={cell.cell_id}
                     positions={sectorCoords}
                     pathOptions={{
-                      color: isHovered ? '#1e293b' : color,
+                      color: isHovered ? 'rgba(255,255,255,0.6)' : color,
                       fillColor: color,
-                      fillOpacity: isHovered ? 0.9 : 0.75,
-                      weight: isHovered ? 2 : 1,
+                      fillOpacity: isHovered ? 0.5 : 0.35,
+                      weight: isHovered ? 1.5 : 0.5,
+                      opacity: 0.7,
                     }}
                     eventHandlers={{
                       click: () => handleSiteClick(site),
@@ -742,25 +746,37 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       mouseout: () => setHoveredSiteId(null),
                     }}
                   >
-                    <Tooltip direction="top" offset={[0, -10]} permanent={false}>
-                      <div className="text-center">
-                        <div className="font-bold text-xs">{cell.cell_id.split('_').pop()} • {cell.azimut}°</div>
-                        <div className="text-[10px]">{cell.techno} • {cell.bande}</div>
+                    <Tooltip direction="top" offset={[0, -10]} permanent={false} className="sector-tooltip">
+                      <div className="px-3 py-2.5 min-w-[160px]">
+                        <div className="text-[10px] font-black text-white/90 uppercase tracking-wider">{site.site_name}</div>
+                        <div className="text-[9px] text-white/50 font-mono mt-0.5">{site.site_id}</div>
+                        <div className="mt-2 space-y-1">
+                          <div className="flex justify-between text-[10px]"><span className="text-white/50">Technology</span><span className="font-bold text-white/90">{cell.techno}</span></div>
+                          <div className="flex justify-between text-[10px]"><span className="text-white/50">Band</span><span className="font-bold text-white/90">{cell.bande} MHz</span></div>
+                          <div className="flex justify-between text-[10px]"><span className="text-white/50">Azimuth</span><span className="font-bold text-white/90">{cell.azimut}°</span></div>
+                          <div className="flex justify-between text-[10px]"><span className="text-white/50">Tilt</span><span className="font-bold text-white/90">{(cell as any).remote_electrical_tilt ?? '—'}°</span></div>
+                        </div>
                       </div>
                     </Tooltip>
                   </Polygon>
                 );
               })}
-              {/* Dark center dot */}
-              <CircleMarker
-                center={site.coordinates}
-                radius={isHovered ? 6 : 4}
-                pathOptions={{
-                  color: '#0f172a',
-                  fillColor: '#0f172a',
-                  fillOpacity: 1,
-                  weight: 1,
-                }}
+              {/* Antenna center icon */}
+              <Marker
+                position={site.coordinates}
+                icon={L.divIcon({
+                  html: `<div style="display:flex;align-items:center;justify-content:center;width:16px;height:16px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${isHovered ? '#fff' : '#334155'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 20V10"/>
+                      <path d="M18 6l-6 4-6-4"/>
+                      <path d="M6 6l6-4 6 4"/>
+                      <circle cx="12" cy="10" r="1.5" fill="${isHovered ? '#fff' : '#334155'}" stroke="none"/>
+                    </svg>
+                  </div>`,
+                  className: 'site-antenna-icon',
+                  iconSize: L.point(16, 16),
+                  iconAnchor: L.point(8, 8),
+                })}
                 eventHandlers={{
                   click: () => handleSiteClick(site),
                   mouseover: () => setHoveredSiteId(site.site_id),
@@ -768,8 +784,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 }}
               >
                 {viewport.zoom >= 15 && (
-                  <Tooltip direction="bottom" offset={[0, 8]} permanent className="site-name-label">
-                    <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.05em' }}>{site.site_name}</span>
+                  <Tooltip direction="bottom" offset={[0, 6]} permanent className="site-name-label">
+                    <span style={{
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      color: '#1e293b',
+                      textShadow: '0 0 4px rgba(255,255,255,0.9), 0 1px 2px rgba(255,255,255,0.8)',
+                    }}>{site.site_name}</span>
                   </Tooltip>
                 )}
                 <Popup>
@@ -779,7 +801,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
                   </div>
                 </Popup>
-              </CircleMarker>
+              </Marker>
             </React.Fragment>
           );
         })}
@@ -1262,25 +1284,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </button>
             {showBandPanel && (
               <div className="absolute right-12 top-0 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px]">
-                {/* NR group */}
-                <div className="px-4 py-2 border-b border-border">
-                  <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline">
-                    NR (5G)
-                  </button>
-                  <div className="mt-1.5 space-y-1">
+                <div className="px-4 py-3 border-b border-border/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: '#a855f7' }}>
+                      5G NR
+                    </button>
+                    <span className="text-[8px] font-bold text-muted-foreground/50">PURPLE</span>
+                  </div>
+                  <div className="space-y-1.5">
                     {(['NR3500', 'NR700', 'NR2100'] as const).map(band => (
                       <button
                         key={band}
                         onClick={() => toggleBand(band)}
-                        className="flex items-center gap-2 w-full group"
+                        className="flex items-center gap-2.5 w-full group"
                       >
                         <div
-                          className={`w-3.5 h-3.5 rounded-sm border transition-all ${
-                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground bg-transparent'
+                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${
+                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
                           }`}
                           style={{ background: enabledBands.has(band) ? BAND_COLORS[band] : 'transparent' }}
-                        />
-                        <span className={`text-[10px] font-bold transition-all ${
+                        >
+                          {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
+                        </div>
+                        <span className={`text-[11px] font-bold transition-all ${
                           enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
                         }`}>{band}</span>
                       </button>
@@ -1288,24 +1314,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </div>
                 {/* LTE group */}
-                <div className="px-4 py-2">
-                  <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black text-accent-foreground uppercase tracking-widest hover:underline">
-                    LTE (4G)
-                  </button>
-                  <div className="mt-1.5 space-y-1">
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: '#3b82f6' }}>
+                      4G LTE
+                    </button>
+                    <span className="text-[8px] font-bold text-muted-foreground/50">BLUE</span>
+                  </div>
+                  <div className="space-y-1.5">
                     {(['L2600', 'L2100', 'L1800', 'L800', 'L700'] as const).map(band => (
                       <button
                         key={band}
                         onClick={() => toggleBand(band)}
-                        className="flex items-center gap-2 w-full group"
+                        className="flex items-center gap-2.5 w-full group"
                       >
                         <div
-                          className={`w-3.5 h-3.5 rounded-sm border transition-all ${
-                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground bg-transparent'
+                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${
+                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
                           }`}
                           style={{ background: enabledBands.has(band) ? BAND_COLORS[band] : 'transparent' }}
-                        />
-                        <span className={`text-[10px] font-bold transition-all ${
+                        >
+                          {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
+                        </div>
+                        <span className={`text-[11px] font-bold transition-all ${
                           enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
                         }`}>{band}</span>
                       </button>
@@ -1349,7 +1380,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
               {/* Band colors — NR */}
               <div className="px-5 pb-2 pt-2 border-t border-border">
-                <span className="text-[9px] font-black text-primary uppercase tracking-widest">NR (5G)</span>
+              <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#a855f7' }}>5G NR</span>
                 <div className="mt-1.5 space-y-1.5">
                   {[
                     { band: 'NR3500', color: BAND_COLORS.NR3500 },
@@ -1357,7 +1388,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     { band: 'NR2100', color: BAND_COLORS.NR2100 },
                   ].map(({ band, color }) => (
                     <div key={band} className="flex items-center gap-2.5">
-                      <div className="w-3 h-3 rounded-sm" style={{ background: color }} />
+                      <div className="w-3 h-3 rounded-sm" style={{ background: color, opacity: 0.35, border: `1.5px solid ${color}` }} />
                       <span className="text-[10px] font-bold text-foreground">{band}</span>
                     </div>
                   ))}
@@ -1365,7 +1396,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
               {/* Band colors — LTE */}
               <div className="px-5 pb-4 pt-2 border-t border-border">
-                <span className="text-[9px] font-black text-accent-foreground uppercase tracking-widest">LTE (4G)</span>
+                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#3b82f6' }}>4G LTE</span>
                 <div className="mt-1.5 space-y-1.5">
                   {[
                     { band: 'L2600', color: BAND_COLORS.L2600 },
@@ -1375,7 +1406,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     { band: 'L700', color: BAND_COLORS.L700 },
                   ].map(({ band, color }) => (
                     <div key={band} className="flex items-center gap-2.5">
-                      <div className="w-3 h-3 rounded-sm" style={{ background: color }} />
+                      <div className="w-3 h-3 rounded-sm" style={{ background: color, opacity: 0.35, border: `1.5px solid ${color}` }} />
                       <span className="text-[10px] font-bold text-foreground">{band}</span>
                     </div>
                   ))}
