@@ -630,12 +630,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setSelectedSiteId(site.site_id);
     setFocusMode('site');
     setFocusCellId(null);
+    setShowRightPanel(true);
   };
 
   const handleCellClick = (cellId: string) => {
     setFocusMode('cell');
     setFocusCellId(cellId);
     onCellSelect(cellId);
+    setShowRightPanel(true);
   };
 
   const handleBackToGlobal = () => {
@@ -1890,15 +1892,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
 
       {/* RIGHT SIDE PANEL — Professional NOC Topology Panel */}
-      {!showRightPanel && (
-        <button
-          onClick={() => setShowRightPanel(true)}
-          className="absolute top-3 right-3 z-[1000] w-9 h-9 bg-card/90 backdrop-blur-md border border-border rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent shadow-lg transition-all"
-          title="Open detail panel"
-        >
-          <PanelLeftClose size={16} />
-        </button>
-      )}
       {showRightPanel && (
       <div className={`absolute z-[1000] bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ${
         detailFullscreen
