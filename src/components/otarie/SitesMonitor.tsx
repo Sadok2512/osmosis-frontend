@@ -335,6 +335,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [sectorColorMode, setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
   const [detailFullscreen, setDetailFullscreen] = useState(false);
 
+  // Focus mode: 'global' | 'site' | 'cell'
+  const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
+  const [focusCellId, setFocusCellId] = useState<string | null>(null);
+
   // LOS / Radio Profile state
   const [losDrawingMode, setLosDrawingMode] = useState(false);
   const [losTargetPoint, setLosTargetPoint] = useState<LatLng | null>(null);
@@ -622,6 +626,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const handleSiteClick = (site: SiteSummary) => {
     setFlyTarget(site.coordinates);
     setSelectedSiteId(site.site_id);
+    setFocusMode('site');
+    setFocusCellId(null);
+  };
+
+  const handleCellClick = (cellId: string) => {
+    setFocusMode('cell');
+    setFocusCellId(cellId);
+    onCellSelect(cellId);
+  };
+
+  const handleBackToGlobal = () => {
+    setSelectedSiteId(null);
+    setFocusMode('global');
+    setFocusCellId(null);
+    setDetailFullscreen(false);
+  };
+
+  const handleBackToSite = () => {
+    setFocusMode('site');
+    setFocusCellId(null);
   };
 
   // Loading overlay rendered inside the map area
@@ -735,17 +759,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {mapDisplayMode === 'sites' && !showSectors && visibleSites.map(site => {
           const color = getKpiColor(getCellKpiValue(site.cells[0] || {}));
           const isHovered = hoveredSiteId === site.site_id;
-          const radius = viewport.zoom >= 10 ? (isHovered ? 7 : 5) : (isHovered ? 5 : 3);
+          const isSelectedSite = selectedSiteId === site.site_id;
+          const isFocusFaded = focusMode !== 'global' && !isSelectedSite;
+          const radius = viewport.zoom >= 10 ? (isHovered ? 7 : (isSelectedSite ? 7 : 5)) : (isHovered ? 5 : 3);
           return (
             <CircleMarker
               key={site.site_id}
               center={site.coordinates}
               radius={radius}
               pathOptions={{
-                color: isHovered ? '#fff' : '#1e293b',
-                fillColor: color,
-                fillOpacity: 0.85,
-                weight: isHovered ? 2 : 1,
+                color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
+                fillColor: isFocusFaded ? FADED_COLOR : color,
+                fillOpacity: isFocusFaded ? 0.25 : 0.85,
+                weight: isSelectedSite ? 2 : (isHovered ? 2 : 1),
               }}
               eventHandlers={{
                 click: () => handleSiteClick(site),
@@ -770,9 +796,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
         {showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
+          const isSelectedSite = selectedSiteId === site.site_id;
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom);
           // Smart overlap: reduce opacity further when many sites visible
           const overlapFactor = visibleSites.length > 200 ? 0.08 : visibleSites.length > 80 ? 0.12 : 0.15;
+          // Focus mode: fade non-selected sites
+          const isFocusFaded = focusMode !== 'global' && !isSelectedSite;
           return (
             <React.Fragment key={site.site_id}>
               {site.cells.filter(c => isBandEnabled(c.bande, c.techno)).map(cell => {
@@ -780,22 +809,31 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const is5G = (cell.techno || '').toUpperCase().includes('5G');
                 // Technology hierarchy: when a specific tech is selected, fade the other
                 const isFaded = (mapTechnoFilter === '5G' && !is5G) || (mapTechnoFilter === '4G' && is5G);
-                const fillColor = isFaded ? FADED_COLOR : (sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
-                const strokeColor = isFaded ? '#cbd5e1' : (sectorColorMode === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
-                const baseOpacity = isFaded ? 0.06 : overlapFactor;
+                const fillColor = isFaded || isFocusFaded ? FADED_COLOR : (sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
+                const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : (sectorColorMode === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
+                const isFocusCell = focusCellId === cell.cell_id;
+                const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
+                const baseOpacity = isFocusFaded ? 0.06 : (isFaded ? 0.06 : (isCellDimmed ? 0.10 : overlapFactor));
+                const strokeWeight = isFocusCell ? 2 : (isHovered ? 1.5 : 1);
                 return (
                   <Polygon
                     key={cell.cell_id}
                     positions={sectorCoords}
                     pathOptions={{
-                      color: isHovered ? '#fff' : strokeColor,
+                      color: isFocusCell ? '#fff' : (isHovered ? '#fff' : strokeColor),
                       fillColor: fillColor,
-                      fillOpacity: isHovered ? 0.28 : baseOpacity,
-                      weight: isHovered ? 1.5 : 1,
-                      opacity: isHovered ? 0.9 : (isFaded ? 0.2 : 0.55),
+                      fillOpacity: isFocusCell ? 0.30 : (isHovered ? 0.28 : baseOpacity),
+                      weight: strokeWeight,
+                      opacity: isFocusCell ? 1 : (isHovered ? 0.9 : (isFocusFaded ? 0.15 : (isFaded ? 0.2 : 0.55))),
                     }}
                     eventHandlers={{
-                      click: () => handleSiteClick(site),
+                      click: () => {
+                        if (isSelectedSite) {
+                          handleCellClick(cell.cell_id);
+                        } else {
+                          handleSiteClick(site);
+                        }
+                      },
                       mouseover: () => setHoveredSiteId(site.site_id),
                       mouseout: () => setHoveredSiteId(null),
                     }}
@@ -1748,447 +1786,318 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* RIGHT SIDE DETAIL PANEL — Analyse Détaillée */}
-      {siteDetail && (
-        <div className={`absolute z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ${
-          detailFullscreen
-            ? 'inset-3'
-            : 'top-4 right-4 bottom-4 w-[400px]'
-        }`}>
-          {/* Header */}
-          <div className="px-5 py-4 border-b border-border shrink-0 flex items-center justify-between">
+      {/* RIGHT SIDE PANEL — NOC Focus Panel */}
+      <div className={`absolute z-[1000] bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ${
+        detailFullscreen
+          ? 'inset-3'
+          : 'top-4 right-4 bottom-4 w-[400px]'
+      }`}>
+        {/* Breadcrumb + Header */}
+        <div className="px-5 py-3 border-b border-border shrink-0">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider mb-2">
+            <button onClick={handleBackToGlobal} className={`transition-all ${focusMode === 'global' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+              Global
+            </button>
+            {focusMode !== 'global' && siteDetail && (
+              <>
+                <ChevronRight size={10} className="text-muted-foreground" />
+                <button onClick={handleBackToSite} className={`transition-all truncate max-w-[120px] ${focusMode === 'site' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                  {siteDetail.site_name}
+                </button>
+              </>
+            )}
+            {focusMode === 'cell' && focusCellId && (
+              <>
+                <ChevronRight size={10} className="text-muted-foreground" />
+                <span className="text-primary truncate max-w-[100px] font-mono">{focusCellId.split('_').pop()}</span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-[13px] font-black text-foreground uppercase tracking-[0.12em]">Analyse Détaillée</h3>
-              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mt-0.5">Focus Cellule • NOC Monitoring</p>
+              <h3 className="text-[12px] font-black text-foreground uppercase tracking-[0.1em]">
+                {focusMode === 'global' ? 'Network Overview' : focusMode === 'site' ? siteDetail?.site_name : 'Cell Detail'}
+              </h3>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mt-0.5">
+                Scope: {focusMode === 'global' ? 'Global' : focusMode === 'site' ? 'Site' : 'Cell'} • {selectedKpiLabel}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setDetailFullscreen(!detailFullscreen)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
               >
-                {detailFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                {detailFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
               </button>
               <button
-                onClick={() => { setSelectedSiteId(null); setDetailFullscreen(false); }}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                onClick={handleBackToGlobal}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
               >
-                <X size={14} />
+                <X size={13} />
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Content — adaptive layout */}
-          <div className={`flex-1 overflow-y-auto p-5 ${detailFullscreen ? '' : 'space-y-5'}`}>
-            {detailFullscreen ? (
-              /* ===== FULLSCREEN LAYOUT ===== */
-              <div className="grid grid-cols-3 gap-5 h-full">
-                {/* LEFT COLUMN — Site Identity + KPIs */}
-                <div className="flex flex-col gap-5 overflow-y-auto pr-2">
-                  {/* Site header */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 bg-sidebar rounded-2xl flex items-center justify-center shadow-lg">
-                      <Signal size={26} className="text-sidebar-primary" />
-                    </div>
-                    <div>
-                      <h4 className="text-[18px] font-black text-foreground uppercase tracking-tight">{siteDetail.site_name}</h4>
-                      <div className="flex items-center gap-2 text-[11px] mt-0.5">
-                        <span className="font-mono text-muted-foreground">{siteDetail.site_id}</span>
-                        <span>•</span>
-                        <span className="font-bold text-primary uppercase">{siteDetail.vendor}</span>
-                        <span>•</span>
-                        <span className="font-bold text-muted-foreground uppercase">{siteDetail.dor}</span>
-                      </div>
-                    </div>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+
+          {/* ===== GLOBAL MODE — Network KPI Summary ===== */}
+          {focusMode === 'global' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Total Sites', value: filteredSites.length.toLocaleString() },
+                  { label: 'Total Cells', value: filteredSites.reduce((acc, s) => acc + s.cell_count, 0).toLocaleString() },
+                  { label: 'Avg QoE', value: `${(filteredSites.reduce((acc, s) => acc + (s.qoe_score_avg || 0), 0) / Math.max(filteredSites.length, 1)).toFixed(1)}%`, color: getKpiColor(filteredSites.reduce((acc, s) => acc + (s.qoe_score_avg || 0), 0) / Math.max(filteredSites.length, 1)) },
+                  { label: 'Technologies', value: [...new Set(filteredSites.flatMap(s => s.cells.map(c => c.techno)))].join(' / ') },
+                ].map((item, i) => (
+                  <div key={i} className="px-3 py-3 rounded-xl border border-border bg-muted/30">
+                    <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">{item.label}</div>
+                    <div className="text-[15px] font-black text-foreground mt-0.5" style={item.color ? { color: item.color } : undefined}>{item.value}</div>
                   </div>
+                ))}
+              </div>
+              <div className="text-[9px] text-muted-foreground text-center uppercase tracking-wider py-4">
+                Select a site on the map or from the inventory to view details
+              </div>
+            </div>
+          )}
 
-                  {/* QoE Score hero */}
-                  <div className="bg-sidebar rounded-2xl p-5 text-center">
-                    <div className="text-[9px] font-bold text-sidebar-foreground/60 uppercase tracking-widest mb-2">Score QoE Global</div>
-                    <div className="text-[48px] font-black tracking-tighter leading-none" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>
-                      {(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%
-                    </div>
-                    <div className="w-full h-1.5 rounded-full mt-3 bg-muted overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${siteDetail.qoe_score_avg ?? 0}%`, background: getQoEColor(siteDetail.qoe_score_avg ?? 0) }} />
-                    </div>
-                  </div>
-
-                  {/* DMS KPIs */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: 'DMS DL 3M', value: siteDetail.dms_dl_3 },
-                      { label: 'DMS DL 8M', value: siteDetail.dms_dl_8 },
-                      { label: 'DMS DL 30M', value: siteDetail.dms_dl_30 },
-                      { label: 'DMS UL 3M', value: siteDetail.dms_ul_3 },
-                    ].map((kpi, i) => (
-                      <div key={i} className="text-center p-3 rounded-xl border border-border bg-card">
-                        <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{kpi.label}</div>
-                        <div className="text-[18px] font-black tracking-tight" style={{ color: getKpiColor(kpi.value ?? 0) }}>
-                          {(kpi.value ?? 0).toFixed(1)}%
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Throughput & RTT row */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: 'Débit DL', value: `${(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}`, unit: 'Mbps', icon: <Zap size={16} className="text-primary" /> },
-                      { label: 'Débit UL', value: `${(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}`, unit: 'Mbps', icon: <Network size={16} className="text-primary" /> },
-                      { label: 'RTT P95', value: `${(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}`, unit: 'ms', icon: <Activity size={16} className="text-primary" /> },
-                    ].map((m, i) => (
-                      <div key={i} className="text-center p-3 rounded-xl border border-border bg-card">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">{m.icon}</div>
-                        <div className="text-[8px] font-bold text-muted-foreground uppercase">{m.label}</div>
-                        <div className="text-[18px] font-black text-foreground tracking-tight">{m.value}<span className="text-[9px] font-bold text-muted-foreground ml-0.5">{m.unit}</span></div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* AI Diagnostic card */}
-                  <div className="bg-sidebar rounded-2xl p-5 flex items-center justify-between shadow-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 bg-sidebar-primary/20 rounded-xl flex items-center justify-center">
-                        <Settings2 size={20} className="text-sidebar-primary" />
-                      </div>
-                      <div>
-                        <div className="text-[13px] font-black text-sidebar-foreground uppercase tracking-tight">AI Diagnostic</div>
-                        <div className="text-[9px] font-bold text-sidebar-foreground/50 uppercase tracking-wider">RCA Analysis</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { if (siteDetail && onLaunchAI) onLaunchAI(siteDetail.site_name); }}
-                      className="px-5 py-2.5 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 shadow-sm">
-                      <Zap size={13} />
-                      Lancer
-                    </button>
-                  </div>
-
-                  {/* Radio Profile LOS button */}
-                  <button
-                    onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
-                    className="w-full bg-primary/10 border border-primary/30 rounded-2xl p-4 flex items-center justify-between hover:bg-primary/20 transition-all group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 bg-primary/20 rounded-xl flex items-center justify-center">
-                        <Radio size={20} className="text-primary" />
-                      </div>
-                      <div className="text-left">
-                        <div className="text-[13px] font-black text-foreground uppercase tracking-tight">Profil Radio</div>
-                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">LOS / Fresnel / Terrain</div>
-                      </div>
-                    </div>
-                    <div className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 shadow-sm group-hover:opacity-90 transition-opacity">
-                      <Crosshair size={13} />
-                      Tracer
-                    </div>
-                  </button>
+          {/* ===== SITE MODE — Site KPIs + Topology Tree ===== */}
+          {focusMode === 'site' && siteDetail && (
+            <div className="space-y-4">
+              {/* Site identity */}
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                  <Signal size={20} className="text-primary" />
                 </div>
-
-                {/* CENTER COLUMN — KPI Evolution Graph (full height) */}
-                <div className="flex flex-col gap-5 overflow-y-auto">
-                  <div className="rounded-xl border border-border bg-card p-5 flex-1 flex flex-col">
-                    <h5 className="text-[11px] font-black text-foreground uppercase tracking-widest flex items-center gap-2 mb-3">
-                      <BarChart2 size={14} className="text-primary" />
-                      Evolution Temporelle des KPIs
-                    </h5>
-                    <div className="flex-1 min-h-[300px]">
-                      <SiteKpiChart siteDetail={siteDetail} fullHeight />
-                    </div>
-                  </div>
-
-                  {/* Mini-map with site location */}
-                  <div className="rounded-xl border border-border bg-card overflow-hidden h-[200px]">
-                    <MapContainer
-                      center={siteDetail.coordinates}
-                      zoom={14}
-                      style={{ height: '100%', width: '100%' }}
-                      zoomControl={false}
-                      dragging={false}
-                      scrollWheelZoom={false}
-                    >
-                      <TileLayer url={TILE_URLS[mapLayer].url} attribution="" />
-                      {siteDetail.cells.map((cell: any, idx: number) => {
-                        const color = getTechnoColor(cell.techno);
-                        const coords = getSectorCoords(siteDetail.coordinates, cell.azimut || idx * 120, 200, 65);
-                        return (
-                          <Polygon
-                            key={cell.cell_id}
-                            positions={coords}
-                            pathOptions={{ color, fillColor: color, fillOpacity: 0.4, weight: 2 }}
-                          />
-                        );
-                      })}
-                      <CircleMarker center={siteDetail.coordinates} radius={5} pathOptions={{ color: '#1e293b', fillColor: '#1e293b', fillOpacity: 1, weight: 2 }} />
-                    </MapContainer>
-                  </div>
-                </div>
-
-                {/* RIGHT COLUMN — Sector Inventory + Topology */}
-                <div className="flex flex-col gap-5 overflow-y-auto pl-2">
-                  {/* Topology info */}
-                  <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-                    <h5 className="text-[11px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
-                      <Database size={14} className="text-primary" />
-                      Topologie
-                    </h5>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { label: 'Vendor', value: siteDetail.vendor },
-                        { label: 'DOR', value: siteDetail.dor },
-                        { label: 'Plaque', value: siteDetail.plaque || '—' },
-                        { label: 'Department', value: siteDetail.department || '—' },
-                        { label: 'Latitude', value: siteDetail.coordinates[0].toFixed(5) },
-                        { label: 'Longitude', value: siteDetail.coordinates[1].toFixed(5) },
-                        { label: 'Total Cells', value: `${siteDetail.cell_count}` },
-                        { label: 'Technologies', value: [...new Set(siteDetail.cells.map((c: any) => c.techno))].join(' / ') },
-                      ].map((item, i) => (
-                        <div key={i} className="px-3 py-2 bg-muted/50 rounded-lg">
-                          <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">{item.label}</div>
-                          <div className="text-[11px] font-bold text-foreground mt-0.5">{item.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Sector Inventory */}
-                  <div className="rounded-xl border border-border bg-card p-4 space-y-3 flex-1">
-                    <h5 className="text-[11px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
-                      <BarChart2 size={14} className="text-primary" />
-                      Sector Inventory
-                    </h5>
-                    {(() => {
-                      const { sectors, validation } = groupCellsBySector(siteDetail.cells);
-                      return (
-                        <div className="space-y-2">
-                          {validation.status !== 'OK' && (
-                            <div className={`text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl ${
-                              validation.status === 'MISSING_SECTOR' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
-                            }`}>
-                              {validation.status === 'MISSING_SECTOR'
-                                ? `⚠ Missing: ${validation.missingSectors.join(', ')}`
-                                : `⚠ Duplicate sector`}
-                            </div>
-                          )}
-                          {validation.status === 'OK' && (
-                            <div className="text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20">
-                              ✓ {validation.totalSectors} sectors — All OK
-                            </div>
-                          )}
-                          {sectors.map(({ sectorNumber, cells: sectorCells }) => (
-                            <div key={sectorNumber} className="rounded-xl border border-border overflow-hidden">
-                              <div className="px-3 py-2 bg-muted/50 flex items-center justify-between">
-                                <span className="text-[10px] font-black text-foreground uppercase tracking-wider">Sector {sectorNumber}</span>
-                                <span className="text-[9px] font-bold text-muted-foreground">{sectorCells.length} cell{sectorCells.length > 1 ? 's' : ''} • {sectorCells[0]?.azimut ?? '?'}°</span>
-                              </div>
-                              <div className="divide-y divide-border/50">
-                                {sectorCells.map(cell => (
-                                  <div
-                                    key={cell.cell_id}
-                                    onClick={() => onCellSelect(cell.cell_id)}
-                                    className="flex items-center justify-between px-3 py-2 bg-card hover:bg-primary/5 transition-all cursor-pointer group"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <div className={`w-2 h-2 rounded-full ${cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
-                                      <div>
-                                        <div className="text-[10px] font-bold text-foreground">{cell.techno} • {cell.bande}MHz</div>
-                                        <div className="text-[8px] text-muted-foreground font-mono">{cell.cell_id.split('_').pop()}</div>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[11px] font-black tracking-tight" style={{ color: getQoEColor(cell.qoe_score_avg) }}>
-                                        {cell.qoe_score_avg.toFixed(1)}%
-                                      </span>
-                                      <ArrowRight size={12} className="text-muted-foreground group-hover:text-primary transition-colors" />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
+                <div className="min-w-0">
+                  <div className="text-[10px] font-mono text-muted-foreground">{siteDetail.site_id}</div>
+                  <div className="flex items-center gap-2 text-[10px] mt-0.5">
+                    <span className="font-bold text-muted-foreground uppercase">{siteDetail.vendor}</span>
+                    <span className="text-muted-foreground">•</span>
+                    <span className="text-muted-foreground">{siteDetail.dor}</span>
+                    <span className="text-muted-foreground">•</span>
+                    <span className="text-muted-foreground">{siteDetail.cell_count} cells</span>
                   </div>
                 </div>
               </div>
-            ) : (
-              /* ===== COMPACT SIDEBAR LAYOUT (original) ===== */
-              <div className="space-y-5">
-                {/* Site Simulation header */}
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-sidebar rounded-2xl flex items-center justify-center shadow-lg">
-                    <Signal size={26} className="text-sidebar-primary" />
+
+              {/* QoE Score */}
+              <div className="text-center p-4 rounded-xl border border-border bg-muted/20">
+                <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Score QoE Global</div>
+                <div className="text-[36px] font-black tracking-tighter leading-none" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>
+                  {(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%
+                </div>
+                <div className="w-full h-1 rounded-full mt-2 bg-border overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${siteDetail.qoe_score_avg ?? 0}%`, background: getQoEColor(siteDetail.qoe_score_avg ?? 0) }} />
+                </div>
+              </div>
+
+              {/* KPI Grid */}
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { label: 'DMS 3M', value: siteDetail.dms_dl_3 },
+                  { label: 'DMS 8M', value: siteDetail.dms_dl_8 },
+                  { label: 'DMS 30M', value: siteDetail.dms_dl_30 },
+                  { label: 'DMS UL', value: siteDetail.dms_ul_3 },
+                ].map((kpi, i) => (
+                  <div key={i} className="text-center p-2 rounded-lg border border-border">
+                    <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">{kpi.label}</div>
+                    <div className="text-[13px] font-black tracking-tight" style={{ color: getKpiColor(kpi.value ?? 0) }}>
+                      {(kpi.value ?? 0).toFixed(1)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Throughput + RTT */}
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { label: 'DL', value: `${(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}`, unit: 'Mbps' },
+                  { label: 'UL', value: `${(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}`, unit: 'Mbps' },
+                  { label: 'RTT', value: `${(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}`, unit: 'ms' },
+                ].map((m, i) => (
+                  <div key={i} className="text-center p-2 rounded-lg border border-border">
+                    <div className="text-[7px] font-bold text-muted-foreground uppercase">{m.label}</div>
+                    <div className="text-[14px] font-black text-foreground tracking-tight">{m.value}<span className="text-[8px] text-muted-foreground ml-0.5">{m.unit}</span></div>
+                  </div>
+                ))}
+              </div>
+
+              {/* KPI Evolution Chart */}
+              <div className="rounded-xl border border-border p-3">
+                <h5 className="text-[9px] font-black text-foreground uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                  <BarChart2 size={12} className="text-primary" />
+                  KPI Evolution
+                </h5>
+                <SiteKpiChart siteDetail={siteDetail} />
+              </div>
+
+              {/* ===== TOPOLOGY TREE ===== */}
+              <div className="rounded-xl border border-border p-3 space-y-2">
+                <h5 className="text-[9px] font-black text-foreground uppercase tracking-widest flex items-center gap-1.5">
+                  <Network size={12} className="text-primary" />
+                  Topology
+                </h5>
+                {(() => {
+                  // Group cells by techno → band → cells
+                  const techGroups = new Map<string, Map<string, typeof siteDetail.cells>>();
+                  siteDetail.cells.forEach(cell => {
+                    const tech = cell.techno || 'Unknown';
+                    const band = cell.bande || 'Unknown';
+                    if (!techGroups.has(tech)) techGroups.set(tech, new Map());
+                    const bandMap = techGroups.get(tech)!;
+                    if (!bandMap.has(band)) bandMap.set(band, []);
+                    bandMap.get(band)!.push(cell);
+                  });
+                  return (
+                    <div className="space-y-2">
+                      {Array.from(techGroups.entries()).sort(([a], [b]) => (a === '5G' ? -1 : b === '5G' ? 1 : a.localeCompare(b))).map(([tech, bands]) => (
+                        <div key={tech} className="rounded-lg border border-border overflow-hidden">
+                          <div className="px-3 py-2 bg-muted/50 flex items-center gap-2">
+                            <div className={`w-2.5 h-2.5 rounded-full ${tech.includes('5G') ? 'bg-primary' : 'bg-amber-500'}`} />
+                            <span className="text-[10px] font-black text-foreground uppercase tracking-wider">{tech}</span>
+                            <span className="text-[8px] font-bold text-muted-foreground ml-auto">{Array.from(bands.values()).flat().length} cells</span>
+                          </div>
+                          <div className="divide-y divide-border/30">
+                            {Array.from(bands.entries()).map(([band, cells]) => (
+                              <div key={band}>
+                                <div className="px-3 py-1.5 bg-muted/20 flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-sm" style={{ background: getBandColor(band, tech) }} />
+                                  <span className="text-[9px] font-bold text-muted-foreground uppercase">{band} MHz</span>
+                                </div>
+                                {cells.map(cell => (
+                                  <button
+                                    key={cell.cell_id}
+                                    onClick={() => handleCellClick(cell.cell_id)}
+                                    className={`w-full flex items-center justify-between px-4 py-2 text-left transition-all group ${
+                                      focusCellId === cell.cell_id ? 'bg-primary/10 border-l-2 border-primary' : 'hover:bg-muted/40 border-l-2 border-transparent'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <Radio size={10} className={focusCellId === cell.cell_id ? 'text-primary' : 'text-muted-foreground'} />
+                                      <div>
+                                        <div className="text-[9px] font-bold text-foreground">{cell.cell_id.split('_').pop() || cell.cell_id}</div>
+                                        <div className="text-[8px] text-muted-foreground">Az {cell.azimut}° • HBA {cell.hba || '—'}m</div>
+                                      </div>
+                                    </div>
+                                    <span className="text-[11px] font-black" style={{ color: getQoEColor(cell.qoe_score_avg) }}>
+                                      {cell.qoe_score_avg.toFixed(1)}%
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Action buttons */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { if (siteDetail && onLaunchAI) onLaunchAI(siteDetail.site_name); }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted/50 border border-border text-[10px] font-bold text-foreground hover:bg-primary hover:text-primary-foreground transition-all"
+                >
+                  <Settings2 size={13} />
+                  AI Diagnostic
+                </button>
+                <button
+                  onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/30 text-[10px] font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-all"
+                >
+                  <Crosshair size={13} />
+                  Radio Profile
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ===== CELL MODE — Cell Detail ===== */}
+          {focusMode === 'cell' && focusCellId && siteDetail && (() => {
+            const cell = siteDetail.cells.find(c => c.cell_id === focusCellId);
+            if (!cell) return <div className="text-muted-foreground text-xs">Cell not found</div>;
+            return (
+              <div className="space-y-4">
+                {/* Cell identity */}
+                <div className="flex items-center gap-3">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${cell.techno === '5G' ? 'bg-primary/10' : 'bg-amber-500/10'}`}>
+                    <Radio size={20} className={cell.techno === '5G' ? 'text-primary' : 'text-amber-500'} />
                   </div>
                   <div>
-                    <h4 className="text-[18px] font-black text-foreground uppercase tracking-tight leading-tight">Site Simulation</h4>
-                    <div className="flex items-center gap-2 text-[11px] mt-1">
-                      <span className="font-mono text-muted-foreground">{siteDetail.site_id}</span>
-                      <span className="text-muted-foreground">·</span>
-                      <span className="font-black text-primary uppercase">{siteDetail.cells[0]?.techno} {siteDetail.cells[0]?.bande}MHz</span>
-                    </div>
+                    <div className="text-[13px] font-black text-foreground uppercase tracking-tight">{cell.cell_id}</div>
+                    <div className="text-[10px] text-muted-foreground">{siteDetail.site_name} • {cell.techno} • {cell.bande} MHz</div>
                   </div>
                 </div>
 
-                {/* DMS KPI row */}
-                <div className="grid grid-cols-4 gap-2">
+                {/* Cell QoE */}
+                <div className="text-center p-4 rounded-xl border border-border bg-muted/20">
+                  <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cell QoE</div>
+                  <div className="text-[36px] font-black tracking-tighter leading-none" style={{ color: getQoEColor(cell.qoe_score_avg) }}>
+                    {cell.qoe_score_avg.toFixed(1)}%
+                  </div>
+                </div>
+
+                {/* Cell parameters */}
+                <div className="grid grid-cols-2 gap-1.5">
                   {[
-                    { label: 'DMS DL 3M', value: siteDetail.cells[0]?.dms_dl_3 },
-                    { label: 'DMS DL 8M', value: siteDetail.cells[0]?.dms_dl_8 },
-                    { label: 'DMS DL 30M', value: siteDetail.cells[0]?.dms_dl_30 },
-                    { label: 'DMS UL 3M', value: siteDetail.cells[0]?.dms_ul_3 },
-                  ].map((kpi, i) => (
-                    <div key={i} className="text-center p-3 rounded-xl border border-border bg-card">
-                      <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">{kpi.label}</div>
-                      <div className="text-[16px] font-black tracking-tight" style={{ color: getKpiColor(kpi.value ?? 0) }}>
-                        {(kpi.value ?? 0).toFixed(1)}%
-                      </div>
+                    { label: 'Technology', value: cell.techno },
+                    { label: 'Band', value: `${cell.bande} MHz` },
+                    { label: 'Azimuth', value: `${cell.azimut}°` },
+                    { label: 'HBA', value: `${cell.hba || '—'} m` },
+                    { label: 'Tilt', value: `${(cell as any).tilt || '—'}°` },
+                    { label: 'PCI', value: `${(cell as any).pci || '—'}` },
+                  ].map((p, i) => (
+                    <div key={i} className="px-3 py-2 rounded-lg border border-border bg-muted/20">
+                      <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">{p.label}</div>
+                      <div className="text-[11px] font-black text-foreground mt-0.5">{p.value}</div>
                     </div>
                   ))}
                 </div>
 
-                {/* QoE Score + Throughput */}
-                <div className="grid grid-cols-4 gap-3 items-end">
-                  <div className="text-center">
-                    <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Score QoE Global</div>
-                    <div className="text-[32px] font-black tracking-tighter leading-none" style={{ color: getQoEColor(siteDetail.qoe_score_avg ?? 0) }}>
-                      {(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%
-                    </div>
-                    <div className="w-full h-1.5 rounded-full mt-2.5" style={{ background: getQoEColor(siteDetail.qoe_score_avg ?? 0) }} />
-                  </div>
-                  <div className="text-center p-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1.5">
-                      <Zap size={16} className="text-primary" />
-                    </div>
-                    <div className="text-[8px] font-bold text-muted-foreground uppercase">Débit DL</div>
-                    <div className="text-[18px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
-                  </div>
-                  <div className="text-center p-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1.5">
-                      <Network size={16} className="text-primary" />
-                    </div>
-                    <div className="text-[8px] font-bold text-muted-foreground uppercase">Débit UL</div>
-                    <div className="text-[18px] font-black text-foreground tracking-tight">{(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">M</span></div>
-                  </div>
-                  <div className="text-center p-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1.5">
-                      <Activity size={16} className="text-primary" />
-                    </div>
-                    <div className="text-[8px] font-bold text-muted-foreground uppercase">RTT</div>
-                    <div className="text-[18px] font-black text-foreground tracking-tight">{(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">MS</span></div>
-                  </div>
-                </div>
-
-                {/* AI Diagnostic card — dark themed */}
-                <div className="bg-sidebar rounded-2xl p-5 flex items-center justify-between shadow-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-sidebar-primary/20 rounded-xl flex items-center justify-center">
-                      <Settings2 size={20} className="text-sidebar-primary" />
-                    </div>
-                    <div>
-                      <div className="text-[13px] font-black text-sidebar-foreground uppercase tracking-tight">AI Diagnostic</div>
-                      <div className="text-[9px] font-bold text-sidebar-foreground/50 uppercase tracking-wider">RCA Analysis</div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => { if (siteDetail && onLaunchAI) onLaunchAI(siteDetail.site_name); }}
-                    className="px-5 py-2.5 bg-card text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 shadow-sm">
-                    <Zap size={13} />
-                    Lancer
-                  </button>
-                </div>
-
-                {/* Radio Profile LOS button */}
-                <button
-                  onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
-                  className="w-full bg-primary/10 border border-primary/30 rounded-2xl p-4 flex items-center justify-between hover:bg-primary/20 transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-primary/20 rounded-xl flex items-center justify-center">
-                      <Radio size={20} className="text-primary" />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-[13px] font-black text-foreground uppercase tracking-tight">Profil Radio</div>
-                      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">LOS / Fresnel / Terrain</div>
-                    </div>
-                  </div>
-                  <div className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 shadow-sm group-hover:opacity-90 transition-opacity">
-                    <Crosshair size={13} />
-                    Tracer
-                  </div>
-                </button>
-
-                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-                  <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
-                    <BarChart2 size={13} className="text-primary" />
-                    Evolution Temporelle des KPIs
-                  </h5>
-                  <SiteKpiChart siteDetail={siteDetail} />
-                </div>
-
-                {/* Sector Inventory */}
-                <div className="space-y-3">
-                  <h5 className="text-[10px] font-black text-foreground uppercase tracking-widest flex items-center gap-2">
-                    <BarChart2 size={13} className="text-primary" />
-                    Sector Inventory
-                  </h5>
-                  {(() => {
-                    const { sectors, validation } = groupCellsBySector(siteDetail.cells);
-                    return (
-                      <div className="space-y-3">
-                        {validation.status !== 'OK' && (
-                          <div className={`text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl ${
-                            validation.status === 'MISSING_SECTOR' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
-                          }`}>
-                            {validation.status === 'MISSING_SECTOR'
-                              ? `⚠ Missing sector${validation.missingSectors.length > 1 ? 's' : ''}: ${validation.missingSectors.join(', ')} — Expected ${validation.totalSectors + validation.missingSectors.length} sectors`
-                              : `⚠ Duplicate sector detected`}
-                          </div>
-                        )}
-                        {validation.status === 'OK' && (
-                          <div className="text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20">
-                            ✓ {validation.totalSectors} sectors — All OK
-                          </div>
-                        )}
-                        {sectors.map(({ sectorNumber, cells: sectorCells }) => (
-                          <div key={sectorNumber} className="rounded-xl border border-border overflow-hidden">
-                            <div className="px-4 py-2 bg-muted/50 flex items-center justify-between">
-                              <span className="text-[10px] font-black text-foreground uppercase tracking-wider">Sector {sectorNumber}</span>
-                              <span className="text-[9px] font-bold text-muted-foreground">{sectorCells.length} cell{sectorCells.length > 1 ? 's' : ''} • {sectorCells[0]?.azimut ?? '?'}°</span>
-                            </div>
-                            <div className="divide-y divide-border/50">
-                              {sectorCells.map(cell => (
-                                <div
-                                  key={cell.cell_id}
-                                  onClick={() => onCellSelect(cell.cell_id)}
-                                  className="flex items-center justify-between px-4 py-2.5 bg-card hover:bg-primary/5 transition-all cursor-pointer group"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className={`w-2 h-2 rounded-full ${cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
-                                    <div>
-                                      <div className="text-[10px] font-bold text-foreground">{cell.techno} • {cell.bande}MHz</div>
-                                      <div className="text-[8px] text-muted-foreground font-mono">{cell.cell_id.split('_').pop()}</div>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[12px] font-black tracking-tight" style={{ color: getQoEColor(cell.qoe_score_avg) }}>
-                                      {cell.qoe_score_avg.toFixed(1)}%
-                                    </span>
-                                    <ArrowRight size={12} className="text-muted-foreground group-hover:text-primary transition-colors" />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                {/* Cell KPIs */}
+                <div className="rounded-xl border border-border p-3 space-y-2">
+                  <h5 className="text-[9px] font-black text-foreground uppercase tracking-widest">KPI Performance</h5>
+                  <div className="space-y-1.5">
+                    {[
+                      { label: 'DMS DL ≥3 Mbps', value: cell.dms_dl_3 },
+                      { label: 'DMS DL ≥8 Mbps', value: cell.dms_dl_8 },
+                      { label: 'DMS DL ≥30 Mbps', value: cell.dms_dl_30 },
+                      { label: 'DMS UL ≥3 Mbps', value: cell.dms_ul_3 },
+                      { label: 'Throughput DL', value: cell.p50_thr_dn_mbps, unit: 'Mbps', noPercent: true },
+                      { label: 'Throughput UL', value: cell.p50_thr_up_mbps, unit: 'Mbps', noPercent: true },
+                      { label: 'RTT P95', value: cell.p95_rtt_ms, unit: 'ms', noPercent: true },
+                      { label: 'Sessions', value: cell.sessions, unit: '', noPercent: true },
+                    ].map((kpi, i) => (
+                      <div key={i} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-muted/30 transition-all">
+                        <span className="text-[10px] font-semibold text-muted-foreground">{kpi.label}</span>
+                        <span className="text-[11px] font-black" style={{ color: !(kpi as any).noPercent ? getKpiColor(kpi.value ?? 0) : undefined }}>
+                          {(kpi.value ?? 0).toFixed((kpi as any).noPercent ? 1 : 1)}{!(kpi as any).noPercent ? '%' : ''} {(kpi as any).unit || ''}
+                        </span>
                       </div>
-                    );
-                  })()}
+                    ))}
+                  </div>
                 </div>
+
+                {/* Back to site button */}
+                <button
+                  onClick={handleBackToSite}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-muted border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground transition-all"
+                >
+                  <ChevronLeft size={13} />
+                  Back to Site Topology
+                </button>
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
-      )}
+      </div>
     </div>
   );
 };
@@ -2305,8 +2214,8 @@ const useCloudQoeMetrics = (siteDetail: any) => {
 };
 
 const KPI_SERIES = [
-  { key: 'QoE', color: '#1e293b', label: 'QOE' },
-  { key: 'DMS 3M', color: '#10b981', label: 'DMS 3M' },
+  { key: 'QoE', color: '#60a5fa', label: 'QOE' },
+  { key: 'DMS 3M', color: '#22c55e', label: 'DMS 3M' },
   { key: 'DMS 8M', color: '#f59e0b', label: 'DMS 8M' },
   { key: 'DMS 30M', color: '#f97316', label: 'DMS 30M' },
   { key: 'DMS UL', color: '#ec4899', label: 'DMS UL' },
