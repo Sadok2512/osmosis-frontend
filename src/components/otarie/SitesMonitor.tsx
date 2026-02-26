@@ -767,6 +767,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   mouseout: () => setHoveredSiteId(null),
                 }}
               >
+                {viewport.zoom >= 15 && (
+                  <Tooltip direction="bottom" offset={[0, 8]} permanent className="site-name-label">
+                    <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '0.05em' }}>{site.site_name}</span>
+                  </Tooltip>
+                )}
                 <Popup>
                   <div className="p-1">
                     <div className="font-bold text-sm">{site.site_name}</div>
