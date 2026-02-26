@@ -179,24 +179,16 @@ const MapViewportTracker = ({ onViewportChange }: { onViewportChange: (v: Viewpo
 };
 
 // Create a custom cluster icon
-const createClusterCustomIcon = (cluster: any) => {
-  const count = cluster.getChildCount();
-  let size = 'small';
-  let dim = 36;
-  if (count >= 100) { size = 'large'; dim = 50; }
-  else if (count >= 10) { size = 'medium'; dim = 42; }
-
+const createClusterCustomIcon = (_cluster: any) => {
+  const dim = 14;
   return L.divIcon({
     html: `<div style="
-      background: hsl(var(--primary));
-      color: hsl(var(--primary-foreground));
+      background: hsl(220 60% 30%);
       width: ${dim}px; height: ${dim}px;
       border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 900; font-size: ${dim > 42 ? 14 : 12}px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      border: 3px solid hsl(var(--background));
-    ">${count}</div>`,
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      border: 2px solid hsl(var(--background));
+    "></div>`,
     className: 'custom-cluster-icon',
     iconSize: L.point(dim, dim, true),
   });

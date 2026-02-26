@@ -33,19 +33,15 @@ const getMetricColor = (value: number, metric: string): string => {
   return value >= 80 ? '#10b981' : value >= 60 ? '#f59e0b' : '#ef4444';
 };
 
-const createClusterIcon = (cluster: any) => {
-  const count = cluster.getChildCount();
-  const dim = count >= 100 ? 46 : count >= 10 ? 40 : 34;
+const createClusterIcon = (_cluster: any) => {
+  const dim = 14;
   return L.divIcon({
     html: `<div style="
-      background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.8));
-      color: hsl(var(--primary-foreground));
+      background: hsl(220 60% 30%);
       width:${dim}px;height:${dim}px;border-radius:50%;
-      display:flex;align-items:center;justify-content:center;
-      font-weight:800;font-size:${dim > 40 ? 13 : 11}px;font-family:'JetBrains Mono',monospace;
-      box-shadow:0 4px 14px hsl(var(--primary)/0.35), 0 0 0 3px hsl(var(--background));
-      border:none;
-    ">${count}</div>`,
+      box-shadow:0 2px 6px rgba(0,0,0,0.3);
+      border:2px solid hsl(var(--background));
+    "></div>`,
     className: 'custom-cluster-icon',
     iconSize: L.point(dim, dim, true),
   });
