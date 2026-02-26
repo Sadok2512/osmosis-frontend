@@ -1165,8 +1165,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       </div>
 
       {/* Floating top bar — redesigned KPI selector with grouped tabs */}
-      <div className="absolute top-4 left-[420px] right-[80px] z-[1000] pointer-events-auto">
-        <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl px-3 py-2 flex items-center gap-2">
+      <div className="absolute top-4 left-[416px] right-[466px] z-[1000] pointer-events-auto">
+        <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl px-3 py-2 flex items-center gap-2 overflow-x-auto">
           {/* Sector color mode toggle */}
           <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
             <button
@@ -1545,29 +1545,61 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Compact collapsible search module — replaces old Inventory Index */}
+      {/* ══ LEFT PANEL — Inventory Index ══ */}
       {viewMode === 'map' && (
-        <div className={`absolute top-4 left-4 z-[1000] pointer-events-auto transition-all duration-300 ease-in-out ${
-          panelCollapsed ? 'w-12' : 'w-[380px]'
+        <div className={`absolute top-0 left-0 bottom-0 z-[1000] pointer-events-auto transition-all duration-300 ease-in-out ${
+          panelCollapsed ? 'w-14' : 'w-[400px]'
         }`}>
-          {/* Collapsed icon-only state */}
+          {/* Collapsed state */}
           {panelCollapsed ? (
-            <button
-              onClick={() => setPanelCollapsed(false)}
-              className="w-12 h-12 bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-card transition-all group"
-              title="Open Site Search"
-            >
-              <Search size={18} className="group-hover:scale-110 transition-transform" />
-              {/* Site count bubble */}
-              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1.5 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center shadow-md">
-                {filteredSites.length}
-              </span>
-            </button>
+            <div className="h-full bg-card border-r border-border flex flex-col items-center py-4 gap-3">
+              <button
+                onClick={() => setPanelCollapsed(false)}
+                className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-all relative"
+                title="Open Inventory"
+              >
+                <ChevronRight size={18} />
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-primary text-primary-foreground text-[8px] font-black rounded-full flex items-center justify-center">
+                  {filteredSites.length}
+                </span>
+              </button>
+            </div>
           ) : (
-            <div className="bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-scale-in">
-              {/* Search header */}
-              <div className="px-4 py-3 flex items-center gap-2">
-                <div className="flex-1 flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5">
+            <div className="h-full bg-card border-r border-border flex flex-col overflow-hidden">
+              {/* ── Header ── */}
+              <div className="px-5 pt-5 pb-3 shrink-0">
+                <div className="flex items-center justify-between mb-1">
+                  <div>
+                    <h2 className="text-[13px] font-extrabold text-foreground uppercase tracking-[0.15em]">Inventory Index</h2>
+                    <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mt-0.5">Sites Navigation List</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPanelMinimized(!panelMinimized)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
+                        panelMinimized ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="Filters"
+                    >
+                      <Filter size={14} />
+                    </button>
+                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-black">
+                      {filteredSites.length}
+                    </div>
+                    <button
+                      onClick={() => setPanelCollapsed(true)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                      title="Collapse"
+                    >
+                      <PanelLeftClose size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Search bar ── */}
+              <div className="px-5 pb-3 shrink-0">
+                <div className="flex items-center gap-2.5 bg-muted/60 border border-border rounded-xl px-4 py-3">
                   <Search className="w-4 h-4 text-muted-foreground shrink-0" />
                   <input
                     type="text"
@@ -1575,51 +1607,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     value={localSearch}
                     onChange={(e) => setLocalSearch(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Escape') { setLocalSearch(''); } }}
-                    autoFocus
                     className="flex-1 bg-transparent text-[12px] font-medium text-foreground outline-none placeholder:text-muted-foreground min-w-0"
                   />
                   {localSearch && (
-                    <button
-                      onClick={() => setLocalSearch('')}
-                      className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0"
-                    >
+                    <button onClick={() => setLocalSearch('')} className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0">
                       <X size={12} />
                     </button>
                   )}
                 </div>
-                {/* Site count badge */}
-                <button
-                  onClick={() => setShowAllSites(!showAllSites)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 transition-all cursor-pointer hover:scale-110 ${
-                    showAllSites ? 'bg-primary text-primary-foreground ring-2 ring-primary/30' : 'bg-primary text-primary-foreground'
-                  }`}
-                  title={showAllSites ? 'Hide all sites' : 'Show all sites'}
-                >
-                  {filteredSites.length}
-                </button>
-                {/* Filter toggle */}
-                <button
-                  onClick={() => setPanelMinimized(!panelMinimized)}
-                  className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all shrink-0 ${
-                    panelMinimized ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                  }`}
-                  title="Filters"
-                >
-                  <Filter size={14} />
-                </button>
-                {/* Collapse to icon */}
-                <button
-                  onClick={() => setPanelCollapsed(true)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all shrink-0"
-                  title="Collapse"
-                >
-                  <PanelLeftClose size={14} />
-                </button>
               </div>
 
-              {/* Collapsible filters row */}
+              {/* ── Filters row ── */}
               {panelMinimized && (
-                <div className="px-4 pb-3 pt-1 border-t border-border grid grid-cols-2 gap-2 animate-fade-in">
+                <div className="px-5 pb-3 shrink-0 grid grid-cols-2 gap-2 animate-fade-in">
                   <div className="flex flex-col gap-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Vendor</span>
                     <select value={localVendor} onChange={(e) => setLocalVendor(e.target.value)}
@@ -1651,63 +1651,115 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               )}
 
-              {/* Dynamic search results dropdown — shown when typing or showAllSites */}
-              {(localSearch.length > 0 || showAllSites) && (
-                <div className="border-t border-border max-h-[360px] overflow-y-auto">
-                  {filteredSites.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                      <Search size={24} className="mb-2 opacity-30" />
-                      <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
-                      <span className="text-[10px] text-muted-foreground mt-1">Try a different search term</span>
-                    </div>
-                  ) : (
-                    <div className="py-1">
-                      {filteredSites.slice(0, 50).map(site => {
-                        const isSelected = selectedSiteId === site.site_id;
-                        return (
+              {/* ── Site List — always visible, scrollable ── */}
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {filteredSites.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                    <Search size={28} className="mb-3 opacity-20" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredSites.slice(0, 100).map(site => {
+                      const isSelected = selectedSiteId === site.site_id;
+                      const isExpanded = isSelected;
+                      // Group cells by sector
+                      const sectors = new Map<number, typeof site.cells>();
+                      site.cells.forEach(c => {
+                        const sNum = getSectorNumber(c.cell_id);
+                        if (!sectors.has(sNum)) sectors.set(sNum, []);
+                        sectors.get(sNum)!.push(c);
+                      });
+                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a - b);
+
+                      return (
+                        <div
+                          key={site.site_id}
+                          className={`rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
+                            isSelected
+                              ? 'border-primary/40 bg-card shadow-lg'
+                              : 'border-border bg-card hover:border-primary/20 hover:shadow-md'
+                          }`}
+                        >
+                          {/* Site row */}
                           <button
-                            key={site.site_id}
-                            onClick={() => { handleSiteClick(site); setLocalSearch(''); setShowAllSites(false); }}
+                            onClick={() => { handleSiteClick(site); }}
                             onMouseEnter={() => setHoveredSiteId(site.site_id)}
                             onMouseLeave={() => setHoveredSiteId(null)}
-                            className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-all ${
-                              isSelected
-                                ? 'bg-primary/10 border-l-2 border-primary'
-                                : 'hover:bg-muted/60 border-l-2 border-transparent'
-                            }`}
+                            className="w-full text-left px-4 py-3.5 flex items-center gap-3"
                           >
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                              isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                              isSelected ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'bg-muted text-muted-foreground'
                             }`}>
-                              <MapPin size={16} />
+                              <MapPin size={18} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h4 className="text-[12px] font-bold text-foreground tracking-tight uppercase truncate">{site.site_name}</h4>
+                              <h4 className="text-[13px] font-extrabold text-foreground tracking-tight uppercase truncate">{site.site_name}</h4>
                               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
                                 <span className="font-mono">{site.site_id}</span>
                                 <span>•</span>
                                 <span className="uppercase font-semibold">{site.vendor}</span>
-                                <span>•</span>
-                                <span>{site.cell_count} cells</span>
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              <div className="text-[14px] font-black tracking-tight" style={{ color: getQoEColor(site.qoe_score_avg) }}>
+                              <div className="text-[15px] font-black tracking-tight" style={{ color: getQoEColor(site.qoe_score_avg) }}>
                                 {site.qoe_score_avg.toFixed(1)}%
                               </div>
+                              <div className="text-[9px] font-semibold text-muted-foreground uppercase">{site.cell_count} cells</div>
                             </div>
+                            <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </button>
-                        );
-                      })}
-                      {filteredSites.length > 50 && (
-                        <div className="px-4 py-2.5 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-t border-border">
-                          + {filteredSites.length - 50} more — refine search
+
+                          {/* Expanded sector pills */}
+                          {isExpanded && (
+                            <div className="px-4 pb-4 pt-1 animate-fade-in">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {sortedSec.map(([sNum, cells]) => {
+                                  const techs = [...new Set(cells.map(c => c.techno))].filter(Boolean);
+                                  const mainTech = techs[0] || '4G';
+                                  const is5G = mainTech.includes('5G');
+                                  const isCellFocused = cells.some(c => c.cell_id === focusCellId);
+                                  return (
+                                    <button
+                                      key={sNum}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCellClick(cells[0].cell_id);
+                                      }}
+                                      className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 transition-all min-w-[64px] ${
+                                        isCellFocused
+                                          ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                                          : 'bg-muted/40 border-border hover:border-primary/30 text-foreground'
+                                      }`}
+                                    >
+                                      <span className={`text-[10px] font-bold uppercase ${isCellFocused ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                                        {mainTech}
+                                      </span>
+                                      <div className={`w-2.5 h-2.5 rounded-full ${
+                                        isCellFocused
+                                          ? 'bg-primary-foreground'
+                                          : is5G ? 'bg-emerald-500' : 'bg-amber-500'
+                                      }`} />
+                                      <span className={`text-[11px] font-extrabold ${isCellFocused ? 'text-primary-foreground' : 'text-foreground'}`}>
+                                        S{sNum}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+                      );
+                    })}
+                    {filteredSites.length > 100 && (
+                      <div className="px-4 py-3 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        + {filteredSites.length - 100} more — refine search
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
