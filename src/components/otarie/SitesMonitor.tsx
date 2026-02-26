@@ -542,7 +542,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         center={[43.2965, 5.3698]}
         zoom={15}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
-        zoomControl={false}
+        zoomControl={true}
       >
         <TileLayer
           key={mapLayer}
