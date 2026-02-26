@@ -553,8 +553,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
-    // Show loading when zooming out reveals many more sites
-    if (v.zoom < prevZoom && mapFilteredSites.length > 500) {
+    // Show loading when zooming in or out changes visible sites
+    if (v.zoom !== prevZoom && mapFilteredSites.length > 500) {
       setMapRendering(true);
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
