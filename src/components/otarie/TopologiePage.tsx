@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { isLocalMode, getApiUrl } from '@/lib/apiConfig';
+import { getApiUrl, getPreferredDataSource, setPreferredDataSource } from '@/lib/apiConfig';
 import { Search, Filter, Download, BarChart3, TableIcon, Loader2, ChevronDown, Wifi, WifiOff, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -37,7 +37,7 @@ const TopologiePage: React.FC = () => {
   const [cnxStatus, setCnxStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
   const [cnxMessage, setCnxMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [dataSource, setDataSource] = useState<'local' | 'cloud'>(isLocalMode() ? 'local' : 'cloud');
+  const [dataSource, setDataSource] = useState<'local' | 'cloud'>(getPreferredDataSource());
   const [searchTerm, setSearchTerm] = useState('');
 
   // Search parameter (main)
@@ -63,7 +63,12 @@ const TopologiePage: React.FC = () => {
   const [plaques, setPlaques] = useState<string[]>([]);
   const [vendors, setVendors] = useState<string[]>([]);
 
-  const shouldUseLocal = isLocalMode() && dataSource === 'local';
+  const shouldUseLocal = dataSource === 'local';
+
+  const switchDataSource = (next: 'local' | 'cloud') => {
+    setDataSource(next);
+    setPreferredDataSource(next);
+  };
 
   const fetchDistinctCloud = async (col: string, extraParams?: Record<string, string>) => {
     let query = supabase.from('dump_parameter').select(col).not(col, 'is', null) as any;
@@ -85,7 +90,7 @@ const TopologiePage: React.FC = () => {
         return [...new Set(rows.map((r: any) => r[col]).filter(Boolean))].sort() as string[];
       } catch (error) {
         console.warn('[Topologie] Local distinct fetch failed, fallback to cloud', error);
-        setDataSource('cloud');
+        switchDataSource('cloud');
       }
     }
     return fetchDistinctCloud(col, extraParams);
@@ -107,7 +112,7 @@ const TopologiePage: React.FC = () => {
         return await resp.json();
       } catch (error) {
         console.warn('[Topologie] Local rows fetch failed, fallback to cloud', error);
-        setDataSource('cloud');
+        switchDataSource('cloud');
       }
     }
     return fetchRowsCloud(filters, cols, limit);
@@ -279,7 +284,7 @@ const TopologiePage: React.FC = () => {
           return;
         } catch (localErr: any) {
           console.warn('[Topologie] Local connection failed, fallback to cloud', localErr);
-          setDataSource('cloud');
+          switchDataSource('cloud');
         }
       }
 
@@ -311,6 +316,28 @@ const TopologiePage: React.FC = () => {
               <Database className="w-3 h-3" />
               {backendLabel} → <span className="font-mono">{tableTarget}</span>
             </Badge>
+            <div className="inline-flex rounded-lg border border-border overflow-hidden">
+              <button
+                onClick={() => switchDataSource('local')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  dataSource === 'local'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-background text-muted-foreground hover:bg-accent'
+                }`}
+              >
+                Local
+              </button>
+              <button
+                onClick={() => switchDataSource('cloud')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  dataSource === 'cloud'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-background text-muted-foreground hover:bg-accent'
+                }`}
+              >
+                Cloud
+              </button>
+            </div>
             {/* Connection test button */}
             <button
               onClick={testConnection}
