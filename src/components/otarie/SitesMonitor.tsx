@@ -334,6 +334,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showBandPanel, setShowBandPanel] = useState(true);
   const [sectorColorMode, setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
   const [detailFullscreen, setDetailFullscreen] = useState(false);
+  const [showRightPanel, setShowRightPanel] = useState(true);
 
   // Focus mode: 'global' | 'site' | 'cell'
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
@@ -1889,10 +1890,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
 
       {/* RIGHT SIDE PANEL — Professional NOC Topology Panel */}
+      {!showRightPanel && (
+        <button
+          onClick={() => setShowRightPanel(true)}
+          className="absolute top-3 right-3 z-[1000] w-9 h-9 bg-card/90 backdrop-blur-md border border-border rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent shadow-lg transition-all"
+          title="Open detail panel"
+        >
+          <PanelLeftClose size={16} />
+        </button>
+      )}
       <div className={`absolute z-[1000] bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ${
-        detailFullscreen
-          ? 'inset-0'
-          : 'top-0 right-0 bottom-0 w-[450px]'
+        !showRightPanel
+          ? 'translate-x-full'
+          : detailFullscreen
+            ? 'inset-0'
+            : 'top-0 right-0 bottom-0 w-[450px]'
       }`}>
         {/* Breadcrumb bar */}
         <div className="px-4 py-2 border-b border-border flex items-center justify-between shrink-0 bg-muted/30">
@@ -1921,6 +1933,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </span>
             <button onClick={() => setDetailFullscreen(!detailFullscreen)} className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground transition-colors">
               {detailFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            </button>
+            <button onClick={() => { setShowRightPanel(false); setDetailFullscreen(false); }} className="w-6 h-6 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Close panel">
+              <X size={13} />
             </button>
           </div>
         </div>
@@ -1962,43 +1977,50 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return (
               <div className="divide-y divide-border">
                 {/* Header */}
-                <div className="px-4 py-3">
-                  <h3 className="text-[14px] font-semibold text-foreground">Global Network</h3>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{selectedKpiLabel}</p>
+                <div className="px-5 py-5">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-primary/10">
+                      <Network size={20} className="text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-[15px] font-bold text-foreground tracking-tight">Global Network</h3>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{selectedKpiLabel}</p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Network Summary Table */}
-                <div className="px-4 py-3">
-                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Network Summary</h4>
-                  <div className="space-y-0">
+                {/* Network Summary */}
+                <div className="px-5 py-4">
+                  <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Network Summary</h4>
+                  <div className="space-y-0.5">
                     {[
-                      { label: 'Sites', value: totalSites.toLocaleString() },
-                      { label: 'Cells', value: totalCells.toLocaleString() },
+                      { label: 'Sites', value: totalSites.toLocaleString(), bold: true },
+                      { label: 'Cells', value: totalCells.toLocaleString(), bold: true },
                       { label: 'Technologies', value: techs.join(' / ') },
                       { label: 'Avg QoE', value: `${avgQoE.toFixed(1)}%`, color: getKpiColor(avgQoE) },
                     ].map((row, i) => (
-                      <div key={i} className="flex items-center justify-between py-1.5 text-[12px]">
+                      <div key={i} className="flex items-center justify-between py-2 text-[12px]">
                         <span className="text-muted-foreground">{row.label}</span>
-                        <span className="font-medium text-foreground" style={row.color ? { color: row.color } : undefined}>{row.value}</span>
+                        <span className={`${row.bold ? 'font-bold' : 'font-medium'} text-foreground`} style={row.color ? { color: row.color } : undefined}>{row.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Technology Distribution */}
-                <div className="px-4 py-3">
-                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Technology Distribution</h4>
-                  <div className="space-y-2">
+                <div className="px-5 py-4">
+                  <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Technology Distribution</h4>
+                  <div className="space-y-3">
                     {techStats.map(ts => (
-                      <div key={ts.tech} className="flex items-start gap-2">
-                        <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${ts.tech === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
+                      <div key={ts.tech} className="flex items-start gap-2.5">
+                        <div className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${ts.tech === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between text-[12px]">
-                            <span className="font-medium text-foreground">{ts.tech === '5G' ? '5G NR' : '4G LTE'}</span>
-                            <span className="font-medium" style={{ color: getKpiColor(ts.avgQoE) }}>{ts.avgQoE.toFixed(1)}%</span>
+                            <span className="font-semibold text-foreground">{ts.tech === '5G' ? '5G NR' : '4G LTE'}</span>
+                            <span className="font-semibold" style={{ color: getKpiColor(ts.avgQoE) }}>{ts.avgQoE.toFixed(1)}%</span>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-0.5">
-                            {ts.count} cells • {ts.bands.join(' / ')}
+                            {ts.count.toLocaleString()} cells • {ts.bands.join(' / ')}
                           </div>
                         </div>
                       </div>
@@ -2007,29 +2029,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
 
                 {/* Band Distribution Table */}
-                <div className="px-4 py-3">
-                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Band Distribution</h4>
-                  <div className="border border-border rounded-md overflow-hidden">
+                <div className="px-5 py-4">
+                  <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Band Distribution</h4>
+                  <div className="border border-border rounded-lg overflow-hidden">
                     <table className="w-full text-[11px]">
                       <thead>
                         <tr className="bg-muted/50 text-muted-foreground text-[10px] uppercase tracking-wider">
-                          <th className="text-left px-3 py-1.5 font-medium">Band</th>
-                          <th className="text-right px-3 py-1.5 font-medium">Cells</th>
-                          <th className="text-right px-3 py-1.5 font-medium">Avg QoE</th>
+                          <th className="text-left px-3 py-2 font-semibold">Band</th>
+                          <th className="text-right px-3 py-2 font-semibold">Cells</th>
+                          <th className="text-right px-3 py-2 font-semibold">Avg QoE</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/50">
                         {bandStats.map((bs, i) => (
                           <tr key={i} className="hover:bg-muted/30 transition-colors">
-                            <td className="px-3 py-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ background: getBandColor(bs.band, bs.tech) }} />
-                                <span className="text-foreground">{bs.band}</span>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(bs.band, bs.tech) }} />
+                                <span className="font-medium text-foreground">{bs.band}</span>
                                 <span className="text-muted-foreground text-[10px]">({bs.tech})</span>
                               </div>
                             </td>
-                            <td className="px-3 py-1.5 text-right text-foreground">{bs.count.toLocaleString()}</td>
-                            <td className="px-3 py-1.5 text-right font-medium" style={{ color: getKpiColor(bs.avgQoE) }}>{bs.avgQoE.toFixed(1)}%</td>
+                            <td className="px-3 py-2 text-right font-medium text-foreground">{bs.count.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right font-semibold" style={{ color: getKpiColor(bs.avgQoE) }}>{bs.avgQoE.toFixed(1)}%</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2038,25 +2060,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
 
                 {/* Performance Distribution */}
-                <div className="px-4 py-3">
-                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Performance Distribution</h4>
+                <div className="px-5 py-4">
+                  <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Performance Distribution</h4>
                   {/* Horizontal bar */}
-                  <div className="flex h-2 rounded-sm overflow-hidden mb-2">
-                    {excellent > 0 && <div style={{ width: `${(excellent / perfTotal) * 100}%`, background: '#22c55e' }} />}
-                    {correct > 0 && <div style={{ width: `${(correct / perfTotal) * 100}%`, background: '#f59e0b' }} />}
-                    {degraded > 0 && <div style={{ width: `${(degraded / perfTotal) * 100}%`, background: '#f97316' }} />}
-                    {critical > 0 && <div style={{ width: `${(critical / perfTotal) * 100}%`, background: '#ef4444' }} />}
+                  <div className="flex h-3 rounded-md overflow-hidden mb-3">
+                    {excellent > 0 && <div className="transition-all" style={{ width: `${(excellent / perfTotal) * 100}%`, background: '#22c55e' }} />}
+                    {correct > 0 && <div className="transition-all" style={{ width: `${(correct / perfTotal) * 100}%`, background: '#f59e0b' }} />}
+                    {degraded > 0 && <div className="transition-all" style={{ width: `${(degraded / perfTotal) * 100}%`, background: '#f97316' }} />}
+                    {critical > 0 && <div className="transition-all" style={{ width: `${(critical / perfTotal) * 100}%`, background: '#ef4444' }} />}
                   </div>
                   <div className="grid grid-cols-4 gap-2 text-[11px]">
                     {[
-                      { label: 'Excellent', value: excellent, pct: ((excellent / perfTotal) * 100).toFixed(0), color: '#22c55e' },
-                      { label: 'Correct', value: correct, pct: ((correct / perfTotal) * 100).toFixed(0), color: '#f59e0b' },
-                      { label: 'Degraded', value: degraded, pct: ((degraded / perfTotal) * 100).toFixed(0), color: '#f97316' },
-                      { label: 'Critical', value: critical, pct: ((critical / perfTotal) * 100).toFixed(0), color: '#ef4444' },
+                      { label: 'Excellent', pct: ((excellent / perfTotal) * 100).toFixed(0), color: '#22c55e' },
+                      { label: 'Correct', pct: ((correct / perfTotal) * 100).toFixed(0), color: '#f59e0b' },
+                      { label: 'Degraded', pct: ((degraded / perfTotal) * 100).toFixed(0), color: '#f97316' },
+                      { label: 'Critical', pct: ((critical / perfTotal) * 100).toFixed(0), color: '#ef4444' },
                     ].map((p, i) => (
                       <div key={i} className="text-center">
-                        <div className="font-medium" style={{ color: p.color }}>{p.pct}%</div>
-                        <div className="text-muted-foreground text-[10px]">{p.label}</div>
+                        <div className="font-bold text-[13px]" style={{ color: p.color }}>{p.pct}%</div>
+                        <div className="text-muted-foreground text-[10px] mt-0.5">{p.label}</div>
                       </div>
                     ))}
                   </div>
