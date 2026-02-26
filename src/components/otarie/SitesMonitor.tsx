@@ -620,10 +620,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             chunkedLoading
             iconCreateFunction={createClusterCustomIcon}
             maxClusterRadius={60}
+            disableClusteringAtZoom={8}
             spiderfyOnMaxZoom
             showCoverageOnHover={false}
             zoomToBoundsOnClick
-            disableClusteringAtZoom={SECTOR_ZOOM_THRESHOLD}
           >
             {mapFilteredSites.map(site => {
               const color = getKpiColor(getCellKpiValue(site.cells[0] || {}));
