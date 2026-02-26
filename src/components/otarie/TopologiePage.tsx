@@ -29,7 +29,7 @@ interface DumpRow {
   ur: string | null;
 }
 
-type AggregatorKey = 'dor' | 'plaque';
+type AggregatorKey = 'ur' | 'plaque';
 type ColorBy = 'value' | 'aggregator';
 
 const TopologiePage: React.FC = () => {
@@ -44,19 +44,19 @@ const TopologiePage: React.FC = () => {
   // Filters
   const [selectedSite, setSelectedSite] = useState('ALL');
   const [selectedCell, setSelectedCell] = useState('ALL');
-  const [selectedDor, setSelectedDor] = useState('ALL');
+  const [selectedUr, setSelectedUr] = useState('ALL');
   const [selectedPlaque, setSelectedPlaque] = useState('ALL');
   const [selectedVendor, setSelectedVendor] = useState('ALL');
 
   // Aggregator & color
-  const [aggregator, setAggregator] = useState<AggregatorKey>('dor');
+  const [aggregator, setAggregator] = useState<AggregatorKey>('ur');
   const [colorBy, setColorBy] = useState<ColorBy>('value');
 
   // Available filter options
   const [sites, setSites] = useState<string[]>([]);
   const [cells, setCells] = useState<string[]>([]);
   const [params, setParams] = useState<string[]>([]);
-  const [dors, setDors] = useState<string[]>([]);
+  const [urs, setUrs] = useState<string[]>([]);
   const [plaques, setPlaques] = useState<string[]>([]);
   const [vendors, setVendors] = useState<string[]>([]);
 
@@ -94,11 +94,11 @@ const TopologiePage: React.FC = () => {
       const [s, p, d, pl, v] = await Promise.all([
         fetchDistinct('site_name'),
         fetchDistinct('parameter'),
-        fetchDistinct('dor'),
+        fetchDistinct('ur'),
         fetchDistinct('plaque'),
         fetchDistinct('vendor'),
       ]);
-      setSites(s); setParams(p); setDors(d); setPlaques(pl); setVendors(v);
+      setSites(s); setParams(p); setUrs(d); setPlaques(pl); setVendors(v);
     };
     loadFilters();
   }, []);
@@ -128,15 +128,15 @@ const TopologiePage: React.FC = () => {
       const filters: Record<string, string> = { parameter: selectedParam };
       if (selectedSite !== 'ALL') filters.site_name = selectedSite;
       if (selectedCell !== 'ALL') filters.cell_name = selectedCell;
-      if (selectedDor !== 'ALL') filters.dor = selectedDor;
+      if (selectedUr !== 'ALL') filters.ur = selectedUr;
       if (selectedPlaque !== 'ALL') filters.plaque = selectedPlaque;
       if (selectedVendor !== 'ALL') filters.vendor = selectedVendor;
-      const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur');
+      const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr');
       setData(rows || []);
       setLoading(false);
     };
     loadData();
-  }, [selectedParam, selectedSite, selectedCell, selectedDor, selectedPlaque, selectedVendor]);
+  }, [selectedParam, selectedSite, selectedCell, selectedUr, selectedPlaque, selectedVendor]);
 
   // Table search
   const filteredData = useMemo(() => {
@@ -196,15 +196,15 @@ const TopologiePage: React.FC = () => {
 
   const exportCSV = () => {
     if (!filteredData.length) return;
-    const headers = ['Site', 'Cell', 'Parameter', 'Value', 'DOR', 'Plaque', 'Vendor', 'Bande'];
-    const rows = filteredData.map(r => [r.site_name, r.cell_name, r.parameter, r.value, r.dor, r.plaque, r.vendor, r.bande].join(','));
+    const headers = ['Site', 'Cell', 'Parameter', 'Value', 'UR', 'Plaque', 'Vendor', 'Bande'];
+    const rows = filteredData.map(r => [r.site_name, r.cell_name, r.parameter, r.value, r.ur, r.plaque, r.vendor, r.bande].join(','));
     const csv = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `topologie_${selectedParam}.csv`; a.click();
   };
 
-  const aggLabel = aggregator === 'dor' ? 'DOR' : 'Plaque';
+  const aggLabel = aggregator === 'ur' ? 'UR' : 'Plaque';
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
@@ -270,7 +270,7 @@ const TopologiePage: React.FC = () => {
           <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
             <Filter className="w-3 h-3" /> Filtres
           </div>
-          <FilterSelect label="DOR" value={selectedDor} options={['ALL', ...dors]} onChange={setSelectedDor} />
+          <FilterSelect label="UR" value={selectedUr} options={['ALL', ...urs]} onChange={setSelectedUr} />
           <FilterSelect label="Plaque" value={selectedPlaque} options={['ALL', ...plaques]} onChange={setSelectedPlaque} />
           <FilterSelect label="Vendor" value={selectedVendor} options={['ALL', ...vendors]} onChange={setSelectedVendor} />
           <FilterSelect label="Site" value={selectedSite} options={['ALL', ...sites]} onChange={setSelectedSite} />
@@ -284,9 +284,9 @@ const TopologiePage: React.FC = () => {
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Agréger par</span>
               <div className="flex rounded-md border border-input overflow-hidden">
                 <button
-                  onClick={() => setAggregator('dor')}
-                  className={`px-3 py-1 text-xs font-medium transition-colors ${aggregator === 'dor' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}
-                >DOR</button>
+                  onClick={() => setAggregator('ur')}
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${aggregator === 'ur' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}
+                >UR</button>
                 <button
                   onClick={() => setAggregator('plaque')}
                   className={`px-3 py-1 text-xs font-medium transition-colors ${aggregator === 'plaque' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}

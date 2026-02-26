@@ -7,7 +7,7 @@ import { MapWidgetConfig } from './dashboardTypes';
 import { fetchTopoSites } from '../../services/topoService';
 import { SiteSummary } from '../../types';
 import { Settings, Trash2, Map as MapIcon, Eye, EyeOff, Tag, Layers, Radio, X } from 'lucide-react';
-import { VENDORS, DORS, PLAQUES } from '../../constants';
+import { VENDORS, URS, PLAQUES } from '../../constants';
 
 const TILE_URLS: Record<string, { url: string; attribution: string }> = {
   light: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attribution: '© OSM © CARTO' },
@@ -148,9 +148,9 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">DOR</label>
+              <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">UR</label>
               <select className={selectClass} value={config.dorFilter} onChange={e => onChange({ ...config, dorFilter: e.target.value })}>
-                {DORS.map(d => <option key={d} value={d}>{d}</option>)}
+                {URS.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
           </div>
