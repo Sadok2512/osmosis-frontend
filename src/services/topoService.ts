@@ -1,6 +1,7 @@
-import { getApiUrl } from '@/lib/apiConfig';
 import { SiteSummary, SiteDetail, CellProperties } from '../types';
 import topoRaw from '../data/topoData';
+
+const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
 // Seeded random for stable KPI values per cell
 function seededRand(seed: string, min: number, max: number): number {
@@ -150,7 +151,7 @@ let cachedLocalSites: SiteSummary[] | null = null;
 export async function fetchTopoSites(): Promise<SiteSummary[]> {
   if (cachedLocalSites) return cachedLocalSites;
   try {
-    const resp = await fetch(getApiUrl('topo') + '?limit=100000');
+    const resp = await fetch(`${LOCAL_API}/api/topo?limit=100000`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json = await resp.json();
     const rows: TopoRow[] = json.rows ?? [];
