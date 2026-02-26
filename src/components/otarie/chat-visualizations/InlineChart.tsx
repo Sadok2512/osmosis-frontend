@@ -34,7 +34,7 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
             <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
             <XAxis dataKey={xKey} tick={{ fontSize: 10 }} className="text-muted-foreground" />
             <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }} />
+            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }} formatter={(value: number, name: string) => [`${value} cellules`, name]} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
             {yKeys.map((key, i) => (
               <Bar key={key} dataKey={key} fill={palette[i % palette.length]} radius={[4, 4, 0, 0]} />

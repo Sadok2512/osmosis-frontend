@@ -306,22 +306,35 @@ async function searchDumpParameters(query: string): Promise<string> {
       if (!data?.length) return `AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" dans la base ${activeDumpTable}.`;
 
       const agg = new Map<string, number>();
+      const dimTotals = new Map<string, number>();
       for (const row of data) {
-        const key = `${(row as any)[groupCol] || "N/A"}::${row.value || "N/A"}`;
+        const dim = (row as any)[groupCol] || "N/A";
+        const val = row.value || "N/A";
+        const key = `${dim}::${val}`;
         agg.set(key, (agg.get(key) || 0) + 1);
+        dimTotals.set(dim, (dimTotals.get(dim) || 0) + 1);
       }
 
-      const header = `dimension | valeur_${paramName} | nb_cellules`;
+      const total = data.length;
+      const header = `dimension | valeur_${paramName} | nb_cellules | pct_dans_dimension | pct_global`;
       const lines = Array.from(agg.entries())
         .map(([key, count]) => {
           const [dim, val] = key.split("::");
-          return { dim, val, count };
+          const dimTotal = dimTotals.get(dim) || 1;
+          const pctDim = ((count / dimTotal) * 100).toFixed(1);
+          const pctGlobal = ((count / total) * 100).toFixed(1);
+          return { dim, val, count, pctDim, pctGlobal };
         })
         .sort((a, b) => a.dim.localeCompare(b.dim) || b.count - a.count)
-        .map((r) => `${r.dim} | ${r.val} | ${r.count}`);
+        .map((r) => `${r.dim} | ${r.val} | ${r.count} | ${r.pctDim}% | ${r.pctGlobal}%`);
 
-      const total = data.length;
-      return `DISTRIBUTION AGRÉGÉE du paramètre ${paramName} par ${groupCol} (${total} cellules au total):\n${header}\n${lines.join("\n")}`;
+      // Build per-dimension summary
+      const dimSummary = Array.from(dimTotals.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([dim, cnt]) => `${dim}: ${cnt} cellules (${((cnt / total) * 100).toFixed(1)}%)`)
+        .join(", ");
+
+      return `DISTRIBUTION AGRÉGÉE du paramètre ${paramName} par ${groupCol} (${total} cellules au total):\nRépartition par ${groupCol}: ${dimSummary}\n${header}\n${lines.join("\n")}\n\nINSTRUCTION VISUALISATION: Génère un graphique \`\`\`chart groupé avec xKey="${groupCol}" et une barre par valeur distincte du paramètre. Chaque barre représente le nb_cellules. Ajoute aussi les pourcentages dans le tableau Markdown.`;
     }
 
     // Standard search
@@ -449,6 +462,16 @@ PARAMÈTRES RÉSEAU (DUMP CM) :
 Si des données de paramètres réseau (dump_parameter) sont fournies dans le contexte, utilise-les pour répondre aux questions sur la configuration des équipements (MRBTS, LNBTS, eNodeB, gNodeB, versions SW, templates, etc.).
 Présente les paramètres sous forme de tableau Markdown avec les colonnes pertinentes (DN, Site, Parameter, Value, Version).
 Quand on te demande la configuration d'un site ou équipement, cherche dans ces données et présente les résultats de manière structurée.
+
+DISTRIBUTIONS DE PARAMÈTRES :
+Quand les données contiennent une distribution agrégée de paramètre (avec nb_cellules, pct_dans_dimension, pct_global) :
+1. Affiche un tableau Markdown avec les colonnes : Plaque (ou dimension), Valeur, Nb Cellules, % dans Plaque, % Global.
+2. Génère un bloc \`\`\`chart de type "bar" GROUPÉ avec :
+   - xKey = la dimension (ex: "plaque")
+   - Pour chaque valeur distincte du paramètre, crée une entrée dans yKeys (ex: ["val_700","val_1000","val_1300"])
+   - data = un tableau avec une entrée par dimension, chaque entrée ayant la dimension + le nb_cellules pour chaque valeur
+   - Exemple: {"type":"bar","title":"Distribution LNCEL_FDD.dlRsBoost par Plaque","xKey":"plaque","yKeys":["700","1000","1300"],"data":[{"plaque":"NANTES","700":0,"1000":20,"1300":0},{"plaque":"AUTRES44","700":1,"1000":12,"1300":0}]}
+3. Ajoute les pourcentages (%) dans le tableau Markdown pour chaque ligne.
 
 VISUALISATIONS INTERACTIVES :
 Tu peux intégrer des graphiques, cartes et cartes KPI directement dans ta réponse en utilisant des blocs de code spéciaux.
