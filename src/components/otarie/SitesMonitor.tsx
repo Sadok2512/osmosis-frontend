@@ -719,7 +719,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Detailed sectors (only when zoomed in, sites mode) */}
         {showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
-          const zoomRadius = viewport.zoom >= 15 ? 600 : viewport.zoom >= 14 ? 450 : viewport.zoom >= 13 ? 350 : 250;
+          const zoomRadius = viewport.zoom >= 15 ? 900 : viewport.zoom >= 14 ? 700 : viewport.zoom >= 13 ? 550 : 400;
           return (
             <React.Fragment key={site.site_id}>
               {site.cells.filter(c => isBandEnabled(c.bande)).map(cell => {
