@@ -334,8 +334,7 @@ app.get('/api/topo', async (req, res) => {
     const result = await sharedPool.query(
       `SELECT code_nidt, nom_site, region, longitude, latitude, nom_cellule,
               techno, bande, constructeur, azimut, plaque, hba, tac,
-              dor, pci, cid, eci, nci, etat_cellule, zone_arcep, essentiel,
-              remote_electrical_tilt, date_mes, date_fn8
+              date_mes, date_fn8
        FROM topo ORDER BY id LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
