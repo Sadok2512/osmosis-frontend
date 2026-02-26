@@ -53,6 +53,15 @@ CREATE TABLE IF NOT EXISTS topo (
   plaque TEXT,
   region TEXT,
   tac INTEGER,
+  dor TEXT,
+  pci INTEGER,
+  cid INTEGER,
+  eci BIGINT,
+  nci BIGINT,
+  etat_cellule TEXT,
+  zone_arcep TEXT,
+  essentiel TEXT,
+  remote_electrical_tilt INTEGER,
   date_mes DATE,
   date_fn8 DATE,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -278,11 +287,17 @@ app.post('/api/import-topo', async (req, res) => {
   }
 });
 
-// ─── /api/topo (read all) ───
+// ─── /api/topo (read all — paginated) ───
 app.get('/api/topo', async (req, res) => {
-  const pool = createPool({ host: 'localhost', port: '5432', database: 'postgres', user: 'postgres', password: 'root' });
+  const pool = createPool(getLocalDbConfig());
   try {
-    const result = await pool.query('SELECT * FROM topo ORDER BY id');
+    const result = await pool.query(
+      `SELECT code_nidt, nom_site, region, longitude, latitude, nom_cellule,
+              techno, bande, constructeur, azimut, plaque, hba, tac,
+              dor, pci, cid, eci, nci, etat_cellule, zone_arcep, essentiel,
+              remote_electrical_tilt, date_mes, date_fn8
+       FROM topo ORDER BY id`
+    );
     res.json(result.rows);
   } catch (e) {
     res.json({ error: e.message });

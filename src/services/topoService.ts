@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { isLocalMode, getApiUrl } from '@/lib/apiConfig';
 import { SiteSummary, SiteDetail, CellProperties } from '../types';
 import topoRaw from '../data/topoData';
 
@@ -151,14 +152,31 @@ let cachedLocalSites: SiteSummary[] | null = null;
 let dbChecked = false;
 
 export async function fetchTopoSites(): Promise<SiteSummary[]> {
-  // Try DB first (only check once per session, then cache)
+  // Try local mode first
+  if (isLocalMode()) {
+    if (cachedDbSites) return cachedDbSites;
+    try {
+      const resp = await fetch(getApiUrl('topo'));
+      const rows = await resp.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        cachedDbSites = buildSitesFromRows(rows as TopoRow[]);
+        console.log(`[TopoService] LOCAL: Loaded ${rows.length} cells → ${cachedDbSites.length} sites`);
+        return cachedDbSites;
+      }
+      console.log('[TopoService] LOCAL: topo table empty');
+      return [];
+    } catch (err) {
+      console.warn('[TopoService] LOCAL fetch failed', err);
+      return [];
+    }
+  }
+
+  // Cloud mode — try DB first (only check once per session, then cache)
   if (!dbChecked) {
     dbChecked = true;
     try {
-      // Check count first
       const { count } = await supabase.from('topo').select('id', { count: 'exact', head: true });
       if (count && count > 0) {
-        // Fetch all rows (paginated if needed)
         const allRows: TopoRow[] = [];
         const pageSize = 1000;
         let from = 0;
@@ -178,19 +196,18 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
         }
         if (allRows.length > 0) {
           cachedDbSites = buildSitesFromRows(allRows);
-          console.log(`[TopoService] Loaded ${allRows.length} cells → ${cachedDbSites.length} sites from database`);
+          console.log(`[TopoService] CLOUD: Loaded ${allRows.length} cells → ${cachedDbSites.length} sites`);
           return cachedDbSites;
         }
       }
     } catch (err) {
-      console.warn('[TopoService] DB fetch failed, using local fallback', err);
+      console.warn('[TopoService] Cloud DB fetch failed', err);
     }
   }
 
   if (cachedDbSites) return cachedDbSites;
 
-  // No DB data available, return empty
-  console.log('[TopoService] No topo data in database, returning empty list');
+  console.log('[TopoService] No topo data available');
   return [];
 }
 
