@@ -254,6 +254,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
+  const [mapRendering, setMapRendering] = useState(false);
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
   const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
@@ -529,12 +530,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return result;
   }, [sites, highlightedCellIds]);
 
+  const renderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleViewportChange = useCallback((v: ViewportState) => {
+    const prevZoom = viewport.zoom;
     setViewport(v);
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
-  }, [clusteringUnlocked]);
+    // Show loading when zooming out reveals many more sites
+    if (v.zoom < prevZoom && mapFilteredSites.length > 500) {
+      setMapRendering(true);
+      if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
+      renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
+    }
+  }, [viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
@@ -545,12 +555,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setSelectedSiteId(site.site_id);
   };
 
-  // Loading overlay rendered inside the map area instead of blocking
-  const loadingOverlay = loading ? (
+  // Loading overlay rendered inside the map area
+  const loadingOverlay = (loading || mapRendering) ? (
     <div className="absolute inset-0 z-[1100] flex items-center justify-center bg-background/60 backdrop-blur-sm pointer-events-none animate-fade-in">
       <div className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-card/90 backdrop-blur-md border border-border shadow-2xl">
         <RefreshCw className="w-8 h-8 text-primary animate-spin" />
-        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">Chargement des sites…</p>
+        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">
+          {loading ? 'Chargement des sites…' : `Rendu de ${visibleSites.length.toLocaleString()} sites…`}
+        </p>
       </div>
     </div>
   ) : null;
