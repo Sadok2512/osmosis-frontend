@@ -65,10 +65,11 @@ export const isLocalMode = (): boolean => getPreferredDataSource() === 'local';
  * In local mode: http://localhost:3001/api/{name}
  */
 export function getApiUrl(functionName: string): string {
+  const clean = functionName.replace(/^\/?(api\/)?/, '');
   if (isLocalMode()) {
-    return `${getLocalApiBase()}/api/${functionName}`;
+    return `${getLocalApiBase()}/api/${clean}`;
   }
-  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`;
+  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
 }
 
 /**

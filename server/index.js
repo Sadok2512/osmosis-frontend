@@ -7,7 +7,42 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// ─── Helper: create pg pool from config ───
+// ─── Single shared pool for the server lifetime ───
+function getLocalDbConfig(overrides = {}) {
+  return {
+    host: overrides.host || process.env.PG_HOST || 'localhost',
+    port: parseInt(overrides.port || process.env.PG_PORT || '5432'),
+    database: overrides.database || process.env.PG_DATABASE || 'RAN_OP',
+    user: overrides.user || process.env.PG_USER || 'postgres',
+    password: overrides.password ?? process.env.PG_PASSWORD ?? 'root',
+  };
+}
+
+const sharedPool = new Pool({
+  ...getLocalDbConfig(),
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+});
+
+// Test connection at startup
+sharedPool.connect((err, client, release) => {
+  if (err) {
+    console.error('❌ PostgreSQL connection failed:', err.message);
+  } else {
+    console.log('✅ PostgreSQL pool connected to', getLocalDbConfig().database);
+    release();
+  }
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('🔒 Closing pool...');
+  await sharedPool.end();
+  process.exit(0);
+});
+
+// Helper: create a one-off pool for admin routes (custom config)
 function createPool(config) {
   return new Pool({
     host: config.host || 'localhost',
@@ -289,16 +324,14 @@ app.post('/api/import-topo', async (req, res) => {
 
 // ─── /api/topo (read — paginated, default limit 100k) ───
 app.get('/api/topo', async (req, res) => {
-  const pool = createPool(getLocalDbConfig());
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 100000, 500000);
-    const offset = parseInt(req.query.offset) || 0;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 100000, 1), 500000);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
 
-    // First return count for client awareness
-    const countRes = await pool.query('SELECT COUNT(*)::int AS total FROM topo');
-    const total = countRes.rows[0]?.total || 0;
+    const countRes = await sharedPool.query('SELECT COUNT(*) AS total FROM topo');
+    const total = parseInt(countRes.rows[0]?.total || '0');
 
-    const result = await pool.query(
+    const result = await sharedPool.query(
       `SELECT code_nidt, nom_site, region, longitude, latitude, nom_cellule,
               techno, bande, constructeur, azimut, plaque, hba, tac,
               dor, pci, cid, eci, nci, etat_cellule, zone_arcep, essentiel,
@@ -307,13 +340,11 @@ app.get('/api/topo', async (req, res) => {
       [limit, offset]
     );
     
-    console.log(`[/api/topo] Serving ${result.rows.length}/${total} rows (offset=${offset}, limit=${limit})`);
+    console.log(`[/api/topo] ${result.rows.length}/${total} rows (offset=${offset})`);
     res.json({ rows: result.rows, total });
   } catch (e) {
     console.error('[/api/topo]', e.message);
     res.status(500).json({ error: e.message });
-  } finally {
-    await pool.end();
   }
 });
 
@@ -802,9 +833,8 @@ Réponds TOUJOURS en français.`;
 
 // ─── /api/dump-parameter (query with filters) ───
 app.get('/api/dump-parameter', async (req, res) => {
-  const pool = createPool(getLocalDbConfig());
   try {
-    const tableChoice = await pool.query(`
+    const tableChoice = await sharedPool.query(`
       SELECT CASE
         WHEN to_regclass('public.dump_parametre') IS NOT NULL THEN 'dump_parametre'
         WHEN to_regclass('public.dump_parameter') IS NOT NULL THEN 'dump_parameter'
@@ -823,7 +853,7 @@ app.get('/api/dump-parameter', async (req, res) => {
       const params = [];
       if (site_name) { params.push(site_name); q += ` AND site_name = $${params.length}`; }
       q += ` ORDER BY ${distinct_col} LIMIT 5000`;
-      const result = await pool.query(q, params);
+      const result = await sharedPool.query(q, params);
       return res.json(result.rows);
     }
 
@@ -837,20 +867,24 @@ app.get('/api/dump-parameter', async (req, res) => {
     if (dor) { params.push(dor); q += ` AND dor = $${params.length}`; }
     if (plaque) { params.push(plaque); q += ` AND plaque = $${params.length}`; }
     if (vendor) { params.push(vendor); q += ` AND vendor = $${params.length}`; }
-    q += ` ORDER BY ${order || 'site_name'} LIMIT ${parseInt(lim) || 5000}`;
+    q += ` ORDER BY ${order || 'site_name'} LIMIT ${Math.min(Math.max(parseInt(lim) || 5000, 1), 50000)}`;
 
-    const result = await pool.query(q, params);
+    const result = await sharedPool.query(q, params);
     res.json(result.rows);
   } catch (e) {
+    console.error('[/api/dump-parameter]', e.message);
     res.status(500).json({ error: e.message });
-  } finally {
-    await pool.end();
   }
 });
 
 // ─── Health check ───
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', mode: 'local', timestamp: new Date().toISOString() });
+app.get('/api/health', async (req, res) => {
+  try {
+    await sharedPool.query('SELECT 1');
+    res.json({ status: 'ok', db: getLocalDbConfig().database, timestamp: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ status: 'error', error: e.message });
+  }
 });
 
 const PORT = process.env.PORT || 3001;
