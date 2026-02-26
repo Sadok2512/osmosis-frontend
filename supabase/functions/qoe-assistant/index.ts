@@ -220,6 +220,13 @@ function extractGroupByColumn(query: string): string {
   return "plaque";
 }
 
+function extractPlaqueName(query: string): string | null {
+  // Match known plaque patterns like AUTRES53, NANTES, ST_NAZAIRE, etc.
+  const match = query.match(/\b(AUTRES\d{2,3}|NANTES|ST_NAZAIRE|RENNES|BREST|BORDEAUX|TOULOUSE|LYON|MARSEILLE|LILLE|STRASBOURG|[A-Z][A-Z_]{2,}(?:\d{2,3})?)\b/i);
+  if (!match) return null;
+  return match[1].toUpperCase();
+}
+
 function extractSiteName(query: string): string | null {
   const paramPrefixes = /^(LNCEL|LNBTS|LNCELL|MRBTS|GNBTS|SIB|NRCELL|CATMPR|NOKLTE|NRBTS|GNBCUCP|GNBCUUP|GNBDU|LNHOIF|LNRELIF|IRFIM|DUMP|TABLE)$/i;
   const matches = query.match(/\b([A-Z][A-Z0-9_]{3,}(?:_[A-Z0-9]+)+)\b/g);
@@ -258,7 +265,36 @@ async function searchDumpParameters(query: string): Promise<string> {
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
     const siteName = extractSiteName(query);
+    const plaqueName = extractPlaqueName(query);
 
+    // Plaque-specific cell listing with optional parameter filter
+    if (plaqueName && !isDistrib) {
+      console.log(`[${activeDumpTable}] Plaque cell listing: plaque=${plaqueName}, param=${paramName}`);
+      let q = supabase
+        .from(activeDumpTable)
+        .select("cell_name, site_name, parameter, value, vendor, bande, plaque")
+        .ilike("plaque", `%${plaqueName}%`);
+      if (paramName) q = q.ilike("parameter", `%${paramName}%`);
+      const { data, error } = await q.order("cell_name").limit(500);
+
+      if (error) { console.error(`${activeDumpTable} plaque search error:`, error); }
+      if (!data?.length) {
+        // Check if plaque exists at all
+        const { data: plaqueCheck } = await supabase.from(activeDumpTable).select("plaque").ilike("plaque", `%${plaqueName}%`).limit(1);
+        if (!plaqueCheck?.length) {
+          const { data: allPlaques } = await supabase.from(activeDumpTable).select("plaque").limit(1000);
+          const uniquePlaques = [...new Set((allPlaques || []).map((r: any) => r.plaque).filter(Boolean))];
+          return `AUCUNE DONNÉE trouvée pour la plaque "${plaqueName}". Plaques disponibles : ${uniquePlaques.join(", ")}`;
+        }
+        return `AUCUNE DONNÉE trouvée pour la plaque "${plaqueName}"${paramName ? ` avec le paramètre "${paramName}"` : ""}. La plaque existe mais ne contient pas ${paramName ? `ce paramètre` : `de données`}.`;
+      }
+
+      const header = "cell_name | site_name | parameter | value | vendor | bande";
+      const lines = data.map((r: any) =>
+        `${r.cell_name || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""} | ${r.vendor || ""} | ${r.bande || ""}`
+      );
+      return `CELLULES de la plaque ${plaqueName}${paramName ? ` pour ${paramName}` : ""} (${data.length} résultats) :\n${header}\n${lines.join("\n")}`;
+    }
     // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
     if (paramName && siteName && !isDistrib) {
       console.log(`[${activeDumpTable}] Site+param search: param=${paramName}, site=${siteName}`);
@@ -405,7 +441,8 @@ RÈGLE ABSOLUE — DONNÉES RÉELLES UNIQUEMENT :
 - Tu reçois dans le contexte un tableau de données réseau RÉELLES avec les vrais noms de cellules (cell_id), sites (site_name), vendors, plaques, technos et KPIs mesurés.
 - Tu dois EXCLUSIVEMENT utiliser les cell_id et site_name EXACTS qui apparaissent dans ce tableau. Copie-colle les noms tels quels.
 - Il est STRICTEMENT INTERDIT d'inventer, générer ou halluciner des noms de cellules, sites ou VALEURS DE PARAMÈTRES.
-- Si le contexte contient "AUCUNE DONNÉE trouvée", tu DOIS le rapporter tel quel. NE JAMAIS inventer de valeurs pour compenser l'absence de données.
+- Si le contexte contient "AUCUNE DONNÉE trouvée", tu DOIS le rapporter tel quel et expliquer clairement qu'il n'y a pas de données. NE JAMAIS inventer de valeurs pour compenser l'absence de données.
+- Si le contexte indique qu'une plaque existe mais ne contient pas un paramètre donné, dis-le clairement. NE JAMAIS générer de noms de cellules fictifs comme "Cellule_EXAMPLE1" ou "CELL_001".
 - Si tu ne trouves pas de données pertinentes dans le contexte fourni, dis-le explicitement au lieu d'inventer des données.
 - Chaque cellule ou site mentionné dans ta réponse DOIT exister dans le tableau de données fourni.
 - Dans les tableaux, inclus toujours les colonnes "Cell ID" et "Site" avec les noms EXACTS copiés depuis les données.
