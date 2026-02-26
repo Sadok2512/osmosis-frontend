@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Filter, Download, BarChart3, TableIcon, Loader2 } from 'lucide-react';
+import { Search, Filter, Download, BarChart3, TableIcon, Loader2, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -376,21 +376,59 @@ const DistributionTable: React.FC<{ data: any[]; dimensionKey: string; dimension
   </div>
 );
 
-// Filter select component
-const FilterSelect: React.FC<{ label: string; value: string; options: string[]; onChange: (v: string) => void }> = ({ label, value, options, onChange }) => (
-  <div className="space-y-1">
-    <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-8 text-xs">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map(opt => (
-          <SelectItem key={opt} value={opt} className="text-xs">{opt === 'ALL' ? `Tous` : opt}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-);
+// Filter select component with search
+const FilterSelect: React.FC<{ label: string; value: string; options: string[]; onChange: (v: string) => void }> = ({ label, value, options, onChange }) => {
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const filtered = useMemo(() => {
+    if (!search) return options;
+    const s = search.toLowerCase();
+    return options.filter(o => o === 'ALL' || o.toLowerCase().includes(s));
+  }, [options, search]);
+
+  const displayValue = value === 'ALL' ? 'Tous' : value;
+
+  return (
+    <div className="space-y-1">
+      <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
+      <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
+        <PopoverTrigger asChild>
+          <button className="flex items-center justify-between w-full h-8 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/50 transition-colors text-left">
+            <span className="truncate">{displayValue}</span>
+            <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-50 ml-1" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[220px] p-0" align="start">
+          <div className="flex items-center border-b border-border px-2">
+            <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <input
+              className="flex h-8 w-full bg-transparent px-2 py-1 text-xs outline-none placeholder:text-muted-foreground"
+              placeholder={`Rechercher ${label.toLowerCase()}...`}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="max-h-[200px] overflow-auto p-1">
+            {filtered.length === 0 ? (
+              <div className="py-4 text-center text-xs text-muted-foreground">Aucun résultat</div>
+            ) : (
+              filtered.map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => { onChange(opt); setOpen(false); setSearch(''); }}
+                  className={`flex items-center w-full px-2 py-1.5 text-xs rounded-sm hover:bg-accent transition-colors ${value === opt ? 'bg-accent font-medium' : ''}`}
+                >
+                  {opt === 'ALL' ? 'Tous' : opt}
+                </button>
+              ))
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
 
 export default TopologiePage;
