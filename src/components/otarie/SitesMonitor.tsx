@@ -615,8 +615,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {loadingOverlay}
       {/* FULL SCREEN MAP */}
       <MapContainer
-        center={[43.2965, 5.3698]}
-        zoom={15}
+        center={sites.length > 0 ? sites[0].coordinates : [43.2965, 5.3698]}
+        zoom={sites.length > 0 ? 12 : 6}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
       >
