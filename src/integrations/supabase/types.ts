@@ -304,6 +304,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      dump_parameter_distinct_filters: { Args: never; Returns: Json }
       match_documents: {
         Args: {
           match_count?: number

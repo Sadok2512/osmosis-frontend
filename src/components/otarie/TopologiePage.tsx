@@ -90,17 +90,41 @@ const TopologiePage: React.FC = () => {
     return data || [];
   };
 
-  // Load filter options
+  // Load filter options — use server-side DISTINCT function for speed
   useEffect(() => {
     const loadFilters = async () => {
-      const [s, p, d, pl, v] = await Promise.all([
-        fetchDistinct('site_name'),
-        fetchDistinct('parameter'),
-        fetchDistinct('ur'),
-        fetchDistinct('plaque'),
-        fetchDistinct('vendor'),
-      ]);
-      setSites(s); setParams(p); setUrs(d); setPlaques(pl); setVendors(v);
+      if (isLocalMode()) {
+        // Local: parallel distinct queries (already fast on local PG)
+        const [s, p, d, pl, v] = await Promise.all([
+          fetchDistinct('site_name'),
+          fetchDistinct('parameter'),
+          fetchDistinct('ur'),
+          fetchDistinct('plaque'),
+          fetchDistinct('vendor'),
+        ]);
+        setSites(s); setParams(p); setUrs(d); setPlaques(pl); setVendors(v);
+      } else {
+        // Cloud: single RPC call returns all distinct values at once
+        const { data, error } = await supabase.rpc('dump_parameter_distinct_filters');
+        if (error) {
+          console.error('RPC error, falling back to individual queries', error);
+          const [s, p, d, pl, v] = await Promise.all([
+            fetchDistinct('site_name'),
+            fetchDistinct('parameter'),
+            fetchDistinct('ur'),
+            fetchDistinct('plaque'),
+            fetchDistinct('vendor'),
+          ]);
+          setSites(s); setParams(p); setUrs(d); setPlaques(pl); setVendors(v);
+        } else {
+          const d = data as any;
+          setSites((d?.sites || []).sort());
+          setParams((d?.parameters || []).sort());
+          setUrs((d?.urs || []).sort());
+          setPlaques((d?.plaques || []).sort());
+          setVendors((d?.vendors || []).sort());
+        }
+      }
     };
     loadFilters();
   }, []);
