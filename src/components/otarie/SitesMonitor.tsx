@@ -519,18 +519,18 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
           </div>
 
           <div className="p-5 space-y-4">
-            {/* ── Dashboard Name ── */}
+            {/* ── Name ── */}
             {onRename && currentName != null && (
               <div className="p-4 rounded-xl border border-border bg-background">
                 <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">
-                  📝 Nom du Dashboard
+                  📝 {dashboardId ? 'Nom du Dashboard' : 'Nom de la Vue'}
                 </label>
                 <input
                   value={localName}
                   onChange={(e) => { setLocalName(e.target.value); setDirty(true); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') { handleConfirm(); closePanel(); } }}
                   className="w-full bg-card border-2 border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-foreground outline-none focus:border-primary transition-colors"
-                  placeholder="Nom du dashboard..."
+                  placeholder={dashboardId ? 'Nom du dashboard...' : 'Nom de la vue...'}
                 />
               </div>
             )}
@@ -704,111 +704,127 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </div>
             )}
 
-            {/* ── Filters (Tech + Topology) — views only ── */}
+            {/* ── Filters (views only) — add on demand ── */}
             {!dashboardId && (
               <div className="p-4 rounded-xl border border-border bg-background">
-                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
-                  🔍 Filtres
-                </label>
-                <p className="text-[9px] text-muted-foreground mb-3">
-                  Filtrer les sites affichés sur la carte
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">
+                    🔍 Filtres
+                  </label>
                   {activeFilterCount > 0 && (
-                    <span className="ml-2 px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{activeFilterCount} actif{activeFilterCount > 1 ? 's' : ''}</span>
+                    <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{activeFilterCount} actif{activeFilterCount > 1 ? 's' : ''}</span>
                   )}
-                </p>
-
-                {/* Technology filter */}
-                <div className="mb-3">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">Technologie</span>
-                  <div className="flex gap-2">
-                    {TECH_OPTIONS.map(t => {
-                      const active = localTechFilter.includes(t.value);
-                      return (
-                        <button
-                          key={t.value}
-                          onClick={() => toggleTech(t.value)}
-                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold transition-all border-2 ${
-                            active
-                              ? 'bg-primary/10 text-primary border-primary shadow-sm ring-1 ring-primary/20'
-                              : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                          }`}
-                        >
-                          <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${
-                            active ? 'bg-primary border-primary' : 'border-muted-foreground/40'
-                          }`}>
-                            {active && <Check size={8} className="text-primary-foreground" />}
-                          </div>
-                          <span>{t.icon}</span>
-                          <span>{t.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
-                {/* Topology attributes */}
-                <div className="border-t border-border pt-3">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">Attributs Topologie</span>
-                  <div className="space-y-1.5">
-                    {TOPO_ATTRIBUTES.map(attr => {
-                      const selectedCount = (localTopoFilters[attr.key] || []).length;
-                      const isExpanded = expandedTopoAttr === attr.key;
-                      return (
-                        <div key={attr.key}>
+                {/* Active filter chips */}
+                {(localTechFilter.length > 0 || Object.entries(localTopoFilters).some(([, v]) => v.length > 0)) && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {localTechFilter.map(t => (
+                      <span key={t} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-semibold border border-primary/20">
+                        {t}
+                        <button onClick={() => { toggleTech(t); }} className="hover:text-destructive"><X size={10} /></button>
+                      </span>
+                    ))}
+                    {Object.entries(localTopoFilters).flatMap(([key, vals]) =>
+                      vals.map(v => (
+                        <span key={`${key}-${v}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/10 text-accent-foreground text-[10px] font-semibold border border-border">
+                          {TOPO_ATTRIBUTES.find(a => a.key === key)?.label}: {v}
+                          <button onClick={() => toggleTopoValue(key, v)} className="hover:text-destructive"><X size={10} /></button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* Add filter button + dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setExpandedTopoAttr(expandedTopoAttr === '__picker__' ? null : '__picker__')}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold text-primary border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all w-full justify-center"
+                  >
+                    <Plus size={14} />
+                    <span>Ajouter un filtre</span>
+                  </button>
+
+                  {expandedTopoAttr === '__picker__' && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-card border border-border rounded-xl shadow-lg p-2 space-y-1 max-h-60 overflow-y-auto">
+                      {/* Technology filters */}
+                      <div className="px-2 py-1 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Technologie</div>
+                      {TECH_OPTIONS.map(t => {
+                        const active = localTechFilter.includes(t.value);
+                        return (
                           <button
-                            onClick={() => setExpandedTopoAttr(isExpanded ? null : attr.key)}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-semibold transition-all border ${
-                              selectedCount > 0
-                                ? 'border-primary/30 bg-primary/5 text-primary'
-                                : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/30'
+                            key={t.value}
+                            onClick={() => { toggleTech(t.value); }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+                              active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                             }`}
                           >
-                            <span>{attr.label}</span>
-                            <div className="flex items-center gap-1.5">
-                              {selectedCount > 0 && (
-                                <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{selectedCount}</span>
-                              )}
-                              <ChevronDown size={12} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            <div className={`w-3.5 h-3.5 rounded border-[1.5px] flex items-center justify-center ${
+                              active ? 'bg-primary border-primary' : 'border-muted-foreground/40'
+                            }`}>
+                              {active && <Check size={8} className="text-primary-foreground" />}
                             </div>
+                            <span>{t.icon}</span> {t.label}
                           </button>
-                          {isExpanded && (
-                            <div className="mt-1 ml-2 p-2 rounded-lg border border-border bg-card max-h-32 overflow-y-auto space-y-1">
-                              {/* Quick sample values — in production these come from DB */}
-                              {(attr.key === 'constructeur' ? ['Nokia', 'Ericsson', 'Huawei', 'Samsung'] :
-                                attr.key === 'bande' ? ['700', '800', '1800', '2100', '2600', 'NR700', 'NR2100', 'NR3500'] :
-                                attr.key === 'plaque' ? ['IDF', 'Nord', 'Sud', 'Est', 'Ouest'] :
-                                attr.key === 'region' ? ['IDF', 'NE', 'NO', 'SE', 'SO'] :
-                                attr.key === 'dor' ? ['DOR1', 'DOR2', 'DOR3', 'DOR4'] :
-                                attr.key === 'zone_arcep' ? ['ZTD', 'ZMD', 'ZPD'] :
-                                attr.key === 'etat_cellule' ? ['Active', 'Inactive', 'Maintenance'] :
-                                ['Oui', 'Non']
-                              ).map(val => {
-                                const isSelected = (localTopoFilters[attr.key] || []).includes(val);
-                                return (
-                                  <button
-                                    key={val}
-                                    onClick={() => toggleTopoValue(attr.key, val)}
-                                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all ${
-                                      isSelected
-                                        ? 'bg-primary/10 text-primary'
-                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                                    }`}
-                                  >
-                                    <div className={`w-3.5 h-3.5 rounded border-[1.5px] flex items-center justify-center ${
-                                      isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40'
-                                    }`}>
-                                      {isSelected && <Check size={8} className="text-primary-foreground" />}
-                                    </div>
-                                    {val}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+
+                      <div className="border-t border-border my-1" />
+                      <div className="px-2 py-1 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Attributs Topologie</div>
+                      {TOPO_ATTRIBUTES.map(attr => {
+                        const selectedCount = (localTopoFilters[attr.key] || []).length;
+                        const isSubExpanded = expandedTopoAttr === attr.key;
+                        return (
+                          <div key={attr.key}>
+                            <button
+                              onClick={() => setExpandedTopoAttr(isSubExpanded ? '__picker__' : attr.key)}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+                                selectedCount > 0 ? 'text-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                              }`}
+                            >
+                              <span>{attr.label}</span>
+                              <div className="flex items-center gap-1.5">
+                                {selectedCount > 0 && <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{selectedCount}</span>}
+                                <ChevronDown size={10} className={`transition-transform ${isSubExpanded ? 'rotate-180' : ''}`} />
+                              </div>
+                            </button>
+                            {isSubExpanded && (
+                              <div className="ml-3 mt-1 p-1.5 rounded-lg border border-border bg-background max-h-28 overflow-y-auto space-y-0.5">
+                                {(attr.key === 'constructeur' ? ['Nokia', 'Ericsson', 'Huawei', 'Samsung'] :
+                                  attr.key === 'bande' ? ['700', '800', '1800', '2100', '2600', 'NR700', 'NR2100', 'NR3500'] :
+                                  attr.key === 'plaque' ? ['IDF', 'Nord', 'Sud', 'Est', 'Ouest'] :
+                                  attr.key === 'region' ? ['IDF', 'NE', 'NO', 'SE', 'SO'] :
+                                  attr.key === 'dor' ? ['DOR1', 'DOR2', 'DOR3', 'DOR4'] :
+                                  attr.key === 'zone_arcep' ? ['ZTD', 'ZMD', 'ZPD'] :
+                                  attr.key === 'etat_cellule' ? ['Active', 'Inactive', 'Maintenance'] :
+                                  ['Oui', 'Non']
+                                ).map(val => {
+                                  const isSelected = (localTopoFilters[attr.key] || []).includes(val);
+                                  return (
+                                    <button
+                                      key={val}
+                                      onClick={() => toggleTopoValue(attr.key, val)}
+                                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all ${
+                                        isSelected ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                                      }`}
+                                    >
+                                      <div className={`w-3.5 h-3.5 rounded border-[1.5px] flex items-center justify-center ${
+                                        isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40'
+                                      }`}>
+                                        {isSelected && <Check size={8} className="text-primary-foreground" />}
+                                      </div>
+                                      {val}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
