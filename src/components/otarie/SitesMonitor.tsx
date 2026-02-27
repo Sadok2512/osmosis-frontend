@@ -53,7 +53,7 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical
+  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
@@ -723,7 +723,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const fetchAll = async () => {
     setLdg(true);
     const [dbRes, mvRes] = await Promise.all([
-      supabase.from('dashboards').select('*').order('updated_at', { ascending: false }),
+      supabase.from('dashboards').select('*').eq('is_archived', false).order('updated_at', { ascending: false }),
       supabase.from('map_views').select('*').order('updated_at', { ascending: false }),
     ]);
     if (dbRes.data) setDashboards(dbRes.data);
@@ -779,7 +779,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   };
 
   const handleDeleteDashboard = async (dbId: string) => {
-    await supabase.from('dashboards').delete().eq('id', dbId);
+    await supabase.from('dashboards').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', dbId);
     if (expandedDashboardId === dbId) setExpandedDashboardId(null);
     setDashboards(prev => prev.filter(d => d.id !== dbId));
   };
@@ -974,11 +974,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     <Settings2 size={12} />
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); if (confirm('Supprimer ce dashboard ?')) handleDeleteDashboard(db.id); }}
-                    className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    title="Supprimer"
+                    onClick={(e) => { e.stopPropagation(); if (confirm('Archiver ce dashboard ?')) handleDeleteDashboard(db.id); }}
+                    className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
+                    title="Archiver"
                   >
-                    <Trash2 size={12} />
+                    <Archive size={12} />
                   </button>
                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                     {db.is_shared ? 'Public' : 'Privé'}
