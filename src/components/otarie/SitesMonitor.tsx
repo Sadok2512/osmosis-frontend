@@ -14,6 +14,9 @@ import InfoPanel from './radio-profile/InfoPanel';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import MapViewManager, { MapViewSettings } from './MapViewManager';
+import CoverageCanvasOverlay from './CoverageCanvasOverlay';
+import CoverageSimPanel from './CoverageSimPanel';
+import { CoverageGrid } from '@/services/propagationEngine';
 
 // Heatmap layer component using leaflet.heat
 const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
@@ -1119,7 +1122,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo'>('kpi');
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('sites');
 
-  // LOS / Radio Profile state
+  // Coverage simulation state
+  const [showCoverageSim, setShowCoverageSim] = useState(false);
+  const [coverageGrid, setCoverageGrid] = useState<CoverageGrid | null>(null);
+  const [coverageSimulating, setCoverageSimulating] = useState(false);
+  const [coverageSite, setCoverageSite] = useState<any>(null);
+
+  const handleLaunchCoverageSim = useCallback((site: SiteDetail | SiteSummary) => {
+    setCoverageSite({
+      site_name: site.site_name,
+      site_id: site.site_id,
+      lat: site.coordinates[0],
+      lng: site.coordinates[1],
+      cells: site.cells.map(c => ({
+        cell_id: c.cell_id,
+        techno: c.techno,
+        bande: c.bande,
+        azimut: c.azimut,
+        hba: c.hba,
+        remote_electrical_tilt: (c as any).remote_electrical_tilt,
+      })),
+    });
+    setShowCoverageSim(true);
+  }, []);
+
+  const handleCoverageSimulate = useCallback((grid: CoverageGrid) => {
+    setCoverageSimulating(true);
+    // Simulate async to not block UI
+    setTimeout(() => {
+      setCoverageGrid(grid);
+      setCoverageSimulating(false);
+    }, 50);
+  }, []);
+
+  const handleCoverageClear = useCallback(() => {
+    setCoverageGrid(null);
+  }, []);
+
   const [losDrawingMode, setLosDrawingMode] = useState(false);
   const [losTargetPoint, setLosTargetPoint] = useState<LatLng | null>(null);
   const [losSelectedCell, setLosSelectedCell] = useState<{ lat: number; lng: number; azimuth: number; hba: number; tilt: number; techno: string; bande: string; name: string } | null>(null);
@@ -1777,7 +1816,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             color="hsl(0,84%,60%)" weight={2} dashArray="8 4"
           />
         )}
+        {/* Coverage simulation overlay */}
+        <CoverageCanvasOverlay grid={coverageGrid} opacity={0.55} visible={!!coverageGrid} />
       </MapContainer>
+
+      {/* Coverage simulation panel */}
+      {showCoverageSim && (
+        <CoverageSimPanel
+          site={coverageSite}
+          onSimulate={handleCoverageSimulate}
+          onClear={handleCoverageClear}
+          isSimulating={coverageSimulating}
+          onClose={() => { setShowCoverageSim(false); setCoverageGrid(null); }}
+        />
+      )}
 
       {/* LOS Drawing mode banner */}
       {losDrawingMode && (
@@ -3252,14 +3304,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <SiteKpiChart siteDetail={siteDetail} />
               </div>
 
-              {/* ── Radio Profile button ── */}
-              <div className="px-5 py-3">
+              {/* ── Radio Profile & Coverage Sim buttons ── */}
+              <div className="px-5 py-3 space-y-2">
                 <button
                   onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider"
                 >
                   <Crosshair size={14} />
                   Radio Profile
+                </button>
+                <button
+                  onClick={() => { if (siteDetail) handleLaunchCoverageSim(siteDetail); }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-accent/30 bg-accent/5 text-[11px] font-bold text-accent-foreground hover:bg-accent/15 transition-colors uppercase tracking-wider"
+                >
+                  <Signal size={14} />
+                  Simulation Couverture
                 </button>
               </div>
             </div>
@@ -3413,14 +3472,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <SiteKpiChart siteDetail={{ ...siteDetail, qoe_score_avg: cell.qoe_score_avg, dms_dl_3: cell.dms_dl_3, dms_dl_8: cell.dms_dl_8, dms_dl_30: cell.dms_dl_30, dms_ul_3: cell.dms_ul_3, site_id: cell.cell_id }} />
                     </div>
 
-                    {/* Radio Profile button */}
-                    <div className="px-5 py-3">
+                    {/* Radio Profile & Coverage Sim buttons */}
+                    <div className="px-5 py-3 space-y-2">
                       <button
                         onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider"
                       >
                         <Crosshair size={14} />
                         Radio Profile
+                      </button>
+                      <button
+                        onClick={() => { if (siteDetail) handleLaunchCoverageSim(siteDetail); }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-accent/30 bg-accent/5 text-[11px] font-bold text-accent-foreground hover:bg-accent/15 transition-colors uppercase tracking-wider"
+                      >
+                        <Signal size={14} />
+                        Simulation Couverture
                       </button>
                     </div>
                   </>
