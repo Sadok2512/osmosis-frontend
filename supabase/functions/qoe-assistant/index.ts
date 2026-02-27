@@ -237,6 +237,69 @@ function extractSiteName(query: string): string | null {
   return null;
 }
 
+function isSiteDesignQuery(query: string): boolean {
+  const normalized = query.toLowerCase();
+  return ["design", "tilt", "azimut", "azimuth", "hba", "topologie", "topology",
+    "secteur", "sector", "couverture", "coverage", "analyse site", "site design",
+    "antenne", "antenna", "delta tilt", "profil site", "profile"
+  ].some(h => normalized.includes(h));
+}
+
+async function searchTopoForSite(siteName: string): Promise<string> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data, error } = await supabase
+      .from("topo")
+      .select("code_nidt, nom_site, nom_cellule, techno, bande, constructeur, region, plaque, azimut, latitude, longitude, hba, tac, remote_electrical_tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes, date_fn8")
+      .ilike("nom_site", `%${siteName}%`)
+      .order("nom_cellule")
+      .limit(100);
+
+    if (error) { console.error("Topo search error:", error); return ""; }
+    if (!data?.length) return "";
+
+    const header = "nom_cellule | techno | bande | azimut | remote_electrical_tilt | hba | pci | tac | etat_cellule | constructeur | lat | lng | date_mes";
+    const lines = data.map((r: any) =>
+      `${r.nom_cellule} | ${r.techno || ""} | ${r.bande || ""} | ${r.azimut ?? "-"} | ${r.remote_electrical_tilt ?? "-"} | ${r.hba ?? "-"} | ${r.pci ?? "-"} | ${r.tac ?? "-"} | ${r.etat_cellule || "-"} | ${r.constructeur || "-"} | ${r.latitude ?? "-"} | ${r.longitude ?? "-"} | ${r.date_mes || "-"}`
+    );
+
+    // Group by sector for design analysis
+    const sectorMap = new Map<number, any[]>();
+    for (const r of data) {
+      const cellName = r.nom_cellule || "";
+      const lastChar = cellName.replace(/\d+$/, "").slice(-1);
+      const sectorNum = parseInt(cellName.match(/(\d+)$/)?.[1] || "0");
+      if (!sectorMap.has(sectorNum)) sectorMap.set(sectorNum, []);
+      sectorMap.get(sectorNum)!.push(r);
+    }
+
+    let sectorAnalysis = "\n\n--- ANALYSE PAR SECTEUR ---\n";
+    for (const [sNum, cells] of Array.from(sectorMap.entries()).sort(([a], [b]) => a - b)) {
+      const azimuths = cells.map((c: any) => c.azimut).filter((a: any) => a != null);
+      const tilts = cells.map((c: any) => c.remote_electrical_tilt).filter((t: any) => t != null);
+      const hbas = cells.map((c: any) => c.hba).filter((h: any) => h != null);
+      const avgAz = azimuths.length ? Math.round(azimuths.reduce((a: number, b: number) => a + b, 0) / azimuths.length) : null;
+      const deltaTilt = tilts.length >= 2 ? Math.max(...tilts) - Math.min(...tilts) : null;
+      const bands = [...new Set(cells.map((c: any) => c.bande).filter(Boolean))];
+      
+      sectorAnalysis += `Secteur ${sNum}: ${cells.length} cellules, Azimut moyen=${avgAz ?? "-"}°, Bandes=[${bands.join(",")}]`;
+      if (tilts.length) sectorAnalysis += `, Tilts=[${tilts.join(",")}]`;
+      if (deltaTilt != null) sectorAnalysis += `, ΔTilt=${deltaTilt}°${deltaTilt > 3 ? " ⚠️ ÉLEVÉ" : ""}`;
+      if (hbas.length) sectorAnalysis += `, HBA=[${[...new Set(hbas)].join(",")}]m`;
+      sectorAnalysis += "\n";
+    }
+
+    const first = data[0];
+    return `TOPOLOGIE SITE "${first.nom_site}" (NIDT: ${first.code_nidt}, Région: ${first.region || "-"}, Plaque: ${first.plaque || "-"}, Constructeur: ${first.constructeur || "-"}, Coords: ${first.latitude},${first.longitude})\n${data.length} cellules:\n${header}\n${lines.join("\n")}${sectorAnalysis}`;
+  } catch (e) {
+    console.error("Topo site search failed:", e);
+    return "";
+  }
+}
+
 async function searchDumpParameters(query: string): Promise<string> {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -545,6 +608,16 @@ RÈGLES D'UTILISATION DES VISUALISATIONS :
 - Le JSON dans les blocs doit être valide et sur UNE SEULE LIGNE (pas de retours à la ligne dans le JSON).
 - Combine texte Markdown + blocs de visualisation pour des réponses riches et interactives.
 
+ANALYSE SITE DESIGN :
+Quand l'utilisateur demande une analyse de site, un diagnostic, ou mentionne un site spécifique, et que des données TOPOLOGIQUES (topo) sont fournies dans le contexte :
+1. Résume le profil du site : type de terrain (Dense Urban si HBA≥40, Urban si HBA≥25, Suburban si HBA≥15, Rural sinon), profil (Macro/Micro, 5G/4G co-localisé, Multi-Band).
+2. Analyse la configuration des secteurs : nombre de secteurs, espacement azimuthal (idéal ~120° pour tri-secteur), cohérence azimutale intra-secteur.
+3. Analyse le Delta Tilt par secteur : si ΔTilt > 3° entre cellules co-sectorielles, signale une incohérence de design.
+4. Vérifie la cohérence HBA (même hauteur attendue entre cellules du même site).
+5. Si co-location 5G/4G : vérifie que le tilt 5G n'est pas supérieur au tilt 4G (stratégie de tilt inter-techno).
+6. Donne un verdict global : ✅ DESIGN OK / ⚠️ REVIEW NEEDED / ❌ ISSUES DETECTED.
+7. Propose des recommandations concrètes d'optimisation (ajustement tilt, azimut, etc.).
+
 Réponds TOUJOURS en français.`;
 
 serve(async (req) => {
@@ -575,9 +648,14 @@ serve(async (req) => {
     const paramContext = await searchDumpParameters(lastUserMessage);
     const paramFocused = isParameterFocusedQuery(lastUserMessage) || Boolean(paramContext);
 
+    // Search topo data if a site name is detected
+    const detectedSite = extractSiteName(lastUserMessage);
+    const topoContext = detectedSite ? await searchTopoForSite(detectedSite) : "";
+    const isDesignQuery = isSiteDesignQuery(lastUserMessage) || Boolean(topoContext);
+
     let systemContent = SYSTEM_PROMPT;
     const documentFocusedQuery = isDocumentFocusedQuery(lastUserMessage);
-    console.log(`QOE query routing: docFocused=${documentFocusedQuery}, paramFocused=${paramFocused}, ragFound=${Boolean(ragContext)}, paramFound=${Boolean(paramContext)}, gateway=${useLovable ? 'lovable' : 'openrouter'}`);
+    console.log(`QOE query routing: docFocused=${documentFocusedQuery}, paramFocused=${paramFocused}, site=${detectedSite}, topoFound=${Boolean(topoContext)}, ragFound=${Boolean(ragContext)}, paramFound=${Boolean(paramContext)}, gateway=${useLovable ? 'lovable' : 'openrouter'}`);
 
     if (ragContext) {
       systemContent += `\n\n📚 DOCUMENTS RAG PERTINENTS :\n${ragContext}`;
@@ -586,6 +664,13 @@ serve(async (req) => {
 
     if (paramContext) {
       systemContent += `\n\n⚙️ PARAMÈTRES RÉSEAU (DUMP CM) :\n${paramContext}`;
+    }
+
+    if (topoContext) {
+      systemContent += `\n\n📡 TOPOLOGIE SITE (TOPO) :\n${topoContext}`;
+      if (isDesignQuery) {
+        systemContent += "\n\nINSTRUCTION : L'utilisateur s'intéresse au design du site. Effectue une ANALYSE SITE DESIGN complète : profil terrain, configuration secteurs, Delta Tilt par secteur, cohérence HBA, co-location 5G/4G, verdict global et recommandations.";
+      }
     }
 
     if (cellContext && !(ragContext && documentFocusedQuery)) {
