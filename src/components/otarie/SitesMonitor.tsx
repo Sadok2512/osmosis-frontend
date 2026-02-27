@@ -296,6 +296,35 @@ const DashboardInventoryTab: React.FC = () => {
   const [newViewName, setNewViewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [expandedDashboardId, setExpandedDashboardId] = useState<string | null>(null);
+  const [editingViewId, setEditingViewId] = useState<string | null>(null);
+
+  const VIEW_COLORS = [
+    { label: 'Default', value: '' },
+    { label: 'Blue', value: 'hsl(210 80% 55%)' },
+    { label: 'Green', value: 'hsl(150 70% 40%)' },
+    { label: 'Orange', value: 'hsl(30 90% 55%)' },
+    { label: 'Red', value: 'hsl(0 75% 55%)' },
+    { label: 'Purple', value: 'hsl(270 70% 55%)' },
+    { label: 'Teal', value: 'hsl(180 65% 40%)' },
+    { label: 'Pink', value: 'hsl(330 75% 55%)' },
+  ];
+
+  const KPI_OPTIONS = [
+    { label: 'QoE Score', value: 'qoe_score_avg' },
+    { label: 'DMS DL 3M', value: 'dms_dl_3' },
+    { label: 'DMS DL 8M', value: 'dms_dl_8' },
+    { label: 'DMS DL 30M', value: 'dms_dl_30' },
+    { label: 'DMS UL 3M', value: 'dms_ul_3' },
+    { label: 'Throughput DL', value: 'p50_thr_dn_mbps' },
+    { label: 'Throughput UL', value: 'p50_thr_up_mbps' },
+    { label: 'RTT P95', value: 'p95_rtt_ms' },
+  ];
+
+  const MAP_LAYERS = [
+    { label: 'Light', value: 'light' },
+    { label: 'Dark', value: 'dark' },
+    { label: 'Satellite', value: 'satellite' },
+  ];
 
   const fetchAll = async () => {
     setLdg(true);
@@ -316,7 +345,7 @@ const DashboardInventoryTab: React.FC = () => {
     const { error } = await supabase.from('map_views').insert({
       name: newViewName.trim(),
       description: '',
-      settings: { center: [43.2965, 5.3698], zoom: 6, mapLayer: 'light', mapKpi: 'qoe_score_avg', mapTechnoFilter: 'ALL', enabledBands: [], sectorColorMode: 'topo', mapDisplayMode: 'sites', showBandPanel: true, showLegend: true, showRightPanel: true, panelCollapsed: false, localVendor: 'ALL', localDor: 'ALL', localPlaque: 'ALL', localSite: 'ALL' },
+      settings: { center: [43.2965, 5.3698], zoom: 6, mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', mapTechnoFilter: 'ALL', enabledBands: [], sectorColorMode: 'topo', mapDisplayMode: 'sites', showBandPanel: true, showLegend: true, showRightPanel: true, panelCollapsed: false, localVendor: 'ALL', localDor: 'ALL', localPlaque: 'ALL', localSite: 'ALL' },
     });
     if (!error) {
       setNewViewName('');
@@ -330,6 +359,21 @@ const DashboardInventoryTab: React.FC = () => {
     e.stopPropagation();
     await supabase.from('map_views').delete().eq('id', id);
     fetchAll();
+  };
+
+  const handleUpdateViewSettings = async (viewId: string, updates: Record<string, any>) => {
+    const view = mapViews.find(v => v.id === viewId);
+    if (!view) return;
+    const currentSettings = typeof view.settings === 'object' ? view.settings : {};
+    const newSettings = { ...currentSettings, ...updates };
+    await supabase.from('map_views').update({ settings: newSettings, updated_at: new Date().toISOString() }).eq('id', viewId);
+    setMapViews(prev => prev.map(v => v.id === viewId ? { ...v, settings: newSettings } : v));
+  };
+
+  const handleRenameView = async (viewId: string, newName: string) => {
+    if (!newName.trim()) return;
+    await supabase.from('map_views').update({ name: newName.trim(), updated_at: new Date().toISOString() }).eq('id', viewId);
+    setMapViews(prev => prev.map(v => v.id === viewId ? { ...v, name: newName.trim() } : v));
   };
 
   if (ldg) {
@@ -413,29 +457,121 @@ const DashboardInventoryTab: React.FC = () => {
                     {mapViews.length === 0 ? (
                       <div className="px-2 py-2 text-center text-[10px] text-muted-foreground/60">Aucune vue</div>
                     ) : (
-                      mapViews.map(view => (
-                        <div key={view.id} className="group rounded-lg border border-border/60 bg-card hover:border-primary/30 transition-all px-2.5 py-2 cursor-pointer">
-                          <div className="flex items-center gap-2">
-                            <MapIcon size={12} className="text-primary shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                {view.is_default && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
-                                <span className="text-[11px] font-semibold text-foreground truncate">{view.name}</span>
+                      mapViews.map(view => {
+                        const vs = typeof view.settings === 'object' ? view.settings : {} as any;
+                        const viewColor = vs.color || '';
+                        const isEditing = editingViewId === view.id;
+
+                        return (
+                          <div key={view.id} className="rounded-lg border border-border/60 bg-card hover:border-primary/30 transition-all overflow-hidden">
+                            {/* View header row */}
+                            <div
+                              className="flex items-center gap-2 px-2.5 py-2 cursor-pointer"
+                              style={viewColor ? { borderLeft: `3px solid ${viewColor}` } : undefined}
+                              onClick={() => setEditingViewId(isEditing ? null : view.id)}
+                            >
+                              <MapIcon size={12} className="text-primary shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  {view.is_default && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
+                                  <span className="text-[11px] font-semibold text-foreground truncate">{view.name}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
+                                  <span>{MAP_LAYERS.find(l => l.value === (vs.mapLayer || 'light'))?.label || 'Light'}</span>
+                                  <span>•</span>
+                                  <span>{KPI_OPTIONS.find(k => k.value === (vs.mapKpi || 'qoe_score_avg'))?.label || 'QoE'}</span>
+                                </div>
                               </div>
-                              <div className="text-[8px] text-muted-foreground mt-0.5">
-                                {new Date(view.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditingViewId(isEditing ? null : view.id); }}
+                                  className={`p-1 rounded transition-colors ${isEditing ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                                  title="Settings"
+                                >
+                                  <Settings2 size={11} />
+                                </button>
+                                <button
+                                  onClick={(e) => handleDeleteView(view.id, e)}
+                                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 size={10} />
+                                </button>
                               </div>
                             </div>
-                            <button
-                              onClick={(e) => handleDeleteView(view.id, e)}
-                              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                              title="Supprimer"
-                            >
-                              <Trash2 size={10} />
-                            </button>
+
+                            {/* Settings panel */}
+                            {isEditing && (
+                              <div className="px-3 py-3 bg-muted/30 border-t border-border/50 space-y-3">
+                                {/* View name */}
+                                <div>
+                                  <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Nom</label>
+                                  <input
+                                    defaultValue={view.name}
+                                    onBlur={(e) => handleRenameView(view.id, e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                                    className="w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground outline-none focus:border-primary transition-colors"
+                                  />
+                                </div>
+
+                                {/* Map type */}
+                                <div>
+                                  <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Type de carte</label>
+                                  <div className="flex gap-1.5">
+                                    {MAP_LAYERS.map(layer => (
+                                      <button
+                                        key={layer.value}
+                                        onClick={() => handleUpdateViewSettings(view.id, { mapLayer: layer.value })}
+                                        className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                                          (vs.mapLayer || 'light') === layer.value
+                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                            : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30'
+                                        }`}
+                                      >
+                                        {layer.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Color */}
+                                <div>
+                                  <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Couleur</label>
+                                  <div className="flex gap-1.5 flex-wrap">
+                                    {VIEW_COLORS.map(c => (
+                                      <button
+                                        key={c.value || 'none'}
+                                        onClick={() => handleUpdateViewSettings(view.id, { color: c.value })}
+                                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                                          (viewColor || '') === c.value
+                                            ? 'border-primary scale-110 shadow-sm'
+                                            : 'border-border hover:border-primary/40'
+                                        }`}
+                                        style={{ background: c.value || 'hsl(var(--muted))' }}
+                                        title={c.label}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* QoE Indicator */}
+                                <div>
+                                  <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Indicateur QoE</label>
+                                  <select
+                                    value={vs.mapKpi || 'qoe_score_avg'}
+                                    onChange={(e) => handleUpdateViewSettings(view.id, { mapKpi: e.target.value })}
+                                    className="w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-foreground outline-none focus:border-primary transition-colors"
+                                  >
+                                    {KPI_OPTIONS.map(kpi => (
+                                      <option key={kpi.value} value={kpi.value}>{kpi.label}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 )}
