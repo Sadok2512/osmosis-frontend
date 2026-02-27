@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { dashboardsApi, mapViewsApi, qoeMetricsApi } from '@/lib/localDb';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import MarkerClusterGroup from 'react-leaflet-cluster';
@@ -425,7 +425,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
     if (onRename && localName.trim() && localName !== currentName) onRename(localName.trim());
     onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: localFilters });
     if (dashboardId && localVisibility !== isShared) {
-      await supabase.from('dashboards').update({ is_shared: localVisibility, updated_at: new Date().toISOString() }).eq('id', dashboardId);
+      await dashboardsApi.update(dashboardId, { is_shared: localVisibility });
       onSetDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, is_shared: localVisibility } : d));
     }
     setDirty(false);
@@ -785,12 +785,16 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const fetchAll = async () => {
     setLdg(true);
-    const [dbRes, mvRes] = await Promise.all([
-      supabase.from('dashboards').select('*').eq('is_archived', false).order('updated_at', { ascending: false }),
-      supabase.from('map_views').select('*').order('updated_at', { ascending: false }),
-    ]);
-    if (dbRes.data) setDashboards(dbRes.data);
-    if (mvRes.data) setMapViews(mvRes.data);
+    try {
+      const [dbData, mvData] = await Promise.all([
+        dashboardsApi.list(),
+        mapViewsApi.list(),
+      ]);
+      if (Array.isArray(dbData)) setDashboards(dbData.filter((d: any) => !d.is_archived));
+      if (Array.isArray(mvData)) setMapViews(mvData);
+    } catch (e) {
+      console.warn('[SitesMonitor] fetchAll failed:', e);
+    }
     setLdg(false);
   };
 
@@ -811,13 +815,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     const current = idx >= 0 ? w[idx] : { _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '' };
     const updated = { ...current, ...updates };
     if (idx >= 0) w[idx] = updated; else w.push(updated);
-    await supabase.from('dashboards').update({ widgets: w, updated_at: new Date().toISOString() }).eq('id', dbId);
+    await dashboardsApi.update(dbId, { widgets: w });
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, widgets: w } : d));
   };
 
   const renameDashboard = async (dbId: string, newName: string) => {
     if (!newName.trim()) return;
-    await supabase.from('dashboards').update({ name: newName.trim(), updated_at: new Date().toISOString() }).eq('id', dbId);
+    await dashboardsApi.update(dbId, { name: newName.trim() });
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
   };
 
@@ -825,24 +829,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     if (!newDashName.trim()) return;
     setCreatingDash(true);
     const id = crypto.randomUUID();
-    const { error } = await supabase.from('dashboards').insert({
-      id,
-      name: newDashName.trim(),
-      description: '',
-      is_shared: true,
-      widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '' }],
-    });
-    if (!error) {
+    try {
+      await dashboardsApi.upsert({
+        id,
+        name: newDashName.trim(),
+        description: '',
+        is_shared: true,
+        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '' }],
+      });
       setNewDashName('');
       setShowCreateDash(false);
       await fetchAll();
       setExpandedDashboardId(id);
-    }
+    } catch {}
     setCreatingDash(false);
   };
 
   const handleDeleteDashboard = async (dbId: string) => {
-    await supabase.from('dashboards').update({ is_archived: true, updated_at: new Date().toISOString() }).eq('id', dbId);
+    await dashboardsApi.update(dbId, { is_archived: true });
     if (expandedDashboardId === dbId) setExpandedDashboardId(null);
     setDashboards(prev => prev.filter(d => d.id !== dbId));
   };
@@ -851,22 +855,22 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const handleCreateView = async (dashboardId: string) => {
     if (!newViewName.trim()) return;
     setCreating(true);
-    const { error } = await supabase.from('map_views').insert({
-      name: newViewName.trim(),
-      description: dashboardId,
-      settings: { center: [43.2965, 5.3698], zoom: 6 },
-    });
-    if (!error) {
+    try {
+      await mapViewsApi.create({
+        name: newViewName.trim(),
+        description: dashboardId,
+        settings: { center: [43.2965, 5.3698], zoom: 6 },
+      });
       setNewViewName('');
       setShowCreateView(null);
       fetchAll();
-    }
+    } catch {}
     setCreating(false);
   };
 
   const handleDeleteView = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await supabase.from('map_views').delete().eq('id', id);
+    await mapViewsApi.remove(id);
     fetchAll();
   };
 
@@ -875,13 +879,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     if (!view) return;
     const currentSettings = typeof view.settings === 'object' ? view.settings : {};
     const newSettings = { ...currentSettings, ...updates };
-    await supabase.from('map_views').update({ settings: newSettings, updated_at: new Date().toISOString() }).eq('id', viewId);
+    await mapViewsApi.update(viewId, { settings: newSettings });
     setMapViews(prev => prev.map(v => v.id === viewId ? { ...v, settings: newSettings } : v));
   };
 
   const handleRenameView = async (viewId: string, newName: string) => {
     if (!newName.trim()) return;
-    await supabase.from('map_views').update({ name: newName.trim(), updated_at: new Date().toISOString() }).eq('id', viewId);
+    await mapViewsApi.update(viewId, { name: newName.trim() });
     setMapViews(prev => prev.map(v => v.id === viewId ? { ...v, name: newName.trim() } : v));
   };
 
@@ -1318,8 +1322,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Fetch dashboards list
   useEffect(() => {
     const fetchDashboards = async () => {
-      const { data } = await supabase.from('dashboards').select('id, name, widgets').order('updated_at', { ascending: false });
-      if (data) setDashboardList(data);
+      try {
+        const data = await dashboardsApi.list();
+        if (Array.isArray(data)) setDashboardList(data);
+      } catch {}
     };
     fetchDashboards();
   }, []);
@@ -1338,7 +1344,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const existing = idx >= 0 ? widgets[idx] : { _type: 'dashboard_settings' };
     const updated = { ...existing, ...currentSettings, bandColors, beamVisibility };
     if (idx >= 0) widgets[idx] = updated; else widgets.push(updated);
-    await supabase.from('dashboards').update({ widgets, updated_at: new Date().toISOString() }).eq('id', dbId);
+    await dashboardsApi.update(dbId, { widgets });
     setDashboardList(prev => prev.map(d => d.id === dbId ? { ...d, widgets } : d));
     setActiveDashboardId(dbId);
     localStorage.setItem('qoebit_active_dashboard', dbId);
@@ -4703,14 +4709,13 @@ const useCloudQoeMetrics = (siteDetail: any) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('qoe_metrics')
-          .select('dt, qoe_score_avg, dms_dl_3, dms_dl_8, dms_dl_30, dms_ul_3, p50_thr_dn_mbps, p50_thr_up_mbps, p95_rtt_ms, cell_id, site_id')
-          .or(`site_id.eq.${siteDetail.site_id},${cellIds.map((id: string) => `cell_id.eq.${id}`).join(',')}`)
-          .order('dt', { ascending: true })
-          .limit(500);
+        const data = await qoeMetricsApi.query({
+          site_id: siteDetail.site_id,
+          cell_ids: cellIds,
+          limit: 500,
+        });
 
-        if (error || !data || data.length === 0) {
+        if (!data || data.length === 0) {
           if (!cancelled) { setCloudData(null); setSource('mock'); }
           return;
         }

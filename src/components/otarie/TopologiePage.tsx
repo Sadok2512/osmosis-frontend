@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { dumpParameterApi } from '@/lib/localDb';
 import { getApiUrl, getPreferredDataSource, setPreferredDataSource } from '@/lib/apiConfig';
 import { Search, Filter, Download, BarChart3, TableIcon, Loader2, ChevronDown, Wifi, WifiOff, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -70,30 +70,23 @@ const TopologiePage: React.FC = () => {
     setPreferredDataSource(next);
   };
 
-  const fetchDistinctCloud = async (col: string, extraParams?: Record<string, string>) => {
-    let query = supabase.from('dump_parameter').select(col).not(col, 'is', null) as any;
-    if (extraParams) {
-      Object.entries(extraParams).forEach(([k, v]) => { query = query.eq(k, v); });
+  const fetchDistinct = async (col: string, extraParams?: Record<string, string>) => {
+    try {
+      const rows = await dumpParameterApi.distinct(col, extraParams);
+      return [...new Set((rows || []).map((r: any) => r[col]).filter(Boolean))].sort() as string[];
+    } catch (error) {
+      console.warn('[Topologie] distinct fetch failed', error);
+      return [];
     }
-    const { data } = await query.limit(5000);
-    return [...new Set((data || []).map((r: any) => r[col]).filter(Boolean))].sort() as string[];
   };
 
-  // Helper: fetch from local API with automatic cloud fallback
-  const fetchDistinct = async (col: string, extraParams?: Record<string, string>) => {
-    if (shouldUseLocal) {
-      try {
-        const params = new URLSearchParams({ distinct_col: col, ...extraParams });
-        const resp = await fetch(`${getApiUrl('dump-parameter')}?${params}`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const rows = await resp.json();
-        return [...new Set(rows.map((r: any) => r[col]).filter(Boolean))].sort() as string[];
-      } catch (error) {
-        console.warn('[Topologie] Local distinct fetch failed, fallback to cloud', error);
-        switchDataSource('cloud');
-      }
+  const fetchRows = async (filters: Record<string, string>, cols: string, limit = 5000) => {
+    try {
+      return await dumpParameterApi.query(filters, cols, limit);
+    } catch (error) {
+      console.warn('[Topologie] rows fetch failed', error);
+      return [];
     }
-    return fetchDistinctCloud(col, extraParams);
   };
 
   const fetchRowsCloud = async (filters: Record<string, string>, cols: string, limit = 5000) => {
@@ -103,59 +96,20 @@ const TopologiePage: React.FC = () => {
     return data || [];
   };
 
-  const fetchRows = async (filters: Record<string, string>, cols: string, limit = 5000) => {
-    if (shouldUseLocal) {
-      try {
-        const params = new URLSearchParams({ select: cols, limit: String(limit), ...filters });
-        const resp = await fetch(`${getApiUrl('dump-parameter')}?${params}`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        return await resp.json();
-      } catch (error) {
-        console.warn('[Topologie] Local rows fetch failed, fallback to cloud', error);
-        switchDataSource('cloud');
-      }
-    }
-    return fetchRowsCloud(filters, cols, limit);
-  };
-
-  // Load filter options — use server-side DISTINCT function for speed
+  // Load filter options
   useEffect(() => {
     const loadFilters = async () => {
-      if (shouldUseLocal) {
-        // Local: parallel distinct queries (already fast on local PG)
-        const [s, p, d, pl, v] = await Promise.all([
-          fetchDistinct('site_name'),
-          fetchDistinct('parameter'),
-          fetchDistinct('ur'),
-          fetchDistinct('plaque'),
-          fetchDistinct('vendor'),
-        ]);
-        setSites(s); setParams(p); setUrs(d); setPlaques(pl); setVendors(v);
-      } else {
-        // Cloud: single RPC call returns all distinct values at once
-        const { data, error } = await supabase.rpc('dump_parameter_distinct_filters');
-        if (error) {
-          console.error('RPC error, falling back to individual queries', error);
-          const [s, p, d, pl, v] = await Promise.all([
-            fetchDistinctCloud('site_name'),
-            fetchDistinctCloud('parameter'),
-            fetchDistinctCloud('ur'),
-            fetchDistinctCloud('plaque'),
-            fetchDistinctCloud('vendor'),
-          ]);
-          setSites(s); setParams(p); setUrs(d); setPlaques(pl); setVendors(v);
-        } else {
-          const d = data as any;
-          setSites((d?.sites || []).sort());
-          setParams((d?.parameters || []).sort());
-          setUrs((d?.urs || []).sort());
-          setPlaques((d?.plaques || []).sort());
-          setVendors((d?.vendors || []).sort());
-        }
-      }
+      const [s, p, d, pl, v] = await Promise.all([
+        fetchDistinct('site_name'),
+        fetchDistinct('parameter'),
+        fetchDistinct('ur'),
+        fetchDistinct('plaque'),
+        fetchDistinct('vendor'),
+      ]);
+      setSites(s); setParams(p); setUrs(d); setPlaques(pl); setVendors(v);
     };
     loadFilters();
-  }, [shouldUseLocal]);
+  }, []);
 
   // Auto-select first available parameter to avoid empty screen on first load
   useEffect(() => {

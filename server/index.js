@@ -327,19 +327,26 @@ app.get('/api/topo', async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 100000, 1), 500000);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const full = req.query.full === '1';
 
     const countRes = await sharedPool.query('SELECT COUNT(*) AS total FROM topo');
     const total = parseInt(countRes.rows[0]?.total || '0');
 
-    const result = await sharedPool.query(
-      `SELECT code_nidt, nom_site, region, longitude, latitude, nom_cellule,
+    const cols = full
+      ? `id, code_nidt, nom_site, region, longitude, latitude, nom_cellule,
               techno, bande, constructeur, azimut, plaque, hba, tac,
-              date_mes, date_fn8
-       FROM topo ORDER BY id LIMIT $1 OFFSET $2`,
+              date_mes, date_fn8, dor, pci, cid, eci, nci,
+              etat_cellule, zone_arcep, essentiel, remote_electrical_tilt`
+      : `code_nidt, nom_site, region, longitude, latitude, nom_cellule,
+              techno, bande, constructeur, azimut, plaque, hba, tac,
+              date_mes, date_fn8`;
+
+    const result = await sharedPool.query(
+      `SELECT ${cols} FROM topo ORDER BY id LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
     
-    console.log(`[/api/topo] ${result.rows.length}/${total} rows (offset=${offset})`);
+    console.log(`[/api/topo] ${result.rows.length}/${total} rows (offset=${offset}${full ? ', full' : ''})`);
     res.json({ rows: result.rows, total });
   } catch (e) {
     console.error('[/api/topo]', e.message);
@@ -872,6 +879,154 @@ app.get('/api/dump-parameter', async (req, res) => {
     res.json(result.rows);
   } catch (e) {
     console.error('[/api/dump-parameter]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/map-views CRUD ───
+app.get('/api/map-views', async (req, res) => {
+  try {
+    // Ensure table exists
+    await sharedPool.query(`
+      CREATE TABLE IF NOT EXISTS map_views (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        settings JSONB DEFAULT '{}',
+        is_default BOOLEAN DEFAULT false,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      )
+    `);
+    const result = await sharedPool.query('SELECT * FROM map_views ORDER BY is_default DESC, updated_at DESC');
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/map-views', async (req, res) => {
+  const { name, settings, description } = req.body;
+  try {
+    await sharedPool.query(`
+      CREATE TABLE IF NOT EXISTS map_views (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL, description TEXT DEFAULT '', settings JSONB DEFAULT '{}',
+        is_default BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT now(), updated_at TIMESTAMPTZ DEFAULT now()
+      )
+    `);
+    const result = await sharedPool.query(
+      `INSERT INTO map_views (name, description, settings) VALUES ($1, $2, $3) RETURNING *`,
+      [name, description || '', JSON.stringify(settings || {})]
+    );
+    res.json(result.rows[0]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/map-views/:id', async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+  try {
+    const setClauses = [];
+    const values = [];
+    let idx = 1;
+    for (const [key, val] of Object.entries(updates)) {
+      if (['name', 'description', 'is_default'].includes(key)) {
+        setClauses.push(`${key} = $${idx}`);
+        values.push(val);
+        idx++;
+      }
+      if (key === 'settings') {
+        setClauses.push(`settings = $${idx}`);
+        values.push(JSON.stringify(val));
+        idx++;
+      }
+    }
+    setClauses.push(`updated_at = now()`);
+    values.push(id);
+    await sharedPool.query(`UPDATE map_views SET ${setClauses.join(', ')} WHERE id = $${idx}`, values);
+    // If setting default, clear others
+    if (updates.is_default === true) {
+      await sharedPool.query(`UPDATE map_views SET is_default = false WHERE id != $1`, [id]);
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/map-views/:id', async (req, res) => {
+  try {
+    await sharedPool.query('DELETE FROM map_views WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/qoe-metrics (read) ───
+app.get('/api/qoe-metrics', async (req, res) => {
+  try {
+    const { site_id, cell_ids, limit: lim } = req.query;
+    const maxLimit = Math.min(parseInt(lim) || 500, 5000);
+    const conditions = [];
+    const params = [];
+    let idx = 1;
+    if (site_id) { conditions.push(`site_id = $${idx}`); params.push(site_id); idx++; }
+    if (cell_ids) {
+      const ids = cell_ids.split(',');
+      conditions.push(`cell_id = ANY($${idx})`);
+      params.push(ids);
+      idx++;
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' OR ')}` : '';
+    const result = await sharedPool.query(
+      `SELECT * FROM qoe_metrics ${where} ORDER BY dt ASC LIMIT ${maxLimit}`,
+      params
+    );
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/dashboards/:id (PUT for partial updates) ───
+app.put('/api/dashboards/:id', async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+  try {
+    const setClauses = [];
+    const values = [];
+    let idx = 1;
+    for (const [key, val] of Object.entries(updates)) {
+      if (['name', 'description', 'is_shared', 'is_archived'].includes(key)) {
+        setClauses.push(`${key} = $${idx}`);
+        values.push(val);
+        idx++;
+      }
+      if (key === 'widgets') {
+        setClauses.push(`widgets = $${idx}`);
+        values.push(JSON.stringify(val));
+        idx++;
+      }
+    }
+    setClauses.push(`updated_at = now()`);
+    values.push(id);
+    await sharedPool.query(`UPDATE dashboards SET ${setClauses.join(', ')} WHERE id = $${idx}`, values);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/topo/clear ───
+app.post('/api/topo/clear', async (req, res) => {
+  try {
+    await sharedPool.query('DELETE FROM topo');
+    res.json({ success: true });
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
