@@ -289,7 +289,414 @@ const createSiteIcon = (color: string) => {
   });
 };
 
-// Dashboard tab for Inventory Index left panel
+// ── Extracted settings panel component (stable identity, no remount on parent re-render) ──
+const SETTINGS_MAP_STYLES = [
+  { label: 'Street', value: 'street', icon: '🗺️' },
+  { label: 'Satellite', value: 'satellite', icon: '🛰️' },
+  { label: 'Hybrid', value: 'hybrid', icon: '🌐' },
+  { label: 'Terrain', value: 'terrain', icon: '⛰️' },
+];
+const SETTINGS_THEME_MODES = [
+  { label: 'Light', value: 'light', icon: '☀️' },
+  { label: 'Dark', value: 'dark', icon: '🌙' },
+];
+const SETTINGS_KPI_OPTIONS = [
+  { label: 'QoE Score', value: 'qoe_score_avg' },
+  { label: 'DMS DL 3M', value: 'dms_dl_3' },
+  { label: 'DMS DL 8M', value: 'dms_dl_8' },
+  { label: 'DMS DL 30M', value: 'dms_dl_30' },
+  { label: 'DMS UL 3M', value: 'dms_ul_3' },
+  { label: 'Throughput DL', value: 'p50_thr_dn_mbps' },
+  { label: 'Throughput UL', value: 'p50_thr_up_mbps' },
+  { label: 'RTT P95', value: 'p95_rtt_ms' },
+];
+const SETTINGS_PALETTE = [
+  { label: 'Default', value: '' },
+  { label: 'Blue', value: 'hsl(210 80% 55%)' },
+  { label: 'Green', value: 'hsl(150 70% 40%)' },
+  { label: 'Orange', value: 'hsl(30 90% 55%)' },
+  { label: 'Red', value: 'hsl(0 75% 55%)' },
+  { label: 'Purple', value: 'hsl(270 70% 55%)' },
+  { label: 'Teal', value: 'hsl(180 65% 40%)' },
+  { label: 'Pink', value: 'hsl(330 75% 55%)' },
+];
+const SETTINGS_FILTER_ATTRIBUTES = [
+  { label: 'Nom Site', key: 'nom_site', icon: '🏗️', freeText: true },
+  { label: 'Nom Cellule', key: 'nom_cellule', icon: '📶', freeText: true },
+  { label: 'PCI', key: 'pci', icon: '🔢', freeText: true },
+  { label: 'Code NIDT', key: 'code_nidt', icon: '🆔', freeText: true },
+  { label: 'Constructeur', key: 'constructeur', icon: '🏭' },
+  { label: 'Bande', key: 'bande', icon: '📡' },
+  { label: 'Plaque', key: 'plaque', icon: '🗺️', freeText: true },
+  { label: 'Région (UR)', key: 'region', icon: '📍', freeText: true },
+  { label: 'DOR', key: 'dor', icon: '🏢', freeText: true },
+  { label: 'Zone ARCEP', key: 'zone_arcep', icon: '📋' },
+  { label: 'État Cellule', key: 'etat_cellule', icon: '🔋' },
+  { label: 'Essentiel', key: 'essentiel', icon: '⭐' },
+];
+const SETTINGS_ATTR_VALUES: Record<string, string[]> = {
+  constructeur: ['Nokia', 'Nokia_NR', 'Ericsson', 'Huawei', 'Samsung'],
+  bande: ['700', '800', '1800', '2100', '2600', 'NR700', 'NR2100', 'NR3500'],
+  zone_arcep: ['ZTD', 'ZMD', 'ZPD'],
+  etat_cellule: ['Active', 'Inactive', 'Maintenance'],
+  essentiel: ['Oui', 'Non'],
+};
+
+interface DashboardSettingsPanelProps {
+  settings: any;
+  onUpdate: (u: Record<string, any>) => void;
+  onRename?: (name: string) => void;
+  currentName?: string;
+  dashboardId?: string;
+  isShared?: boolean;
+  beamVis?: number;
+  onBeamVisChange?: (v: number) => void;
+  onSaveDashboard?: () => void;
+  onLoadDashboard?: () => void;
+  isSaving?: boolean;
+  onClose: () => void;
+  onSetDashboards: React.Dispatch<React.SetStateAction<any[]>>;
+}
+
+const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, onClose, onSetDashboards }) => {
+  const [localName, setLocalName] = useState(currentName || '');
+  const [localMapStyle, setLocalMapStyle] = useState(settings.mapStyle || settings.mapLayer || 'street');
+  const [localThemeMode, setLocalThemeMode] = useState(settings.themeMode || 'light');
+  const [localColor, setLocalColor] = useState(settings.color || '');
+  const [localVisibility, setLocalVisibility] = useState<boolean>(isShared ?? true);
+  const [localKpis, setLocalKpis] = useState<string[]>(() => {
+    if (Array.isArray(settings.mapKpis)) return settings.mapKpis;
+    if (settings.mapKpi) return [settings.mapKpi];
+    return ['qoe_score_avg'];
+  });
+  const [localDataSource, setLocalDataSource] = useState<'qoe' | 'parameters'>(settings.dataSource || 'qoe');
+  const [localFilters, setLocalFilters] = useState<{ tech: string; attribute: string; value: string }[]>(settings.viewFilters || []);
+  const [filterStep, setFilterStep] = useState<'idle' | 'pick_tech' | 'pick_attr' | 'pick_value'>('idle');
+  const [filterDraft, setFilterDraft] = useState<{ tech?: string; attribute?: string }>({});
+  const [dirty, setDirty] = useState(false);
+  const [freeTextValue, setFreeTextValue] = useState('');
+
+  const commitFilter = (val: string) => {
+    if (filterDraft.tech && filterDraft.attribute) {
+      setLocalFilters(prev => [...prev, { tech: filterDraft.tech!, attribute: filterDraft.attribute!, value: val }]);
+      setDirty(true);
+    }
+    setFilterStep('idle');
+    setFilterDraft({});
+  };
+
+  const removeFilterAt = (idx: number) => {
+    setLocalFilters(prev => prev.filter((_, i) => i !== idx));
+    setDirty(true);
+  };
+
+  const resetFilterWizard = () => { setFilterStep('idle'); setFilterDraft({}); setFreeTextValue(''); };
+
+  const toggleKpi = (val: string) => {
+    setLocalKpis(prev => {
+      const next = prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val];
+      return next.length === 0 ? [val] : next;
+    });
+    setDirty(true);
+  };
+
+  const handleConfirm = async () => {
+    if (onRename && localName.trim() && localName !== currentName) onRename(localName.trim());
+    onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: localFilters });
+    if (dashboardId && localVisibility !== isShared) {
+      await supabase.from('dashboards').update({ is_shared: localVisibility, updated_at: new Date().toISOString() }).eq('id', dashboardId);
+      onSetDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, is_shared: localVisibility } : d));
+    }
+    setDirty(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) { handleConfirm(); onClose(); } }}>
+      <div className="w-[560px] max-h-[85vh] overflow-y-auto bg-card border border-border rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Settings2 size={16} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold text-foreground uppercase tracking-wider">Configuration</h2>
+              <p className="text-[9px] text-muted-foreground">Paramètres du dashboard et de la carte</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* ── Name ── */}
+          {onRename && currentName != null && (
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">
+                📝 {dashboardId ? 'Nom du Dashboard' : 'Nom de la Vue'}
+              </label>
+              <input
+                value={localName}
+                onChange={(e) => { setLocalName(e.target.value); setDirty(true); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { handleConfirm(); onClose(); } }}
+                className="w-full bg-card border-2 border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-foreground outline-none focus:border-primary transition-colors"
+                placeholder={dashboardId ? 'Nom du dashboard...' : 'Nom de la vue...'}
+              />
+            </div>
+          )}
+
+          {/* ── Sections below only for dashboards ── */}
+          {dashboardId && (<>
+          {/* ── Map Style ── */}
+          <div className="p-4 rounded-xl border border-border bg-background">
+            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">🗺️ Style de carte</label>
+            <p className="text-[9px] text-muted-foreground mb-3">Type de rendu cartographique</p>
+            <div className="grid grid-cols-4 gap-2">
+              {SETTINGS_MAP_STYLES.map(style => (
+                <button key={style.value} onClick={() => { setLocalMapStyle(style.value); setDirty(true); }}
+                  className={`flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl text-[10px] font-bold transition-all border-2 ${localMapStyle === style.value ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}>
+                  <span className="text-xl">{style.icon}</span>
+                  <span className="uppercase tracking-wider">{style.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Theme Mode ── */}
+          <div className="p-4 rounded-xl border border-border bg-background">
+            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">🎨 Mode d'affichage</label>
+            <p className="text-[9px] text-muted-foreground mb-3">Apparence de l'interface</p>
+            <div className="grid grid-cols-2 gap-3">
+              {SETTINGS_THEME_MODES.map(mode => (
+                <button key={mode.value} onClick={() => { setLocalThemeMode(mode.value); setDirty(true); }}
+                  className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${localThemeMode === mode.value ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}>
+                  <span className="text-lg">{mode.icon}</span>
+                  <span className="uppercase tracking-wider">{mode.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Theme Color ── */}
+          <div className="p-4 rounded-xl border border-border bg-background">
+            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">🎯 Couleur du thème</label>
+            <div className="flex gap-3 flex-wrap">
+              {SETTINGS_PALETTE.map(c => (
+                <button key={c.value || 'none'} onClick={() => { setLocalColor(c.value); setDirty(true); }}
+                  className={`w-9 h-9 rounded-full border-[3px] transition-all ${localColor === c.value ? 'border-primary scale-110 shadow-lg ring-2 ring-primary/30' : 'border-border hover:border-primary/40 hover:scale-105'}`}
+                  style={{ background: c.value || 'hsl(var(--muted))' }} title={c.label} />
+              ))}
+            </div>
+          </div>
+
+          {/* ── Data Source ── */}
+          <div className="p-4 rounded-xl border border-border bg-background">
+            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">📂 Source de données</label>
+            <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez le type de données à utiliser</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => { setLocalDataSource('qoe'); setDirty(true); }}
+                className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${localDataSource === 'qoe' ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}>
+                <span className="text-lg">📊</span><span className="uppercase tracking-wider">QoE</span>
+              </button>
+              <button onClick={() => { setLocalDataSource('parameters'); setDirty(true); }}
+                className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${localDataSource === 'parameters' ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}>
+                <span className="text-lg">⚙️</span><span className="uppercase tracking-wider">Parameters</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ── QoE Indicators ── */}
+          {localDataSource === 'qoe' && (
+          <div className="p-4 rounded-xl border border-border bg-background">
+            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">📊 Indicateurs QoE</label>
+            <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez un ou plusieurs indicateurs à afficher</p>
+            <div className="grid grid-cols-2 gap-2">
+              {SETTINGS_KPI_OPTIONS.map(kpi => {
+                const isActive = localKpis.includes(kpi.value);
+                return (
+                  <button key={kpi.value} onClick={() => toggleKpi(kpi.value)}
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[11px] font-semibold transition-all border-2 ${isActive ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'}`}>
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${isActive ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
+                      {isActive && <Check size={10} className="text-primary-foreground" />}
+                    </div>
+                    {kpi.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          )}
+          </>)}
+
+          {/* ── Dashboard Visibility ── */}
+          {dashboardId && (
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">🔒 Visibilité du Dashboard</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => { setLocalVisibility(true); setDirty(true); }}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 ${localVisibility ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}>
+                  <span>🌍</span><span className="uppercase tracking-wider">Public</span>
+                </button>
+                <button onClick={() => { setLocalVisibility(false); setDirty(true); }}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 ${!localVisibility ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}>
+                  <span>🔐</span><span className="uppercase tracking-wider">Privé</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Beam Visibility Slider ── */}
+          {dashboardId && (
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">📡 Visibilité des faisceaux (Beam)</label>
+              <p className="text-[9px] text-muted-foreground mb-3">Contrôle l'opacité et la taille des secteurs sur la carte</p>
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] font-mono text-muted-foreground w-6 text-right">0%</span>
+                <Slider value={[beamVis ?? 75]} onValueChange={([v]) => { if (onBeamVisChange) onBeamVisChange(v); }} min={0} max={100} step={5} className="flex-1" />
+                <span className="text-[9px] font-mono text-muted-foreground w-8">{beamVis ?? 75}%</span>
+              </div>
+              <div className="flex justify-between mt-2 text-[8px] text-muted-foreground/60">
+                <span>Invisible</span><span>Max</span>
+              </div>
+            </div>
+          )}
+
+          {/* ── Dashboard Save/Load ── */}
+          {dashboardId && (
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">💾 Sauvegarde rapide</label>
+              <p className="text-[9px] text-muted-foreground mb-3">Sauvegarder ou charger l'état complet de la carte dans ce dashboard</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => { if (onSaveDashboard) onSaveDashboard(); }} disabled={isSaving}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary">
+                  {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                  <span className="uppercase tracking-wider">Save</span>
+                </button>
+                <button onClick={() => { if (onLoadDashboard) onLoadDashboard(); }}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted">
+                  <FolderOpen size={14} /><span className="uppercase tracking-wider">Load</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── View Filters (only for views, not dashboards) ── */}
+          {!dashboardId && (
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">🔍 Filtres</label>
+                {localFilters.length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{localFilters.length}</span>
+                )}
+              </div>
+              {localFilters.length > 0 && (
+                <div className="space-y-1.5 mb-3">
+                  {localFilters.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-card">
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${f.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{f.tech}</span>
+                        <span className="font-medium text-muted-foreground">{SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === f.attribute)?.label}</span>
+                        <span className="text-muted-foreground/50">→</span>
+                        <span className="font-semibold text-foreground">{f.value}</span>
+                      </div>
+                      <button onClick={() => removeFilterAt(i)} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X size={12} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {filterStep === 'idle' && (
+                <button onClick={() => setFilterStep('pick_tech')}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[11px] font-bold text-primary border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all w-full justify-center">
+                  <Plus size={14} /><span>Ajouter un filtre</span>
+                </button>
+              )}
+              {filterStep === 'pick_tech' && (
+                <div className="border border-border rounded-xl bg-card p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Étape 1 — Choisir la technologie</span>
+                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['4G', '5G'].map(t => (
+                      <button key={t} onClick={() => { setFilterDraft({ tech: t }); setFilterStep('pick_attr'); }}
+                        className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[12px] font-bold border-2 border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all">
+                        <span>{t === '5G' ? '🚀' : '📶'}</span><span>{t}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {filterStep === 'pick_attr' && (
+                <div className="border border-border rounded-xl bg-card p-3 space-y-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setFilterStep('pick_tech')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
+                        Étape 2 — Choisir l'attribut
+                      </span>
+                    </div>
+                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                  </div>
+                  {SETTINGS_FILTER_ATTRIBUTES.map(attr => (
+                    <button key={attr.key} onClick={() => { setFilterDraft(prev => ({ ...prev, attribute: attr.key })); setFilterStep('pick_value'); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                      <span>{attr.icon}</span><span>{attr.label}</span>
+                      <ChevronRight size={10} className="ml-auto text-muted-foreground/50" />
+                    </button>
+                  ))}
+                </div>
+              )}
+              {filterStep === 'pick_value' && filterDraft.attribute && (
+                <div className="border border-border rounded-xl bg-card p-3 space-y-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setFilterStep('pick_attr')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
+                        {SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label} — Choisir la valeur
+                      </span>
+                    </div>
+                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                  </div>
+                  {SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.freeText ? (
+                    <div className="flex gap-2">
+                      <input type="text" value={freeTextValue} onChange={e => setFreeTextValue(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && freeTextValue.trim()) { commitFilter(freeTextValue.trim()); setFreeTextValue(''); } }}
+                        placeholder={`Entrer ${SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label}...`}
+                        className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" autoFocus />
+                      <button onClick={() => { if (freeTextValue.trim()) { commitFilter(freeTextValue.trim()); setFreeTextValue(''); } }}
+                        disabled={!freeTextValue.trim()} className="px-3 py-2 rounded-lg text-[11px] font-bold bg-primary text-primary-foreground disabled:opacity-40 hover:bg-primary/90 transition-all">OK</button>
+                    </div>
+                  ) : (
+                    <div className="max-h-40 overflow-y-auto space-y-0.5">
+                      {(SETTINGS_ATTR_VALUES[filterDraft.attribute] || []).map(val => (
+                        <button key={val} onClick={() => commitFilter(val)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-all">
+                          <span>{val}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Confirm button */}
+        <div className="px-5 pb-5 pt-2">
+          <button onClick={() => { handleConfirm(); onClose(); }}
+            className={`w-full py-3.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${dirty ? 'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90' : 'bg-muted text-muted-foreground border border-border'}`}>
+            {dirty ? '✓ Confirmer les modifications' : '✓ Paramètres sauvegardés'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface DashboardInventoryTabProps {
   onApplyView?: (settings: any) => void;
   beamVisibility?: number;
@@ -310,39 +717,6 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [editingViewId, setEditingViewId] = useState<string | null>(null);
   const [showDashMenu, setShowDashMenu] = useState(false);
 
-  const PALETTE = [
-    { label: 'Default', value: '' },
-    { label: 'Blue', value: 'hsl(210 80% 55%)' },
-    { label: 'Green', value: 'hsl(150 70% 40%)' },
-    { label: 'Orange', value: 'hsl(30 90% 55%)' },
-    { label: 'Red', value: 'hsl(0 75% 55%)' },
-    { label: 'Purple', value: 'hsl(270 70% 55%)' },
-    { label: 'Teal', value: 'hsl(180 65% 40%)' },
-    { label: 'Pink', value: 'hsl(330 75% 55%)' },
-  ];
-
-  const KPI_OPTIONS = [
-    { label: 'QoE Score', value: 'qoe_score_avg' },
-    { label: 'DMS DL 3M', value: 'dms_dl_3' },
-    { label: 'DMS DL 8M', value: 'dms_dl_8' },
-    { label: 'DMS DL 30M', value: 'dms_dl_30' },
-    { label: 'DMS UL 3M', value: 'dms_ul_3' },
-    { label: 'Throughput DL', value: 'p50_thr_dn_mbps' },
-    { label: 'Throughput UL', value: 'p50_thr_up_mbps' },
-    { label: 'RTT P95', value: 'p95_rtt_ms' },
-  ];
-
-  const MAP_STYLES = [
-    { label: 'Street', value: 'street', icon: '🗺️' },
-    { label: 'Satellite', value: 'satellite', icon: '🛰️' },
-    { label: 'Hybrid', value: 'hybrid', icon: '🌐' },
-    { label: 'Terrain', value: 'terrain', icon: '⛰️' },
-  ];
-
-  const THEME_MODES = [
-    { label: 'Light', value: 'light', icon: '☀️' },
-    { label: 'Dark', value: 'dark', icon: '🌙' },
-  ];
 
   const fetchAll = async () => {
     setLdg(true);
@@ -436,508 +810,6 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
 
 
-  // ── Reusable settings panel ──
-  const SettingsPanel = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving }: { settings: any; onUpdate: (u: Record<string, any>) => void; onRename?: (name: string) => void; currentName?: string; dashboardId?: string; isShared?: boolean; beamVis?: number; onBeamVisChange?: (v: number) => void; onSaveDashboard?: () => void; onLoadDashboard?: () => void; isSaving?: boolean }) => {
-    const [localName, setLocalName] = useState(currentName || '');
-    const [localMapStyle, setLocalMapStyle] = useState(settings.mapStyle || settings.mapLayer || 'street');
-    const [localThemeMode, setLocalThemeMode] = useState(settings.themeMode || 'light');
-    const [localColor, setLocalColor] = useState(settings.color || '');
-    const [localVisibility, setLocalVisibility] = useState<boolean>(isShared ?? true);
-    const [localKpis, setLocalKpis] = useState<string[]>(() => {
-      if (Array.isArray(settings.mapKpis)) return settings.mapKpis;
-      if (settings.mapKpi) return [settings.mapKpi];
-      return ['qoe_score_avg'];
-    });
-    const [localDataSource, setLocalDataSource] = useState<'qoe' | 'parameters'>(settings.dataSource || 'qoe');
-    // Composite filters: each filter = { tech, attribute, value }
-    const [localFilters, setLocalFilters] = useState<{ tech: string; attribute: string; value: string }[]>(settings.viewFilters || []);
-    const [filterStep, setFilterStep] = useState<'idle' | 'pick_tech' | 'pick_attr' | 'pick_value'>('idle');
-    const [filterDraft, setFilterDraft] = useState<{ tech?: string; attribute?: string }>({});
-    const [dirty, setDirty] = useState(false);
-
-    const FILTER_ATTRIBUTES = [
-      { label: 'Nom Site', key: 'nom_site', icon: '🏗️', freeText: true },
-      { label: 'Nom Cellule', key: 'nom_cellule', icon: '📶', freeText: true },
-      { label: 'PCI', key: 'pci', icon: '🔢', freeText: true },
-      { label: 'Code NIDT', key: 'code_nidt', icon: '🆔', freeText: true },
-      { label: 'Constructeur', key: 'constructeur', icon: '🏭' },
-      { label: 'Bande', key: 'bande', icon: '📡' },
-      { label: 'Plaque', key: 'plaque', icon: '🗺️', freeText: true },
-      { label: 'Région (UR)', key: 'region', icon: '📍', freeText: true },
-      { label: 'DOR', key: 'dor', icon: '🏢', freeText: true },
-      { label: 'Zone ARCEP', key: 'zone_arcep', icon: '📋' },
-      { label: 'État Cellule', key: 'etat_cellule', icon: '🔋' },
-      { label: 'Essentiel', key: 'essentiel', icon: '⭐' },
-    ];
-
-    const ATTR_VALUES: Record<string, string[]> = {
-      constructeur: ['Nokia', 'Nokia_NR', 'Ericsson', 'Huawei', 'Samsung'],
-      bande: ['700', '800', '1800', '2100', '2600', 'NR700', 'NR2100', 'NR3500'],
-      zone_arcep: ['ZTD', 'ZMD', 'ZPD'],
-      etat_cellule: ['Active', 'Inactive', 'Maintenance'],
-      essentiel: ['Oui', 'Non'],
-    };
-
-    const [freeTextValue, setFreeTextValue] = useState('');
-
-    const commitFilter = (val: string) => {
-      if (filterDraft.tech && filterDraft.attribute) {
-        setLocalFilters(prev => [...prev, { tech: filterDraft.tech!, attribute: filterDraft.attribute!, value: val }]);
-        setDirty(true);
-      }
-      setFilterStep('idle');
-      setFilterDraft({});
-    };
-
-    const removeFilterAt = (idx: number) => {
-      setLocalFilters(prev => prev.filter((_, i) => i !== idx));
-      setDirty(true);
-    };
-
-    const resetFilterWizard = () => { setFilterStep('idle'); setFilterDraft({}); setFreeTextValue(''); };
-
-    const toggleKpi = (val: string) => {
-      setLocalKpis(prev => {
-        const next = prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val];
-        return next.length === 0 ? [val] : next;
-      });
-      setDirty(true);
-    };
-
-    const handleConfirm = async () => {
-      if (onRename && localName.trim() && localName !== currentName) onRename(localName.trim());
-      onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: localFilters });
-      // Update visibility if dashboard
-      if (dashboardId && localVisibility !== isShared) {
-        await supabase.from('dashboards').update({ is_shared: localVisibility, updated_at: new Date().toISOString() }).eq('id', dashboardId);
-        setDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, is_shared: localVisibility } : d));
-      }
-      setDirty(false);
-    };
-
-    const closePanel = () => { setEditingDashboardId(null); setEditingViewId(null); };
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) { handleConfirm(); closePanel(); } }}>
-        <div className="w-[560px] max-h-[85vh] overflow-y-auto bg-card border border-border rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Settings2 size={16} className="text-primary" />
-              </div>
-              <div>
-                <h2 className="text-sm font-extrabold text-foreground uppercase tracking-wider">Configuration</h2>
-                <p className="text-[9px] text-muted-foreground">Paramètres du dashboard et de la carte</p>
-              </div>
-            </div>
-            <button onClick={closePanel} className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="p-5 space-y-4">
-            {/* ── Name ── */}
-            {onRename && currentName != null && (
-              <div className="p-4 rounded-xl border border-border bg-background">
-                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">
-                  📝 {dashboardId ? 'Nom du Dashboard' : 'Nom de la Vue'}
-                </label>
-                <input
-                  value={localName}
-                  onChange={(e) => { setLocalName(e.target.value); setDirty(true); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { handleConfirm(); closePanel(); } }}
-                  className="w-full bg-card border-2 border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-foreground outline-none focus:border-primary transition-colors"
-                  placeholder={dashboardId ? 'Nom du dashboard...' : 'Nom de la vue...'}
-                />
-              </div>
-            )}
-
-            {/* ── Sections below only for dashboards ── */}
-            {dashboardId && (<>
-            {/* ── Map Style (rendering type) ── */}
-            <div className="p-4 rounded-xl border border-border bg-background">
-              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
-                🗺️ Style de carte
-              </label>
-              <p className="text-[9px] text-muted-foreground mb-3">Type de rendu cartographique</p>
-              <div className="grid grid-cols-4 gap-2">
-                {MAP_STYLES.map(style => (
-                  <button
-                    key={style.value}
-                    onClick={() => { setLocalMapStyle(style.value); setDirty(true); }}
-                    className={`flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl text-[10px] font-bold transition-all border-2 ${
-                      localMapStyle === style.value
-                        ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
-                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                    }`}
-                  >
-                    <span className="text-xl">{style.icon}</span>
-                    <span className="uppercase tracking-wider">{style.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Theme Mode (UI appearance) ── */}
-            <div className="p-4 rounded-xl border border-border bg-background">
-              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
-                🎨 Mode d'affichage
-              </label>
-              <p className="text-[9px] text-muted-foreground mb-3">Apparence de l'interface</p>
-              <div className="grid grid-cols-2 gap-3">
-                {THEME_MODES.map(mode => (
-                  <button
-                    key={mode.value}
-                    onClick={() => { setLocalThemeMode(mode.value); setDirty(true); }}
-                    className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${
-                      localThemeMode === mode.value
-                        ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
-                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                    }`}
-                  >
-                    <span className="text-lg">{mode.icon}</span>
-                    <span className="uppercase tracking-wider">{mode.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Theme Color ── */}
-            <div className="p-4 rounded-xl border border-border bg-background">
-              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
-                🎯 Couleur du thème
-              </label>
-              <div className="flex gap-3 flex-wrap">
-                {PALETTE.map(c => (
-                  <button
-                    key={c.value || 'none'}
-                    onClick={() => { setLocalColor(c.value); setDirty(true); }}
-                    className={`w-9 h-9 rounded-full border-[3px] transition-all ${
-                      localColor === c.value ? 'border-primary scale-110 shadow-lg ring-2 ring-primary/30' : 'border-border hover:border-primary/40 hover:scale-105'
-                    }`}
-                    style={{ background: c.value || 'hsl(var(--muted))' }}
-                    title={c.label}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* ── Data Source ── */}
-            <div className="p-4 rounded-xl border border-border bg-background">
-              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
-                📂 Source de données
-              </label>
-              <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez le type de données à utiliser</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => { setLocalDataSource('qoe'); setDirty(true); }}
-                  className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${
-                    localDataSource === 'qoe'
-                      ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
-                      : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                  }`}
-                >
-                  <span className="text-lg">📊</span>
-                  <span className="uppercase tracking-wider">QoE</span>
-                </button>
-                <button
-                  onClick={() => { setLocalDataSource('parameters'); setDirty(true); }}
-                  className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${
-                    localDataSource === 'parameters'
-                      ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
-                      : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                  }`}
-                >
-                  <span className="text-lg">⚙️</span>
-                  <span className="uppercase tracking-wider">Parameters</span>
-                </button>
-              </div>
-            </div>
-
-            {/* ── QoE Indicators (multi-select) — only when dataSource = qoe ── */}
-            {localDataSource === 'qoe' && (
-            <div className="p-4 rounded-xl border border-border bg-background">
-              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
-                📊 Indicateurs QoE
-              </label>
-              <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez un ou plusieurs indicateurs à afficher</p>
-              <div className="grid grid-cols-2 gap-2">
-                {KPI_OPTIONS.map(kpi => {
-                  const isActive = localKpis.includes(kpi.value);
-                  return (
-                    <button
-                      key={kpi.value}
-                      onClick={() => toggleKpi(kpi.value)}
-                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[11px] font-semibold transition-all border-2 ${
-                        isActive
-                          ? 'bg-primary/10 border-primary/40 text-primary'
-                          : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                        isActive ? 'bg-primary border-primary' : 'border-muted-foreground/40'
-                      }`}>
-                        {isActive && <Check size={10} className="text-primary-foreground" />}
-                      </div>
-                      {kpi.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            )}
-            </>)}
-
-            {/* ── Dashboard Visibility ── */}
-            {dashboardId && (
-              <div className="p-4 rounded-xl border border-border bg-background">
-                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
-                  🔒 Visibilité du Dashboard
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => { setLocalVisibility(true); setDirty(true); }}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 ${
-                      localVisibility
-                        ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
-                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                    }`}
-                  >
-                    <span>🌍</span>
-                    <span className="uppercase tracking-wider">Public</span>
-                  </button>
-                  <button
-                    onClick={() => { setLocalVisibility(false); setDirty(true); }}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 ${
-                      !localVisibility
-                        ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
-                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                    }`}
-                  >
-                    <span>🔐</span>
-                    <span className="uppercase tracking-wider">Privé</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ── Beam Visibility Slider ── */}
-            {dashboardId && (
-              <div className="p-4 rounded-xl border border-border bg-background">
-                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
-                  📡 Visibilité des faisceaux (Beam)
-                </label>
-                <p className="text-[9px] text-muted-foreground mb-3">Contrôle l'opacité et la taille des secteurs sur la carte</p>
-                <div className="flex items-center gap-3">
-                  <span className="text-[9px] font-mono text-muted-foreground w-6 text-right">0%</span>
-                  <Slider
-                    value={[beamVis ?? 75]}
-                    onValueChange={([v]) => { if (onBeamVisChange) onBeamVisChange(v); }}
-                    min={0}
-                    max={100}
-                    step={5}
-                    className="flex-1"
-                  />
-                  <span className="text-[9px] font-mono text-muted-foreground w-8">{beamVis ?? 75}%</span>
-                </div>
-                <div className="flex justify-between mt-2 text-[8px] text-muted-foreground/60">
-                  <span>Invisible</span>
-                  <span>Max</span>
-                </div>
-              </div>
-            )}
-
-            {/* ── Dashboard Save/Load ── */}
-            {dashboardId && (
-              <div className="p-4 rounded-xl border border-border bg-background">
-                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
-                  💾 Sauvegarde rapide
-                </label>
-                <p className="text-[9px] text-muted-foreground mb-3">Sauvegarder ou charger l'état complet de la carte dans ce dashboard</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => { if (onSaveDashboard) onSaveDashboard(); }}
-                    disabled={isSaving}
-                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary"
-                  >
-                    {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                    <span className="uppercase tracking-wider">Save</span>
-                  </button>
-                  <button
-                    onClick={() => { if (onLoadDashboard) onLoadDashboard(); }}
-                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted"
-                  >
-                    <FolderOpen size={14} />
-                    <span className="uppercase tracking-wider">Load</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-
-            {!dashboardId && (
-              <div className="p-4 rounded-xl border border-border bg-background">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">
-                    🔍 Filtres
-                  </label>
-                  {localFilters.length > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{localFilters.length}</span>
-                  )}
-                </div>
-
-                {/* Saved filters list */}
-                {localFilters.length > 0 && (
-                  <div className="space-y-1.5 mb-3">
-                    {localFilters.map((f, i) => (
-                      <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-card">
-                        <div className="flex items-center gap-2 text-[11px]">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${f.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{f.tech}</span>
-                          <span className="font-medium text-muted-foreground">{FILTER_ATTRIBUTES.find(a => a.key === f.attribute)?.label}</span>
-                          <span className="text-muted-foreground/50">→</span>
-                          <span className="font-semibold text-foreground">{f.value}</span>
-                        </div>
-                        <button onClick={() => removeFilterAt(i)} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Wizard steps */}
-                {filterStep === 'idle' && (
-                  <button
-                    onClick={() => setFilterStep('pick_tech')}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[11px] font-bold text-primary border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all w-full justify-center"
-                  >
-                    <Plus size={14} />
-                    <span>Ajouter un filtre</span>
-                  </button>
-                )}
-
-                {/* Step 1: Pick 4G or 5G */}
-                {filterStep === 'pick_tech' && (
-                  <div className="border border-border rounded-xl bg-card p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Étape 1 — Choisir la technologie</span>
-                      <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {['4G', '5G'].map(t => (
-                        <button
-                          key={t}
-                          onClick={() => { setFilterDraft({ tech: t }); setFilterStep('pick_attr'); }}
-                          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[12px] font-bold border-2 border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all"
-                        >
-                          <span>{t === '5G' ? '🚀' : '📶'}</span>
-                          <span>{t}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 2: Pick attribute */}
-                {filterStep === 'pick_attr' && (
-                  <div className="border border-border rounded-xl bg-card p-3 space-y-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setFilterStep('pick_tech')} className="p-0.5 rounded hover:bg-muted text-muted-foreground">
-                          <ChevronRight size={12} className="rotate-180" />
-                        </button>
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
-                          Étape 2 — Choisir l'attribut
-                        </span>
-                      </div>
-                      <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
-                    </div>
-                    {FILTER_ATTRIBUTES.map(attr => (
-                      <button
-                        key={attr.key}
-                        onClick={() => { setFilterDraft(prev => ({ ...prev, attribute: attr.key })); setFilterStep('pick_value'); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-                      >
-                        <span>{attr.icon}</span>
-                        <span>{attr.label}</span>
-                        <ChevronRight size={10} className="ml-auto text-muted-foreground/50" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Step 3: Pick value */}
-                {filterStep === 'pick_value' && filterDraft.attribute && (
-                  <div className="border border-border rounded-xl bg-card p-3 space-y-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setFilterStep('pick_attr')} className="p-0.5 rounded hover:bg-muted text-muted-foreground">
-                          <ChevronRight size={12} className="rotate-180" />
-                        </button>
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
-                          {FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label} — Choisir la valeur
-                        </span>
-                      </div>
-                      <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
-                    </div>
-                    {FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.freeText ? (
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={freeTextValue}
-                          onChange={e => setFreeTextValue(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter' && freeTextValue.trim()) { commitFilter(freeTextValue.trim()); setFreeTextValue(''); } }}
-                          placeholder={`Entrer ${FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label}...`}
-                          className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => { if (freeTextValue.trim()) { commitFilter(freeTextValue.trim()); setFreeTextValue(''); } }}
-                          disabled={!freeTextValue.trim()}
-                          className="px-3 py-2 rounded-lg text-[11px] font-bold bg-primary text-primary-foreground disabled:opacity-40 hover:bg-primary/90 transition-all"
-                        >
-                          OK
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="max-h-40 overflow-y-auto space-y-0.5">
-                        {(ATTR_VALUES[filterDraft.attribute] || []).map(val => (
-                          <button
-                            key={val}
-                            onClick={() => commitFilter(val)}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-all"
-                          >
-                            <span>{val}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Confirm button - sticky footer */}
-          <div className="px-5 pb-5 pt-2">
-            <button
-              onClick={() => { handleConfirm(); closePanel(); }}
-              className={`w-full py-3.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
-                dirty
-                  ? 'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90'
-                  : 'bg-muted text-muted-foreground border border-border'
-              }`}
-            >
-              {dirty ? '✓ Confirmer les modifications' : '✓ Paramètres sauvegardés'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   if (ldg) {
     return (
@@ -1025,9 +897,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   <div className="flex-1 min-w-0">
                     <span className={`text-[12px] font-bold truncate block ${isExpanded ? 'text-primary' : 'text-foreground'}`}>{db.name}</span>
                     <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
-                      <span>{MAP_STYLES.find(l => l.value === (dbSettings.mapStyle || dbSettings.mapLayer || 'street'))?.label || 'Street'}</span>
+                      <span>{SETTINGS_MAP_STYLES.find(l => l.value === (dbSettings.mapStyle || dbSettings.mapLayer || 'street'))?.label || 'Street'}</span>
                       <span>•</span>
-                      <span>{KPI_OPTIONS.find(k => k.value === (dbSettings.mapKpi || 'qoe_score_avg'))?.label || 'QoE'}</span>
+                      <span>{SETTINGS_KPI_OPTIONS.find(k => k.value === (dbSettings.mapKpi || 'qoe_score_avg'))?.label || 'QoE'}</span>
                     </div>
                   </div>
                   <button
@@ -1044,7 +916,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
                 {/* Dashboard settings panel */}
                 {isEditingDb && (
-                  <SettingsPanel
+                  <DashboardSettingsPanel
                     settings={dbSettings}
                     onUpdate={(u) => updateDashboardSettings(db.id, u)}
                     onRename={(name) => renameDashboard(db.id, name)}
@@ -1056,6 +928,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     onSaveDashboard={() => { if (onSaveDashboard) onSaveDashboard(db.id); }}
                     onLoadDashboard={() => { if (onLoadDashboard) onLoadDashboard(db.id); }}
                     isSaving={isSaving}
+                    onClose={() => { setEditingDashboardId(null); setEditingViewId(null); }}
+                    onSetDashboards={setDashboards}
                   />
                 )}
 
@@ -1117,9 +991,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
                                 </div>
                                 <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
-                                  <span>{MAP_STYLES.find(l => l.value === (eff.mapStyle || eff.mapLayer))?.label || 'Street'}</span>
+                                  <span>{SETTINGS_MAP_STYLES.find(l => l.value === (eff.mapStyle || eff.mapLayer))?.label || 'Street'}</span>
                                   <span>•</span>
-                                  <span>{KPI_OPTIONS.find(k => k.value === eff.mapKpi)?.label || 'QoE'}</span>
+                                  <span>{SETTINGS_KPI_OPTIONS.find(k => k.value === eff.mapKpi)?.label || 'QoE'}</span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-0.5 shrink-0">
@@ -1141,11 +1015,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                             </div>
 
                             {isEditing && (
-                              <SettingsPanel
+                              <DashboardSettingsPanel
                                 settings={vs}
                                 onUpdate={(u) => handleUpdateViewSettings(view.id, u)}
                                 onRename={(name) => handleRenameView(view.id, name)}
                                 currentName={view.name}
+                                onClose={() => { setEditingDashboardId(null); setEditingViewId(null); }}
+                                onSetDashboards={setDashboards}
                               />
                             )}
                           </div>
