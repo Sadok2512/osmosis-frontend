@@ -179,6 +179,22 @@ const FlyToSite = ({ coords }: { coords: [number, number] | null }) => {
   return null;
 };
 
+// Create custom panes for 4G/5G layering
+const TechPanes: React.FC = () => {
+  const map = useMap();
+  useEffect(() => {
+    if (!map.getPane('pane4G')) {
+      const p4 = map.createPane('pane4G');
+      p4.style.zIndex = '400';
+    }
+    if (!map.getPane('pane5G')) {
+      const p5 = map.createPane('pane5G');
+      p5.style.zIndex = '500';
+    }
+  }, [map]);
+  return null;
+};
+
 // LOS MapClickHandler
 const LOSMapClickHandler: React.FC<{ onMapClick: (latlng: LatLng) => void; drawing: boolean }> = ({ onMapClick, drawing }) => {
   useMapEvents({
@@ -1743,6 +1759,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           attribution={TILE_URLS[mapLayer].attribution}
         />
         <FlyToSite coords={flyTarget} />
+        <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChange} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
 
@@ -1909,6 +1926,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <Polygon
                       key={`${site.site_id}_${tech}_${az}`}
                       positions={sectorCoords}
+                      pane={tech === '5G' ? 'pane5G' : 'pane4G'}
                       pathOptions={{
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
@@ -1966,6 +1984,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 return (
                   <Polygon
                     key={cell.cell_id}
+                    pane={is5G ? 'pane5G' : 'pane4G'}
                     positions={sectorCoords}
                     pathOptions={{
                       color: isFocusCell ? '#fff' : (isHovered ? '#fff' : strokeColor),
