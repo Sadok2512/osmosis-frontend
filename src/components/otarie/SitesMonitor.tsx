@@ -341,8 +341,39 @@ const DashboardInventoryTab: React.FC = () => {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3">
-      {/* Map Views section */}
+      {/* BI Dashboards section — top level */}
       <div className="mb-4">
+        <div className="flex items-center gap-2 px-1 mb-2">
+          <LayoutGrid size={13} className="text-primary" />
+          <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboards</h3>
+          <span className="ml-auto text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
+        </div>
+        {dashboards.length === 0 ? (
+          <div className="px-3 py-3 text-center text-[10px] text-muted-foreground/60">Aucun dashboard</div>
+        ) : (
+          <div className="space-y-1.5">
+            {dashboards.map(db => (
+              <div key={db.id} className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all px-3 py-2.5 cursor-pointer">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <LayoutGrid size={14} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[12px] font-bold text-foreground truncate block">{db.name}</span>
+                    {db.description && <span className="text-[9px] text-muted-foreground truncate block mt-0.5">{db.description}</span>}
+                  </div>
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                    {db.is_shared ? 'Public' : 'Privé'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Views section — under dashboards */}
+      <div>
         <div className="flex items-center gap-2 px-1 mb-2">
           <MapIcon size={13} className="text-primary" />
           <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Views</h3>
@@ -380,7 +411,7 @@ const DashboardInventoryTab: React.FC = () => {
         )}
 
         {mapViews.length === 0 ? (
-          <div className="px-3 py-4 text-center text-[10px] text-muted-foreground/60">Aucune vue sauvegardée</div>
+          <div className="px-3 py-3 text-center text-[10px] text-muted-foreground/60">Aucune vue</div>
         ) : (
           <div className="space-y-1.5">
             {mapViews.map(view => (
@@ -405,37 +436,6 @@ const DashboardInventoryTab: React.FC = () => {
                   >
                     <Trash2 size={11} />
                   </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* BI Dashboards section */}
-      <div>
-        <div className="flex items-center gap-2 px-1 mb-2">
-          <LayoutGrid size={13} className="text-primary" />
-          <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">BI Dashboards</h3>
-          <span className="ml-auto text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
-        </div>
-        {dashboards.length === 0 ? (
-          <div className="px-3 py-4 text-center text-[10px] text-muted-foreground/60">Aucun dashboard</div>
-        ) : (
-          <div className="space-y-1.5">
-            {dashboards.map(db => (
-              <div key={db.id} className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all px-3 py-2.5 cursor-pointer">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <LayoutGrid size={14} className="text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[12px] font-bold text-foreground truncate block">{db.name}</span>
-                    {db.description && <span className="text-[9px] text-muted-foreground truncate block mt-0.5">{db.description}</span>}
-                  </div>
-                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                    {db.is_shared ? 'Public' : 'Privé'}
-                  </span>
                 </div>
               </div>
             ))}
