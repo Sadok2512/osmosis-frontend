@@ -212,9 +212,9 @@ const DashboardOverview: React.FC = () => {
 
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-12 gap-4" style={{ gridAutoRows: '80px' }}>
-            {selected.widgets.map((widget, idx) => {
-              const w = Math.min(widget.layout.w, 12);
-              const h = widget.layout.h;
+            {selected.widgets.filter(w => w && w.layout).map((widget, idx) => {
+              const w = Math.min(widget.layout.w || 6, 12);
+              const h = widget.layout.h || 3;
               return (
                 <div key={idx} className="bg-card border border-border rounded-xl overflow-hidden shadow-sm min-w-0"
                   style={{ gridColumn: `span ${w}`, gridRow: `span ${h}` }}>
