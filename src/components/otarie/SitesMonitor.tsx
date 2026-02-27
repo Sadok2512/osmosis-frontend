@@ -50,7 +50,7 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio, Plus, Minus, Star
+  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2
 } from 'lucide-react';
 import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
 
@@ -292,20 +292,44 @@ const DashboardInventoryTab: React.FC = () => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
+  const [showCreateView, setShowCreateView] = useState(false);
+  const [newViewName, setNewViewName] = useState('');
+  const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      setLdg(true);
-      const [dbRes, mvRes] = await Promise.all([
-        supabase.from('dashboards').select('*').order('updated_at', { ascending: false }),
-        supabase.from('map_views').select('*').order('updated_at', { ascending: false }),
-      ]);
-      if (dbRes.data) setDashboards(dbRes.data);
-      if (mvRes.data) setMapViews(mvRes.data);
-      setLdg(false);
-    };
-    load();
-  }, []);
+  const fetchAll = async () => {
+    setLdg(true);
+    const [dbRes, mvRes] = await Promise.all([
+      supabase.from('dashboards').select('*').order('updated_at', { ascending: false }),
+      supabase.from('map_views').select('*').order('updated_at', { ascending: false }),
+    ]);
+    if (dbRes.data) setDashboards(dbRes.data);
+    if (mvRes.data) setMapViews(mvRes.data);
+    setLdg(false);
+  };
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const handleCreateView = async () => {
+    if (!newViewName.trim()) return;
+    setCreating(true);
+    const { error } = await supabase.from('map_views').insert({
+      name: newViewName.trim(),
+      description: '',
+      settings: { center: [43.2965, 5.3698], zoom: 6, mapLayer: 'light', mapKpi: 'qoe_score_avg', mapTechnoFilter: 'ALL', enabledBands: [], sectorColorMode: 'topo', mapDisplayMode: 'sites', showBandPanel: true, showLegend: true, showRightPanel: true, panelCollapsed: false, localVendor: 'ALL', localDor: 'ALL', localPlaque: 'ALL', localSite: 'ALL' },
+    });
+    if (!error) {
+      setNewViewName('');
+      setShowCreateView(false);
+      fetchAll();
+    }
+    setCreating(false);
+  };
+
+  const handleDeleteView = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await supabase.from('map_views').delete().eq('id', id);
+    fetchAll();
+  };
 
   if (ldg) {
     return (
@@ -321,9 +345,40 @@ const DashboardInventoryTab: React.FC = () => {
       <div className="mb-4">
         <div className="flex items-center gap-2 px-1 mb-2">
           <MapIcon size={13} className="text-primary" />
-          <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Map Views</h3>
+          <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Views</h3>
           <span className="ml-auto text-[9px] font-bold text-muted-foreground">{mapViews.length}</span>
         </div>
+
+        {/* Create new view */}
+        {showCreateView ? (
+          <div className="flex items-center gap-1.5 mb-2 px-1">
+            <input
+              autoFocus
+              value={newViewName}
+              onChange={e => setNewViewName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCreateView()}
+              placeholder="Nom de la vue..."
+              className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
+            />
+            <button onClick={handleCreateView} disabled={creating || !newViewName.trim()}
+              className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
+              <Plus size={12} />
+            </button>
+            <button onClick={() => { setShowCreateView(false); setNewViewName(''); }}
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+              <X size={12} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowCreateView(true)}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 mb-2 rounded-xl border border-dashed border-border hover:border-primary/40 hover:bg-primary/5 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"
+          >
+            <Plus size={12} />
+            Créer une vue
+          </button>
+        )}
+
         {mapViews.length === 0 ? (
           <div className="px-3 py-4 text-center text-[10px] text-muted-foreground/60">Aucune vue sauvegardée</div>
         ) : (
@@ -343,7 +398,13 @@ const DashboardInventoryTab: React.FC = () => {
                       {new Date(view.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
-                  <div className="text-[9px] font-mono text-muted-foreground/50 shrink-0">Z{(view.settings as any)?.zoom ?? '—'}</div>
+                  <button
+                    onClick={(e) => handleDeleteView(view.id, e)}
+                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                    title="Supprimer"
+                  >
+                    <Trash2 size={11} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -351,7 +412,7 @@ const DashboardInventoryTab: React.FC = () => {
         )}
       </div>
 
-      {/* Dashboards section */}
+      {/* BI Dashboards section */}
       <div>
         <div className="flex items-center gap-2 px-1 mb-2">
           <LayoutGrid size={13} className="text-primary" />
