@@ -3719,6 +3719,228 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   Simulation Couverture
                 </button>
               </div>
+
+              {/* ── Site Design & Topology Analysis ── */}
+              <div className="px-5 py-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Radio size={14} className="text-primary" />
+                  <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Site Design — Topology & Tilt Analysis</h4>
+                </div>
+
+                {/* Site info summary */}
+                <div className="rounded-xl border border-border overflow-hidden bg-card">
+                  {[
+                    { label: 'Site Name', value: siteDetail.site_name },
+                    { label: 'Site ID', value: siteDetail.site_id },
+                    { label: 'Vendor', value: siteDetail.vendor },
+                    { label: 'Coordinates', value: `${siteDetail.coordinates[0].toFixed(5)}, ${siteDetail.coordinates[1].toFixed(5)}` },
+                    { label: 'Altitude (HBA)', value: siteDetail.cells[0]?.hba != null ? `${siteDetail.cells[0].hba} m AGL` : '—' },
+                    { label: 'Total Cells', value: `${siteDetail.cell_count}` },
+                    { label: 'Sectors', value: `${sortedSectors.length}` },
+                    { label: 'Technologies', value: techBadgeStr },
+                    { label: 'Terrain Type', value: (() => {
+                      const lat = siteDetail.coordinates[0];
+                      const hba = siteDetail.cells[0]?.hba ?? 30;
+                      if (hba >= 40) return 'Dense Urban';
+                      if (hba >= 25) return 'Urban';
+                      if (hba >= 15) return 'Suburban';
+                      return 'Rural';
+                    })() },
+                    { label: 'Profile', value: (() => {
+                      const hba = siteDetail.cells[0]?.hba ?? 30;
+                      const bands = [...new Set(siteDetail.cells.map(c => c.bande))];
+                      const has5G = siteDetail.cells.some(c => (c.techno || '').includes('5G'));
+                      if (has5G && hba >= 30) return 'Macro 5G/4G Co-located';
+                      if (has5G) return 'Small Cell 5G + Macro 4G';
+                      if (bands.length >= 4) return 'Macro Multi-Band 4G';
+                      if (hba < 15) return 'Micro Cell';
+                      return 'Macro 4G Standard';
+                    })() },
+                  ].map((p, i) => (
+                    <div key={i} className={`flex items-center justify-between px-4 py-2 text-[11px] border-b border-border/40 last:border-0 ${i % 2 === 0 ? 'bg-muted/20' : ''}`}>
+                      <span className="text-muted-foreground font-medium">{p.label}</span>
+                      <span className="font-semibold text-foreground">{p.value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* All cells azimuth / tilt table */}
+                <div>
+                  <h5 className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest mb-2">
+                    All Cells — Azimuth & Tilt Overview
+                  </h5>
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <table className="w-full text-[11px]">
+                      <thead>
+                        <tr className="bg-muted/50 text-muted-foreground text-[9px] uppercase tracking-wider">
+                          <th className="text-left px-3 py-2 font-semibold">Cell</th>
+                          <th className="text-center px-2 py-2 font-semibold">Tech</th>
+                          <th className="text-center px-2 py-2 font-semibold">Band</th>
+                          <th className="text-center px-2 py-2 font-semibold">Az°</th>
+                          <th className="text-center px-2 py-2 font-semibold">E-Tilt°</th>
+                          <th className="text-center px-2 py-2 font-semibold">HBA</th>
+                          <th className="text-center px-2 py-2 font-semibold">Sector</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {siteDetail.cells.map((c, i) => (
+                          <tr key={c.cell_id} className={`hover:bg-muted/30 transition-colors ${i % 2 === 0 ? 'bg-muted/10' : ''}`}>
+                            <td className="px-3 py-1.5 font-mono text-[10px] text-foreground truncate max-w-[120px]">{c.cell_id}</td>
+                            <td className="px-2 py-1.5 text-center">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${(c.techno || '').includes('5G') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                {c.techno}
+                              </span>
+                            </td>
+                            <td className="px-2 py-1.5 text-center text-muted-foreground">{c.bande}</td>
+                            <td className="px-2 py-1.5 text-center font-bold text-foreground">{c.azimut ?? '—'}°</td>
+                            <td className="px-2 py-1.5 text-center font-bold text-foreground">{(c as any).remote_electrical_tilt ?? '—'}°</td>
+                            <td className="px-2 py-1.5 text-center text-muted-foreground">{c.hba ?? '—'}m</td>
+                            <td className="px-2 py-1.5 text-center font-bold text-primary">S{getSectorNumber(c.cell_id)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Sector-by-sector tilt delta analysis */}
+                <div>
+                  <h5 className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest mb-2">
+                    Sector Tilt Delta Analysis
+                  </h5>
+                  <div className="space-y-3">
+                    {sortedSectors.map(([sNum, cells]) => {
+                      const avgAz = cells.length > 0 ? Math.round(cells.reduce((s, c) => s + (c.azimut ?? 0), 0) / cells.length) : 0;
+                      const tilts = cells.map(c => (c as any).remote_electrical_tilt as number | null).filter((t): t is number => t != null);
+                      const maxTilt = tilts.length ? Math.max(...tilts) : null;
+                      const minTilt = tilts.length ? Math.min(...tilts) : null;
+                      const deltaTilt = maxTilt != null && minTilt != null ? maxTilt - minTilt : null;
+                      const azDeltas = cells.map(c => Math.abs((c.azimut ?? avgAz) - avgAz));
+                      const maxAzDelta = azDeltas.length ? Math.max(...azDeltas) : 0;
+
+                      return (
+                        <div key={sNum} className="rounded-xl border border-border overflow-hidden bg-card">
+                          {/* Sector header */}
+                          <div className="px-4 py-2.5 bg-muted/40 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-black">S{sNum}</div>
+                              <span className="text-[11px] font-bold text-foreground">Sector {sNum}</span>
+                              <span className="text-[10px] text-muted-foreground">• {cells.length} cell{cells.length > 1 ? 's' : ''} • Az avg {avgAz}°</span>
+                            </div>
+                            {deltaTilt != null && (
+                              <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                deltaTilt === 0 ? 'bg-emerald-500/20 text-emerald-400' :
+                                deltaTilt <= 2 ? 'bg-amber-500/20 text-amber-400' :
+                                'bg-red-500/20 text-red-400'
+                              }`}>
+                                ΔTilt: {deltaTilt}°
+                              </div>
+                            )}
+                          </div>
+                          {/* Cells in this sector */}
+                          <div className="divide-y divide-border/40">
+                            {cells.map((c, ci) => {
+                              const eTilt = (c as any).remote_electrical_tilt as number | null;
+                              const refTilt = tilts.length > 0 ? tilts[0] : null;
+                              const cellDelta = eTilt != null && refTilt != null && ci > 0 ? eTilt - refTilt : null;
+                              return (
+                                <div key={c.cell_id} className={`flex items-center gap-3 px-4 py-2 text-[11px] ${ci % 2 === 0 ? 'bg-muted/10' : ''}`}>
+                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(c.bande, c.techno) }} />
+                                  <div className="flex-1 min-w-0">
+                                    <span className="font-mono text-[10px] text-foreground truncate block">{c.cell_id}</span>
+                                    <span className="text-[9px] text-muted-foreground">{c.techno} • {c.bande}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0">
+                                    <div className="text-center">
+                                      <div className="text-[9px] text-muted-foreground">Az</div>
+                                      <div className="text-[11px] font-bold text-foreground">{c.azimut ?? '—'}°</div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className="text-[9px] text-muted-foreground">E-Tilt</div>
+                                      <div className="text-[11px] font-bold text-foreground">{eTilt ?? '—'}°</div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className="text-[9px] text-muted-foreground">HBA</div>
+                                      <div className="text-[11px] font-bold text-muted-foreground">{c.hba ?? '—'}m</div>
+                                    </div>
+                                    {cellDelta != null && (
+                                      <div className="text-center">
+                                        <div className="text-[9px] text-muted-foreground">Δ</div>
+                                        <div className={`text-[11px] font-bold ${
+                                          cellDelta === 0 ? 'text-emerald-400' :
+                                          Math.abs(cellDelta) <= 2 ? 'text-amber-400' :
+                                          'text-red-400'
+                                        }`}>{cellDelta > 0 ? '+' : ''}{cellDelta}°</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {/* Sector design verdict */}
+                          {maxAzDelta > 5 && (
+                            <div className="px-4 py-2 bg-amber-500/10 border-t border-amber-500/20 text-[10px] font-semibold text-amber-400">
+                              ⚠ Azimuth misalignment detected: max deviation {maxAzDelta}° from sector average
+                            </div>
+                          )}
+                          {deltaTilt != null && deltaTilt > 3 && (
+                            <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/20 text-[10px] font-semibold text-red-400">
+                              ⚠ High tilt delta ({deltaTilt}°) between co-sector cells — check site design coherence
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Design Summary */}
+                <div className="rounded-xl border border-border bg-muted/20 p-4">
+                  <h5 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest mb-2">Design Summary</h5>
+                  <div className="space-y-1.5 text-[11px]">
+                    {(() => {
+                      const findings: { icon: string; text: string; color: string }[] = [];
+                      // Check sector count
+                      const sectorCount = sortedSectors.length;
+                      findings.push({ icon: '📡', text: `${sectorCount}-sector site with ${siteDetail.cell_count} cells`, color: 'text-foreground' });
+                      // Check tilt coherence per sector
+                      sortedSectors.forEach(([sNum, cells]) => {
+                        const tilts = cells.map(c => (c as any).remote_electrical_tilt as number | null).filter((t): t is number => t != null);
+                        if (tilts.length >= 2) {
+                          const delta = Math.max(...tilts) - Math.min(...tilts);
+                          if (delta > 3) {
+                            findings.push({ icon: '⚠', text: `S${sNum}: Tilt delta ${delta}° exceeds 3° threshold`, color: 'text-red-400' });
+                          } else if (delta > 0) {
+                            findings.push({ icon: '✓', text: `S${sNum}: Tilt delta ${delta}° — acceptable`, color: 'text-amber-400' });
+                          } else {
+                            findings.push({ icon: '✓', text: `S${sNum}: Tilt aligned (${tilts[0]}°)`, color: 'text-emerald-400' });
+                          }
+                        }
+                      });
+                      // Check if multi-band with same azimuth
+                      sortedSectors.forEach(([sNum, cells]) => {
+                        const azimuths = [...new Set(cells.map(c => c.azimut))];
+                        if (azimuths.length > 1) {
+                          findings.push({ icon: '⚠', text: `S${sNum}: Multiple azimuths detected (${azimuths.join('°, ')}°)`, color: 'text-amber-400' });
+                        }
+                      });
+                      // 5G co-location check
+                      const has5G = siteDetail.cells.some(c => (c.techno || '').includes('5G'));
+                      const has4G = siteDetail.cells.some(c => !(c.techno || '').includes('5G'));
+                      if (has5G && has4G) {
+                        findings.push({ icon: '🔗', text: '5G/4G co-located — verify inter-tech tilt strategy', color: 'text-primary' });
+                      }
+                      return findings.map((f, i) => (
+                        <div key={i} className={`flex items-start gap-2 ${f.color}`}>
+                          <span>{f.icon}</span>
+                          <span>{f.text}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </div>
             </div>
           );
           })()}
