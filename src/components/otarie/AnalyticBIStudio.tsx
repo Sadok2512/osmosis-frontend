@@ -172,9 +172,11 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
     return () => ro.disconnect();
   }, []);
 
-  const getId = (w: WidgetItem) => w.config.id;
+  const getId = (w: WidgetItem) => w?.config?.id ?? 'unknown';
 
-  const layout = widgets.map(w => ({
+  const validWidgets = widgets.filter(w => w?.config?.id && w?.layout);
+
+  const layout = validWidgets.map(w => ({
     i: getId(w),
     x: w.layout.x, y: w.layout.y,
     w: w.layout.w, h: w.layout.h,
@@ -305,12 +307,12 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
     setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'table' ? { ...w, config } : w));
   };
 
-  const editingChart = widgets.find(w => getId(w) === editingId && w.kind === 'chart');
-  const chartCount = widgets.filter(w => w.kind === 'chart').length;
-  const textCount = widgets.filter(w => w.kind === 'text').length;
-  const mapCount = widgets.filter(w => w.kind === 'map').length;
-  const imageCount = widgets.filter(w => w.kind === 'image').length;
-  const tableCount = widgets.filter(w => w.kind === 'table').length;
+  const editingChart = validWidgets.find(w => getId(w) === editingId && w.kind === 'chart');
+  const chartCount = validWidgets.filter(w => w.kind === 'chart').length;
+  const textCount = validWidgets.filter(w => w.kind === 'text').length;
+  const mapCount = validWidgets.filter(w => w.kind === 'map').length;
+  const imageCount = validWidgets.filter(w => w.kind === 'image').length;
+  const tableCount = validWidgets.filter(w => w.kind === 'table').length;
 
   const widgetCountLabel = [
     `${chartCount} chart(s)`,
