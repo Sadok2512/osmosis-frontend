@@ -50,7 +50,7 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio, Plus, Minus
+  Crosshair, MousePointerClick, Radio, Plus, Minus, Star
 } from 'lucide-react';
 import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
 
@@ -287,6 +287,104 @@ const createSiteIcon = (color: string) => {
   });
 };
 
+// Dashboard tab for Inventory Index left panel
+const DashboardInventoryTab: React.FC = () => {
+  const [dashboards, setDashboards] = useState<any[]>([]);
+  const [ldg, setLdg] = useState(true);
+  const [mapViews, setMapViews] = useState<any[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      setLdg(true);
+      const [dbRes, mvRes] = await Promise.all([
+        supabase.from('dashboards').select('*').order('updated_at', { ascending: false }),
+        supabase.from('map_views').select('*').order('updated_at', { ascending: false }),
+      ]);
+      if (dbRes.data) setDashboards(dbRes.data);
+      if (mvRes.data) setMapViews(mvRes.data);
+      setLdg(false);
+    };
+    load();
+  }, []);
+
+  if (ldg) {
+    return (
+      <div className="flex-1 flex items-center justify-center py-12">
+        <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3">
+      {/* Map Views section */}
+      <div className="mb-4">
+        <div className="flex items-center gap-2 px-1 mb-2">
+          <MapIcon size={13} className="text-primary" />
+          <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Map Views</h3>
+          <span className="ml-auto text-[9px] font-bold text-muted-foreground">{mapViews.length}</span>
+        </div>
+        {mapViews.length === 0 ? (
+          <div className="px-3 py-4 text-center text-[10px] text-muted-foreground/60">Aucune vue sauvegardée</div>
+        ) : (
+          <div className="space-y-1.5">
+            {mapViews.map(view => (
+              <div key={view.id} className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all px-3 py-2.5 cursor-pointer">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <MapIcon size={14} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      {view.is_default && <Star size={9} className="text-amber-500 fill-amber-500 shrink-0" />}
+                      <span className="text-[12px] font-bold text-foreground truncate">{view.name}</span>
+                    </div>
+                    <div className="text-[9px] text-muted-foreground mt-0.5">
+                      {new Date(view.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                  <div className="text-[9px] font-mono text-muted-foreground/50 shrink-0">Z{(view.settings as any)?.zoom ?? '—'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Dashboards section */}
+      <div>
+        <div className="flex items-center gap-2 px-1 mb-2">
+          <LayoutGrid size={13} className="text-primary" />
+          <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">BI Dashboards</h3>
+          <span className="ml-auto text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
+        </div>
+        {dashboards.length === 0 ? (
+          <div className="px-3 py-4 text-center text-[10px] text-muted-foreground/60">Aucun dashboard</div>
+        ) : (
+          <div className="space-y-1.5">
+            {dashboards.map(db => (
+              <div key={db.id} className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all px-3 py-2.5 cursor-pointer">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <LayoutGrid size={14} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[12px] font-bold text-foreground truncate block">{db.name}</span>
+                    {db.description && <span className="text-[9px] text-muted-foreground truncate block mt-0.5">{db.description}</span>}
+                  </div>
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                    {db.is_shared ? 'Public' : 'Privé'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
@@ -342,6 +440,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
   const [expandedSector, setExpandedSector] = useState<number | null>(null);
   const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo'>('kpi');
+  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('sites');
 
   // LOS / Radio Profile state
   const [losDrawingMode, setLosDrawingMode] = useState(false);
@@ -1681,9 +1780,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               </div>
 
-              {/* ── Filters row ── */}
-              {panelMinimized && (
-                <div className="px-5 pb-3 shrink-0 grid grid-cols-2 gap-2 animate-fade-in">
+              {/* ── Tabs: Sites / Dashboard ── */}
+              <div className="px-5 pb-2 shrink-0 flex items-center gap-1 bg-muted/20 border-b border-border">
+                {[
+                  { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
+                  { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setInventoryTab(tab.id)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${
+                      inventoryTab === tab.id
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Filters row (sites tab only) ── */}
+              {inventoryTab === 'sites' && panelMinimized && (
+                <div className="px-5 py-3 shrink-0 grid grid-cols-2 gap-2 animate-fade-in">
                   <div className="flex flex-col gap-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Vendor</span>
                     <select value={localVendor} onChange={(e) => setLocalVendor(e.target.value)}
@@ -1715,7 +1835,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               )}
 
-              {/* ── Site List — always visible, scrollable ── */}
+              {/* ── Site List (sites tab) ── */}
+              {inventoryTab === 'sites' && (
               <div className="flex-1 overflow-y-auto px-4 pb-4">
                 {filteredSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -1873,6 +1994,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 )}
               </div>
+              )}
+
+              {/* ── Dashboard tab ── */}
+              {inventoryTab === 'dashboard' && (
+                <DashboardInventoryTab />
+              )}
             </div>
           )}
         </div>
