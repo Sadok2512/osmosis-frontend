@@ -184,6 +184,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(() => new Set(METRICS_CONFIG.map(m => m.id)));
   const [editingMetric, setEditingMetric] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<MetricCategory>>(new Set());
+  const [defaultTopoTech, setDefaultTopoTech] = useState<'ALL' | '4G' | '5G'>(() => (localStorage.getItem('qoebit_default_topo_tech') as any) || 'ALL');
+  const [defaultMapStyle, setDefaultMapStyle] = useState<string>(() => localStorage.getItem('qoebit_default_map_style') || 'street');
 
   // Dimension toggle state — each dimension category has an array of selected values
   const [selectedDimensions, setSelectedDimensions] = useState<Record<string, string[]>>(() => {
@@ -581,6 +583,82 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Topo Technology & Map Style */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {/* Technology Switch */}
+          <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Antenna className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Technologie Topo</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Filtre technologie par défaut sur la carte</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              {(['ALL', '4G', '5G'] as const).map((tech) => (
+                <button
+                  key={tech}
+                  onClick={() => {
+                    localStorage.setItem('qoebit_default_topo_tech', tech);
+                    setDefaultTopoTech(tech);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 transition-all text-[12px] font-black uppercase tracking-wider ${
+                    defaultTopoTech === tech
+                      ? 'border-primary bg-primary/10 text-primary shadow-lg'
+                      : 'border-border bg-card text-muted-foreground hover:border-primary/40'
+                  }`}
+                >
+                  {tech === 'ALL' && <Globe className="w-4 h-4" />}
+                  {tech === '4G' && <Signal className="w-4 h-4" />}
+                  {tech === '5G' && <Antenna className="w-4 h-4" />}
+                  {tech}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Map Style Selector */}
+          <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Style de Carte</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Fond de carte par défaut</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { id: 'street', label: 'Street', icon: <Globe className="w-4 h-4" />, preview: 'bg-[hsl(210,20%,95%)]' },
+                { id: 'satellite', label: 'Satellite', icon: <Globe className="w-4 h-4" />, preview: 'bg-[hsl(210,30%,20%)]' },
+                { id: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" />, preview: 'bg-[hsl(220,40%,13%)]' },
+                { id: 'light', label: 'Light', icon: <Sun className="w-4 h-4" />, preview: 'bg-[hsl(210,15%,97%)]' },
+              ] as const).map((style) => (
+                <button
+                  key={style.id}
+                  onClick={() => {
+                    localStorage.setItem('qoebit_default_map_style', style.id);
+                    setDefaultMapStyle(style.id);
+                  }}
+                  className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all ${
+                    defaultMapStyle === style.id
+                      ? 'border-primary bg-primary/5 shadow-lg'
+                      : 'border-border hover:border-primary/40 bg-card'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-lg ${style.preview} border border-border/50 shadow-inner flex items-center justify-center`}>
+                    <span className={`${style.id === 'dark' || style.id === 'satellite' ? 'text-white/50' : 'text-black/30'}`}>{style.icon}</span>
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-wider ${defaultMapStyle === style.id ? 'text-primary' : 'text-muted-foreground'}`}>{style.label}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
