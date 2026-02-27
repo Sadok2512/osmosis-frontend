@@ -448,26 +448,29 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     const [dirty, setDirty] = useState(false);
 
     const FILTER_ATTRIBUTES = [
+      { label: 'Nom Site', key: 'nom_site', icon: '🏗️', freeText: true },
+      { label: 'Nom Cellule', key: 'nom_cellule', icon: '📶', freeText: true },
+      { label: 'PCI', key: 'pci', icon: '🔢', freeText: true },
+      { label: 'Code NIDT', key: 'code_nidt', icon: '🆔', freeText: true },
       { label: 'Constructeur', key: 'constructeur', icon: '🏭' },
       { label: 'Bande', key: 'bande', icon: '📡' },
-      { label: 'Plaque', key: 'plaque', icon: '🗺️' },
-      { label: 'Région (UR)', key: 'region', icon: '📍' },
-      { label: 'DOR', key: 'dor', icon: '🏢' },
+      { label: 'Plaque', key: 'plaque', icon: '🗺️', freeText: true },
+      { label: 'Région (UR)', key: 'region', icon: '📍', freeText: true },
+      { label: 'DOR', key: 'dor', icon: '🏢', freeText: true },
       { label: 'Zone ARCEP', key: 'zone_arcep', icon: '📋' },
       { label: 'État Cellule', key: 'etat_cellule', icon: '🔋' },
       { label: 'Essentiel', key: 'essentiel', icon: '⭐' },
     ];
 
     const ATTR_VALUES: Record<string, string[]> = {
-      constructeur: ['Nokia', 'Ericsson', 'Huawei', 'Samsung'],
+      constructeur: ['Nokia', 'Nokia_NR', 'Ericsson', 'Huawei', 'Samsung'],
       bande: ['700', '800', '1800', '2100', '2600', 'NR700', 'NR2100', 'NR3500'],
-      plaque: ['IDF', 'Nord', 'Sud', 'Est', 'Ouest'],
-      region: ['IDF', 'NE', 'NO', 'SE', 'SO'],
-      dor: ['DOR1', 'DOR2', 'DOR3', 'DOR4'],
       zone_arcep: ['ZTD', 'ZMD', 'ZPD'],
       etat_cellule: ['Active', 'Inactive', 'Maintenance'],
       essentiel: ['Oui', 'Non'],
     };
+
+    const [freeTextValue, setFreeTextValue] = useState('');
 
     const commitFilter = (val: string) => {
       if (filterDraft.tech && filterDraft.attribute) {
@@ -483,7 +486,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       setDirty(true);
     };
 
-    const resetFilterWizard = () => { setFilterStep('idle'); setFilterDraft({}); };
+    const resetFilterWizard = () => { setFilterStep('idle'); setFilterDraft({}); setFreeTextValue(''); };
 
     const toggleKpi = (val: string) => {
       setLocalKpis(prev => {
@@ -819,17 +822,38 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       </div>
                       <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
                     </div>
-                    <div className="max-h-40 overflow-y-auto space-y-0.5">
-                      {(ATTR_VALUES[filterDraft.attribute] || []).map(val => (
+                    {FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.freeText ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={freeTextValue}
+                          onChange={e => setFreeTextValue(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter' && freeTextValue.trim()) { commitFilter(freeTextValue.trim()); setFreeTextValue(''); } }}
+                          placeholder={`Entrer ${FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label}...`}
+                          className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                          autoFocus
+                        />
                         <button
-                          key={val}
-                          onClick={() => commitFilter(val)}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-all"
+                          onClick={() => { if (freeTextValue.trim()) { commitFilter(freeTextValue.trim()); setFreeTextValue(''); } }}
+                          disabled={!freeTextValue.trim()}
+                          className="px-3 py-2 rounded-lg text-[11px] font-bold bg-primary text-primary-foreground disabled:opacity-40 hover:bg-primary/90 transition-all"
                         >
-                          <span>{val}</span>
+                          OK
                         </button>
-                      ))}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="max-h-40 overflow-y-auto space-y-0.5">
+                        {(ATTR_VALUES[filterDraft.attribute] || []).map(val => (
+                          <button
+                            key={val}
+                            onClick={() => commitFilter(val)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-all"
+                          >
+                            <span>{val}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
