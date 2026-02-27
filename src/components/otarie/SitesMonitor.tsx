@@ -53,7 +53,7 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive
+  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
@@ -3896,47 +3896,165 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
 
                 {/* Design Summary */}
-                <div className="rounded-xl border border-border bg-muted/20 p-4">
-                  <h5 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest mb-2">Design Summary</h5>
-                  <div className="space-y-1.5 text-[11px]">
+                {/* ── Site Design Verification ── */}
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="px-4 py-3 bg-muted/40 flex items-center gap-2">
+                    <CheckCircle2 size={14} className="text-primary" />
+                    <h5 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Site Design Verification</h5>
+                  </div>
+                  <div className="divide-y divide-border/40">
                     {(() => {
-                      const findings: { icon: string; text: string; color: string }[] = [];
-                      // Check sector count
+                      type Check = { label: string; status: 'pass' | 'warn' | 'fail'; detail: string };
+                      const checks: Check[] = [];
+
+                      // 1. Sector count check
                       const sectorCount = sortedSectors.length;
-                      findings.push({ icon: '📡', text: `${sectorCount}-sector site with ${siteDetail.cell_count} cells`, color: 'text-foreground' });
-                      // Check tilt coherence per sector
+                      checks.push({
+                        label: 'Sector Configuration',
+                        status: sectorCount >= 2 && sectorCount <= 4 ? 'pass' : 'warn',
+                        detail: `${sectorCount}-sector site with ${siteDetail.cell_count} cells`,
+                      });
+
+                      // 2. Azimuth spacing check (expect ~120° for tri-sector, ~90° for quad)
+                      const sectorAzimuths = sortedSectors.map(([, cells]) => {
+                        const azArr = cells.map(c => c.azimut ?? 0);
+                        return Math.round(azArr.reduce((a, b) => a + b, 0) / (azArr.length || 1));
+                      }).sort((a, b) => a - b);
+                      if (sectorAzimuths.length >= 2) {
+                        const diffs: number[] = [];
+                        for (let i = 1; i < sectorAzimuths.length; i++) diffs.push(sectorAzimuths[i] - sectorAzimuths[i - 1]);
+                        diffs.push(360 - sectorAzimuths[sectorAzimuths.length - 1] + sectorAzimuths[0]);
+                        const idealSpacing = 360 / sectorAzimuths.length;
+                        const maxDeviation = Math.max(...diffs.map(d => Math.abs(d - idealSpacing)));
+                        checks.push({
+                          label: 'Azimuth Spacing',
+                          status: maxDeviation <= 15 ? 'pass' : maxDeviation <= 30 ? 'warn' : 'fail',
+                          detail: `Ideal ${idealSpacing}° — max deviation ${Math.round(maxDeviation)}° (${sectorAzimuths.map(a => a + '°').join(', ')})`,
+                        });
+                      }
+
+                      // 3. Per-sector azimuth coherence
+                      sortedSectors.forEach(([sNum, cells]) => {
+                        const azimuths = [...new Set(cells.map(c => c.azimut))];
+                        if (azimuths.length > 1) {
+                          const spread = Math.max(...azimuths.map(Number)) - Math.min(...azimuths.map(Number));
+                          checks.push({
+                            label: `S${sNum} Azimuth Coherence`,
+                            status: spread <= 5 ? 'pass' : spread <= 10 ? 'warn' : 'fail',
+                            detail: `${azimuths.length} distinct azimuths (${azimuths.join('°, ')}°) — spread ${spread}°`,
+                          });
+                        } else {
+                          checks.push({
+                            label: `S${sNum} Azimuth Coherence`,
+                            status: 'pass',
+                            detail: `All cells at ${azimuths[0] ?? '—'}°`,
+                          });
+                        }
+                      });
+
+                      // 4. Per-sector tilt delta
                       sortedSectors.forEach(([sNum, cells]) => {
                         const tilts = cells.map(c => (c as any).remote_electrical_tilt as number | null).filter((t): t is number => t != null);
                         if (tilts.length >= 2) {
                           const delta = Math.max(...tilts) - Math.min(...tilts);
-                          if (delta > 3) {
-                            findings.push({ icon: '⚠', text: `S${sNum}: Tilt delta ${delta}° exceeds 3° threshold`, color: 'text-red-400' });
-                          } else if (delta > 0) {
-                            findings.push({ icon: '✓', text: `S${sNum}: Tilt delta ${delta}° — acceptable`, color: 'text-amber-400' });
-                          } else {
-                            findings.push({ icon: '✓', text: `S${sNum}: Tilt aligned (${tilts[0]}°)`, color: 'text-emerald-400' });
-                          }
+                          checks.push({
+                            label: `S${sNum} Tilt Delta`,
+                            status: delta === 0 ? 'pass' : delta <= 3 ? 'warn' : 'fail',
+                            detail: `ΔTilt = ${delta}° (range: ${Math.min(...tilts)}°–${Math.max(...tilts)}°)`,
+                          });
+                        } else if (tilts.length === 1) {
+                          checks.push({ label: `S${sNum} Tilt Delta`, status: 'pass', detail: `Single tilt value: ${tilts[0]}°` });
+                        } else {
+                          checks.push({ label: `S${sNum} Tilt Delta`, status: 'warn', detail: 'No e-tilt data available' });
                         }
                       });
-                      // Check if multi-band with same azimuth
-                      sortedSectors.forEach(([sNum, cells]) => {
-                        const azimuths = [...new Set(cells.map(c => c.azimut))];
-                        if (azimuths.length > 1) {
-                          findings.push({ icon: '⚠', text: `S${sNum}: Multiple azimuths detected (${azimuths.join('°, ')}°)`, color: 'text-amber-400' });
-                        }
-                      });
-                      // 5G co-location check
+
+                      // 5. HBA consistency
+                      const hbaVals = siteDetail.cells.map(c => c.hba).filter((h): h is number => h != null);
+                      if (hbaVals.length >= 2) {
+                        const hbaDelta = Math.max(...hbaVals) - Math.min(...hbaVals);
+                        checks.push({
+                          label: 'HBA Consistency',
+                          status: hbaDelta === 0 ? 'pass' : hbaDelta <= 5 ? 'warn' : 'fail',
+                          detail: hbaDelta === 0 ? `All cells at ${hbaVals[0]}m` : `Range: ${Math.min(...hbaVals)}m – ${Math.max(...hbaVals)}m (Δ${hbaDelta}m)`,
+                        });
+                      }
+
+                      // 6. 5G/4G co-location
                       const has5G = siteDetail.cells.some(c => (c.techno || '').includes('5G'));
                       const has4G = siteDetail.cells.some(c => !(c.techno || '').includes('5G'));
                       if (has5G && has4G) {
-                        findings.push({ icon: '🔗', text: '5G/4G co-located — verify inter-tech tilt strategy', color: 'text-primary' });
+                        // Check if 5G tilt < 4G tilt on same sector
+                        let coLocOk = true;
+                        sortedSectors.forEach(([, cells]) => {
+                          const t5g = cells.filter(c => (c.techno || '').includes('5G')).map(c => (c as any).remote_electrical_tilt as number | null).filter((t): t is number => t != null);
+                          const t4g = cells.filter(c => !(c.techno || '').includes('5G')).map(c => (c as any).remote_electrical_tilt as number | null).filter((t): t is number => t != null);
+                          if (t5g.length > 0 && t4g.length > 0) {
+                            const avg5 = t5g.reduce((a, b) => a + b, 0) / t5g.length;
+                            const avg4 = t4g.reduce((a, b) => a + b, 0) / t4g.length;
+                            if (avg5 > avg4 + 2) coLocOk = false;
+                          }
+                        });
+                        checks.push({
+                          label: '5G/4G Co-location',
+                          status: coLocOk ? 'pass' : 'warn',
+                          detail: coLocOk ? '5G/4G tilt strategy coherent' : '5G tilt > 4G tilt on some sectors — review strategy',
+                        });
                       }
-                      return findings.map((f, i) => (
-                        <div key={i} className={`flex items-start gap-2 ${f.color}`}>
-                          <span>{f.icon}</span>
-                          <span>{f.text}</span>
-                        </div>
-                      ));
+
+                      // 7. Band diversity per sector
+                      sortedSectors.forEach(([sNum, cells]) => {
+                        const bands = [...new Set(cells.map(c => c.bande).filter(Boolean))];
+                        checks.push({
+                          label: `S${sNum} Band Diversity`,
+                          status: bands.length >= 2 ? 'pass' : 'warn',
+                          detail: bands.length >= 2 ? `Multi-band: ${bands.join(', ')}` : `Single band: ${bands[0] || '—'}`,
+                        });
+                      });
+
+                      // 8. Cell state check
+                      const inactiveCells = siteDetail.cells.filter(c => {
+                        const etat = (c as any).etat_cellule;
+                        return etat && etat.toLowerCase() !== 'actif' && etat.toLowerCase() !== 'active';
+                      });
+                      checks.push({
+                        label: 'Cell State',
+                        status: inactiveCells.length === 0 ? 'pass' : 'warn',
+                        detail: inactiveCells.length === 0 ? `All ${siteDetail.cell_count} cells active` : `${inactiveCells.length} inactive cell(s): ${inactiveCells.map(c => c.cell_id).join(', ')}`,
+                      });
+
+                      // Overall verdict
+                      const failCount = checks.filter(c => c.status === 'fail').length;
+                      const warnCount = checks.filter(c => c.status === 'warn').length;
+                      const passCount = checks.filter(c => c.status === 'pass').length;
+
+                      const statusIcon = (s: Check['status']) => s === 'pass' ? '✅' : s === 'warn' ? '⚠️' : '❌';
+                      const statusColor = (s: Check['status']) => s === 'pass' ? 'text-emerald-400' : s === 'warn' ? 'text-amber-400' : 'text-red-400';
+
+                      return (
+                        <>
+                          {checks.map((ch, i) => (
+                            <div key={i} className={`flex items-start gap-3 px-4 py-2.5 text-[11px] ${i % 2 === 0 ? 'bg-muted/10' : ''}`}>
+                              <span className="text-[12px] mt-0.5 shrink-0">{statusIcon(ch.status)}</span>
+                              <div className="min-w-0 flex-1">
+                                <div className={`font-bold ${statusColor(ch.status)}`}>{ch.label}</div>
+                                <div className="text-muted-foreground text-[10px] mt-0.5">{ch.detail}</div>
+                              </div>
+                            </div>
+                          ))}
+                          {/* Overall verdict bar */}
+                          <div className={`px-4 py-3 flex items-center justify-between ${
+                            failCount > 0 ? 'bg-red-500/10' : warnCount > 0 ? 'bg-amber-500/10' : 'bg-emerald-500/10'
+                          }`}>
+                            <span className={`text-[12px] font-extrabold ${
+                              failCount > 0 ? 'text-red-400' : warnCount > 0 ? 'text-amber-400' : 'text-emerald-400'
+                            }`}>
+                              {failCount > 0 ? '❌ DESIGN ISSUES DETECTED' : warnCount > 0 ? '⚠️ DESIGN REVIEW NEEDED' : '✅ SITE DESIGN OK'}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">{passCount}✅ {warnCount}⚠️ {failCount}❌</span>
+                          </div>
+                        </>
+                      );
                     })()}
                   </div>
                 </div>
