@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DetectorConfig } from '../../types';
 import { fetchDetectorConfigs } from '../../services/mockData';
-import { supabase } from '@/integrations/supabase/client';
+import { topoApi } from '@/lib/localDb';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -22,12 +22,14 @@ const AIDetectorPanel: React.FC = () => {
   // Load topo summary for AI context
   useEffect(() => {
     const loadTopo = async () => {
-      const { data, error } = await supabase.from('topo').select('*');
-      if (error || !data || data.length === 0) {
-        setTopoStats('Aucune donnée topo disponible.');
-        setTopoLoaded(true);
-        return;
-      }
+      try {
+        const json = await topoApi.listFull(100000);
+        const data = json.rows || [];
+        if (data.length === 0) {
+          setTopoStats('Aucune donnée topo disponible.');
+          setTopoLoaded(true);
+          return;
+        }
       const sites = [...new Set(data.map(r => r.nom_site))];
       const technos = [...new Set(data.filter(r => r.techno).map(r => r.techno))];
       const bandes = [...new Set(data.filter(r => r.bande).map(r => r.bande))];
@@ -43,6 +45,10 @@ const AIDetectorPanel: React.FC = () => {
         `RÉSUMÉ TOPO:\n- ${data.length} cellules, ${sites.length} sites\n- Technos: ${technos.join(', ')}\n- Bandes: ${bandes.join(', ')}\n- Vendors: ${vendors.join(', ')}\n- Régions: ${regions.join(', ')}\n\nÉCHANTILLON (${Math.min(80, data.length)} cellules):\n${sample}`
       );
       setTopoLoaded(true);
+      } catch (err) {
+        setTopoStats('Aucune donnée topo disponible.');
+        setTopoLoaded(true);
+      }
     };
     loadTopo();
   }, []);

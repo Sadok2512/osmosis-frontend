@@ -7,7 +7,7 @@ import {
   X, ChevronDown, ChevronRight, Eye, EyeOff, Check, Bell
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { supabase } from '@/integrations/supabase/client';
+import { topoApi } from '@/lib/localDb';
 import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 import { invalidateSitesCache } from '@/services/mockData';
 import { useCSVData, type CSVDataset } from '@/components/bi/CSVDataStore';
@@ -275,9 +275,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
 
   // Load topo count
   useEffect(() => {
-    supabase.from('topo').select('id', { count: 'exact', head: true }).then(({ count }) => {
+    topoApi.count().then(count => {
       setTopoCount(count ?? 0);
-    });
+    }).catch(() => setTopoCount(0));
   }, []);
 
   const testEndpoint = useCallback(async (index: number) => {
@@ -377,11 +377,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
         result = await res.json();
         if (!result.success) throw new Error(result.error);
       } else {
-        const { data, error } = await supabase.functions.invoke('import-topo', {
-          body: { rows, clear_before: true },
+        // In local-only mode, always use local API
+        const res = await fetch(getApiUrl('import-topo'), {
+          method: 'POST',
+          headers: getApiHeaders(),
+          body: JSON.stringify({ rows, clear_before: true }),
         });
-        if (error) throw error;
-        result = data;
+        result = await res.json();
+        if (!result.success) throw new Error(result.error);
       }
 
       setTopoCount(result.inserted);
@@ -399,8 +402,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
     if (!confirm('Supprimer toutes les données topologiques ?')) return;
     setTopoImporting(true);
     try {
-      const { error } = await supabase.from('topo').delete().neq('id', 0);
-      if (error) throw error;
+      await topoApi.remove();
       setTopoCount(0);
       setTopoStatus({ message: 'Données topologiques supprimées', type: 'info' });
     } catch (err: any) {

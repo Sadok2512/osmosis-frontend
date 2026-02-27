@@ -6,7 +6,7 @@ import { useFresnel } from '@/hooks/useFresnel';
 import { haversineDistance, LatLng, AntennaParams } from '@/utils/geodesicUtils';
 import ProfileChart from './radio-profile/ProfileChart';
 import InfoPanel from './radio-profile/InfoPanel';
-import { supabase } from '@/integrations/supabase/client';
+import { topoApi } from '@/lib/localDb';
 import {
   Radio, Crosshair, Loader2, AlertTriangle, Maximize2, Minimize2,
   MousePointerClick, RotateCcw, Settings2
@@ -95,13 +95,11 @@ const RadioProfilePage: React.FC = () => {
   // Load sites
   useEffect(() => {
     const loadSites = async () => {
-      const { data, error } = await supabase
-        .from('topo')
-        .select('id, nom_site, nom_cellule, code_nidt, latitude, longitude, azimut, hba, remote_electrical_tilt, techno, bande, constructeur')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
+      try {
+        const json = await topoApi.listFull(100000);
+        const data = json.rows || [];
 
-      if (error || !data) return;
+        if (!data.length) return;
 
       const siteMap = new Map<string, SelectedSite>();
       data.forEach((row: any) => {
@@ -123,6 +121,9 @@ const RadioProfilePage: React.FC = () => {
         }
       });
       setSites(Array.from(siteMap.values()));
+      } catch (err) {
+        console.warn('[RadioProfile] Failed to load topo:', err);
+      }
     };
     loadSites();
   }, []);

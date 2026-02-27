@@ -1,5 +1,5 @@
 import { SiteSummary, SiteDetail, CellProperties } from '../types';
-import { supabase } from '@/integrations/supabase/client';
+import { topoApi } from '@/lib/localDb';
 import topoRaw from '../data/topoData';
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
@@ -77,7 +77,6 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     p25_rtt_ms: seededRand(cellName + 'rtt25', 5, 60),
     p75_rtt_ms: seededRand(cellName + 'rtt75', 30, 120),
   };
-  // Spread extra topo fields for site design analysis
   if (extra) {
     const ext = base as any;
     if (extra.remote_electrical_tilt != null) ext.remote_electrical_tilt = extra.remote_electrical_tilt;
@@ -103,7 +102,6 @@ function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
   const siteMap = new Map<string, TopoRow[]>();
   let autoIdx = 0;
   rows.forEach(row => {
-    // When code_nidt is empty, treat each unique lat/lng pair as a distinct site
     const key = row.code_nidt && row.code_nidt.trim() !== ''
       ? row.code_nidt
       : (row.latitude != null && row.longitude != null
@@ -186,9 +184,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
 
   // 1) Try local Express server
   try {
-    const resp = await fetch(`${LOCAL_API}/api/topo?limit=100000`);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const json = await resp.json();
+    const json = await topoApi.list(100000);
     const rows: TopoRow[] = json.rows ?? [];
     const total: number = json.total ?? rows.length;
     console.log(`[TopoService] LOCAL: received ${rows.length}/${total} cells`);
@@ -198,43 +194,10 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
       return cachedLocalSites;
     }
   } catch (err) {
-    console.warn('[TopoService] LOCAL fetch failed, trying Cloud...', err);
+    console.warn('[TopoService] LOCAL fetch failed, falling back to embedded data', err);
   }
 
-  // 2) Try Lovable Cloud (Supabase topo table)
-  try {
-    const PAGE_SIZE = 1000;
-    let allRows: TopoRow[] = [];
-    let offset = 0;
-    let hasMore = true;
-
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('topo')
-        .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac, remote_electrical_tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes, date_fn8, dor')
-        .range(offset, offset + PAGE_SIZE - 1);
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        hasMore = false;
-      } else {
-        allRows = allRows.concat(data as TopoRow[]);
-        offset += PAGE_SIZE;
-        if (data.length < PAGE_SIZE) hasMore = false;
-      }
-    }
-
-    console.log(`[TopoService] CLOUD: received ${allRows.length} cells`);
-    if (allRows.length > 0) {
-      cachedLocalSites = buildSitesFromRows(allRows);
-      console.log(`[TopoService] CLOUD: Built ${cachedLocalSites.length} sites`);
-      return cachedLocalSites;
-    }
-  } catch (err) {
-    console.warn('[TopoService] CLOUD fetch failed, falling back to embedded data', err);
-  }
-
-  // 3) Fallback to embedded static data
+  // 2) Fallback to embedded static data
   cachedLocalSites = buildSitesFromLocalTopo();
   console.log(`[TopoService] FALLBACK: Built ${cachedLocalSites.length} sites from embedded data`);
   return cachedLocalSites;
@@ -248,7 +211,6 @@ export async function fetchTopoSiteDetail(siteId: string): Promise<SiteDetail> {
   const sites = await fetchTopoSites();
   const site = sites.find(s => s.site_id === siteId) || sites[0];
   if (!site) {
-    // Return a safe fallback when no sites exist
     return {
       site_id: siteId,
       site_name: 'Unknown',

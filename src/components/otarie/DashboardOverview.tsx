@@ -6,22 +6,21 @@ import { TableWidgetConfig } from '../bi/BITableWidget';
 import { KPI_UNITS } from '../bi/biTypes';
 import { getDimensionValues } from '../bi/mockBIData';
 import BIChartRenderer from '../bi/BIChartRenderer';
-import { supabase } from '@/integrations/supabase/client';
+import { dashboardsApi } from '@/lib/localDb';
 
 async function loadAllDashboardsFromDB(): Promise<SavedDashboard[]> {
-  const { data, error } = await supabase
-    .from('dashboards')
-    .select('*')
-    .order('updated_at', { ascending: false });
-  if (error || !data) return [];
-  return data.map((row: any) => ({
-    id: row.id,
-    name: row.name,
-    description: row.description || '',
-    isShared: row.is_shared ?? true,
-    widgets: row.widgets as WidgetItem[],
-    updatedAt: row.updated_at,
-  }));
+  try {
+    const data = await dashboardsApi.list();
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description || '',
+      isShared: row.is_shared ?? true,
+      widgets: row.widgets as WidgetItem[],
+      updatedAt: row.updated_at,
+    }));
+  } catch { return []; }
 }
 
 async function duplicateDashboardInDB(source: SavedDashboard, allDashboards: SavedDashboard[]): Promise<void> {
@@ -32,13 +31,12 @@ async function duplicateDashboardInDB(source: SavedDashboard, allDashboards: Sav
     while (existingNames.has(`${source.name} (copy ${counter})`.toLowerCase())) counter++;
     dupName = `${source.name} (copy ${counter})`;
   }
-  await supabase.from('dashboards').insert({
+  await dashboardsApi.upsert({
     id: `db_${Date.now()}`,
     name: dupName,
     description: source.description,
     is_shared: source.isShared,
-    widgets: JSON.parse(JSON.stringify(source.widgets)) as any,
-    updated_at: new Date().toISOString(),
+    widgets: JSON.parse(JSON.stringify(source.widgets)),
   });
 }
 
