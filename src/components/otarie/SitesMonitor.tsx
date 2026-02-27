@@ -53,7 +53,7 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check
+  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play
 } from 'lucide-react';
 import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
 
@@ -1119,7 +1119,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
   const [expandedSector, setExpandedSector] = useState<number | null>(null);
-  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo'>('kpi');
+  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim'>('kpi');
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('sites');
 
   // Coverage simulation state
@@ -3374,6 +3374,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   {[
                     { id: 'kpi' as const, label: 'KPIs', icon: <BarChart2 size={12} /> },
                     { id: 'topo' as const, label: 'Topologie', icon: <Radio size={12} /> },
+                    { id: 'sim' as const, label: 'Simulation', icon: <Signal size={12} /> },
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -3544,7 +3545,40 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 )}
 
-                {/* Back to site */}
+                {/* ── Simulation Tab ── */}
+                {cellDetailTab === 'sim' && (
+                  <div className="px-5 py-4 space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Signal size={13} className="text-primary" />
+                      <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Simulation Couverture</h4>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Lance une simulation COST-231 Hata depuis cette cellule. Les paramètres sont pré-remplis à partir de la topologie.
+                    </p>
+                    <div className="rounded-xl border border-border overflow-hidden bg-muted/20">
+                      {[
+                        { label: 'Technologie', value: cell.techno ?? '—' },
+                        { label: 'Bande', value: cell.bande ? `${cell.bande}` : '—' },
+                        { label: 'Azimut', value: cell.azimut != null ? `${cell.azimut}°` : '—' },
+                        { label: 'HBA', value: cell.hba != null ? `${cell.hba} m` : '—' },
+                        { label: 'E-Tilt', value: (cell as any).remote_electrical_tilt != null ? `${(cell as any).remote_electrical_tilt}°` : '—' },
+                      ].map((p, i) => (
+                        <div key={i} className={`flex items-center justify-between px-4 py-2 text-[11px] border-b border-border/40 last:border-0 ${i % 2 === 0 ? 'bg-muted/10' : ''}`}>
+                          <span className="text-muted-foreground">{p.label}</span>
+                          <span className="font-mono font-semibold text-foreground">{p.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => { if (siteDetail) handleLaunchCoverageSim(siteDetail); }}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-[11px] font-extrabold uppercase tracking-wider hover:bg-primary/90 transition-all shadow-lg"
+                    >
+                      <Play size={14} />
+                      Lancer la Simulation
+                    </button>
+                  </div>
+                )}
+
                 <div className="px-4 py-2.5">
                   <button
                     onClick={handleBackToSite}
