@@ -2315,14 +2315,77 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (!cell) return <div className="p-4 text-muted-foreground text-[12px]">Cell not found.</div>;
             return (
               <div className="divide-y divide-border">
-                {/* Cell Header */}
-                <div className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${cell.techno === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
-                    <h3 className="text-[14px] font-semibold text-foreground font-mono">{cell.cell_id}</h3>
+                {/* Cell Header — prominent */}
+                <div className="px-5 py-5">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: getBandColor(cell.bande, cell.techno) }}>
+                      <Signal size={24} className="text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-[18px] font-extrabold text-foreground leading-tight tracking-tight uppercase truncate">
+                        {cell.cell_id}
+                      </h3>
+                      <div className="flex items-center gap-1.5 mt-1 text-[12px]">
+                        <span className="text-muted-foreground">{siteDetail.site_name}</span>
+                        <span className="text-muted-foreground">•</span>
+                        <span className="font-semibold text-primary">{cell.techno} {cell.bande} MHz</span>
+                        <span className="text-muted-foreground">•</span>
+                        <span className="text-muted-foreground">Az {cell.azimut}°</span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-[22px] font-black" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
+                        {cell.qoe_score_avg.toFixed(1)}%
+                      </div>
+                      <div className="text-[9px] font-semibold text-muted-foreground uppercase">QoE</div>
+                    </div>
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-1">
-                    {siteDetail.site_name} • {cell.techno} • {cell.bande} MHz
+                </div>
+
+                {/* DMS Metric Cards */}
+                <div className="px-5 py-4">
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: 'DMS DL 3M', value: cell.dms_dl_3 ?? 0 },
+                      { label: 'DMS DL 8M', value: cell.dms_dl_8 ?? 0 },
+                      { label: 'DMS DL 30M', value: cell.dms_dl_30 ?? 0 },
+                      { label: 'DMS UL 3M', value: cell.dms_ul_3 ?? 0 },
+                    ].map((m, i) => (
+                      <div key={i} className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
+                        <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{m.label}</div>
+                        <div className="text-[14px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* QoE + DL + UL + RTT */}
+                <div className="px-5 py-4">
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                      <div className="text-[8px] font-bold text-muted-foreground uppercase">QoE</div>
+                      <div className="text-[22px] font-black leading-none mt-1" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
+                        {cell.qoe_score_avg.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                      <div className="text-[8px] font-bold text-muted-foreground uppercase">DL</div>
+                      <div className="text-[18px] font-black text-foreground leading-none mt-1">
+                        {(cell.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">M</span>
+                      </div>
+                    </div>
+                    <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                      <div className="text-[8px] font-bold text-muted-foreground uppercase">UL</div>
+                      <div className="text-[18px] font-black text-foreground leading-none mt-1">
+                        {(cell.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">M</span>
+                      </div>
+                    </div>
+                    <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                      <div className="text-[8px] font-bold text-muted-foreground uppercase">RTT</div>
+                      <div className="text-[18px] font-black text-foreground leading-none mt-1">
+                        {(cell.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">ms</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
