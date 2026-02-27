@@ -325,9 +325,12 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   ];
 
   const MAP_LAYERS = [
-    { label: 'Light', value: 'light' },
-    { label: 'Dark', value: 'dark' },
-    { label: 'Satellite', value: 'satellite' },
+    { label: 'Light', value: 'light', icon: '☀️' },
+    { label: 'Dark', value: 'dark', icon: '🌙' },
+    { label: 'Satellite', value: 'satellite', icon: '🛰️' },
+    { label: 'Street', value: 'street', icon: '🗺️' },
+    { label: 'Terrain', value: 'terrain', icon: '⛰️' },
+    { label: 'Hybrid', value: 'hybrid', icon: '🌐' },
   ];
 
   const fetchAll = async () => {
@@ -445,99 +448,111 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     };
 
     return (
-      <div className="mx-2 my-2 p-4 rounded-xl border-2 border-primary/20 bg-card shadow-lg space-y-5">
-        {/* Nom */}
-        {onRename && currentName != null && (
-          <div>
-            <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1.5">Nom</label>
-            <input
-              value={localName}
-              onChange={(e) => { setLocalName(e.target.value); setDirty(true); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleConfirm(); }}
-              className="w-full bg-background border-2 border-border rounded-xl px-3 py-2 text-sm font-semibold text-foreground outline-none focus:border-primary transition-colors"
-            />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) { handleConfirm(); setEditingDashboardId(null); setEditingViewId(null); } }}>
+        <div className="w-[520px] max-h-[85vh] overflow-y-auto bg-card border-2 border-primary/20 rounded-2xl shadow-2xl p-6 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-extrabold text-foreground uppercase tracking-wider">⚙ Configuration</h2>
+            <button onClick={() => { setEditingDashboardId(null); setEditingViewId(null); }} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <X size={16} />
+            </button>
           </div>
-        )}
 
-        {/* Type de carte */}
-        <div>
-          <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">Type de carte</label>
-          <div className="grid grid-cols-3 gap-2">
-            {MAP_LAYERS.map(layer => (
-              <button
-                key={layer.value}
-                onClick={() => { setLocalMapLayer(layer.value); setDirty(true); }}
-                className={`px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all border-2 ${
-                  localMapLayer === layer.value
-                    ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                    : 'bg-background border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                }`}
-              >
-                {layer.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Couleur */}
-        <div>
-          <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">Couleur</label>
-          <div className="flex gap-2.5 flex-wrap">
-            {PALETTE.map(c => (
-              <button
-                key={c.value || 'none'}
-                onClick={() => { setLocalColor(c.value); setDirty(true); }}
-                className={`w-8 h-8 rounded-full border-[3px] transition-all ${
-                  localColor === c.value ? 'border-primary scale-110 shadow-md ring-2 ring-primary/20' : 'border-border hover:border-primary/40 hover:scale-105'
-                }`}
-                style={{ background: c.value || 'hsl(var(--muted))' }}
-                title={c.label}
+          {/* Nom */}
+          {onRename && currentName != null && (
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">Nom du Dashboard</label>
+              <input
+                value={localName}
+                onChange={(e) => { setLocalName(e.target.value); setDirty(true); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirm(); }}
+                className="w-full bg-card border-2 border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-foreground outline-none focus:border-primary transition-colors"
               />
-            ))}
-          </div>
-        </div>
+            </div>
+          )}
 
-        {/* Indicateurs QoE - Multi-select */}
-        <div>
-          <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">
-            Indicateur QoE <span className="text-muted-foreground/50 normal-case font-medium">(multi-sélection)</span>
-          </label>
-          <div className="grid grid-cols-2 gap-1.5">
-            {KPI_OPTIONS.map(kpi => {
-              const isActive = localKpis.includes(kpi.value);
-              return (
+          {/* Type de carte */}
+          <div className="p-4 rounded-xl border border-border bg-background">
+            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">Type de carte</label>
+            <div className="grid grid-cols-3 gap-2.5">
+              {MAP_LAYERS.map(layer => (
                 <button
-                  key={kpi.value}
-                  onClick={() => toggleKpi(kpi.value)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-semibold transition-all border ${
-                    isActive
-                      ? 'bg-primary/10 border-primary/40 text-primary'
-                      : 'bg-background border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                  key={layer.value}
+                  onClick={() => { setLocalMapLayer(layer.value); setDirty(true); }}
+                  className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl text-[11px] font-bold transition-all border-2 ${
+                    localMapLayer === layer.value
+                      ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
+                      : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
                   }`}
                 >
-                  <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${
-                    isActive ? 'bg-primary border-primary' : 'border-muted-foreground/40'
-                  }`}>
-                    {isActive && <Check size={8} className="text-primary-foreground" />}
-                  </div>
-                  {kpi.label}
+                  <span className="text-lg">{layer.icon}</span>
+                  <span className="uppercase tracking-wider">{layer.label}</span>
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Confirm button */}
-        <button
-          onClick={handleConfirm}
-          className={`w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
-            dirty
-              ? 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground border border-border'
-          }`}
-        >
-          {dirty ? '✓ Confirmer les modifications' : 'Paramètres sauvegardés'}
-        </button>
+          {/* Couleur */}
+          <div className="p-4 rounded-xl border border-border bg-background">
+            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">Couleur du thème</label>
+            <div className="flex gap-3 flex-wrap">
+              {PALETTE.map(c => (
+                <button
+                  key={c.value || 'none'}
+                  onClick={() => { setLocalColor(c.value); setDirty(true); }}
+                  className={`w-9 h-9 rounded-full border-[3px] transition-all ${
+                    localColor === c.value ? 'border-primary scale-110 shadow-lg ring-2 ring-primary/30' : 'border-border hover:border-primary/40 hover:scale-105'
+                  }`}
+                  style={{ background: c.value || 'hsl(var(--muted))' }}
+                  title={c.label}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Indicateurs QoE - Multi-select */}
+          <div className="p-4 rounded-xl border border-border bg-background">
+            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
+              Indicateurs QoE
+            </label>
+            <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez un ou plusieurs indicateurs à afficher</p>
+            <div className="grid grid-cols-2 gap-2">
+              {KPI_OPTIONS.map(kpi => {
+                const isActive = localKpis.includes(kpi.value);
+                return (
+                  <button
+                    key={kpi.value}
+                    onClick={() => toggleKpi(kpi.value)}
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[11px] font-semibold transition-all border-2 ${
+                      isActive
+                        ? 'bg-primary/10 border-primary/40 text-primary'
+                        : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                      isActive ? 'bg-primary border-primary' : 'border-muted-foreground/40'
+                    }`}>
+                      {isActive && <Check size={10} className="text-primary-foreground" />}
+                    </div>
+                    {kpi.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Confirm button */}
+          <button
+            onClick={() => { handleConfirm(); setEditingDashboardId(null); setEditingViewId(null); }}
+            className={`w-full py-3 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
+              dirty
+                ? 'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90'
+                : 'bg-muted text-muted-foreground border border-border'
+            }`}
+          >
+            {dirty ? '✓ Confirmer les modifications' : '✓ Paramètres sauvegardés'}
+          </button>
+        </div>
       </div>
     );
   };
