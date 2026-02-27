@@ -441,14 +441,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       return ['qoe_score_avg'];
     });
     const [localDataSource, setLocalDataSource] = useState<'qoe' | 'parameters'>(settings.dataSource || 'qoe');
-    const [localTechFilter, setLocalTechFilter] = useState<string[]>(settings.techFilter || []);
-    const [localTopoFilters, setLocalTopoFilters] = useState<Record<string, string[]>>(settings.topoFilters || {});
-    const [filterStep, setFilterStep] = useState<'idle' | 'pick_type' | 'pick_value'>(  'idle');
-    const [filterPickedType, setFilterPickedType] = useState<string | null>(null);
+    // Composite filters: each filter = { tech, attribute, value }
+    const [localFilters, setLocalFilters] = useState<{ tech: string; attribute: string; value: string }[]>(settings.viewFilters || []);
+    const [filterStep, setFilterStep] = useState<'idle' | 'pick_tech' | 'pick_attr' | 'pick_value'>('idle');
+    const [filterDraft, setFilterDraft] = useState<{ tech?: string; attribute?: string }>({});
     const [dirty, setDirty] = useState(false);
 
-    const ALL_FILTER_TYPES = [
-      { label: 'Technologie', key: 'techno', icon: '📶' },
+    const FILTER_ATTRIBUTES = [
       { label: 'Constructeur', key: 'constructeur', icon: '🏭' },
       { label: 'Bande', key: 'bande', icon: '📡' },
       { label: 'Plaque', key: 'plaque', icon: '🗺️' },
@@ -459,8 +458,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       { label: 'Essentiel', key: 'essentiel', icon: '⭐' },
     ];
 
-    const FILTER_VALUES: Record<string, string[]> = {
-      techno: ['4G', '5G'],
+    const ATTR_VALUES: Record<string, string[]> = {
       constructeur: ['Nokia', 'Ericsson', 'Huawei', 'Samsung'],
       bande: ['700', '800', '1800', '2100', '2600', 'NR700', 'NR2100', 'NR3500'],
       plaque: ['IDF', 'Nord', 'Sud', 'Est', 'Ouest'],
@@ -471,41 +469,21 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       essentiel: ['Oui', 'Non'],
     };
 
-    const addFilterValue = (typeKey: string, val: string) => {
-      if (typeKey === 'techno') {
-        setLocalTechFilter(prev => prev.includes(val) ? prev : [...prev, val]);
-      } else {
-        setLocalTopoFilters(prev => {
-          const current = prev[typeKey] || [];
-          return { ...prev, [typeKey]: current.includes(val) ? current : [...current, val] };
-        });
+    const commitFilter = (val: string) => {
+      if (filterDraft.tech && filterDraft.attribute) {
+        setLocalFilters(prev => [...prev, { tech: filterDraft.tech!, attribute: filterDraft.attribute!, value: val }]);
+        setDirty(true);
       }
-      setDirty(true);
       setFilterStep('idle');
-      setFilterPickedType(null);
+      setFilterDraft({});
     };
 
-    const removeFilter = (typeKey: string, val: string) => {
-      if (typeKey === 'techno') {
-        setLocalTechFilter(prev => prev.filter(v => v !== val));
-      } else {
-        setLocalTopoFilters(prev => {
-          const next = (prev[typeKey] || []).filter(v => v !== val);
-          const copy = { ...prev };
-          if (next.length === 0) delete copy[typeKey]; else copy[typeKey] = next;
-          return copy;
-        });
-      }
+    const removeFilterAt = (idx: number) => {
+      setLocalFilters(prev => prev.filter((_, i) => i !== idx));
       setDirty(true);
     };
 
-    const allActiveFilters: { typeKey: string; typeLabel: string; value: string }[] = [
-      ...localTechFilter.map(v => ({ typeKey: 'techno', typeLabel: 'Technologie', value: v })),
-      ...Object.entries(localTopoFilters).flatMap(([key, vals]) =>
-        vals.map(v => ({ typeKey: key, typeLabel: ALL_FILTER_TYPES.find(f => f.key === key)?.label || key, value: v }))
-      ),
-    ];
-    const activeFilterCount = allActiveFilters.length;
+    const resetFilterWizard = () => { setFilterStep('idle'); setFilterDraft({}); };
 
     const toggleKpi = (val: string) => {
       setLocalKpis(prev => {
@@ -517,7 +495,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
     const handleConfirm = async () => {
       if (onRename && localName.trim() && localName !== currentName) onRename(localName.trim());
-      onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, techFilter: localTechFilter, topoFilters: localTopoFilters });
+      onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: localFilters });
       // Update visibility if dashboard
       if (dashboardId && localVisibility !== isShared) {
         await supabase.from('dashboards').update({ is_shared: localVisibility, updated_at: new Date().toISOString() }).eq('id', dashboardId);
@@ -733,29 +711,30 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </div>
             )}
 
-            {/* ── Filters (views only) — step-by-step add ── */}
+            {/* ── Filters (views only) — wizard: tech → attribute → value ── */}
             {!dashboardId && (
               <div className="p-4 rounded-xl border border-border bg-background">
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">
                     🔍 Filtres
                   </label>
-                  {activeFilterCount > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{activeFilterCount} actif{activeFilterCount > 1 ? 's' : ''}</span>
+                  {localFilters.length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{localFilters.length}</span>
                   )}
                 </div>
 
-                {/* Active filters list */}
-                {allActiveFilters.length > 0 && (
+                {/* Saved filters list */}
+                {localFilters.length > 0 && (
                   <div className="space-y-1.5 mb-3">
-                    {allActiveFilters.map((f, i) => (
-                      <div key={`${f.typeKey}-${f.value}-${i}`} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-card">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-muted-foreground uppercase">{f.typeLabel}</span>
-                          <span className="text-[10px] text-muted-foreground">→</span>
-                          <span className="text-[11px] font-semibold text-foreground">{f.value}</span>
+                    {localFilters.map((f, i) => (
+                      <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-card">
+                        <div className="flex items-center gap-2 text-[11px]">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${f.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{f.tech}</span>
+                          <span className="font-medium text-muted-foreground">{FILTER_ATTRIBUTES.find(a => a.key === f.attribute)?.label}</span>
+                          <span className="text-muted-foreground/50">→</span>
+                          <span className="font-semibold text-foreground">{f.value}</span>
                         </div>
-                        <button onClick={() => removeFilter(f.typeKey, f.value)} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                        <button onClick={() => removeFilterAt(i)} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
                           <X size={12} />
                         </button>
                       </div>
@@ -763,10 +742,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   </div>
                 )}
 
-                {/* Step: idle → show "Add filter" button */}
+                {/* Wizard steps */}
                 {filterStep === 'idle' && (
                   <button
-                    onClick={() => setFilterStep('pick_type')}
+                    onClick={() => setFilterStep('pick_tech')}
                     className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[11px] font-bold text-primary border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all w-full justify-center"
                   >
                     <Plus size={14} />
@@ -774,62 +753,82 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   </button>
                 )}
 
-                {/* Step: pick_type → choose filter category */}
-                {filterStep === 'pick_type' && (
-                  <div className="border border-border rounded-xl bg-card p-2 space-y-1">
-                    <div className="flex items-center justify-between px-2 py-1">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Choisir un type de filtre</span>
-                      <button onClick={() => setFilterStep('idle')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                {/* Step 1: Pick 4G or 5G */}
+                {filterStep === 'pick_tech' && (
+                  <div className="border border-border rounded-xl bg-card p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Étape 1 — Choisir la technologie</span>
+                      <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
                     </div>
-                    {ALL_FILTER_TYPES.map(ft => (
+                    <div className="grid grid-cols-2 gap-2">
+                      {['4G', '5G'].map(t => (
+                        <button
+                          key={t}
+                          onClick={() => { setFilterDraft({ tech: t }); setFilterStep('pick_attr'); }}
+                          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[12px] font-bold border-2 border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all"
+                        >
+                          <span>{t === '5G' ? '🚀' : '📶'}</span>
+                          <span>{t}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Pick attribute */}
+                {filterStep === 'pick_attr' && (
+                  <div className="border border-border rounded-xl bg-card p-3 space-y-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setFilterStep('pick_tech')} className="p-0.5 rounded hover:bg-muted text-muted-foreground">
+                          <ChevronRight size={12} className="rotate-180" />
+                        </button>
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
+                          Étape 2 — Choisir l'attribut
+                        </span>
+                      </div>
+                      <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                    </div>
+                    {FILTER_ATTRIBUTES.map(attr => (
                       <button
-                        key={ft.key}
-                        onClick={() => { setFilterPickedType(ft.key); setFilterStep('pick_value'); }}
+                        key={attr.key}
+                        onClick={() => { setFilterDraft(prev => ({ ...prev, attribute: attr.key })); setFilterStep('pick_value'); }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                       >
-                        <span>{ft.icon}</span>
-                        <span>{ft.label}</span>
+                        <span>{attr.icon}</span>
+                        <span>{attr.label}</span>
                         <ChevronRight size={10} className="ml-auto text-muted-foreground/50" />
                       </button>
                     ))}
                   </div>
                 )}
 
-                {/* Step: pick_value → choose value for selected type */}
-                {filterStep === 'pick_value' && filterPickedType && (
-                  <div className="border border-border rounded-xl bg-card p-2 space-y-1">
-                    <div className="flex items-center justify-between px-2 py-1">
+                {/* Step 3: Pick value */}
+                {filterStep === 'pick_value' && filterDraft.attribute && (
+                  <div className="border border-border rounded-xl bg-card p-3 space-y-1">
+                    <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => { setFilterStep('pick_type'); setFilterPickedType(null); }} className="p-0.5 rounded hover:bg-muted text-muted-foreground">
+                        <button onClick={() => setFilterStep('pick_attr')} className="p-0.5 rounded hover:bg-muted text-muted-foreground">
                           <ChevronRight size={12} className="rotate-180" />
                         </button>
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                          {ALL_FILTER_TYPES.find(f => f.key === filterPickedType)?.label} — Sélectionner une valeur
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
+                          {FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label} — Choisir la valeur
                         </span>
                       </div>
-                      <button onClick={() => { setFilterStep('idle'); setFilterPickedType(null); }} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                      <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
                     </div>
                     <div className="max-h-40 overflow-y-auto space-y-0.5">
-                      {(FILTER_VALUES[filterPickedType] || []).map(val => {
-                        const alreadyAdded = filterPickedType === 'techno'
-                          ? localTechFilter.includes(val)
-                          : (localTopoFilters[filterPickedType] || []).includes(val);
-                        return (
-                          <button
-                            key={val}
-                            onClick={() => { if (!alreadyAdded) addFilterValue(filterPickedType, val); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all ${
-                              alreadyAdded
-                                ? 'bg-primary/10 text-primary cursor-default'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                            }`}
-                          >
-                            {alreadyAdded && <Check size={12} className="text-primary" />}
-                            <span>{val}</span>
-                            {alreadyAdded && <span className="ml-auto text-[9px] text-primary/60">déjà ajouté</span>}
-                          </button>
-                        );
-                      })}
+                      {(ATTR_VALUES[filterDraft.attribute] || []).map(val => (
+                        <button
+                          key={val}
+                          onClick={() => commitFilter(val)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-all"
+                        >
+                          <span>{val}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
