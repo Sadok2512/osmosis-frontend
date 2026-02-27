@@ -1127,9 +1127,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return deriveStrokeColor(bandColors[key] || DEFAULT_BAND_COLORS[key]);
   }, [bandColors]);
 
+  const NR_BANDS = ['NR3500', 'NR700', 'NR2100'];
+  const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
+
   const updateBandColor = useCallback((band: string, color: string) => {
     setBandColors(prev => {
       const next = { ...prev, [band]: color };
+      // When changing a group color, propagate to all bands in that group
+      if (band === '5G_GROUP') {
+        NR_BANDS.forEach(b => { next[b] = color; });
+      } else if (band === '4G_GROUP') {
+        LTE_BANDS.forEach(b => { next[b] = color; });
+      }
       localStorage.setItem('qoebit_band_colors', JSON.stringify(next));
       return next;
     });
