@@ -84,9 +84,8 @@ const DEFAULT_BAND_COLORS: Record<string, string> = {
   L700:   '#3d6d98',
   // Group header colors
   '5G_GROUP': '#a855f7',
-  '4G_GROUP': '#3b82f6',
+  '4G_GROUP': '#f97316',
 };
-
 // Load custom colors from localStorage
 const loadCustomBandColors = (): Record<string, string> => {
   try {
@@ -1872,46 +1871,64 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               if (!techAzimuths.get(tech)!.includes(az)) techAzimuths.get(tech)!.push(az);
             }
             const techEntries = Array.from(techAzimuths.entries());
-            // Sort so 4G renders first (below), 5G on top
-            techEntries.sort((a, b) => (a[0] === '4G' ? -1 : 1));
+            // Collect all unique azimuths across techs for this site
+            const allAzimuths = new Set<number>();
+            techEntries.forEach(([, azs]) => azs.forEach(a => allAzimuths.add(a)));
+            const has4G = techAzimuths.has('4G');
+            const has5G = techAzimuths.has('5G');
+
+            // Build render list: 4G first (larger, below), then 5G (smaller, above)
+            const renderItems: { tech: string; az: number; radiusScale: number }[] = [];
+            // 4G beams - full radius
+            if (has4G) {
+              for (const az of techAzimuths.get('4G')!) {
+                renderItems.push({ tech: '4G', az, radiusScale: 1.0 });
+              }
+            }
+            // 5G beams - reduced radius when site also has 4G
+            if (has5G) {
+              const scale5G = has4G ? 0.6 : 1.0;
+              for (const az of techAzimuths.get('5G')!) {
+                renderItems.push({ tech: '5G', az, radiusScale: scale5G });
+              }
+            }
+
             return (
               <React.Fragment key={site.site_id}>
-                {techEntries.map(([tech, azimuths]) => {
+                {renderItems.map(({ tech, az, radiusScale }) => {
                   const groupColorKey = tech === '5G' ? '5G_GROUP' : '4G_GROUP';
-                  const fillColor = isFocusFaded ? FADED_COLOR : (bandColors[groupColorKey] || (tech === '5G' ? '#a855f7' : '#3b82f6'));
+                  const fillColor = isFocusFaded ? FADED_COLOR : (bandColors[groupColorKey] || (tech === '5G' ? '#a855f7' : '#f97316'));
                   const strokeColor = isFocusFaded ? '#cbd5e1' : deriveStrokeColor(fillColor);
-                  return azimuths.map(az => {
-                    const sectorCoords = getSectorCoords(site.coordinates, az, zoomRadius, 60);
-                    return (
-                      <Polygon
-                        key={`${site.site_id}_${tech}_${az}`}
-                        positions={sectorCoords}
-                        pathOptions={{
-                          color: isHovered ? '#fff' : strokeColor,
-                          fillColor,
-                          fillOpacity: isHovered ? 0.40 : (isFocusFaded ? 0.08 : overlapFactor),
-                          weight: isHovered ? 1.5 : 1,
-                          opacity: isHovered ? 0.9 : (isFocusFaded ? 0.25 : 0.7),
-                        }}
-                        eventHandlers={{
-                          click: () => handleSiteClick(site),
-                          mouseover: () => setHoveredSiteId(site.site_id),
-                          mouseout: () => setHoveredSiteId(null),
-                        }}
-                      >
-                        <Tooltip direction="top" offset={[0, -8]} permanent={false} className="sector-tooltip">
-                          <div className="px-3 py-2 min-w-[120px]">
-                            <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: fillColor }}>{site.site_name}</div>
-                            <div className="text-[9px] opacity-60 font-mono mt-0.5">{site.site_id}</div>
-                            <div className="mt-1.5 text-[10px]">
-                              <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{tech}</span></div>
-                              <div className="flex justify-between"><span className="opacity-50">Azimut</span><span className="font-bold">{az}°</span></div>
-                            </div>
+                  const sectorCoords = getSectorCoords(site.coordinates, az, zoomRadius * radiusScale, 60);
+                  return (
+                    <Polygon
+                      key={`${site.site_id}_${tech}_${az}`}
+                      positions={sectorCoords}
+                      pathOptions={{
+                        color: isHovered ? '#fff' : strokeColor,
+                        fillColor,
+                        fillOpacity: isHovered ? 0.40 : (isFocusFaded ? 0.08 : 0.25),
+                        weight: isHovered ? 1.5 : 1,
+                        opacity: isHovered ? 0.9 : (isFocusFaded ? 0.25 : 0.7),
+                      }}
+                      eventHandlers={{
+                        click: () => handleSiteClick(site),
+                        mouseover: () => setHoveredSiteId(site.site_id),
+                        mouseout: () => setHoveredSiteId(null),
+                      }}
+                    >
+                      <Tooltip direction="top" offset={[0, -8]} permanent={false} className="sector-tooltip">
+                        <div className="px-3 py-2 min-w-[120px]">
+                          <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: fillColor }}>{site.site_name}</div>
+                          <div className="text-[9px] opacity-60 font-mono mt-0.5">{site.site_id}</div>
+                          <div className="mt-1.5 text-[10px]">
+                            <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{tech}</span></div>
+                            <div className="flex justify-between"><span className="opacity-50">Azimut</span><span className="font-bold">{az}°</span></div>
                           </div>
-                        </Tooltip>
-                      </Polygon>
-                    );
-                  });
+                        </div>
+                      </Tooltip>
+                    </Polygon>
+                  );
                 })}
               </React.Fragment>
             );
@@ -2581,7 +2598,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                     {[
                       { key: '5G_GROUP', label: '5G', defaultColor: '#a855f7' },
-                      { key: '4G_GROUP', label: '4G', defaultColor: '#3b82f6' },
+                      { key: '4G_GROUP', label: '4G', defaultColor: '#f97316' },
                     ].map(({ key, label, defaultColor }) => (
                       <div key={key} className="flex items-center gap-2.5">
                         <div className="w-4 h-4 rounded" style={{ background: bandColors[key] || defaultColor }} />
@@ -2635,7 +2652,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['4G_GROUP'] || '#3b82f6' }}>
+                      <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>
                         4G LTE
                       </button>
                     </div>
