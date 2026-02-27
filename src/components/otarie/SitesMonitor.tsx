@@ -1859,47 +1859,52 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const overlapFactor = baseOverlap + (1 - baseOverlap) * beamScale;
           const isFocusFaded = focusMode !== 'global' && !isSelectedSite;
 
-          /* ── ALL mode: one sector per tech per unique azimuth ── */
+          /* ── ALL mode: technology-only (no bands), fixed radii ── */
           if (mapTechnoFilter === 'ALL') {
-            // Group cells by tech, pick representative azimuth per sector
-            const techAzimuths = new Map<string, number[]>();
+            // Step 1: Group cells by technology, collect unique azimuths
+            const techAzimuths = new Map<string, Set<number>>();
             for (const cell of site.cells) {
               const tech = (cell.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
-              if (!techAzimuths.has(tech)) techAzimuths.set(tech, []);
-              const az = cell.azimut ?? 0;
-              // Avoid duplicate azimuths for same tech
-              if (!techAzimuths.get(tech)!.includes(az)) techAzimuths.get(tech)!.push(az);
+              if (!techAzimuths.has(tech)) techAzimuths.set(tech, new Set());
+              techAzimuths.get(tech)!.add(cell.azimut ?? 0);
             }
-            const techEntries = Array.from(techAzimuths.entries());
-            // Collect all unique azimuths across techs for this site
-            const allAzimuths = new Set<number>();
-            techEntries.forEach(([, azs]) => azs.forEach(a => allAzimuths.add(a)));
             const has4G = techAzimuths.has('4G');
             const has5G = techAzimuths.has('5G');
 
-            // Build render list: 4G first (larger, below), then 5G (smaller, above)
-            const renderItems: { tech: string; az: number; radiusScale: number }[] = [];
-            // 4G beams - full radius
+            // Step 2: Fixed radii (zoom-adaptive base, but constant ratio)
+            const R_4G = zoomRadius * 1.2; // slightly larger than default
+            const R_5G = R_4G * 0.6;       // 60% of 4G
+
+            // Step 3: Merge all azimuths across techs for unified sectors
+            const allAzimuths = new Set<number>();
+            if (has4G) techAzimuths.get('4G')!.forEach(a => allAzimuths.add(a));
+            if (has5G) techAzimuths.get('5G')!.forEach(a => allAzimuths.add(a));
+
+            // Step 4: Build render list — 4G first (below), 5G second (above)
+            const renderItems: { tech: string; az: number; radius: number }[] = [];
             if (has4G) {
-              for (const az of techAzimuths.get('4G')!) {
-                renderItems.push({ tech: '4G', az, radiusScale: 1.0 });
-              }
+              allAzimuths.forEach(az => {
+                // Only draw 4G on azimuths where 4G exists
+                if (techAzimuths.get('4G')!.has(az)) {
+                  renderItems.push({ tech: '4G', az, radius: R_4G });
+                }
+              });
             }
-            // 5G beams - reduced radius when site also has 4G
             if (has5G) {
-              const scale5G = has4G ? 0.6 : 1.0;
-              for (const az of techAzimuths.get('5G')!) {
-                renderItems.push({ tech: '5G', az, radiusScale: scale5G });
-              }
+              allAzimuths.forEach(az => {
+                if (techAzimuths.get('5G')!.has(az)) {
+                  renderItems.push({ tech: '5G', az, radius: R_5G });
+                }
+              });
             }
 
             return (
               <React.Fragment key={site.site_id}>
-                {renderItems.map(({ tech, az, radiusScale }) => {
+                {renderItems.map(({ tech, az, radius }) => {
                   const groupColorKey = tech === '5G' ? '5G_GROUP' : '4G_GROUP';
                   const fillColor = isFocusFaded ? FADED_COLOR : (bandColors[groupColorKey] || (tech === '5G' ? '#a855f7' : '#f97316'));
                   const strokeColor = isFocusFaded ? '#cbd5e1' : deriveStrokeColor(fillColor);
-                  const sectorCoords = getSectorCoords(site.coordinates, az, zoomRadius * radiusScale, 60);
+                  const sectorCoords = getSectorCoords(site.coordinates, az, radius, 60);
                   return (
                     <Polygon
                       key={`${site.site_id}_${tech}_${az}`}
@@ -1907,9 +1912,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       pathOptions={{
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
-                        fillOpacity: isHovered ? 0.40 : (isFocusFaded ? 0.08 : overlapFactor),
-                        weight: isHovered ? 1.5 : 1,
-                        opacity: isHovered ? 0.9 : (isFocusFaded ? 0.25 : 0.7),
+                        fillOpacity: isHovered ? 0.45 : (isFocusFaded ? 0.08 : overlapFactor),
+                        weight: isHovered ? 2 : 1.2,
+                        opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : 0.8),
                       }}
                       eventHandlers={{
                         click: () => handleSiteClick(site),
@@ -1918,11 +1923,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       }}
                     >
                       <Tooltip direction="top" offset={[0, -8]} permanent={false} className="sector-tooltip">
-                        <div className="px-3 py-2 min-w-[120px]">
+                        <div className="px-3 py-2 min-w-[140px]">
                           <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: fillColor }}>{site.site_name}</div>
                           <div className="text-[9px] opacity-60 font-mono mt-0.5">{site.site_id}</div>
-                          <div className="mt-1.5 text-[10px]">
-                            <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{tech}</span></div>
+                          <div className="mt-1.5 text-[10px] space-y-0.5">
+                            <div className="flex justify-between"><span className="opacity-50">has4G</span><span className="font-bold">{has4G ? '✓' : '✗'}</span></div>
+                            <div className="flex justify-between"><span className="opacity-50">has5G</span><span className="font-bold">{has5G ? '✓' : '✗'}</span></div>
+                            <div className="flex justify-between"><span className="opacity-50">R4G</span><span className="font-mono font-bold">{Math.round(R_4G)}m</span></div>
+                            <div className="flex justify-between"><span className="opacity-50">R5G</span><span className="font-mono font-bold">{Math.round(R_5G)}m</span></div>
                             <div className="flex justify-between"><span className="opacity-50">Azimut</span><span className="font-bold">{az}°</span></div>
                           </div>
                         </div>
