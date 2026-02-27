@@ -53,7 +53,7 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen
+  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
@@ -308,6 +308,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [expandedDashboardId, setExpandedDashboardId] = useState<string | null>(null);
   const [editingDashboardId, setEditingDashboardId] = useState<string | null>(null);
   const [editingViewId, setEditingViewId] = useState<string | null>(null);
+  const [showDashMenu, setShowDashMenu] = useState(false);
 
   const PALETTE = [
     { label: 'Default', value: '' },
@@ -952,6 +953,36 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         <LayoutGrid size={13} className="text-primary" />
         <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboards</h3>
         <span className="ml-auto text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
+        {/* 3-dot menu for Save/Load */}
+        <div className="relative">
+          <button
+            onClick={() => setShowDashMenu(!showDashMenu)}
+            className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Actions"
+          >
+            <MoreVertical size={13} />
+          </button>
+          {showDashMenu && (
+            <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-2xl overflow-hidden z-50 min-w-[140px]">
+              <button
+                onClick={() => { if (onSaveDashboard && expandedDashboardId) { onSaveDashboard(expandedDashboardId); } setShowDashMenu(false); }}
+                disabled={!expandedDashboardId}
+                className="w-full px-3 py-2.5 text-left text-[10px] font-bold flex items-center gap-2 hover:bg-muted transition-colors disabled:opacity-30 text-foreground"
+              >
+                <Save size={12} className="text-primary" />
+                Save Dashboard
+              </button>
+              <button
+                onClick={() => { if (onLoadDashboard && expandedDashboardId) { onLoadDashboard(expandedDashboardId); } setShowDashMenu(false); }}
+                disabled={!expandedDashboardId}
+                className="w-full px-3 py-2.5 text-left text-[10px] font-bold flex items-center gap-2 hover:bg-muted transition-colors disabled:opacity-30 text-foreground"
+              >
+                <FolderOpen size={12} className="text-primary" />
+                Load Dashboard
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {dashboards.length === 0 ? (
@@ -2355,30 +2386,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Load & Save buttons — only when a dashboard is active */}
-      {viewMode === 'map' && activeDashboardId && (
-        <div className="absolute top-4 z-[1001] pointer-events-auto flex items-center gap-1.5" style={{ left: 'calc(416px + 270px)' }}>
-          <button
-            onClick={() => loadDashboardSettings(activeDashboardId)}
-            className="px-3 py-2 rounded-xl border shadow-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all bg-card/95 backdrop-blur-xl border-border text-muted-foreground hover:text-foreground hover:bg-muted/80"
-          >
-            <FolderOpen size={12} />
-            Load
-          </button>
-          <button
-            onClick={saveDashboardSettings}
-            disabled={dashboardSaving}
-            className={`px-3 py-2 rounded-xl border shadow-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all ${
-              dashboardSaveFlash
-                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-500'
-                : 'bg-card/95 backdrop-blur-xl border-border text-muted-foreground hover:text-foreground hover:bg-muted/80'
-            }`}
-          >
-            {dashboardSaving ? <RefreshCw size={12} className="animate-spin" /> : dashboardSaveFlash ? <Check size={12} /> : <Save size={12} />}
-            {dashboardSaveFlash ? 'Saved' : 'Save'}
-          </button>
-        </div>
-      )}
 
       {/* Floating top bar — redesigned KPI selector with grouped tabs */}
       <div className="absolute top-14 left-[416px] right-[466px] z-[1000] pointer-events-auto">
