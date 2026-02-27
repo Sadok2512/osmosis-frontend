@@ -4,7 +4,7 @@ import {
   CalendarDays, Activity, CheckCircle2, XCircle, RefreshCw, Zap,
   Globe, Database, Shield, Heart, ArrowRight, Play, BarChart3, Palette, Moon, Sun, Monitor,
   Upload, FileSpreadsheet, Trash2, MapPin, Radio, Antenna, Signal, Gauge, Waves, Search,
-  X, ChevronDown, ChevronRight, Eye, EyeOff, Check
+  X, ChevronDown, ChevronRight, Eye, EyeOff, Check, Bell
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +18,8 @@ interface SettingsPanelProps {
   setSidebarTheme: (t: SidebarTheme) => void;
   accentColor: AccentColor;
   setAccentColor: (c: AccentColor) => void;
+  enabledModules: Record<string, boolean>;
+  setEnabledModules: (m: Record<string, boolean>) => void;
 }
 
 interface LatencyResult {
@@ -148,7 +150,22 @@ const METRICS_CONFIG: { name: string; id: string; numColors: number; thresholds:
   { name: '5GUE Attached 4G Rate', id: '5gue_attached_4G_rate', category: 'QoE', numColors: 4, thresholds: [5,15,30,50], colors: ['#10b981','#3b82f6','#f59e0b','#ef4444'] },
 ];
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarTheme, accentColor, setAccentColor }) => {
+const MODULE_DEFS: { id: string; label: string; description: string; icon: React.ReactNode }[] = [
+  { id: 'dashboard_overview', label: 'Dashboard Overview', description: 'Vue d\'ensemble des KPIs globaux', icon: <BarChart3 className="w-5 h-5" /> },
+  { id: 'list', label: 'Live Monitor Map', description: 'Carte temps-réel des sites & cellules', icon: <Globe className="w-5 h-5" /> },
+  { id: 'sites', label: 'Network Topology', description: 'Topologie réseau et inventaire sites', icon: <Server className="w-5 h-5" /> },
+  { id: 'traffic', label: 'Analytic BI Studio', description: 'Tableaux de bord analytiques personnalisés', icon: <BarChart3 className="w-5 h-5" /> },
+  { id: 'alerts', label: 'Alerts & RCA Monitor', description: 'Détection d\'anomalies et analyse causale', icon: <Bell className="w-5 h-5" /> },
+  { id: 'detector', label: 'Detector Console', description: 'Console de détection ML avancée', icon: <Shield className="w-5 h-5" /> },
+  { id: 'ai_assistant', label: 'QOEBIT AI', description: 'Assistant IA pour l\'analyse QoE', icon: <Zap className="w-5 h-5" /> },
+  { id: 'radio_profile', label: 'Radio Profile', description: 'Profil de propagation RF et terrain', icon: <Radio className="w-5 h-5" /> },
+  { id: 'topologie', label: 'Topologie Réseau', description: 'Gestion topologique du réseau', icon: <Antenna className="w-5 h-5" /> },
+  { id: 'rag', label: 'RAG Knowledge Base', description: 'Base de connaissances documentaire', icon: <Database className="w-5 h-5" /> },
+  { id: 'docs', label: 'Documentation', description: 'Documentation technique de la plateforme', icon: <FileSpreadsheet className="w-5 h-5" /> },
+  { id: 'backend_admin', label: 'Backend Admin', description: 'Administration et configuration backend', icon: <Database className="w-5 h-5" /> },
+];
+
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarTheme, accentColor, setAccentColor, enabledModules, setEnabledModules }) => {
   const { datasets: csvDatasets, addDataset: addCsvDataset, removeDataset: removeCsvDataset } = useCSVData();
   const [results, setResults] = useState<LatencyResult[]>(
     ENDPOINTS.map(e => ({ endpoint: e.url, label: e.label, status: 'idle' }))
@@ -162,7 +179,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
   const csvInputRef = useRef<HTMLInputElement>(null);
   const [csvUploading, setCsvUploading] = useState(false);
   const [csvStatus, setCsvStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
-  const [settingsTab, setSettingsTab] = useState<'style' | 'data' | 'system'>('style');
+  const [settingsTab, setSettingsTab] = useState<'style' | 'data' | 'system' | 'modules'>('style');
   const [metricSearch, setMetricSearch] = useState('');
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(() => new Set(METRICS_CONFIG.map(m => m.id)));
   const [editingMetric, setEditingMetric] = useState<string | null>(null);
@@ -468,6 +485,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
           { id: 'style' as const, label: 'Style UI', icon: <Palette className="w-4 h-4" /> },
           { id: 'data' as const, label: 'Data Model', icon: <Database className="w-4 h-4" /> },
           { id: 'system' as const, label: 'System Core', icon: <Settings className="w-4 h-4" /> },
+          { id: 'modules' as const, label: 'Modules', icon: <Eye className="w-4 h-4" /> },
         ]).map((tab) => (
           <button
             key={tab.id}
@@ -1036,6 +1054,79 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               </div>
             </div>
           )}
+        </div>
+        </>)}
+
+        {/* ===== MODULES TAB ===== */}
+        {settingsTab === 'modules' && (<>
+        <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Eye className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-black text-foreground uppercase tracking-wider">Gestion des Modules</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Activer / Désactiver les modules de la sidebar</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const allOn: Record<string, boolean> = {};
+                  MODULE_DEFS.forEach(m => { allOn[m.id] = true; });
+                  setEnabledModules(allOn);
+                }}
+                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+              >
+                Tout Activer
+              </button>
+              <button
+                onClick={() => {
+                  const allOff: Record<string, boolean> = {};
+                  MODULE_DEFS.forEach(m => { allOff[m.id] = false; });
+                  setEnabledModules(allOff);
+                }}
+                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider bg-muted text-muted-foreground hover:bg-muted/80 transition-all"
+              >
+                Tout Désactiver
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {MODULE_DEFS.map((mod) => {
+              const isOn = enabledModules[mod.id] !== false;
+              return (
+                <button
+                  key={mod.id}
+                  onClick={() => setEnabledModules({ ...enabledModules, [mod.id]: !isOn })}
+                  className={`flex items-center gap-4 p-5 rounded-2xl border transition-all text-left group ${
+                    isOn
+                      ? 'bg-primary/5 border-primary/30 hover:border-primary/50'
+                      : 'bg-muted/30 border-border opacity-60 hover:opacity-80'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                    isOn ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {mod.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[12px] font-black uppercase tracking-wider ${isOn ? 'text-foreground' : 'text-muted-foreground'}`}>{mod.label}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{mod.description}</p>
+                  </div>
+                  <div className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-all shrink-0 ${
+                    isOn ? 'bg-primary justify-end' : 'bg-muted-foreground/30 justify-start'
+                  }`}>
+                    <div className="w-5 h-5 rounded-full bg-white shadow-sm" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-6 text-center">
+            Les modules désactivés n'apparaîtront plus dans la barre latérale. Le module Settings reste toujours accessible.
+          </p>
         </div>
         </>)}
       </div>
