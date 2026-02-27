@@ -13,6 +13,7 @@ import ProfileChart from './radio-profile/ProfileChart';
 import InfoPanel from './radio-profile/InfoPanel';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import MapViewManager, { MapViewSettings } from './MapViewManager';
 
 // Heatmap layer component using leaflet.heat
 const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
@@ -625,6 +626,56 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
   };
+
+  // Map View save/load
+  const getCurrentMapSettings = useCallback((): MapViewSettings => {
+    const mapEl = document.querySelector('.leaflet-container') as any;
+    const leafletMap = mapEl?._leaflet_map || mapEl?.['__leaflet_map'];
+    let center: [number, number] = [43.2965, 5.3698];
+    let zoom = 6;
+    if (viewport.bounds) {
+      const c = viewport.bounds.getCenter();
+      center = [c.lat, c.lng];
+      zoom = viewport.zoom;
+    }
+    return {
+      center,
+      zoom,
+      mapLayer,
+      mapKpi,
+      mapTechnoFilter,
+      enabledBands: Array.from(enabledBands),
+      sectorColorMode,
+      mapDisplayMode,
+      showBandPanel,
+      showLegend,
+      showRightPanel,
+      panelCollapsed,
+      localVendor,
+      localDor,
+      localPlaque,
+      localSite,
+    };
+  }, [viewport, mapLayer, mapKpi, mapTechnoFilter, enabledBands, sectorColorMode, mapDisplayMode, showBandPanel, showLegend, showRightPanel, panelCollapsed, localVendor, localDor, localPlaque, localSite]);
+
+  const handleLoadView = useCallback((settings: MapViewSettings) => {
+    setMapLayer(settings.mapLayer);
+    setMapKpi(settings.mapKpi);
+    setMapTechnoFilter(settings.mapTechnoFilter as any);
+    setEnabledBands(new Set(settings.enabledBands));
+    setSectorColorMode(settings.sectorColorMode);
+    setMapDisplayMode(settings.mapDisplayMode);
+    setShowBandPanel(settings.showBandPanel);
+    setShowLegend(settings.showLegend);
+    setShowRightPanel(settings.showRightPanel);
+    setPanelCollapsed(settings.panelCollapsed);
+    setLocalVendor(settings.localVendor);
+    setLocalDor(settings.localDor);
+    setLocalPlaque(settings.localPlaque);
+    setLocalSite(settings.localSite);
+    // Fly to saved center/zoom
+    setFlyTarget(settings.center);
+  }, []);
 
   const handleSiteClick = (site: SiteSummary) => {
     setFlyTarget(site.coordinates);
@@ -1295,6 +1346,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
             )}
           </div>
+
+          <span className="w-px h-6 bg-border/50 shrink-0" />
+
+          {/* Map Views Manager */}
+          <MapViewManager
+            currentSettings={getCurrentMapSettings()}
+            onLoadView={handleLoadView}
+          />
         </div>
       </div>
 
