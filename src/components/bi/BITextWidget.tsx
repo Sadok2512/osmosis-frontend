@@ -36,7 +36,8 @@ export function createDefaultTextWidget(id: string): TextWidgetConfig {
 const TEXT_COLORS = ['#ffffff', '#1e293b', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'];
 const BG_COLORS = ['', '#ffffff', '#1e293b', '#0f172a', '#fef2f2', '#fff7ed', '#fefce8', '#f0fdf4', '#eff6ff', '#f5f3ff', '#fdf2f8', '#ecfeff', '#3b82f6', '#22c55e', '#f97316', '#ef4444', '#8b5cf6'];
 
-const BITextWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
+const BITextWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete }) => {
+  const config = rawConfig ?? createDefaultTextWidget('fallback');
   const [editing, setEditing] = useState(false);
   const [showToolbar, setShowToolbar] = useState(false);
   const [showTextColors, setShowTextColors] = useState(false);
