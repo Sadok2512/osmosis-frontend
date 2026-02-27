@@ -1856,7 +1856,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * (0.5 + 0.5 * (beamVisibility / 100));
           const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           const beamScale = beamVisibility / 100;
-          const overlapFactor = baseOverlap * beamScale;
+          const overlapFactor = baseOverlap + (1 - baseOverlap) * beamScale;
           const isFocusFaded = focusMode !== 'global' && !isSelectedSite;
 
           /* ── ALL mode: one sector per tech per unique azimuth ── */
@@ -1907,7 +1907,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       pathOptions={{
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
-                        fillOpacity: isHovered ? 0.40 : (isFocusFaded ? 0.08 : 0.25),
+                        fillOpacity: isHovered ? 0.40 : (isFocusFaded ? 0.08 : overlapFactor),
                         weight: isHovered ? 1.5 : 1,
                         opacity: isHovered ? 0.9 : (isFocusFaded ? 0.25 : 0.7),
                       }}
