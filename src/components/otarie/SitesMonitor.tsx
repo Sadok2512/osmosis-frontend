@@ -1693,7 +1693,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isSelectedSite = selectedSiteId === site.site_id;
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom);
           // Smart overlap: reduce opacity further when many sites visible
-          const overlapFactor = visibleSites.length > 200 ? 0.08 : visibleSites.length > 80 ? 0.12 : 0.15;
+          const overlapFactor = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           // Focus mode: fade non-selected sites
           const isFocusFaded = focusMode !== 'global' && !isSelectedSite;
           return (
@@ -1707,7 +1707,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : (sectorColorMode === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
                 const isFocusCell = focusCellId === cell.cell_id;
                 const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
-                const baseOpacity = isFocusFaded ? 0.06 : (isFaded ? 0.06 : (isCellDimmed ? 0.10 : overlapFactor));
+                const baseOpacity = isFocusFaded ? 0.08 : (isFaded ? 0.08 : (isCellDimmed ? 0.15 : overlapFactor));
                 const strokeWeight = isFocusCell ? 2 : (isHovered ? 1.5 : 1);
                 return (
                   <Polygon
@@ -1716,9 +1716,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pathOptions={{
                       color: isFocusCell ? '#fff' : (isHovered ? '#fff' : strokeColor),
                       fillColor: fillColor,
-                      fillOpacity: isFocusCell ? 0.30 : (isHovered ? 0.28 : baseOpacity),
+                      fillOpacity: isFocusCell ? 0.45 : (isHovered ? 0.40 : baseOpacity),
                       weight: strokeWeight,
-                      opacity: isFocusCell ? 1 : (isHovered ? 0.9 : (isFocusFaded ? 0.15 : (isFaded ? 0.2 : 0.55))),
+                      opacity: isFocusCell ? 1 : (isHovered ? 0.9 : (isFocusFaded ? 0.25 : (isFaded ? 0.3 : 0.7))),
                     }}
                     eventHandlers={{
                       click: () => {
