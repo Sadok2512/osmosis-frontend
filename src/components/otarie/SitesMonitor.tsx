@@ -292,8 +292,13 @@ const createSiteIcon = (color: string) => {
 // Dashboard tab for Inventory Index left panel
 interface DashboardInventoryTabProps {
   onApplyView?: (settings: any) => void;
+  beamVisibility?: number;
+  onBeamVisChange?: (v: number) => void;
+  onSaveDashboard?: (dbId: string) => void;
+  onLoadDashboard?: (dbId: string) => void;
+  isSaving?: boolean;
 }
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -431,7 +436,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
 
   // ── Reusable settings panel ──
-  const SettingsPanel = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared }: { settings: any; onUpdate: (u: Record<string, any>) => void; onRename?: (name: string) => void; currentName?: string; dashboardId?: string; isShared?: boolean }) => {
+  const SettingsPanel = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving }: { settings: any; onUpdate: (u: Record<string, any>) => void; onRename?: (name: string) => void; currentName?: string; dashboardId?: string; isShared?: boolean; beamVis?: number; onBeamVisChange?: (v: number) => void; onSaveDashboard?: () => void; onLoadDashboard?: () => void; isSaving?: boolean }) => {
     const [localName, setLocalName] = useState(currentName || '');
     const [localMapStyle, setLocalMapStyle] = useState(settings.mapStyle || settings.mapLayer || 'street');
     const [localThemeMode, setLocalThemeMode] = useState(settings.themeMode || 'light');
@@ -716,7 +721,60 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </div>
             )}
 
-            {/* ── Filters (views only) — wizard: tech → attribute → value ── */}
+            {/* ── Beam Visibility Slider ── */}
+            {dashboardId && (
+              <div className="p-4 rounded-xl border border-border bg-background">
+                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
+                  📡 Visibilité des faisceaux (Beam)
+                </label>
+                <p className="text-[9px] text-muted-foreground mb-3">Contrôle l'opacité et la taille des secteurs sur la carte</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-[9px] font-mono text-muted-foreground w-6 text-right">0%</span>
+                  <Slider
+                    value={[beamVis ?? 75]}
+                    onValueChange={([v]) => { if (onBeamVisChange) onBeamVisChange(v); }}
+                    min={0}
+                    max={100}
+                    step={5}
+                    className="flex-1"
+                  />
+                  <span className="text-[9px] font-mono text-muted-foreground w-8">{beamVis ?? 75}%</span>
+                </div>
+                <div className="flex justify-between mt-2 text-[8px] text-muted-foreground/60">
+                  <span>Invisible</span>
+                  <span>Max</span>
+                </div>
+              </div>
+            )}
+
+            {/* ── Dashboard Save/Load ── */}
+            {dashboardId && (
+              <div className="p-4 rounded-xl border border-border bg-background">
+                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
+                  💾 Sauvegarde rapide
+                </label>
+                <p className="text-[9px] text-muted-foreground mb-3">Sauvegarder ou charger l'état complet de la carte dans ce dashboard</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => { if (onSaveDashboard) onSaveDashboard(); }}
+                    disabled={isSaving}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary"
+                  >
+                    {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                    <span className="uppercase tracking-wider">Save</span>
+                  </button>
+                  <button
+                    onClick={() => { if (onLoadDashboard) onLoadDashboard(); }}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted"
+                  >
+                    <FolderOpen size={14} />
+                    <span className="uppercase tracking-wider">Load</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+
             {!dashboardId && (
               <div className="p-4 rounded-xl border border-border bg-background">
                 <div className="flex items-center justify-between mb-3">
@@ -957,6 +1015,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     currentName={db.name}
                     dashboardId={db.id}
                     isShared={db.is_shared}
+                    beamVis={beamVis}
+                    onBeamVisChange={onBeamVisChange}
+                    onSaveDashboard={() => { if (onSaveDashboard) onSaveDashboard(db.id); }}
+                    onLoadDashboard={() => { if (onLoadDashboard) onLoadDashboard(db.id); }}
+                    isSaving={isSaving}
                   />
                 )}
 
@@ -1157,6 +1220,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [expandedSector, setExpandedSector] = useState<number | null>(null);
   const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim'>('kpi');
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('sites');
+  const [beamVisibility, setBeamVisibility] = useState<number>(() => {
+    try { const v = localStorage.getItem('qoebit_beam_visibility'); return v ? Number(v) : 75; } catch { return 75; }
+  });
 
   // ── Active Dashboard selector ──
   const [activeDashboardId, setActiveDashboardId] = useState<string | null>(() => localStorage.getItem('qoebit_active_dashboard'));
@@ -1185,14 +1251,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const widgets = Array.isArray(db.widgets) ? [...db.widgets] : [];
     const idx = widgets.findIndex((w: any) => w?._type === 'dashboard_settings');
     const existing = idx >= 0 ? widgets[idx] : { _type: 'dashboard_settings' };
-    const updated = { ...existing, ...currentSettings, bandColors };
+    const updated = { ...existing, ...currentSettings, bandColors, beamVisibility };
     if (idx >= 0) widgets[idx] = updated; else widgets.push(updated);
     await supabase.from('dashboards').update({ widgets, updated_at: new Date().toISOString() }).eq('id', activeDashboardId);
     setDashboardList(prev => prev.map(d => d.id === activeDashboardId ? { ...d, widgets } : d));
     setDashboardSaving(false);
     setDashboardSaveFlash(true);
     setTimeout(() => setDashboardSaveFlash(false), 1500);
-  }, [activeDashboardId, dashboardList, bandColors]);
+  }, [activeDashboardId, dashboardList, bandColors, beamVisibility]);
 
   const loadDashboardSettings = useCallback((dbId: string) => {
     const db = dashboardList.find(d => d.id === dbId);
@@ -1219,6 +1285,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         localStorage.setItem('qoebit_band_colors', JSON.stringify(settings.bandColors));
       }
       if (settings.center) setFlyTarget(settings.center);
+      if (settings.beamVisibility != null) {
+        setBeamVisibility(settings.beamVisibility);
+        localStorage.setItem('qoebit_beam_visibility', String(settings.beamVisibility));
+      }
     }
     setActiveDashboardId(dbId);
     localStorage.setItem('qoebit_active_dashboard', dbId);
@@ -1595,8 +1665,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       localDor,
       localPlaque,
       localSite,
+      beamVisibility,
     };
-  }, [viewport, mapLayer, mapKpi, mapTechnoFilter, enabledBands, sectorColorMode, mapDisplayMode, showBandPanel, showLegend, showRightPanel, panelCollapsed, localVendor, localDor, localPlaque, localSite]);
+  }, [viewport, mapLayer, mapKpi, mapTechnoFilter, enabledBands, sectorColorMode, mapDisplayMode, showBandPanel, showLegend, showRightPanel, panelCollapsed, localVendor, localDor, localPlaque, localSite, beamVisibility]);
 
   const handleLoadView = useCallback((settings: MapViewSettings) => {
     setMapLayer(settings.mapLayer);
@@ -1615,6 +1686,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLocalSite(settings.localSite);
     // Fly to saved center/zoom
     setFlyTarget(settings.center);
+    if ((settings as any).beamVisibility != null) {
+      setBeamVisibility((settings as any).beamVisibility);
+      localStorage.setItem('qoebit_beam_visibility', String((settings as any).beamVisibility));
+    }
   }, []);
 
   const handleSiteClick = (site: SiteSummary) => {
@@ -1793,8 +1868,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
-          const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom);
-          const overlapFactor = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
+          const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * (0.5 + 0.5 * (beamVisibility / 100));
+          const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
+          const beamScale = beamVisibility / 100;
+          const overlapFactor = baseOverlap * beamScale;
           const isFocusFaded = focusMode !== 'global' && !isSelectedSite;
 
           /* ── ALL mode: one sector per tech per unique azimuth ── */
@@ -2920,16 +2997,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               {/* ── Dashboard tab ── */}
                {inventoryTab === 'dashboard' && (
-                <DashboardInventoryTab onApplyView={(settings) => {
-                  if (settings.mapLayer) setMapLayer(settings.mapLayer);
-                  if (settings.mapKpi) setMapKpi(settings.mapKpi);
-                  if (settings.center && Array.isArray(settings.center)) {
-                    setFlyTarget(settings.center as [number, number]);
-                  }
-                  if (settings.mapTechnoFilter) {
-                    // Apply tech filter if present
-                  }
-                }} />
+                <DashboardInventoryTab
+                  onApplyView={(settings) => {
+                    if (settings.mapLayer) setMapLayer(settings.mapLayer);
+                    if (settings.mapKpi) setMapKpi(settings.mapKpi);
+                    if (settings.center && Array.isArray(settings.center)) {
+                      setFlyTarget(settings.center as [number, number]);
+                    }
+                    if (settings.mapTechnoFilter) {
+                      // Apply tech filter if present
+                    }
+                  }}
+                  beamVisibility={beamVisibility}
+                  onBeamVisChange={(v) => { setBeamVisibility(v); localStorage.setItem('qoebit_beam_visibility', String(v)); }}
+                  onSaveDashboard={(dbId) => { setActiveDashboardId(dbId); localStorage.setItem('qoebit_active_dashboard', dbId); setTimeout(() => saveDashboardSettings(), 50); }}
+                  onLoadDashboard={(dbId) => loadDashboardSettings(dbId)}
+                  isSaving={dashboardSaving}
+                />
               )}
             </div>
           )}
