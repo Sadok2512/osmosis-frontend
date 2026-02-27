@@ -1293,7 +1293,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Focus mode: 'global' | 'site' | 'cell'
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
-  const [expandedSector, setExpandedSector] = useState<number | null>(null);
+  const [expandedSectors, setExpandedSectors] = useState<Set<number>>(new Set());
   const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim'>('kpi');
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('sites');
   const [beamVisibility, setBeamVisibility] = useState<number>(() => {
@@ -3000,14 +3000,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               <div className="flex items-center gap-2 flex-wrap mb-2">
                                 {sortedSec.map(([sNum, cells]) => {
                                   const techs = [...new Set(cells.map(c => c.techno))].filter(Boolean).sort((a, b) => (a.includes('5G') ? -1 : 1));
-                                  const isSectorExpanded = expandedSector === sNum;
+                                  const isSectorExpanded = expandedSectors.has(sNum);
                                   const hasFocusedCell = cells.some(c => c.cell_id === focusCellId);
                                   return (
                                     <button
                                       key={sNum}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setExpandedSector(isSectorExpanded ? null : sNum);
+                                        setExpandedSectors(prev => {
+                                          const next = new Set(prev);
+                                          if (next.has(sNum)) next.delete(sNum); else next.add(sNum);
+                                          return next;
+                                        });
                                       }}
                                       className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-xl border-2 transition-all min-w-[64px] ${
                                         isSectorExpanded || hasFocusedCell
@@ -3039,8 +3043,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               </div>
 
                               {/* Expanded sector → cell list */}
-                              {expandedSector != null && (() => {
-                                const secCells = sortedSec.find(([s]) => s === expandedSector)?.[1] || [];
+                              {expandedSectors.size > 0 && (() => {
+                                const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
                                 if (!secCells.length) return null;
                                 return (
                                   <div className="border border-border rounded-xl overflow-hidden animate-fade-in">
