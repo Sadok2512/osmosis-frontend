@@ -2364,10 +2364,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   ))}
                 </div>
 
-                {/* ── KPI Tab ── */}
+                {/* ── KPI Tab — same style as Site Focus ── */}
                 {cellDetailTab === 'kpi' && (
                   <>
-                    {/* DMS Metric Cards */}
+                    {/* DMS Metric Cards Row */}
                     <div className="px-5 py-4">
                       <div className="grid grid-cols-4 gap-2">
                         {[
@@ -2376,65 +2376,96 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           { label: 'DMS DL 30M', value: cell.dms_dl_30 ?? 0 },
                           { label: 'DMS UL 3M', value: cell.dms_ul_3 ?? 0 },
                         ].map((m, i) => (
-                          <div key={i} className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
-                            <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{m.label}</div>
-                            <div className="text-[14px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
+                          <div key={i} className="bg-muted/40 rounded-xl border border-border px-3 py-3 text-center">
+                            <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{m.label}</div>
+                            <div className="text-[16px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    {/* QoE + DL + UL + RTT */}
+                    {/* QoE + Throughput + RTT Row — identical to site */}
                     <div className="px-5 py-4">
                       <div className="grid grid-cols-4 gap-2">
-                        <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
-                          <div className="text-[8px] font-bold text-muted-foreground uppercase">QoE</div>
-                          <div className="text-[22px] font-black leading-none mt-1" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
+                        {/* QoE big card */}
+                        <div className="bg-muted/30 rounded-xl border border-border px-3 py-4 text-center">
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider leading-tight">Score QoE<br/>Global</div>
+                          <div className="text-[28px] font-black mt-1 leading-none" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
                             {cell.qoe_score_avg.toFixed(1)}%
                           </div>
+                          <div className="w-12 h-1 rounded-full mx-auto mt-2" style={{ background: getKpiColor(cell.qoe_score_avg) }} />
                         </div>
-                        <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
-                          <div className="text-[8px] font-bold text-muted-foreground uppercase">DL</div>
-                          <div className="text-[18px] font-black text-foreground leading-none mt-1">
-                            {(cell.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">M</span>
+                        {/* DL */}
+                        <div className="bg-muted/30 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center mb-1.5">
+                            <ChevronDown size={14} className="text-primary" />
+                          </div>
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Débit DL</div>
+                          <div className="text-[22px] font-black text-foreground leading-tight mt-0.5">
+                            {(cell.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[11px] font-semibold text-muted-foreground ml-0.5">M</span>
                           </div>
                         </div>
-                        <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
-                          <div className="text-[8px] font-bold text-muted-foreground uppercase">UL</div>
-                          <div className="text-[18px] font-black text-foreground leading-none mt-1">
-                            {(cell.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">M</span>
+                        {/* UL */}
+                        <div className="bg-muted/30 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
+                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center mb-1.5">
+                            <ChevronUp size={14} className="text-primary" />
+                          </div>
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Débit UL</div>
+                          <div className="text-[22px] font-black text-foreground leading-tight mt-0.5">
+                            {(cell.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[11px] font-semibold text-muted-foreground ml-0.5">M</span>
                           </div>
                         </div>
-                        <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
-                          <div className="text-[8px] font-bold text-muted-foreground uppercase">RTT</div>
-                          <div className="text-[18px] font-black text-foreground leading-none mt-1">
-                            {(cell.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">ms</span>
+                        {/* RTT */}
+                        <div className="bg-muted/30 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
+                          <div className="w-7 h-7 rounded-full bg-amber-500/10 flex items-center justify-center mb-1.5">
+                            <Zap size={14} className="text-amber-500" />
+                          </div>
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">RTT</div>
+                          <div className="text-[22px] font-black text-foreground leading-tight mt-0.5">
+                            {(cell.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[11px] font-semibold text-muted-foreground ml-0.5">MS</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Performance table */}
-                    <div className="px-4 py-3">
-                      <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Performance</h4>
-                      <div className="space-y-0">
-                        {[
-                          { label: 'QoE Score', value: `${cell.qoe_score_avg.toFixed(1)}%`, color: getKpiColor(cell.qoe_score_avg) },
-                          { label: 'DMS DL ≥3 Mbps', value: `${(cell.dms_dl_3 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_3 ?? 0) },
-                          { label: 'DMS DL ≥8 Mbps', value: `${(cell.dms_dl_8 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_8 ?? 0) },
-                          { label: 'DMS DL ≥30 Mbps', value: `${(cell.dms_dl_30 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_30 ?? 0) },
-                          { label: 'DMS UL ≥3 Mbps', value: `${(cell.dms_ul_3 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_ul_3 ?? 0) },
-                          { label: 'Throughput DL', value: `${(cell.p50_thr_dn_mbps ?? 0).toFixed(1)} Mbps` },
-                          { label: 'Throughput UL', value: `${(cell.p50_thr_up_mbps ?? 0).toFixed(1)} Mbps` },
-                          { label: 'RTT P95', value: `${(cell.p95_rtt_ms ?? 0).toFixed(0)} ms` },
-                          { label: 'Sessions', value: cell.sessions?.toLocaleString() ?? '—' },
-                        ].map((kpi, i) => (
-                          <div key={i} className="flex items-center justify-between py-1 text-[12px] border-b border-border/30 last:border-0">
-                            <span className="text-muted-foreground">{kpi.label}</span>
-                            <span className="font-medium" style={kpi.color ? { color: kpi.color } : undefined}>{kpi.value}</span>
-                          </div>
-                        ))}
+                    {/* AI Diagnostic Card — same dark style */}
+                    <div className="px-5 py-4">
+                      <div className="rounded-2xl px-5 py-4 flex items-center gap-4" style={{ background: 'linear-gradient(135deg, hsl(220 40% 13%), hsl(220 50% 18%))' }}>
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'hsl(80 60% 45%)', boxShadow: '0 0 20px hsla(80, 60%, 45%, 0.3)' }}>
+                          <Settings2 size={20} className="text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13px] font-extrabold text-white uppercase tracking-wide">AI Diagnostic</div>
+                          <div className="text-[10px] text-white/50 font-medium">RCA Analysis</div>
+                        </div>
+                        <button
+                          onClick={() => { if (siteDetail && onLaunchAI) onLaunchAI(cell.cell_id); }}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-white/90 transition-colors shrink-0"
+                        >
+                          <Zap size={13} />
+                          Lancer
+                        </button>
                       </div>
+                    </div>
+
+                    {/* KPI Evolution Chart */}
+                    <div className="px-5 py-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChart2 size={14} className="text-primary" />
+                        <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Evolution Temporelle des KPIs</h4>
+                      </div>
+                      <SiteKpiChart siteDetail={{ ...siteDetail, qoe_score_avg: cell.qoe_score_avg, dms_dl_3: cell.dms_dl_3, dms_dl_8: cell.dms_dl_8, dms_dl_30: cell.dms_dl_30, dms_ul_3: cell.dms_ul_3, site_id: cell.cell_id }} />
+                    </div>
+
+                    {/* Radio Profile button */}
+                    <div className="px-5 py-3">
+                      <button
+                        onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider"
+                      >
+                        <Crosshair size={14} />
+                        Radio Profile
+                      </button>
                     </div>
                   </>
                 )}
