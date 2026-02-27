@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart, ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check, Grid3X3, ArrowLeftRight } from 'lucide-react';
-import { ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine, MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI, Aggregation, ChartType, Granularity, AxisSide, LineStyle } from './biTypes';
+import { Switch } from '@/components/ui/switch';
+import {
+  X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart,
+  ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check,
+  Grid3X3, ArrowLeftRight, Calendar, Filter, GitBranch, Settings2, Palette,
+  GripVertical, Zap, Target, Milestone
+} from 'lucide-react';
+import {
+  ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine,
+  MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI,
+  Aggregation, ChartType, Granularity, AxisSide, LineStyle, KPI_UNITS
+} from './biTypes';
 import { getDimensionValues } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
 
@@ -16,9 +26,9 @@ const GRANULARITIES: Granularity[] = ['hour', 'day', 'week', 'month'];
 const LINE_STYLES: LineStyle[] = ['solid', 'dashed', 'dotted'];
 
 const SIMPLE_PALETTE = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1',
-  '#84cc16', '#e11d48',
+  '#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+  '#06B6D4', '#EC4899', '#14B8A6', '#F97316', '#6366F1',
+  '#84CC16', '#E11D48',
 ];
 
 const BG_PALETTE = [
@@ -26,23 +36,6 @@ const BG_PALETTE = [
   '#0f172a', '#1e293b', '#1a1a2e', '#fef9ef', '#f0fdf4',
   '#eff6ff', '#fdf2f8',
 ];
-
-const ColorSwatch: React.FC<{ color: string; selected: boolean; onClick: () => void; size?: 'sm' | 'md' }> = ({ color, selected, onClick, size = 'sm' }) => (
-  <button
-    onClick={onClick}
-    className={`rounded-md border-2 transition-all ${selected ? 'border-primary scale-110 shadow-sm' : 'border-transparent hover:border-primary/40'}`}
-    style={{
-      width: size === 'sm' ? 18 : 22,
-      height: size === 'sm' ? 18 : 22,
-      background: color === 'transparent'
-        ? 'linear-gradient(45deg, #e2e8f0 25%, transparent 25%, transparent 75%, #e2e8f0 75%), linear-gradient(45deg, #e2e8f0 25%, transparent 25%, transparent 75%, #e2e8f0 75%)'
-        : color,
-      backgroundSize: color === 'transparent' ? '8px 8px' : undefined,
-      backgroundPosition: color === 'transparent' ? '0 0, 4px 4px' : undefined,
-    }}
-    title={color === 'transparent' ? 'Transparent' : color}
-  />
-);
 
 const CHART_TYPE_OPTIONS: { type: ChartType; icon: React.ReactNode; label: string }[] = [
   { type: 'line', icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'Ligne' },
@@ -56,30 +49,123 @@ const CHART_TYPE_OPTIONS: { type: ChartType; icon: React.ReactNode; label: strin
   { type: 'kpi_card', icon: <Hash className="w-3.5 h-3.5" />, label: 'KPI' },
 ];
 
-const SectionHeader: React.FC<{ title: string; number: string; open: boolean; toggle: () => void }> = ({ title, number, open, toggle }) => (
-  <button onClick={toggle} className="flex items-center gap-2 w-full py-2 text-xs font-semibold text-foreground uppercase tracking-wider">
-    {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-    <span className="text-primary font-mono">{number}</span> {title}
-  </button>
+const DATE_PRESETS = [
+  { label: '7D', days: 7 },
+  { label: '14D', days: 14 },
+  { label: '30D', days: 30 },
+  { label: '90D', days: 90 },
+];
+
+/* ─── Reusable Components ─── */
+
+const SectionCard: React.FC<{
+  title: string;
+  icon: React.ReactNode;
+  open: boolean;
+  toggle: () => void;
+  badge?: string;
+  children: React.ReactNode;
+}> = ({ title, icon, open, toggle, badge, children }) => (
+  <div className="rounded-xl border border-border/60 bg-card/50 overflow-hidden transition-all duration-200 hover:border-border">
+    <button
+      onClick={toggle}
+      className="flex items-center gap-2.5 w-full px-4 py-3 text-left group transition-colors hover:bg-muted/30"
+    >
+      <span className="text-primary/80 group-hover:text-primary transition-colors">{icon}</span>
+      <span className="text-[13px] font-semibold text-foreground flex-1 tracking-tight">{title}</span>
+      {badge && (
+        <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-semibold tabular-nums">
+          {badge}
+        </span>
+      )}
+      <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-0' : '-rotate-90'}`} />
+    </button>
+    <div className={`transition-all duration-200 ease-out ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+      <div className="px-4 pb-4 pt-1 space-y-3">
+        {children}
+      </div>
+    </div>
+  </div>
 );
 
-const Select: React.FC<{ value: string; options: readonly string[]; onChange: (v: string) => void; className?: string }> = ({ value, options, onChange, className }) => (
-  <select value={value} onChange={e => onChange(e.target.value)}
-    className={`bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary ${className || ''}`}>
+const FieldLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{children}</span>
+);
+
+const StyledSelect: React.FC<{
+  value: string;
+  options: readonly string[];
+  onChange: (v: string) => void;
+  className?: string;
+  placeholder?: string;
+}> = ({ value, options, onChange, className, placeholder }) => (
+  <select
+    value={value}
+    onChange={e => onChange(e.target.value)}
+    className={`w-full bg-background border border-border/70 rounded-lg px-3 py-2 text-[13px] text-foreground
+      outline-none transition-all duration-150
+      focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+      hover:border-border appearance-none cursor-pointer ${className || ''}`}
+  >
+    {placeholder && <option value="">{placeholder}</option>}
     {options.map(o => <option key={o} value={o}>{o}</option>)}
   </select>
 );
 
+const ColorDot: React.FC<{ color: string; selected: boolean; onClick: () => void; size?: number }> = ({
+  color, selected, onClick, size = 20
+}) => (
+  <button
+    onClick={onClick}
+    className={`rounded-full border-2 transition-all duration-150 hover:scale-110 ${
+      selected
+        ? 'border-primary shadow-[0_0_0_2px_hsl(var(--primary)/0.2)] scale-110'
+        : 'border-transparent hover:border-primary/30'
+    }`}
+    style={{
+      width: size, height: size,
+      background: color === 'transparent'
+        ? 'repeating-conic-gradient(hsl(var(--muted)) 0% 25%, transparent 0% 50%) 50% / 8px 8px'
+        : color,
+    }}
+    title={color === 'transparent' ? 'Transparent' : color}
+  />
+);
+
+const SegmentedControl: React.FC<{
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}> = ({ options, value, onChange }) => (
+  <div className="inline-flex rounded-lg bg-muted/60 p-0.5 border border-border/40">
+    {options.map(opt => (
+      <button
+        key={opt.value}
+        onClick={() => onChange(opt.value)}
+        className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-all duration-150 ${
+          value === opt.value
+            ? 'bg-background text-foreground shadow-sm border border-border/50'
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        {opt.label}
+      </button>
+    ))}
+  </div>
+);
+
+/* ─── Main Panel ─── */
+
 const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
-  const [sections, setSections] = useState({ source: true, x: true, y: true, filters: false, group: false, advanced: false });
+  const [sections, setSections] = useState({
+    source: true, x: true, y: true, filters: false, group: false, advanced: false
+  });
   const toggle = (s: keyof typeof sections) => setSections(p => ({ ...p, [s]: !p[s] }));
   const { datasets } = useCSVData();
 
-  // Draft state — changes are buffered until Apply is clicked
   const [draft, setDraft] = useState<ChartConfig>(() => JSON.parse(JSON.stringify(config)));
   const [dirty, setDirty] = useState(false);
 
-  // Reset draft when external config changes (e.g. switching charts)
   useEffect(() => {
     setDraft(JSON.parse(JSON.stringify(config)));
     setDirty(false);
@@ -134,331 +220,554 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
     setDirty(false);
   };
 
+  const applyDatePreset = (days: number) => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    updateX({
+      dateStart: start.toISOString().split('T')[0],
+      dateEnd: end.toISOString().split('T')[0],
+    });
+  };
+
   return (
-    <div className="w-80 h-full bg-card border-l border-border flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex flex-col">
-          <span className="text-xs font-semibold text-foreground">Chart Configuration</span>
-          <input value={draft.title} onChange={e => update({ title: e.target.value })}
-            className="mt-1 bg-transparent text-sm font-medium text-foreground outline-none border-b border-transparent focus:border-primary" />
+    <div className="w-[340px] h-full bg-background/95 backdrop-blur-xl border-l border-border/50 flex flex-col overflow-hidden">
+
+      {/* ─── Header ─── */}
+      <div className="px-5 py-4 border-b border-border/50">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Settings2 className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors"
+          >
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
         </div>
-        <button onClick={onClose} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
+        <input
+          value={draft.title}
+          onChange={e => update({ title: e.target.value })}
+          className="w-full bg-transparent text-base font-semibold text-foreground outline-none
+            border-b-2 border-transparent focus:border-primary/40 transition-colors
+            placeholder:text-muted-foreground/50 pb-1"
+          placeholder="Titre du graphique…"
+        />
       </div>
 
-      {/* Scrollable sections */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
+      {/* ─── Scrollable Sections ─── */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 scrollbar-thin">
 
         {/* ── DATA SOURCE ── */}
-        {datasets.length > 0 && (<>
-          <SectionHeader title="Data Source" number="0" open={sections.source} toggle={() => toggle('source')} />
-          {sections.source && (
-            <div className="pl-5 space-y-2 pb-3">
-              <div className="flex gap-2">
+        {datasets.length > 0 && (
+          <SectionCard
+            title="Source de données"
+            icon={<Database className="w-4 h-4" />}
+            open={sections.source}
+            toggle={() => toggle('source')}
+          >
+            <div className="flex gap-2">
+              {[
+                { type: 'mock' as const, label: 'Simulé', icon: <Zap className="w-3.5 h-3.5" /> },
+                { type: 'csv' as const, label: 'CSV', icon: <Database className="w-3.5 h-3.5" /> },
+              ].map(src => (
                 <button
-                  onClick={() => update({ dataSource: { type: 'mock' } })}
-                  className={`flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium border transition-colors ${
-                    (!draft.dataSource || draft.dataSource.type === 'mock')
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
+                  key={src.type}
+                  onClick={() => update({ dataSource: { type: src.type, ...(src.type === 'csv' ? { csvDatasetId: datasets[0]?.id } : {}) } })}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-[12px] font-medium border transition-all duration-150 ${
+                    ((!draft.dataSource || draft.dataSource.type === 'mock') && src.type === 'mock') ||
+                    (draft.dataSource?.type === 'csv' && src.type === 'csv')
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-background text-muted-foreground border-border/60 hover:border-primary/40 hover:text-foreground'
                   }`}
                 >
-                  <Database className="w-3 h-3" /> Simulé
+                  {src.icon} {src.label}
                 </button>
-                <button
-                  onClick={() => update({ dataSource: { type: 'csv', csvDatasetId: datasets[0]?.id } })}
-                  className={`flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium border transition-colors ${
-                    draft.dataSource?.type === 'csv'
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
-                  }`}
-                >
-                  <Database className="w-3 h-3" /> CSV
-                </button>
+              ))}
+            </div>
+            {draft.dataSource?.type === 'csv' && (
+              <div className="space-y-3 pt-1">
+                <StyledSelect
+                  value={draft.dataSource.csvDatasetId || ''}
+                  options={datasets.map(ds => ds.id)}
+                  onChange={v => update({ dataSource: { ...draft.dataSource!, csvDatasetId: v } })}
+                />
+                {(() => {
+                  const ds = datasets.find(d => d.id === draft.dataSource?.csvDatasetId);
+                  if (!ds) return null;
+                  return (
+                    <>
+                      <div className="space-y-1.5">
+                        <FieldLabel>Colonne X</FieldLabel>
+                        <StyledSelect
+                          value={draft.dataSource?.xColumn || ds.columns[0]}
+                          options={ds.columns}
+                          onChange={v => update({ dataSource: { ...draft.dataSource!, xColumn: v } })}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>Colonnes Y</FieldLabel>
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                          {ds.columns.filter(c => c !== (draft.dataSource?.xColumn || ds.columns[0])).map(col => {
+                            const selected = draft.dataSource?.yColumns?.includes(col);
+                            return (
+                              <button
+                                key={col}
+                                onClick={() => {
+                                  const current = draft.dataSource?.yColumns || [];
+                                  const next = selected ? current.filter(c => c !== col) : [...current, col];
+                                  update({ dataSource: { ...draft.dataSource!, yColumns: next } });
+                                }}
+                                className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-all duration-150 ${
+                                  selected
+                                    ? 'bg-primary/10 text-primary border-primary/30'
+                                    : 'bg-background text-muted-foreground border-border/50 hover:border-primary/30'
+                                }`}
+                              >
+                                {col}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
-              {draft.dataSource?.type === 'csv' && (
-                <div className="space-y-2">
-                  <select
-                    value={draft.dataSource.csvDatasetId || ''}
-                    onChange={e => update({ dataSource: { ...draft.dataSource!, csvDatasetId: e.target.value } })}
-                    className="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    {datasets.map(ds => (
-                      <option key={ds.id} value={ds.id}>{ds.filename} ({ds.rows.length}r)</option>
-                    ))}
-                  </select>
-                  {(() => {
-                    const ds = datasets.find(d => d.id === draft.dataSource?.csvDatasetId);
-                    if (!ds) return null;
-                    return (
-                      <>
-                        <div>
-                          <span className="text-[10px] text-muted-foreground font-medium">Colonne X</span>
-                          <select
-                            value={draft.dataSource?.xColumn || ds.columns[0]}
-                            onChange={e => update({ dataSource: { ...draft.dataSource!, xColumn: e.target.value } })}
-                            className="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary mt-1"
-                          >
-                            {ds.columns.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-muted-foreground font-medium">Colonnes Y (métriques)</span>
-                          <div className="flex flex-wrap gap-1 mt-1 max-h-24 overflow-y-auto">
-                            {ds.columns.filter(c => c !== (draft.dataSource?.xColumn || ds.columns[0])).map(col => {
-                              const selected = draft.dataSource?.yColumns?.includes(col);
-                              return (
-                                <button
-                                  key={col}
-                                  onClick={() => {
-                                    const current = draft.dataSource?.yColumns || [];
-                                    const next = selected ? current.filter(c => c !== col) : [...current, col];
-                                    update({ dataSource: { ...draft.dataSource!, yColumns: next } });
-                                  }}
-                                  className={`px-1.5 py-0.5 rounded text-[10px] border transition-colors ${
-                                    selected ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground hover:border-primary/50'
-                                  }`}
-                                >
-                                  {col}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          )}
-        </>)}
-
-        {/* ── X AXIS ── */}
-        <SectionHeader title="X Axis" number="1" open={sections.x} toggle={() => toggle('x')} />
-        {sections.x && (
-          <div className="pl-5 space-y-2 pb-3">
-            <div className="flex items-center gap-2">
-              <Select value={draft.xAxis.type} options={['date', 'dimension', 'kpi'] as const} onChange={v => updateX({ type: v as any })} className="flex-1" />
-              {/* Swap X ↔ Y button (only when X is a KPI and there's exactly 1 Y metric) */}
-              {draft.xAxis.type === 'kpi' && draft.yMetrics.length === 1 && (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => {
-                          const currentXKpi = draft.xAxis.value;
-                          const currentYKpi = draft.yMetrics[0].kpi;
-                          updateX({ value: currentYKpi });
-                          updateMetric(0, { kpi: currentXKpi as any });
-                        }}
-                        className="p-1.5 rounded-md border border-border bg-muted/50 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
-                      >
-                        <ArrowLeftRight className="w-3.5 h-3.5" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-[11px]">Inverser X ↔ Y</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
-            {draft.xAxis.type === 'date' && (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="date" value={draft.xAxis.dateStart} onChange={e => updateX({ dateStart: e.target.value })}
-                    className="bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground" />
-                  <input type="date" value={draft.xAxis.dateEnd} onChange={e => updateX({ dateEnd: e.target.value })}
-                    className="bg-muted border border-border rounded-md px-2 py-1.5 text-xs text-foreground" />
-                </div>
-                <Select value={draft.xAxis.granularity || 'day'} options={GRANULARITIES} onChange={v => updateX({ granularity: v as Granularity })} className="w-full" />
-              </>
             )}
-            {draft.xAxis.type === 'dimension' && (
-              <Select value={draft.xAxis.value} options={BI_DIMENSIONS} onChange={v => updateX({ value: v })} className="w-full" />
-            )}
-            {draft.xAxis.type === 'kpi' && (
-              <Select value={draft.xAxis.value} options={BI_KPIS} onChange={v => updateX({ value: v })} className="w-full" />
-            )}
-          </div>
+          </SectionCard>
         )}
 
-        {/* ── Y AXIS ── */}
-        <SectionHeader title="Y Axis (Metrics)" number="2" open={sections.y} toggle={() => toggle('y')} />
-        {sections.y && (
-          <div className="pl-5 space-y-3 pb-3">
+        {/* ── X AXIS ── */}
+        <SectionCard
+          title="Axe X"
+          icon={<Calendar className="w-4 h-4" />}
+          open={sections.x}
+          toggle={() => toggle('x')}
+        >
+          <div className="flex items-center gap-2">
+            <SegmentedControl
+              options={[
+                { value: 'date', label: 'Date' },
+                { value: 'dimension', label: 'Dimension' },
+                { value: 'kpi', label: 'KPI' },
+              ]}
+              value={draft.xAxis.type}
+              onChange={v => updateX({ type: v as any })}
+            />
+            {draft.xAxis.type === 'kpi' && draft.yMetrics.length === 1 && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => {
+                        const currentXKpi = draft.xAxis.value;
+                        const currentYKpi = draft.yMetrics[0].kpi;
+                        updateX({ value: currentYKpi });
+                        updateMetric(0, { kpi: currentXKpi as any });
+                      }}
+                      className="w-8 h-8 rounded-lg border border-border/60 bg-background flex items-center justify-center
+                        text-muted-foreground hover:text-primary hover:border-primary/40 transition-all duration-150"
+                    >
+                      <ArrowLeftRight className="w-3.5 h-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-[11px]">Inverser X ↔ Y</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+
+          {draft.xAxis.type === 'date' && (
+            <div className="space-y-3">
+              {/* Quick date presets */}
+              <div className="flex gap-1.5">
+                {DATE_PRESETS.map(p => (
+                  <button
+                    key={p.label}
+                    onClick={() => applyDatePreset(p.days)}
+                    className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-border/50
+                      bg-background text-muted-foreground hover:text-primary hover:border-primary/30
+                      transition-all duration-150"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <FieldLabel>Début</FieldLabel>
+                  <input
+                    type="date"
+                    value={draft.xAxis.dateStart}
+                    onChange={e => updateX({ dateStart: e.target.value })}
+                    className="w-full bg-background border border-border/70 rounded-lg px-3 py-2 text-[12px] text-foreground
+                      outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <FieldLabel>Fin</FieldLabel>
+                  <input
+                    type="date"
+                    value={draft.xAxis.dateEnd}
+                    onChange={e => updateX({ dateEnd: e.target.value })}
+                    className="w-full bg-background border border-border/70 rounded-lg px-3 py-2 text-[12px] text-foreground
+                      outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <FieldLabel>Granularité</FieldLabel>
+                <SegmentedControl
+                  options={GRANULARITIES.map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
+                  value={draft.xAxis.granularity || 'day'}
+                  onChange={v => updateX({ granularity: v as Granularity })}
+                />
+              </div>
+            </div>
+          )}
+          {draft.xAxis.type === 'dimension' && (
+            <StyledSelect value={draft.xAxis.value} options={BI_DIMENSIONS} onChange={v => updateX({ value: v })} />
+          )}
+          {draft.xAxis.type === 'kpi' && (
+            <StyledSelect value={draft.xAxis.value} options={BI_KPIS} onChange={v => updateX({ value: v })} />
+          )}
+        </SectionCard>
+
+        {/* ── Y AXIS (METRICS) ── */}
+        <SectionCard
+          title="Métriques Y"
+          icon={<TrendingUp className="w-4 h-4" />}
+          open={sections.y}
+          toggle={() => toggle('y')}
+          badge={`${draft.yMetrics.length}`}
+        >
+          <div className="space-y-2.5">
             {draft.yMetrics.map((m, i) => (
-              <div key={i} className="p-2 rounded-lg bg-muted/50 border border-border space-y-2">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full" style={{ background: m.color }} />
-                  <Select value={m.kpi} options={BI_KPIS} onChange={v => updateMetric(i, { kpi: v as BIKPI })} className="flex-1" />
-                  <button onClick={() => removeMetric(i)} className="p-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
-                </div>
-                <TooltipProvider delayDuration={200}>
-                  <div className="flex flex-wrap gap-1">
-                    {CHART_TYPE_OPTIONS.map(opt => (
-                      <Tooltip key={opt.type}>
-                        <TooltipTrigger asChild>
-                          <button onClick={() => updateMetric(i, { chartType: opt.type })}
-                            className={`p-1.5 rounded-md border transition-all ${m.chartType === opt.type ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted/50 text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'}`}>
-                            {opt.icon}
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="text-[11px]">{opt.label}</TooltipContent>
-                      </Tooltip>
-                    ))}
+              <div
+                key={i}
+                className="rounded-xl border border-border/50 bg-background overflow-hidden transition-all duration-200 hover:border-border hover:shadow-sm"
+              >
+                {/* Metric header with colored accent */}
+                <div className="flex items-stretch">
+                  <div className="w-1 rounded-l-xl" style={{ background: m.color }} />
+                  <div className="flex-1 p-3 space-y-3">
+                    {/* Top row: KPI selector + aggregation + delete */}
+                    <div className="flex items-center gap-2">
+                      <StyledSelect
+                        value={m.kpi}
+                        options={BI_KPIS}
+                        onChange={v => updateMetric(i, { kpi: v as BIKPI })}
+                        className="flex-1 !text-[12px] font-semibold"
+                      />
+                      <StyledSelect
+                        value={m.aggregation}
+                        options={AGGREGATIONS}
+                        onChange={v => updateMetric(i, { aggregation: v as Aggregation })}
+                        className="!w-20 !text-[11px]"
+                      />
+                      <button
+                        onClick={() => removeMetric(i)}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center
+                          text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-150"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Chart type segmented */}
+                    <div>
+                      <FieldLabel>Type de graphique</FieldLabel>
+                      <TooltipProvider delayDuration={200}>
+                        <div className="flex gap-1 mt-1.5">
+                          {CHART_TYPE_OPTIONS.map(opt => (
+                            <Tooltip key={opt.type}>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => updateMetric(i, { chartType: opt.type })}
+                                  className={`flex-1 p-1.5 rounded-lg border transition-all duration-150 ${
+                                    m.chartType === opt.type
+                                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                      : 'bg-muted/30 text-muted-foreground border-transparent hover:border-border hover:text-foreground'
+                                  }`}
+                                >
+                                  {opt.icon}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-[11px]">{opt.label}</TooltipContent>
+                            </Tooltip>
+                          ))}
+                        </div>
+                      </TooltipProvider>
+                    </div>
+
+                    {/* Axis + Toggles row */}
+                    <div className="flex items-center justify-between">
+                      <SegmentedControl
+                        options={[
+                          { value: 'left', label: 'Gauche' },
+                          { value: 'right', label: 'Droite' },
+                        ]}
+                        value={m.axis}
+                        onChange={v => updateMetric(i, { axis: v as AxisSide })}
+                      />
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <Switch
+                            checked={m.smoothCurve}
+                            onCheckedChange={v => updateMetric(i, { smoothCurve: v })}
+                            className="scale-75 origin-left"
+                          />
+                          <span className="text-[10px] font-medium text-muted-foreground">Smooth</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <Switch
+                            checked={m.showMovingAvg}
+                            onCheckedChange={v => updateMetric(i, { showMovingAvg: v })}
+                            className="scale-75 origin-left"
+                          />
+                          <span className="text-[10px] font-medium text-muted-foreground">MA</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Color picker */}
+                    <div className="flex items-center gap-2">
+                      <Palette className="w-3 h-3 text-muted-foreground" />
+                      <div className="flex gap-1.5 flex-wrap">
+                        {SIMPLE_PALETTE.map(c => (
+                          <ColorDot key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} size={18} />
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </TooltipProvider>
-                <Select value={m.axis} options={['left', 'right'] as const} onChange={v => updateMetric(i, { axis: v as AxisSide })} className="w-full" />
-                <div className="flex items-center gap-3 text-[10px]">
-                  <label className="flex items-center gap-1 text-muted-foreground">
-                    <input type="checkbox" checked={m.smoothCurve} onChange={e => updateMetric(i, { smoothCurve: e.target.checked })} className="rounded" /> Smooth
-                  </label>
-                  <label className="flex items-center gap-1 text-muted-foreground">
-                    <input type="checkbox" checked={m.showMovingAvg} onChange={e => updateMetric(i, { showMovingAvg: e.target.checked })} className="rounded" /> MA
-                  </label>
                 </div>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {SIMPLE_PALETTE.map(c => (
-                    <ColorSwatch key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} />
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={addMetric}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border/60
+              text-[12px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40
+              transition-all duration-200 hover:bg-primary/5"
+          >
+            <Plus className="w-4 h-4" />
+            Ajouter une métrique
+          </button>
+        </SectionCard>
+
+        {/* ── FILTERS ── */}
+        <SectionCard
+          title="Filtres"
+          icon={<Filter className="w-4 h-4" />}
+          open={sections.filters}
+          toggle={() => toggle('filters')}
+          badge={draft.filters.length > 0 ? `${draft.filters.length}` : undefined}
+        >
+          <div className="space-y-2.5">
+            {draft.filters.map((f, i) => (
+              <div key={i} className="rounded-xl border border-border/50 bg-background p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <StyledSelect
+                    value={f.dimension}
+                    options={BI_DIMENSIONS}
+                    onChange={v => updateFilter(i, { dimension: v as BIDimension, values: [] })}
+                    className="flex-1"
+                  />
+                  <button
+                    onClick={() => removeFilter(i)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center
+                      text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                  {getDimensionValues(f.dimension).map(val => (
+                    <button
+                      key={val}
+                      onClick={() => {
+                        const vals = f.values.includes(val) ? f.values.filter(v => v !== val) : [...f.values, val];
+                        updateFilter(i, { values: vals });
+                      }}
+                      className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-all duration-150 ${
+                        f.values.includes(val)
+                          ? 'bg-primary/10 text-primary border-primary/30'
+                          : 'bg-background text-muted-foreground border-border/50 hover:border-primary/30'
+                      }`}
+                    >
+                      {val}
+                    </button>
                   ))}
                 </div>
               </div>
             ))}
-            <button onClick={addMetric} className="flex items-center gap-1 text-xs text-primary hover:underline">
-              <Plus className="w-3 h-3" /> Add Metric
-            </button>
           </div>
-        )}
 
-        {/* ── FILTERS ── */}
-        <SectionHeader title="Filters" number="3" open={sections.filters} toggle={() => toggle('filters')} />
-        {sections.filters && (
-          <div className="pl-5 space-y-2 pb-3">
-            {draft.filters.map((f, i) => (
-              <div key={i} className="flex items-start gap-1">
-                <div className="flex-1 space-y-1">
-                  <Select value={f.dimension} options={BI_DIMENSIONS} onChange={v => updateFilter(i, { dimension: v as BIDimension, values: [] })} className="w-full" />
-                  <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-                    {getDimensionValues(f.dimension).map(val => (
-                      <button key={val} onClick={() => {
-                        const vals = f.values.includes(val) ? f.values.filter(v => v !== val) : [...f.values, val];
-                        updateFilter(i, { values: vals });
-                      }}
-                        className={`px-1.5 py-0.5 rounded text-[10px] border transition-colors ${f.values.includes(val) ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground hover:border-primary/50'}`}>
-                        {val}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <button onClick={() => removeFilter(i)} className="p-0.5 mt-1 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
-              </div>
-            ))}
-            <button onClick={addFilter} className="flex items-center gap-1 text-xs text-primary hover:underline">
-              <Plus className="w-3 h-3" /> Add Filter
-            </button>
-          </div>
-        )}
+          <button
+            onClick={addFilter}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border/60
+              text-[12px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40
+              transition-all duration-200 hover:bg-primary/5"
+          >
+            <Plus className="w-4 h-4" />
+            Ajouter un filtre
+          </button>
+        </SectionCard>
 
-        {/* ── GROUP BY ── */}
-        <SectionHeader title="Group By / Scatter" number="4" open={sections.group} toggle={() => toggle('group')} />
-        {sections.group && (
-          <div className="pl-5 space-y-3 pb-3">
-            <div className="space-y-1">
-              <span className="text-[10px] text-muted-foreground font-medium">Group By</span>
-              <Select
+        {/* ── GROUP BY / SCATTER ── */}
+        <SectionCard
+          title="Grouper / Scatter"
+          icon={<GitBranch className="w-4 h-4" />}
+          open={sections.group}
+          toggle={() => toggle('group')}
+        >
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Group By</FieldLabel>
+              <StyledSelect
                 value={draft.groupBy[0] || ''}
                 options={['', ...BI_DIMENSIONS] as any}
-                onChange={v => {
-                  update({ groupBy: v ? [v as BIDimension] : [] });
-                }} className="w-full" />
+                onChange={v => update({ groupBy: v ? [v as BIDimension] : [] })}
+                placeholder="Aucun"
+              />
             </div>
-
-            {/* Colored By — dimension to color scatter points */}
-            <div className="space-y-1">
-              <span className="text-[10px] text-muted-foreground font-medium">Colored By</span>
-              <Select
+            <div className="space-y-1.5">
+              <FieldLabel>Coloré par</FieldLabel>
+              <StyledSelect
                 value={draft.colorBy || ''}
                 options={['', ...BI_DIMENSIONS] as any}
                 onChange={v => update({ colorBy: v ? v as BIDimension : undefined })}
-                className="w-full"
+                placeholder="Aucun"
               />
             </div>
-
-            {/* Size By — KPI to size scatter points */}
-            <div className="space-y-1">
-              <span className="text-[10px] text-muted-foreground font-medium">Size By</span>
-              <Select
+            <div className="space-y-1.5">
+              <FieldLabel>Taille par</FieldLabel>
+              <StyledSelect
                 value={draft.sizeBy || ''}
                 options={['', ...BI_KPIS] as any}
                 onChange={v => update({ sizeBy: v ? v as BIKPI : undefined })}
-                className="w-full"
+                placeholder="Aucun"
               />
             </div>
           </div>
-        )}
+        </SectionCard>
 
         {/* ── ADVANCED ── */}
-        <SectionHeader title="Advanced" number="5" open={sections.advanced} toggle={() => toggle('advanced')} />
-        {sections.advanced && (
-          <div className="pl-5 space-y-3 pb-3">
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input type="checkbox" checked={draft.advanced.showLegend} onChange={e => update({ advanced: { ...draft.advanced, showLegend: e.target.checked } })} /> Show Legend
-            </label>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input type="checkbox" checked={draft.advanced.highlightAnomalies} onChange={e => update({ advanced: { ...draft.advanced, highlightAnomalies: e.target.checked } })} /> Highlight Anomalies
-            </label>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input type="checkbox" checked={draft.advanced.sortByValue} onChange={e => update({ advanced: { ...draft.advanced, sortByValue: e.target.checked } })} /> Sort by Value
-            </label>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Top N:</span>
-              <input type="number" min={0} max={100} value={draft.advanced.topN || ''} placeholder="All"
-                onChange={e => update({ advanced: { ...draft.advanced, topN: e.target.value ? Number(e.target.value) : null } })}
-                className="w-16 bg-muted border border-border rounded px-2 py-1 text-xs text-foreground" />
+        <SectionCard
+          title="Avancé"
+          icon={<Settings2 className="w-4 h-4" />}
+          open={sections.advanced}
+          toggle={() => toggle('advanced')}
+        >
+          <div className="space-y-4">
+            {/* Toggles */}
+            <div className="space-y-3">
+              {[
+                { key: 'showLegend' as const, label: 'Légende' },
+                { key: 'highlightAnomalies' as const, label: 'Anomalies' },
+                { key: 'sortByValue' as const, label: 'Tri par valeur' },
+              ].map(opt => (
+                <div key={opt.key} className="flex items-center justify-between">
+                  <span className="text-[12px] text-foreground font-medium">{opt.label}</span>
+                  <Switch
+                    checked={draft.advanced[opt.key] as boolean}
+                    onCheckedChange={v => update({ advanced: { ...draft.advanced, [opt.key]: v } })}
+                  />
+                </div>
+              ))}
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] text-foreground font-medium">Top N</span>
+                <input
+                  type="number" min={0} max={100}
+                  value={draft.advanced.topN || ''}
+                  placeholder="Tous"
+                  onChange={e => update({ advanced: { ...draft.advanced, topN: e.target.value ? Number(e.target.value) : null } })}
+                  className="w-20 bg-background border border-border/70 rounded-lg px-3 py-1.5 text-[12px] text-foreground text-right
+                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+                />
+              </div>
             </div>
 
-            {/* ── BACKGROUND COLOR ── */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                <Paintbrush className="w-3 h-3" /> Couleur de fond
-              </span>
-              <div className="flex flex-wrap gap-1">
+            {/* Divider */}
+            <div className="h-px bg-border/50" />
+
+            {/* Background color */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Paintbrush className="w-3.5 h-3.5 text-muted-foreground" />
+                <FieldLabel>Couleur de fond</FieldLabel>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
                 {BG_PALETTE.map(c => (
-                  <ColorSwatch key={c} color={c} size="md" selected={(draft.advanced.backgroundColor || 'transparent') === c} onClick={() => update({ advanced: { ...draft.advanced, backgroundColor: c } })} />
+                  <ColorDot
+                    key={c} color={c} size={22}
+                    selected={(draft.advanced.backgroundColor || 'transparent') === c}
+                    onClick={() => update({ advanced: { ...draft.advanced, backgroundColor: c } })}
+                  />
                 ))}
               </div>
             </div>
 
-            {/* ── THRESHOLDS ── */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Seuils (horizontaux)</span>
+            {/* Divider */}
+            <div className="h-px bg-border/50" />
+
+            {/* Thresholds */}
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5 text-muted-foreground" />
+                <FieldLabel>Seuils horizontaux</FieldLabel>
+              </div>
               {draft.advanced.thresholds.map((t, i) => (
-                <div key={i} className="p-2 rounded-lg bg-muted/50 border border-border space-y-1.5">
-                  <div className="flex items-center gap-1">
-                    <input type="number" value={t.value} onChange={e => {
-                      const thresholds = [...draft.advanced.thresholds];
-                      thresholds[i] = { ...t, value: Number(e.target.value) };
-                      update({ advanced: { ...draft.advanced, thresholds } });
-                    }} className="w-16 bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" placeholder="Valeur" />
-                    <input value={t.label} onChange={e => {
-                      const thresholds = [...draft.advanced.thresholds];
-                      thresholds[i] = { ...t, label: e.target.value };
-                      update({ advanced: { ...draft.advanced, thresholds } });
-                    }} className="flex-1 bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" placeholder="Label" />
-                    <button onClick={() => {
-                      update({ advanced: { ...draft.advanced, thresholds: draft.advanced.thresholds.filter((_, j) => j !== i) } });
-                    }} className="p-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
-                  </div>
+                <div key={i} className="rounded-xl border border-border/50 bg-background p-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Select value={t.lineStyle} options={LINE_STYLES} onChange={v => {
-                      const thresholds = [...draft.advanced.thresholds];
-                      thresholds[i] = { ...t, lineStyle: v as LineStyle };
-                      update({ advanced: { ...draft.advanced, thresholds } });
-                    }} className="flex-1" />
+                    <input
+                      type="number" value={t.value}
+                      onChange={e => {
+                        const thresholds = [...draft.advanced.thresholds];
+                        thresholds[i] = { ...t, value: Number(e.target.value) };
+                        update({ advanced: { ...draft.advanced, thresholds } });
+                      }}
+                      className="w-20 bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-[12px] text-foreground
+                        outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      placeholder="Valeur"
+                    />
+                    <input
+                      value={t.label}
+                      onChange={e => {
+                        const thresholds = [...draft.advanced.thresholds];
+                        thresholds[i] = { ...t, label: e.target.value };
+                        update({ advanced: { ...draft.advanced, thresholds } });
+                      }}
+                      className="flex-1 bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-[12px] text-foreground
+                        outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      placeholder="Label"
+                    />
+                    <StyledSelect
+                      value={t.lineStyle}
+                      options={LINE_STYLES}
+                      onChange={v => {
+                        const thresholds = [...draft.advanced.thresholds];
+                        thresholds[i] = { ...t, lineStyle: v as LineStyle };
+                        update({ advanced: { ...draft.advanced, thresholds } });
+                      }}
+                      className="!w-20"
+                    />
+                    <button
+                      onClick={() => update({ advanced: { ...draft.advanced, thresholds: draft.advanced.thresholds.filter((_, j) => j !== i) } })}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex gap-1.5">
                     {SIMPLE_PALETTE.map(c => (
-                      <ColorSwatch key={c} color={c} selected={t.color === c} onClick={() => {
+                      <ColorDot key={c} color={c} size={16} selected={t.color === c} onClick={() => {
                         const thresholds = [...draft.advanced.thresholds];
                         thresholds[i] = { ...t, color: c };
                         update({ advanced: { ...draft.advanced, thresholds } });
@@ -467,43 +776,70 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   </div>
                 </div>
               ))}
-              <button onClick={() => {
-                update({ advanced: { ...draft.advanced, thresholds: [...draft.advanced.thresholds, { value: 0, label: 'Seuil', color: '#ef4444', lineStyle: 'dashed' }] } });
-              }} className="flex items-center gap-1 text-xs text-primary hover:underline">
-                <Plus className="w-3 h-3" /> Ajouter un seuil
+              <button
+                onClick={() => update({ advanced: { ...draft.advanced, thresholds: [...draft.advanced.thresholds, { value: 0, label: 'Seuil', color: '#EF4444', lineStyle: 'dashed' }] } })}
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-border/60
+                  text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" /> Ajouter un seuil
               </button>
             </div>
 
-            {/* ── MILESTONES ── */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Jalons (verticaux)</span>
+            {/* Divider */}
+            <div className="h-px bg-border/50" />
+
+            {/* Milestones */}
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-1.5">
+                <Milestone className="w-3.5 h-3.5 text-muted-foreground" />
+                <FieldLabel>Jalons verticaux</FieldLabel>
+              </div>
               {(draft.advanced.milestones || []).map((m, i) => (
-                <div key={i} className="p-2 rounded-lg bg-muted/50 border border-border space-y-1.5">
-                  <div className="flex items-center gap-1">
-                    <input type="date" value={m.date} onChange={e => {
-                      const milestones = [...(draft.advanced.milestones || [])];
-                      milestones[i] = { ...m, date: e.target.value };
-                      update({ advanced: { ...draft.advanced, milestones } });
-                    }} className="flex-1 bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" />
-                    <button onClick={() => {
-                      update({ advanced: { ...draft.advanced, milestones: (draft.advanced.milestones || []).filter((_, j) => j !== i) } });
-                    }} className="p-0.5 hover:text-destructive"><Trash2 className="w-3 h-3" /></button>
-                  </div>
-                  <input value={m.label} onChange={e => {
-                    const milestones = [...(draft.advanced.milestones || [])];
-                    milestones[i] = { ...m, label: e.target.value };
-                    update({ advanced: { ...draft.advanced, milestones } });
-                  }} className="w-full bg-muted border border-border rounded px-1.5 py-1 text-xs text-foreground" placeholder="Label du jalon" />
+                <div key={i} className="rounded-xl border border-border/50 bg-background p-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Select value={m.lineStyle} options={LINE_STYLES} onChange={v => {
-                      const milestones = [...(draft.advanced.milestones || [])];
-                      milestones[i] = { ...m, lineStyle: v as LineStyle };
-                      update({ advanced: { ...draft.advanced, milestones } });
-                    }} className="flex-1" />
+                    <input
+                      type="date" value={m.date}
+                      onChange={e => {
+                        const milestones = [...(draft.advanced.milestones || [])];
+                        milestones[i] = { ...m, date: e.target.value };
+                        update({ advanced: { ...draft.advanced, milestones } });
+                      }}
+                      className="flex-1 bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-[12px] text-foreground
+                        outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                    <button
+                      onClick={() => update({ advanced: { ...draft.advanced, milestones: (draft.advanced.milestones || []).filter((_, j) => j !== i) } })}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <input
+                    value={m.label}
+                    onChange={e => {
+                      const milestones = [...(draft.advanced.milestones || [])];
+                      milestones[i] = { ...m, label: e.target.value };
+                      update({ advanced: { ...draft.advanced, milestones } });
+                    }}
+                    className="w-full bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-[12px] text-foreground
+                      outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="Label du jalon"
+                  />
+                  <div className="flex items-center gap-2">
+                    <StyledSelect
+                      value={m.lineStyle}
+                      options={LINE_STYLES}
+                      onChange={v => {
+                        const milestones = [...(draft.advanced.milestones || [])];
+                        milestones[i] = { ...m, lineStyle: v as LineStyle };
+                        update({ advanced: { ...draft.advanced, milestones } });
+                      }}
+                      className="!w-24"
+                    />
+                  </div>
+                  <div className="flex gap-1.5">
                     {SIMPLE_PALETTE.map(c => (
-                      <ColorSwatch key={c} color={c} selected={m.color === c} onClick={() => {
+                      <ColorDot key={c} color={c} size={16} selected={m.color === c} onClick={() => {
                         const milestones = [...(draft.advanced.milestones || [])];
                         milestones[i] = { ...m, color: c };
                         update({ advanced: { ...draft.advanced, milestones } });
@@ -512,29 +848,32 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   </div>
                 </div>
               ))}
-              <button onClick={() => {
-                update({ advanced: { ...draft.advanced, milestones: [...(draft.advanced.milestones || []), { date: '2026-02-08', label: 'Jalon', color: '#8b5cf6', lineStyle: 'dashed' }] } });
-              }} className="flex items-center gap-1 text-xs text-primary hover:underline">
-                <Plus className="w-3 h-3" /> Ajouter un jalon
+              <button
+                onClick={() => update({ advanced: { ...draft.advanced, milestones: [...(draft.advanced.milestones || []), { date: '2026-02-08', label: 'Jalon', color: '#8B5CF6', lineStyle: 'dashed' }] } })}
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-border/60
+                  text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" /> Ajouter un jalon
               </button>
             </div>
           </div>
-        )}
+        </SectionCard>
       </div>
 
-      {/* Apply Button — sticky bottom */}
-      <div className="px-4 py-3 border-t border-border bg-card">
+      {/* ─── Apply Button ─── */}
+      <div className="px-4 py-3 border-t border-border/50 bg-background/80 backdrop-blur-sm">
         <button
           onClick={handleApply}
           disabled={!dirty}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+          className={`w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-[13px] font-semibold
+            tracking-wide transition-all duration-200 ${
             dirty
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md'
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 active:scale-[0.98]'
               : 'bg-muted text-muted-foreground cursor-not-allowed'
           }`}
         >
           <Check className="w-4 h-4" />
-          {dirty ? 'Appliquer' : 'À jour'}
+          {dirty ? 'Appliquer les changements' : 'Configuration à jour'}
         </button>
       </div>
     </div>
