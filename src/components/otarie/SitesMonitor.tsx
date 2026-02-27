@@ -1231,6 +1231,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localSite, setLocalSite] = useState('ALL');
   const [mapKpi, setMapKpi] = useState('qoe_score_avg');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
+  const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
   const [mapRendering, setMapRendering] = useState(false);
@@ -1591,7 +1592,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Filter sites by search/filters (without techno filter — that only affects map rendering)
   const filteredSites = useMemo(() => {
-    return sites.filter(s => {
+    const filtered = sites.filter(s => {
       const matchesSearch = s.site_name.toLowerCase().includes(localSearch.toLowerCase()) || s.site_id.toLowerCase().includes(localSearch.toLowerCase());
       const matchesDor = filters.dor === 'ALL' || s.dor === filters.dor;
       const matchesPlaque = filters.plaque === 'ALL' || s.plaque === filters.plaque;
@@ -1604,7 +1605,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesLocalSite = localSite === 'ALL' || s.site_name === localSite;
       return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite;
     });
-  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite]);
+    if (inventorySortOrder === 'none') return filtered;
+    return [...filtered].sort((a, b) => {
+      const va = (a as any)[mapKpi] ?? a.qoe_score_avg ?? 0;
+      const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
+      return inventorySortOrder === 'asc' ? va - vb : vb - va;
+    });
+  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite, inventorySortOrder, mapKpi]);
 
   // Check if a cell's band passes the band filter
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
@@ -2937,6 +2944,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       {uniqueSiteNames.slice(0, 500).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
+                </div>
+              )}
+
+              {/* ── Sort bar (sites tab only) ── */}
+              {inventoryTab === 'sites' && (
+                <div className="px-5 py-2 flex items-center justify-between shrink-0 border-b border-border/30">
+                  <span className="text-[10px] text-muted-foreground font-semibold">{filteredSites.length} sites</span>
+                  <button
+                    onClick={() => setInventorySortOrder(prev => prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                      inventorySortOrder !== 'none'
+                        ? 'bg-primary/15 text-primary border border-primary/30'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    {inventorySortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    <span>{inventorySortOrder === 'none' ? 'Tri' : inventorySortOrder === 'desc' ? '↓ Worst' : '↑ Best'}</span>
+                    <span className="text-[9px] opacity-70">{MAP_KPIS.find(k => k.id === mapKpi)?.label?.replace(/Score |Global/g, '') || mapKpi}</span>
+                  </button>
                 </div>
               )}
 
