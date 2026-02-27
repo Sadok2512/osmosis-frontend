@@ -324,13 +324,16 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     { label: 'RTT P95', value: 'p95_rtt_ms' },
   ];
 
-  const MAP_LAYERS = [
+  const MAP_STYLES = [
+    { label: 'Street', value: 'street', icon: '🗺️' },
+    { label: 'Satellite', value: 'satellite', icon: '🛰️' },
+    { label: 'Hybrid', value: 'hybrid', icon: '🌐' },
+    { label: 'Terrain', value: 'terrain', icon: '⛰️' },
+  ];
+
+  const THEME_MODES = [
     { label: 'Light', value: 'light', icon: '☀️' },
     { label: 'Dark', value: 'dark', icon: '🌙' },
-    { label: 'Satellite', value: 'satellite', icon: '🛰️' },
-    { label: 'Street', value: 'street', icon: '🗺️' },
-    { label: 'Terrain', value: 'terrain', icon: '⛰️' },
-    { label: 'Hybrid', value: 'hybrid', icon: '🌐' },
   ];
 
   const fetchAll = async () => {
@@ -413,7 +416,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const getEffectiveViewSettings = (view: any, dbSettings: any) => {
     const vs = typeof view.settings === 'object' ? view.settings : {};
     return {
-      mapLayer: vs.mapLayer || dbSettings.mapLayer || 'light',
+      mapLayer: vs.mapLayer || dbSettings.mapLayer || 'street',
+      mapStyle: vs.mapStyle || dbSettings.mapStyle || vs.mapLayer || dbSettings.mapLayer || 'street',
+      themeMode: vs.themeMode || dbSettings.themeMode || 'light',
       mapKpi: vs.mapKpi || dbSettings.mapKpi || 'qoe_score_avg',
       color: vs.color || dbSettings.color || '',
       center: vs.center || dbSettings.center,
@@ -421,11 +426,15 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     };
   };
 
+
+
   // ── Reusable settings panel ──
-  const SettingsPanel = ({ settings, onUpdate, onRename, currentName }: { settings: any; onUpdate: (u: Record<string, any>) => void; onRename?: (name: string) => void; currentName?: string }) => {
+  const SettingsPanel = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared }: { settings: any; onUpdate: (u: Record<string, any>) => void; onRename?: (name: string) => void; currentName?: string; dashboardId?: string; isShared?: boolean }) => {
     const [localName, setLocalName] = useState(currentName || '');
-    const [localMapLayer, setLocalMapLayer] = useState(settings.mapLayer || 'light');
+    const [localMapStyle, setLocalMapStyle] = useState(settings.mapStyle || settings.mapLayer || 'street');
+    const [localThemeMode, setLocalThemeMode] = useState(settings.themeMode || 'light');
     const [localColor, setLocalColor] = useState(settings.color || '');
+    const [localVisibility, setLocalVisibility] = useState<boolean>(isShared ?? true);
     const [localKpis, setLocalKpis] = useState<string[]>(() => {
       if (Array.isArray(settings.mapKpis)) return settings.mapKpis;
       if (settings.mapKpi) return [settings.mapKpi];
@@ -441,117 +450,201 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       setDirty(true);
     };
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
       if (onRename && localName.trim() && localName !== currentName) onRename(localName.trim());
-      onUpdate({ mapLayer: localMapLayer, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis });
+      onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis });
+      // Update visibility if dashboard
+      if (dashboardId && localVisibility !== isShared) {
+        await supabase.from('dashboards').update({ is_shared: localVisibility, updated_at: new Date().toISOString() }).eq('id', dashboardId);
+        setDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, is_shared: localVisibility } : d));
+      }
       setDirty(false);
     };
 
+    const closePanel = () => { setEditingDashboardId(null); setEditingViewId(null); };
+
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) { handleConfirm(); setEditingDashboardId(null); setEditingViewId(null); } }}>
-        <div className="w-[520px] max-h-[85vh] overflow-y-auto bg-card border-2 border-primary/20 rounded-2xl shadow-2xl p-6 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) { handleConfirm(); closePanel(); } }}>
+        <div className="w-[560px] max-h-[85vh] overflow-y-auto bg-card border border-border rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-extrabold text-foreground uppercase tracking-wider">⚙ Configuration</h2>
-            <button onClick={() => { setEditingDashboardId(null); setEditingViewId(null); }} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Settings2 size={16} className="text-primary" />
+              </div>
+              <div>
+                <h2 className="text-sm font-extrabold text-foreground uppercase tracking-wider">Configuration</h2>
+                <p className="text-[9px] text-muted-foreground">Paramètres du dashboard et de la carte</p>
+              </div>
+            </div>
+            <button onClick={closePanel} className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
               <X size={16} />
             </button>
           </div>
 
-          {/* Nom */}
-          {onRename && currentName != null && (
-            <div className="p-4 rounded-xl border border-border bg-background">
-              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">Nom du Dashboard</label>
-              <input
-                value={localName}
-                onChange={(e) => { setLocalName(e.target.value); setDirty(true); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirm(); }}
-                className="w-full bg-card border-2 border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-foreground outline-none focus:border-primary transition-colors"
-              />
-            </div>
-          )}
-
-          {/* Type de carte */}
-          <div className="p-4 rounded-xl border border-border bg-background">
-            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">Type de carte</label>
-            <div className="grid grid-cols-3 gap-2.5">
-              {MAP_LAYERS.map(layer => (
-                <button
-                  key={layer.value}
-                  onClick={() => { setLocalMapLayer(layer.value); setDirty(true); }}
-                  className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl text-[11px] font-bold transition-all border-2 ${
-                    localMapLayer === layer.value
-                      ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
-                      : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                  }`}
-                >
-                  <span className="text-lg">{layer.icon}</span>
-                  <span className="uppercase tracking-wider">{layer.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Couleur */}
-          <div className="p-4 rounded-xl border border-border bg-background">
-            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">Couleur du thème</label>
-            <div className="flex gap-3 flex-wrap">
-              {PALETTE.map(c => (
-                <button
-                  key={c.value || 'none'}
-                  onClick={() => { setLocalColor(c.value); setDirty(true); }}
-                  className={`w-9 h-9 rounded-full border-[3px] transition-all ${
-                    localColor === c.value ? 'border-primary scale-110 shadow-lg ring-2 ring-primary/30' : 'border-border hover:border-primary/40 hover:scale-105'
-                  }`}
-                  style={{ background: c.value || 'hsl(var(--muted))' }}
-                  title={c.label}
+          <div className="p-5 space-y-4">
+            {/* ── Dashboard Name ── */}
+            {onRename && currentName != null && (
+              <div className="p-4 rounded-xl border border-border bg-background">
+                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">
+                  📝 Nom du Dashboard
+                </label>
+                <input
+                  value={localName}
+                  onChange={(e) => { setLocalName(e.target.value); setDirty(true); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { handleConfirm(); closePanel(); } }}
+                  className="w-full bg-card border-2 border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-foreground outline-none focus:border-primary transition-colors"
+                  placeholder="Nom du dashboard..."
                 />
-              ))}
-            </div>
-          </div>
+              </div>
+            )}
 
-          {/* Indicateurs QoE - Multi-select */}
-          <div className="p-4 rounded-xl border border-border bg-background">
-            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
-              Indicateurs QoE
-            </label>
-            <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez un ou plusieurs indicateurs à afficher</p>
-            <div className="grid grid-cols-2 gap-2">
-              {KPI_OPTIONS.map(kpi => {
-                const isActive = localKpis.includes(kpi.value);
-                return (
+            {/* ── Map Style (rendering type) ── */}
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
+                🗺️ Style de carte
+              </label>
+              <p className="text-[9px] text-muted-foreground mb-3">Type de rendu cartographique</p>
+              <div className="grid grid-cols-4 gap-2">
+                {MAP_STYLES.map(style => (
                   <button
-                    key={kpi.value}
-                    onClick={() => toggleKpi(kpi.value)}
-                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[11px] font-semibold transition-all border-2 ${
-                      isActive
-                        ? 'bg-primary/10 border-primary/40 text-primary'
-                        : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                    key={style.value}
+                    onClick={() => { setLocalMapStyle(style.value); setDirty(true); }}
+                    className={`flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl text-[10px] font-bold transition-all border-2 ${
+                      localMapStyle === style.value
+                        ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
+                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
                     }`}
                   >
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                      isActive ? 'bg-primary border-primary' : 'border-muted-foreground/40'
-                    }`}>
-                      {isActive && <Check size={10} className="text-primary-foreground" />}
-                    </div>
-                    {kpi.label}
+                    <span className="text-xl">{style.icon}</span>
+                    <span className="uppercase tracking-wider">{style.label}</span>
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
+
+            {/* ── Theme Mode (UI appearance) ── */}
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
+                🎨 Mode d'affichage
+              </label>
+              <p className="text-[9px] text-muted-foreground mb-3">Apparence de l'interface</p>
+              <div className="grid grid-cols-2 gap-3">
+                {THEME_MODES.map(mode => (
+                  <button
+                    key={mode.value}
+                    onClick={() => { setLocalThemeMode(mode.value); setDirty(true); }}
+                    className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${
+                      localThemeMode === mode.value
+                        ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
+                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
+                    }`}
+                  >
+                    <span className="text-lg">{mode.icon}</span>
+                    <span className="uppercase tracking-wider">{mode.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Theme Color ── */}
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
+                🎯 Couleur du thème
+              </label>
+              <div className="flex gap-3 flex-wrap">
+                {PALETTE.map(c => (
+                  <button
+                    key={c.value || 'none'}
+                    onClick={() => { setLocalColor(c.value); setDirty(true); }}
+                    className={`w-9 h-9 rounded-full border-[3px] transition-all ${
+                      localColor === c.value ? 'border-primary scale-110 shadow-lg ring-2 ring-primary/30' : 'border-border hover:border-primary/40 hover:scale-105'
+                    }`}
+                    style={{ background: c.value || 'hsl(var(--muted))' }}
+                    title={c.label}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* ── QoE Indicators (multi-select) ── */}
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
+                📊 Indicateurs QoE
+              </label>
+              <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez un ou plusieurs indicateurs à afficher</p>
+              <div className="grid grid-cols-2 gap-2">
+                {KPI_OPTIONS.map(kpi => {
+                  const isActive = localKpis.includes(kpi.value);
+                  return (
+                    <button
+                      key={kpi.value}
+                      onClick={() => toggleKpi(kpi.value)}
+                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[11px] font-semibold transition-all border-2 ${
+                        isActive
+                          ? 'bg-primary/10 border-primary/40 text-primary'
+                          : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                        isActive ? 'bg-primary border-primary' : 'border-muted-foreground/40'
+                      }`}>
+                        {isActive && <Check size={10} className="text-primary-foreground" />}
+                      </div>
+                      {kpi.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── Dashboard Visibility ── */}
+            {dashboardId && (
+              <div className="p-4 rounded-xl border border-border bg-background">
+                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
+                  🔒 Visibilité du Dashboard
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => { setLocalVisibility(true); setDirty(true); }}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 ${
+                      localVisibility
+                        ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
+                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
+                    }`}
+                  >
+                    <span>🌍</span>
+                    <span className="uppercase tracking-wider">Public</span>
+                  </button>
+                  <button
+                    onClick={() => { setLocalVisibility(false); setDirty(true); }}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 ${
+                      !localVisibility
+                        ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
+                        : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
+                    }`}
+                  >
+                    <span>🔐</span>
+                    <span className="uppercase tracking-wider">Privé</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Confirm button */}
-          <button
-            onClick={() => { handleConfirm(); setEditingDashboardId(null); setEditingViewId(null); }}
-            className={`w-full py-3 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
-              dirty
-                ? 'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90'
-                : 'bg-muted text-muted-foreground border border-border'
-            }`}
-          >
-            {dirty ? '✓ Confirmer les modifications' : '✓ Paramètres sauvegardés'}
-          </button>
+          {/* Confirm button - sticky footer */}
+          <div className="px-5 pb-5 pt-2">
+            <button
+              onClick={() => { handleConfirm(); closePanel(); }}
+              className={`w-full py-3.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
+                dirty
+                  ? 'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90'
+                  : 'bg-muted text-muted-foreground border border-border'
+              }`}
+            >
+              {dirty ? '✓ Confirmer les modifications' : '✓ Paramètres sauvegardés'}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -608,7 +701,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   }}>
                     <span className="text-[12px] font-bold text-foreground truncate block">{db.name}</span>
                     <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
-                      <span>{MAP_LAYERS.find(l => l.value === (dbSettings.mapLayer || 'light'))?.label || 'Light'}</span>
+                      <span>{MAP_STYLES.find(l => l.value === (dbSettings.mapStyle || dbSettings.mapLayer || 'street'))?.label || 'Street'}</span>
                       <span>•</span>
                       <span>{KPI_OPTIONS.find(k => k.value === (dbSettings.mapKpi || 'qoe_score_avg'))?.label || 'QoE'}</span>
                     </div>
@@ -632,6 +725,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     onUpdate={(u) => updateDashboardSettings(db.id, u)}
                     onRename={(name) => renameDashboard(db.id, name)}
                     currentName={db.name}
+                    dashboardId={db.id}
+                    isShared={db.is_shared}
                   />
                 )}
 
@@ -693,7 +788,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
                                 </div>
                                 <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
-                                  <span>{MAP_LAYERS.find(l => l.value === eff.mapLayer)?.label || 'Light'}</span>
+                                  <span>{MAP_STYLES.find(l => l.value === (eff.mapStyle || eff.mapLayer))?.label || 'Street'}</span>
                                   <span>•</span>
                                   <span>{KPI_OPTIONS.find(k => k.value === eff.mapKpi)?.label || 'QoE'}</span>
                                 </div>
