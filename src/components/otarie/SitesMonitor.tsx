@@ -3593,6 +3593,8 @@ const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverageSimula
   const [params, setParams] = React.useState<Partial<SimulationParams>>({});
   const [showAdvanced, setShowAdvanced] = React.useState(false);
   const [showLegend, setShowLegend] = React.useState(true);
+  const [simulating, setSimulating] = React.useState(false);
+  const [useTerrain, setUseTerrain] = React.useState(true);
   const [selectedCellIdx, setSelectedCellIdx] = React.useState(() => {
     return siteDetail.cells.findIndex((c: any) => c.cell_id === cell.cell_id) ?? 0;
   });
@@ -3611,19 +3613,53 @@ const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverageSimula
     azimuth: params.azimuth ?? activeCell.azimut ?? defaults.azimuth ?? 0,
     beamwidth: params.beamwidth ?? defaults.beamwidth ?? 65,
     tilt: params.tilt ?? (activeCell as any).remote_electrical_tilt ?? defaults.tilt ?? 4,
+    mechanicalTilt: params.mechanicalTilt ?? defaults.mechanicalTilt ?? 0,
     rxHeight: params.rxHeight ?? defaults.rxHeight ?? 1.5,
     radius: params.radius ?? defaults.radius ?? 5,
     gridSize: params.gridSize ?? defaults.gridSize ?? 80,
     environment: params.environment ?? defaults.environment ?? 'urban',
     techno,
+    cableLoss: params.cableLoss ?? defaults.cableLoss ?? 2,
+    bodyLoss: params.bodyLoss ?? defaults.bodyLoss ?? 3,
+    bandwidth: params.bandwidth ?? defaults.bandwidth ?? 20,
+    shadowFading: params.shadowFading ?? defaults.shadowFading ?? true,
+    clutterEnabled: params.clutterEnabled ?? defaults.clutterEnabled ?? true,
   }), [params, defaults, siteDetail, activeCell, techno]);
 
   const upd = (k: keyof SimulationParams, v: any) => setParams(p => ({ ...p, [k]: v }));
 
-  const handleSim = () => {
-    const grid = simulateCoverage(merged as SimulationParams);
-    onSimulate(grid);
+  const handleSim = async () => {
+    setSimulating(true);
+    try {
+      let terrainGrid: number[][] | undefined;
+
+      // Try to fetch terrain from server
+      if (useTerrain) {
+        try {
+          const resp = await fetch('http://localhost:3001/api/simulate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...merged, useTerrain: true }),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.terrainGrid) {
+              terrainGrid = data.terrainGrid;
+            }
+          }
+        } catch {
+          console.log('[sim] Server unavailable, running client-side only');
+        }
+      }
+
+      const grid = simulateCoverage({ ...merged, terrainGrid } as SimulationParams);
+      onSimulate(grid);
+    } finally {
+      setSimulating(false);
+    }
   };
+
+  const isRunning = simulating || coverageSimulating;
 
   return (
     <div className="px-4 py-3 space-y-3">
@@ -3661,7 +3697,7 @@ const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverageSimula
       {/* Tx Power */}
       <div>
         <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-muted-foreground uppercase">Puissance TX</label>
+          <label className="text-[9px] font-bold text-muted-foreground uppercase">Puissance TX ({techno === '5G' ? 'SSB' : 'RS'})</label>
           <span className="text-[11px] font-bold text-foreground">{merged.txPower} dBm</span>
         </div>
         <Slider value={[merged.txPower]} min={20} max={60} step={1} onValueChange={v => upd('txPower', v[0])} className="mt-1" />
@@ -3694,6 +3730,15 @@ const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverageSimula
         <Slider value={[merged.radius]} min={0.5} max={20} step={0.5} onValueChange={v => upd('radius', v[0])} className="mt-1" />
       </div>
 
+      {/* Bandwidth */}
+      <div>
+        <div className="flex items-center justify-between">
+          <label className="text-[9px] font-bold text-muted-foreground uppercase">Bande passante</label>
+          <span className="text-[11px] font-bold text-foreground">{merged.bandwidth} MHz</span>
+        </div>
+        <Slider value={[merged.bandwidth]} min={5} max={100} step={5} onValueChange={v => upd('bandwidth', v[0])} className="mt-1" />
+      </div>
+
       {/* Environment */}
       <div>
         <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Environnement</label>
@@ -3712,6 +3757,22 @@ const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverageSimula
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Toggles: Shadow Fading + Terrain */}
+      <div className="flex gap-3">
+        <label className="flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground cursor-pointer">
+          <input type="checkbox" checked={merged.shadowFading} onChange={e => upd('shadowFading', e.target.checked)} className="rounded" />
+          Shadow Fading
+        </label>
+        <label className="flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground cursor-pointer">
+          <input type="checkbox" checked={merged.clutterEnabled} onChange={e => upd('clutterEnabled', e.target.checked)} className="rounded" />
+          Clutter
+        </label>
+        <label className="flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground cursor-pointer">
+          <input type="checkbox" checked={useTerrain} onChange={e => setUseTerrain(e.target.checked)} className="rounded" />
+          Terrain DEM
+        </label>
       </div>
 
       {/* Advanced toggle */}
@@ -3749,6 +3810,27 @@ const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverageSimula
           </div>
           <div>
             <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-muted-foreground uppercase">Tilt mécanique</label>
+              <span className="text-[11px] font-bold text-foreground">{merged.mechanicalTilt}°</span>
+            </div>
+            <Slider value={[merged.mechanicalTilt]} min={0} max={15} step={0.5} onValueChange={v => upd('mechanicalTilt', v[0])} className="mt-1" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-muted-foreground uppercase">Perte câble (feeder)</label>
+              <span className="text-[11px] font-bold text-foreground">{merged.cableLoss} dB</span>
+            </div>
+            <Slider value={[merged.cableLoss]} min={0} max={10} step={0.5} onValueChange={v => upd('cableLoss', v[0])} className="mt-1" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-muted-foreground uppercase">Perte corps (body loss)</label>
+              <span className="text-[11px] font-bold text-foreground">{merged.bodyLoss} dB</span>
+            </div>
+            <Slider value={[merged.bodyLoss]} min={0} max={10} step={0.5} onValueChange={v => upd('bodyLoss', v[0])} className="mt-1" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between">
               <label className="text-[9px] font-bold text-muted-foreground uppercase">Résolution grille</label>
               <span className="text-[11px] font-bold text-foreground">{merged.gridSize}×{merged.gridSize}</span>
             </div>
@@ -3774,10 +3856,10 @@ const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverageSimula
         </button>
         <button
           onClick={handleSim}
-          disabled={coverageSimulating}
+          disabled={isRunning}
           className="flex-1 px-4 py-2.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg"
         >
-          {coverageSimulating ? (
+          {isRunning ? (
             <><Activity size={13} className="animate-spin" /> Calcul...</>
           ) : (
             <><Play size={13} /> Simuler</>
