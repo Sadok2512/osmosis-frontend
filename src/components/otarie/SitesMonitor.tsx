@@ -3642,7 +3642,7 @@ const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverageSimula
                     : 'bg-muted text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {c.techno} {c.bande} {c.azimut}°
+                {c.bande} {c.azimut}°
               </button>
             ))}
           </div>
