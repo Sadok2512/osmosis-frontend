@@ -2441,15 +2441,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
                 {/* ── Topologie Tab ── */}
                 {cellDetailTab === 'topo' && (
-                  <div className="px-4 py-3">
-                    <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Paramètres RF & Topologie</h4>
-                    <div className="space-y-0">
+                  <div className="px-5 py-4">
+                    <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <Radio size={13} className="text-primary" />
+                      Paramètres RF & Topologie
+                    </h4>
+                    <div className="rounded-xl border border-border overflow-hidden bg-card">
                       {[
-                        { label: 'Technologie', value: cell.techno ?? '—' },
-                        { label: 'Bande', value: cell.bande ? `${cell.bande} MHz` : '—' },
-                        { label: 'Cell ID', value: cell.cell_id },
-                        { label: 'Azimut', value: cell.azimut != null ? `${cell.azimut}°` : '—' },
-                        { label: 'HBA', value: cell.hba != null ? `${cell.hba} m` : '—' },
+                        { label: 'Technologie', value: cell.techno ?? '—', highlight: true },
+                        { label: 'Bande', value: cell.bande ? `${cell.bande} MHz` : '—', highlight: true },
+                        { label: 'Cell ID', value: cell.cell_id, highlight: true },
+                        { label: 'Azimut', value: cell.azimut != null ? `${cell.azimut}°` : '—', highlight: true },
+                        { label: 'HBA', value: cell.hba != null ? `${cell.hba} m` : '—', highlight: true },
                         { label: 'E-Tilt', value: (cell as any).remote_electrical_tilt != null ? `${(cell as any).remote_electrical_tilt}°` : '—' },
                         { label: 'PCI', value: (cell as any).pci ?? '—' },
                         { label: 'TAC', value: (cell as any).tac ?? '—' },
@@ -2457,7 +2460,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         { label: 'NCI', value: (cell as any).nci ?? '—' },
                         { label: 'CID', value: (cell as any).cid ?? '—' },
                         { label: 'État Cellule', value: (cell as any).etat_cellule ?? '—' },
-                        { label: 'Constructeur', value: (cell as any).constructeur ?? siteDetail.vendor ?? '—' },
+                        { label: 'Constructeur', value: (cell as any).constructeur ?? siteDetail.vendor ?? '—', highlight: true },
                         { label: 'Plaque', value: (cell as any).plaque ?? '—' },
                         { label: 'Zone ARCEP', value: (cell as any).zone_arcep ?? '—' },
                         { label: 'Essentiel', value: (cell as any).essentiel ?? '—' },
@@ -2466,9 +2469,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         { label: 'Latitude', value: (cell as any).latitude != null ? Number((cell as any).latitude).toFixed(5) : '—' },
                         { label: 'Longitude', value: (cell as any).longitude != null ? Number((cell as any).longitude).toFixed(5) : '—' },
                       ].map((p, i) => (
-                        <div key={i} className="flex items-center justify-between py-1.5 text-[12px] border-b border-border/30 last:border-0">
-                          <span className="text-muted-foreground">{p.label}</span>
-                          <span className="font-medium text-foreground font-mono text-[11px]">{p.value}</span>
+                        <div key={i} className={`flex items-center justify-between px-4 py-2.5 text-[12px] border-b border-border/40 last:border-0 ${i % 2 === 0 ? 'bg-muted/20' : ''}`}>
+                          <span className="text-muted-foreground font-medium">{p.label}</span>
+                          <span className={`font-mono text-[11px] font-semibold ${p.highlight && p.value !== '—' ? 'text-primary' : p.value === '—' ? 'text-muted-foreground/50' : 'text-foreground'}`}>
+                            {p.value}
+                          </span>
                         </div>
                       ))}
                     </div>
