@@ -128,6 +128,36 @@ export type Database = {
         }
         Relationships: []
       }
+      map_views: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          settings: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          settings?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          settings?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       qoe_metrics: {
         Row: {
           bande: string | null
