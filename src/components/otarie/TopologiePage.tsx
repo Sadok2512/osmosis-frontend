@@ -90,10 +90,8 @@ const TopologiePage: React.FC = () => {
   };
 
   const fetchRowsCloud = async (filters: Record<string, string>, cols: string, limit = 5000) => {
-    let query: any = supabase.from('dump_parameter').select(cols);
-    Object.entries(filters).forEach(([k, v]) => { query = query.eq(k, v); });
-    const { data } = await query.order('site_name').limit(limit);
-    return data || [];
+    // Cloud disabled — delegate to local
+    return fetchRows(filters, cols, limit);
   };
 
   // Load filter options
@@ -242,11 +240,9 @@ const TopologiePage: React.FC = () => {
         }
       }
 
-      const { error } = await supabase.from('dump_parameter').select('parameter').limit(1);
-      if (error) throw error;
-      const { count } = await supabase.from('dump_parameter').select('*', { count: 'exact', head: true });
+      const probe = await dumpParameterApi.query({}, 'parameter', 1);
       setCnxStatus('ok');
-      setCnxMessage(`✅ Connecté (Cloud) — ${count ?? '?'} lignes dans dump_parameter`);
+      setCnxMessage(`✅ Connecté (Local) — dump_parameter accessible`);
     } catch (err: any) {
       setCnxStatus('error');
       setCnxMessage(`❌ Erreur: ${err.message || err}`);
