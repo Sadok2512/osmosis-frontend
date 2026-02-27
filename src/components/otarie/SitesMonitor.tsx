@@ -295,13 +295,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
-  const [showCreateView, setShowCreateView] = useState(false);
+  const [showCreateView, setShowCreateView] = useState<string | null>(null);
   const [newViewName, setNewViewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [expandedDashboardId, setExpandedDashboardId] = useState<string | null>(null);
+  const [editingDashboardId, setEditingDashboardId] = useState<string | null>(null);
   const [editingViewId, setEditingViewId] = useState<string | null>(null);
 
-  const VIEW_COLORS = [
+  const PALETTE = [
     { label: 'Default', value: '' },
     { label: 'Blue', value: 'hsl(210 80% 55%)' },
     { label: 'Green', value: 'hsl(150 70% 40%)' },
@@ -342,17 +343,43 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   useEffect(() => { fetchAll(); }, []);
 
-  const handleCreateView = async () => {
+  // ── Dashboard settings helpers ──
+  const getDashboardSettings = (db: any) => {
+    const w = Array.isArray(db.widgets) ? db.widgets : [];
+    const meta = w.find((wi: any) => wi?._type === 'dashboard_settings');
+    return meta || { mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '' };
+  };
+
+  const updateDashboardSettings = async (dbId: string, updates: Record<string, any>) => {
+    const db = dashboards.find(d => d.id === dbId);
+    if (!db) return;
+    const w = Array.isArray(db.widgets) ? [...db.widgets] : [];
+    const idx = w.findIndex((wi: any) => wi?._type === 'dashboard_settings');
+    const current = idx >= 0 ? w[idx] : { _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '' };
+    const updated = { ...current, ...updates };
+    if (idx >= 0) w[idx] = updated; else w.push(updated);
+    await supabase.from('dashboards').update({ widgets: w, updated_at: new Date().toISOString() }).eq('id', dbId);
+    setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, widgets: w } : d));
+  };
+
+  const renameDashboard = async (dbId: string, newName: string) => {
+    if (!newName.trim()) return;
+    await supabase.from('dashboards').update({ name: newName.trim(), updated_at: new Date().toISOString() }).eq('id', dbId);
+    setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
+  };
+
+  // ── View helpers ──
+  const handleCreateView = async (dashboardId: string) => {
     if (!newViewName.trim()) return;
     setCreating(true);
     const { error } = await supabase.from('map_views').insert({
       name: newViewName.trim(),
-      description: '',
-      settings: { center: [43.2965, 5.3698], zoom: 6, mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', mapTechnoFilter: 'ALL', enabledBands: [], sectorColorMode: 'topo', mapDisplayMode: 'sites', showBandPanel: true, showLegend: true, showRightPanel: true, panelCollapsed: false, localVendor: 'ALL', localDor: 'ALL', localPlaque: 'ALL', localSite: 'ALL' },
+      description: dashboardId,
+      settings: { center: [43.2965, 5.3698], zoom: 6 },
     });
     if (!error) {
       setNewViewName('');
-      setShowCreateView(false);
+      setShowCreateView(null);
       fetchAll();
     }
     setCreating(false);
@@ -379,6 +406,81 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setMapViews(prev => prev.map(v => v.id === viewId ? { ...v, name: newName.trim() } : v));
   };
 
+  // Resolve effective settings for a view (dashboard parent + view overrides)
+  const getEffectiveViewSettings = (view: any, dbSettings: any) => {
+    const vs = typeof view.settings === 'object' ? view.settings : {};
+    return {
+      mapLayer: vs.mapLayer || dbSettings.mapLayer || 'light',
+      mapKpi: vs.mapKpi || dbSettings.mapKpi || 'qoe_score_avg',
+      color: vs.color || dbSettings.color || '',
+      center: vs.center || dbSettings.center,
+      zoom: vs.zoom || dbSettings.zoom,
+    };
+  };
+
+  // ── Reusable settings panel ──
+  const SettingsPanel = ({ settings, onUpdate, onRename, currentName }: { settings: any; onUpdate: (u: Record<string, any>) => void; onRename?: (name: string) => void; currentName?: string }) => (
+    <div className="px-3 py-3 bg-muted/30 border-t border-border/50 space-y-3">
+      {onRename && currentName != null && (
+        <div>
+          <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Nom</label>
+          <input
+            defaultValue={currentName}
+            onBlur={(e) => onRename(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            className="w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground outline-none focus:border-primary transition-colors"
+          />
+        </div>
+      )}
+      <div>
+        <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Type de carte</label>
+        <div className="flex gap-1.5">
+          {MAP_LAYERS.map(layer => (
+            <button
+              key={layer.value}
+              onClick={() => onUpdate({ mapLayer: layer.value })}
+              className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                (settings.mapLayer || 'light') === layer.value
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                  : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30'
+              }`}
+            >
+              {layer.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Couleur</label>
+        <div className="flex gap-1.5 flex-wrap">
+          {PALETTE.map(c => (
+            <button
+              key={c.value || 'none'}
+              onClick={() => onUpdate({ color: c.value })}
+              className={`w-6 h-6 rounded-full border-2 transition-all ${
+                (settings.color || '') === c.value ? 'border-primary scale-110 shadow-sm' : 'border-border hover:border-primary/40'
+              }`}
+              style={{ background: c.value || 'hsl(var(--muted))' }}
+              title={c.label}
+            />
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Indicateur QoE</label>
+        <select
+          value={settings.mapKpi || 'qoe_score_avg'}
+          onChange={(e) => onUpdate({ mapKpi: e.target.value })}
+          className="w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-foreground outline-none focus:border-primary transition-colors"
+        >
+          {KPI_OPTIONS.map(kpi => (
+            <option key={kpi.value} value={kpi.value}>{kpi.label}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+
   if (ldg) {
     return (
       <div className="flex-1 flex items-center justify-center py-12">
@@ -389,7 +491,6 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3">
-      {/* Dashboards header */}
       <div className="flex items-center gap-2 px-1 mb-2">
         <LayoutGrid size={13} className="text-primary" />
         <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboards</h3>
@@ -402,54 +503,88 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         <div className="space-y-1.5">
           {dashboards.map(db => {
             const isExpanded = expandedDashboardId === db.id;
+            const dbSettings = getDashboardSettings(db);
+            const dbColor = dbSettings.color || '';
+            const isEditingDb = editingDashboardId === db.id;
+            const dbViews = mapViews.filter(v => v.description === db.id);
+
             return (
-              <div key={db.id}>
+              <div key={db.id} className="rounded-xl border border-border bg-card overflow-hidden transition-all">
                 {/* Dashboard row */}
                 <div
-                  onClick={() => setExpandedDashboardId(isExpanded ? null : db.id)}
-                  className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all px-3 py-2.5 cursor-pointer"
+                  className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-muted/20 transition-colors"
+                  style={dbColor ? { borderLeft: `3px solid ${dbColor}` } : undefined}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <ChevronDown size={12} className={`text-muted-foreground transition-transform shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
-                    <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <LayoutGrid size={13} className="text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[12px] font-bold text-foreground truncate block">{db.name}</span>
-                      {db.description && <span className="text-[9px] text-muted-foreground truncate block mt-0.5">{db.description}</span>}
-                    </div>
-                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                      {db.is_shared ? 'Public' : 'Privé'}
-                    </span>
+                  <button
+                    onClick={() => setExpandedDashboardId(isExpanded ? null : db.id)}
+                    className="shrink-0 p-0.5"
+                  >
+                    <ChevronDown size={12} className={`text-muted-foreground transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                  </button>
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    style={dbColor ? { background: dbColor + '22', color: dbColor } : undefined}
+                  >
+                    <LayoutGrid size={13} className={dbColor ? '' : 'text-primary'} style={dbColor ? { color: dbColor } : undefined} />
                   </div>
+                  <div className="flex-1 min-w-0" onClick={() => {
+                    if (onApplyView) onApplyView(dbSettings);
+                  }}>
+                    <span className="text-[12px] font-bold text-foreground truncate block">{db.name}</span>
+                    <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
+                      <span>{MAP_LAYERS.find(l => l.value === (dbSettings.mapLayer || 'light'))?.label || 'Light'}</span>
+                      <span>•</span>
+                      <span>{KPI_OPTIONS.find(k => k.value === (dbSettings.mapKpi || 'qoe_score_avg'))?.label || 'QoE'}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditingDashboardId(isEditingDb ? null : db.id); }}
+                    className={`p-1.5 rounded-lg transition-colors shrink-0 ${isEditingDb ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                    title="Settings"
+                  >
+                    <Settings2 size={12} />
+                  </button>
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                    {db.is_shared ? 'Public' : 'Privé'}
+                  </span>
                 </div>
+
+                {/* Dashboard settings panel */}
+                {isEditingDb && (
+                  <SettingsPanel
+                    settings={dbSettings}
+                    onUpdate={(u) => updateDashboardSettings(db.id, u)}
+                    onRename={(name) => renameDashboard(db.id, name)}
+                    currentName={db.name}
+                  />
+                )}
 
                 {/* Nested views tree */}
                 {isExpanded && (
-                  <div className="ml-5 mt-1 pl-3 border-l-2 border-border/60 space-y-1">
+                  <div className="ml-5 pl-3 border-l-2 border-border/60 space-y-1 py-1.5">
                     {/* Create new view */}
-                    {showCreateView ? (
+                    {showCreateView === db.id ? (
                       <div className="flex items-center gap-1.5 py-1 px-1">
                         <input
                           autoFocus
                           value={newViewName}
                           onChange={e => setNewViewName(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleCreateView()}
+                          onKeyDown={e => e.key === 'Enter' && handleCreateView(db.id)}
                           placeholder="Nom de la vue..."
                           className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
                         />
-                        <button onClick={handleCreateView} disabled={creating || !newViewName.trim()}
+                        <button onClick={() => handleCreateView(db.id)} disabled={creating || !newViewName.trim()}
                           className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
                           <Plus size={12} />
                         </button>
-                        <button onClick={() => { setShowCreateView(false); setNewViewName(''); }}
+                        <button onClick={() => { setShowCreateView(null); setNewViewName(''); }}
                           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
                           <X size={12} />
                         </button>
                       </div>
                     ) : (
                       <button
-                        onClick={() => setShowCreateView(true)}
+                        onClick={() => setShowCreateView(db.id)}
                         className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary/5 text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors"
                       >
                         <Plus size={11} />
@@ -457,45 +592,47 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       </button>
                     )}
 
-                    {mapViews.length === 0 ? (
-                      <div className="px-2 py-2 text-center text-[10px] text-muted-foreground/60">Aucune vue</div>
+                    {dbViews.length === 0 ? (
+                      <div className="px-2 py-1.5 text-center text-[9px] text-muted-foreground/50">Aucune vue</div>
                     ) : (
-                      mapViews.map(view => {
+                      dbViews.map(view => {
                         const vs = typeof view.settings === 'object' ? view.settings : {} as any;
-                        const viewColor = vs.color || '';
+                        const eff = getEffectiveViewSettings(view, dbSettings);
+                        const viewColor = eff.color;
                         const isEditing = editingViewId === view.id;
+                        const hasOwnSettings = vs.mapLayer || vs.mapKpi || vs.color;
 
                         return (
                           <div key={view.id} className="rounded-lg border border-border/60 bg-card hover:border-primary/30 transition-all overflow-hidden">
-                            {/* View header row */}
                             <div
                               className="flex items-center gap-2 px-2.5 py-2 cursor-pointer"
                               style={viewColor ? { borderLeft: `3px solid ${viewColor}` } : undefined}
-                              onClick={() => { if (onApplyView) onApplyView(vs); }}
+                              onClick={() => { if (onApplyView) onApplyView(eff); }}
                             >
                               <MapIcon size={12} className="text-primary shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   {view.is_default && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
                                   <span className="text-[11px] font-semibold text-foreground truncate">{view.name}</span>
+                                  {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
                                 </div>
                                 <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
-                                  <span>{MAP_LAYERS.find(l => l.value === (vs.mapLayer || 'light'))?.label || 'Light'}</span>
+                                  <span>{MAP_LAYERS.find(l => l.value === eff.mapLayer)?.label || 'Light'}</span>
                                   <span>•</span>
-                                  <span>{KPI_OPTIONS.find(k => k.value === (vs.mapKpi || 'qoe_score_avg'))?.label || 'QoE'}</span>
+                                  <span>{KPI_OPTIONS.find(k => k.value === eff.mapKpi)?.label || 'QoE'}</span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1 shrink-0">
+                              <div className="flex items-center gap-0.5 shrink-0">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setEditingViewId(isEditing ? null : view.id); }}
                                   className={`p-1 rounded transition-colors ${isEditing ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                                   title="Settings"
                                 >
-                                  <Settings2 size={11} />
+                                  <Settings2 size={10} />
                                 </button>
                                 <button
                                   onClick={(e) => handleDeleteView(view.id, e)}
-                                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                                   title="Supprimer"
                                 >
                                   <Trash2 size={10} />
@@ -503,74 +640,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                               </div>
                             </div>
 
-                            {/* Settings panel */}
                             {isEditing && (
-                              <div className="px-3 py-3 bg-muted/30 border-t border-border/50 space-y-3">
-                                {/* View name */}
-                                <div>
-                                  <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Nom</label>
-                                  <input
-                                    defaultValue={view.name}
-                                    onBlur={(e) => handleRenameView(view.id, e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                                    className="w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground outline-none focus:border-primary transition-colors"
-                                  />
-                                </div>
-
-                                {/* Map type */}
-                                <div>
-                                  <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Type de carte</label>
-                                  <div className="flex gap-1.5">
-                                    {MAP_LAYERS.map(layer => (
-                                      <button
-                                        key={layer.value}
-                                        onClick={() => handleUpdateViewSettings(view.id, { mapLayer: layer.value })}
-                                        className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
-                                          (vs.mapLayer || 'light') === layer.value
-                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                            : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30'
-                                        }`}
-                                      >
-                                        {layer.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Color */}
-                                <div>
-                                  <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Couleur</label>
-                                  <div className="flex gap-1.5 flex-wrap">
-                                    {VIEW_COLORS.map(c => (
-                                      <button
-                                        key={c.value || 'none'}
-                                        onClick={() => handleUpdateViewSettings(view.id, { color: c.value })}
-                                        className={`w-6 h-6 rounded-full border-2 transition-all ${
-                                          (viewColor || '') === c.value
-                                            ? 'border-primary scale-110 shadow-sm'
-                                            : 'border-border hover:border-primary/40'
-                                        }`}
-                                        style={{ background: c.value || 'hsl(var(--muted))' }}
-                                        title={c.label}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* QoE Indicator */}
-                                <div>
-                                  <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Indicateur QoE</label>
-                                  <select
-                                    value={vs.mapKpi || 'qoe_score_avg'}
-                                    onChange={(e) => handleUpdateViewSettings(view.id, { mapKpi: e.target.value })}
-                                    className="w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-foreground outline-none focus:border-primary transition-colors"
-                                  >
-                                    {KPI_OPTIONS.map(kpi => (
-                                      <option key={kpi.value} value={kpi.value}>{kpi.label}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                              </div>
+                              <SettingsPanel
+                                settings={vs}
+                                onUpdate={(u) => handleUpdateViewSettings(view.id, u)}
+                                onRename={(name) => handleRenameView(view.id, name)}
+                                currentName={view.name}
+                              />
                             )}
                           </div>
                         );
