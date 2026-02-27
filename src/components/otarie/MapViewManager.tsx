@@ -20,6 +20,7 @@ export interface MapViewSettings {
   localDor: string;
   localPlaque: string;
   localSite: string;
+  beamVisibility?: number;
 }
 
 interface MapView {
