@@ -701,8 +701,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </div>
             )}
 
-            {/* ── Filters (Tech + Topology) ── */}
-            {true && (
+            {/* ── Filters (Tech + Topology) — views only ── */}
+            {!dashboardId && (
               <div className="p-4 rounded-xl border border-border bg-background">
                 <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
                   🔍 Filtres
