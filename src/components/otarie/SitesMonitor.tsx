@@ -535,6 +535,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </div>
             )}
 
+            {/* ── Sections below only for dashboards ── */}
+            {dashboardId && (<>
             {/* ── Map Style (rendering type) ── */}
             <div className="p-4 rounded-xl border border-border bg-background">
               <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
@@ -667,6 +669,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </div>
             </div>
             )}
+            </>)}
 
             {/* ── Dashboard Visibility ── */}
             {dashboardId && (
