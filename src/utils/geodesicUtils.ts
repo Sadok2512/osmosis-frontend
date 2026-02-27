@@ -20,9 +20,24 @@ export interface ProfilePoint {
 
 export type AzimuthSector = 'in-sector' | 'edge-sector' | 'outside-sector';
 
+export interface AntennaParams {
+  hba: number;            // Height Above Ground Level (AGL) in meters
+  siteAltitude: number;   // Ground altitude at site (DEM) in meters AMSL
+  antennaAMSL: number;    // Antenna altitude AMSL = siteAltitude + hba
+  mechTilt: number;       // Mechanical tilt (deg, positive = downtilt)
+  elecTilt: number;       // Electrical tilt (deg, positive = downtilt)
+  totalTilt: number;      // mechTilt + elecTilt
+  azimuth: number;        // Antenna azimuth (deg)
+  hbw: number;            // Horizontal beamwidth (deg), e.g. 65
+  vbw: number;            // Vertical beamwidth (deg), e.g. 7
+  frontToBackRatio: number; // Front-to-back ratio (dB), e.g. 25
+  rxHeight: number;       // Receiver / UE height (m), default 1.5
+}
+
 export interface LOSAnalysis {
-  beamAltitudes: number[]; // beam altitude at each point
-  effectiveTerrain: number[]; // terrain + earth curvature correction
+  beamAltitudes: number[]; // beam altitude at each point (AMSL)
+  effectiveTerrain: number[]; // terrain + earth curvature correction (AMSL)
+  rxAltitudes: number[];  // terrain + rxHeight at each point
   isLOS: boolean;
   obstructionIndex: number | null;
   obstructionDistance: number | null;
@@ -32,6 +47,10 @@ export interface LOSAnalysis {
   segmentAzimuth: number;
   deltaAzimuth: number; // |segment azimuth - antenna azimuth| normalized 0..180
   azimuthSector: AzimuthSector;
+  patternLossH: number; // horizontal pattern loss at target azimuth (dB)
+  patternLossV: number; // vertical pattern loss at target (dB)
+  patternLossTotal: number; // total pattern loss (dB)
+  antennaParams: AntennaParams;
 }
 
 export interface FresnelAnalysis {
@@ -43,14 +62,63 @@ export interface FresnelAnalysis {
   isClearFresnel: boolean; // true if intrusion < 40%
 }
 
+// ─── Antenna Pattern Functions ────────────────────────────
+
+/**
+ * Horizontal pattern attenuation (3GPP TS 38.901 / simplified)
+ * A_H(φ) = -min(12 * (φ / φ_3dB)^2, A_m)
+ * where φ_3dB = HBW/2, A_m = front-to-back ratio
+ * Returns loss in dB (positive value = loss)
+ */
+export function horizontalPatternLoss(deltaAzimuthDeg: number, hbw: number, frontToBackRatio: number): number {
+  const phi3dB = hbw / 2;
+  if (phi3dB <= 0) return 0;
+  const ratio = deltaAzimuthDeg / phi3dB;
+  return Math.min(12 * ratio * ratio, frontToBackRatio);
+}
+
+/**
+ * Vertical pattern attenuation (3GPP TS 38.901 / simplified)
+ * A_V(θ) = -min(12 * ((θ - θ_tilt) / θ_3dB)^2, SLA_v)
+ * where θ_3dB = VBW/2, SLA_v = 30 dB (side lobe attenuation)
+ * θ = vertical angle from antenna to point, θ_tilt = total tilt
+ * Returns loss in dB (positive value = loss)
+ */
+export function verticalPatternLoss(verticalAngleDeg: number, totalTiltDeg: number, vbw: number, slaV: number = 30): number {
+  const theta3dB = vbw / 2;
+  if (theta3dB <= 0) return 0;
+  const delta = verticalAngleDeg - totalTiltDeg;
+  const ratio = delta / theta3dB;
+  return Math.min(12 * ratio * ratio, slaV);
+}
+
+/**
+ * Combined antenna pattern loss (3GPP)
+ * A(φ,θ) = -min(-(A_H + A_V), A_m)
+ * Returns total pattern loss in dB
+ */
+export function combinedPatternLoss(hLoss: number, vLoss: number, frontToBackRatio: number): number {
+  return Math.min(hLoss + vLoss, frontToBackRatio);
+}
+
+/**
+ * Calculate vertical angle from antenna to a target point
+ * verticalAngle = atan2(antennaAMSL - targetAMSL, distance) in degrees
+ * Positive = downtilt direction
+ */
+export function verticalAngleToPoint(antennaAMSL: number, targetAMSL: number, distance: number): number {
+  if (distance <= 0) return 0;
+  return Math.atan2(antennaAMSL - targetAMSL, distance) * RAD2DEG;
+}
+
+// ─── Fresnel ──────────────────────────────────────────────
+
 /**
  * First Fresnel zone radius at distance d from one end
- * F1(d) = sqrt( (λ * d1 * d2) / D )
- * where d1 = d, d2 = D - d, D = total distance, λ = c / f
  */
 export function fresnelRadius(distance: number, totalDistance: number, frequencyGHz: number): number {
   if (distance <= 0 || distance >= totalDistance || frequencyGHz <= 0) return 0;
-  const lambda = 0.3 / frequencyGHz; // wavelength in meters
+  const lambda = 0.3 / frequencyGHz;
   const d1 = distance;
   const d2 = totalDistance - distance;
   return Math.sqrt((lambda * d1 * d2) / totalDistance);
@@ -101,6 +169,8 @@ export function analyzeFresnelZone(
   };
 }
 
+// ─── Geodesic Primitives ──────────────────────────────────
+
 /**
  * Haversine distance between two points in meters
  */
@@ -140,31 +210,41 @@ export function interpolatePoints(start: LatLng, end: LatLng, n: number): LatLng
   return points;
 }
 
+// ─── RF Altitude & Curvature ──────────────────────────────
+
 /**
- * Calculate beam/LOS altitude at distance d from antenna
- * zBeam(d) = zAnt - d * tan(tiltDeg)
+ * LOS line altitude at distance d (straight line from antenna AMSL to target AMSL)
  */
-export function beamAltitude(antennaAlt: number, distance: number, tiltDeg: number): number {
-  return antennaAlt - distance * Math.tan(tiltDeg * DEG2RAD);
+export function losLineAltitude(antennaAMSL: number, targetAMSL: number, distance: number, totalDistance: number): number {
+  if (totalDistance <= 0) return antennaAMSL;
+  const t = distance / totalDistance;
+  return antennaAMSL + t * (targetAMSL - antennaAMSL);
+}
+
+/**
+ * Beam altitude at distance d from antenna using tilt angle
+ * zBeam(d) = antennaAMSL - d * tan(tiltDeg)
+ */
+export function beamAltitude(antennaAMSL: number, distance: number, tiltDeg: number): number {
+  return antennaAMSL - distance * Math.tan(tiltDeg * DEG2RAD);
 }
 
 /**
  * Earth curvature correction at distance d with k-factor
- * deltaCurv(d) = d² / (2 * k * R_earth)
  */
 export function earthCurvatureCorrection(distance: number, kFactor: number = 4 / 3): number {
   const Reff = kFactor * R_EARTH;
   return (distance * distance) / (2 * Reff);
 }
 
+// ─── Full LOS Analysis ───────────────────────────────────
+
 /**
- * Perform full LOS analysis
+ * Perform full LOS analysis with antenna pattern
  */
 export function analyzeLOS(
   profilePoints: ProfilePoint[],
-  antennaHBA: number,
-  antennaTilt: number,
-  antennaAzimuth: number,
+  antenna: AntennaParams,
   targetPoint: LatLng,
   startPoint: LatLng,
   enableCurvature: boolean = true,
@@ -174,6 +254,7 @@ export function analyzeLOS(
     return {
       beamAltitudes: [],
       effectiveTerrain: [],
+      rxAltitudes: [],
       isLOS: true,
       obstructionIndex: null,
       obstructionDistance: null,
@@ -183,14 +264,23 @@ export function analyzeLOS(
       segmentAzimuth: 0,
       deltaAzimuth: 0,
       azimuthSector: 'in-sector' as AzimuthSector,
+      patternLossH: 0,
+      patternLossV: 0,
+      patternLossTotal: 0,
+      antennaParams: antenna,
     };
   }
 
-  const startElevation = profilePoints[0].elevation;
-  const antennaAlt = startElevation + antennaHBA;
+  const antennaAMSL = antenna.antennaAMSL;
+  const totalDist = profilePoints[profilePoints.length - 1].distance;
+  
+  // Target point: last profile point elevation + rxHeight
+  const lastElev = profilePoints[profilePoints.length - 1].elevation;
+  const targetAMSL = lastElev + antenna.rxHeight;
 
   const beamAlts: number[] = [];
   const effectiveTerrain: number[] = [];
+  const rxAlts: number[] = [];
 
   let minClearance = Infinity;
   let firstObstructionIdx: number | null = null;
@@ -198,12 +288,17 @@ export function analyzeLOS(
 
   for (let i = 0; i < profilePoints.length; i++) {
     const d = profilePoints[i].distance;
-    const beam = beamAltitude(antennaAlt, d, antennaTilt);
+    
+    // LOS line from antenna AMSL to target (last point elevation + rxHeight)
+    const beam = losLineAltitude(antennaAMSL, targetAMSL, d, totalDist);
     beamAlts.push(beam);
 
     const curvCorr = enableCurvature ? earthCurvatureCorrection(d, kFactor) : 0;
     const effTerrain = profilePoints[i].elevation + curvCorr;
     effectiveTerrain.push(effTerrain);
+
+    // Rx altitude at each point = terrain + rxHeight
+    rxAlts.push(profilePoints[i].elevation + antenna.rxHeight);
 
     if (profilePoints[i].elevation > maxTerrainAlt) {
       maxTerrainAlt = profilePoints[i].elevation;
@@ -218,15 +313,25 @@ export function analyzeLOS(
     }
   }
 
+  // Azimuth analysis
   const segAzimuth = bearing(startPoint, targetPoint);
-  let dAz = Math.abs(segAzimuth - antennaAzimuth);
+  let dAz = Math.abs(segAzimuth - antenna.azimuth);
   if (dAz > 180) dAz = 360 - dAz;
 
   const azSector: AzimuthSector = dAz <= 30 ? 'in-sector' : dAz <= 60 ? 'edge-sector' : 'outside-sector';
 
+  // Antenna pattern losses
+  const hLoss = horizontalPatternLoss(dAz, antenna.hbw, antenna.frontToBackRatio);
+  
+  // Vertical angle to target
+  const vAngle = verticalAngleToPoint(antennaAMSL, targetAMSL, totalDist);
+  const vLoss = verticalPatternLoss(vAngle, antenna.totalTilt, antenna.vbw);
+  const totalPatternLoss = combinedPatternLoss(hLoss, vLoss, antenna.frontToBackRatio);
+
   return {
     beamAltitudes: beamAlts,
     effectiveTerrain,
+    rxAltitudes: rxAlts,
     isLOS: firstObstructionIdx === null,
     obstructionIndex: firstObstructionIdx,
     obstructionDistance: firstObstructionIdx !== null ? profilePoints[firstObstructionIdx].distance : null,
@@ -236,5 +341,9 @@ export function analyzeLOS(
     segmentAzimuth: Math.round(segAzimuth * 10) / 10,
     deltaAzimuth: Math.round(dAz * 10) / 10,
     azimuthSector: azSector,
+    patternLossH: Math.round(hLoss * 10) / 10,
+    patternLossV: Math.round(vLoss * 10) / 10,
+    patternLossTotal: Math.round(totalPatternLoss * 10) / 10,
+    antennaParams: antenna,
   };
 }

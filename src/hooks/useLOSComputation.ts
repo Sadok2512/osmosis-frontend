@@ -1,14 +1,12 @@
 import { useMemo } from 'react';
-import { ProfilePoint, LOSAnalysis, analyzeLOS, LatLng } from '@/utils/geodesicUtils';
+import { ProfilePoint, LOSAnalysis, AntennaParams, analyzeLOS, LatLng } from '@/utils/geodesicUtils';
 
 /**
  * Hook wrapping LOS analysis for reactive recomputation
  */
 export function useLOSComputation(
   profilePoints: ProfilePoint[],
-  antennaHBA: number,
-  antennaTilt: number,
-  antennaAzimuth: number,
+  antenna: AntennaParams,
   targetPoint: LatLng | null,
   startPoint: LatLng | null,
   enableCurvature: boolean = true,
@@ -19,13 +17,11 @@ export function useLOSComputation(
 
     return analyzeLOS(
       profilePoints,
-      antennaHBA,
-      antennaTilt,
-      antennaAzimuth,
+      antenna,
       targetPoint,
       startPoint,
       enableCurvature,
       kFactor,
     );
-  }, [profilePoints, antennaHBA, antennaTilt, antennaAzimuth, targetPoint, startPoint, enableCurvature, kFactor]);
+  }, [profilePoints, antenna, targetPoint, startPoint, enableCurvature, kFactor]);
 }

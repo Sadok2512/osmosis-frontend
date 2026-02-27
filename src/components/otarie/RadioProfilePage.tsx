@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Popup, useMapEvents } from '
 import L from 'leaflet';
 import { useTerrainProfile } from '@/hooks/useTerrainProfile';
 import { useFresnel } from '@/hooks/useFresnel';
-import { haversineDistance, LatLng } from '@/utils/geodesicUtils';
+import { haversineDistance, LatLng, AntennaParams } from '@/utils/geodesicUtils';
 import ProfileChart from './radio-profile/ProfileChart';
 import InfoPanel from './radio-profile/InfoPanel';
 import { supabase } from '@/integrations/supabase/client';
@@ -60,7 +60,7 @@ const targetIcon = L.divIcon({
 /** Parse bande string to frequency in GHz */
 function bandeToGHz(bande: string): number {
   const mhz = parseFloat(bande);
-  if (isNaN(mhz) || mhz <= 0) return 1.8; // default
+  if (isNaN(mhz) || mhz <= 0) return 1.8;
   return mhz / 1000;
 }
 
@@ -73,7 +73,13 @@ const RadioProfilePage: React.FC = () => {
   const [enableFresnel, setEnableFresnel] = useState(false);
   const [clutterHeight, setClutterHeight] = useState(0);
   const [enableClutter, setEnableClutter] = useState(false);
-  const [tiltOverride, setTiltOverride] = useState<number>(0);
+  // RF parameters
+  const [mechTilt, setMechTilt] = useState(0);
+  const [elecTilt, setElecTilt] = useState(0);
+  const [rxHeight, setRxHeight] = useState(1.5);
+  const [hbw, setHbw] = useState(65);
+  const [vbw, setVbw] = useState(7);
+  const [f2b, setF2b] = useState(25);
   const [fullscreen, setFullscreen] = useState(false);
   const [basemap, setBasemap] = useState<'light' | 'dark' | 'satellite'>('light');
 
@@ -91,7 +97,7 @@ const RadioProfilePage: React.FC = () => {
     const loadSites = async () => {
       const { data, error } = await supabase
         .from('topo')
-        .select('id, nom_site, nom_cellule, code_nidt, latitude, longitude, azimut, hba, techno, bande, constructeur')
+        .select('id, nom_site, nom_cellule, code_nidt, latitude, longitude, azimut, hba, remote_electrical_tilt, techno, bande, constructeur')
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);
 
@@ -109,7 +115,7 @@ const RadioProfilePage: React.FC = () => {
             lng: row.longitude,
             azimuth: row.azimut ?? 0,
             hba: row.hba ?? 30,
-            tilt: 0,
+            tilt: row.remote_electrical_tilt ?? 0,
             techno: row.techno ?? 'LTE',
             bande: row.bande ?? '1800',
             vendor: row.constructeur ?? 'Unknown',
@@ -121,25 +127,44 @@ const RadioProfilePage: React.FC = () => {
     loadSites();
   }, []);
 
+  const buildAntennaParams = useCallback((): AntennaParams | null => {
+    if (!selectedSite) return null;
+    return {
+      hba: selectedSite.hba,
+      siteAltitude: 0, // will be set from DEM in computeProfile
+      antennaAMSL: selectedSite.hba, // will be recalculated
+      mechTilt,
+      elecTilt,
+      totalTilt: mechTilt + elecTilt,
+      azimuth: selectedSite.azimuth,
+      hbw,
+      vbw,
+      frontToBackRatio: f2b,
+      rxHeight,
+    };
+  }, [selectedSite, mechTilt, elecTilt, hbw, vbw, f2b, rxHeight]);
+
   const handleSiteClick = useCallback((site: SelectedSite) => {
     setSelectedSite(site);
     setTargetPoint(null);
     setDrawingMode(false);
+    // Pre-fill electrical tilt from DB
+    setElecTilt(site.tilt ?? 0);
   }, []);
 
   const handleMapClick = useCallback((latlng: LatLng) => {
     if (!drawingMode || !selectedSite) return;
+    const antenna = buildAntennaParams();
+    if (!antenna) return;
     setTargetPoint(latlng);
     setDrawingMode(false);
     computeProfile(
       { lat: selectedSite.lat, lng: selectedSite.lng },
       latlng,
-      selectedSite.hba,
-      tiltOverride,
-      selectedSite.azimuth,
+      antenna,
       enableCurvature
     );
-  }, [drawingMode, selectedSite, computeProfile, tiltOverride, enableCurvature]);
+  }, [drawingMode, selectedSite, computeProfile, buildAntennaParams, enableCurvature]);
 
   const handleStartDrawing = () => {
     if (!selectedSite) return;
@@ -155,12 +180,12 @@ const RadioProfilePage: React.FC = () => {
 
   const handleRecompute = () => {
     if (!selectedSite || !targetPoint) return;
+    const antenna = buildAntennaParams();
+    if (!antenna) return;
     computeProfile(
       { lat: selectedSite.lat, lng: selectedSite.lng },
       targetPoint,
-      selectedSite.hba,
-      tiltOverride,
-      selectedSite.azimuth,
+      antenna,
       enableCurvature
     );
   };
@@ -181,6 +206,8 @@ const RadioProfilePage: React.FC = () => {
     return [46.8, 2.3];
   }, [sites, selectedSite]);
 
+  const totalTilt = mechTilt + elecTilt;
+
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
@@ -191,7 +218,7 @@ const RadioProfilePage: React.FC = () => {
           </div>
           <div>
             <h1 className="text-base font-bold text-foreground">Terrain & Radio Profile</h1>
-            <p className="text-xs text-muted-foreground">Analyse RF — LOS / NLOS / Fresnel</p>
+            <p className="text-xs text-muted-foreground">Analyse RF — LOS / NLOS / Fresnel / Pattern</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -256,7 +283,7 @@ const RadioProfilePage: React.FC = () => {
 
         {/* Right panel */}
         <div className={`border-l border-border bg-card flex flex-col transition-all ${
-          fullscreen ? 'w-full' : analysis ? 'w-[540px]' : 'w-[340px]'
+          fullscreen ? 'w-full' : analysis ? 'w-[540px]' : 'w-[380px]'
         }`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <h3 className="text-sm font-bold text-foreground">
@@ -288,17 +315,72 @@ const RadioProfilePage: React.FC = () => {
                     <div>Techno: <span className="font-semibold text-foreground">{selectedSite.techno}</span></div>
                     <div>Bande: <span className="font-semibold text-foreground">{selectedSite.bande} MHz</span></div>
                     <div>Azimuth: <span className="font-semibold text-foreground">{selectedSite.azimuth}°</span></div>
-                    <div>HBA: <span className="font-semibold text-foreground">{selectedSite.hba} m</span></div>
+                    <div>HBA (AGL): <span className="font-semibold text-foreground">{selectedSite.hba} m</span></div>
                   </div>
                 </div>
 
-                {/* Tilt */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold">Tilt mécanique/électrique</Label>
-                  <div className="flex items-center gap-2">
-                    <input type="range" min="-10" max="20" step="0.5" value={tiltOverride}
-                      onChange={e => setTiltOverride(Number(e.target.value))} className="flex-1 accent-primary" />
-                    <span className="text-xs font-mono font-bold text-foreground w-10 text-right">{tiltOverride}°</span>
+                {/* Antenna Pattern */}
+                <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-3">
+                  <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
+                    <Settings2 className="w-3.5 h-3.5 text-primary" /> Paramètres Antenne
+                  </h4>
+                  {/* Mechanical Tilt */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Tilt mécanique (°)</Label>
+                    <div className="flex items-center gap-2">
+                      <input type="range" min="-5" max="15" step="0.5" value={mechTilt}
+                        onChange={e => setMechTilt(Number(e.target.value))} className="flex-1 accent-primary" />
+                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{mechTilt}°</span>
+                    </div>
+                  </div>
+                  {/* Electrical Tilt */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Tilt électrique (°)</Label>
+                    <div className="flex items-center gap-2">
+                      <input type="range" min="0" max="15" step="0.5" value={elecTilt}
+                        onChange={e => setElecTilt(Number(e.target.value))} className="flex-1 accent-primary" />
+                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{elecTilt}°</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground bg-muted/40 px-2.5 py-1.5 rounded-lg">
+                    <span>Total tilt:</span>
+                    <span className="font-bold text-foreground">{totalTilt}°</span>
+                  </div>
+                  {/* HBW */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">HBW — Largeur lobe H (°)</Label>
+                    <div className="flex items-center gap-2">
+                      <input type="range" min="30" max="120" step="5" value={hbw}
+                        onChange={e => setHbw(Number(e.target.value))} className="flex-1 accent-primary" />
+                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{hbw}°</span>
+                    </div>
+                  </div>
+                  {/* VBW */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">VBW — Largeur lobe V (°)</Label>
+                    <div className="flex items-center gap-2">
+                      <input type="range" min="3" max="20" step="1" value={vbw}
+                        onChange={e => setVbw(Number(e.target.value))} className="flex-1 accent-primary" />
+                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{vbw}°</span>
+                    </div>
+                  </div>
+                  {/* F2B */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Front-to-Back (dB)</Label>
+                    <div className="flex items-center gap-2">
+                      <input type="range" min="15" max="35" step="1" value={f2b}
+                        onChange={e => setF2b(Number(e.target.value))} className="flex-1 accent-primary" />
+                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{f2b} dB</span>
+                    </div>
+                  </div>
+                  {/* Rx Height */}
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Hauteur UE / Récepteur (m)</Label>
+                    <div className="flex items-center gap-2">
+                      <input type="range" min="1" max="15" step="0.5" value={rxHeight}
+                        onChange={e => setRxHeight(Number(e.target.value))} className="flex-1 accent-primary" />
+                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{rxHeight} m</span>
+                    </div>
                   </div>
                 </div>
 
@@ -400,14 +482,6 @@ const RadioProfilePage: React.FC = () => {
 
                 {/* Info */}
                 <InfoPanel
-                  site={{
-                    name: selectedSite!.name,
-                    techno: selectedSite!.techno,
-                    bande: selectedSite!.bande,
-                    azimuth: selectedSite!.azimuth,
-                    hba: selectedSite!.hba,
-                    tilt: tiltOverride,
-                  }}
                   analysis={analysis}
                   totalDistance={totalDistance}
                   enableCurvature={enableCurvature}
