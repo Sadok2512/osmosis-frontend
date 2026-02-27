@@ -92,17 +92,56 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     })));
 
     // Full site index so AI can reference ANY site by name
-    const siteIndex = sites.map(s => `${s.site_name} | ${s.site_id} | ${s.vendor} | ${s.plaque} | ${s.dor} | ${s.cell_count}cells | QoE${s.qoe_score_avg.toFixed(1)} | DL${s.p50_thr_dn_mbps.toFixed(1)}`).join('\n');
+    const siteIndex = sites.map(s => `${s.site_name} | ${s.site_id} | ${s.vendor} | ${s.plaque} | ${s.dor} | ${s.cell_count}cells | QoE${s.qoe_score_avg.toFixed(1)} | DL${s.p50_thr_dn_mbps.toFixed(1)} | DMS3=${(s.dms_dl_3 ?? 0).toFixed(1)} | DMS8=${(s.dms_dl_8 ?? 0).toFixed(1)} | DMS30=${(s.dms_dl_30 ?? 0).toFixed(1)}`).join('\n');
+
+    // Build aggregated stats by vendor, plaque, dor, techno for comparisons
+    const agg = (key: 'vendor' | 'plaque' | 'dor', label: string) => {
+      const groups = new Map<string, { qoe: number[]; dl: number[]; ul: number[]; rtt: number[]; dms3: number[]; dms8: number[]; dms30: number[]; loss: number[]; retrans: number[]; sess: number; cells: number }>();
+      for (const s of sites) {
+        for (const c of s.cells) {
+          const k = key === 'vendor' ? s.vendor : key === 'plaque' ? s.plaque : s.dor;
+          if (!k) continue;
+          if (!groups.has(k)) groups.set(k, { qoe: [], dl: [], ul: [], rtt: [], dms3: [], dms8: [], dms30: [], loss: [], retrans: [], sess: 0, cells: 0 });
+          const g = groups.get(k)!;
+          g.qoe.push(c.qoe_score_avg); g.dl.push(c.p50_thr_dn_mbps); g.ul.push(c.p50_thr_up_mbps);
+          g.rtt.push(c.p95_rtt_ms); g.dms3.push(c.dms_dl_3); g.dms8.push(c.dms_dl_8); g.dms30.push(c.dms_dl_30);
+          g.loss.push(c.tcp_loss_rate); g.retrans.push(c.retransmission_rate); g.sess += c.sessions; g.cells++;
+        }
+      }
+      const avg = (arr: number[]) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+      const lines = Array.from(groups.entries()).map(([k, g]) =>
+        `${k} | ${g.cells} | ${avg(g.qoe).toFixed(1)} | ${avg(g.dl).toFixed(1)} | ${avg(g.ul).toFixed(1)} | ${avg(g.rtt).toFixed(0)} | ${avg(g.dms3).toFixed(1)} | ${avg(g.dms8).toFixed(1)} | ${avg(g.dms30).toFixed(1)} | ${avg(g.loss).toFixed(3)} | ${avg(g.retrans).toFixed(3)} | ${g.sess}`
+      );
+      return `\n=== STATS AGRÉGÉES PAR ${label} ===\n${label} | cells | QoE | DL_Mbps | UL_Mbps | RTT_p95 | DMS_3M | DMS_8M | DMS_30M | TCP_Loss | Retrans | Sessions\n${lines.join('\n')}`;
+    };
+
+    const vendorStats = agg('vendor', 'VENDOR');
+    const plaqueStats = agg('plaque', 'PLAQUE');
+    const dorStats = agg('dor', 'DOR');
+
+    // Aggregated stats by techno (from cells)
+    const technoGroups = new Map<string, { qoe: number[]; dl: number[]; dms3: number[]; dms8: number[]; dms30: number[]; sess: number; cells: number }>();
+    for (const c of allCells) {
+      const t = c.techno || 'Unknown';
+      if (!technoGroups.has(t)) technoGroups.set(t, { qoe: [], dl: [], dms3: [], dms8: [], dms30: [], sess: 0, cells: 0 });
+      const g = technoGroups.get(t)!;
+      g.qoe.push(c.qoe); g.dl.push(c.tput_dl); g.dms3.push(c.dms_dl_3); g.dms8.push(c.dms_dl_8); g.dms30.push(c.dms_dl_30); g.sess += c.sessions; g.cells++;
+    }
+    const avgArr = (arr: number[]) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+    const technoLines = Array.from(technoGroups.entries()).map(([t, g]) =>
+      `${t} | ${g.cells} | ${avgArr(g.qoe).toFixed(1)} | ${avgArr(g.dl).toFixed(1)} | ${avgArr(g.dms3).toFixed(1)} | ${avgArr(g.dms8).toFixed(1)} | ${avgArr(g.dms30).toFixed(1)} | ${g.sess}`
+    );
+    const technoStats = `\n=== STATS AGRÉGÉES PAR TECHNO ===\nTechno | cells | QoE | DL_Mbps | DMS_3M | DMS_8M | DMS_30M | Sessions\n${technoLines.join('\n')}`;
 
     // Sort by QoE: worst 80 + best 20 for detailed KPIs
     const sorted = [...allCells].sort((a, b) => a.qoe - b.qoe);
     const subset = [...sorted.slice(0, 80), ...sorted.slice(-20)];
-    const header = 'cell_id | site_name | lat | lng | techno | bande | vendor | plaque | qoe | tput_dl | rtt_p95 | dms_dl_3 | tcp_loss | sessions | azimut | hba';
+    const header = 'cell_id | site_name | lat | lng | techno | bande | vendor | plaque | qoe | tput_dl | rtt_p95 | dms_dl_3 | dms_dl_8 | dms_dl_30 | tcp_loss | retrans | sessions | azimut | hba';
     const rows = subset.map(c => 
-      `${c.cell_id} | ${c.site_name} | ${c.lat} | ${c.lng} | ${c.techno} | ${c.bande} | ${c.vendor} | ${c.plaque} | ${c.qoe.toFixed(1)} | ${c.tput_dl.toFixed(1)} | ${c.rtt_p95.toFixed(0)} | ${c.dms_dl_3.toFixed(1)} | ${c.tcp_loss.toFixed(2)} | ${c.sessions} | ${c.azimut ?? '-'} | ${c.hba ?? '-'}`
+      `${c.cell_id} | ${c.site_name} | ${c.lat} | ${c.lng} | ${c.techno} | ${c.bande} | ${c.vendor} | ${c.plaque} | ${c.qoe.toFixed(1)} | ${c.tput_dl.toFixed(1)} | ${c.rtt_p95.toFixed(0)} | ${c.dms_dl_3.toFixed(1)} | ${c.dms_dl_8.toFixed(1)} | ${c.dms_dl_30.toFixed(1)} | ${c.tcp_loss.toFixed(3)} | ${c.retrans.toFixed(3)} | ${c.sessions} | ${c.azimut ?? '-'} | ${c.hba ?? '-'}`
     );
 
-    return `Total: ${sites.length} sites, ${allCells.length} cellules\n\n=== INDEX COMPLET DES SITES (${sites.length}) ===\nsite_name | site_id | vendor | plaque | dor | cells | qoe | tput_dl\n${siteIndex}\n\n=== DETAIL KPI CELLULES (top worst/best) ===\n${header}\n${rows.join('\n')}`;
+    return `Total: ${sites.length} sites, ${allCells.length} cellules${vendorStats}${plaqueStats}${dorStats}${technoStats}\n\n=== INDEX COMPLET DES SITES (${sites.length}) ===\nsite_name | site_id | vendor | plaque | dor | cells | qoe | tput_dl | dms3 | dms8 | dms30\n${siteIndex}\n\n=== DETAIL KPI CELLULES (top worst/best) ===\n${header}\n${rows.join('\n')}`;
   }, [sites]);
 
   // All available cell IDs for extraction matching

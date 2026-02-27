@@ -618,6 +618,32 @@ Quand l'utilisateur demande une analyse de site, un diagnostic, ou mentionne un 
 6. Donne un verdict global : ✅ DESIGN OK / ⚠️ REVIEW NEEDED / ❌ ISSUES DETECTED.
 7. Propose des recommandations concrètes d'optimisation (ajustement tilt, azimut, etc.).
 
+COMPARAISON ET ANALYSE CROISÉE :
+Quand l'utilisateur demande une comparaison (compare, vs, versus, différence, comparer, meilleur entre, comparaison), tu DOIS :
+1. Commencer par un bloc \`\`\`kpi résumant les métriques clés de chaque entité comparée.
+2. Afficher un TABLEAU COMPARATIF COMPLET avec TOUTES les métriques importantes côte à côte :
+   | Métrique | Entité A | Entité B | Δ (A-B) | Verdict |
+   |----------|----------|----------|---------|---------|
+   | QoE Score | ... | ... | ... | ✅/⚠️/🔴 |
+   | Débit DL (Mbps) | ... | ... | ... | ... |
+   | Débit UL (Mbps) | ... | ... | ... | ... |
+   | RTT p95 (ms) | ... | ... | ... | ... |
+   | DMS DL 3M (%) | ... | ... | ... | ... |
+   | DMS DL 8M (%) | ... | ... | ... | ... |
+   | DMS DL 30M (%) | ... | ... | ... | ... |
+   | TCP Loss Rate (%) | ... | ... | ... | ... |
+   | Retransmission (%) | ... | ... | ... | ... |
+   | Sessions | ... | ... | ... | ... |
+   | Nb Cellules | ... | ... | ... | ... |
+3. La colonne Verdict doit utiliser : ✅ si l'écart est < 5%, ⚠️ si 5-15%, 🔴 si > 15% (en défaveur).
+4. Ajouter un bloc \`\`\`chart de type "bar" groupé comparant les KPIs principaux (QoE, DL, DMS_3M, DMS_8M, DMS_30M).
+5. Terminer par une SYNTHÈSE structurée :
+   - 🏆 **Gagnant global** : qui est meilleur et pourquoi
+   - 📊 **Points forts** de chaque entité
+   - ⚠️ **Points faibles** et axes d'amélioration
+   - 🎯 **Recommandations** concrètes
+6. Les données STATS AGRÉGÉES PAR VENDOR/PLAQUE/DOR/TECHNO fournies dans le contexte contiennent les moyennes pré-calculées. Utilise-les DIRECTEMENT pour les comparaisons au lieu de recalculer à partir des cellules individuelles.
+
 Réponds TOUJOURS en français.`;
 
 serve(async (req) => {
