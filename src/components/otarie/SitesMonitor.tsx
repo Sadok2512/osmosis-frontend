@@ -1167,7 +1167,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [losEnableFresnel, setLosEnableFresnel] = useState(false);
   const [losEnableClutter, setLosEnableClutter] = useState(false);
   const [losClutterHeight, setLosClutterHeight] = useState(0);
-  const [losTiltOverride, setLosTiltOverride] = useState(0);
+  const [losMechTilt, setLosMechTilt] = useState(0);
+  const [losElecTilt, setLosElecTilt] = useState(0);
+  const [losRxHeight, setLosRxHeight] = useState(1.5);
+  const [losHbw, setLosHbw] = useState(65);
+  const [losVbw, setLosVbw] = useState(7);
+  const [losF2b, setLosF2b] = useState(25);
   const [showLosPanel, setShowLosPanel] = useState(false);
 
   const { loading: losLoading, error: losError, profilePoints: losProfilePoints, analysis: losAnalysis, computeProfile: losComputeProfile } = useTerrainProfile();
@@ -1179,20 +1184,37 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const losFrequencyGHz = losSelectedCell ? (parseFloat(losSelectedCell.bande) > 0 ? parseFloat(losSelectedCell.bande) / 1000 : 1.8) : 1.8;
   const losFresnel = useFresnel(losProfilePoints, losAnalysis, losTotalDistance, losFrequencyGHz, losEnableFresnel);
 
+  const buildLosAntennaParams = useCallback(() => {
+    if (!losSelectedCell) return null;
+    return {
+      hba: losSelectedCell.hba,
+      siteAltitude: 0, // will be set from DEM
+      antennaAMSL: losSelectedCell.hba, // will be recalculated
+      mechTilt: losMechTilt,
+      elecTilt: losElecTilt,
+      totalTilt: losMechTilt + losElecTilt,
+      azimuth: losSelectedCell.azimuth,
+      hbw: losHbw,
+      vbw: losVbw,
+      frontToBackRatio: losF2b,
+      rxHeight: losRxHeight,
+    };
+  }, [losSelectedCell, losMechTilt, losElecTilt, losHbw, losVbw, losF2b, losRxHeight]);
+
   const handleLosMapClick = useCallback((latlng: LatLng) => {
     if (!losDrawingMode || !losSelectedCell) return;
+    const antenna = buildLosAntennaParams();
+    if (!antenna) return;
     setLosTargetPoint(latlng);
     setLosDrawingMode(false);
     setShowLosPanel(true);
     losComputeProfile(
       { lat: losSelectedCell.lat, lng: losSelectedCell.lng },
       latlng,
-      losSelectedCell.hba,
-      losTiltOverride,
-      losSelectedCell.azimuth,
+      antenna,
       losEnableCurvature
     );
-  }, [losDrawingMode, losSelectedCell, losComputeProfile, losTiltOverride, losEnableCurvature]);
+  }, [losDrawingMode, losSelectedCell, losComputeProfile, buildLosAntennaParams, losEnableCurvature]);
 
   const handleStartLosDrawing = useCallback((site: SiteDetail | SiteSummary) => {
     const cell = site.cells[0];
@@ -1214,15 +1236,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const handleLosRecompute = useCallback(() => {
     if (!losSelectedCell || !losTargetPoint) return;
+    const antenna = buildLosAntennaParams();
+    if (!antenna) return;
     losComputeProfile(
       { lat: losSelectedCell.lat, lng: losSelectedCell.lng },
       losTargetPoint,
-      losSelectedCell.hba,
-      losTiltOverride,
-      losSelectedCell.azimuth,
+      antenna,
       losEnableCurvature
     );
-  }, [losSelectedCell, losTargetPoint, losComputeProfile, losTiltOverride, losEnableCurvature]);
+  }, [losSelectedCell, losTargetPoint, losComputeProfile, buildLosAntennaParams, losEnableCurvature]);
 
   const handleCloseLos = useCallback(() => {
     setShowLosPanel(false);
@@ -1990,14 +2012,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {/* Info panel */}
             <div className="w-[300px] shrink-0 overflow-y-auto pr-1">
               <InfoPanel
-                site={{
-                  name: losSelectedCell!.name,
-                  techno: losSelectedCell!.techno,
-                  bande: losSelectedCell!.bande,
-                  azimuth: losSelectedCell!.azimuth,
-                  hba: losSelectedCell!.hba,
-                  tilt: losTiltOverride,
-                }}
                 analysis={losAnalysis}
                 totalDistance={losTotalDistance}
                 enableCurvature={losEnableCurvature}

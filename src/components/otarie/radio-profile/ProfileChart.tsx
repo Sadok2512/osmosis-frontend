@@ -17,6 +17,7 @@ interface Props {
 const ProfileChart: React.FC<Props> = ({
   profilePoints, analysis, fresnel, showFresnel = false, showCurvature = true, clutterHeight = 0,
 }) => {
+  const ant = analysis.antennaParams;
   const data = profilePoints.map((p, i) => {
     const entry: Record<string, number> = {
       distance: Math.round(p.distance) / 1000,
@@ -24,6 +25,10 @@ const ProfileChart: React.FC<Props> = ({
       beam: Math.round(analysis.beamAltitudes[i] * 10) / 10,
       rawTerrain: Math.round(p.elevation * 10) / 10,
     };
+    // Rx altitude line (terrain + UE height)
+    if (ant && ant.rxHeight > 0) {
+      entry.rxLine = Math.round((p.elevation + ant.rxHeight) * 10) / 10;
+    }
     if (clutterHeight > 0) {
       entry.clutter = Math.round((analysis.effectiveTerrain[i] + clutterHeight) * 10) / 10;
     }
@@ -41,6 +46,7 @@ const ProfileChart: React.FC<Props> = ({
 
   const allValues = data.flatMap(d => {
     const vals = [d.terrain, d.beam, d.rawTerrain];
+    if (d.rxLine) vals.push(d.rxLine);
     if (d.clutter) vals.push(d.clutter);
     if (d.fresnelUpper) vals.push(d.fresnelUpper);
     if (d.fresnelLower) vals.push(d.fresnelLower);
@@ -99,8 +105,9 @@ const ProfileChart: React.FC<Props> = ({
             formatter={(value: number, name: string) => {
               const labels: Record<string, string> = {
                 terrain: 'Terrain eff.',
-                beam: 'Faisceau',
+                beam: 'LOS (Ant→UE)',
                 rawTerrain: 'Terrain brut',
+                rxLine: `UE (${ant?.rxHeight ?? 1.5}m)`,
                 clutter: 'Terrain+Clutter',
                 fresnelUpper: 'Fresnel F1 sup',
                 fresnelLower: 'Fresnel F1 inf',
@@ -114,8 +121,9 @@ const ProfileChart: React.FC<Props> = ({
             formatter={(value: string) => {
               const labels: Record<string, string> = {
                 terrain: 'Terrain',
-                beam: 'Faisceau RF',
+                beam: 'LOS (Ant→UE)',
                 rawTerrain: 'Terrain brut',
+                rxLine: `Hauteur UE`,
                 clutter: 'Clutter',
                 fresnelUpper: 'Fresnel F1',
                 fresnelLower: 'Fresnel F1',
@@ -148,6 +156,17 @@ const ProfileChart: React.FC<Props> = ({
               isAnimationActive={false}
             />
           )}
+
+          {/* UE / Rx height line */}
+          <Line
+            type="monotone"
+            dataKey="rxLine"
+            stroke="rgba(168,85,247,0.7)"
+            strokeWidth={1.5}
+            strokeDasharray="6 3"
+            dot={false}
+            isAnimationActive={false}
+          />
 
           {/* Clutter */}
           {clutterHeight > 0 && (
@@ -186,7 +205,7 @@ const ProfileChart: React.FC<Props> = ({
             </>
           )}
 
-          {/* Beam / LOS */}
+          {/* LOS line (Antenna → UE) */}
           <Line
             type="monotone"
             dataKey="beam"
@@ -205,6 +224,30 @@ const ProfileChart: React.FC<Props> = ({
               r={7}
               fill="rgba(239,68,68,0.9)"
               stroke="rgba(255,255,255,0.6)"
+              strokeWidth={2}
+            />
+          )}
+
+          {/* Antenna point marker */}
+          {data.length > 0 && (
+            <ReferenceDot
+              x={data[0].distance}
+              y={ant?.antennaAMSL ?? data[0].beam}
+              r={5}
+              fill="rgba(56,189,248,0.9)"
+              stroke="rgba(255,255,255,0.8)"
+              strokeWidth={2}
+            />
+          )}
+
+          {/* UE target point marker */}
+          {data.length > 1 && (
+            <ReferenceDot
+              x={data[data.length - 1].distance}
+              y={data[data.length - 1].rxLine ?? data[data.length - 1].terrain}
+              r={5}
+              fill="rgba(168,85,247,0.9)"
+              stroke="rgba(255,255,255,0.8)"
               strokeWidth={2}
             />
           )}

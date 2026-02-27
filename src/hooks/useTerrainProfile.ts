@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import {
-  LatLng, ProfilePoint, LOSAnalysis,
+  LatLng, ProfilePoint, LOSAnalysis, AntennaParams,
   interpolatePoints, haversineDistance, analyzeLOS
 } from '@/utils/geodesicUtils';
 
@@ -15,8 +15,6 @@ interface TerrainProfileState {
 
 /**
  * Fetch elevations from Open-Meteo Elevation API (free, no key needed)
- * API: https://open-meteo.com/en/docs/elevation-api
- * Accepts up to 100 locations per request
  */
 async function fetchElevations(points: LatLng[]): Promise<number[]> {
   const batchSize = 100;
@@ -35,7 +33,6 @@ async function fetchElevations(points: LatLng[]): Promise<number[]> {
     if (data.elevation && Array.isArray(data.elevation)) {
       elevations.push(...data.elevation);
     } else {
-      // fallback: fill with 0
       elevations.push(...batch.map(() => 0));
     }
   }
@@ -54,9 +51,7 @@ export function useTerrainProfile() {
   const computeProfile = useCallback(async (
     start: LatLng,
     end: LatLng,
-    antennaHBA: number,
-    antennaTilt: number,
-    antennaAzimuth: number,
+    antenna: AntennaParams,
     enableCurvature: boolean = true,
     kFactor: number = 4 / 3,
   ) => {
@@ -67,6 +62,14 @@ export function useTerrainProfile() {
       const points = interpolatePoints(start, end, NUM_SAMPLES);
       const elevations = await fetchElevations(points);
 
+      // Set site altitude from DEM (first point)
+      const siteAltitude = elevations[0] ?? 0;
+      const updatedAntenna: AntennaParams = {
+        ...antenna,
+        siteAltitude,
+        antennaAMSL: siteAltitude + antenna.hba,
+      };
+
       const profilePoints: ProfilePoint[] = points.map((p, i) => ({
         lat: p.lat,
         lng: p.lng,
@@ -76,9 +79,7 @@ export function useTerrainProfile() {
 
       const analysis = analyzeLOS(
         profilePoints,
-        antennaHBA,
-        antennaTilt,
-        antennaAzimuth,
+        updatedAntenna,
         end,
         start,
         enableCurvature,
