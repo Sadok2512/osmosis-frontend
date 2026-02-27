@@ -340,6 +340,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
   const [expandedSector, setExpandedSector] = useState<number | null>(null);
+  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo'>('kpi');
 
   // LOS / Radio Profile state
   const [losDrawingMode, setLosDrawingMode] = useState(false);
@@ -2342,97 +2343,137 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </div>
 
-                {/* DMS Metric Cards */}
-                <div className="px-5 py-4">
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { label: 'DMS DL 3M', value: cell.dms_dl_3 ?? 0 },
-                      { label: 'DMS DL 8M', value: cell.dms_dl_8 ?? 0 },
-                      { label: 'DMS DL 30M', value: cell.dms_dl_30 ?? 0 },
-                      { label: 'DMS UL 3M', value: cell.dms_ul_3 ?? 0 },
-                    ].map((m, i) => (
-                      <div key={i} className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
-                        <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{m.label}</div>
-                        <div className="text-[14px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
-                      </div>
-                    ))}
-                  </div>
+                {/* Tabs: KPIs / Topologie */}
+                <div className="px-5 py-2 flex items-center gap-1 bg-muted/30">
+                  {[
+                    { id: 'kpi' as const, label: 'KPIs', icon: <BarChart2 size={12} /> },
+                    { id: 'topo' as const, label: 'Topologie', icon: <Radio size={12} /> },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setCellDetailTab(tab.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${
+                        cellDetailTab === tab.id
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                      }`}
+                    >
+                      {tab.icon}
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
 
-                {/* QoE + DL + UL + RTT */}
-                <div className="px-5 py-4">
-                  <div className="grid grid-cols-4 gap-2">
-                    <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
-                      <div className="text-[8px] font-bold text-muted-foreground uppercase">QoE</div>
-                      <div className="text-[22px] font-black leading-none mt-1" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
-                        {cell.qoe_score_avg.toFixed(1)}%
+                {/* ── KPI Tab ── */}
+                {cellDetailTab === 'kpi' && (
+                  <>
+                    {/* DMS Metric Cards */}
+                    <div className="px-5 py-4">
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { label: 'DMS DL 3M', value: cell.dms_dl_3 ?? 0 },
+                          { label: 'DMS DL 8M', value: cell.dms_dl_8 ?? 0 },
+                          { label: 'DMS DL 30M', value: cell.dms_dl_30 ?? 0 },
+                          { label: 'DMS UL 3M', value: cell.dms_ul_3 ?? 0 },
+                        ].map((m, i) => (
+                          <div key={i} className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
+                            <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{m.label}</div>
+                            <div className="text-[14px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
-                      <div className="text-[8px] font-bold text-muted-foreground uppercase">DL</div>
-                      <div className="text-[18px] font-black text-foreground leading-none mt-1">
-                        {(cell.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">M</span>
-                      </div>
-                    </div>
-                    <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
-                      <div className="text-[8px] font-bold text-muted-foreground uppercase">UL</div>
-                      <div className="text-[18px] font-black text-foreground leading-none mt-1">
-                        {(cell.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">M</span>
-                      </div>
-                    </div>
-                    <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
-                      <div className="text-[8px] font-bold text-muted-foreground uppercase">RTT</div>
-                      <div className="text-[18px] font-black text-foreground leading-none mt-1">
-                        {(cell.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">ms</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Cell Technical Parameters */}
-                <div className="px-4 py-3">
-                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">RF Parameters</h4>
-                  <div className="space-y-0">
-                    {[
-                      { label: 'Technology', value: cell.techno },
-                      { label: 'Band', value: `${cell.bande} MHz` },
-                      { label: 'Cell ID', value: cell.cell_id },
-                      { label: 'Azimuth', value: `${cell.azimut}°` },
-                      { label: 'HBA', value: `${cell.hba ?? '—'} m` },
-                      { label: 'Electrical Tilt', value: `${(cell as any).remote_electrical_tilt ?? '—'}°` },
-                      { label: 'PCI', value: `${(cell as any).pci ?? '—'}` },
-                      { label: 'Status', value: (cell as any).etat_cellule ?? 'Active' },
-                    ].map((p, i) => (
-                      <div key={i} className="flex items-center justify-between py-1 text-[12px] border-b border-border/30 last:border-0">
-                        <span className="text-muted-foreground">{p.label}</span>
-                        <span className="font-medium text-foreground">{p.value}</span>
+                    {/* QoE + DL + UL + RTT */}
+                    <div className="px-5 py-4">
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                          <div className="text-[8px] font-bold text-muted-foreground uppercase">QoE</div>
+                          <div className="text-[22px] font-black leading-none mt-1" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
+                            {cell.qoe_score_avg.toFixed(1)}%
+                          </div>
+                        </div>
+                        <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                          <div className="text-[8px] font-bold text-muted-foreground uppercase">DL</div>
+                          <div className="text-[18px] font-black text-foreground leading-none mt-1">
+                            {(cell.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">M</span>
+                          </div>
+                        </div>
+                        <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                          <div className="text-[8px] font-bold text-muted-foreground uppercase">UL</div>
+                          <div className="text-[18px] font-black text-foreground leading-none mt-1">
+                            {(cell.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">M</span>
+                          </div>
+                        </div>
+                        <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
+                          <div className="text-[8px] font-bold text-muted-foreground uppercase">RTT</div>
+                          <div className="text-[18px] font-black text-foreground leading-none mt-1">
+                            {(cell.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[10px] text-muted-foreground ml-0.5">ms</span>
+                          </div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
 
-                {/* Cell KPI */}
-                <div className="px-4 py-3">
-                  <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Performance</h4>
-                  <div className="space-y-0">
-                    {[
-                      { label: 'QoE Score', value: `${cell.qoe_score_avg.toFixed(1)}%`, color: getKpiColor(cell.qoe_score_avg) },
-                      { label: 'DMS DL ≥3 Mbps', value: `${(cell.dms_dl_3 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_3 ?? 0) },
-                      { label: 'DMS DL ≥8 Mbps', value: `${(cell.dms_dl_8 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_8 ?? 0) },
-                      { label: 'DMS DL ≥30 Mbps', value: `${(cell.dms_dl_30 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_30 ?? 0) },
-                      { label: 'DMS UL ≥3 Mbps', value: `${(cell.dms_ul_3 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_ul_3 ?? 0) },
-                      { label: 'Throughput DL', value: `${(cell.p50_thr_dn_mbps ?? 0).toFixed(1)} Mbps` },
-                      { label: 'Throughput UL', value: `${(cell.p50_thr_up_mbps ?? 0).toFixed(1)} Mbps` },
-                      { label: 'RTT P95', value: `${(cell.p95_rtt_ms ?? 0).toFixed(0)} ms` },
-                      { label: 'Sessions', value: cell.sessions?.toLocaleString() ?? '—' },
-                    ].map((kpi, i) => (
-                      <div key={i} className="flex items-center justify-between py-1 text-[12px] border-b border-border/30 last:border-0">
-                        <span className="text-muted-foreground">{kpi.label}</span>
-                        <span className="font-medium" style={kpi.color ? { color: kpi.color } : undefined}>{kpi.value}</span>
+                    {/* Performance table */}
+                    <div className="px-4 py-3">
+                      <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Performance</h4>
+                      <div className="space-y-0">
+                        {[
+                          { label: 'QoE Score', value: `${cell.qoe_score_avg.toFixed(1)}%`, color: getKpiColor(cell.qoe_score_avg) },
+                          { label: 'DMS DL ≥3 Mbps', value: `${(cell.dms_dl_3 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_3 ?? 0) },
+                          { label: 'DMS DL ≥8 Mbps', value: `${(cell.dms_dl_8 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_8 ?? 0) },
+                          { label: 'DMS DL ≥30 Mbps', value: `${(cell.dms_dl_30 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_dl_30 ?? 0) },
+                          { label: 'DMS UL ≥3 Mbps', value: `${(cell.dms_ul_3 ?? 0).toFixed(1)}%`, color: getKpiColor(cell.dms_ul_3 ?? 0) },
+                          { label: 'Throughput DL', value: `${(cell.p50_thr_dn_mbps ?? 0).toFixed(1)} Mbps` },
+                          { label: 'Throughput UL', value: `${(cell.p50_thr_up_mbps ?? 0).toFixed(1)} Mbps` },
+                          { label: 'RTT P95', value: `${(cell.p95_rtt_ms ?? 0).toFixed(0)} ms` },
+                          { label: 'Sessions', value: cell.sessions?.toLocaleString() ?? '—' },
+                        ].map((kpi, i) => (
+                          <div key={i} className="flex items-center justify-between py-1 text-[12px] border-b border-border/30 last:border-0">
+                            <span className="text-muted-foreground">{kpi.label}</span>
+                            <span className="font-medium" style={kpi.color ? { color: kpi.color } : undefined}>{kpi.value}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  </>
+                )}
+
+                {/* ── Topologie Tab ── */}
+                {cellDetailTab === 'topo' && (
+                  <div className="px-4 py-3">
+                    <h4 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Paramètres RF & Topologie</h4>
+                    <div className="space-y-0">
+                      {[
+                        { label: 'Technologie', value: cell.techno ?? '—' },
+                        { label: 'Bande', value: cell.bande ? `${cell.bande} MHz` : '—' },
+                        { label: 'Cell ID', value: cell.cell_id },
+                        { label: 'Azimut', value: cell.azimut != null ? `${cell.azimut}°` : '—' },
+                        { label: 'HBA', value: cell.hba != null ? `${cell.hba} m` : '—' },
+                        { label: 'E-Tilt', value: (cell as any).remote_electrical_tilt != null ? `${(cell as any).remote_electrical_tilt}°` : '—' },
+                        { label: 'PCI', value: (cell as any).pci ?? '—' },
+                        { label: 'TAC', value: (cell as any).tac ?? '—' },
+                        { label: 'ECI', value: (cell as any).eci ?? '—' },
+                        { label: 'NCI', value: (cell as any).nci ?? '—' },
+                        { label: 'CID', value: (cell as any).cid ?? '—' },
+                        { label: 'État Cellule', value: (cell as any).etat_cellule ?? '—' },
+                        { label: 'Constructeur', value: (cell as any).constructeur ?? siteDetail.vendor ?? '—' },
+                        { label: 'Plaque', value: (cell as any).plaque ?? '—' },
+                        { label: 'Zone ARCEP', value: (cell as any).zone_arcep ?? '—' },
+                        { label: 'Essentiel', value: (cell as any).essentiel ?? '—' },
+                        { label: 'Date MES', value: (cell as any).date_mes ?? '—' },
+                        { label: 'Date FN8', value: (cell as any).date_fn8 ?? '—' },
+                        { label: 'Latitude', value: (cell as any).latitude != null ? Number((cell as any).latitude).toFixed(5) : '—' },
+                        { label: 'Longitude', value: (cell as any).longitude != null ? Number((cell as any).longitude).toFixed(5) : '—' },
+                      ].map((p, i) => (
+                        <div key={i} className="flex items-center justify-between py-1.5 text-[12px] border-b border-border/30 last:border-0">
+                          <span className="text-muted-foreground">{p.label}</span>
+                          <span className="font-medium text-foreground font-mono text-[11px]">{p.value}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Back to site */}
                 <div className="px-4 py-2.5">
