@@ -295,6 +295,7 @@ const DashboardInventoryTab: React.FC = () => {
   const [showCreateView, setShowCreateView] = useState(false);
   const [newViewName, setNewViewName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [expandedDashboardId, setExpandedDashboardId] = useState<string | null>(null);
 
   const fetchAll = async () => {
     setLdg(true);
@@ -341,107 +342,108 @@ const DashboardInventoryTab: React.FC = () => {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3">
-      {/* BI Dashboards section — top level */}
-      <div className="mb-4">
-        <div className="flex items-center gap-2 px-1 mb-2">
-          <LayoutGrid size={13} className="text-primary" />
-          <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboards</h3>
-          <span className="ml-auto text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
-        </div>
-        {dashboards.length === 0 ? (
-          <div className="px-3 py-3 text-center text-[10px] text-muted-foreground/60">Aucun dashboard</div>
-        ) : (
-          <div className="space-y-1.5">
-            {dashboards.map(db => (
-              <div key={db.id} className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all px-3 py-2.5 cursor-pointer">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <LayoutGrid size={14} className="text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[12px] font-bold text-foreground truncate block">{db.name}</span>
-                    {db.description && <span className="text-[9px] text-muted-foreground truncate block mt-0.5">{db.description}</span>}
-                  </div>
-                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                    {db.is_shared ? 'Public' : 'Privé'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Dashboards header */}
+      <div className="flex items-center gap-2 px-1 mb-2">
+        <LayoutGrid size={13} className="text-primary" />
+        <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboards</h3>
+        <span className="ml-auto text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
       </div>
 
-      {/* Views section — under dashboards */}
-      <div>
-        <div className="flex items-center gap-2 px-1 mb-2">
-          <MapIcon size={13} className="text-primary" />
-          <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Views</h3>
-          <span className="ml-auto text-[9px] font-bold text-muted-foreground">{mapViews.length}</span>
-        </div>
-
-        {/* Create new view */}
-        {showCreateView ? (
-          <div className="flex items-center gap-1.5 mb-2 px-1">
-            <input
-              autoFocus
-              value={newViewName}
-              onChange={e => setNewViewName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCreateView()}
-              placeholder="Nom de la vue..."
-              className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
-            />
-            <button onClick={handleCreateView} disabled={creating || !newViewName.trim()}
-              className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
-              <Plus size={12} />
-            </button>
-            <button onClick={() => { setShowCreateView(false); setNewViewName(''); }}
-              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-              <X size={12} />
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowCreateView(true)}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 mb-2 rounded-xl border border-dashed border-border hover:border-primary/40 hover:bg-primary/5 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Plus size={12} />
-            Créer une vue
-          </button>
-        )}
-
-        {mapViews.length === 0 ? (
-          <div className="px-3 py-3 text-center text-[10px] text-muted-foreground/60">Aucune vue</div>
-        ) : (
-          <div className="space-y-1.5">
-            {mapViews.map(view => (
-              <div key={view.id} className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all px-3 py-2.5 cursor-pointer">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <MapIcon size={14} className="text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      {view.is_default && <Star size={9} className="text-amber-500 fill-amber-500 shrink-0" />}
-                      <span className="text-[12px] font-bold text-foreground truncate">{view.name}</span>
+      {dashboards.length === 0 ? (
+        <div className="px-3 py-3 text-center text-[10px] text-muted-foreground/60">Aucun dashboard</div>
+      ) : (
+        <div className="space-y-1.5">
+          {dashboards.map(db => {
+            const isExpanded = expandedDashboardId === db.id;
+            return (
+              <div key={db.id}>
+                {/* Dashboard row */}
+                <div
+                  onClick={() => setExpandedDashboardId(isExpanded ? null : db.id)}
+                  className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all px-3 py-2.5 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ChevronDown size={12} className={`text-muted-foreground transition-transform shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
+                    <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <LayoutGrid size={13} className="text-primary" />
                     </div>
-                    <div className="text-[9px] text-muted-foreground mt-0.5">
-                      {new Date(view.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[12px] font-bold text-foreground truncate block">{db.name}</span>
+                      {db.description && <span className="text-[9px] text-muted-foreground truncate block mt-0.5">{db.description}</span>}
                     </div>
+                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                      {db.is_shared ? 'Public' : 'Privé'}
+                    </span>
                   </div>
-                  <button
-                    onClick={(e) => handleDeleteView(view.id, e)}
-                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                    title="Supprimer"
-                  >
-                    <Trash2 size={11} />
-                  </button>
                 </div>
+
+                {/* Nested views tree */}
+                {isExpanded && (
+                  <div className="ml-5 mt-1 pl-3 border-l-2 border-border/60 space-y-1">
+                    {/* Create new view */}
+                    {showCreateView ? (
+                      <div className="flex items-center gap-1.5 py-1 px-1">
+                        <input
+                          autoFocus
+                          value={newViewName}
+                          onChange={e => setNewViewName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleCreateView()}
+                          placeholder="Nom de la vue..."
+                          className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
+                        />
+                        <button onClick={handleCreateView} disabled={creating || !newViewName.trim()}
+                          className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
+                          <Plus size={12} />
+                        </button>
+                        <button onClick={() => { setShowCreateView(false); setNewViewName(''); }}
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowCreateView(true)}
+                        className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary/5 text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <Plus size={11} />
+                        Ajouter une vue
+                      </button>
+                    )}
+
+                    {mapViews.length === 0 ? (
+                      <div className="px-2 py-2 text-center text-[10px] text-muted-foreground/60">Aucune vue</div>
+                    ) : (
+                      mapViews.map(view => (
+                        <div key={view.id} className="group rounded-lg border border-border/60 bg-card hover:border-primary/30 transition-all px-2.5 py-2 cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <MapIcon size={12} className="text-primary shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                {view.is_default && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
+                                <span className="text-[11px] font-semibold text-foreground truncate">{view.name}</span>
+                              </div>
+                              <div className="text-[8px] text-muted-foreground mt-0.5">
+                                {new Date(view.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                            <button
+                              onClick={(e) => handleDeleteView(view.id, e)}
+                              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                              title="Supprimer"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
