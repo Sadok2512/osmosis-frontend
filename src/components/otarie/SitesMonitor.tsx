@@ -2555,9 +2555,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['5G_GROUP'] || '#a855f7' }}>
                         5G NR
                       </button>
-                      <label className="w-4 h-4 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors['5G_GROUP'] || '#a855f7' }} title="Change 5G group color">
-                        <input type="color" value={bandColors['5G_GROUP'] || '#a855f7'} onChange={(e) => updateBandColor('5G_GROUP', e.target.value)} className="opacity-0 w-0 h-0 absolute" />
-                      </label>
                     </div>
                     <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
                   </div>
@@ -2595,9 +2592,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['4G_GROUP'] || '#3b82f6' }}>
                         4G LTE
                       </button>
-                      <label className="w-4 h-4 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors['4G_GROUP'] || '#3b82f6' }} title="Change 4G group color">
-                        <input type="color" value={bandColors['4G_GROUP'] || '#3b82f6'} onChange={(e) => updateBandColor('4G_GROUP', e.target.value)} className="opacity-0 w-0 h-0 absolute" />
-                      </label>
                     </div>
                   </div>
                   <div className="space-y-1.5">
