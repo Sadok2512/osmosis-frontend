@@ -38,6 +38,19 @@ const Index: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [highlightedCellIds, setHighlightedCellIds] = useState<string[]>([]);
   const [aiInitialPrompt, setAiInitialPrompt] = useState<string | undefined>();
+  const [enabledModules, setEnabledModules] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('qoebit_enabled_modules');
+    if (saved) return JSON.parse(saved);
+    return {
+      dashboard_overview: true, list: true, sites: true, traffic: true,
+      alerts: true, detector: true, ai_assistant: true, radio_profile: true,
+      topologie: true, rag: true, docs: true, backend_admin: true,
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('qoebit_enabled_modules', JSON.stringify(enabledModules));
+  }, [enabledModules]);
 
   const accentStyles: Record<AccentColor, Record<string, string>> = {
     default: {},
@@ -115,7 +128,7 @@ const Index: React.FC = () => {
       case 'list':
         return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />;
       case 'settings':
-        return <SettingsPanel sidebarTheme={sidebarTheme} setSidebarTheme={setSidebarTheme} accentColor={accentColor} setAccentColor={setAccentColor} />;
+        return <SettingsPanel sidebarTheme={sidebarTheme} setSidebarTheme={setSidebarTheme} accentColor={accentColor} setAccentColor={setAccentColor} enabledModules={enabledModules} setEnabledModules={setEnabledModules} />;
       case 'docs':
         return <DocumentationPage />;
       case 'ai_assistant':
@@ -145,6 +158,7 @@ const Index: React.FC = () => {
         setIsCollapsed={setIsSidebarCollapsed}
         theme={theme}
         setTheme={setTheme}
+        enabledModules={enabledModules}
       />
       <div className="flex-1 flex flex-col overflow-hidden relative">
         {renderContent()}
