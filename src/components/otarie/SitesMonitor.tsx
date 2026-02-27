@@ -171,10 +171,16 @@ const getSectorCoords = (
 };
 
 // Fly to a site when selected
-const FlyToSite = ({ coords }: { coords: [number, number] | null }) => {
+const FlyToSite = ({ coords, onFlyStart, onFlyEnd }: { coords: [number, number] | null; onFlyStart?: () => void; onFlyEnd?: () => void }) => {
   const map = useMap();
   useEffect(() => {
-    if (coords) map.flyTo(coords, 15, { duration: 1 });
+    if (coords) {
+      onFlyStart?.();
+      map.flyTo(coords, 15, { duration: 1 });
+      const handler = () => { onFlyEnd?.(); };
+      map.once('moveend', handler);
+      return () => { map.off('moveend', handler); };
+    }
   }, [coords, map]);
   return null;
 };
@@ -1213,6 +1219,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localSearch, setLocalSearch] = useState('');
   const [hoveredSiteId, setHoveredSiteId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const [isFlying, setIsFlying] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [panelMinimized, setPanelMinimized] = useState(false);
@@ -1663,7 +1670,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds]);
 
-  const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD && mapDisplayMode === 'sites';
+  const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD && mapDisplayMode === 'sites' && !isFlying;
 
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
@@ -1836,7 +1843,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           url={TILE_URLS[mapLayer].url}
           attribution={TILE_URLS[mapLayer].attribution}
         />
-        <FlyToSite coords={flyTarget} />
+        <FlyToSite coords={flyTarget} onFlyStart={() => setIsFlying(true)} onFlyEnd={() => setIsFlying(false)} />
         <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChange} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
