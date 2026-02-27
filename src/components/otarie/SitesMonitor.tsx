@@ -1945,9 +1945,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           /* ── 5G / 4G mode: detailed per-band sectors ── */
           return (
             <React.Fragment key={site.site_id}>
-              {site.cells.filter(c => isBandEnabled(c.bande, c.techno)).map(cell => {
-                const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, zoomRadius, 60);
+              {site.cells.filter(c => isBandEnabled(c.bande, c.techno))
+                .sort((a, b) => {
+                  // 4G first (below), 5G last (above)
+                  const a5 = (a.techno || '').toUpperCase().includes('5G') ? 1 : 0;
+                  const b5 = (b.techno || '').toUpperCase().includes('5G') ? 1 : 0;
+                  return a5 - b5;
+                })
+                .map(cell => {
                 const is5G = (cell.techno || '').toUpperCase().includes('5G');
+                const cellRadius = is5G ? zoomRadius * 0.6 : zoomRadius;
+                const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, cellRadius, 60);
                 const isFaded = (mapTechnoFilter === '5G' && !is5G) || (mapTechnoFilter === '4G' && is5G);
                 const fillColor = isFaded || isFocusFaded ? FADED_COLOR : (sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
                 const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : (sectorColorMode === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
