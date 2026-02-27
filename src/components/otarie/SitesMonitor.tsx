@@ -2216,40 +2216,92 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const critical = allCells.filter(c => c.qoe_score_avg < 40).length;
             const perfTotal = Math.max(totalCells, 1);
 
+            // Compute avg DMS values across all cells
+            const avgDmsDl3 = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).dms_dl_3 ?? 0), 0) / totalCells : 0;
+            const avgDmsDl8 = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).dms_dl_8 ?? 0), 0) / totalCells : 0;
+            const avgDmsDl30 = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).dms_dl_30 ?? 0), 0) / totalCells : 0;
+            const avgDmsUl3 = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).dms_ul_3 ?? 0), 0) / totalCells : 0;
+            const avgDl = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).p50_thr_dn_mbps ?? 0), 0) / totalCells : 0;
+            const avgUl = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).p50_thr_up_mbps ?? 0), 0) / totalCells : 0;
+            const avgRtt = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).p95_rtt_ms ?? 0), 0) / totalCells : 0;
+
             return (
               <div className="divide-y divide-border">
-                {/* Header */}
+                {/* ── Header — same style as Site ── */}
                 <div className="px-5 py-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-primary/10">
-                      <Network size={22} className="text-primary" />
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'hsl(220 40% 13%)' }}>
+                      <Network size={24} className="text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-[17px] font-extrabold text-foreground tracking-tight">Global Network</h3>
-                      <p className="text-[12px] text-muted-foreground mt-0.5">Score QoE Global</p>
+                      <h3 className="text-[18px] font-extrabold text-foreground leading-tight tracking-tight uppercase">Global Network</h3>
+                      <div className="flex items-center gap-1.5 mt-1.5 text-[12px]">
+                        <span className="text-muted-foreground">{totalSites.toLocaleString('fr-FR')} sites</span>
+                        <span className="text-muted-foreground">•</span>
+                        <span className="font-semibold text-primary">{techs.join(' / ')}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Network Summary */}
-                <div className="px-5 py-5">
-                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Network Summary</h4>
-                  <div className="space-y-0">
+                {/* ── DMS Metric Cards Row ── */}
+                <div className="px-5 py-4">
+                  <div className="grid grid-cols-4 gap-2.5">
                     {[
-                      { label: 'Sites', value: totalSites.toLocaleString('fr-FR'), bold: true },
-                      { label: 'Cells', value: totalCells.toLocaleString('fr-FR'), bold: true },
-                      { label: 'Technologies', value: techs.join(' / '), bold: false },
-                      { label: 'Avg QoE', value: `${avgQoE.toFixed(1)}%`, color: getKpiColor(avgQoE), bold: false },
-                    ].map((row, i) => (
-                      <div key={i} className="flex items-center justify-between py-2.5 text-[13px]">
-                        <span className="text-muted-foreground font-medium">{row.label}</span>
-                        <span className={`${row.bold ? 'font-extrabold text-[15px]' : 'font-semibold'} text-foreground`} style={row.color ? { color: row.color } : undefined}>{row.value}</span>
+                      { label: 'DMS DL 3M', value: avgDmsDl3 },
+                      { label: 'DMS DL 8M', value: avgDmsDl8 },
+                      { label: 'DMS DL 30M', value: avgDmsDl30 },
+                      { label: 'DMS UL 3M', value: avgDmsUl3 },
+                    ].map((m, i) => (
+                      <div key={i} className="bg-muted/30 rounded-xl border border-border px-2.5 py-3.5 text-center">
+                        <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{m.label}</div>
+                        <div className="text-[17px] font-black" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Technology Distribution */}
+                {/* ── QoE + Throughput + RTT Row ── */}
+                <div className="px-5 py-4">
+                  <div className="grid grid-cols-4 gap-2.5">
+                    <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center">
+                      <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-tight">Score QoE<br/>Global</div>
+                      <div className="text-[30px] font-black mt-1.5 leading-none" style={{ color: getKpiColor(avgQoE) }}>
+                        {avgQoE.toFixed(1)}%
+                      </div>
+                      <div className="w-14 h-1 rounded-full mx-auto mt-2.5" style={{ background: getKpiColor(avgQoE) }} />
+                    </div>
+                    <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                        <ChevronDown size={16} className="text-primary" />
+                      </div>
+                      <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Débit DL</div>
+                      <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
+                        {avgDl.toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">M</span>
+                      </div>
+                    </div>
+                    <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                        <ChevronUp size={16} className="text-primary" />
+                      </div>
+                      <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Débit UL</div>
+                      <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
+                        {avgUl.toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">M</span>
+                      </div>
+                    </div>
+                    <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center mb-2">
+                        <Zap size={16} className="text-amber-500" />
+                      </div>
+                      <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">RTT</div>
+                      <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
+                        {avgRtt.toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">MS</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Technology Distribution ── */}
                 <div className="px-5 py-5">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Technology Distribution</h4>
                   <div className="space-y-4">
@@ -2270,7 +2322,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </div>
 
-                {/* Band Distribution Table */}
+                {/* ── Band Distribution Table ── */}
                 <div className="px-5 py-5">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Band Distribution</h4>
                   <div className="border border-border rounded-lg overflow-hidden">
@@ -2301,10 +2353,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </div>
 
-                {/* Performance Distribution */}
+                {/* ── Performance Distribution ── */}
                 <div className="px-5 py-5">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Performance Distribution</h4>
-                  {/* Horizontal bar */}
                   <div className="flex h-2.5 rounded-full overflow-hidden mb-4">
                     {excellent > 0 && <div className="transition-all" style={{ width: `${(excellent / perfTotal) * 100}%`, background: '#22c55e' }} />}
                     {correct > 0 && <div className="transition-all" style={{ width: `${(correct / perfTotal) * 100}%`, background: '#f59e0b' }} />}
