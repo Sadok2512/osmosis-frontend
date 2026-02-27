@@ -2355,9 +2355,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Save button — only when a dashboard is active */}
+      {/* Load & Save buttons — only when a dashboard is active */}
       {viewMode === 'map' && activeDashboardId && (
-        <div className="absolute top-4 z-[1001] pointer-events-auto" style={{ left: 'calc(416px + 270px)' }}>
+        <div className="absolute top-4 z-[1001] pointer-events-auto flex items-center gap-1.5" style={{ left: 'calc(416px + 270px)' }}>
+          <button
+            onClick={() => loadDashboardSettings(activeDashboardId)}
+            className="px-3 py-2 rounded-xl border shadow-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all bg-card/95 backdrop-blur-xl border-border text-muted-foreground hover:text-foreground hover:bg-muted/80"
+          >
+            <FolderOpen size={12} />
+            Load
+          </button>
           <button
             onClick={saveDashboardSettings}
             disabled={dashboardSaving}
