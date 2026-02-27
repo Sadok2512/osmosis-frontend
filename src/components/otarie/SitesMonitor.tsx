@@ -53,7 +53,7 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw
+  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
@@ -1149,6 +1149,73 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim'>('kpi');
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('sites');
 
+  // ── Active Dashboard selector ──
+  const [activeDashboardId, setActiveDashboardId] = useState<string | null>(() => localStorage.getItem('qoebit_active_dashboard'));
+  const [dashboardList, setDashboardList] = useState<{ id: string; name: string; widgets: any }[]>([]);
+  const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
+  const [dashboardSaving, setDashboardSaving] = useState(false);
+  const [dashboardSaveFlash, setDashboardSaveFlash] = useState(false);
+
+  // Fetch dashboards list
+  useEffect(() => {
+    const fetchDashboards = async () => {
+      const { data } = await supabase.from('dashboards').select('id, name, widgets').order('updated_at', { ascending: false });
+      if (data) setDashboardList(data);
+    };
+    fetchDashboards();
+  }, []);
+
+  const activeDashboard = dashboardList.find(d => d.id === activeDashboardId);
+
+  const saveDashboardSettings = useCallback(async () => {
+    if (!activeDashboardId) return;
+    setDashboardSaving(true);
+    const currentSettings = getCurrentMapSettings();
+    const db = dashboardList.find(d => d.id === activeDashboardId);
+    if (!db) { setDashboardSaving(false); return; }
+    const widgets = Array.isArray(db.widgets) ? [...db.widgets] : [];
+    const idx = widgets.findIndex((w: any) => w?._type === 'dashboard_settings');
+    const existing = idx >= 0 ? widgets[idx] : { _type: 'dashboard_settings' };
+    const updated = { ...existing, ...currentSettings, bandColors };
+    if (idx >= 0) widgets[idx] = updated; else widgets.push(updated);
+    await supabase.from('dashboards').update({ widgets, updated_at: new Date().toISOString() }).eq('id', activeDashboardId);
+    setDashboardList(prev => prev.map(d => d.id === activeDashboardId ? { ...d, widgets } : d));
+    setDashboardSaving(false);
+    setDashboardSaveFlash(true);
+    setTimeout(() => setDashboardSaveFlash(false), 1500);
+  }, [activeDashboardId, dashboardList, bandColors]);
+
+  const loadDashboardSettings = useCallback((dbId: string) => {
+    const db = dashboardList.find(d => d.id === dbId);
+    if (!db) return;
+    const widgets = Array.isArray(db.widgets) ? db.widgets : [];
+    const settings = widgets.find((w: any) => w?._type === 'dashboard_settings');
+    if (settings) {
+      if (settings.mapLayer) setMapLayer(settings.mapLayer);
+      if (settings.mapKpi) setMapKpi(settings.mapKpi);
+      if (settings.mapTechnoFilter) setMapTechnoFilter(settings.mapTechnoFilter);
+      if (settings.enabledBands) setEnabledBands(new Set(settings.enabledBands));
+      if (settings.sectorColorMode) setSectorColorMode(settings.sectorColorMode);
+      if (settings.mapDisplayMode) setMapDisplayMode(settings.mapDisplayMode);
+      if (settings.showBandPanel !== undefined) setShowBandPanel(settings.showBandPanel);
+      if (settings.showLegend !== undefined) setShowLegend(settings.showLegend);
+      if (settings.showRightPanel !== undefined) setShowRightPanel(settings.showRightPanel);
+      if (settings.panelCollapsed !== undefined) setPanelCollapsed(settings.panelCollapsed);
+      if (settings.localVendor) setLocalVendor(settings.localVendor);
+      if (settings.localDor) setLocalDor(settings.localDor);
+      if (settings.localPlaque) setLocalPlaque(settings.localPlaque);
+      if (settings.localSite) setLocalSite(settings.localSite);
+      if (settings.bandColors) {
+        setBandColors(settings.bandColors);
+        localStorage.setItem('qoebit_band_colors', JSON.stringify(settings.bandColors));
+      }
+      if (settings.center) setFlyTarget(settings.center);
+    }
+    setActiveDashboardId(dbId);
+    localStorage.setItem('qoebit_active_dashboard', dbId);
+    setShowDashboardDropdown(false);
+  }, [dashboardList]);
+
   // Coverage simulation state
   const [showCoverageSim, setShowCoverageSim] = useState(false);
   const [coverageGrid, setCoverageGrid] = useState<CoverageGrid | null>(null);
@@ -2156,8 +2223,72 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       </div>
 
+      {/* ── Dashboard Selector — top left floating ── */}
+      {viewMode === 'map' && (
+        <div className="absolute top-4 left-[416px] z-[1001] pointer-events-auto" style={{ maxWidth: 260 }}>
+          <div className="relative">
+            <button
+              onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}
+              className="bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-lg px-3 py-2 flex items-center gap-2 hover:bg-muted/80 transition-all w-full"
+            >
+              <FolderOpen size={13} className="text-primary shrink-0" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-foreground truncate flex-1 text-left">
+                {activeDashboard ? activeDashboard.name : 'No Dashboard'}
+              </span>
+              <ChevronDown size={12} className={`text-muted-foreground transition-transform ${showDashboardDropdown ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showDashboardDropdown && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden z-[1002] max-h-[300px] overflow-y-auto">
+                {/* No dashboard option */}
+                <button
+                  onClick={() => { setActiveDashboardId(null); localStorage.removeItem('qoebit_active_dashboard'); setShowDashboardDropdown(false); }}
+                  className={`w-full px-3 py-2.5 text-left text-[10px] font-bold transition-all flex items-center gap-2 ${
+                    !activeDashboardId ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  <X size={11} className="shrink-0" />
+                  <span className="uppercase tracking-widest">Aucun</span>
+                </button>
+                {dashboardList.map(db => (
+                  <button
+                    key={db.id}
+                    onClick={() => loadDashboardSettings(db.id)}
+                    className={`w-full px-3 py-2.5 text-left text-[10px] font-bold transition-all flex items-center gap-2 ${
+                      activeDashboardId === db.id ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <LayoutGrid size={11} className="shrink-0 text-primary/60" />
+                    <span className="truncate flex-1">{db.name}</span>
+                    {activeDashboardId === db.id && <Check size={12} className="text-primary shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Save button — only when a dashboard is active */}
+      {viewMode === 'map' && activeDashboardId && (
+        <div className="absolute top-4 z-[1001] pointer-events-auto" style={{ left: 'calc(416px + 270px)' }}>
+          <button
+            onClick={saveDashboardSettings}
+            disabled={dashboardSaving}
+            className={`px-3 py-2 rounded-xl border shadow-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all ${
+              dashboardSaveFlash
+                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-500'
+                : 'bg-card/95 backdrop-blur-xl border-border text-muted-foreground hover:text-foreground hover:bg-muted/80'
+            }`}
+          >
+            {dashboardSaving ? <RefreshCw size={12} className="animate-spin" /> : dashboardSaveFlash ? <Check size={12} /> : <Save size={12} />}
+            {dashboardSaveFlash ? 'Saved' : 'Save'}
+          </button>
+        </div>
+      )}
+
       {/* Floating top bar — redesigned KPI selector with grouped tabs */}
-      <div className="absolute top-4 left-[416px] right-[466px] z-[1000] pointer-events-auto">
+      <div className="absolute top-14 left-[416px] right-[466px] z-[1000] pointer-events-auto">
         <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl px-3 py-2 flex items-center gap-2 overflow-x-auto">
           {/* Sector color mode toggle */}
           <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
