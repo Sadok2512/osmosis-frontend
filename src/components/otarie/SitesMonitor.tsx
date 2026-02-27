@@ -900,7 +900,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
           ))}
         </select>
         {expandedDashboardId && (
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
             <button
               onClick={() => { if (onSaveDashboard) onSaveDashboard(expandedDashboardId); }}
               disabled={isSaving}
@@ -915,6 +915,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
             >
               <FolderOpen size={12} />
               <span className="uppercase tracking-wider">Load</span>
+            </button>
+            <button
+              onClick={() => setExpandedDashboardId(null)}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
+            >
+              <X size={12} />
+              <span className="uppercase tracking-wider">Close</span>
             </button>
           </div>
         )}
