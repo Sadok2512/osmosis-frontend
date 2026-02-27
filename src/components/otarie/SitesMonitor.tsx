@@ -2219,50 +2219,50 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return (
               <div className="divide-y divide-border">
                 {/* Header */}
-                <div className="px-5 py-5">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-primary/10">
-                      <Network size={20} className="text-primary" />
+                <div className="px-5 py-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-primary/10">
+                      <Network size={22} className="text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-[15px] font-bold text-foreground tracking-tight">Global Network</h3>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{selectedKpiLabel}</p>
+                      <h3 className="text-[17px] font-extrabold text-foreground tracking-tight">Global Network</h3>
+                      <p className="text-[12px] text-muted-foreground mt-0.5">Score QoE Global</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Network Summary */}
-                <div className="px-5 py-4">
-                  <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Network Summary</h4>
-                  <div className="space-y-0.5">
+                <div className="px-5 py-5">
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Network Summary</h4>
+                  <div className="space-y-0">
                     {[
-                      { label: 'Sites', value: totalSites.toLocaleString(), bold: true },
-                      { label: 'Cells', value: totalCells.toLocaleString(), bold: true },
-                      { label: 'Technologies', value: techs.join(' / ') },
-                      { label: 'Avg QoE', value: `${avgQoE.toFixed(1)}%`, color: getKpiColor(avgQoE) },
+                      { label: 'Sites', value: totalSites.toLocaleString('fr-FR'), bold: true },
+                      { label: 'Cells', value: totalCells.toLocaleString('fr-FR'), bold: true },
+                      { label: 'Technologies', value: techs.join(' / '), bold: false },
+                      { label: 'Avg QoE', value: `${avgQoE.toFixed(1)}%`, color: getKpiColor(avgQoE), bold: false },
                     ].map((row, i) => (
-                      <div key={i} className="flex items-center justify-between py-2 text-[12px]">
-                        <span className="text-muted-foreground">{row.label}</span>
-                        <span className={`${row.bold ? 'font-bold' : 'font-medium'} text-foreground`} style={row.color ? { color: row.color } : undefined}>{row.value}</span>
+                      <div key={i} className="flex items-center justify-between py-2.5 text-[13px]">
+                        <span className="text-muted-foreground font-medium">{row.label}</span>
+                        <span className={`${row.bold ? 'font-extrabold text-[15px]' : 'font-semibold'} text-foreground`} style={row.color ? { color: row.color } : undefined}>{row.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Technology Distribution */}
-                <div className="px-5 py-4">
-                  <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Technology Distribution</h4>
-                  <div className="space-y-3">
+                <div className="px-5 py-5">
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Technology Distribution</h4>
+                  <div className="space-y-4">
                     {techStats.map(ts => (
-                      <div key={ts.tech} className="flex items-start gap-2.5">
-                        <div className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${ts.tech === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
+                      <div key={ts.tech} className="flex items-start gap-3">
+                        <div className={`w-3 h-3 rounded-full mt-0.5 shrink-0 ${ts.tech === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between text-[12px]">
-                            <span className="font-semibold text-foreground">{ts.tech === '5G' ? '5G NR' : '4G LTE'}</span>
-                            <span className="font-semibold" style={{ color: getKpiColor(ts.avgQoE) }}>{ts.avgQoE.toFixed(1)}%</span>
+                          <div className="flex items-center justify-between text-[13px]">
+                            <span className="font-bold text-foreground">{ts.tech === '5G' ? '5G NR' : '4G LTE'}</span>
+                            <span className="font-bold" style={{ color: getKpiColor(ts.avgQoE) }}>{ts.avgQoE.toFixed(1)}%</span>
                           </div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5">
-                            {ts.count.toLocaleString()} cells • {ts.bands.join(' / ')}
+                          <div className="text-[11px] text-muted-foreground mt-1">
+                            {ts.count.toLocaleString('fr-FR')} cells • {ts.bands.join(' / ')}
                           </div>
                         </div>
                       </div>
@@ -2271,8 +2271,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
 
                 {/* Band Distribution Table */}
-                <div className="px-5 py-4">
-                  <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Band Distribution</h4>
+                <div className="px-5 py-5">
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Band Distribution</h4>
                   <div className="border border-border rounded-lg overflow-hidden">
                     <table className="w-full text-[11px]">
                       <thead>
@@ -2302,10 +2302,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
 
                 {/* Performance Distribution */}
-                <div className="px-5 py-4">
-                  <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Performance Distribution</h4>
+                <div className="px-5 py-5">
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Performance Distribution</h4>
                   {/* Horizontal bar */}
-                  <div className="flex h-3 rounded-md overflow-hidden mb-3">
+                  <div className="flex h-2.5 rounded-full overflow-hidden mb-4">
                     {excellent > 0 && <div className="transition-all" style={{ width: `${(excellent / perfTotal) * 100}%`, background: '#22c55e' }} />}
                     {correct > 0 && <div className="transition-all" style={{ width: `${(correct / perfTotal) * 100}%`, background: '#f59e0b' }} />}
                     {degraded > 0 && <div className="transition-all" style={{ width: `${(degraded / perfTotal) * 100}%`, background: '#f97316' }} />}
@@ -2350,37 +2350,41 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <div className="divide-y divide-border">
 
               {/* ── Site Header — Screenshot style ── */}
-              <div className="px-5 py-5">
-                <div className="flex items-start gap-3.5">
+              <div className="px-5 py-6">
+                <div className="flex items-center gap-4">
                   {/* Dark icon block */}
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'hsl(220 40% 13%)' }}>
-                    <Signal size={24} className="text-primary" />
+                    <BarChart2 size={24} className="text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="text-[18px] font-extrabold text-foreground leading-tight tracking-tight uppercase truncate">
                       {siteDetail.site_name}
                     </h3>
-                    <div className="flex items-center gap-1.5 mt-1 text-[12px]">
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[12px]">
                       <span className="font-mono text-muted-foreground">{siteDetail.site_id}</span>
                       <span className="text-muted-foreground">•</span>
                       <span className="font-semibold text-primary">{primaryTech} {primaryBand}MHZ</span>
                     </div>
+                  </div>
+                  {/* Warning indicator */}
+                  <div className="shrink-0">
+                    <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-b-[18px] border-l-transparent border-r-transparent border-b-amber-400" />
                   </div>
                 </div>
               </div>
 
               {/* ── DMS Metric Cards Row ── */}
               <div className="px-5 py-4">
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-2.5">
                   {[
                     { label: 'DMS DL 3M', value: (siteDetail as any).dms_dl_3 ?? siteDetail.cells[0]?.dms_dl_3 ?? 0 },
                     { label: 'DMS DL 8M', value: (siteDetail as any).dms_dl_8 ?? siteDetail.cells[0]?.dms_dl_8 ?? 0 },
                     { label: 'DMS DL 30M', value: (siteDetail as any).dms_dl_30 ?? siteDetail.cells[0]?.dms_dl_30 ?? 0 },
                     { label: 'DMS UL 3M', value: (siteDetail as any).dms_ul_3 ?? siteDetail.cells[0]?.dms_ul_3 ?? 0 },
                   ].map((m, i) => (
-                    <div key={i} className="bg-muted/40 rounded-xl border border-border px-3 py-3 text-center">
-                      <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{m.label}</div>
-                      <div className="text-[16px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
+                    <div key={i} className="bg-muted/30 rounded-xl border border-border px-2.5 py-3.5 text-center">
+                      <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{m.label}</div>
+                      <div className="text-[17px] font-black" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
                     </div>
                   ))}
                 </div>
@@ -2388,43 +2392,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               {/* ── QoE + Throughput + RTT Row ── */}
               <div className="px-5 py-4">
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-2.5">
                   {/* QoE big card */}
-                  <div className="bg-muted/30 rounded-xl border border-border px-3 py-4 text-center">
-                    <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider leading-tight">Score QoE<br/>Global</div>
-                    <div className="text-[28px] font-black mt-1 leading-none" style={{ color: getKpiColor(siteDetail.qoe_score_avg ?? 0) }}>
+                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center">
+                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-tight">Score QoE<br/>Global</div>
+                    <div className="text-[30px] font-black mt-1.5 leading-none" style={{ color: getKpiColor(siteDetail.qoe_score_avg ?? 0) }}>
                       {(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%
                     </div>
-                    <div className="w-12 h-1 rounded-full mx-auto mt-2" style={{ background: getKpiColor(siteDetail.qoe_score_avg ?? 0) }} />
+                    <div className="w-14 h-1 rounded-full mx-auto mt-2.5" style={{ background: getKpiColor(siteDetail.qoe_score_avg ?? 0) }} />
                   </div>
                   {/* DL */}
-                  <div className="bg-muted/30 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
-                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center mb-1.5">
-                      <ChevronDown size={14} className="text-primary" />
+                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                      <ChevronDown size={16} className="text-primary" />
                     </div>
-                    <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Débit DL</div>
-                    <div className="text-[22px] font-black text-foreground leading-tight mt-0.5">
-                      {(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[11px] font-semibold text-muted-foreground ml-0.5">M</span>
+                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Débit DL</div>
+                    <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
+                      {(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">M</span>
                     </div>
                   </div>
                   {/* UL */}
-                  <div className="bg-muted/30 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
-                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center mb-1.5">
-                      <ChevronUp size={14} className="text-primary" />
+                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                      <ChevronUp size={16} className="text-primary" />
                     </div>
-                    <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Débit UL</div>
-                    <div className="text-[22px] font-black text-foreground leading-tight mt-0.5">
-                      {(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[11px] font-semibold text-muted-foreground ml-0.5">M</span>
+                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Débit UL</div>
+                    <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
+                      {(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">M</span>
                     </div>
                   </div>
                   {/* RTT */}
-                  <div className="bg-muted/30 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
-                    <div className="w-7 h-7 rounded-full bg-amber-500/10 flex items-center justify-center mb-1.5">
-                      <Zap size={14} className="text-amber-500" />
+                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center mb-2">
+                      <Zap size={16} className="text-amber-500" />
                     </div>
-                    <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">RTT</div>
-                    <div className="text-[22px] font-black text-foreground leading-tight mt-0.5">
-                      {(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[11px] font-semibold text-muted-foreground ml-0.5">MS</span>
+                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">RTT</div>
+                    <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
+                      {(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">MS</span>
                     </div>
                   </div>
                 </div>
@@ -2518,19 +2522,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               {/* ── AI Diagnostic Card — dark style ── */}
               <div className="px-5 py-4">
-                <div className="rounded-2xl px-5 py-4 flex items-center gap-4" style={{ background: 'linear-gradient(135deg, hsl(220 40% 13%), hsl(220 50% 18%))' }}>
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'hsl(80 60% 45%)', boxShadow: '0 0 20px hsla(80, 60%, 45%, 0.3)' }}>
-                    <Settings2 size={20} className="text-white" />
+                <div className="rounded-2xl px-5 py-5 flex items-center gap-4" style={{ background: 'linear-gradient(135deg, hsl(220 40% 13%), hsl(220 50% 18%))' }}>
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'hsl(80 60% 45%)', boxShadow: '0 0 24px hsla(80, 60%, 45%, 0.3)' }}>
+                    <Settings2 size={22} className="text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-extrabold text-white uppercase tracking-wide">AI Diagnostic</div>
-                    <div className="text-[10px] text-white/50 font-medium">RCA Analysis</div>
+                    <div className="text-[14px] font-extrabold text-white uppercase tracking-wide">AI Diagnostic</div>
+                    <div className="text-[11px] text-white/50 font-medium mt-0.5">RCA Analysis</div>
                   </div>
                   <button
                     onClick={() => { if (siteDetail && onLaunchAI) onLaunchAI(siteDetail.site_name); }}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-white/90 transition-colors shrink-0"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-white/90 transition-colors shrink-0"
                   >
-                    <Zap size={13} />
+                    <Zap size={14} />
                     Lancer
                   </button>
                 </div>
