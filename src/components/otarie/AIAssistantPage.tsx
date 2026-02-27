@@ -105,19 +105,29 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     } catch { /* ignore */ }
 
     const payload = JSON.stringify({ messages: allMessages, cellContext, openrouter_key: openrouterKey, model: llmModel });
-    const url = getApiUrl('qoe-assistant');
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (!isLocalMode()) {
-      headers['Authorization'] = `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
-    }
+    const localUrl = getApiUrl('qoe-assistant');
+    const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
 
-    let resp = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: payload,
-    });
+    // Try local first, fallback to Cloud edge function
+    let resp: Response;
+    try {
+      resp = await fetch(localUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      });
+    } catch {
+      // Local server unreachable — fallback to Cloud
+      console.log('Local API unreachable, falling back to Cloud edge function');
+      resp = await fetch(cloudUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: payload,
+      });
+    }
 
     if (!resp.ok) {
       if (resp.status === 429) {
