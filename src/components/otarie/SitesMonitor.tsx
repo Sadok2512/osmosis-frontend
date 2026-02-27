@@ -1706,8 +1706,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              <div className="text-[15px] font-black tracking-tight" style={{ color: getQoEColor(site.qoe_score_avg) }}>
-                                {site.qoe_score_avg.toFixed(1)}%
+                              <div className="text-[15px] font-black tracking-tight" style={{ color: getKpiColor((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0) }}>
+                                {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
                               </div>
                               <div className="text-[9px] font-semibold text-muted-foreground uppercase">{site.cell_count} cells</div>
                             </div>
@@ -1791,8 +1791,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               {cell.techno} • {cell.bande} MHz • Az {cell.azimut}°
                                             </div>
                                           </div>
-                                          <div className="text-[12px] font-bold shrink-0" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
-                                            {cell.qoe_score_avg.toFixed(1)}%
+                                          <div className="text-[12px] font-bold shrink-0" style={{ color: getKpiColor(getCellKpiValue(cell)) }}>
+                                            {getCellKpiValue(cell).toFixed(1)}
                                           </div>
                                         </button>
                                       );
