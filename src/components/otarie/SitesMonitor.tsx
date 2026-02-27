@@ -1718,16 +1718,72 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom);
-          // Smart overlap: reduce opacity further when many sites visible
           const overlapFactor = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
-          // Focus mode: fade non-selected sites
           const isFocusFaded = focusMode !== 'global' && !isSelectedSite;
+
+          /* ── ALL mode: one sector per tech per unique azimuth ── */
+          if (mapTechnoFilter === 'ALL') {
+            // Group cells by tech, pick representative azimuth per sector
+            const techAzimuths = new Map<string, number[]>();
+            for (const cell of site.cells) {
+              const tech = (cell.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
+              if (!techAzimuths.has(tech)) techAzimuths.set(tech, []);
+              const az = cell.azimut ?? 0;
+              // Avoid duplicate azimuths for same tech
+              if (!techAzimuths.get(tech)!.includes(az)) techAzimuths.get(tech)!.push(az);
+            }
+            const techEntries = Array.from(techAzimuths.entries());
+            // Sort so 4G renders first (below), 5G on top
+            techEntries.sort((a, b) => (a[0] === '4G' ? -1 : 1));
+            return (
+              <React.Fragment key={site.site_id}>
+                {techEntries.map(([tech, azimuths]) => {
+                  const groupColorKey = tech === '5G' ? '5G_GROUP' : '4G_GROUP';
+                  const fillColor = isFocusFaded ? FADED_COLOR : (bandColors[groupColorKey] || (tech === '5G' ? '#a855f7' : '#3b82f6'));
+                  const strokeColor = isFocusFaded ? '#cbd5e1' : deriveStrokeColor(fillColor);
+                  return azimuths.map(az => {
+                    const sectorCoords = getSectorCoords(site.coordinates, az, zoomRadius, 60);
+                    return (
+                      <Polygon
+                        key={`${site.site_id}_${tech}_${az}`}
+                        positions={sectorCoords}
+                        pathOptions={{
+                          color: isHovered ? '#fff' : strokeColor,
+                          fillColor,
+                          fillOpacity: isHovered ? 0.40 : (isFocusFaded ? 0.08 : overlapFactor),
+                          weight: isHovered ? 1.5 : 1,
+                          opacity: isHovered ? 0.9 : (isFocusFaded ? 0.25 : 0.7),
+                        }}
+                        eventHandlers={{
+                          click: () => handleSiteClick(site),
+                          mouseover: () => setHoveredSiteId(site.site_id),
+                          mouseout: () => setHoveredSiteId(null),
+                        }}
+                      >
+                        <Tooltip direction="top" offset={[0, -8]} permanent={false} className="sector-tooltip">
+                          <div className="px-3 py-2 min-w-[120px]">
+                            <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: fillColor }}>{site.site_name}</div>
+                            <div className="text-[9px] opacity-60 font-mono mt-0.5">{site.site_id}</div>
+                            <div className="mt-1.5 text-[10px]">
+                              <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{tech}</span></div>
+                              <div className="flex justify-between"><span className="opacity-50">Azimut</span><span className="font-bold">{az}°</span></div>
+                            </div>
+                          </div>
+                        </Tooltip>
+                      </Polygon>
+                    );
+                  });
+                })}
+              </React.Fragment>
+            );
+          }
+
+          /* ── 5G / 4G mode: detailed per-band sectors ── */
           return (
             <React.Fragment key={site.site_id}>
               {site.cells.filter(c => isBandEnabled(c.bande, c.techno)).map(cell => {
                 const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, zoomRadius, 60);
                 const is5G = (cell.techno || '').toUpperCase().includes('5G');
-                // Technology hierarchy: when a specific tech is selected, fade the other
                 const isFaded = (mapTechnoFilter === '5G' && !is5G) || (mapTechnoFilter === '4G' && is5G);
                 const fillColor = isFaded || isFocusFaded ? FADED_COLOR : (sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
                 const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : (sectorColorMode === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
@@ -2330,6 +2386,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </button>
             {showBandPanel && (
               <div className="absolute right-12 bottom-0 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500]">
+                {mapTechnoFilter === 'ALL' ? (
+                  /* ── ALL mode: show only 5G / 4G with group color pickers ── */
+                  <div className="px-4 py-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Technologies</span>
+                      <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
+                    </div>
+                    {[
+                      { key: '5G_GROUP', label: '5G', defaultColor: '#a855f7' },
+                      { key: '4G_GROUP', label: '4G', defaultColor: '#3b82f6' },
+                    ].map(({ key, label, defaultColor }) => (
+                      <div key={key} className="flex items-center gap-2.5">
+                        <div className="w-4 h-4 rounded" style={{ background: bandColors[key] || defaultColor }} />
+                        <span className="text-[11px] font-bold text-foreground flex-1">{label}</span>
+                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[key] || defaultColor }} title={`Change ${label} color`}>
+                          <input type="color" value={bandColors[key] || defaultColor} onChange={(e) => updateBandColor(key, e.target.value)} className="opacity-0 w-0 h-0 absolute" />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* ── 5G or 4G mode: show detailed bands ── */
+                  <>
                 <div className="px-4 py-3 border-b border-border/50">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -2408,6 +2487,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     ))}
                   </div>
                 </div>
+                  </>
+                )}
               </div>
             )}
           </div>
