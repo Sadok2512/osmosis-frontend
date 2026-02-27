@@ -734,6 +734,48 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [showCreateDash, setShowCreateDash] = useState(false);
   const [newDashName, setNewDashName] = useState('');
   const [creatingDash, setCreatingDash] = useState(false);
+  const [pendingSwitchId, setPendingSwitchId] = useState<string | null>(null);
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+
+  const requestDashboardSwitch = (newId: string | null) => {
+    // If there's a current dashboard selected and we're switching away, ask to save
+    if (expandedDashboardId && newId !== expandedDashboardId) {
+      setPendingSwitchId(newId);
+      setShowSwitchConfirm(true);
+    } else {
+      setExpandedDashboardId(newId);
+      if (newId && onApplyView) {
+        const db = dashboards.find(d => d.id === newId);
+        if (db) onApplyView(getDashboardSettings(db));
+      }
+    }
+  };
+
+  const confirmSwitchWithSave = () => {
+    if (expandedDashboardId && onSaveDashboard) onSaveDashboard(expandedDashboardId);
+    setExpandedDashboardId(pendingSwitchId);
+    if (pendingSwitchId && onApplyView) {
+      const db = dashboards.find(d => d.id === pendingSwitchId);
+      if (db) onApplyView(getDashboardSettings(db));
+    }
+    setShowSwitchConfirm(false);
+    setPendingSwitchId(null);
+  };
+
+  const confirmSwitchWithoutSave = () => {
+    setExpandedDashboardId(pendingSwitchId);
+    if (pendingSwitchId && onApplyView) {
+      const db = dashboards.find(d => d.id === pendingSwitchId);
+      if (db) onApplyView(getDashboardSettings(db));
+    }
+    setShowSwitchConfirm(false);
+    setPendingSwitchId(null);
+  };
+
+  const cancelSwitch = () => {
+    setShowSwitchConfirm(false);
+    setPendingSwitchId(null);
+  };
 
   const fetchAll = async () => {
     setLdg(true);
@@ -905,7 +947,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
           value={expandedDashboardId || ''}
           onChange={(e) => {
             const val = e.target.value || null;
-            setExpandedDashboardId(val);
+            requestDashboardSwitch(val);
           }}
           className="w-full bg-card border border-border rounded-xl px-3 py-2 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-colors"
         >
@@ -932,7 +974,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               <span className="uppercase tracking-wider">Load</span>
             </button>
             <button
-              onClick={() => setExpandedDashboardId(null)}
+              onClick={() => requestDashboardSwitch(null)}
               className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
             >
               <X size={12} />
@@ -958,8 +1000,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 {/* Dashboard row */}
                 <div
                   onClick={() => {
-                    setExpandedDashboardId(isExpanded ? null : db.id);
-                    if (!isExpanded && onApplyView) onApplyView(dbSettings);
+                    requestDashboardSwitch(isExpanded ? null : db.id);
                   }}
                   className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
                   style={dbColor ? { borderLeft: `3px solid ${dbColor}` } : undefined}
@@ -1119,6 +1160,43 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </div>
             );
           })}
+        </div>
+      )}
+      {/* Confirmation dialog for switching dashboard */}
+      {showSwitchConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl p-5 mx-4 max-w-sm w-full space-y-4">
+            <div className="text-center">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Save size={18} className="text-primary" />
+              </div>
+              <h3 className="text-sm font-bold text-foreground">Sauvegarder avant de quitter ?</h3>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Voulez-vous sauvegarder les modifications du dashboard actuel avant de changer ?
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={confirmSwitchWithSave}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Save size={13} />
+                Sauvegarder & Quitter
+              </button>
+              <button
+                onClick={confirmSwitchWithoutSave}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                Quitter sans sauvegarder
+              </button>
+              <button
+                onClick={cancelSwitch}
+                className="w-full px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
