@@ -70,36 +70,42 @@ interface SitesMonitorProps {
 // Zoom threshold: above this we show sectors, below we show clusters
 const SECTOR_ZOOM_THRESHOLD = 13;
 
-// Band-based color mapping — desaturated engineering palette
-const BAND_COLORS: Record<string, string> = {
+// Band-based color mapping — default engineering palette
+const DEFAULT_BAND_COLORS: Record<string, string> = {
   // NR (5G) — muted violet tones
-  NR3500: '#8b7ec8',  // muted violet
-  NR700:  '#9f8fdb',  // soft lavender
-  NR2100: '#7565b0',  // deeper muted violet
+  NR3500: '#8b7ec8',
+  NR700:  '#9f8fdb',
+  NR2100: '#7565b0',
   // LTE (4G) — steel blue tones
-  L2600:  '#5b8db8',  // steel blue
-  L2100:  '#6d9ec5',  // lighter steel
-  L1800:  '#4a7da8',  // deeper steel
-  L800:   '#7eaed0',  // soft steel
-  L700:   '#3d6d98',  // dark steel
+  L2600:  '#5b8db8',
+  L2100:  '#6d9ec5',
+  L1800:  '#4a7da8',
+  L800:   '#7eaed0',
+  L700:   '#3d6d98',
 };
 
-// Stroke colors — slightly darker than fills
-const BAND_STROKE_COLORS: Record<string, string> = {
-  NR3500: '#6b5eaa',
-  NR700:  '#7f6fbb',
-  NR2100: '#5545a0',
-  L2600:  '#3b6d98',
-  L2100:  '#4d7ea5',
-  L1800:  '#2a5d88',
-  L800:   '#5e8eb0',
-  L700:   '#1d4d78',
+// Load custom colors from localStorage
+const loadCustomBandColors = (): Record<string, string> => {
+  try {
+    const saved = localStorage.getItem('qoebit_band_colors');
+    if (saved) return { ...DEFAULT_BAND_COLORS, ...JSON.parse(saved) };
+  } catch {}
+  return { ...DEFAULT_BAND_COLORS };
+};
+
+// Derive stroke colors (darken fill by ~20%)
+const deriveStrokeColor = (hex: string): string => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const darken = (v: number) => Math.max(0, Math.round(v * 0.75));
+  return `#${darken(r).toString(16).padStart(2,'0')}${darken(g).toString(16).padStart(2,'0')}${darken(b).toString(16).padStart(2,'0')}`;
 };
 
 // Inactive/faded color for technology hierarchy mode
 const FADED_COLOR = '#94a3b8';
 
-const normalizeBandKey = (bande: string, techno?: string): keyof typeof BAND_COLORS | null => {
+const normalizeBandKey = (bande: string, techno?: string): keyof typeof DEFAULT_BAND_COLORS | null => {
   if (!bande) return null;
   const normalized = bande.replace(/\s+/g, '').replace(/MHZ/gi, '').toUpperCase();
   const is5G = (techno || '').toUpperCase().includes('5G') || normalized.includes('NR') || /^N\d+$/i.test(normalized);
@@ -120,23 +126,12 @@ const normalizeBandKey = (bande: string, techno?: string): keyof typeof BAND_COL
   return null;
 };
 
-const getBandColor = (bande: string, techno?: string): string => {
+// These will be replaced by component-level functions that use state
+// Placeholder kept for module-level usage (e.g. initial state)
+const getStaticBandColor = (bande: string, techno?: string): string => {
   const key = normalizeBandKey(bande, techno);
   if (!key) return '#94a3b8';
-  return BAND_COLORS[key];
-};
-
-// Keep legacy techno color for modes that don't have bande info
-const getTechnoColor = (techno: string): string => {
-  if (techno === '5G') return '#8b7ec8'; // muted violet
-  return '#5b8db8'; // steel blue
-};
-
-// Get stroke color for a band
-const getBandStrokeColor = (bande: string, techno?: string): string => {
-  const key = normalizeBandKey(bande, techno);
-  if (!key) return '#64748b';
-  return BAND_STROKE_COLORS[key] || '#64748b';
+  return DEFAULT_BAND_COLORS[key];
 };
 
 // Compute meters-per-pixel at a given latitude and zoom level
@@ -1110,9 +1105,37 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   };
 
   const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'OFF'>('ALL');
-  const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(BAND_COLORS)));
+  const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(DEFAULT_BAND_COLORS)));
   const [showBandPanel, setShowBandPanel] = useState(true);
   const [sectorColorMode, setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
+  const [bandColors, setBandColors] = useState<Record<string, string>>(loadCustomBandColors);
+  const [editingColorBand, setEditingColorBand] = useState<string | null>(null);
+
+  // Dynamic color getters using state
+  const getBandColor = useCallback((bande: string, techno?: string): string => {
+    const key = normalizeBandKey(bande, techno);
+    if (!key) return '#94a3b8';
+    return bandColors[key] || DEFAULT_BAND_COLORS[key];
+  }, [bandColors]);
+
+  const getBandStrokeColor = useCallback((bande: string, techno?: string): string => {
+    const key = normalizeBandKey(bande, techno);
+    if (!key) return '#64748b';
+    return deriveStrokeColor(bandColors[key] || DEFAULT_BAND_COLORS[key]);
+  }, [bandColors]);
+
+  const updateBandColor = useCallback((band: string, color: string) => {
+    setBandColors(prev => {
+      const next = { ...prev, [band]: color };
+      localStorage.setItem('qoebit_band_colors', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const resetBandColors = useCallback(() => {
+    setBandColors({ ...DEFAULT_BAND_COLORS });
+    localStorage.removeItem('qoebit_band_colors');
+  }, []);
   const [detailFullscreen, setDetailFullscreen] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(true);
 
@@ -2309,27 +2332,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: '#a855f7' }}>
                       5G NR
                     </button>
-                    <span className="text-[8px] font-bold text-muted-foreground/50">PURPLE</span>
+                    <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
                   </div>
                   <div className="space-y-1.5">
                     {(['NR3500', 'NR700', 'NR2100'] as const).map(band => (
-                      <button
-                        key={band}
-                        onClick={() => toggleBand(band)}
-                        className="flex items-center gap-2.5 w-full group"
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${
+                      <div key={band} className="flex items-center gap-2.5 w-full group">
+                        <button
+                          onClick={() => toggleBand(band)}
+                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
                             enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
                           }`}
-                          style={{ background: enabledBands.has(band) ? BAND_COLORS[band] : 'transparent' }}
+                          style={{ background: enabledBands.has(band) ? bandColors[band] : 'transparent' }}
                         >
                           {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
-                        </div>
-                        <span className={`text-[11px] font-bold transition-all ${
+                        </button>
+                        <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
                           enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
-                        }`}>{band}</span>
-                      </button>
+                        }`} onClick={() => toggleBand(band)}>{band}</span>
+                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[band] }} title="Change color">
+                          <input
+                            type="color"
+                            value={bandColors[band]}
+                            onChange={(e) => updateBandColor(band, e.target.value)}
+                            className="opacity-0 w-0 h-0 absolute"
+                          />
+                        </label>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -2339,27 +2367,31 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: '#3b82f6' }}>
                       4G LTE
                     </button>
-                    <span className="text-[8px] font-bold text-muted-foreground/50">BLUE</span>
                   </div>
                   <div className="space-y-1.5">
                     {(['L2600', 'L2100', 'L1800', 'L800', 'L700'] as const).map(band => (
-                      <button
-                        key={band}
-                        onClick={() => toggleBand(band)}
-                        className="flex items-center gap-2.5 w-full group"
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${
+                      <div key={band} className="flex items-center gap-2.5 w-full group">
+                        <button
+                          onClick={() => toggleBand(band)}
+                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
                             enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
                           }`}
-                          style={{ background: enabledBands.has(band) ? BAND_COLORS[band] : 'transparent' }}
+                          style={{ background: enabledBands.has(band) ? bandColors[band] : 'transparent' }}
                         >
                           {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
-                        </div>
-                        <span className={`text-[11px] font-bold transition-all ${
+                        </button>
+                        <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
                           enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
-                        }`}>{band}</span>
-                      </button>
+                        }`} onClick={() => toggleBand(band)}>{band}</span>
+                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[band] }} title="Change color">
+                          <input
+                            type="color"
+                            value={bandColors[band]}
+                            onChange={(e) => updateBandColor(band, e.target.value)}
+                            className="opacity-0 w-0 h-0 absolute"
+                          />
+                        </label>
+                      </div>
                     ))}
                   </div>
                 </div>
