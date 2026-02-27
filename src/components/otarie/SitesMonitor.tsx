@@ -716,7 +716,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [editingDashboardId, setEditingDashboardId] = useState<string | null>(null);
   const [editingViewId, setEditingViewId] = useState<string | null>(null);
   const [showDashMenu, setShowDashMenu] = useState(false);
-
+  const [showCreateDash, setShowCreateDash] = useState(false);
+  const [newDashName, setNewDashName] = useState('');
+  const [creatingDash, setCreatingDash] = useState(false);
 
   const fetchAll = async () => {
     setLdg(true);
@@ -754,6 +756,32 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     if (!newName.trim()) return;
     await supabase.from('dashboards').update({ name: newName.trim(), updated_at: new Date().toISOString() }).eq('id', dbId);
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
+  };
+
+  const handleCreateDashboard = async () => {
+    if (!newDashName.trim()) return;
+    setCreatingDash(true);
+    const id = crypto.randomUUID();
+    const { error } = await supabase.from('dashboards').insert({
+      id,
+      name: newDashName.trim(),
+      description: '',
+      is_shared: true,
+      widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '' }],
+    });
+    if (!error) {
+      setNewDashName('');
+      setShowCreateDash(false);
+      await fetchAll();
+      setExpandedDashboardId(id);
+    }
+    setCreatingDash(false);
+  };
+
+  const handleDeleteDashboard = async (dbId: string) => {
+    await supabase.from('dashboards').delete().eq('id', dbId);
+    if (expandedDashboardId === dbId) setExpandedDashboardId(null);
+    setDashboards(prev => prev.filter(d => d.id !== dbId));
   };
 
   // ── View helpers ──
@@ -824,8 +852,37 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       <div className="flex items-center gap-2 px-1 mb-2">
         <LayoutGrid size={13} className="text-primary" />
         <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboards</h3>
-        <span className="ml-auto text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
+        <span className="text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
+        <button
+          onClick={() => setShowCreateDash(!showCreateDash)}
+          className="ml-auto p-1 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+          title="Nouveau dashboard"
+        >
+          <Plus size={14} />
+        </button>
       </div>
+
+      {/* Create dashboard form */}
+      {showCreateDash && (
+        <div className="mb-2 flex items-center gap-1.5 px-1">
+          <input
+            autoFocus
+            value={newDashName}
+            onChange={e => setNewDashName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleCreateDashboard()}
+            placeholder="Nom du dashboard..."
+            className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
+          />
+          <button onClick={handleCreateDashboard} disabled={creatingDash || !newDashName.trim()}
+            className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
+            {creatingDash ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
+          </button>
+          <button onClick={() => { setShowCreateDash(false); setNewDashName(''); }}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <X size={12} />
+          </button>
+        </div>
+      )}
 
       {/* Dashboard selector + Save/Load actions */}
       <div className="mb-3 space-y-1.5">
@@ -908,6 +965,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     title="Settings"
                   >
                     <Settings2 size={12} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if (confirm('Supprimer ce dashboard ?')) handleDeleteDashboard(db.id); }}
+                    className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    title="Supprimer"
+                  >
+                    <Trash2 size={12} />
                   </button>
                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                     {db.is_shared ? 'Public' : 'Privé'}
