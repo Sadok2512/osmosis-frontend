@@ -2289,7 +2289,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <Signal size={16} />
             </button>
             {showBandPanel && (
-              <div className="absolute right-12 top-0 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px]">
+              <div className="absolute right-12 bottom-0 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500]">
                 <div className="px-4 py-3 border-b border-border/50">
                   <div className="flex items-center justify-between mb-2">
                     <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: '#a855f7' }}>
