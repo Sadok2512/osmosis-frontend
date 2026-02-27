@@ -82,6 +82,9 @@ const DEFAULT_BAND_COLORS: Record<string, string> = {
   L1800:  '#4a7da8',
   L800:   '#7eaed0',
   L700:   '#3d6d98',
+  // Group header colors
+  '5G_GROUP': '#a855f7',
+  '4G_GROUP': '#3b82f6',
 };
 
 // Load custom colors from localStorage
@@ -2329,9 +2332,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <div className="absolute right-12 bottom-0 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500]">
                 <div className="px-4 py-3 border-b border-border/50">
                   <div className="flex items-center justify-between mb-2">
-                    <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: '#a855f7' }}>
-                      5G NR
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['5G_GROUP'] || '#a855f7' }}>
+                        5G NR
+                      </button>
+                      <label className="w-4 h-4 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors['5G_GROUP'] || '#a855f7' }} title="Change 5G group color">
+                        <input type="color" value={bandColors['5G_GROUP'] || '#a855f7'} onChange={(e) => updateBandColor('5G_GROUP', e.target.value)} className="opacity-0 w-0 h-0 absolute" />
+                      </label>
+                    </div>
                     <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
                   </div>
                   <div className="space-y-1.5">
@@ -2364,9 +2372,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {/* LTE group */}
                 <div className="px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
-                    <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: '#3b82f6' }}>
-                      4G LTE
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['4G_GROUP'] || '#3b82f6' }}>
+                        4G LTE
+                      </button>
+                      <label className="w-4 h-4 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors['4G_GROUP'] || '#3b82f6' }} title="Change 4G group color">
+                        <input type="color" value={bandColors['4G_GROUP'] || '#3b82f6'} onChange={(e) => updateBandColor('4G_GROUP', e.target.value)} className="opacity-0 w-0 h-0 absolute" />
+                      </label>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     {(['L2600', 'L2100', 'L1800', 'L800', 'L700'] as const).map(band => (
