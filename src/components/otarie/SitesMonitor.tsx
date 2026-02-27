@@ -50,7 +50,7 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2
+  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check
 } from 'lucide-react';
 import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
 
@@ -419,67 +419,128 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   };
 
   // ── Reusable settings panel ──
-  const SettingsPanel = ({ settings, onUpdate, onRename, currentName }: { settings: any; onUpdate: (u: Record<string, any>) => void; onRename?: (name: string) => void; currentName?: string }) => (
-    <div className="px-3 py-3 bg-muted/30 border-t border-border/50 space-y-3">
-      {onRename && currentName != null && (
-        <div>
-          <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Nom</label>
-          <input
-            defaultValue={currentName}
-            onBlur={(e) => onRename(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-            className="w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground outline-none focus:border-primary transition-colors"
-          />
-        </div>
-      )}
-      <div>
-        <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Type de carte</label>
-        <div className="flex gap-1.5">
-          {MAP_LAYERS.map(layer => (
-            <button
-              key={layer.value}
-              onClick={() => onUpdate({ mapLayer: layer.value })}
-              className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
-                (settings.mapLayer || 'light') === layer.value
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/30'
-              }`}
-            >
-              {layer.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Couleur</label>
-        <div className="flex gap-1.5 flex-wrap">
-          {PALETTE.map(c => (
-            <button
-              key={c.value || 'none'}
-              onClick={() => onUpdate({ color: c.value })}
-              className={`w-6 h-6 rounded-full border-2 transition-all ${
-                (settings.color || '') === c.value ? 'border-primary scale-110 shadow-sm' : 'border-border hover:border-primary/40'
-              }`}
-              style={{ background: c.value || 'hsl(var(--muted))' }}
-              title={c.label}
+  const SettingsPanel = ({ settings, onUpdate, onRename, currentName }: { settings: any; onUpdate: (u: Record<string, any>) => void; onRename?: (name: string) => void; currentName?: string }) => {
+    const [localName, setLocalName] = useState(currentName || '');
+    const [localMapLayer, setLocalMapLayer] = useState(settings.mapLayer || 'light');
+    const [localColor, setLocalColor] = useState(settings.color || '');
+    const [localKpis, setLocalKpis] = useState<string[]>(() => {
+      if (Array.isArray(settings.mapKpis)) return settings.mapKpis;
+      if (settings.mapKpi) return [settings.mapKpi];
+      return ['qoe_score_avg'];
+    });
+    const [dirty, setDirty] = useState(false);
+
+    const toggleKpi = (val: string) => {
+      setLocalKpis(prev => {
+        const next = prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val];
+        return next.length === 0 ? [val] : next;
+      });
+      setDirty(true);
+    };
+
+    const handleConfirm = () => {
+      if (onRename && localName.trim() && localName !== currentName) onRename(localName.trim());
+      onUpdate({ mapLayer: localMapLayer, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis });
+      setDirty(false);
+    };
+
+    return (
+      <div className="mx-2 my-2 p-4 rounded-xl border-2 border-primary/20 bg-card shadow-lg space-y-5">
+        {/* Nom */}
+        {onRename && currentName != null && (
+          <div>
+            <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1.5">Nom</label>
+            <input
+              value={localName}
+              onChange={(e) => { setLocalName(e.target.value); setDirty(true); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleConfirm(); }}
+              className="w-full bg-background border-2 border-border rounded-xl px-3 py-2 text-sm font-semibold text-foreground outline-none focus:border-primary transition-colors"
             />
-          ))}
+          </div>
+        )}
+
+        {/* Type de carte */}
+        <div>
+          <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">Type de carte</label>
+          <div className="grid grid-cols-3 gap-2">
+            {MAP_LAYERS.map(layer => (
+              <button
+                key={layer.value}
+                onClick={() => { setLocalMapLayer(layer.value); setDirty(true); }}
+                className={`px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all border-2 ${
+                  localMapLayer === layer.value
+                    ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                    : 'bg-background border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
+                }`}
+              >
+                {layer.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-      <div>
-        <label className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Indicateur QoE</label>
-        <select
-          value={settings.mapKpi || 'qoe_score_avg'}
-          onChange={(e) => onUpdate({ mapKpi: e.target.value })}
-          className="w-full bg-card border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-foreground outline-none focus:border-primary transition-colors"
+
+        {/* Couleur */}
+        <div>
+          <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">Couleur</label>
+          <div className="flex gap-2.5 flex-wrap">
+            {PALETTE.map(c => (
+              <button
+                key={c.value || 'none'}
+                onClick={() => { setLocalColor(c.value); setDirty(true); }}
+                className={`w-8 h-8 rounded-full border-[3px] transition-all ${
+                  localColor === c.value ? 'border-primary scale-110 shadow-md ring-2 ring-primary/20' : 'border-border hover:border-primary/40 hover:scale-105'
+                }`}
+                style={{ background: c.value || 'hsl(var(--muted))' }}
+                title={c.label}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Indicateurs QoE - Multi-select */}
+        <div>
+          <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">
+            Indicateur QoE <span className="text-muted-foreground/50 normal-case font-medium">(multi-sélection)</span>
+          </label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {KPI_OPTIONS.map(kpi => {
+              const isActive = localKpis.includes(kpi.value);
+              return (
+                <button
+                  key={kpi.value}
+                  onClick={() => toggleKpi(kpi.value)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-semibold transition-all border ${
+                    isActive
+                      ? 'bg-primary/10 border-primary/40 text-primary'
+                      : 'bg-background border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                  }`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${
+                    isActive ? 'bg-primary border-primary' : 'border-muted-foreground/40'
+                  }`}>
+                    {isActive && <Check size={8} className="text-primary-foreground" />}
+                  </div>
+                  {kpi.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Confirm button */}
+        <button
+          onClick={handleConfirm}
+          className={`w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+            dirty
+              ? 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90'
+              : 'bg-muted text-muted-foreground border border-border'
+          }`}
         >
-          {KPI_OPTIONS.map(kpi => (
-            <option key={kpi.value} value={kpi.value}>{kpi.label}</option>
-          ))}
-        </select>
+          {dirty ? '✓ Confirmer les modifications' : 'Paramètres sauvegardés'}
+        </button>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (ldg) {
     return (
