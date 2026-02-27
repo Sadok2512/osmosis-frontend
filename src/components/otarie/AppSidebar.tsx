@@ -37,7 +37,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
 const AppSidebar: React.FC<SidebarProps> = ({
   filters, setFilters, activeTab, setActiveTab, isCollapsed, setIsCollapsed, theme, setTheme, enabledModules
 }) => {
-  const visibleNavItems = navItems.filter(item => enabledModules[item.id] !== false);
+  const visibleNavItems = navItems.filter(item => !enabledModules || enabledModules[item.id] !== false);
   return (
     <div className={`relative h-full flex flex-col z-50 transition-all duration-300 bg-sidebar border-r border-sidebar-border ${isCollapsed ? 'w-[70px]' : 'w-[260px]'}`}>
 
