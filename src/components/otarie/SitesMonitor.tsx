@@ -288,7 +288,10 @@ const createSiteIcon = (color: string) => {
 };
 
 // Dashboard tab for Inventory Index left panel
-const DashboardInventoryTab: React.FC = () => {
+interface DashboardInventoryTabProps {
+  onApplyView?: (settings: any) => void;
+}
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -468,7 +471,7 @@ const DashboardInventoryTab: React.FC = () => {
                             <div
                               className="flex items-center gap-2 px-2.5 py-2 cursor-pointer"
                               style={viewColor ? { borderLeft: `3px solid ${viewColor}` } : undefined}
-                              onClick={() => setEditingViewId(isEditing ? null : view.id)}
+                              onClick={() => { if (onApplyView) onApplyView(vs); }}
                             >
                               <MapIcon size={12} className="text-primary shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -2196,8 +2199,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               )}
 
               {/* ── Dashboard tab ── */}
-              {inventoryTab === 'dashboard' && (
-                <DashboardInventoryTab />
+               {inventoryTab === 'dashboard' && (
+                <DashboardInventoryTab onApplyView={(settings) => {
+                  if (settings.mapLayer) setMapLayer(settings.mapLayer);
+                  if (settings.mapKpi) setMapKpi(settings.mapKpi);
+                  if (settings.center && Array.isArray(settings.center)) {
+                    setFlyTarget(settings.center as [number, number]);
+                  }
+                  if (settings.mapTechnoFilter) {
+                    // Apply tech filter if present
+                  }
+                }} />
               )}
             </div>
           )}
