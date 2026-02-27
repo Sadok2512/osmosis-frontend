@@ -67,7 +67,6 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   // Build cell context from real site data for the AI
   const cellContext = useMemo(() => {
     if (!sites.length) return '';
-    // Send a summary of worst/best cells to the AI so it can reference real IDs
     const allCells = sites.flatMap(s => s.cells.map(c => ({
       cell_id: c.cell_id,
       site_name: s.site_name,
@@ -88,15 +87,22 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       sessions: c.sessions,
       tcp_loss: c.tcp_loss_rate,
       retrans: c.retransmission_rate,
+      azimut: c.azimut,
+      hba: c.hba,
     })));
-    // Sort by QoE and take worst 50 + best 20 for context
+
+    // Full site index so AI can reference ANY site by name
+    const siteIndex = sites.map(s => `${s.site_name} | ${s.site_id} | ${s.vendor} | ${s.plaque} | ${s.dor} | ${s.cell_count}cells | QoE${s.qoe_score_avg.toFixed(1)} | DL${s.p50_thr_dn_mbps.toFixed(1)}`).join('\n');
+
+    // Sort by QoE: worst 80 + best 20 for detailed KPIs
     const sorted = [...allCells].sort((a, b) => a.qoe - b.qoe);
-    const subset = [...sorted.slice(0, 50), ...sorted.slice(-20)];
-    const header = 'cell_id | site_name | lat | lng | techno | bande | vendor | plaque | qoe | tput_dl | rtt_p95 | dms_dl_3 | tcp_loss | sessions';
+    const subset = [...sorted.slice(0, 80), ...sorted.slice(-20)];
+    const header = 'cell_id | site_name | lat | lng | techno | bande | vendor | plaque | qoe | tput_dl | rtt_p95 | dms_dl_3 | tcp_loss | sessions | azimut | hba';
     const rows = subset.map(c => 
-      `${c.cell_id} | ${c.site_name} | ${c.lat} | ${c.lng} | ${c.techno} | ${c.bande} | ${c.vendor} | ${c.plaque} | ${c.qoe.toFixed(1)} | ${c.tput_dl.toFixed(1)} | ${c.rtt_p95.toFixed(0)} | ${c.dms_dl_3.toFixed(1)} | ${c.tcp_loss.toFixed(2)} | ${c.sessions}`
+      `${c.cell_id} | ${c.site_name} | ${c.lat} | ${c.lng} | ${c.techno} | ${c.bande} | ${c.vendor} | ${c.plaque} | ${c.qoe.toFixed(1)} | ${c.tput_dl.toFixed(1)} | ${c.rtt_p95.toFixed(0)} | ${c.dms_dl_3.toFixed(1)} | ${c.tcp_loss.toFixed(2)} | ${c.sessions} | ${c.azimut ?? '-'} | ${c.hba ?? '-'}`
     );
-    return `Total: ${sites.length} sites, ${allCells.length} cellules\n${header}\n${rows.join('\n')}`;
+
+    return `Total: ${sites.length} sites, ${allCells.length} cellules\n\n=== INDEX COMPLET DES SITES (${sites.length}) ===\nsite_name | site_id | vendor | plaque | dor | cells | qoe | tput_dl\n${siteIndex}\n\n=== DETAIL KPI CELLULES (top worst/best) ===\n${header}\n${rows.join('\n')}`;
   }, [sites]);
 
   // All available cell IDs for extraction matching
