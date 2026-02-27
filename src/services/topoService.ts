@@ -39,10 +39,21 @@ interface TopoRow {
   plaque: string | null;
   hba: number | null;
   tac: number | null;
+  remote_electrical_tilt?: number | null;
+  pci?: number | null;
+  eci?: number | null;
+  nci?: number | null;
+  cid?: number | null;
+  etat_cellule?: string | null;
+  zone_arcep?: string | null;
+  essentiel?: string | null;
+  date_mes?: string | null;
+  date_fn8?: string | null;
+  dor?: string | null;
 }
 
-function buildCellProperties(cellName: string, techno: string, bande: string, azimut: number, hba: number): CellProperties {
-  return {
+function buildCellProperties(cellName: string, techno: string, bande: string, azimut: number, hba: number, extra?: Partial<TopoRow>): CellProperties {
+  const base: CellProperties = {
     cell_id: cellName,
     techno,
     bande,
@@ -66,6 +77,26 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     p25_rtt_ms: seededRand(cellName + 'rtt25', 5, 60),
     p75_rtt_ms: seededRand(cellName + 'rtt75', 30, 120),
   };
+  // Spread extra topo fields for site design analysis
+  if (extra) {
+    const ext = base as any;
+    if (extra.remote_electrical_tilt != null) ext.remote_electrical_tilt = extra.remote_electrical_tilt;
+    if (extra.pci != null) ext.pci = extra.pci;
+    if (extra.eci != null) ext.eci = extra.eci;
+    if (extra.nci != null) ext.nci = extra.nci;
+    if (extra.cid != null) ext.cid = extra.cid;
+    if (extra.tac != null) ext.tac = extra.tac;
+    if (extra.etat_cellule) ext.etat_cellule = extra.etat_cellule;
+    if (extra.zone_arcep) ext.zone_arcep = extra.zone_arcep;
+    if (extra.essentiel) ext.essentiel = extra.essentiel;
+    if (extra.date_mes) ext.date_mes = extra.date_mes;
+    if (extra.date_fn8) ext.date_fn8 = extra.date_fn8;
+    if (extra.constructeur) ext.constructeur = extra.constructeur;
+    if (extra.plaque) ext.plaque = extra.plaque;
+    if (extra.latitude != null) ext.latitude = extra.latitude;
+    if (extra.longitude != null) ext.longitude = extra.longitude;
+  }
+  return base;
 }
 
 function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
@@ -97,7 +128,8 @@ function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
         (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
         r.bande || '',
         r.azimut || 0,
-        r.hba || 0
+        r.hba || 0,
+        r
       )
     );
 
@@ -179,7 +211,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
     while (hasMore) {
       const { data, error } = await supabase
         .from('topo')
-        .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac')
+        .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac, remote_electrical_tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes, date_fn8, dor')
         .range(offset, offset + PAGE_SIZE - 1);
 
       if (error) throw error;
