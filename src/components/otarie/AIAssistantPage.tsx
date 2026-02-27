@@ -30,11 +30,24 @@ interface AIAssistantPageProps {
 }
 
 const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWorstCells, initialPrompt, onPromptConsumed }) => {
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [messages, setMessages] = useState<Msg[]>(() => {
+    try {
+      const saved = localStorage.getItem('qoebit_chat_history');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Persist messages to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('qoebit_chat_history', JSON.stringify(messages));
+    } catch {}
+  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -289,6 +302,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   const clearChat = () => {
     setMessages([]);
     setInput('');
+    localStorage.removeItem('qoebit_chat_history');
   };
 
   return (
