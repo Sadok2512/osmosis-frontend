@@ -1003,28 +1003,27 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
             const dbViews = mapViews.filter(v => v.description === db.id);
 
             return (
-              <div key={db.id} className="rounded-xl border border-border bg-card overflow-hidden transition-all">
+              <div key={db.id} className={`rounded-xl border overflow-hidden transition-all ${isExpanded ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : 'border-border bg-card'}`}>
                 {/* Dashboard row */}
                 <div
-                  className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-muted/20 transition-colors"
+                  onClick={() => {
+                    setExpandedDashboardId(isExpanded ? null : db.id);
+                    if (!isExpanded && onApplyView) onApplyView(dbSettings);
+                  }}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
                   style={dbColor ? { borderLeft: `3px solid ${dbColor}` } : undefined}
                 >
-                  <button
-                    onClick={() => setExpandedDashboardId(isExpanded ? null : db.id)}
-                    className="shrink-0 p-0.5"
-                  >
-                    <ChevronDown size={12} className={`text-muted-foreground transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
-                  </button>
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                    style={dbColor ? { background: dbColor + '22', color: dbColor } : undefined}
-                  >
-                    <LayoutGrid size={13} className={dbColor ? '' : 'text-primary'} style={dbColor ? { color: dbColor } : undefined} />
+                  <div className="shrink-0 p-0.5">
+                    <ChevronDown size={12} className={`transition-transform ${isExpanded ? 'text-primary' : 'text-muted-foreground -rotate-90'}`} />
                   </div>
-                  <div className="flex-1 min-w-0" onClick={() => {
-                    if (onApplyView) onApplyView(dbSettings);
-                  }}>
-                    <span className="text-[12px] font-bold text-foreground truncate block">{db.name}</span>
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isExpanded && !dbColor ? 'bg-primary/15' : ''}`}
+                    style={dbColor ? { background: dbColor + (isExpanded ? '33' : '22'), color: dbColor } : undefined}
+                  >
+                    <LayoutGrid size={13} className={dbColor ? '' : (isExpanded ? 'text-primary' : 'text-primary/60')} style={dbColor ? { color: dbColor } : undefined} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className={`text-[12px] font-bold truncate block ${isExpanded ? 'text-primary' : 'text-foreground'}`}>{db.name}</span>
                     <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
                       <span>{MAP_STYLES.find(l => l.value === (dbSettings.mapStyle || dbSettings.mapLayer || 'street'))?.label || 'Street'}</span>
                       <span>•</span>
