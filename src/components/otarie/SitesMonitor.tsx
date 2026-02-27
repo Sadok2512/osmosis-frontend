@@ -312,7 +312,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [mapRendering, setMapRendering] = useState(false);
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
-  const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('dark');
+  const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
 
   const TILE_URLS: Record<typeof mapLayer, { url: string; attribution: string }> = {
     light: {
