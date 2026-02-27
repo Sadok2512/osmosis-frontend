@@ -886,6 +886,131 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// ─── /api/simulate — RF Coverage Simulation with SRTM terrain ───
+const simulationCache = new Map();
+const MAX_CACHE = 50;
+
+function hashParams(p) {
+  return JSON.stringify([p.lat?.toFixed(4), p.lng?.toFixed(4), p.frequency, p.txPower,
+    p.antennaHeight, p.antennaGain, p.azimuth, p.beamwidth, p.tilt, p.mechanicalTilt,
+    p.rxHeight, p.radius, p.gridSize, p.environment, p.cableLoss, p.bodyLoss]);
+}
+
+// Fetch SRTM elevation for a grid of points using Open Elevation API
+async function fetchTerrainGrid(minLat, maxLat, minLng, maxLng, gridSize) {
+  try {
+    const latStep = (maxLat - minLat) / gridSize;
+    const lngStep = (maxLng - minLng) / gridSize;
+
+    // Sample every N points to limit API requests (max ~100 points per batch)
+    const sampleRate = Math.max(1, Math.ceil(gridSize / 10));
+    const locations = [];
+    for (let i = 0; i <= gridSize; i += sampleRate) {
+      for (let j = 0; j <= gridSize; j += sampleRate) {
+        locations.push({
+          latitude: minLat + i * latStep,
+          longitude: minLng + j * lngStep,
+        });
+      }
+    }
+
+    // Batch to Open Elevation API (free, no key)
+    const batchSize = 100;
+    const elevations = [];
+    for (let b = 0; b < locations.length; b += batchSize) {
+      const batch = locations.slice(b, b + batchSize);
+      try {
+        const resp = await fetch('https://api.open-elevation.com/api/v1/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ locations: batch }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          elevations.push(...(data.results || []));
+        } else {
+          // Fill with 0 if API fails
+          elevations.push(...batch.map(() => ({ elevation: 0 })));
+        }
+      } catch {
+        elevations.push(...batch.map(() => ({ elevation: 0 })));
+      }
+    }
+
+    // Interpolate to full grid
+    const sampledRows = Math.floor(gridSize / sampleRate) + 1;
+    const sampledCols = sampledRows;
+    const grid = [];
+    for (let i = 0; i <= gridSize; i++) {
+      const row = [];
+      for (let j = 0; j <= gridSize; j++) {
+        // Find nearest sampled point
+        const si = Math.min(Math.floor(i / sampleRate), sampledRows - 1);
+        const sj = Math.min(Math.floor(j / sampleRate), sampledCols - 1);
+        const idx = si * sampledCols + sj;
+        row.push(elevations[idx]?.elevation || 0);
+      }
+      grid.push(row);
+    }
+    return grid;
+  } catch (e) {
+    console.error('[terrain] Failed to fetch:', e.message);
+    return null;
+  }
+}
+
+app.post('/api/simulate', async (req, res) => {
+  try {
+    const p = req.body;
+    const key = hashParams(p);
+
+    // Check cache
+    if (simulationCache.has(key)) {
+      console.log('[simulate] Cache hit');
+      return res.json(simulationCache.get(key));
+    }
+
+    console.log(`[simulate] Running simulation: ${p.frequency}MHz, ${p.azimuth}°, ${p.radius}km, grid=${p.gridSize}`);
+
+    // Fetch terrain data
+    const latDelta = (p.radius || 5) / 111.32;
+    const lngDelta = (p.radius || 5) / (111.32 * Math.cos((p.lat || 0) * Math.PI / 180));
+    const bounds = {
+      minLat: p.lat - latDelta, maxLat: p.lat + latDelta,
+      minLng: p.lng - lngDelta, maxLng: p.lng + lngDelta,
+    };
+
+    let terrainGrid = null;
+    if (p.useTerrain !== false) {
+      terrainGrid = await fetchTerrainGrid(
+        bounds.minLat, bounds.maxLat, bounds.minLng, bounds.maxLng,
+        p.gridSize || 80
+      );
+    }
+
+    // Return params with terrain data — let client compute
+    // (or compute server-side if needed for performance)
+    const result = {
+      terrainGrid,
+      bounds,
+      params: p,
+      hasTerrain: !!terrainGrid,
+    };
+
+    // Cache
+    if (simulationCache.size >= MAX_CACHE) {
+      const firstKey = simulationCache.keys().next().value;
+      simulationCache.delete(firstKey);
+    }
+    simulationCache.set(key, result);
+
+    res.json(result);
+  } catch (e) {
+    console.error('[simulate]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🚀 QOEBIT Local Server running on http://localhost:${PORT}`);
