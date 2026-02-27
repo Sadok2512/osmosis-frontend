@@ -440,6 +440,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       if (settings.mapKpi) return [settings.mapKpi];
       return ['qoe_score_avg'];
     });
+    const [localDataSource, setLocalDataSource] = useState<'qoe' | 'parameters'>(settings.dataSource || 'qoe');
     const [dirty, setDirty] = useState(false);
 
     const toggleKpi = (val: string) => {
@@ -452,7 +453,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
     const handleConfirm = async () => {
       if (onRename && localName.trim() && localName !== currentName) onRename(localName.trim());
-      onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis });
+      onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource });
       // Update visibility if dashboard
       if (dashboardId && localVisibility !== isShared) {
         await supabase.from('dashboards').update({ is_shared: localVisibility, updated_at: new Date().toISOString() }).eq('id', dashboardId);
@@ -567,7 +568,40 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </div>
             </div>
 
-            {/* ── QoE Indicators (multi-select) ── */}
+            {/* ── Data Source ── */}
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">
+                📂 Source de données
+              </label>
+              <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez le type de données à utiliser</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => { setLocalDataSource('qoe'); setDirty(true); }}
+                  className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${
+                    localDataSource === 'qoe'
+                      ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
+                      : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
+                  }`}
+                >
+                  <span className="text-lg">📊</span>
+                  <span className="uppercase tracking-wider">QoE</span>
+                </button>
+                <button
+                  onClick={() => { setLocalDataSource('parameters'); setDirty(true); }}
+                  className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${
+                    localDataSource === 'parameters'
+                      ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20'
+                      : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
+                  }`}
+                >
+                  <span className="text-lg">⚙️</span>
+                  <span className="uppercase tracking-wider">Parameters</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ── QoE Indicators (multi-select) — only when dataSource = qoe ── */}
+            {localDataSource === 'qoe' && (
             <div className="p-4 rounded-xl border border-border bg-background">
               <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">
                 📊 Indicateurs QoE
@@ -597,6 +631,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 })}
               </div>
             </div>
+            )}
 
             {/* ── Dashboard Visibility ── */}
             {dashboardId && (
