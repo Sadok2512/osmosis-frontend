@@ -3009,6 +3009,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   const techs = [...new Set(cells.map(c => c.techno))].filter(Boolean).sort((a, b) => (a.includes('5G') ? -1 : 1));
                                   const isSectorExpanded = expandedSectors.has(sNum);
                                   const hasFocusedCell = cells.some(c => c.cell_id === focusCellId);
+                                  const isQoeMode = sectorColorMode === 'kpi';
+                                  const sectorAvgKpi = isQoeMode ? cells.reduce((s, c) => s + getCellKpiValue(c), 0) / (cells.length || 1) : 0;
+                                  const sectorKpiColor = isQoeMode ? getKpiColor(sectorAvgKpi) : '';
                                   return (
                                     <button
                                       key={sNum}
@@ -3027,10 +3030,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       }`}
                                     >
                                       <span className={`text-[10px] font-bold uppercase ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                                        {techs.join(' / ')}
+                                        {isQoeMode ? MAP_KPIS.find(k => k.id === mapKpi)?.label || mapKpi : techs.join(' / ')}
                                       </span>
                                       <div className="flex items-center gap-1">
-                                        {techs.map(tech => (
+                                        {isQoeMode ? (
+                                          <div className="w-3 h-3 rounded-full" style={{ background: isSectorExpanded || hasFocusedCell ? 'white' : sectorKpiColor }} />
+                                        ) : techs.map(tech => (
                                           <div key={tech} className={`w-2.5 h-2.5 rounded-full ${
                                             isSectorExpanded || hasFocusedCell
                                               ? 'bg-primary-foreground'
@@ -3041,9 +3046,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       <span className={`text-[11px] font-extrabold ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground' : 'text-foreground'}`}>
                                         S{sNum}
                                       </span>
-                                      <span className={`text-[8px] font-semibold ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-                                        {cells.length} cell{cells.length > 1 ? 's' : ''}
-                                      </span>
+                                      {isQoeMode && !(isSectorExpanded || hasFocusedCell) ? (
+                                        <span className="text-[10px] font-black" style={{ color: sectorKpiColor }}>
+                                          {sectorAvgKpi.toFixed(1)}
+                                        </span>
+                                      ) : (
+                                        <span className={`text-[8px] font-semibold ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+                                          {cells.length} cell{cells.length > 1 ? 's' : ''}
+                                        </span>
+                                      )}
                                     </button>
                                   );
                                 })}
@@ -3072,7 +3083,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               : 'hover:bg-muted/40 border-l-[3px] border-l-transparent'
                                           }`}
                                         >
-                                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(cell.bande, cell.techno) }} />
+                                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: sectorColorMode === 'kpi' ? getKpiColor(getCellKpiValue(cell)) : getBandColor(cell.bande, cell.techno) }} />
                                           <div className="flex-1 min-w-0">
                                             <div className={`text-[11px] font-mono truncate ${isSel ? 'font-bold text-foreground' : 'text-foreground'}`}>
                                               {cell.cell_id}
