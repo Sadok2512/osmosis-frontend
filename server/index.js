@@ -1,10 +1,22 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 
 const app = express();
-app.use(cors());
+
+// ─── Explicit CORS for local Vite dev server ───
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5173',
+    'http://localhost:3000',
+  ],
+  credentials: true,
+}));
 app.use(express.json({ limit: '50mb' }));
 
 // ─── Single shared pool for the server lifetime ───
@@ -18,8 +30,11 @@ function getLocalDbConfig(overrides = {}) {
   };
 }
 
+const dbConfig = getLocalDbConfig();
+console.log(`📦 DB config: host=${dbConfig.host} port=${dbConfig.port} db=${dbConfig.database} user=${dbConfig.user}`);
+
 const sharedPool = new Pool({
-  ...getLocalDbConfig(),
+  ...dbConfig,
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
@@ -29,8 +44,9 @@ const sharedPool = new Pool({
 sharedPool.connect((err, client, release) => {
   if (err) {
     console.error('❌ PostgreSQL connection failed:', err.message);
+    console.error('   Vérifiez que PostgreSQL tourne et que le fichier server/.env est correct.');
   } else {
-    console.log('✅ PostgreSQL pool connected to', getLocalDbConfig().database);
+    console.log('✅ PostgreSQL pool connected to', dbConfig.database);
     release();
   }
 });
@@ -54,16 +70,6 @@ function createPool(config) {
     idleTimeoutMillis: 5000,
     connectionTimeoutMillis: 10000,
   });
-}
-
-function getLocalDbConfig(overrides = {}) {
-  return {
-    host: overrides.host || process.env.PG_HOST || 'localhost',
-    port: overrides.port || process.env.PG_PORT || '5432',
-    database: overrides.database || process.env.PG_DATABASE || 'RAN_OP',
-    user: overrides.user || process.env.PG_USER || 'postgres',
-    password: overrides.password ?? process.env.PG_PASSWORD ?? 'root',
-  };
 }
 
 // Build TABLE_SQL dynamically based on pgvector availability
