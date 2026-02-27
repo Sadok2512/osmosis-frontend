@@ -85,7 +85,7 @@ const CoverageSimPanel: React.FC<CoverageSimPanelProps> = ({
   if (!site) return null;
 
   return (
-    <div className="absolute top-4 right-4 z-[1000] w-[340px] max-h-[calc(100vh-8rem)] overflow-y-auto rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl">
+    <div className="absolute top-4 left-4 z-[1100] w-[340px] max-h-[calc(100vh-8rem)] overflow-y-auto rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
