@@ -443,40 +443,69 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     const [localDataSource, setLocalDataSource] = useState<'qoe' | 'parameters'>(settings.dataSource || 'qoe');
     const [localTechFilter, setLocalTechFilter] = useState<string[]>(settings.techFilter || []);
     const [localTopoFilters, setLocalTopoFilters] = useState<Record<string, string[]>>(settings.topoFilters || {});
-    const [expandedTopoAttr, setExpandedTopoAttr] = useState<string | null>(null);
+    const [filterStep, setFilterStep] = useState<'idle' | 'pick_type' | 'pick_value'>(  'idle');
+    const [filterPickedType, setFilterPickedType] = useState<string | null>(null);
     const [dirty, setDirty] = useState(false);
 
-    const TECH_OPTIONS = [
-      { label: '4G', value: '4G', icon: '📶' },
-      { label: '5G', value: '5G', icon: '🚀' },
+    const ALL_FILTER_TYPES = [
+      { label: 'Technologie', key: 'techno', icon: '📶' },
+      { label: 'Constructeur', key: 'constructeur', icon: '🏭' },
+      { label: 'Bande', key: 'bande', icon: '📡' },
+      { label: 'Plaque', key: 'plaque', icon: '🗺️' },
+      { label: 'Région (UR)', key: 'region', icon: '📍' },
+      { label: 'DOR', key: 'dor', icon: '🏢' },
+      { label: 'Zone ARCEP', key: 'zone_arcep', icon: '📋' },
+      { label: 'État Cellule', key: 'etat_cellule', icon: '🔋' },
+      { label: 'Essentiel', key: 'essentiel', icon: '⭐' },
     ];
 
-    const TOPO_ATTRIBUTES = [
-      { label: 'Constructeur', key: 'constructeur' },
-      { label: 'Bande', key: 'bande' },
-      { label: 'Plaque', key: 'plaque' },
-      { label: 'Région (UR)', key: 'region' },
-      { label: 'DOR', key: 'dor' },
-      { label: 'Zone ARCEP', key: 'zone_arcep' },
-      { label: 'État Cellule', key: 'etat_cellule' },
-      { label: 'Essentiel', key: 'essentiel' },
-    ];
+    const FILTER_VALUES: Record<string, string[]> = {
+      techno: ['4G', '5G'],
+      constructeur: ['Nokia', 'Ericsson', 'Huawei', 'Samsung'],
+      bande: ['700', '800', '1800', '2100', '2600', 'NR700', 'NR2100', 'NR3500'],
+      plaque: ['IDF', 'Nord', 'Sud', 'Est', 'Ouest'],
+      region: ['IDF', 'NE', 'NO', 'SE', 'SO'],
+      dor: ['DOR1', 'DOR2', 'DOR3', 'DOR4'],
+      zone_arcep: ['ZTD', 'ZMD', 'ZPD'],
+      etat_cellule: ['Active', 'Inactive', 'Maintenance'],
+      essentiel: ['Oui', 'Non'],
+    };
 
-    const toggleTech = (val: string) => {
-      setLocalTechFilter(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+    const addFilterValue = (typeKey: string, val: string) => {
+      if (typeKey === 'techno') {
+        setLocalTechFilter(prev => prev.includes(val) ? prev : [...prev, val]);
+      } else {
+        setLocalTopoFilters(prev => {
+          const current = prev[typeKey] || [];
+          return { ...prev, [typeKey]: current.includes(val) ? current : [...current, val] };
+        });
+      }
+      setDirty(true);
+      setFilterStep('idle');
+      setFilterPickedType(null);
+    };
+
+    const removeFilter = (typeKey: string, val: string) => {
+      if (typeKey === 'techno') {
+        setLocalTechFilter(prev => prev.filter(v => v !== val));
+      } else {
+        setLocalTopoFilters(prev => {
+          const next = (prev[typeKey] || []).filter(v => v !== val);
+          const copy = { ...prev };
+          if (next.length === 0) delete copy[typeKey]; else copy[typeKey] = next;
+          return copy;
+        });
+      }
       setDirty(true);
     };
 
-    const toggleTopoValue = (attrKey: string, val: string) => {
-      setLocalTopoFilters(prev => {
-        const current = prev[attrKey] || [];
-        const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
-        return { ...prev, [attrKey]: next };
-      });
-      setDirty(true);
-    };
-
-    const activeFilterCount = localTechFilter.length + Object.values(localTopoFilters).reduce((s, arr) => s + arr.length, 0);
+    const allActiveFilters: { typeKey: string; typeLabel: string; value: string }[] = [
+      ...localTechFilter.map(v => ({ typeKey: 'techno', typeLabel: 'Technologie', value: v })),
+      ...Object.entries(localTopoFilters).flatMap(([key, vals]) =>
+        vals.map(v => ({ typeKey: key, typeLabel: ALL_FILTER_TYPES.find(f => f.key === key)?.label || key, value: v }))
+      ),
+    ];
+    const activeFilterCount = allActiveFilters.length;
 
     const toggleKpi = (val: string) => {
       setLocalKpis(prev => {
@@ -704,10 +733,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </div>
             )}
 
-            {/* ── Filters (views only) — add on demand ── */}
+            {/* ── Filters (views only) — step-by-step add ── */}
             {!dashboardId && (
               <div className="p-4 rounded-xl border border-border bg-background">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">
                     🔍 Filtres
                   </label>
@@ -716,116 +745,94 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   )}
                 </div>
 
-                {/* Active filter chips */}
-                {(localTechFilter.length > 0 || Object.entries(localTopoFilters).some(([, v]) => v.length > 0)) && (
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {localTechFilter.map(t => (
-                      <span key={t} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-semibold border border-primary/20">
-                        {t}
-                        <button onClick={() => { toggleTech(t); }} className="hover:text-destructive"><X size={10} /></button>
-                      </span>
+                {/* Active filters list */}
+                {allActiveFilters.length > 0 && (
+                  <div className="space-y-1.5 mb-3">
+                    {allActiveFilters.map((f, i) => (
+                      <div key={`${f.typeKey}-${f.value}-${i}`} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-card">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase">{f.typeLabel}</span>
+                          <span className="text-[10px] text-muted-foreground">→</span>
+                          <span className="text-[11px] font-semibold text-foreground">{f.value}</span>
+                        </div>
+                        <button onClick={() => removeFilter(f.typeKey, f.value)} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                          <X size={12} />
+                        </button>
+                      </div>
                     ))}
-                    {Object.entries(localTopoFilters).flatMap(([key, vals]) =>
-                      vals.map(v => (
-                        <span key={`${key}-${v}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/10 text-accent-foreground text-[10px] font-semibold border border-border">
-                          {TOPO_ATTRIBUTES.find(a => a.key === key)?.label}: {v}
-                          <button onClick={() => toggleTopoValue(key, v)} className="hover:text-destructive"><X size={10} /></button>
-                        </span>
-                      ))
-                    )}
                   </div>
                 )}
 
-                {/* Add filter button + dropdown */}
-                <div className="relative">
+                {/* Step: idle → show "Add filter" button */}
+                {filterStep === 'idle' && (
                   <button
-                    onClick={() => setExpandedTopoAttr(expandedTopoAttr === '__picker__' ? null : '__picker__')}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold text-primary border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all w-full justify-center"
+                    onClick={() => setFilterStep('pick_type')}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[11px] font-bold text-primary border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all w-full justify-center"
                   >
                     <Plus size={14} />
                     <span>Ajouter un filtre</span>
                   </button>
+                )}
 
-                  {expandedTopoAttr === '__picker__' && (
-                    <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-card border border-border rounded-xl shadow-lg p-2 space-y-1 max-h-60 overflow-y-auto">
-                      {/* Technology filters */}
-                      <div className="px-2 py-1 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Technologie</div>
-                      {TECH_OPTIONS.map(t => {
-                        const active = localTechFilter.includes(t.value);
+                {/* Step: pick_type → choose filter category */}
+                {filterStep === 'pick_type' && (
+                  <div className="border border-border rounded-xl bg-card p-2 space-y-1">
+                    <div className="flex items-center justify-between px-2 py-1">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Choisir un type de filtre</span>
+                      <button onClick={() => setFilterStep('idle')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                    </div>
+                    {ALL_FILTER_TYPES.map(ft => (
+                      <button
+                        key={ft.key}
+                        onClick={() => { setFilterPickedType(ft.key); setFilterStep('pick_value'); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                      >
+                        <span>{ft.icon}</span>
+                        <span>{ft.label}</span>
+                        <ChevronRight size={10} className="ml-auto text-muted-foreground/50" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Step: pick_value → choose value for selected type */}
+                {filterStep === 'pick_value' && filterPickedType && (
+                  <div className="border border-border rounded-xl bg-card p-2 space-y-1">
+                    <div className="flex items-center justify-between px-2 py-1">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { setFilterStep('pick_type'); setFilterPickedType(null); }} className="p-0.5 rounded hover:bg-muted text-muted-foreground">
+                          <ChevronRight size={12} className="rotate-180" />
+                        </button>
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                          {ALL_FILTER_TYPES.find(f => f.key === filterPickedType)?.label} — Sélectionner une valeur
+                        </span>
+                      </div>
+                      <button onClick={() => { setFilterStep('idle'); setFilterPickedType(null); }} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto space-y-0.5">
+                      {(FILTER_VALUES[filterPickedType] || []).map(val => {
+                        const alreadyAdded = filterPickedType === 'techno'
+                          ? localTechFilter.includes(val)
+                          : (localTopoFilters[filterPickedType] || []).includes(val);
                         return (
                           <button
-                            key={t.value}
-                            onClick={() => { toggleTech(t.value); }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all ${
-                              active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                            key={val}
+                            onClick={() => { if (!alreadyAdded) addFilterValue(filterPickedType, val); }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+                              alreadyAdded
+                                ? 'bg-primary/10 text-primary cursor-default'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                             }`}
                           >
-                            <div className={`w-3.5 h-3.5 rounded border-[1.5px] flex items-center justify-center ${
-                              active ? 'bg-primary border-primary' : 'border-muted-foreground/40'
-                            }`}>
-                              {active && <Check size={8} className="text-primary-foreground" />}
-                            </div>
-                            <span>{t.icon}</span> {t.label}
+                            {alreadyAdded && <Check size={12} className="text-primary" />}
+                            <span>{val}</span>
+                            {alreadyAdded && <span className="ml-auto text-[9px] text-primary/60">déjà ajouté</span>}
                           </button>
                         );
                       })}
-
-                      <div className="border-t border-border my-1" />
-                      <div className="px-2 py-1 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Attributs Topologie</div>
-                      {TOPO_ATTRIBUTES.map(attr => {
-                        const selectedCount = (localTopoFilters[attr.key] || []).length;
-                        const isSubExpanded = expandedTopoAttr === attr.key;
-                        return (
-                          <div key={attr.key}>
-                            <button
-                              onClick={() => setExpandedTopoAttr(isSubExpanded ? '__picker__' : attr.key)}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-semibold transition-all ${
-                                selectedCount > 0 ? 'text-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                              }`}
-                            >
-                              <span>{attr.label}</span>
-                              <div className="flex items-center gap-1.5">
-                                {selectedCount > 0 && <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{selectedCount}</span>}
-                                <ChevronDown size={10} className={`transition-transform ${isSubExpanded ? 'rotate-180' : ''}`} />
-                              </div>
-                            </button>
-                            {isSubExpanded && (
-                              <div className="ml-3 mt-1 p-1.5 rounded-lg border border-border bg-background max-h-28 overflow-y-auto space-y-0.5">
-                                {(attr.key === 'constructeur' ? ['Nokia', 'Ericsson', 'Huawei', 'Samsung'] :
-                                  attr.key === 'bande' ? ['700', '800', '1800', '2100', '2600', 'NR700', 'NR2100', 'NR3500'] :
-                                  attr.key === 'plaque' ? ['IDF', 'Nord', 'Sud', 'Est', 'Ouest'] :
-                                  attr.key === 'region' ? ['IDF', 'NE', 'NO', 'SE', 'SO'] :
-                                  attr.key === 'dor' ? ['DOR1', 'DOR2', 'DOR3', 'DOR4'] :
-                                  attr.key === 'zone_arcep' ? ['ZTD', 'ZMD', 'ZPD'] :
-                                  attr.key === 'etat_cellule' ? ['Active', 'Inactive', 'Maintenance'] :
-                                  ['Oui', 'Non']
-                                ).map(val => {
-                                  const isSelected = (localTopoFilters[attr.key] || []).includes(val);
-                                  return (
-                                    <button
-                                      key={val}
-                                      onClick={() => toggleTopoValue(attr.key, val)}
-                                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all ${
-                                        isSelected ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                                      }`}
-                                    >
-                                      <div className={`w-3.5 h-3.5 rounded border-[1.5px] flex items-center justify-center ${
-                                        isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40'
-                                      }`}>
-                                        {isSelected && <Check size={8} className="text-primary-foreground" />}
-                                      </div>
-                                      {val}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
