@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Settings, Copy, Trash2, Maximize2, Minimize2, BarChart3, Image, FileDown } from 'lucide-react';
+import {
+  MoreHorizontal, Download, FileSpreadsheet, RefreshCw, Maximize2,
+  Minimize2, BarChart3, Settings, Copy, Trash2, GitCompareArrows,
+  AlertTriangle, Image,
+} from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ChartConfig, KPI_UNITS } from './biTypes';
 import BIChartRendererECharts from './BIChartRendererECharts';
 import { exportElementToPNG, exportElementToPDF } from '@/lib/exportUtils';
+import { cn } from '@/lib/utils';
 
 interface Props {
   config: ChartConfig;
@@ -50,65 +59,103 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
     await exportElementToPDF(el, titleLabel.replace(/\s+/g, '_'));
   };
 
-  const headerContent = (isFs: boolean) => (
-    <div className={`flex items-center justify-between ${isFs ? 'px-6 py-4' : 'px-4 py-3'}`}>
-      <div className={`flex items-center gap-2 min-w-0 flex-1 ${!isFs ? 'drag-handle cursor-grab active:cursor-grabbing' : ''}`}>
-        <div className={`${isFs ? 'w-8 h-8' : 'w-6 h-6'} rounded-md bg-primary/10 flex items-center justify-center shrink-0`}>
-          <BarChart3 className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'} text-primary`} />
-        </div>
-        <div className="min-w-0">
-          <h3 className={`${isFs ? 'text-sm' : 'text-xs'} font-semibold text-foreground truncate leading-tight select-none`}>
-            {titleLabel} {unitLabel}
-          </h3>
-        </div>
-      </div>
-      <div className="flex items-center gap-0.5 shrink-0" onMouseDown={stopDrag}>
-        <button onClick={isFs ? closeFullscreen : openFullscreen}
-          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title={isFs ? 'Exit fullscreen' : 'Fullscreen'}>
-          {isFs ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-3.5 h-3.5" />}
-        </button>
-        <div className={`flex items-center gap-0.5 ${isFs ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
-          <button onClick={() => handleExportPNG(isFs)} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Export PNG">
-            <Image className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
+  /* ── Three-dot menu ── */
+  const actionsMenu = (isFs: boolean) => (
+    <div className={cn(
+      'flex items-center gap-1 transition-opacity duration-150',
+      isFs ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+    )} onMouseDown={stopDrag}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors">
+            <MoreHorizontal className="w-4 h-4" />
           </button>
-          <button onClick={() => handleExportPDF(isFs)} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Export PDF">
-            <FileDown className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-          </button>
-          <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit">
-            <Settings className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-          </button>
-          <button onClick={onDuplicate} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Duplicate">
-            <Copy className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-          </button>
-          <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
-            <Trash2 className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-          </button>
-        </div>
-      </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem onClick={() => handleExportPNG(isFs)} className="gap-2.5 text-xs">
+            <Image className="w-3.5 h-3.5" /> Download PNG
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExportPDF(isFs)} className="gap-2.5 text-xs">
+            <Download className="w-3.5 h-3.5" /> Export PDF
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={isFs ? closeFullscreen : openFullscreen} className="gap-2.5 text-xs">
+            {isFs ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            {isFs ? 'Exit fullscreen' : 'Expand fullscreen'}
+          </DropdownMenuItem>
+          <DropdownMenuItem className="gap-2.5 text-xs">
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="gap-2.5 text-xs">
+            <GitCompareArrows className="w-3.5 h-3.5" /> Compare previous period
+          </DropdownMenuItem>
+          <DropdownMenuItem className="gap-2.5 text-xs">
+            <AlertTriangle className="w-3.5 h-3.5" /> Add threshold
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onEdit} className="gap-2.5 text-xs">
+            <Settings className="w-3.5 h-3.5" /> Edit configuration
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onDuplicate} className="gap-2.5 text-xs">
+            <Copy className="w-3.5 h-3.5" /> Duplicate widget
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onDelete} className="gap-2.5 text-xs text-destructive focus:text-destructive">
+            <Trash2 className="w-3.5 h-3.5" /> Remove widget
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 
-  const thresholdBadge = (isFs: boolean) => firstThreshold ? (
-    <div className={`${isFs ? 'px-6' : 'px-4'} -mt-1 mb-1`}>
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold"
-        style={{ background: `${firstThreshold.color}15`, color: firstThreshold.color }}>
-        ⊙ {firstThreshold.label}: {firstThreshold.value}
+  /* ── Header ── */
+  const headerContent = (isFs: boolean) => (
+    <div className={cn('flex items-center justify-between border-b border-border/40', isFs ? 'px-6 py-4' : 'px-4 py-3')}>
+      <div className={cn('flex items-center gap-2.5 min-w-0 flex-1', !isFs && 'drag-handle cursor-grab active:cursor-grabbing')}>
+        <h3 className={cn('font-semibold text-foreground truncate tracking-tight', isFs ? 'text-sm' : 'text-[13px]')}>
+          {titleLabel} <span className="text-muted-foreground font-normal">{unitLabel}</span>
+        </h3>
+        {firstThreshold && (
+          <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold"
+            style={{ background: `${firstThreshold.color}12`, color: firstThreshold.color }}>
+            ⊙ {firstThreshold.label}: {firstThreshold.value}
+          </span>
+        )}
+      </div>
+      {actionsMenu(isFs)}
+    </div>
+  );
+
+  /* ── Footer ── */
+  const footerContent = () => (
+    <div className="flex items-center justify-between px-4 py-2 border-t border-border/30">
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+          {config.yMetrics.length} metric{config.yMetrics.length > 1 ? 's' : ''}
+        </span>
+      </div>
+      <span className="text-[10px] text-muted-foreground/50 tabular-nums">
+        {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
       </span>
     </div>
-  ) : null;
+  );
 
+  /* ── Fullscreen overlay ── */
   const fullscreenOverlay = fullscreen ? createPortal(
-    <div className={`fixed inset-0 z-[9999] flex items-center justify-center transition-all duration-300 ${animating === 'out' ? 'opacity-0' : 'opacity-100'}`}
+    <div className={cn('fixed inset-0 z-[9999] flex items-center justify-center transition-all duration-300', animating === 'out' ? 'opacity-0' : 'opacity-100')}
       onClick={(e) => { if (e.target === e.currentTarget) closeFullscreen(); }}>
-      <div className={`absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity duration-300 ${animating === 'out' ? 'opacity-0' : 'opacity-100'}`} />
-      <div className={`relative w-[calc(100vw-48px)] h-[calc(100vh-48px)] max-w-[1600px] flex flex-col rounded-2xl bg-card border border-border shadow-[0_8px_64px_-12px_hsl(var(--foreground)/0.2)] overflow-hidden transition-all duration-300 ease-out ${animating === 'in' ? 'animate-scale-in' : animating === 'out' ? 'animate-scale-out' : ''}`}
-        onAnimationEnd={() => { if (animating === 'in') setAnimating(null); }}>
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-md" />
+      <div className={cn(
+        'relative w-[calc(100vw-48px)] h-[calc(100vh-48px)] max-w-[1600px] flex flex-col rounded-xl bg-card border border-border/60 overflow-hidden',
+        'shadow-[0_8px_64px_-12px_hsl(var(--foreground)/0.15)]',
+        'transition-all duration-300 ease-out',
+        animating === 'in' ? 'animate-scale-in' : animating === 'out' ? 'animate-scale-out' : ''
+      )} onAnimationEnd={() => { if (animating === 'in') setAnimating(null); }}>
         {headerContent(true)}
-        {thresholdBadge(true)}
         <div ref={fsChartRef} className="flex-1 px-4 pb-4 min-h-0">
           <BIChartRendererECharts config={config} />
         </div>
+        {footerContent()}
       </div>
     </div>,
     document.body
@@ -116,13 +163,17 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
 
   return (
     <>
-      <div className="h-full flex flex-col rounded-2xl border border-border shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)] overflow-hidden group transition-shadow hover:shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.1)]"
-        style={{ backgroundColor: config.advanced.backgroundColor && config.advanced.backgroundColor !== 'transparent' ? config.advanced.backgroundColor : undefined }}>
+      <div className={cn(
+        'h-full flex flex-col rounded-xl border border-border/60 bg-card overflow-hidden group',
+        'shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.06)]',
+        'hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.08)]',
+        'transition-shadow duration-200',
+      )} style={{ backgroundColor: config.advanced.backgroundColor && config.advanced.backgroundColor !== 'transparent' ? config.advanced.backgroundColor : undefined }}>
         {headerContent(false)}
-        {thresholdBadge(false)}
-        <div ref={chartRef} className="flex-1 px-2 pb-3 min-h-0">
+        <div ref={chartRef} className="flex-1 px-2 pt-1 pb-1 min-h-0">
           <BIChartRendererECharts config={config} />
         </div>
+        {footerContent()}
       </div>
       {fullscreenOverlay}
     </>
