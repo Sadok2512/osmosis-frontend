@@ -9,13 +9,15 @@ import KPITableView from './KPITableView';
 import KPICatalogImport from './KPICatalogImport';
 import {
   BarChart3, Table2, Map as MapIcon, Plus, X,
-  Filter, Layers, Settings2, Upload, ChevronDown, ChevronUp, Database,
+  Filter, Layers, Settings2, Database, ChevronDown, ChevronUp,
+  Save, FileDown, Sparkles, MoreHorizontal, LayoutGrid,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const SPLIT_OPTIONS: { value: SplitDimension; label: string }[] = [
   { value: 'DR', label: 'DR' }, { value: 'DOR', label: 'DOR' },
@@ -73,23 +75,23 @@ const KPIMonitorPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex-1 flex overflow-hidden bg-background">
       {/* ── LEFT CONFIG PANEL ── */}
       <div className="w-[320px] shrink-0 border-r border-border bg-card overflow-y-auto">
         <div className="p-4 space-y-5">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-primary" />
-                KPI Monitor
-              </h2>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {catalog.length} KPIs •{' '}
-                <span className={catalogSource === 'db' ? 'text-emerald-500' : 'text-muted-foreground'}>
-                  {catalogSource === 'db' ? 'Base de données' : 'Catalogue statique'}
-                </span>
-              </p>
+            <div className="flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4 text-primary" />
+              <div>
+                <h2 className="text-base font-bold text-foreground">KPI Monitor</h2>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {catalog.length} KPIs •{' '}
+                  <span className={catalogSource === 'db' ? 'text-emerald-500' : 'text-muted-foreground'}>
+                    {catalogSource === 'db' ? 'Base de données' : 'Catalogue statique'}
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
 
@@ -102,7 +104,7 @@ const KPIMonitorPage: React.FC = () => {
               <input type="date" value={globalFilter.dateTo} onChange={e => globalFilter.setDateRange(globalFilter.dateFrom, e.target.value)}
                 className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" />
             </div>
-            <div className="flex gap-1">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
               {['7D', '14D', '30D', '90D'].map(preset => {
                 const days = parseInt(preset);
                 return (
@@ -110,7 +112,7 @@ const KPIMonitorPage: React.FC = () => {
                     const to = new Date();
                     const from = new Date(to.getTime() - days * 86400000);
                     globalFilter.setDateRange(from.toISOString().slice(0, 10), to.toISOString().slice(0, 10));
-                  }} className="px-2 py-1 text-[10px] font-bold rounded-md bg-muted hover:bg-primary hover:text-primary-foreground transition-colors">
+                  }} className="flex-1 px-2 py-1.5 text-[10px] font-bold rounded-md hover:bg-primary hover:text-primary-foreground transition-colors">
                     {preset}
                   </button>
                 );
@@ -256,23 +258,44 @@ const KPIMonitorPage: React.FC = () => {
 
       {/* ── MAIN CONTENT ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-card/50">
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
-            {([
-              { mode: 'graph' as const, icon: BarChart3, label: 'Graph' },
-              { mode: 'table' as const, icon: Table2, label: 'Table' },
-              { mode: 'map' as const, icon: MapIcon, label: 'Map' },
-            ]).map(({ mode, icon: Icon, label }) => (
-              <button key={mode} onClick={() => store.setViewMode(mode)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  store.viewMode === mode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}>
-                <Icon className="w-3.5 h-3.5" /> {label}
-              </button>
-            ))}
+        {/* Toolbar — matching BI Studio style */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/50">
+          <div className="flex items-center gap-3">
+            {/* View mode toggle — grouped container like BI */}
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
+              {([
+                { mode: 'graph' as const, icon: BarChart3, label: 'Graph' },
+                { mode: 'table' as const, icon: Table2, label: 'Table' },
+                { mode: 'map' as const, icon: MapIcon, label: 'Map' },
+              ]).map(({ mode, icon: Icon, label }) => (
+                <button key={mode} onClick={() => store.setViewMode(mode)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    store.viewMode === mode
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-primary hover:text-primary-foreground'
+                  }`}>
+                  <Icon className="w-3.5 h-3.5" /> {label}
+                </button>
+              ))}
+              <div className="w-px h-5 bg-border mx-1" />
+              {/* Actions dropdown like BI */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors text-muted-foreground">
+                    <MoreHorizontal className="w-3.5 h-3.5" /> Actions
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem><Save className="w-3.5 h-3.5 mr-2" /> Sauvegarder</DropdownMenuItem>
+                  <DropdownMenuItem><FileDown className="w-3.5 h-3.5 mr-2" /> Export PDF</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem><Sparkles className="w-3.5 h-3.5 mr-2" /> AI Assistant</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
+          {/* Active KPI badges */}
           <div className="flex items-center gap-2">
             {store.selectedKpis.map(k => {
               const cat = catalogMap[k.kpi_key];
@@ -302,9 +325,11 @@ const KPIMonitorPage: React.FC = () => {
             <KPITableView rows={summaryRows} />
           )}
           {store.viewMode === 'map' && (
-            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm bg-card rounded-2xl border border-border">
-              <MapIcon className="w-8 h-8 mr-2 opacity-30" />
-              Vue Map — V1.2
+            <div className="flex flex-col items-center justify-center h-64 gap-4 bg-card rounded-2xl border border-border">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <MapIcon className="w-8 h-8 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">Vue Map — V1.2</p>
             </div>
           )}
         </div>
