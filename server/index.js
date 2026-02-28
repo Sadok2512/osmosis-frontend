@@ -773,6 +773,8 @@ Réponds TOUJOURS en français.`;
 
 // ─── /api/dump-parameter (query with filters) ───
 app.get('/api/dump-parameter', async (req, res) => {
+  const reqStart = Date.now();
+  console.log(`\n📥 [/api/dump-parameter] ← ${req.method} query:`, JSON.stringify(req.query));
   try {
     const tableChoice = await sharedPool.query(`
       SELECT CASE
@@ -782,18 +784,24 @@ app.get('/api/dump-parameter', async (req, res) => {
       END AS table_name
     `);
     const dumpTable = tableChoice.rows[0]?.table_name || 'dump_parameter';
+    console.log(`   📋 Table détectée: ${dumpTable}`);
 
     const { select, parameter, site_name, cell_name, dor, plaque, vendor, order, limit: lim, distinct_col } = req.query;
 
     // Special mode: get distinct values for a column
     if (distinct_col) {
       const allowedCols = ['site_name', 'cell_name', 'parameter', 'dor', 'plaque', 'vendor', 'ur', 'dr', 'bande'];
-      if (!allowedCols.includes(distinct_col)) return res.json([]);
+      if (!allowedCols.includes(distinct_col)) {
+        console.log(`   ⚠️ Colonne non autorisée: ${distinct_col}`);
+        return res.json([]);
+      }
       let q = `SELECT DISTINCT ${distinct_col} FROM ${dumpTable} WHERE ${distinct_col} IS NOT NULL`;
       const params = [];
       if (site_name) { params.push(site_name); q += ` AND site_name = $${params.length}`; }
       q += ` ORDER BY ${distinct_col} LIMIT 5000`;
+      console.log(`   🔍 DISTINCT query: col=${distinct_col}${site_name ? `, site=${site_name}` : ''}`);
       const result = await sharedPool.query(q, params);
+      console.log(`   ✅ ${result.rows.length} valeurs distinctes (${Date.now() - reqStart}ms)`);
       return res.json(result.rows);
     }
 
@@ -807,12 +815,18 @@ app.get('/api/dump-parameter', async (req, res) => {
     if (dor) { params.push(dor); q += ` AND dor = $${params.length}`; }
     if (plaque) { params.push(plaque); q += ` AND plaque = $${params.length}`; }
     if (vendor) { params.push(vendor); q += ` AND vendor = $${params.length}`; }
-    q += ` ORDER BY ${order || 'site_name'} LIMIT ${Math.min(Math.max(parseInt(lim) || 5000, 1), 50000)}`;
+    const limitVal = Math.min(Math.max(parseInt(lim) || 5000, 1), 50000);
+    q += ` ORDER BY ${order || 'site_name'} LIMIT ${limitVal}`;
+
+    const activeFilters = Object.entries({ parameter, site_name, cell_name, dor, plaque, vendor })
+      .filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join(', ');
+    console.log(`   🔍 Query: filters=[${activeFilters || 'aucun'}] limit=${limitVal}`);
 
     const result = await sharedPool.query(q, params);
+    console.log(`   ✅ ${result.rows.length} lignes retournées (${Date.now() - reqStart}ms)`);
     res.json(result.rows);
   } catch (e) {
-    console.error('[/api/dump-parameter]', e.message);
+    console.error(`   ❌ [/api/dump-parameter] ERREUR (${Date.now() - reqStart}ms):`, e.message);
     res.status(500).json({ error: e.message });
   }
 });
