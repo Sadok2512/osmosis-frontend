@@ -14,7 +14,7 @@ import KPICatalogImport from './KPICatalogImport';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
 import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode } from '../bi/dashboardTypes';
-import BIChartCard from '../bi/BIChartCard';
+import BIChartCardECharts from '../bi/BIChartCardECharts';
 import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/BITextWidget';
 import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../bi/BIImageWidget';
 import BIMapWidget from '../bi/BIMapWidget';
@@ -303,7 +303,7 @@ const KPIMonitorInner: React.FC = () => {
   const editingChart = validWidgets.find(w => getId(w) === editingId && w.kind === 'chart');
 
   const renderWidget = (w: WidgetItem) => {
-    if (w.kind === 'chart') return <BIChartCard config={w.config as ChartConfig} onEdit={() => { setEditingId(getId(w)); setShowAI(false); }} onDuplicate={() => duplicateWidget(getId(w))} onDelete={() => deleteWidget(getId(w))} />;
+    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { setEditingId(getId(w)); setShowAI(false); }} onDuplicate={() => duplicateWidget(getId(w))} onDelete={() => deleteWidget(getId(w))} />;
     if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={cfg => updateMapConfig(getId(w), cfg)} onDelete={() => deleteWidget(getId(w))} />;
     if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={cfg => updateImageConfig(getId(w), cfg)} onDelete={() => deleteWidget(getId(w))} />;
     if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(getId(w), cfg)} onDelete={() => deleteWidget(getId(w))} />;
