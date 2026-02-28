@@ -41,12 +41,39 @@ const sharedPool = new Pool({
 });
 
 // Test connection at startup
-sharedPool.connect((err, client, release) => {
+sharedPool.connect(async (err, client, release) => {
   if (err) {
     console.error('❌ PostgreSQL connection failed:', err.message);
     console.error('   Vérifiez que PostgreSQL tourne et que le fichier server/.env est correct.');
   } else {
     console.log('✅ PostgreSQL pool connected to', dbConfig.database);
+    try {
+      // Check dump_parameter table
+      const tableCheck = await client.query(`
+        SELECT CASE
+          WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='dump_parameter') THEN 'dump_parameter'
+          WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='dump_parametre') THEN 'dump_parametre'
+          ELSE NULL
+        END AS table_name
+      `);
+      const dumpTable = tableCheck.rows[0]?.table_name;
+      if (dumpTable) {
+        const countRes = await client.query(`SELECT COUNT(*) AS cnt FROM ${dumpTable}`);
+        const paramRes = await client.query(`SELECT COUNT(DISTINCT parameter) AS cnt FROM ${dumpTable}`);
+        const siteRes = await client.query(`SELECT COUNT(DISTINCT site_name) AS cnt FROM ${dumpTable}`);
+        console.log(`📊 Table "${dumpTable}": ${countRes.rows[0].cnt} lignes, ${paramRes.rows[0].cnt} paramètres distincts, ${siteRes.rows[0].cnt} sites`);
+      } else {
+        console.warn('⚠️  Aucune table dump_parameter/dump_parametre trouvée dans la base');
+      }
+      // Check topo table
+      const topoCheck = await client.query(`SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='topo'`);
+      if (parseInt(topoCheck.rows[0].cnt) > 0) {
+        const topoCount = await client.query('SELECT COUNT(*) AS cnt FROM topo');
+        console.log(`📊 Table "topo": ${topoCount.rows[0].cnt} lignes`);
+      }
+    } catch (statErr) {
+      console.warn('⚠️  Stats check error:', statErr.message);
+    }
     release();
   }
 });
