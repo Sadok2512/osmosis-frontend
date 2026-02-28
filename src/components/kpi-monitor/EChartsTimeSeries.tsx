@@ -1,16 +1,19 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { KpiTimeSeriesPoint } from './types';
+import { KpiTimeSeriesPoint, KpiCatalogEntry } from './types';
 import { KPI_CATALOG_MAP } from './kpiCatalog';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 
 interface Props {
   data: KpiTimeSeriesPoint[];
   height?: number;
+  catalogMap?: Record<string, KpiCatalogEntry>;
 }
 
-const EChartsTimeSeries: React.FC<Props> = ({ data, height = 500 }) => {
+const EChartsTimeSeries: React.FC<Props> = ({ data, height = 500, catalogMap: externalMap }) => {
   const { selectedKpis } = useKpiMonitorStore();
+
+  const catMap = externalMap || KPI_CATALOG_MAP;
 
   const option = useMemo(() => {
     // Group by kpi_key + split_value → one series each
@@ -30,7 +33,7 @@ const EChartsTimeSeries: React.FC<Props> = ({ data, height = 500 }) => {
     const yAxis: any[] = [];
 
     if (leftKpis.length > 0) {
-      const cat = KPI_CATALOG_MAP[leftKpis[0].kpi_key];
+      const cat = catMap[leftKpis[0].kpi_key];
       yAxis.push({
         type: 'value',
         name: cat?.unit || '',
@@ -41,7 +44,7 @@ const EChartsTimeSeries: React.FC<Props> = ({ data, height = 500 }) => {
       });
     }
     if (rightKpis.length > 0) {
-      const cat = KPI_CATALOG_MAP[rightKpis[0].kpi_key];
+      const cat = catMap[rightKpis[0].kpi_key];
       yAxis.push({
         type: 'value',
         name: cat?.unit || '',
@@ -58,7 +61,7 @@ const EChartsTimeSeries: React.FC<Props> = ({ data, height = 500 }) => {
     for (const [name, points] of seriesMap) {
       const kpiKey = name.split(' — ')[0];
       const kpiSel = selectedKpis.find(k => k.kpi_key === kpiKey);
-      const cat = KPI_CATALOG_MAP[kpiKey];
+      const cat = catMap[kpiKey];
       const yAxisIndex = kpiSel?.axis === 'right' && yAxis.length > 1 ? 1 : 0;
 
       const dataArr = allTs.map(ts => {
@@ -84,7 +87,7 @@ const EChartsTimeSeries: React.FC<Props> = ({ data, height = 500 }) => {
     // Threshold reference lines
     const markLines: any[] = [];
     for (const kpiSel of selectedKpis) {
-      const cat = KPI_CATALOG_MAP[kpiSel.kpi_key];
+      const cat = catMap[kpiSel.kpi_key];
       if (cat?.thresholds) {
         markLines.push(
           { yAxis: cat.thresholds.warning, name: `${cat.display_name} Warning`, lineStyle: { color: '#f59e0b', type: 'dashed', width: 1 } },
@@ -145,7 +148,7 @@ const EChartsTimeSeries: React.FC<Props> = ({ data, height = 500 }) => {
         iconStyle: { borderColor: '#94a3b8' },
       },
     };
-  }, [data, selectedKpis]);
+  }, [data, selectedKpis, catMap]);
 
   return (
     <ReactECharts

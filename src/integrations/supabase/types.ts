@@ -131,6 +131,75 @@ export type Database = {
         }
         Relationships: []
       }
+      kpi_catalog: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          default_agg: string | null
+          definition: string | null
+          denominator: string | null
+          display_name: string
+          famille: string | null
+          formula_sql: string | null
+          id: number
+          is_map_supported: boolean | null
+          kpi_key: string
+          nom_bdd: string | null
+          numerator: string | null
+          orientation: string | null
+          priorite: string | null
+          techno: string | null
+          threshold_critical: number | null
+          threshold_warning: number | null
+          unit: string | null
+          value_type: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          default_agg?: string | null
+          definition?: string | null
+          denominator?: string | null
+          display_name: string
+          famille?: string | null
+          formula_sql?: string | null
+          id?: never
+          is_map_supported?: boolean | null
+          kpi_key: string
+          nom_bdd?: string | null
+          numerator?: string | null
+          orientation?: string | null
+          priorite?: string | null
+          techno?: string | null
+          threshold_critical?: number | null
+          threshold_warning?: number | null
+          unit?: string | null
+          value_type?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          default_agg?: string | null
+          definition?: string | null
+          denominator?: string | null
+          display_name?: string
+          famille?: string | null
+          formula_sql?: string | null
+          id?: never
+          is_map_supported?: boolean | null
+          kpi_key?: string
+          nom_bdd?: string | null
+          numerator?: string | null
+          orientation?: string | null
+          priorite?: string | null
+          techno?: string | null
+          threshold_critical?: number | null
+          threshold_warning?: number | null
+          unit?: string | null
+          value_type?: string | null
+        }
+        Relationships: []
+      }
       map_views: {
         Row: {
           created_at: string
