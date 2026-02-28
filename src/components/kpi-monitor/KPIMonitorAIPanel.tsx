@@ -206,7 +206,7 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
               <Sparkles className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground tracking-tight">KPI Assistant</h3>
+              <h3 className="text-sm font-bold text-foreground tracking-tight">QOEBIT</h3>
               <p className="text-[9px] text-muted-foreground font-medium">Assistant IA • KPI Monitor</p>
             </div>
           </div>
