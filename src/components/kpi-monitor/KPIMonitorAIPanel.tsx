@@ -206,7 +206,7 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
               <Sparkles className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground tracking-tight">QOEBIT</h3>
+              <h3 className="text-sm font-bold text-foreground tracking-tight">KPI Assistant</h3>
               <p className="text-[9px] text-muted-foreground font-medium">Assistant IA • KPI Monitor</p>
             </div>
           </div>
@@ -233,7 +233,7 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
               <Bot className="w-7 h-7 text-primary" />
             </div>
             <div className="text-center space-y-1.5">
-              <h4 className="text-sm font-bold text-foreground">Analysez vos KPIs</h4>
+              <h4 className="text-sm font-bold text-foreground">Analysez vos KPIs réseau</h4>
               <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[260px]">
                 Posez des questions sur vos données de performance réseau, détectez des anomalies ou générez des rapports.
               </p>
