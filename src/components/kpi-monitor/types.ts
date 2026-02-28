@@ -24,7 +24,7 @@ export interface KpiCatalogEntry {
   formula_sql?: string;
   is_map_supported: boolean;
   thresholds?: { warning: number; critical: number };
-  category: 'Access' | 'Throughput' | 'Latency' | 'Retainability' | 'QoE' | 'Traffic' | 'TCP';
+  category: 'Access' | 'Throughput' | 'Latency' | 'Retainability' | 'Traffic' | 'TCP' | 'Other';
   color: string;
 }
 
