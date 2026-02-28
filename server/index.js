@@ -60,10 +60,13 @@ sharedPool.connect(async (err, client, release) => {
       `);
       const dumpTable = tableCheck.rows[0]?.table_name;
       if (dumpTable) {
+        // Use pg_stat for fast row estimate, then exact distinct counts
+        const estRes = await client.query(`SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = $1`, [dumpTable]);
+        const estimate = estRes.rows[0]?.estimate || 'N/A';
         const countRes = await client.query(`SELECT COUNT(*) AS cnt FROM ${dumpTable}`);
         const paramRes = await client.query(`SELECT COUNT(DISTINCT parameter) AS cnt FROM ${dumpTable}`);
         const siteRes = await client.query(`SELECT COUNT(DISTINCT site_name) AS cnt FROM ${dumpTable}`);
-        console.log(`📊 Table "${dumpTable}": ${countRes.rows[0].cnt} lignes, ${paramRes.rows[0].cnt} paramètres distincts, ${siteRes.rows[0].cnt} sites`);
+        console.log(`📊 Table "${dumpTable}": ${countRes.rows[0].cnt} lignes (est. ${estimate}), ${paramRes.rows[0].cnt} paramètres distincts, ${siteRes.rows[0].cnt} sites`);
       } else {
         console.warn('⚠️  Aucune table dump_parameter/dump_parametre trouvée dans la base RAN_OP');
       }
