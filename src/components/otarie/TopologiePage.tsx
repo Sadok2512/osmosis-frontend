@@ -128,12 +128,12 @@ const TopologiePage: React.FC = () => {
     loadFilters();
   }, [backendReachable]);
 
-  // Auto-select first available parameter to avoid empty screen on first load
-  useEffect(() => {
-    if (selectedParam === 'ALL' && params.length > 0) {
-      setSelectedParam(params[0]);
-    }
-  }, [params, selectedParam]);
+  // Don't auto-select — let user pick their parameter
+  // useEffect(() => {
+  //   if (selectedParam === 'ALL' && params.length > 0) {
+  //     setSelectedParam(params[0]);
+  //   }
+  // }, [params, selectedParam]);
 
   // Filtered params for search
   const filteredParams = useMemo(() => {
