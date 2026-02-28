@@ -3,7 +3,7 @@ import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
   Database, Activity, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
-  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon
+  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart
 } from 'lucide-react';
 import { Filters, AppTab } from '../../types';
 
@@ -24,6 +24,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
   { id: 'sites', label: 'Network Topology', icon: <Network className="w-5 h-5" /> },
   { id: 'traffic', label: 'Analytic BI Studio', icon: <BarChart2 className="w-5 h-5" /> },
+  { id: 'kpi_monitor', label: 'KPI Monitor', icon: <LineChart className="w-5 h-5" /> },
   { id: 'alerts', label: 'Alerts & RCA Monitor', icon: <Bell className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
   { id: 'ai_assistant', label: 'QOEBIT', icon: <Sparkles className="w-5 h-5" /> },

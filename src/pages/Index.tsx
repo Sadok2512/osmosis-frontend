@@ -17,6 +17,7 @@ import RAGManager from '../components/otarie/RAGManager';
 import RadioProfilePage from '../components/otarie/RadioProfilePage';
 import BackendAdmin from '../components/otarie/BackendAdmin';
 import TopologiePage from '../components/otarie/TopologiePage';
+import KPIMonitorPage from '../components/kpi-monitor/KPIMonitorPage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
@@ -44,7 +45,7 @@ const Index: React.FC = () => {
     return {
       dashboard_overview: true, list: true, sites: true, traffic: true,
       alerts: true, detector: true, ai_assistant: true, radio_profile: true,
-      topologie: true, rag: true, docs: true, backend_admin: true,
+      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true,
     };
   });
 
@@ -141,6 +142,8 @@ const Index: React.FC = () => {
         return <BackendAdmin />;
       case 'topologie':
         return <TopologiePage />;
+      case 'kpi_monitor':
+        return <KPIMonitorPage />;
       default:
         return null;
     }
