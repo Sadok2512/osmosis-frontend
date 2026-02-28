@@ -10,6 +10,13 @@ const app = express();
 // ─── In-memory cache for DISTINCT values (populated at startup) ───
 const distinctCache = {}; // { column_name: [values] }
 let distinctCacheReady = false;
+let distinctCachePromise = null; // resolves when cache is ready
+
+function waitForCache() {
+  if (distinctCacheReady) return Promise.resolve();
+  if (!distinctCachePromise) return Promise.resolve();
+  return distinctCachePromise;
+}
 
 // ─── Explicit CORS for local Vite dev server ───
 app.use(cors({
@@ -99,9 +106,11 @@ sharedPool.connect(async (err, client, release) => {
       const allTables = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name`);
       console.log(`📋 Tables dans "${dbConfig.database}":`, allTables.rows.map(r => r.table_name).join(', '));
 
-      // ─── Pre-populate DISTINCT cache for heavy columns (runs in background) ───
+      // ─── Pre-populate DISTINCT cache for heavy columns ───
       if (dumpTable) {
-        console.log('🔄 Pré-chargement du cache DISTINCT (en arrière-plan)...');
+        let cacheResolve;
+        distinctCachePromise = new Promise(r => { cacheResolve = r; });
+        console.log('🔄 Pré-chargement du cache DISTINCT...');
         const cacheCols = ['parameter', 'site_name', 'cell_name'];
         const cacheStart = Date.now();
         for (const col of cacheCols) {
@@ -114,6 +123,7 @@ sharedPool.connect(async (err, client, release) => {
           }
         }
         distinctCacheReady = true;
+        cacheResolve();
         console.log(`✅ Cache DISTINCT prêt (${Date.now() - cacheStart}ms total)`);
       }
     } catch (statErr) {
@@ -869,7 +879,8 @@ app.get('/api/dump-parameter', async (req, res) => {
         return res.json([]);
       }
 
-      // 1) Check in-memory cache first (populated at startup, instant)
+      // 1) Wait for cache if still loading, then check in-memory cache
+      await waitForCache();
       const hasFilter = !!(site_name || cell_name || dor || plaque || vendor);
       if (!hasFilter && distinctCache[distinct_col]) {
         console.log(`   ⚡ Cache mémoire: ${distinctCache[distinct_col].length} valeurs pour ${distinct_col} (${Date.now() - reqStart}ms)`);
