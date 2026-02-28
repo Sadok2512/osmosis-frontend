@@ -846,9 +846,37 @@ app.get('/api/dump-parameter', async (req, res) => {
         console.log(`   ⚠️ Colonne non autorisée: ${distinct_col}`);
         return res.json([]);
       }
+
+      // For unfiltered DISTINCT on huge tables, try to extract from pg_stats first (instant)
+      const hasFilter = !!(site_name || cell_name || dor || plaque || vendor);
+      if (!hasFilter) {
+        try {
+          const statsRes = await sharedPool.query(
+            `SELECT most_common_vals::text AS mcv FROM pg_stats WHERE tablename = $1 AND attname = $2`,
+            [dumpTable, distinct_col]
+          );
+          const mcvRaw = statsRes.rows[0]?.mcv;
+          if (mcvRaw) {
+            // Parse PostgreSQL array literal: {val1,val2,...}
+            const vals = mcvRaw.replace(/^\{/, '').replace(/\}$/, '')
+              .split(',')
+              .map(v => v.replace(/^"|"$/g, '').trim())
+              .filter(Boolean)
+              .sort();
+            if (vals.length > 0) {
+              console.log(`   ⚡ pg_stats shortcut: ${vals.length} valeurs pour ${distinct_col} (${Date.now() - reqStart}ms)`);
+              return res.json(vals.map(v => ({ [distinct_col]: v })));
+            }
+          }
+        } catch (e) {
+          console.warn(`   ⚠️ pg_stats fallback failed, using DISTINCT`, e.message);
+        }
+      }
+
       let q = `SELECT DISTINCT ${distinct_col} FROM ${dumpTable} WHERE ${distinct_col} IS NOT NULL`;
       const params = [];
       if (site_name) { params.push(site_name); q += ` AND site_name = $${params.length}`; }
+      if (cell_name) { params.push(cell_name); q += ` AND cell_name = $${params.length}`; }
       q += ` ORDER BY ${distinct_col} LIMIT 5000`;
       console.log(`   🔍 DISTINCT query: col=${distinct_col}${site_name ? `, site=${site_name}` : ''}`);
       const result = await sharedPool.query(q, params);
