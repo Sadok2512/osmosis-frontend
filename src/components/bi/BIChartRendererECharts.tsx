@@ -8,6 +8,82 @@ interface Props {
   config: ChartConfig;
 }
 
+/* ── Premium tooltip formatter ── */
+const premiumTooltipFormatter = (params: any) => {
+  if (!Array.isArray(params) || params.length === 0) return '';
+  const ts = params[0].axisValueLabel || params[0].name || '';
+  let html = `<div style="margin-bottom:8px;font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">${ts}</div>`;
+  for (const p of params) {
+    if (p.value == null) continue;
+    const val = typeof p.value === 'number' ? p.value.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) : p.value;
+    html += `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};box-shadow:0 0 6px ${p.color}50"></span>
+      <span style="flex:1;color:#cbd5e1;font-size:11px">${p.seriesName}</span>
+      <span style="font-weight:700;color:#f8fafc;font-size:11px;font-variant-numeric:tabular-nums">${val}</span>
+    </div>`;
+  }
+  return html;
+};
+
+/* ── Premium ECharts defaults ── */
+const PREMIUM_TOOLTIP = {
+  trigger: 'axis' as const,
+  backgroundColor: 'rgba(15,23,42,0.96)',
+  borderColor: 'rgba(255,255,255,0.08)',
+  borderWidth: 1,
+  padding: [14, 18],
+  textStyle: { color: '#f1f5f9', fontSize: 11, fontFamily: 'Inter, system-ui, sans-serif' },
+  extraCssText: 'border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.24); backdrop-filter: blur(12px);',
+  axisPointer: {
+    type: 'line' as const,
+    lineStyle: { color: 'rgba(59,130,246,0.2)', width: 1, type: 'solid' as const },
+  },
+  formatter: premiumTooltipFormatter,
+};
+
+const PREMIUM_LEGEND = {
+  type: 'scroll' as const,
+  bottom: 8,
+  textStyle: { fontSize: 11, color: '#64748b', fontFamily: 'Inter, system-ui, sans-serif' },
+  icon: 'circle',
+  itemWidth: 8,
+  itemHeight: 8,
+  itemGap: 16,
+  inactiveColor: '#d1d5db',
+};
+
+const PREMIUM_DATAZOOM = (legendBottom: number) => [
+  { type: 'inside' as const, xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: true },
+  {
+    type: 'slider' as const, xAxisIndex: 0, start: 0, end: 100,
+    height: 14,
+    bottom: legendBottom,
+    borderColor: 'transparent',
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    fillerColor: 'rgba(59,130,246,0.12)',
+    handleSize: '80%',
+    handleStyle: { color: '#94a3b8', borderColor: '#94a3b8', shadowBlur: 3, shadowColor: 'rgba(0,0,0,0.1)' },
+    dataBackground: {
+      lineStyle: { color: 'rgba(59,130,246,0.2)', width: 1 },
+      areaStyle: { color: 'rgba(59,130,246,0.05)' },
+    },
+    selectedDataBackground: {
+      lineStyle: { color: '#3b82f6', width: 1 },
+      areaStyle: { color: 'rgba(59,130,246,0.1)' },
+    },
+    textStyle: { fontSize: 9, color: '#9ca3af' },
+    brushSelect: false,
+  },
+];
+
+const PREMIUM_YAXIS_BASE = {
+  axisLabel: { fontSize: 10, color: '#9ca3af', fontFamily: 'Inter, system-ui, sans-serif' },
+  nameTextStyle: { fontSize: 10, color: '#9ca3af', fontFamily: 'Inter, system-ui, sans-serif' },
+  axisLine: { show: false },
+  axisTick: { show: false },
+  splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)', type: [4, 4] as any, width: 1 } },
+};
+
 const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
   const { getDataset } = useCSVData();
   const csvDataset = config.dataSource?.type === 'csv' && config.dataSource.csvDatasetId
@@ -42,7 +118,6 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
 
   const firstMetric = effectiveYMetrics[0];
 
-  // Pivot grouped data
   const hasGroup = config.groupBy.length > 0 && rawData.some(d => d.group);
   const groupKeys = hasGroup ? [...new Set(rawData.map(d => d.group))] as string[] : [];
 
@@ -91,7 +166,6 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     );
   }
 
-
   // ── Pie Chart ──
   if (firstMetric.chartType === 'pie') {
     const pieData = pivotedData.map((d, i) => ({
@@ -101,16 +175,8 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     }));
 
     const option = {
-      tooltip: {
-        trigger: 'item',
-        backgroundColor: 'rgba(15,23,42,0.95)',
-        borderColor: 'transparent',
-        textStyle: { color: '#fff', fontSize: 11 },
-      },
-      legend: config.advanced.showLegend ? {
-        type: 'scroll', bottom: 0,
-        textStyle: { fontSize: 10, color: '#64748b' },
-      } : undefined,
+      tooltip: { ...PREMIUM_TOOLTIP, trigger: 'item' as const, formatter: undefined },
+      legend: config.advanced.showLegend ? PREMIUM_LEGEND : undefined,
       series: [{
         type: 'pie',
         radius: ['35%', '65%'],
@@ -125,10 +191,7 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
 
   // ── Heatmap ──
   if (firstMetric.chartType === 'heatmap') {
-    const yLabels = hasGroup
-      ? groupKeys
-      : effectiveYMetrics.map(m => m.kpi.replace(/_/g, ' '));
-
+    const yLabels = hasGroup ? groupKeys : effectiveYMetrics.map(m => m.kpi.replace(/_/g, ' '));
     const heatData: [number, number, number][] = [];
     let minVal = Infinity, maxVal = -Infinity;
 
@@ -153,30 +216,25 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     });
 
     const option = {
-      tooltip: {
-        position: 'top',
-        backgroundColor: 'rgba(15,23,42,0.95)',
-        borderColor: 'transparent',
-        textStyle: { color: '#fff', fontSize: 11 },
-      },
+      tooltip: { ...PREMIUM_TOOLTIP, trigger: 'item' as const, position: 'top' as const, formatter: undefined },
       grid: { top: 10, right: 10, bottom: 40, left: 80 },
       xAxis: {
-        type: 'category',
+        type: 'category' as const,
         data: xLabels.map(x => x.includes('-') ? x.slice(5) : x),
-        axisLabel: { fontSize: 9, color: '#94a3b8', rotate: xLabels.length > 10 ? 45 : 0 },
+        axisLabel: { fontSize: 9, color: '#9ca3af', rotate: xLabels.length > 10 ? 45 : 0 },
         splitArea: { show: true },
       },
       yAxis: {
-        type: 'category',
+        type: 'category' as const,
         data: yLabels,
-        axisLabel: { fontSize: 9, color: '#94a3b8' },
+        axisLabel: { fontSize: 9, color: '#9ca3af' },
         splitArea: { show: true },
       },
       visualMap: {
         min: minVal, max: maxVal,
-        calculable: true, orient: 'horizontal',
+        calculable: true, orient: 'horizontal' as const,
         left: 'center', bottom: 0,
-        textStyle: { fontSize: 9, color: '#94a3b8' },
+        textStyle: { fontSize: 9, color: '#9ca3af' },
         inRange: { color: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444'] },
       },
       series: [{
@@ -190,7 +248,7 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     return <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} notMerge />;
   }
 
-  // ── Build ECharts option for line/bar/area/scatter/stacked_bar/grouped_bar ──
+  // ── Build premium series for line/bar/area/scatter ──
   const hasRight = effectiveYMetrics.some(m => m.axis === 'right');
 
   const buildSeries = () => {
@@ -218,65 +276,88 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
           name: s.name,
           yAxisIndex,
           data: values,
-          itemStyle: { color: s.color },
-          emphasis: { focus: 'series' },
+          itemStyle: { color: s.color, borderWidth: 0 },
+          emphasis: {
+            focus: 'series',
+            lineStyle: { width: 3 },
+            itemStyle: { borderWidth: 2, borderColor: '#fff', shadowBlur: 6, shadowColor: `${s.color}40` },
+          },
         };
 
         switch (m.chartType) {
           case 'bar':
-            series.push({ ...baseSeries, type: 'bar', barMaxWidth: 30, itemStyle: { ...baseSeries.itemStyle, borderRadius: [4, 4, 0, 0] } });
+            series.push({
+              ...baseSeries, type: 'bar', barMaxWidth: 28,
+              itemStyle: { ...baseSeries.itemStyle, borderRadius: [4, 4, 0, 0] },
+            });
             break;
           case 'stacked_bar':
-            series.push({ ...baseSeries, type: 'bar', stack: 'stack', barMaxWidth: 30 });
+            series.push({ ...baseSeries, type: 'bar', stack: 'stack', barMaxWidth: 28 });
             break;
           case 'grouped_bar':
-            series.push({ ...baseSeries, type: 'bar', barMaxWidth: 24, itemStyle: { ...baseSeries.itemStyle, borderRadius: [5, 5, 0, 0] } });
+            series.push({
+              ...baseSeries, type: 'bar', barMaxWidth: 22,
+              itemStyle: { ...baseSeries.itemStyle, borderRadius: [4, 4, 0, 0] },
+            });
             break;
           case 'area':
             series.push({
-              ...baseSeries, type: 'line', smooth: m.smoothCurve,
-              symbol: 'circle', symbolSize: 4, lineStyle: { width: 2.5 },
-              areaStyle: { opacity: 0.15 },
+              ...baseSeries, type: 'line', smooth: m.smoothCurve ? 0.3 : false,
+              symbol: 'none', showSymbol: false,
+              lineStyle: { width: 2.5, color: s.color, shadowColor: `${s.color}25`, shadowBlur: 8, shadowOffsetY: 3 },
+              areaStyle: {
+                color: {
+                  type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                  colorStops: [
+                    { offset: 0, color: `${s.color}18` },
+                    { offset: 1, color: `${s.color}02` },
+                  ],
+                },
+              },
             });
             break;
           case 'scatter':
-            series.push({ ...baseSeries, type: 'scatter', symbolSize: 8 });
+            series.push({ ...baseSeries, type: 'scatter', symbolSize: 7 });
             break;
           case 'line':
           default:
             series.push({
-              ...baseSeries, type: 'line', smooth: m.smoothCurve,
-              symbol: 'circle', symbolSize: 4, lineStyle: { width: 2.5 },
-              areaStyle: { opacity: 0.06 },
+              ...baseSeries, type: 'line', smooth: m.smoothCurve ? 0.3 : false,
+              symbol: 'none', showSymbol: false,
+              lineStyle: { width: 2.5, color: s.color, shadowColor: `${s.color}25`, shadowBlur: 8, shadowOffsetY: 3 },
+              areaStyle: {
+                color: {
+                  type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                  colorStops: [
+                    { offset: 0, color: `${s.color}0A` },
+                    { offset: 1, color: `${s.color}00` },
+                  ],
+                },
+              },
             });
             break;
         }
       }
     }
 
-    // Threshold markLines on first series
-    const thresholds = config.advanced.thresholds;
-    const milestones = config.advanced.milestones || [];
+    // Threshold & milestone mark lines
     const markLineData: any[] = [];
-
-    for (const t of thresholds) {
+    for (const t of config.advanced.thresholds) {
       markLineData.push({
         yAxis: t.value,
         name: `⊙ ${t.label}: ${t.value}`,
-        lineStyle: { color: t.color || '#ef4444', type: t.lineStyle === 'dotted' ? 'dotted' : t.lineStyle === 'dashed' ? 'dashed' : 'solid', width: 1.5 },
-        label: { fontSize: 9, position: 'insideEndTop', formatter: `⊙ ${t.label}: ${t.value}` },
+        lineStyle: { color: t.color || '#ef4444', type: t.lineStyle === 'dotted' ? [2, 4] : t.lineStyle === 'dashed' ? [6, 4] : 'solid', width: 1.5, opacity: 0.7 },
+        label: { fontSize: 9, fontWeight: 600, position: 'insideEndTop', formatter: `⊙ ${t.label}: ${t.value}` },
       });
     }
-
-    for (const m of milestones) {
+    for (const m of (config.advanced.milestones || [])) {
       markLineData.push({
         xAxis: m.date.includes('-') ? m.date.slice(5) : m.date,
         name: `▾ ${m.label}`,
-        lineStyle: { color: m.color || '#8b5cf6', type: m.lineStyle === 'dotted' ? 'dotted' : 'dashed', width: 1.5 },
-        label: { fontSize: 9, position: 'insideEndTop', formatter: `▾ ${m.label}` },
+        lineStyle: { color: m.color || '#8b5cf6', type: [6, 4], width: 1.5, opacity: 0.7 },
+        label: { fontSize: 9, fontWeight: 600, position: 'insideEndTop', formatter: `▾ ${m.label}` },
       });
     }
-
     if (markLineData.length > 0 && series.length > 0) {
       series[0].markLine = { silent: true, symbol: 'none', data: markLineData };
     }
@@ -292,64 +373,47 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     return v?.length > 10 ? v.slice(0, 10) + '…' : v;
   };
 
-  const yAxis: any[] = [{
-    type: 'value',
-    axisLabel: { fontSize: 10, color: '#94a3b8' },
-    splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' } },
-    axisLine: { show: false },
-    axisTick: { show: false },
-  }];
-
+  const yAxis: any[] = [{ ...PREMIUM_YAXIS_BASE, type: 'value' }];
   if (hasRight) {
     yAxis.push({
+      ...PREMIUM_YAXIS_BASE,
       type: 'value',
       position: 'right',
-      axisLabel: { fontSize: 10, color: '#94a3b8' },
       splitLine: { show: false },
-      axisLine: { show: false },
-      axisTick: { show: false },
     });
   }
 
+  const showLegend = config.advanced.showLegend;
+  const legendBottom = showLegend ? 28 : 8;
+
   const option = {
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(15,23,42,0.95)',
-      borderColor: 'transparent',
-      textStyle: { color: '#fff', fontSize: 11 },
-      axisPointer: { type: 'cross', label: { backgroundColor: '#334155' } },
-    },
-    legend: config.advanced.showLegend ? {
-      type: 'scroll', bottom: 0,
-      textStyle: { fontSize: 10, color: '#64748b' },
-      icon: 'roundRect',
-    } : undefined,
+    tooltip: PREMIUM_TOOLTIP,
+    legend: showLegend ? PREMIUM_LEGEND : undefined,
     grid: {
-      top: 30, right: hasRight ? 60 : 20, bottom: config.advanced.showLegend ? 50 : 30, left: 50,
+      top: 24,
+      right: hasRight ? 64 : 24,
+      bottom: showLegend ? 58 : 38,
+      left: 52,
     },
     xAxis: {
-      type: 'category',
+      type: 'category' as const,
       data: xLabels.map(formatX),
-      axisLabel: { fontSize: 9, color: '#94a3b8', rotate: xLabels.length > 15 ? 45 : 0 },
-      axisLine: { show: false },
+      axisLabel: {
+        fontSize: 10, color: '#9ca3af',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        rotate: xLabels.length > 15 ? 35 : 0,
+        margin: 12,
+      },
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
       axisTick: { show: false },
+      splitLine: { show: true, lineStyle: { color: 'rgba(0,0,0,0.03)', type: [2, 4] as any } },
     },
     yAxis,
     series: buildSeries(),
-    dataZoom: [
-      { type: 'inside', xAxisIndex: 0, start: 0, end: 100 },
-      { type: 'slider', xAxisIndex: 0, start: 0, end: 100, height: 18, bottom: config.advanced.showLegend ? 28 : 8,
-        handleSize: '80%', fillerColor: 'rgba(59,130,246,0.15)', borderColor: '#e2e8f0' },
-    ],
-    toolbox: {
-      right: 10, top: 0,
-      feature: {
-        saveAsImage: { title: 'PNG', pixelRatio: 2 },
-        dataZoom: { title: { zoom: 'Zoom', back: 'Reset' } },
-        restore: { title: 'Reset' },
-      },
-      iconStyle: { borderColor: '#94a3b8' },
-    },
+    dataZoom: PREMIUM_DATAZOOM(legendBottom),
+    animation: true,
+    animationDuration: 600,
+    animationEasing: 'cubicInOut',
   };
 
   return (
