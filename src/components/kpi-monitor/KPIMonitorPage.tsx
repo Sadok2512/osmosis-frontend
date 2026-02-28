@@ -1,19 +1,21 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import { useGlobalFilterStore } from '../../stores/globalFilterStore';
-import { KPI_CATALOG } from './kpiCatalog';
+import { KPI_CATALOG_STATIC, fetchKpiCatalogFromDB, buildCatalogMap } from './kpiCatalog';
+import { KpiCatalogEntry, SplitDimension, KpiMonitorView } from './types';
 import { generateMockTimeSeries, generateMockSummary } from './mockKpiData';
 import EChartsTimeSeries from './EChartsTimeSeries';
 import KPITableView from './KPITableView';
-import { SplitDimension, AggFunc, KpiSelection, DynamicFilter } from './types';
+import KPICatalogImport from './KPICatalogImport';
 import {
-  BarChart3, Table2, Map as MapIcon, Plus, X, ChevronDown,
-  Filter, Layers, Download, Settings2,
+  BarChart3, Table2, Map as MapIcon, Plus, X,
+  Filter, Layers, Settings2, Upload, ChevronDown, ChevronUp, Database,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 
 const SPLIT_OPTIONS: { value: SplitDimension; label: string }[] = [
   { value: 'DR', label: 'DR' }, { value: 'DOR', label: 'DOR' },
@@ -26,6 +28,18 @@ const SPLIT_OPTIONS: { value: SplitDimension; label: string }[] = [
 const KPIMonitorPage: React.FC = () => {
   const store = useKpiMonitorStore();
   const globalFilter = useGlobalFilterStore();
+  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>(KPI_CATALOG_STATIC);
+  const [catalogMap, setCatalogMap] = useState(buildCatalogMap(KPI_CATALOG_STATIC));
+  const [showImport, setShowImport] = useState(false);
+  const [catalogSource, setCatalogSource] = useState<'static' | 'db'>('static');
+
+  useEffect(() => {
+    fetchKpiCatalogFromDB().then(entries => {
+      setCatalog(entries);
+      setCatalogMap(buildCatalogMap(entries));
+      setCatalogSource(entries.length > KPI_CATALOG_STATIC.length ? 'db' : 'static');
+    });
+  }, []);
 
   const queryRequest = useMemo(() => ({
     date_from: globalFilter.dateFrom,
@@ -42,7 +56,7 @@ const KPIMonitorPage: React.FC = () => {
   const summaryRows = useMemo(() => generateMockSummary(queryRequest), [queryRequest]);
 
   const addKpi = () => {
-    const available = KPI_CATALOG.filter(k => !store.selectedKpis.some(s => s.kpi_key === k.kpi_key));
+    const available = catalog.filter(k => !store.selectedKpis.some(s => s.kpi_key === k.kpi_key));
     if (available.length === 0) return;
     store.addKpi({ kpi_key: available[0].kpi_key, agg: available[0].default_agg, axis: 'left' });
   };
@@ -51,18 +65,32 @@ const KPIMonitorPage: React.FC = () => {
     store.addFilter({ id: crypto.randomUUID(), dimension: 'VENDOR', op: 'IN', values: [] });
   };
 
+  const refreshCatalog = async () => {
+    const entries = await fetchKpiCatalogFromDB();
+    setCatalog(entries);
+    setCatalogMap(buildCatalogMap(entries));
+    setCatalogSource(entries.length > KPI_CATALOG_STATIC.length ? 'db' : 'static');
+  };
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* ── LEFT CONFIG PANEL ── */}
       <div className="w-[320px] shrink-0 border-r border-border bg-card overflow-y-auto">
         <div className="p-4 space-y-5">
           {/* Header */}
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
-              <Settings2 className="w-4 h-4 text-primary" />
-              KPI Monitor
-            </h2>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Configuration des indicateurs</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-primary" />
+                KPI Monitor
+              </h2>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {catalog.length} KPIs •{' '}
+                <span className={catalogSource === 'db' ? 'text-emerald-500' : 'text-muted-foreground'}>
+                  {catalogSource === 'db' ? 'Base de données' : 'Catalogue statique'}
+                </span>
+              </p>
+            </div>
           </div>
 
           {/* Date Range */}
@@ -111,18 +139,26 @@ const KPIMonitorPage: React.FC = () => {
               <button onClick={addKpi} className="text-primary hover:text-primary/80"><Plus className="w-4 h-4" /></button>
             </div>
             {store.selectedKpis.map((kpi) => {
-              const cat = KPI_CATALOG.find(k => k.kpi_key === kpi.kpi_key);
+              const cat = catalogMap[kpi.kpi_key];
               return (
                 <div key={kpi.kpi_key} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat?.color }} />
                   <Select value={kpi.kpi_key} onValueChange={(v) => {
                     store.removeKpi(kpi.kpi_key);
-                    const newCat = KPI_CATALOG.find(k => k.kpi_key === v);
+                    const newCat = catalogMap[v];
                     store.addKpi({ kpi_key: v, agg: newCat?.default_agg || 'avg', axis: kpi.axis });
                   }}>
                     <SelectTrigger className="h-7 text-[11px] flex-1 border-0 bg-transparent p-0"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {KPI_CATALOG.map(k => <SelectItem key={k.kpi_key} value={k.kpi_key}>{k.display_name}</SelectItem>)}
+                    <SelectContent className="max-h-60">
+                      {catalog.map(k => (
+                        <SelectItem key={k.kpi_key} value={k.kpi_key}>
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: k.color }} />
+                            {k.display_name}
+                            <span className="text-[9px] text-muted-foreground">({k.unit})</span>
+                          </span>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Select value={kpi.axis} onValueChange={(v) => store.updateKpi(kpi.kpi_key, { axis: v as any })}>
@@ -133,7 +169,7 @@ const KPIMonitorPage: React.FC = () => {
                     </SelectContent>
                   </Select>
                   {store.selectedKpis.length > 1 && (
-                    <button onClick={() => store.removeKpi(kpi.kpi_key)} className="text-muted-foreground hover:text-red-500">
+                    <button onClick={() => store.removeKpi(kpi.kpi_key)} className="text-muted-foreground hover:text-destructive">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -184,7 +220,7 @@ const KPIMonitorPage: React.FC = () => {
                     {SPLIT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <button onClick={() => store.removeFilter(f.id)} className="text-muted-foreground hover:text-red-500">
+                <button onClick={() => store.removeFilter(f.id)} className="text-muted-foreground hover:text-destructive">
                   <X className="w-3 h-3" />
                 </button>
               </div>
@@ -199,6 +235,22 @@ const KPIMonitorPage: React.FC = () => {
               {tsResponse.truncated && <Badge variant="destructive" className="ml-1 text-[8px]">Tronqué</Badge>}
             </p>
           </div>
+
+          {/* KPI Catalog Import */}
+          <Collapsible open={showImport} onOpenChange={setShowImport}>
+            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Database className="w-3 h-3" /> Catalogue KPI
+              </span>
+              {showImport ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3">
+              <KPICatalogImport />
+              <Button variant="outline" size="sm" className="w-full mt-2 text-[10px] gap-1" onClick={refreshCatalog}>
+                Recharger catalogue depuis la DB
+              </Button>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </div>
 
@@ -223,11 +275,11 @@ const KPIMonitorPage: React.FC = () => {
 
           <div className="flex items-center gap-2">
             {store.selectedKpis.map(k => {
-              const cat = KPI_CATALOG.find(c => c.kpi_key === k.kpi_key);
+              const cat = catalogMap[k.kpi_key];
               return (
                 <Badge key={k.kpi_key} variant="secondary" className="text-[10px] gap-1">
                   <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat?.color }} />
-                  {cat?.display_name} ({k.axis.toUpperCase()})
+                  {cat?.display_name || k.kpi_key} ({k.axis.toUpperCase()})
                 </Badge>
               );
             })}
