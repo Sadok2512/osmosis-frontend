@@ -91,13 +91,12 @@ const KpiRow: React.FC<{
         >R</button>
       </div>
 
-      {/* Split override dropdown */}
-      <Select value={kpi.splitOverride ?? 'inherit'} onValueChange={v => store.updateKpi(kpiKey, { splitOverride: v === 'inherit' ? undefined : v === 'none' ? null : v as SplitDimension })}>
+      {/* Split per-KPI dropdown */}
+      <Select value={kpi.splitOverride === null ? 'none' : kpi.splitOverride || 'none'} onValueChange={v => store.updateKpi(kpiKey, { splitOverride: v === 'none' ? null : v as SplitDimension })}>
         <SelectTrigger className="h-5 w-[72px] text-[9px] px-1.5 border-border bg-background">
           <SelectValue placeholder="Split" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="inherit" className="text-[10px]">Global</SelectItem>
           <SelectItem value="none" className="text-[10px]">Aucun</SelectItem>
           {SPLIT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value} className="text-[10px]">{s.label}</SelectItem>)}
         </SelectContent>
@@ -257,41 +256,15 @@ const DashboardConfigPanel: React.FC<DashboardConfigPanelProps> = ({
                 )}
               </div>
 
-              {/* ── SPLIT GLOBAL ── */}
+              {/* ── CATALOGUE ── */}
               <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 w-[160px] shrink-0">
                 <div className="flex items-center gap-1.5">
-                  <GitBranch className="w-3 h-3 text-primary" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Split</span>
+                  <Database className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Catalogue</span>
                 </div>
-                <Select value={store.splitBy || 'none'} onValueChange={v => store.setSplitBy(v === 'none' ? null : v as SplitDimension)}>
-                  <SelectTrigger className="h-6 text-[10px]"><SelectValue placeholder="Aucun" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun</SelectItem>
-                    {SPLIT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {store.splitBy && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] text-muted-foreground">Top</span>
-                      <input type="number" min={1} max={20} value={store.topN}
-                        onChange={e => store.setTopN(parseInt(e.target.value) || 5)}
-                        className="w-10 px-1 py-0.5 rounded border border-border bg-card text-[10px] text-center outline-none"
-                      />
-                      <div className="flex items-center gap-1">
-                        <Switch checked={store.includeOthers} onCheckedChange={store.setIncludeOthers} className="scale-[0.65]" />
-                        <span className="text-[9px] text-muted-foreground">Others</span>
-                      </div>
-                    </div>
-                    {seriesInfo.total > 30 && (
-                      <p className="text-[8px] text-destructive font-medium">⚠ {seriesInfo.total} séries – performance réduite</p>
-                    )}
-                  </>
-                )}
-                {/* Catalog import */}
                 <Collapsible open={showCatalog} onOpenChange={setShowCatalog}>
-                  <CollapsibleTrigger className="flex items-center gap-1 text-[8px] text-muted-foreground hover:text-foreground transition-colors mt-1">
-                    <Database className="w-2.5 h-2.5" /> Catalogue
+                  <CollapsibleTrigger className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors">
+                    <Database className="w-2.5 h-2.5" /> Import / Gestion
                     {showCatalog ? <ChevronUp className="w-2 h-2" /> : <ChevronDown className="w-2 h-2" />}
                   </CollapsibleTrigger>
                   <CollapsibleContent className="pt-1.5">
