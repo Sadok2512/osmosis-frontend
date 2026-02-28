@@ -62,14 +62,26 @@ sharedPool.connect(async (err, client, release) => {
       const dumpTable = tableCheck.rows[0]?.table_name;
       console.log(`   Table détectée: ${dumpTable || '❌ AUCUNE'}`);
       if (dumpTable) {
-        // Fast estimate first
+        // Fast estimate from pg_class (instant, no table scan)
         const estRes = await client.query(`SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = $1`, [dumpTable]);
-        console.log(`   Estimation rapide: ~${estRes.rows[0]?.estimate} lignes`);
-        // Exact count (may be slow)
-        const countRes = await client.query(`SELECT COUNT(*) AS cnt FROM ${dumpTable}`);
-        const paramRes = await client.query(`SELECT COUNT(DISTINCT parameter) AS cnt FROM ${dumpTable}`);
-        const siteRes = await client.query(`SELECT COUNT(DISTINCT site_name) AS cnt FROM ${dumpTable}`);
-        console.log(`📊 Table "${dumpTable}": ${countRes.rows[0].cnt} lignes, ${paramRes.rows[0].cnt} paramètres distincts, ${siteRes.rows[0].cnt} sites`);
+        const estimate = parseInt(estRes.rows[0]?.estimate || '0');
+        console.log(`   Estimation rapide: ~${estimate.toLocaleString()} lignes`);
+        // Skip exact counts for very large tables (>1M rows) — too slow
+        if (estimate > 1000000) {
+          const paramEst = await client.query(`SELECT n_distinct FROM pg_stats WHERE tablename = $1 AND attname = 'parameter'`, [dumpTable]);
+          const siteEst = await client.query(`SELECT n_distinct FROM pg_stats WHERE tablename = $1 AND attname = 'site_name'`, [dumpTable]);
+          const pVal = parseFloat(paramEst.rows[0]?.n_distinct || '0');
+          const sVal = parseFloat(siteEst.rows[0]?.n_distinct || '0');
+          const pCount = pVal < 0 ? Math.abs(Math.round(pVal * estimate)) : Math.round(pVal);
+          const sCount = sVal < 0 ? Math.abs(Math.round(sVal * estimate)) : Math.round(sVal);
+          console.log(`📊 Table "${dumpTable}": ~${estimate.toLocaleString()} lignes, ~${pCount} paramètres, ~${sCount} sites (estimations pg_stats)`);
+          console.log(`   ⚡ Comptages exacts ignorés (table > 1M lignes)`);
+        } else {
+          const countRes = await client.query(`SELECT COUNT(*) AS cnt FROM ${dumpTable}`);
+          const paramRes = await client.query(`SELECT COUNT(DISTINCT parameter) AS cnt FROM ${dumpTable}`);
+          const siteRes = await client.query(`SELECT COUNT(DISTINCT site_name) AS cnt FROM ${dumpTable}`);
+          console.log(`📊 Table "${dumpTable}": ${countRes.rows[0].cnt} lignes, ${paramRes.rows[0].cnt} paramètres distincts, ${siteRes.rows[0].cnt} sites`);
+        }
       } else {
         console.warn('⚠️  Aucune table dump_parameter/dump_parametre trouvée dans la base RAN_OP');
       }
