@@ -28,10 +28,15 @@ export interface KpiCatalogEntry {
   color: string;
 }
 
+export type GraphType = 'line' | 'area' | 'bar' | 'stacked_area' | 'scatter';
+
 export interface KpiSelection {
   kpi_key: string;
   agg: AggFunc;
   axis: AxisSide;
+  color?: string;
+  graphType?: GraphType;
+  splitOverride?: SplitDimension | null;
 }
 
 export interface DynamicFilter {
