@@ -545,6 +545,13 @@ const KPIMonitorInner: React.FC = () => {
                 <Table2 className="w-3.5 h-3.5" /> Table
               </button>
               <div className="w-px h-5 bg-border mx-1" />
+              {/* QOEBIT AI button - visible */}
+              <button
+                onClick={() => { setShowAI(!showAI); setEditingId(null); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'hover:bg-primary hover:text-primary-foreground'}`}
+              >
+                <Sparkles className="w-3.5 h-3.5" /> QOEBIT
+              </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
