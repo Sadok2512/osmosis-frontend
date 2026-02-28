@@ -21,7 +21,7 @@ import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../b
 import BIMapWidget from '../bi/BIMapWidget';
 import BITableWidget, { TableWidgetConfig, createDefaultTableWidget } from '../bi/BITableWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
-import AIAssistantPanel from '../bi/AIAssistantPanel';
+import KPIMonitorAIPanel from './KPIMonitorAIPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
 import { CSVDataProvider, CSVUploadButton, CSVDataPanel, useCSVData } from '../bi/CSVDataStore';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
@@ -628,7 +628,7 @@ const KPIMonitorInner: React.FC = () => {
         <ChartConfigPanel config={editingChart.config as ChartConfig} onChange={cfg => updateChartConfig(getId(editingChart), cfg)} onClose={() => setEditingId(null)} />
       )}
       {showAI && (
-        <AIAssistantPanel charts={widgets.filter(w => w.kind === 'chart').map(w => w.config as ChartConfig)} onClose={() => setShowAI(false)} onApplySuggestion={() => {}} />
+        <KPIMonitorAIPanel onClose={() => setShowAI(false)} />
       )}
       {dm.showList && (
         <DashboardListPanel
