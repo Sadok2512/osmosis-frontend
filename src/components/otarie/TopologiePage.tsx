@@ -114,7 +114,8 @@ const TopologiePage: React.FC = () => {
 
   // Load filter options
   useEffect(() => {
-    if (backendReachable === false) return; // skip if unreachable
+    if (backendReachable === false) return; // skip if confirmed unreachable
+    setLoading(true);
     const loadFilters = async () => {
       const [s, p, d, pl, v] = await Promise.all([
         fetchDistinct('site_name'),
@@ -124,6 +125,7 @@ const TopologiePage: React.FC = () => {
         fetchDistinct('vendor'),
       ]);
       setSites(s); setParams(p); setUrs(d); setPlaques(pl); setVendors(v);
+      setLoading(false);
     };
     loadFilters();
   }, [backendReachable]);
