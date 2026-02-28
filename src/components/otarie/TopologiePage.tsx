@@ -98,10 +98,14 @@ const TopologiePage: React.FC = () => {
   // Probe backend reachability on mount
   useEffect(() => {
     const probe = async () => {
+      const healthUrl = getApiUrl('health');
+      console.log('[Topologie] Probing backend at:', healthUrl);
       try {
-        const resp = await fetch(`${getApiUrl('health')}`, { signal: AbortSignal.timeout(3000) });
+        const resp = await fetch(healthUrl, { signal: AbortSignal.timeout(3000) });
+        console.log('[Topologie] Health probe result:', resp.status, resp.ok);
         setBackendReachable(resp.ok);
-      } catch {
+      } catch (err) {
+        console.warn('[Topologie] Health probe FAILED:', err);
         setBackendReachable(false);
       }
     };
