@@ -92,15 +92,18 @@ const KpiRow: React.FC<{
       </div>
 
       {/* Split per-KPI dropdown */}
-      <Select value={kpi.splitOverride === null ? 'none' : kpi.splitOverride || 'none'} onValueChange={v => store.updateKpi(kpiKey, { splitOverride: v === 'none' ? null : v as SplitDimension })}>
-        <SelectTrigger className="h-5 w-[72px] text-[9px] px-1.5 border-border bg-background">
-          <SelectValue placeholder="Split" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none" className="text-[10px]">Aucun</SelectItem>
-          {SPLIT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value} className="text-[10px]">{s.label}</SelectItem>)}
-        </SelectContent>
-      </Select>
+      <div className="flex items-center gap-0.5 shrink-0">
+        <GitBranch className="w-2.5 h-2.5 text-muted-foreground/60" />
+        <Select value={kpi.splitOverride === null ? 'none' : kpi.splitOverride || 'none'} onValueChange={v => store.updateKpi(kpiKey, { splitOverride: v === 'none' ? null : v as SplitDimension })}>
+          <SelectTrigger className="h-5 w-[78px] text-[9px] px-1.5 border-border bg-background">
+            <SelectValue placeholder="Split" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none" className="text-[10px]">Aucun</SelectItem>
+            {SPLIT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value} className="text-[10px]">{s.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Graph type dropdown */}
       <Select value={graphType} onValueChange={v => store.updateKpi(kpiKey, { graphType: v as GraphType })}>
