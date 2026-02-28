@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { dumpParameterApi } from '@/lib/localDb';
+import { supabase } from '@/integrations/supabase/client';
 import { getApiUrl, getPreferredDataSource, setPreferredDataSource } from '@/lib/apiConfig';
 import { Search, Filter, Download, BarChart3, TableIcon, Loader2, ChevronDown, Wifi, WifiOff, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
