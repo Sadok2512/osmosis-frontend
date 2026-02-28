@@ -197,7 +197,7 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
   const clearChat = () => setMessages([]);
 
   return (
-    <div className="w-[380px] h-full border-l border-border bg-card flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-card flex flex-col overflow-hidden">
       {/* ── Header ── */}
       <div className="relative px-4 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
         <div className="flex items-center justify-between">
