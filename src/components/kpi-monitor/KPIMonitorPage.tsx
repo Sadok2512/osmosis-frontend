@@ -12,6 +12,7 @@ import EChartsTimeSeries from './EChartsTimeSeries';
 import KPITableView from './KPITableView';
 import KPICatalogImport from './KPICatalogImport';
 import GlobalFilterBar from './GlobalFilterBar';
+import KpiSelectorModal from './KpiSelectorModal';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
 import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode } from '../bi/dashboardTypes';
@@ -133,6 +134,7 @@ const KPIMonitorInner: React.FC = () => {
   const [showCSVPanel, setShowCSVPanel] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
+  const [showKpiSelector, setShowKpiSelector] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -377,44 +379,49 @@ const KPIMonitorInner: React.FC = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">KPIs sélectionnés</label>
-              <button onClick={addKpi} className="text-primary hover:text-primary/80"><Plus className="w-4 h-4" /></button>
+              <button onClick={() => setShowKpiSelector(true)} className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[10px] font-semibold">
+                <Plus className="w-3 h-3" /> Sélectionner
+              </button>
             </div>
-            {store.selectedKpis.map((kpi) => {
-              const cat = catalogMap[kpi.kpi_key];
-              return (
-                <div key={kpi.kpi_key} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat?.color }} />
-                  <Select value={kpi.kpi_key} onValueChange={(v) => {
-                    store.removeKpi(kpi.kpi_key);
-                    const newCat = catalogMap[v];
-                    store.addKpi({ kpi_key: v, agg: newCat?.default_agg || 'avg', axis: kpi.axis });
-                  }}>
-                    <SelectTrigger className="h-7 text-[11px] flex-1 border-0 bg-transparent p-0"><SelectValue /></SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      {catalog.map(k => (
-                        <SelectItem key={k.kpi_key} value={k.kpi_key}>
-                          <span className="flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: k.color }} />
-                            {k.display_name}
-                            <span className="text-[9px] text-muted-foreground">({k.unit})</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={kpi.axis} onValueChange={(v) => store.updateKpi(kpi.kpi_key, { axis: v as any })}>
-                    <SelectTrigger className="h-7 w-14 text-[10px] border-0 bg-transparent p-0"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="left">L</SelectItem>
-                      <SelectItem value="right">R</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {store.selectedKpis.length > 1 && (
-                    <button onClick={() => store.removeKpi(kpi.kpi_key)} className="text-muted-foreground hover:text-destructive"><X className="w-3.5 h-3.5" /></button>
-                  )}
-                </div>
-              );
-            })}
+            {store.selectedKpis.length === 0 ? (
+              <button onClick={() => setShowKpiSelector(true)} className="w-full py-4 rounded-xl border-2 border-dashed border-border hover:border-primary/30 transition-colors flex flex-col items-center gap-1.5 text-muted-foreground hover:text-primary">
+                <BarChart3 className="w-5 h-5" />
+                <span className="text-[10px] font-medium">Cliquez pour sélectionner des KPIs</span>
+              </button>
+            ) : (
+              <div className="space-y-1">
+                {store.selectedKpis.map((kpi) => {
+                  const cat = catalogMap[kpi.kpi_key];
+                  return (
+                    <div key={kpi.kpi_key} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border group">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat?.color }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-medium text-foreground truncate">{cat?.display_name || kpi.kpi_key}</p>
+                        <p className="text-[9px] text-muted-foreground">{cat?.category} • {cat?.unit || '–'}</p>
+                      </div>
+                      <Select value={kpi.agg} onValueChange={(v) => store.updateKpi(kpi.kpi_key, { agg: v as any })}>
+                        <SelectTrigger className="h-6 w-16 text-[9px] border border-border bg-background rounded-md px-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {(cat?.allowed_aggs || ['avg', 'sum', 'max', 'min']).map(a => (
+                            <SelectItem key={a} value={a}>{a.toUpperCase()}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={kpi.axis} onValueChange={(v) => store.updateKpi(kpi.kpi_key, { axis: v as any })}>
+                        <SelectTrigger className="h-6 w-10 text-[9px] border border-border bg-background rounded-md px-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="left">L</SelectItem>
+                          <SelectItem value="right">R</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <button onClick={() => store.removeKpi(kpi.kpi_key)} className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Split */}
@@ -652,6 +659,28 @@ const KPIMonitorInner: React.FC = () => {
         />
       )}
       {showCSVPanel && <CSVDataPanel onClose={() => setShowCSVPanel(false)} />}
+
+      {/* KPI Selector Modal */}
+      <KpiSelectorModal
+        open={showKpiSelector}
+        onClose={() => setShowKpiSelector(false)}
+        catalog={catalog}
+        selectedKeys={store.selectedKpis.map(k => k.kpi_key)}
+        onConfirm={(keys) => {
+          // Remove KPIs no longer selected
+          const currentKeys = store.selectedKpis.map(k => k.kpi_key);
+          for (const k of currentKeys) {
+            if (!keys.includes(k)) store.removeKpi(k);
+          }
+          // Add new KPIs
+          for (const k of keys) {
+            if (!currentKeys.includes(k)) {
+              const cat = catalogMap[k];
+              store.addKpi({ kpi_key: k, agg: cat?.default_agg || 'avg', axis: 'left' });
+            }
+          }
+        }}
+      />
 
       {/* Name dialog */}
       {showNameDialog && (
