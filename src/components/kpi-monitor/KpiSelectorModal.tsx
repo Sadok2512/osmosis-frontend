@@ -15,9 +15,9 @@ const CATEGORY_COLORS: Record<string, string> = {
   Throughput: 'hsl(142, 70%, 45%)',
   Latency: 'hsl(45, 90%, 45%)',
   Retainability: 'hsl(0, 80%, 55%)',
-  QoE: 'hsl(262, 80%, 55%)',
   Traffic: 'hsl(200, 70%, 50%)',
   TCP: 'hsl(330, 70%, 50%)',
+  Other: 'hsl(220, 15%, 55%)',
 };
 
 const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, catalog, selectedKeys, onConfirm }) => {

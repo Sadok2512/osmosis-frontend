@@ -44,7 +44,7 @@ export const KPI_CATALOG_STATIC: KpiCatalogEntry[] = [
 // ── Map famille → category ──
 const FAMILLE_TO_CATEGORY: Record<string, KpiCatalogEntry['category']> = {
   ACCESSIBILITY: 'Access', RETAINABILITY: 'Retainability', MOBILITY: 'Access',
-  THROUGHPUT: 'Throughput', TRAFFIC: 'Traffic', Corporate: 'QoE',
+  THROUGHPUT: 'Throughput', TRAFFIC: 'Traffic', Corporate: 'Other',
   CAPACITY: 'Traffic', AVAILABILITY: 'Access', INTERFERENCE: 'TCP',
 };
 
@@ -64,7 +64,7 @@ function dbRowToCatalog(row: any): KpiCatalogEntry {
     formula_sql: row.formula_sql || undefined,
     is_map_supported: row.is_map_supported ?? false,
     thresholds: row.threshold_warning ? { warning: row.threshold_warning, critical: row.threshold_critical || row.threshold_warning * 0.8 } : undefined,
-    category: FAMILLE_TO_CATEGORY[row.famille] || 'QoE',
+    category: FAMILLE_TO_CATEGORY[row.famille] || 'Other',
     color: row.color || '#64748b',
   };
 }
