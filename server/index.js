@@ -849,8 +849,9 @@ app.get('/api/dump-parameter', async (req, res) => {
 
       // For unfiltered DISTINCT on huge tables, try to extract from pg_stats first (instant)
       const hasFilter = !!(site_name || cell_name || dor || plaque || vendor);
-      if (!hasFilter) {
-        try {
+      // Only use pg_stats shortcut for low-cardinality columns (few distinct values)
+      const lowCardinalityCols = ['vendor', 'ur', 'plaque', 'dor', 'dr', 'bande'];
+      if (!hasFilter && lowCardinalityCols.includes(distinct_col)) {
           const statsRes = await sharedPool.query(
             `SELECT most_common_vals::text AS mcv FROM pg_stats WHERE tablename = $1 AND attname = $2`,
             [dumpTable, distinct_col]
