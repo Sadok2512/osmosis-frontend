@@ -37,6 +37,7 @@ const TopologiePage: React.FC = () => {
   const [cnxStatus, setCnxStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
   const [cnxMessage, setCnxMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [backendReachable, setBackendReachable] = useState<boolean | null>(null);
   const [dataSource, setDataSource] = useState<'local' | 'cloud'>(getPreferredDataSource());
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -94,8 +95,22 @@ const TopologiePage: React.FC = () => {
     return fetchRows(filters, cols, limit);
   };
 
+  // Probe backend reachability on mount
+  useEffect(() => {
+    const probe = async () => {
+      try {
+        const resp = await fetch(`${getApiUrl('health')}`, { signal: AbortSignal.timeout(3000) });
+        setBackendReachable(resp.ok);
+      } catch {
+        setBackendReachable(false);
+      }
+    };
+    probe();
+  }, []);
+
   // Load filter options
   useEffect(() => {
+    if (backendReachable === false) return; // skip if unreachable
     const loadFilters = async () => {
       const [s, p, d, pl, v] = await Promise.all([
         fetchDistinct('site_name'),
@@ -107,7 +122,7 @@ const TopologiePage: React.FC = () => {
       setSites(s); setParams(p); setUrs(d); setPlaques(pl); setVendors(v);
     };
     loadFilters();
-  }, []);
+  }, [backendReachable]);
 
   // Auto-select first available parameter to avoid empty screen on first load
   useEffect(() => {
@@ -317,7 +332,21 @@ const TopologiePage: React.FC = () => {
           </div>
         )}
 
-        {/* Row 1: Search Parameter */}
+        {/* Backend unreachable warning */}
+        {backendReachable === false && (
+          <div className="flex items-center gap-3 text-sm px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
+            <WifiOff className="w-5 h-5 shrink-0" />
+            <div>
+              <p className="font-semibold">Serveur local injoignable</p>
+              <p className="text-xs text-amber-400/80 mt-0.5">
+                Impossible de contacter <code className="bg-amber-500/20 px-1 rounded">localhost:3001</code>. 
+                Lancez le backend avec <code className="bg-amber-500/20 px-1 rounded">cd server &amp;&amp; npm run dev</code> puis rechargez cette page.
+                Si vous êtes sur la preview Lovable, ouvrez l'app en local sur <code className="bg-amber-500/20 px-1 rounded">http://localhost:5173</code>.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-1">
           <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">🔍 Rechercher un paramètre</label>
           <Popover>
