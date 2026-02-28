@@ -50,6 +50,7 @@ sharedPool.connect(async (err, client, release) => {
   } else {
     console.log('✅ PostgreSQL pool connected to', dbConfig.database);
     try {
+      console.log('🔍 Vérification des tables...');
       // Check dump_parameter table
       const tableCheck = await client.query(`
         SELECT CASE
@@ -59,14 +60,16 @@ sharedPool.connect(async (err, client, release) => {
         END AS table_name
       `);
       const dumpTable = tableCheck.rows[0]?.table_name;
+      console.log(`   Table détectée: ${dumpTable || '❌ AUCUNE'}`);
       if (dumpTable) {
-        // Use pg_stat for fast row estimate, then exact distinct counts
+        // Fast estimate first
         const estRes = await client.query(`SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = $1`, [dumpTable]);
-        const estimate = estRes.rows[0]?.estimate || 'N/A';
+        console.log(`   Estimation rapide: ~${estRes.rows[0]?.estimate} lignes`);
+        // Exact count (may be slow)
         const countRes = await client.query(`SELECT COUNT(*) AS cnt FROM ${dumpTable}`);
         const paramRes = await client.query(`SELECT COUNT(DISTINCT parameter) AS cnt FROM ${dumpTable}`);
         const siteRes = await client.query(`SELECT COUNT(DISTINCT site_name) AS cnt FROM ${dumpTable}`);
-        console.log(`📊 Table "${dumpTable}": ${countRes.rows[0].cnt} lignes (est. ${estimate}), ${paramRes.rows[0].cnt} paramètres distincts, ${siteRes.rows[0].cnt} sites`);
+        console.log(`📊 Table "${dumpTable}": ${countRes.rows[0].cnt} lignes, ${paramRes.rows[0].cnt} paramètres distincts, ${siteRes.rows[0].cnt} sites`);
       } else {
         console.warn('⚠️  Aucune table dump_parameter/dump_parametre trouvée dans la base RAN_OP');
       }
