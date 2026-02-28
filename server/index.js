@@ -7,6 +7,10 @@ const { Pool } = require('pg');
 
 const app = express();
 
+// ─── In-memory cache for DISTINCT values (populated at startup) ───
+const distinctCache = {}; // { column_name: [values] }
+let distinctCacheReady = false;
+
 // ─── Explicit CORS for local Vite dev server ───
 app.use(cors({
   origin: [
@@ -94,6 +98,24 @@ sharedPool.connect(async (err, client, release) => {
       // List all public tables for debugging
       const allTables = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name`);
       console.log(`📋 Tables dans "${dbConfig.database}":`, allTables.rows.map(r => r.table_name).join(', '));
+
+      // ─── Pre-populate DISTINCT cache for heavy columns (runs in background) ───
+      if (dumpTable) {
+        console.log('🔄 Pré-chargement du cache DISTINCT (en arrière-plan)...');
+        const cacheCols = ['parameter', 'site_name', 'cell_name'];
+        const cacheStart = Date.now();
+        for (const col of cacheCols) {
+          try {
+            const r = await client.query(`SELECT DISTINCT ${col} FROM ${dumpTable} WHERE ${col} IS NOT NULL ORDER BY ${col} LIMIT 10000`);
+            distinctCache[col] = r.rows.map(row => row[col]);
+            console.log(`   ✅ Cache ${col}: ${distinctCache[col].length} valeurs (${Date.now() - cacheStart}ms)`);
+          } catch (e) {
+            console.warn(`   ⚠️ Cache ${col} failed:`, e.message);
+          }
+        }
+        distinctCacheReady = true;
+        console.log(`✅ Cache DISTINCT prêt (${Date.now() - cacheStart}ms total)`);
+      }
     } catch (statErr) {
       console.warn('⚠️  Stats check error:', statErr.message);
     } finally {
@@ -847,8 +869,14 @@ app.get('/api/dump-parameter', async (req, res) => {
         return res.json([]);
       }
 
-      // For unfiltered DISTINCT on huge tables, try to extract from pg_stats first (instant)
+      // 1) Check in-memory cache first (populated at startup, instant)
       const hasFilter = !!(site_name || cell_name || dor || plaque || vendor);
+      if (!hasFilter && distinctCache[distinct_col]) {
+        console.log(`   ⚡ Cache mémoire: ${distinctCache[distinct_col].length} valeurs pour ${distinct_col} (${Date.now() - reqStart}ms)`);
+        return res.json(distinctCache[distinct_col].map(v => ({ [distinct_col]: v })));
+      }
+
+      // 2) For unfiltered DISTINCT on huge tables, try pg_stats (instant)
       // Only use pg_stats shortcut for low-cardinality columns (few distinct values)
       const lowCardinalityCols = ['vendor', 'ur', 'plaque', 'dor', 'dr', 'bande'];
       if (!hasFilter && lowCardinalityCols.includes(distinct_col)) {
