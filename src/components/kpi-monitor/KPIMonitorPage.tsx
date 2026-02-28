@@ -11,6 +11,7 @@ import { generateMockTimeSeries, generateMockSummary } from './mockKpiData';
 import EChartsTimeSeries from './EChartsTimeSeries';
 import KPITableView from './KPITableView';
 import KPICatalogImport from './KPICatalogImport';
+import GlobalFilterBar from './GlobalFilterBar';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
 import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode } from '../bi/dashboardTypes';
@@ -147,11 +148,17 @@ const KPIMonitorInner: React.FC = () => {
     date_to: globalFilter.dateTo,
     granularity: globalFilter.granularity,
     kpis: store.selectedKpis,
-    filters: store.localFilters,
+    filters: [
+      ...store.localFilters,
+      ...globalFilter.globalFilters.filter(f => f.values.length > 0).map(f => ({
+        id: f.id, dimension: f.dimension, op: f.op, values: f.values,
+      })),
+      ...(globalFilter.crossFilter ? [{ id: 'cross', dimension: globalFilter.crossFilter.dimension, op: 'EQ' as const, values: [globalFilter.crossFilter.value] }] : []),
+    ],
     split_by: store.splitBy,
     top_n: store.topN,
     include_others: store.includeOthers,
-  }), [globalFilter, store.selectedKpis, store.localFilters, store.splitBy, store.topN, store.includeOthers]);
+  }), [globalFilter.dateFrom, globalFilter.dateTo, globalFilter.granularity, globalFilter.globalFilters, globalFilter.crossFilter, store.selectedKpis, store.localFilters, store.splitBy, store.topN, store.includeOthers]);
 
   const tsResponse = useMemo(() => generateMockTimeSeries(queryRequest), [queryRequest]);
   const summaryRows = useMemo(() => generateMockSummary(queryRequest), [queryRequest]);
@@ -163,9 +170,7 @@ const KPIMonitorInner: React.FC = () => {
     store.addKpi({ kpi_key: available[0].kpi_key, agg: available[0].default_agg, axis: 'left' });
   };
 
-  const addFilter = () => {
-    store.addFilter({ id: crypto.randomUUID(), dimension: 'VENDOR', op: 'IN', values: [] });
-  };
+  // Filter is now handled by GlobalFilterBar
 
   const refreshCatalog = async () => {
     const entries = await fetchKpiCatalogFromDB();
@@ -438,25 +443,17 @@ const KPIMonitorInner: React.FC = () => {
             )}
           </div>
 
-          {/* Dynamic Filters */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                <Filter className="w-3 h-3" /> Filtres
-              </label>
-              <button onClick={addFilter} className="text-primary hover:text-primary/80"><Plus className="w-4 h-4" /></button>
-            </div>
-            {store.localFilters.map(f => (
-              <div key={f.id} className="flex items-center gap-1.5 p-1.5 rounded-lg bg-muted/50 border border-border">
-                <Select value={f.dimension} onValueChange={(v) => store.updateFilter(f.id, { dimension: v })}>
-                  <SelectTrigger className="h-6 text-[10px] flex-1 border-0 bg-transparent p-0"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {SPLIT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <button onClick={() => store.removeFilter(f.id)} className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
-              </div>
-            ))}
+          {/* Filters → see GlobalFilterBar above the toolbar */}
+          <div className="p-2 rounded-lg bg-muted/30 border border-border">
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+              <Filter className="w-3 h-3" />
+              Filtres dynamiques disponibles dans la barre globale au-dessus du dashboard.
+              {globalFilter.globalFilters.filter(f => f.values.length > 0).length > 0 && (
+                <Badge variant="secondary" className="text-[8px]">
+                  {globalFilter.globalFilters.filter(f => f.values.length > 0).length} actifs
+                </Badge>
+              )}
+            </p>
           </div>
 
           {/* Info */}
@@ -498,6 +495,9 @@ const KPIMonitorInner: React.FC = () => {
           onCreate={handleCreateNew}
           onSetColor={dm.setTabColor}
         />
+
+        {/* Global Filter Bar */}
+        <GlobalFilterBar />
 
         {/* Toolbar */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/50">
