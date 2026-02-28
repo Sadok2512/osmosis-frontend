@@ -2721,7 +2721,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <Signal size={16} />
             </button>
             {showBandPanel && (
-              <div className="absolute right-12 bottom-0 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500]">
+              <div className="absolute right-12 bottom-0 mb-12 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500]">
                 {mapTechnoFilter === 'ALL' ? (
                   /* ── ALL mode: show only 5G / 4G with group color pickers ── */
                   <div className="px-4 py-3 space-y-2.5">
