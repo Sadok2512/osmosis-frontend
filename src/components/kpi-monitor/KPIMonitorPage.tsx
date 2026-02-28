@@ -11,7 +11,6 @@ import { generateMockTimeSeries, generateMockSummary } from './mockKpiData';
 import EChartsTimeSeries from './EChartsTimeSeries';
 import KPITableView from './KPITableView';
 import KPICatalogImport from './KPICatalogImport';
-import GlobalFilterBar from './GlobalFilterBar';
 import KpiSelectorModal from './KpiSelectorModal';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
@@ -22,34 +21,19 @@ import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../b
 import BIMapWidget from '../bi/BIMapWidget';
 import BITableWidget, { TableWidgetConfig, createDefaultTableWidget } from '../bi/BITableWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
-import KPIMonitorAIPanel from './KPIMonitorAIPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
 import { CSVDataProvider, CSVUploadButton, CSVDataPanel, useCSVData } from '../bi/CSVDataStore';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
+import DashboardTopBar from './DashboardTopBar';
+import DashboardConfigPanel from './DashboardConfigPanel';
+import AIFloatingModal from './AIFloatingModal';
 import {
-  BarChart3, Table2, Map as MapIcon, Plus, X,
-  Filter, Layers, Settings2, Database, ChevronDown, ChevronUp,
-  Save, FileDown, Sparkles, MoreHorizontal, LayoutGrid,
-  FolderOpen, Copy, Eye, Grid3X3, Move, Type, ImageIcon, FileSpreadsheet, Globe, Lock,
+  LayoutGrid, FileDown, Plus,
 } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Badge } from '../ui/badge';
-import { Switch } from '../ui/switch';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const COLS = 12;
 const ROW_HEIGHT = 80;
-
-const SPLIT_OPTIONS: { value: SplitDimension; label: string }[] = [
-  { value: 'DR', label: 'DR' }, { value: 'DOR', label: 'DOR' },
-  { value: 'ZONE_ARCEP', label: 'Zone ARCEP' }, { value: 'BAND', label: 'Bande' },
-  { value: 'PLAQUE', label: 'Plaque' }, { value: 'SITE', label: 'Site' },
-  { value: 'CELL', label: 'Cellule' }, { value: 'VENDOR', label: 'Vendor' },
-  { value: 'TECHNO', label: 'Techno' },
-];
 
 /* ── Print Preview Modal ── */
 const PrintPreviewModal: React.FC<{
@@ -83,15 +67,15 @@ const PrintPreviewModal: React.FC<{
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="relative w-[calc(100vw-80px)] max-w-[1200px] h-[calc(100vh-80px)] flex flex-col rounded-2xl bg-card shadow-2xl overflow-hidden">
-        <div className="bg-slate-900 px-8 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-sidebar-background px-8 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
-            {logoDataUrl && <img src={logoDataUrl} alt="Logo" className="w-12 h-12 rounded-lg object-contain bg-white/10" />}
+            {logoDataUrl && <img src={logoDataUrl} alt="Logo" className="w-12 h-12 rounded-lg object-contain bg-muted/10" />}
             <div>
-              <h2 className="text-white font-bold text-lg">{dashboardName}</h2>
-              <p className="text-slate-400 text-xs">{dateStr}</p>
+              <h2 className="text-sidebar-foreground font-bold text-lg">{dashboardName}</h2>
+              <p className="text-muted-foreground text-xs">{dateStr}</p>
             </div>
           </div>
-          <div className="text-right"><span className="text-slate-300 text-sm font-semibold">PSN TEAM</span></div>
+          <div className="text-right"><span className="text-sidebar-foreground text-sm font-semibold">PSN TEAM</span></div>
         </div>
         <div className="h-0.5 bg-primary" />
         <div className="flex-1 overflow-auto bg-muted p-4">
@@ -122,7 +106,6 @@ const KPIMonitorInner: React.FC = () => {
   // KPI catalog
   const [catalog, setCatalog] = useState<KpiCatalogEntry[]>(KPI_CATALOG_STATIC);
   const [catalogMap, setCatalogMap] = useState(buildCatalogMap(KPI_CATALOG_STATIC));
-  const [showImport, setShowImport] = useState(false);
   const [catalogSource, setCatalogSource] = useState<'static' | 'db'>('static');
 
   // BI state
@@ -164,15 +147,6 @@ const KPIMonitorInner: React.FC = () => {
 
   const tsResponse = useMemo(() => generateMockTimeSeries(queryRequest), [queryRequest]);
   const summaryRows = useMemo(() => generateMockSummary(queryRequest), [queryRequest]);
-
-  // KPI helpers
-  const addKpi = () => {
-    const available = catalog.filter(k => !store.selectedKpis.some(s => s.kpi_key === k.kpi_key));
-    if (available.length === 0) return;
-    store.addKpi({ kpi_key: available[0].kpi_key, agg: available[0].default_agg, axis: 'left' });
-  };
-
-  // Filter is now handled by GlobalFilterBar
 
   const refreshCatalog = async () => {
     const entries = await fetchKpiCatalogFromDB();
@@ -318,331 +292,91 @@ const KPIMonitorInner: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-background">
-      {/* ── LEFT CONFIG PANEL ── */}
-      <div className="w-[320px] shrink-0 border-r border-border bg-card overflow-y-auto">
-        <div className="p-4 space-y-5">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <LayoutGrid className="w-4 h-4 text-primary" />
-              <div>
-                <h2 className="text-base font-bold text-foreground">KPI Monitor</h2>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {catalog.length} KPIs •{' '}
-                  <span className={catalogSource === 'db' ? 'text-emerald-500' : 'text-muted-foreground'}>
-                    {catalogSource === 'db' ? 'Base de données' : 'Catalogue statique'}
-                  </span>
-                </p>
-              </div>
+    <div className="flex-1 flex flex-col overflow-hidden bg-background">
+      {/* ── Tab Bar ── */}
+      <DashboardTabBar
+        tabs={dm.tabs}
+        activeId={dm.activeTabId}
+        onSelect={dm.setActiveTabId}
+        onClose={dm.closeTab}
+        onRename={dm.renameTab}
+        onCreate={handleCreateNew}
+        onSetColor={dm.setTabColor}
+      />
+
+      {/* ── Sticky Top Bar (full-width) ── */}
+      <DashboardTopBar
+        dm={dm}
+        onSave={handleSave}
+        onExportPDF={handleExportDashboardPDF}
+        onShowPrintPreview={() => setShowPrintPreview(true)}
+        onToggleAI={() => { setShowAI(!showAI); setEditingId(null); }}
+        showAI={showAI}
+        onToggleCSV={() => setShowCSVPanel(!showCSVPanel)}
+        csvCount={datasets.length}
+        onAddChart={addChart}
+        onAddMap={addMap}
+        onAddText={addText}
+        onAddImage={addImage}
+        onAddTable={addTable}
+        layoutMode={layoutMode}
+        onToggleLayout={toggleLayoutMode}
+        onCreateNew={handleCreateNew}
+      />
+
+      {/* ── Horizontal Config Panel ── */}
+      <DashboardConfigPanel
+        catalogMap={catalogMap}
+        onOpenKpiSelector={() => setShowKpiSelector(true)}
+        seriesInfo={{
+          total: tsResponse.total_series,
+          granularity: tsResponse.granularity_used,
+          truncated: tsResponse.truncated,
+        }}
+        catalog={catalog}
+        catalogSource={catalogSource}
+        onRefreshCatalog={refreshCatalog}
+      />
+
+      {/* ── Dashboard Canvas (full-width) ── */}
+      <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
+        {widgets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <LayoutGrid className="w-8 h-8 text-primary" />
             </div>
+            <p className="text-sm text-muted-foreground">Cliquez <strong>Chart</strong>, <strong>Map</strong> ou <strong>Text</strong> pour commencer</p>
           </div>
-
-          {/* Date Range */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Période</label>
-            <div className="flex gap-2">
-              <input type="date" value={globalFilter.dateFrom} onChange={e => globalFilter.setDateRange(e.target.value, globalFilter.dateTo)} className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" />
-              <input type="date" value={globalFilter.dateTo} onChange={e => globalFilter.setDateRange(globalFilter.dateFrom, e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" />
-            </div>
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
-              {['7D', '14D', '30D', '90D'].map(preset => {
-                const days = parseInt(preset);
-                return (
-                  <button key={preset} onClick={() => {
-                    const to = new Date();
-                    const from = new Date(to.getTime() - days * 86400000);
-                    globalFilter.setDateRange(from.toISOString().slice(0, 10), to.toISOString().slice(0, 10));
-                  }} className="flex-1 px-2 py-1.5 text-[10px] font-bold rounded-md hover:bg-primary hover:text-primary-foreground transition-colors">
-                    {preset}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Granularity */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Granularité</label>
-            <Select value={globalFilter.granularity} onValueChange={(v) => globalFilter.setGranularity(v as any)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">Auto</SelectItem>
-                <SelectItem value="15m">15 min</SelectItem>
-                <SelectItem value="1h">1 heure</SelectItem>
-                <SelectItem value="1d">1 jour</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* KPI Selection */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">KPIs sélectionnés</label>
-              <button onClick={() => setShowKpiSelector(true)} className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[10px] font-semibold">
-                <Plus className="w-3 h-3" /> Sélectionner
-              </button>
-            </div>
-            {store.selectedKpis.length === 0 ? (
-              <button onClick={() => setShowKpiSelector(true)} className="w-full py-4 rounded-xl border-2 border-dashed border-border hover:border-primary/30 transition-colors flex flex-col items-center gap-1.5 text-muted-foreground hover:text-primary">
-                <BarChart3 className="w-5 h-5" />
-                <span className="text-[10px] font-medium">Cliquez pour sélectionner des KPIs</span>
-              </button>
-            ) : (
-              <div className="space-y-1">
-                {store.selectedKpis.map((kpi) => {
-                  const cat = catalogMap[kpi.kpi_key];
-                  return (
-                    <div key={kpi.kpi_key} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border group">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat?.color }} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium text-foreground truncate">{cat?.display_name || kpi.kpi_key}</p>
-                        <p className="text-[9px] text-muted-foreground">{cat?.category} • {cat?.unit || '–'}</p>
-                      </div>
-                      <Select value={kpi.agg} onValueChange={(v) => store.updateKpi(kpi.kpi_key, { agg: v as any })}>
-                        <SelectTrigger className="h-6 w-16 text-[9px] border border-border bg-background rounded-md px-1"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {(cat?.allowed_aggs || ['avg', 'sum', 'max', 'min']).map(a => (
-                            <SelectItem key={a} value={a}>{a.toUpperCase()}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={kpi.axis} onValueChange={(v) => store.updateKpi(kpi.kpi_key, { axis: v as any })}>
-                        <SelectTrigger className="h-6 w-10 text-[9px] border border-border bg-background rounded-md px-1"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="left">L</SelectItem>
-                          <SelectItem value="right">R</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <button onClick={() => store.removeKpi(kpi.kpi_key)} className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Split */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Split par</label>
-            <Select value={store.splitBy || 'none'} onValueChange={(v) => store.setSplitBy(v === 'none' ? null : v as SplitDimension)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Aucun" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Aucun</SelectItem>
-                {SPLIT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {store.splitBy && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-[10px] text-muted-foreground">Top</label>
-                  <input type="number" min={1} max={20} value={store.topN}
-                    onChange={e => store.setTopN(parseInt(e.target.value) || 5)}
-                    className="w-12 px-1.5 py-1 rounded-md border border-border bg-background text-xs text-center" />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Switch checked={store.includeOthers} onCheckedChange={store.setIncludeOthers} />
-                  <label className="text-[10px] text-muted-foreground">Others</label>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Filters → see GlobalFilterBar above the toolbar */}
-          <div className="p-2 rounded-lg bg-muted/30 border border-border">
-            <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-              <Filter className="w-3 h-3" />
-              Filtres dynamiques disponibles dans la barre globale au-dessus du dashboard.
-              {globalFilter.globalFilters.filter(f => f.values.length > 0).length > 0 && (
-                <Badge variant="secondary" className="text-[8px]">
-                  {globalFilter.globalFilters.filter(f => f.values.length > 0).length} actifs
-                </Badge>
-              )}
-            </p>
-          </div>
-
-          {/* Info */}
-          <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
-            <p className="text-[10px] text-muted-foreground">
-              <span className="font-bold text-primary">{tsResponse.total_series}</span> séries •{' '}
-              <span className="font-bold">{tsResponse.granularity_used}</span> granularité
-              {tsResponse.truncated && <Badge variant="destructive" className="ml-1 text-[8px]">Tronqué</Badge>}
-            </p>
-          </div>
-
-          {/* KPI Catalog Import */}
-          <Collapsible open={showImport} onOpenChange={setShowImport}>
-            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Database className="w-3 h-3" /> Catalogue KPI
-              </span>
-              {showImport ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-3">
-              <KPICatalogImport />
-              <Button variant="outline" size="sm" className="w-full mt-2 text-[10px] gap-1" onClick={refreshCatalog}>
-                Recharger catalogue depuis la DB
-              </Button>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+        ) : layoutMode === 'grid' ? (
+          <GridLayout
+            className="layout"
+            layout={layout}
+            cols={COLS}
+            rowHeight={ROW_HEIGHT}
+            width={containerWidth}
+            onLayoutChange={onLayoutChange}
+            draggableHandle=".drag-handle"
+            compactType="vertical"
+            isResizable
+            isDraggable
+            margin={[12, 12]}
+          >
+            {widgets.map(w => (
+              <div key={getId(w)}>{renderWidget(w)}</div>
+            ))}
+          </GridLayout>
+        ) : (
+          <FreeLayoutCanvas items={widgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
+            {widgets.map(w => (
+              <div key={getId(w)} className="w-full h-full">{renderWidget(w)}</div>
+            ))}
+          </FreeLayoutCanvas>
+        )}
       </div>
 
-      {/* ── MAIN CONTENT ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Tab bar */}
-        <DashboardTabBar
-          tabs={dm.tabs}
-          activeId={dm.activeTabId}
-          onSelect={dm.setActiveTabId}
-          onClose={dm.closeTab}
-          onRename={dm.renameTab}
-          onCreate={handleCreateNew}
-          onSetColor={dm.setTabColor}
-        />
-
-        {/* Global Filter Bar */}
-        <GlobalFilterBar />
-
-        {/* Toolbar */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/50">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <LayoutGrid className="w-4 h-4 text-primary" />
-              <span className="text-base font-bold text-foreground truncate max-w-[300px]">{dm.activeTab?.name}</span>
-            </div>
-            {/* Description inline edit */}
-            <input
-              type="text"
-              placeholder="Ajouter une description..."
-              value={dm.activeTab?.description || ''}
-              onChange={e => dm.activeTab && dm.updateDescription(dm.activeTab.id, e.target.value)}
-              className="text-[11px] text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none px-1 py-0.5 w-[200px] transition-colors"
-            />
-            {/* Shared/Private toggle */}
-            <button
-              onClick={() => dm.activeTab && dm.toggleShared(dm.activeTab.id)}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors hover:bg-muted"
-              title={dm.activeTab?.isShared ? 'Cliquez pour rendre privé' : 'Cliquez pour rendre public'}
-            >
-              {dm.activeTab?.isShared ? (
-                <><Globe className="w-3 h-3 text-green-600" /><span className="text-green-600">Public</span></>
-              ) : (
-                <><Lock className="w-3 h-3 text-orange-600" /><span className="text-orange-600">Privé</span></>
-              )}
-            </button>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
-              <button onClick={addChart} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Plus className="w-3.5 h-3.5" /> Chart
-              </button>
-              <button onClick={addMap} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <MapIcon className="w-3.5 h-3.5" /> Map
-              </button>
-              <button onClick={addText} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Type className="w-3.5 h-3.5" /> Text
-              </button>
-              <button onClick={addImage} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <ImageIcon className="w-3.5 h-3.5" /> Image
-              </button>
-              <button onClick={addTable} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Table2 className="w-3.5 h-3.5" /> Table
-              </button>
-              <div className="w-px h-5 bg-border mx-1" />
-              {/* QOEBIT AI button - visible */}
-              <button
-                onClick={() => { setShowAI(!showAI); setEditingId(null); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'hover:bg-primary hover:text-primary-foreground'}`}
-              >
-                <Sparkles className="w-3.5 h-3.5" /> QOEBIT
-              </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                    <MoreHorizontal className="w-3.5 h-3.5" /> Actions
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onClick={handleSave}><Save className="w-3.5 h-3.5 mr-2" /> Save</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { dm.duplicateDashboard(dm.activeTabId); toast({ title: 'Dashboard dupliqué' }); }}><Copy className="w-3.5 h-3.5 mr-2" /> Duplicate</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => dm.setShowList(!dm.showList)}><FolderOpen className="w-3.5 h-3.5 mr-2" /> Load</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowPrintPreview(true)}><Eye className="w-3.5 h-3.5 mr-2" /> Preview</DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExportDashboardPDF}><FileDown className="w-3.5 h-3.5 mr-2" /> Export PDF</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => { setShowAI(!showAI); setEditingId(null); }}><Sparkles className="w-3.5 h-3.5 mr-2" /> AI Assistant</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowCSVPanel(!showCSVPanel)}><FileSpreadsheet className="w-3.5 h-3.5 mr-2" /> Data {datasets.length > 0 && `(${datasets.length})`}</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <CSVUploadButton />
-              <div className="w-px h-5 bg-border mx-1" />
-              {/* Layout mode toggle */}
-              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
-                <button
-                  onClick={() => layoutMode !== 'grid' && toggleLayoutMode()}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${layoutMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-card text-muted-foreground'}`}
-                  title="Grid Layout"
-                >
-                  <Grid3X3 className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => layoutMode !== 'free' && toggleLayoutMode()}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${layoutMode === 'free' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-card text-muted-foreground'}`}
-                  title="Free Layout"
-                >
-                  <Move className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Dashboard canvas */}
-        <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
-          {widgets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <LayoutGrid className="w-8 h-8 text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">Cliquez <strong>Chart</strong>, <strong>Map</strong> ou <strong>Text</strong> pour commencer</p>
-            </div>
-          ) : layoutMode === 'grid' ? (
-            <GridLayout
-              className="layout"
-              layout={layout}
-              cols={COLS}
-              rowHeight={ROW_HEIGHT}
-              width={containerWidth}
-              onLayoutChange={onLayoutChange}
-              draggableHandle=".drag-handle"
-              compactType="vertical"
-              isResizable
-              isDraggable
-              margin={[12, 12]}
-            >
-              {widgets.map(w => (
-                <div key={getId(w)}>{renderWidget(w)}</div>
-              ))}
-            </GridLayout>
-          ) : (
-            <FreeLayoutCanvas items={widgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
-              {widgets.map(w => (
-                <div key={getId(w)} className="w-full h-full">{renderWidget(w)}</div>
-              ))}
-            </FreeLayoutCanvas>
-          )}
-        </div>
-      </div>
-
-      {/* Side panels */}
+      {/* ── Side panels (chart config, dashboard list, CSV) ── */}
       {editingChart && editingChart.kind === 'chart' && (
         <ChartConfigPanel config={editingChart.config as ChartConfig} onChange={cfg => updateChartConfig(getId(editingChart), cfg)} onClose={() => setEditingId(null)} />
-      )}
-      {showAI && (
-        <KPIMonitorAIPanel onClose={() => setShowAI(false)} />
       )}
       {dm.showList && (
         <DashboardListPanel
@@ -660,19 +394,20 @@ const KPIMonitorInner: React.FC = () => {
       )}
       {showCSVPanel && <CSVDataPanel onClose={() => setShowCSVPanel(false)} />}
 
-      {/* KPI Selector Modal */}
+      {/* ── AI Floating Modal ── */}
+      <AIFloatingModal open={showAI} onClose={() => setShowAI(false)} />
+
+      {/* ── KPI Selector Modal ── */}
       <KpiSelectorModal
         open={showKpiSelector}
         onClose={() => setShowKpiSelector(false)}
         catalog={catalog}
         selectedKeys={store.selectedKpis.map(k => k.kpi_key)}
         onConfirm={(keys) => {
-          // Remove KPIs no longer selected
           const currentKeys = store.selectedKpis.map(k => k.kpi_key);
           for (const k of currentKeys) {
             if (!keys.includes(k)) store.removeKpi(k);
           }
-          // Add new KPIs
           for (const k of keys) {
             if (!currentKeys.includes(k)) {
               const cat = catalogMap[k];
