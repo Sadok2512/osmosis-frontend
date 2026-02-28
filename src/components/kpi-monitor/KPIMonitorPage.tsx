@@ -118,6 +118,7 @@ const KPIMonitorInner: React.FC = () => {
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
   const [showKpiSelector, setShowKpiSelector] = useState(false);
+  const [editMode, setEditMode] = useState(true);
   const dashboardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -322,6 +323,8 @@ const KPIMonitorInner: React.FC = () => {
         layoutMode={layoutMode}
         onToggleLayout={toggleLayoutMode}
         onCreateNew={handleCreateNew}
+        editMode={editMode}
+        onToggleEditMode={() => setEditMode(!editMode)}
       />
 
       {/* ── Horizontal Config Panel ── */}

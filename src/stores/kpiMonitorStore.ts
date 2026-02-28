@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { KpiSelection, DynamicFilter, SplitDimension, KpiMonitorView } from '../components/kpi-monitor/types';
+import { KpiSelection, DynamicFilter, SplitDimension, KpiMonitorView, GraphType } from '../components/kpi-monitor/types';
 
 interface KpiMonitorState {
   // KPI selections
