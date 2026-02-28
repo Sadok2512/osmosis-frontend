@@ -28,7 +28,7 @@ export type AccentColor = 'default' | 'orange' | 'red' | 'pink' | 'purple' | 'in
 const Index: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard_overview');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarTheme, setSidebarTheme] = useState<SidebarTheme>('dark');
   const [accentColor, setAccentColor] = useState<AccentColor>('default');
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
