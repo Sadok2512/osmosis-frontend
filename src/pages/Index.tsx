@@ -160,7 +160,7 @@ const Index: React.FC = () => {
         setTheme={setTheme}
         enabledModules={enabledModules}
       />
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden relative z-0">
         {renderContent()}
       </div>
     </div>
