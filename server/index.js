@@ -63,7 +63,7 @@ sharedPool.connect(async (err, client, release) => {
         const siteRes = await client.query(`SELECT COUNT(DISTINCT site_name) AS cnt FROM ${dumpTable}`);
         console.log(`📊 Table "${dumpTable}": ${countRes.rows[0].cnt} lignes, ${paramRes.rows[0].cnt} paramètres distincts, ${siteRes.rows[0].cnt} sites`);
       } else {
-        console.warn('⚠️  Aucune table dump_parameter/dump_parametre trouvée dans la base');
+        console.warn('⚠️  Aucune table dump_parameter/dump_parametre trouvée dans la base RAN_OP');
       }
       // Check topo table
       const topoCheck = await client.query(`SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='topo'`);
@@ -71,10 +71,14 @@ sharedPool.connect(async (err, client, release) => {
         const topoCount = await client.query('SELECT COUNT(*) AS cnt FROM topo');
         console.log(`📊 Table "topo": ${topoCount.rows[0].cnt} lignes`);
       }
+      // List all public tables for debugging
+      const allTables = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name`);
+      console.log(`📋 Tables dans "${dbConfig.database}":`, allTables.rows.map(r => r.table_name).join(', '));
     } catch (statErr) {
       console.warn('⚠️  Stats check error:', statErr.message);
+    } finally {
+      release();
     }
-    release();
   }
 });
 
