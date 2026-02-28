@@ -117,24 +117,12 @@ const KpiRow: React.FC<{
         </SelectContent>
       </Select>
 
-      {/* ⋯ menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="p-0.5 rounded text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-            <MoreHorizontal className="w-3 h-3" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36">
-          <DropdownMenuItem className="text-[11px]" onClick={() => store.updateKpi(kpiKey, { agg: 'avg' })}>Agg: AVG</DropdownMenuItem>
-          <DropdownMenuItem className="text-[11px]" onClick={() => store.updateKpi(kpiKey, { agg: 'sum' })}>Agg: SUM</DropdownMenuItem>
-          <DropdownMenuItem className="text-[11px]" onClick={() => store.updateKpi(kpiKey, { agg: 'max' })}>Agg: MAX</DropdownMenuItem>
-          <DropdownMenuItem className="text-[11px]" onClick={() => store.updateKpi(kpiKey, { agg: 'min' })}>Agg: MIN</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-[11px] text-destructive" onClick={() => store.removeKpi(kpiKey)}>
-            <X className="w-3 h-3 mr-1" /> Retirer
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Remove button */}
+      <button onClick={() => store.removeKpi(kpiKey)}
+        className="p-0.5 rounded text-muted-foreground/50 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all shrink-0"
+        title="Retirer">
+        <X className="w-3 h-3" />
+      </button>
     </div>
   );
 };
