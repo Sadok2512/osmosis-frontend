@@ -12,6 +12,8 @@ interface Props {
   title?: string;
   badge?: string;
   granularity?: string;
+  onOpenSettings?: () => void;
+  onExportPNG?: () => void;
 }
 
 /* ── Color palette (enterprise neutral + accent) ── */
@@ -28,7 +30,7 @@ const getSeriesType = (graphType?: GraphType): string => {
 
 const EChartsTimeSeries: React.FC<Props> = ({
   data, height = 460, catalogMap: externalMap,
-  title, badge, granularity,
+  title, badge, granularity, onOpenSettings, onExportPNG: externalExportPNG,
 }) => {
   const { selectedKpis } = useKpiMonitorStore();
   const chartRef = useRef<ReactECharts>(null);
@@ -283,6 +285,8 @@ const EChartsTimeSeries: React.FC<Props> = ({
       granularity={granularity}
       seriesCount={totalSeries}
       lastUpdated={now}
+      onOpenSettings={onOpenSettings}
+      onExportPNG={externalExportPNG || handleExportPNG}
     >
       {data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3">
