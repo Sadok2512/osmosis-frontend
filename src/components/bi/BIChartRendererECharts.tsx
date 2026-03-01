@@ -363,6 +363,42 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
       }
     }
 
+    // Weekend shading via markArea on first series
+    const weekendAreas: any[] = [];
+    if (config.xAxis.type === 'date') {
+      const formattedLabels = xLabels.map(formatX);
+      for (let idx = 0; idx < xLabels.length; idx++) {
+        const d = new Date(xLabels[idx]);
+        const day = d.getUTCDay();
+        if (day === 0 || day === 6) {
+          weekendAreas.push([
+            { xAxis: formattedLabels[idx], itemStyle: { color: 'rgba(148,163,184,0.07)' } },
+            { xAxis: formattedLabels[idx] },
+          ]);
+        }
+      }
+      // Merge consecutive weekend days into single bands
+      const merged: any[] = [];
+      for (const area of weekendAreas) {
+        const last = merged[merged.length - 1];
+        if (last) {
+          const lastIdx = formattedLabels.indexOf(last[1].xAxis);
+          const curIdx = formattedLabels.indexOf(area[0].xAxis);
+          if (curIdx === lastIdx + 1) {
+            last[1].xAxis = area[1].xAxis;
+            continue;
+          }
+        }
+        merged.push([...area]);
+      }
+      if (merged.length > 0 && series.length > 0) {
+        series[0].markArea = {
+          silent: true,
+          data: merged,
+        };
+      }
+    }
+
     // Threshold & milestone mark lines
     const markLineData: any[] = [];
     for (const t of config.advanced.thresholds) {
