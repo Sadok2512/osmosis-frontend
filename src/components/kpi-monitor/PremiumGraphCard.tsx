@@ -29,6 +29,8 @@ interface PremiumGraphCardProps {
   seriesTable?: React.ReactNode;
   /** Right-side config panel rendered beside chart in edit mode */
   configPanel?: React.ReactNode;
+  /** Bottom panel rendered below chart in edit mode (e.g. filter cards) */
+  bottomPanel?: React.ReactNode;
 }
 
 const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
@@ -49,6 +51,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
   onToggleEditMode,
   seriesTable,
   configPanel,
+  bottomPanel,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -163,6 +166,13 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
           </div>
         )}
       </div>
+
+      {/* ── Bottom Panel (edit mode, e.g. filter cards) ── */}
+      {editMode && bottomPanel && (
+        <div className="animate-in fade-in slide-in-from-bottom-1 duration-150">
+          {bottomPanel}
+        </div>
+      )}
 
       {/* ── Footer ── */}
       <div className="flex items-center justify-between px-4 py-2 border-t border-border/30">
