@@ -25,11 +25,9 @@ interface PremiumGraphCardProps {
   onExpand?: () => void;
   editMode?: boolean;
   onToggleEditMode?: () => void;
-  /** Series table rendered above the chart in edit mode */
-  seriesTable?: React.ReactNode;
-  /** Right-side config panel rendered beside chart in edit mode */
+  /** Config panel rendered above chart in edit mode (horizontal cards) */
   configPanel?: React.ReactNode;
-  /** Bottom panel rendered below chart in edit mode (e.g. filter cards) */
+  /** Bottom panel rendered below chart in edit mode */
   bottomPanel?: React.ReactNode;
 }
 
@@ -49,7 +47,6 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
   onExpand,
   editMode = false,
   onToggleEditMode,
-  seriesTable,
   configPanel,
   bottomPanel,
 }) => {
@@ -145,26 +142,18 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
       </div>
 
-      {/* ── Series Table (edit mode, above chart) ── */}
-      {editMode && seriesTable && (
-        <div className="border-b border-border/30 bg-card animate-in fade-in slide-in-from-top-1 duration-200">
-          {seriesTable}
+      {/* ── Config Panel (edit mode, horizontal cards above chart) ── */}
+      {editMode && configPanel && (
+        <div className="border-b border-border/30 bg-muted/10 animate-in fade-in slide-in-from-top-1 duration-200 overflow-x-auto">
+          {configPanel}
         </div>
       )}
 
-      {/* ── Chart + Right Config Panel ── */}
-      <div className={cn('flex-1 min-h-0 flex', editMode && configPanel ? 'flex-row' : 'flex-col')}>
-        {/* Chart area */}
+      {/* ── Chart area ── */}
+      <div className="flex-1 min-h-0 flex flex-col">
         <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
           {children}
         </div>
-
-        {/* Right config panel (edit mode only) */}
-        {editMode && configPanel && (
-          <div className="w-[260px] shrink-0 border-l border-border/40 overflow-y-auto max-h-[700px] bg-card/50 animate-in fade-in slide-in-from-right-2 duration-200">
-            {configPanel}
-          </div>
-        )}
       </div>
 
       {/* ── Bottom Panel (edit mode, e.g. filter cards) ── */}
