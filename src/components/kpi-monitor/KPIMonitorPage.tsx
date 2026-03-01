@@ -441,7 +441,7 @@ const KPIMonitorInner: React.FC = () => {
         {store.selectedKpis.length > 0 && (
           <MainChartResizable
             isSelected={store.selectedWidgetId === '__kpi_main__'}
-            onSelect={() => store.setSelectedWidgetId(store.selectedWidgetId === '__kpi_main__' ? null : '__kpi_main__')}
+            onSelect={() => {/* selection only via settings button */}}
           >
             {(chartHeight) => (
               <>
