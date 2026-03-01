@@ -163,26 +163,29 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
       </div>
 
-      {/* ── Config Panel (edit mode, horizontal cards above chart) ── */}
-      {editMode && configPanel && (
-        <div className="border-b border-border/30 bg-muted/10 animate-in fade-in slide-in-from-top-1 duration-200 overflow-x-auto">
-          {configPanel}
-        </div>
-      )}
+      {/* ── Body: Config Panel LEFT + Chart RIGHT ── */}
+      <div className="flex-1 min-h-0 flex">
+        {/* Config panel as left sidebar in edit mode */}
+        {editMode && configPanel && (
+          <div className="w-[280px] shrink-0 border-r border-border/30 bg-muted/5 overflow-y-auto overflow-x-hidden animate-in fade-in slide-in-from-left-2 duration-200">
+            {configPanel}
+          </div>
+        )}
 
-      {/* ── Chart area ── */}
-      <div className="flex-1 min-h-0 flex flex-col">
-        <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
-          {children}
+        {/* Chart area */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
+            {children}
+          </div>
+
+          {/* Bottom Panel (edit mode, e.g. filter cards) */}
+          {editMode && bottomPanel && (
+            <div className="bg-card animate-in fade-in slide-in-from-bottom-1 duration-200">
+              {bottomPanel}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* ── Bottom Panel (edit mode, e.g. filter cards) ── */}
-      {editMode && bottomPanel && (
-        <div className="bg-card animate-in fade-in slide-in-from-bottom-1 duration-200">
-          {bottomPanel}
-        </div>
-      )}
 
       {/* ── Footer ── */}
       <div className="flex items-center justify-between px-4 py-2 border-t border-border/30">
