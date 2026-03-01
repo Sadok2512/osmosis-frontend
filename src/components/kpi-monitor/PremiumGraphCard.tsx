@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import {
   Settings2, Download, FileSpreadsheet, RefreshCw, Maximize2,
   Copy, Trash2, MoreHorizontal, Pencil, PencilOff,
-  BarChart3, Palette, Axis3D, ChevronDown, LayoutGrid,
+  BarChart3, Palette, Axis3D, ChevronDown,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -132,8 +132,6 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
               <SectionButton section="kpis" icon={BarChart3} label="KPIs" />
               <SectionButton section="style" icon={Palette} label="Style" />
               {axesPopover}
-              <div className="w-px h-4 bg-border/40 mx-0.5" />
-              <SectionButton section="full" icon={LayoutGrid} label="Full" />
             </>
           )}
 
