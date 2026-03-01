@@ -342,27 +342,30 @@ const KPIMonitorInner: React.FC = () => {
         }}
       />
 
-      {/* ── Graph Settings Panel (widget-level, only when selected) ── */}
-      {store.selectedWidgetId && (
+      {/* ── Graph Settings Panel (widget-level, shows for main KPI chart OR selected widget) ── */}
+      {(store.selectedWidgetId === '__kpi_main__' || store.selectedWidgetId) && (
         <GraphSettingsPanel
-          widgetId={store.selectedWidgetId}
+          widgetId={store.selectedWidgetId || '__kpi_main__'}
           widgetTitle={(() => {
+            if (store.selectedWidgetId === '__kpi_main__') {
+              return store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ') || 'KPI Chart';
+            }
             const w = widgets.find(w => getId(w) === store.selectedWidgetId);
             if (!w) return '';
             if (w.kind === 'chart') return (w.config as ChartConfig).title || 'Chart';
-            return store.selectedWidgetId;
+            return store.selectedWidgetId || '';
           })()}
           catalogMap={catalogMap}
           onOpenKpiSelector={() => setShowKpiSelector(true)}
           onClose={() => store.setSelectedWidgetId(null)}
-          onDuplicate={() => { duplicateWidget(store.selectedWidgetId!); }}
-          onDelete={() => { deleteWidget(store.selectedWidgetId!); store.setSelectedWidgetId(null); }}
-          thresholds={widgetThresholds[store.selectedWidgetId] || []}
-          onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [store.selectedWidgetId!]: t }))}
-          thresholdsEnabled={widgetThresholdsEnabled[store.selectedWidgetId] || false}
-          onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId!]: v }))}
-          styleConfig={widgetStyles[store.selectedWidgetId] || { backgroundColor: 'transparent', gridIntensity: 'light', smoothLine: true }}
-          onStyleChange={s => setWidgetStyles(prev => ({ ...prev, [store.selectedWidgetId!]: s }))}
+          onDuplicate={() => { if (store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__') duplicateWidget(store.selectedWidgetId); }}
+          onDelete={() => { if (store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__') { deleteWidget(store.selectedWidgetId); store.setSelectedWidgetId(null); } }}
+          thresholds={widgetThresholds[store.selectedWidgetId || '__kpi_main__'] || []}
+          onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: t }))}
+          thresholdsEnabled={widgetThresholdsEnabled[store.selectedWidgetId || '__kpi_main__'] || false}
+          onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: v }))}
+          styleConfig={widgetStyles[store.selectedWidgetId || '__kpi_main__'] || { backgroundColor: 'transparent', gridIntensity: 'light', smoothLine: true }}
+          onStyleChange={s => setWidgetStyles(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: s }))}
         />
       )}
 
@@ -370,7 +373,12 @@ const KPIMonitorInner: React.FC = () => {
       <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
         {/* ── Default KPI Time Series (always visible when KPIs selected) ── */}
         {store.selectedKpis.length > 0 && (
-          <div className="mb-4">
+          <div
+            className={`mb-4 cursor-pointer transition-all duration-200 rounded-xl ${
+              store.selectedWidgetId === '__kpi_main__' ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : 'hover:ring-1 hover:ring-border'
+            }`}
+            onClick={() => store.setSelectedWidgetId(store.selectedWidgetId === '__kpi_main__' ? null : '__kpi_main__')}
+          >
             {store.viewMode === 'graph' && (
               <EChartsTimeSeries
                 data={tsResponse.data}
