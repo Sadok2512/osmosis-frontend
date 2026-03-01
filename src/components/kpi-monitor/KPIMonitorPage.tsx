@@ -406,33 +406,7 @@ const KPIMonitorInner: React.FC = () => {
 
       {/* Filter is now inside DashboardConfigPanel */}
 
-      {/* ── Graph Settings Panel (widget-level) — only for BI widgets, NOT main chart ── */}
-      {store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__' && (
-        <GraphSettingsPanel
-          widgetId={store.selectedWidgetId}
-          widgetTitle={(() => {
-            const w = widgets.find(w => getId(w) === store.selectedWidgetId);
-            if (!w) return '';
-            if (w.kind === 'chart') return (w.config as ChartConfig).title || 'Chart';
-            return store.selectedWidgetId || '';
-          })()}
-          catalogMap={catalogMap}
-          onOpenKpiSelector={() => setShowKpiSelector(true)}
-          onClose={() => store.setSelectedWidgetId(null)}
-          onDuplicate={() => { if (store.selectedWidgetId) duplicateWidget(store.selectedWidgetId); }}
-          onDelete={() => { if (store.selectedWidgetId) { deleteWidget(store.selectedWidgetId); store.setSelectedWidgetId(null); } }}
-          thresholds={widgetThresholds[store.selectedWidgetId] || []}
-          onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [store.selectedWidgetId!]: t }))}
-          thresholdsEnabled={widgetThresholdsEnabled[store.selectedWidgetId] || false}
-          onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId!]: v }))}
-          styleConfig={widgetStyles[store.selectedWidgetId] || { backgroundColor: 'transparent', gridIntensity: 'light', smoothLine: true }}
-          onStyleChange={s => setWidgetStyles(prev => ({ ...prev, [store.selectedWidgetId!]: s }))}
-          axisConfig={widgetAxisConfigs[store.selectedWidgetId]}
-          onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
-          graphConfig={widgetGraphConfigs[store.selectedWidgetId]}
-          onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
-        />
-      )}
+      {/* GraphSettingsPanel removed — config is now in the right sidebar */}
 
       {/* ── Dashboard Canvas + Right Config Sidebar ── */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
@@ -522,10 +496,9 @@ const KPIMonitorInner: React.FC = () => {
           ) : null}
         </div>
 
-        {/* Right: Page-level Config Sidebar (like BI Studio) */}
+        {/* Right: Page-level Config Sidebar — Main KPI chart */}
         {store.activeEditingWidgetId === '__kpi_main__' && (
           <div className="w-[340px] shrink-0 h-full border-l border-border/50 bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
-            {/* Header */}
             <div className="px-5 py-4 border-b border-border/50">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
@@ -534,10 +507,8 @@ const KPIMonitorInner: React.FC = () => {
                   </div>
                   <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
                 </div>
-                <button
-                  onClick={() => store.setActiveEditingWidgetId(null)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors"
-                >
+                <button onClick={() => store.setActiveEditingWidgetId(null)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
                   <X className="w-4 h-4 text-muted-foreground" />
                 </button>
               </div>
@@ -545,7 +516,6 @@ const KPIMonitorInner: React.FC = () => {
                 {store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
               </p>
             </div>
-            {/* Scrollable config sections */}
             <div className="flex-1 overflow-y-auto">
               <HorizontalConfigPanel
                 catalogMap={catalogMap}
@@ -563,7 +533,49 @@ const KPIMonitorInner: React.FC = () => {
           </div>
         )}
 
-        {/* Right: BI Chart Config Sidebar */}
+        {/* Right: Config Sidebar — BI widget (non-main) */}
+        {store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__' && !editingChart && (
+          <div className="w-[340px] shrink-0 h-full border-l border-border/50 bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+            <div className="px-5 py-4 border-b border-border/50">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Settings2 className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
+                </div>
+                <button onClick={() => store.setSelectedWidgetId(null)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+              <p className="text-sm font-semibold text-foreground truncate">
+                {(() => {
+                  const w = widgets.find(w => getId(w) === store.selectedWidgetId);
+                  if (!w) return 'Widget';
+                  if (w.kind === 'chart') return (w.config as ChartConfig).title || 'Chart';
+                  return store.selectedWidgetId || 'Widget';
+                })()}
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <HorizontalConfigPanel
+                catalogMap={catalogMap}
+                onOpenKpiSelector={() => setShowKpiSelector(true)}
+                axisConfig={widgetAxisConfigs[store.selectedWidgetId]}
+                onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
+                graphConfig={widgetGraphConfigs[store.selectedWidgetId]}
+                onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
+                thresholds={widgetThresholds[store.selectedWidgetId] || []}
+                onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [store.selectedWidgetId!]: t }))}
+                thresholdsEnabled={widgetThresholdsEnabled[store.selectedWidgetId] || false}
+                onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId!]: v }))}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Right: BI Chart Config Sidebar (full config panel) */}
         {editingChart && (
           <ChartConfigPanel
             config={editingChart.config as ChartConfig}
