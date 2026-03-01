@@ -3,8 +3,9 @@ import { useGlobalFilterStore } from '@/stores/globalFilterStore';
 import { useKpiMonitorStore } from '@/stores/kpiMonitorStore';
 import { Badge } from '../ui/badge';
 import {
-  ChevronUp, ChevronDown, Calendar, Layers, Settings2, Flag, Plus, X, Palette,
+  ChevronUp, ChevronDown, Calendar, Layers, Settings2, Flag, Plus, X, Palette, Check,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { Switch } from '../ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -185,6 +186,17 @@ const DashboardConfigPanel: React.FC<DashboardConfigPanelProps> = ({ seriesInfo 
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* ── BOUTON APPLIQUER ── */}
+              <div className="flex items-center shrink-0 self-end">
+                <button
+                  onClick={() => toast.success('Configuration dashboard appliquée')}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Appliquer
+                </button>
               </div>
             </div>
           </div>
