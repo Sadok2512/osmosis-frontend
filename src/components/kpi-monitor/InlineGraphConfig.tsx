@@ -136,13 +136,30 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const [sections, setSections] = useState({ kpis: true, axes: true, graph: false, seuils: false });
   const toggle = (s: keyof typeof sections) => setSections(p => ({ ...p, [s]: !p[s] }));
 
-  // Simple dirty tracking
+  // Simple dirty tracking — any change activates the save button
   const [dirty, setDirty] = useState(false);
   const markDirty = () => { if (!dirty) setDirty(true); };
 
   // Wrap setters with dirty tracking
   const setAxisD = (u: Partial<WidgetAxisConfig>) => { setAxis(u); markDirty(); };
   const setGraphD = (u: Partial<WidgetGraphConfig>) => { setGraph(u); markDirty(); };
+
+  // Track external prop changes to auto-mark dirty (KPIs, thresholds, etc.)
+  const prevKpiCount = React.useRef(store.selectedKpis.length);
+  const prevThresholdCount = React.useRef(thresholds.length);
+  const prevThresholdsEnabled = React.useRef(thresholdsEnabled);
+  React.useEffect(() => {
+    if (
+      store.selectedKpis.length !== prevKpiCount.current ||
+      thresholds.length !== prevThresholdCount.current ||
+      thresholdsEnabled !== prevThresholdsEnabled.current
+    ) {
+      markDirty();
+    }
+    prevKpiCount.current = store.selectedKpis.length;
+    prevThresholdCount.current = thresholds.length;
+    prevThresholdsEnabled.current = thresholdsEnabled;
+  }, [store.selectedKpis.length, thresholds.length, thresholdsEnabled]);
 
   const addThreshold = () => {
     onThresholdsEnabledChange(true);
