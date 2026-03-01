@@ -1,12 +1,4 @@
-import React, { useState, useRef } from 'react';
-import {
-  MoreHorizontal, Download, FileSpreadsheet, RefreshCw, Maximize2,
-  GitCompareArrows, AlertTriangle, Copy, Trash2, ChevronDown,
-} from 'lucide-react';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface PremiumGraphCardProps {
@@ -16,14 +8,6 @@ interface PremiumGraphCardProps {
   seriesCount?: number;
   lastUpdated?: string;
   children: React.ReactNode;
-  onRefresh?: () => void;
-  onDuplicate?: () => void;
-  onDelete?: () => void;
-  onExportPNG?: () => void;
-  onExportCSV?: () => void;
-  onToggleThreshold?: () => void;
-  onComparePrevious?: () => void;
-  onExpand?: () => void;
   className?: string;
 }
 
@@ -34,18 +18,8 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
   seriesCount,
   lastUpdated,
   children,
-  onRefresh,
-  onDuplicate,
-  onDelete,
-  onExportPNG,
-  onExportCSV,
-  onToggleThreshold,
-  onComparePrevious,
-  onExpand,
   className,
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <div
       className={cn(
@@ -55,11 +29,9 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         'transition-shadow duration-200',
         className
       )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 drag-handle cursor-grab">
         <div className="flex items-center gap-2.5 min-w-0">
           <h3 className="text-[13px] font-semibold text-foreground truncate tracking-tight">
             {title}
@@ -70,48 +42,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
             </span>
           )}
         </div>
-
-        <div className={cn(
-          'flex items-center gap-1 transition-opacity duration-150',
-          isHovered ? 'opacity-100' : 'opacity-0'
-        )}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors">
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem onClick={onExportPNG} className="gap-2.5 text-xs">
-                <Download className="w-3.5 h-3.5" /> Download PNG
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onExportCSV} className="gap-2.5 text-xs">
-                <FileSpreadsheet className="w-3.5 h-3.5" /> Export CSV
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onRefresh} className="gap-2.5 text-xs">
-                <RefreshCw className="w-3.5 h-3.5" /> Refresh
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onExpand} className="gap-2.5 text-xs">
-                <Maximize2 className="w-3.5 h-3.5" /> Expand fullscreen
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onComparePrevious} className="gap-2.5 text-xs">
-                <GitCompareArrows className="w-3.5 h-3.5" /> Compare previous period
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onToggleThreshold} className="gap-2.5 text-xs">
-                <AlertTriangle className="w-3.5 h-3.5" /> Add threshold
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onDuplicate} className="gap-2.5 text-xs">
-                <Copy className="w-3.5 h-3.5" /> Duplicate widget
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDelete} className="gap-2.5 text-xs text-destructive focus:text-destructive">
-                <Trash2 className="w-3.5 h-3.5" /> Remove widget
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <span className="text-[9px] text-muted-foreground/50 italic">Cliquer pour configurer</span>
       </div>
 
       {/* ── Body ── */}
