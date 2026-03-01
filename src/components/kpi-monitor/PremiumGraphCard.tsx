@@ -2,15 +2,13 @@ import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Download, FileSpreadsheet, RefreshCw, Maximize2,
-  Copy, Trash2, MoreHorizontal, Pencil, PencilOff, Settings2,
+  Copy, Trash2, MoreHorizontal, Pencil, PencilOff, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
-import AxesPopover from './AxesPopover';
-import GraphPopover from './GraphPopover';
 
 interface PremiumGraphCardProps {
   title?: string;
@@ -106,14 +104,6 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
             </button>
           )}
 
-          {/* Axes & Graph popovers (visible in edit mode) */}
-          {editMode && (
-            <div className="flex items-center gap-0.5 border-l border-border/30 ml-1 pl-1">
-              <AxesPopover axisConfig={axisConfig} onAxisConfigChange={onAxisConfigChange} />
-              <GraphPopover graphConfig={graphConfig} onGraphConfigChange={onGraphConfigChange} />
-            </div>
-          )}
-
           {/* ⋯ Actions menu */}
           <div className={cn('transition-opacity duration-150', isHovered || editMode ? 'opacity-100' : 'opacity-0')}>
             <DropdownMenu>
@@ -163,17 +153,26 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
       </div>
 
-      {/* ── Config Panel (edit mode, above chart) ── */}
-      {editMode && configPanel && (
-        <div className="border-b border-border/30 bg-muted/10 animate-in fade-in slide-in-from-top-1 duration-200 overflow-x-auto">
-          {configPanel}
-        </div>
-      )}
+      {/* ── Main content: Left sidebar + Chart ── */}
+      <div className="flex-1 min-h-0 flex">
+        {/* ── Left Config Sidebar (edit mode) ── */}
+        {editMode && configPanel && (
+          <div
+            className={cn(
+              'shrink-0 border-r border-border/40 bg-muted/30 overflow-y-auto overflow-x-hidden',
+              'animate-in slide-in-from-left duration-200',
+            )}
+            style={{ width: 340 }}
+          >
+            {configPanel}
+          </div>
+        )}
 
-      {/* ── Chart area ── */}
-      <div className="flex-1 min-h-0 flex flex-col">
-        <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
-          {children}
+        {/* ── Chart area ── */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
+            {children}
+          </div>
         </div>
       </div>
 

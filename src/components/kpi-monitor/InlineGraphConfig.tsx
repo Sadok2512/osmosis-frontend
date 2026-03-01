@@ -7,11 +7,12 @@ import {
   X, Plus, TrendingUp, AreaChart, BarChart, Layers2, CircleDot,
   ChevronDown, Trash2, GripVertical, Copy,
   MoreHorizontal, Eye, EyeOff, AlertTriangle,
-  BarChart3, Axis3D, Settings2,
+  BarChart3, Axis3D, Settings2, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import type { WidgetThreshold, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 
 /* ── Constants ── */
 const GRAPH_TYPES: { value: GraphType; label: string; icon: React.ElementType }[] = [
@@ -50,10 +51,36 @@ const DEFAULT_GRAPH: WidgetGraphConfig = {
   showLegend: false, legendPosition: 'bottom',
 };
 
-/* ── Micro helpers (matching the screenshot style) ── */
+/* ── Collapsible Section wrapper ── */
+const SidebarSection: React.FC<{
+  icon: React.ElementType;
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}> = ({ icon: Icon, title, defaultOpen = true, children }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex items-center justify-between w-full px-5 py-2.5 hover:bg-muted/40 transition-colors group">
+        <div className="flex items-center gap-2">
+          <Icon className="w-3.5 h-3.5 text-primary" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">{title}</span>
+        </div>
+        <ChevronRight className={cn('w-3.5 h-3.5 text-muted-foreground/50 transition-transform duration-200', open && 'rotate-90')} />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="px-5 pb-4 space-y-2">
+          {children}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
+/* ── Micro helpers ── */
 const FieldRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="flex items-center justify-between gap-2 min-h-[28px]">
-    <span className="text-[10px] text-muted-foreground whitespace-nowrap">{label}</span>
+  <div className="flex items-center justify-between gap-2 min-h-[30px]">
+    <span className="text-[11px] text-muted-foreground whitespace-nowrap">{label}</span>
     <div className="flex items-center gap-1">{children}</div>
   </div>
 );
@@ -135,15 +162,12 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   };
 
   return (
-    <div className="px-3 py-3 flex flex-col gap-2.5 overflow-y-auto">
+    <div className="py-2 divide-y divide-border/30">
 
       {/* ─── 1: KPI CONFIG ─── */}
-      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <BarChart3 className="w-3.5 h-3.5 text-primary" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">KPI Config</span>
-          </div>
+      <SidebarSection icon={BarChart3} title="KPI Config">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] text-muted-foreground">Séries actives</span>
           <button onClick={onOpenKpiSelector}
             className="flex items-center gap-0.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[10px] font-semibold"
           ><Plus className="w-3 h-3" /> Ajouter</button>
@@ -209,26 +233,21 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             })}
           </div>
         )}
-      </div>
+      </SidebarSection>
 
       {/* ─── 2: AXES ─── */}
-      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2">
-        <div className="flex items-center gap-1.5 mb-1">
-          <Axis3D className="w-3.5 h-3.5 text-primary" />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Axes</span>
-        </div>
-        {/* Axe Y */}
+      <SidebarSection icon={Axis3D} title="Axes">
         <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider">Axe Y</p>
         <FieldRow label="Titre">
-          <SmallInput value={axis.yTitle} onChange={e => setAxis({ yTitle: e.target.value })} placeholder="" className="w-[80px]" />
+          <SmallInput value={axis.yTitle} onChange={e => setAxis({ yTitle: e.target.value })} placeholder="" className="w-[90px]" />
         </FieldRow>
         <FieldRow label="Min">
           <SmallInput type="number" value={axis.yMin === 'auto' ? '' : String(axis.yMin)} placeholder="Auto"
-            onChange={e => setAxis({ yMin: e.target.value === '' ? 'auto' : Number(e.target.value) })} className="w-[60px]" />
+            onChange={e => setAxis({ yMin: e.target.value === '' ? 'auto' : Number(e.target.value) })} className="w-[70px]" />
         </FieldRow>
         <FieldRow label="Max">
           <SmallInput type="number" value={axis.yMax === 'auto' ? '' : String(axis.yMax)} placeholder="Auto"
-            onChange={e => setAxis({ yMax: e.target.value === '' ? 'auto' : Number(e.target.value) })} className="w-[60px]" />
+            onChange={e => setAxis({ yMax: e.target.value === '' ? 'auto' : Number(e.target.value) })} className="w-[70px]" />
         </FieldRow>
         <FieldRow label="Unité">
           <SmallSelect value={axis.yUnit} options={[
@@ -242,8 +261,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
           ]} onChange={v => setAxis({ yDecimals: Number(v) })} />
         </FieldRow>
         <SmallToggle label="Inverser" checked={axis.yInvert} onChange={v => setAxis({ yInvert: v })} />
-        {/* Axe X */}
-        <div className="pt-1.5 border-t border-border/30">
+        <div className="pt-2 border-t border-border/30">
           <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-1">Axe X</p>
           <FieldRow label="Format">
             <SmallSelect value={axis.xFormat} options={[
@@ -253,14 +271,10 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
           </FieldRow>
           <SmallToggle label="Grille V" checked={axis.xShowGrid} onChange={v => setAxis({ xShowGrid: v })} />
         </div>
-      </div>
+      </SidebarSection>
 
       {/* ─── 3: GRAPH ─── */}
-      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2">
-        <div className="flex items-center gap-1.5 mb-1">
-          <Settings2 className="w-3.5 h-3.5 text-primary" />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Graph</span>
-        </div>
+      <SidebarSection icon={Settings2} title="Graph Style">
         <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider">Ligne</p>
         <SmallToggle label="Lissage" checked={graph.smooth} onChange={v => setGraph({ smooth: v })} />
         <FieldRow label="Épaisseur">
@@ -270,7 +284,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
           ]} onChange={v => setGraph({ lineWidth: Number(v) })} />
         </FieldRow>
         <SmallToggle label="Symboles" checked={graph.showSymbols} onChange={v => setGraph({ showSymbols: v })} />
-        <div className="pt-1.5 border-t border-border/30">
+        <div className="pt-2 border-t border-border/30">
           <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-1">Grille</p>
           <FieldRow label="Intensité">
             <SmallSelect value={graph.gridIntensity} options={[
@@ -279,10 +293,10 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
           </FieldRow>
           <SmallToggle label="Grille V" checked={graph.showVerticalGrid} onChange={v => setGraph({ showVerticalGrid: v })} />
         </div>
-        <div className="pt-1.5 border-t border-border/30">
+        <div className="pt-2 border-t border-border/30">
           <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-1">Fond</p>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground">Couleur</span>
+            <span className="text-[11px] text-muted-foreground">Couleur</span>
             <div className="flex gap-1.5">
               {['transparent', '#f8fafc', '#0f172a'].map(c => (
                 <button
@@ -301,7 +315,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             </div>
           </div>
         </div>
-        <div className="pt-1.5 border-t border-border/30">
+        <div className="pt-2 border-t border-border/30">
           <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-1">Légende</p>
           <SmallToggle label="Afficher" checked={graph.showLegend} onChange={v => setGraph({ showLegend: v })} />
           {graph.showLegend && (
@@ -312,14 +326,10 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             </FieldRow>
           )}
         </div>
-      </div>
+      </SidebarSection>
 
       {/* ─── 4: SEUILS Y ─── */}
-      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2">
-        <div className="flex items-center gap-1.5 mb-1">
-          <AlertTriangle className="w-3.5 h-3.5 text-primary" />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Seuils Y</span>
-        </div>
+      <SidebarSection icon={AlertTriangle} title="Seuils Y" defaultOpen={false}>
         <SmallToggle label="Activer" checked={thresholdsEnabled} onChange={onThresholdsEnabledChange} />
         {thresholdsEnabled && (
           <>
@@ -362,7 +372,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             </button>
           </>
         )}
-      </div>
+      </SidebarSection>
     </div>
   );
 };
