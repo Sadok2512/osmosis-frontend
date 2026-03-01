@@ -572,6 +572,24 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
         onClose={() => setShowSettings(false)}
         dashboardId={dm.activeTabId}
         dashboardName={dm.activeTab?.name || 'Dashboard'}
+        dashboardDescription={dm.activeTab?.description || ''}
+        dashboardIsShared={dm.activeTab?.isShared ?? false}
+        onApply={(settings) => {
+          // Sync name
+          if (settings.name && settings.name !== dm.activeTab?.name) {
+            dm.renameTab(dm.activeTabId, settings.name);
+          }
+          // Sync description
+          if (settings.description !== dm.activeTab?.description) {
+            dm.updateDescription(dm.activeTabId, settings.description);
+          }
+          // Sync visibility
+          const isCurrentlyShared = dm.activeTab?.isShared ?? false;
+          const shouldBeShared = settings.visibility === 'public';
+          if (isCurrentlyShared !== shouldBeShared) {
+            dm.toggleShared(dm.activeTabId);
+          }
+        }}
       />
     </div>
   );

@@ -18,9 +18,12 @@ interface Props {
   onClose: () => void;
   dashboardId: string;
   dashboardName: string;
+  dashboardDescription?: string;
+  dashboardIsShared?: boolean;
+  onApply?: (settings: DashboardSettings) => void;
 }
 
-const DashboardSettingsPopup: React.FC<Props> = ({ open, onClose, dashboardId, dashboardName }) => {
+const DashboardSettingsPopup: React.FC<Props> = ({ open, onClose, dashboardId, dashboardName, dashboardDescription, dashboardIsShared, onApply }) => {
   const store = useDashboardSettingsStore();
   const saved = store.getSettings(dashboardId, dashboardName);
 
@@ -31,10 +34,15 @@ const DashboardSettingsPopup: React.FC<Props> = ({ open, onClose, dashboardId, d
   useEffect(() => {
     if (open) {
       const s = store.getSettings(dashboardId, dashboardName);
-      setDraft({ ...s, name: s.name || dashboardName });
+      setDraft({
+        ...s,
+        name: s.name || dashboardName,
+        description: s.description || dashboardDescription || '',
+        visibility: dashboardIsShared ? 'public' : 'private',
+      });
       setDirty(false);
     }
-  }, [open, dashboardId, dashboardName]);
+  }, [open, dashboardId, dashboardName, dashboardDescription, dashboardIsShared]);
 
   const update = <K extends keyof DashboardSettings>(key: K, val: DashboardSettings[K]) => {
     setDraft(prev => ({ ...prev, [key]: val }));
@@ -56,6 +64,7 @@ const DashboardSettingsPopup: React.FC<Props> = ({ open, onClose, dashboardId, d
   const handleSave = () => {
     if (!draft.name.trim()) return;
     store.updateSettings(dashboardId, draft);
+    onApply?.(draft);
     setDirty(false);
     onClose();
   };
