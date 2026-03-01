@@ -518,6 +518,9 @@ const KPIMonitorInner: React.FC = () => {
             store.setActiveEditingWidgetId(null);
             store.setSelectedWidgetId(null);
             toast({ title: 'Configuration appliquée', description: 'Retour au dashboard.' });
+            // Force all ECharts instances to recalculate size after sidebar disappears
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 200);
           };
 
           const monoTitle = isEditingMain
