@@ -24,8 +24,8 @@ const BIChartCard: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete })
   const firstThreshold = config.advanced.thresholds[0];
 
   const openFullscreen = useCallback(() => {
-    setAnimating('in');
     setFullscreen(true);
+    requestAnimationFrame(() => setAnimating('in'));
   }, []);
 
   const closeFullscreen = useCallback(() => {
@@ -118,8 +118,8 @@ const BIChartCard: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete })
       <div className={`absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity duration-300 ${animating === 'out' ? 'opacity-0' : 'opacity-100'}`} />
 
       {/* Card */}
-      <div className={`relative w-[calc(100vw-48px)] h-[calc(100vh-48px)] max-w-[1600px] flex flex-col rounded-2xl bg-card border border-border shadow-[0_8px_64px_-12px_hsl(var(--foreground)/0.2)] overflow-hidden transition-all duration-300 ease-out ${animating === 'in' ? 'animate-scale-in' : animating === 'out' ? 'animate-scale-out' : ''}`}
-        onAnimationEnd={() => { if (animating === 'in') setAnimating(null); }}
+      <div className={`relative w-[calc(100vw-48px)] h-[calc(100vh-48px)] max-w-[1600px] flex flex-col rounded-2xl bg-card border border-border shadow-[0_8px_64px_-12px_hsl(var(--foreground)/0.2)] overflow-hidden transition-all duration-300 ease-out ${animating === 'in' ? 'scale-95 opacity-0' : animating === 'out' ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}
+        onTransitionEnd={() => { if (animating === 'in') setAnimating(null); }}
       >
         {headerContent(true)}
         {thresholdBadge(true)}
