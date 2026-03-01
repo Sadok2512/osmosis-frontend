@@ -20,16 +20,41 @@ function seedRandom(seed: number) {
 
 function getBaseValue(kpiKey: string): { base: number; variance: number } {
   const map: Record<string, { base: number; variance: number }> = {
+    // Access
     rrc_setup_sr: { base: 97.5, variance: 2 },
     erab_setup_sr: { base: 96.8, variance: 2.5 },
+    // Throughput
     dl_tp_avg: { base: 42, variance: 15 },
     ul_tp_avg: { base: 12, variance: 5 },
+    // Latency
     latency_avg: { base: 28, variance: 12 },
+    // Retainability
     drop_rate: { base: 1.2, variance: 0.8 },
-    qoe_score: { base: 78, variance: 10 },
+    // Traffic
     traffic_dl_gb: { base: 850, variance: 200 },
+    traffic_ul_gb: { base: 120, variance: 40 },
     sessions_count: { base: 15000, variance: 5000 },
+    active_users: { base: 4200, variance: 1200 },
+    prb_usage_dl: { base: 45, variance: 18 },
+    prb_usage_ul: { base: 32, variance: 14 },
+    // TCP / QoE
     tcp_retrans_rate: { base: 3.2, variance: 1.5 },
+    volte_setup_sr: { base: 98.1, variance: 1.5 },
+    volte_drop_rate: { base: 0.6, variance: 0.4 },
+    csfb_sr: { base: 97.0, variance: 2.2 },
+    ho_intra_sr: { base: 96.5, variance: 2.8 },
+    ho_inter_sr: { base: 93.2, variance: 4 },
+    ho_inter_rat_sr: { base: 89.5, variance: 6 },
+    rach_sr: { base: 98.5, variance: 1.2 },
+    paging_sr: { base: 99.2, variance: 0.6 },
+    availability: { base: 99.7, variance: 0.3 },
+    dl_tp_p95: { base: 85, variance: 25 },
+    ul_tp_p95: { base: 28, variance: 10 },
+    bler_dl: { base: 2.5, variance: 1.8 },
+    cqi_avg: { base: 11.5, variance: 2 },
+    rsrp_avg: { base: -95, variance: 15 },
+    sinr_avg: { base: 8.5, variance: 5 },
+    ta_avg: { base: 1.2, variance: 0.8 },
   };
   return map[kpiKey] || { base: 50, variance: 10 };
 }
