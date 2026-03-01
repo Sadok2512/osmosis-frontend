@@ -212,8 +212,37 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
 
   return (
     <div className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-md">
-      {/* ── Row 1: Dashboard identity + filters + actions ── */}
-      <div className="flex items-center gap-3 px-4 py-2">
+      {/* ── Row 1: Filter bar ── */}
+      <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/20 min-h-[36px] flex-wrap">
+        <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
+          <Filter className="w-3.5 h-3.5" />
+        </div>
+        <AddFilterButton />
+        {globalFilters.map(f => (
+          <FilterChip key={f.id} filter={f} allFilters={globalFilters} />
+        ))}
+        {crossFilter && (
+          <button onClick={() => setCrossFilter(null)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-primary/30 bg-primary/5 text-[11px] font-medium text-primary"
+          >
+            🔗 {crossFilter.dimension}: {crossFilter.value}
+            <X className="w-3 h-3" />
+          </button>
+        )}
+        {hasActiveFilters && (
+          <>
+            <span className="text-[10px] text-muted-foreground/60 ml-auto">
+              {activeCount} filtre(s) actifs
+            </span>
+            <button onClick={clearGlobalFilters}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors font-medium shrink-0"
+            ><RotateCcw className="w-3 h-3" /> Reset</button>
+          </>
+        )}
+      </div>
+
+      {/* ── Row 2: Dashboard identity + actions ── */}
+      <div className="flex items-center gap-3 px-4 py-2 border-t border-border/30">
         {/* LEFT: Identity block */}
         <div className="flex items-center gap-2.5 min-w-0 shrink-0">
           <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -251,18 +280,12 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           </div>
         </div>
 
-        {/* SEPARATOR */}
         <div className="w-px h-8 bg-border shrink-0" />
-
-        {/* Spacer */}
         <div className="flex-1" />
-
-        {/* SEPARATOR */}
         <div className="w-px h-8 bg-border shrink-0" />
 
         {/* RIGHT: Actions */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Add widget (only in edit mode) */}
           {editMode && (
             <div className="flex items-center gap-0 rounded-md border border-border bg-muted/30 p-0.5">
               {[
@@ -278,8 +301,6 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
               ))}
             </div>
           )}
-
-          {/* Edit/View toggle */}
           <button onClick={onToggleEditMode}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-semibold transition-all ${
               editMode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -287,15 +308,11 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           >
             {editMode ? <><Pencil className="w-3 h-3" /> Edit</> : <><EyeIcon className="w-3 h-3" /> View</>}
           </button>
-
-          {/* AI */}
           <button onClick={onToggleAI}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all ${
               showAI ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-primary/10 text-primary hover:bg-primary/20'
             }`}
           ><Sparkles className="w-3 h-3" /> AI</button>
-
-          {/* Layout toggle (edit mode only) */}
           {editMode && (
             <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5">
               <button onClick={() => layoutMode !== 'grid' && onToggleLayout()}
@@ -306,8 +323,6 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
               ><Move className="w-3 h-3" /></button>
             </div>
           )}
-
-          {/* Actions menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
@@ -327,35 +342,6 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
-
-      {/* ── Row 2: Filter bar ── */}
-      <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border/30 bg-muted/20 min-h-[36px] flex-wrap">
-        <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
-          <Filter className="w-3.5 h-3.5" />
-        </div>
-        <AddFilterButton />
-        {globalFilters.map(f => (
-          <FilterChip key={f.id} filter={f} allFilters={globalFilters} />
-        ))}
-        {crossFilter && (
-          <button onClick={() => setCrossFilter(null)}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-primary/30 bg-primary/5 text-[11px] font-medium text-primary"
-          >
-            🔗 {crossFilter.dimension}: {crossFilter.value}
-            <X className="w-3 h-3" />
-          </button>
-        )}
-        {hasActiveFilters && (
-          <>
-            <span className="text-[10px] text-muted-foreground/60 ml-auto">
-              {activeCount} filtre(s) actifs
-            </span>
-            <button onClick={clearGlobalFilters}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors font-medium shrink-0"
-            ><RotateCcw className="w-3 h-3" /> Reset</button>
-          </>
-        )}
       </div>
     </div>
   );
