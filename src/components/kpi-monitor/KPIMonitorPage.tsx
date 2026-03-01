@@ -520,7 +520,7 @@ const KPIMonitorInner: React.FC = () => {
           return (
             <>
               {/* Mono chart area */}
-              <div className="flex-1 overflow-auto flex flex-col" style={canvasBg ? { backgroundColor: canvasBg } : undefined}>
+               <div className="flex-1 overflow-auto flex flex-col">
                 {/* Mono header bar */}
                 <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
                   <button onClick={closeEdit}
@@ -532,7 +532,7 @@ const KPIMonitorInner: React.FC = () => {
                 </div>
 
                 {/* The single graph rendered large */}
-                <div className="flex-1 p-4">
+                <div className="flex-1 p-4" style={canvasBg ? { backgroundColor: canvasBg } : undefined}>
                   {isEditingMain ? (
                     <div className="h-full">
                       {store.viewMode === 'graph' && (
