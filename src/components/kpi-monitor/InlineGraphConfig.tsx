@@ -250,7 +250,64 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
         </div>
       </div>
 
-      {/* ─── 3: GRAPH — moved to right sidebar in PremiumGraphCard ─── */}
+      {/* ─── 3: GRAPH ─── */}
+      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2 min-w-[200px]">
+        <div className="flex items-center gap-1.5 mb-1">
+          <Settings2 className="w-3.5 h-3.5 text-primary" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Graph</span>
+        </div>
+        <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider">Ligne</p>
+        <SmallToggle label="Lissage" checked={graph.smooth} onChange={v => setGraph({ smooth: v })} />
+        <FieldRow label="Épaisseur">
+          <SmallSelect value={String(graph.lineWidth)} options={[
+            { value: '1', label: '1px' }, { value: '1.5', label: '1.5px' },
+            { value: '2', label: '2px' }, { value: '2.5', label: '2.5px' }, { value: '3', label: '3px' },
+          ]} onChange={v => setGraph({ lineWidth: Number(v) })} />
+        </FieldRow>
+        <SmallToggle label="Symboles" checked={graph.showSymbols} onChange={v => setGraph({ showSymbols: v })} />
+        <div className="pt-1.5 border-t border-border/30">
+          <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-1">Grille</p>
+          <FieldRow label="Intensité">
+            <SmallSelect value={graph.gridIntensity} options={[
+              { value: 'light', label: 'Light' }, { value: 'medium', label: 'Medium' },
+            ]} onChange={v => setGraph({ gridIntensity: v as any })} />
+          </FieldRow>
+          <SmallToggle label="Grille V" checked={graph.showVerticalGrid} onChange={v => setGraph({ showVerticalGrid: v })} />
+        </div>
+        <div className="pt-1.5 border-t border-border/30">
+          <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-1">Fond</p>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground">Couleur</span>
+            <div className="flex gap-1.5">
+              {['transparent', '#f8fafc', '#0f172a'].map(c => (
+                <button
+                  key={c}
+                  onClick={() => setGraph({ backgroundColor: c, transparentBg: c === 'transparent' })}
+                  className={cn(
+                    'w-6 h-6 rounded-md border transition-all',
+                    (graph.backgroundColor === c || (c === 'transparent' && graph.transparentBg))
+                      ? 'border-primary ring-1 ring-primary/30' : 'border-border/40'
+                  )}
+                  style={{ backgroundColor: c === 'transparent' ? undefined : c }}
+                >
+                  {c === 'transparent' && <span className="text-[8px] text-muted-foreground">T</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="pt-1.5 border-t border-border/30">
+          <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-1">Légende</p>
+          <SmallToggle label="Afficher" checked={graph.showLegend} onChange={v => setGraph({ showLegend: v })} />
+          {graph.showLegend && (
+            <FieldRow label="Position">
+              <SmallSelect value={graph.legendPosition} options={[
+                { value: 'top', label: 'Haut' }, { value: 'bottom', label: 'Bas' },
+              ]} onChange={v => setGraph({ legendPosition: v as any })} />
+            </FieldRow>
+          )}
+        </div>
+      </div>
 
       {/* ─── 4: SEUILS Y ─── */}
       <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2 min-w-[180px]">
