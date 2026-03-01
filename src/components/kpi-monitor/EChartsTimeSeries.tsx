@@ -5,7 +5,6 @@ import { KPI_CATALOG_MAP } from './kpiCatalog';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import PremiumGraphCard from './PremiumGraphCard';
 import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
-import type { QuickSettingsSection } from './InlineGraphConfig';
 
 interface Props {
   data: KpiTimeSeriesPoint[];
@@ -14,7 +13,6 @@ interface Props {
   title?: string;
   badge?: string;
   granularity?: string;
-  onOpenSettings?: () => void;
   onExportPNG?: () => void;
   onExportCSV?: () => void;
   onRefresh?: () => void;
@@ -25,13 +23,10 @@ interface Props {
   axisConfig?: WidgetAxisConfig;
   thresholds?: WidgetThreshold[];
   thresholdsEnabled?: boolean;
-  /** Compact edit mode props */
   editMode?: boolean;
   onToggleEditMode?: () => void;
-  activeSection?: QuickSettingsSection;
-  onSetActiveSection?: (s: QuickSettingsSection) => void;
+  seriesTable?: React.ReactNode;
   configPanel?: React.ReactNode;
-  axesPopover?: React.ReactNode;
 }
 
 /* ── Color palette (enterprise neutral + accent) ── */
@@ -73,10 +68,10 @@ const getSeriesType = (graphType?: GraphType): string => {
 
 const EChartsTimeSeries: React.FC<Props> = ({
   data, height = 460, catalogMap: externalMap,
-  title, badge, granularity, onOpenSettings, onExportPNG: externalExportPNG,
+  title, badge, granularity, onExportPNG: externalExportPNG,
   onExportCSV, onRefresh, onExpand, onDuplicate, onDelete,
   graphConfig: gc, axisConfig: ac, thresholds: thresholdList, thresholdsEnabled,
-  editMode, onToggleEditMode, activeSection, onSetActiveSection, configPanel, axesPopover,
+  editMode, onToggleEditMode, seriesTable, configPanel,
 }) => {
   const { selectedKpis } = useKpiMonitorStore();
   const chartRef = useRef<ReactECharts>(null);
@@ -317,10 +312,8 @@ const EChartsTimeSeries: React.FC<Props> = ({
       onDelete={onDelete}
       editMode={editMode}
       onToggleEditMode={onToggleEditMode}
-      activeSection={activeSection}
-      onSetActiveSection={onSetActiveSection}
+      seriesTable={seriesTable}
       configPanel={configPanel}
-      axesPopover={axesPopover}
     >
       {data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3">
