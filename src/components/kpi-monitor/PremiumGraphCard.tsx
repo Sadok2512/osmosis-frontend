@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  Settings2, Download, FileSpreadsheet, RefreshCw, Maximize2,
+  Download, FileSpreadsheet, RefreshCw, Maximize2,
   Copy, Trash2, MoreHorizontal, Pencil, PencilOff,
-  BarChart3, Palette, Axis3D, ChevronDown,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { QuickSettingsSection } from './InlineGraphConfig';
 
 interface PremiumGraphCardProps {
   title?: string;
@@ -19,22 +17,18 @@ interface PremiumGraphCardProps {
   lastUpdated?: string;
   children: React.ReactNode;
   className?: string;
-  onOpenSettings?: () => void;
   onExportPNG?: () => void;
   onExportCSV?: () => void;
   onRefresh?: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
   onExpand?: () => void;
-  /** New compact edit mode */
   editMode?: boolean;
   onToggleEditMode?: () => void;
-  activeSection?: QuickSettingsSection;
-  onSetActiveSection?: (s: QuickSettingsSection) => void;
-  /** Inline quick settings bar */
+  /** Series table rendered above the chart in edit mode */
+  seriesTable?: React.ReactNode;
+  /** Right-side config panel rendered beside chart in edit mode */
   configPanel?: React.ReactNode;
-  /** Axes popover (rendered as wrapper around Axes button) */
-  axesPopover?: React.ReactNode;
 }
 
 const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
@@ -53,34 +47,10 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
   onExpand,
   editMode = false,
   onToggleEditMode,
-  activeSection,
-  onSetActiveSection,
+  seriesTable,
   configPanel,
-  axesPopover,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-
-  const SectionButton: React.FC<{
-    section: QuickSettingsSection;
-    icon: React.ElementType;
-    label: string;
-  }> = ({ section, icon: Icon, label }) => (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onSetActiveSection?.(activeSection === section ? null : section);
-      }}
-      className={cn(
-        'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all',
-        activeSection === section
-          ? 'bg-primary/12 text-primary'
-          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-      )}
-    >
-      <Icon className="w-3 h-3" />
-      <span className="hidden sm:inline">{label}</span>
-    </button>
-  );
 
   return (
     <div
@@ -96,7 +66,6 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 drag-handle cursor-grab">
-        {/* Left: title + badge */}
         <div className="flex items-center gap-2.5 min-w-0">
           <h3 className="text-[13px] font-semibold text-foreground truncate tracking-tight">{title}</h3>
           {badge && (
@@ -106,7 +75,6 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
           )}
         </div>
 
-        {/* Right: controls */}
         <div className="flex items-center gap-0.5">
           {/* Edit toggle */}
           {onToggleEditMode && (
@@ -125,17 +93,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
             </button>
           )}
 
-          {/* Section buttons — only in edit mode */}
-          {editMode && onSetActiveSection && (
-            <>
-              <div className="w-px h-4 bg-border/40 mx-1" />
-              <SectionButton section="kpis" icon={BarChart3} label="KPIs" />
-              <SectionButton section="style" icon={Palette} label="Style" />
-              {axesPopover}
-            </>
-          )}
-
-          {/* ⋯ Actions menu — always visible on hover */}
+          {/* ⋯ Actions menu */}
           <div className={cn('transition-opacity duration-150', isHovered || editMode ? 'opacity-100' : 'opacity-0')}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -184,12 +142,26 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
       </div>
 
-      {/* ── Quick Settings Bar (compact, pushes chart down) ── */}
-      {editMode && configPanel}
+      {/* ── Series Table (edit mode, above chart) ── */}
+      {editMode && seriesTable && (
+        <div className="border-b border-border/30 animate-in fade-in slide-in-from-top-1 duration-150">
+          {seriesTable}
+        </div>
+      )}
 
-      {/* ── Chart Body ── */}
-      <div className="flex-1 min-h-0 px-2 pt-2 pb-1">
-        {children}
+      {/* ── Chart + Right Config Panel ── */}
+      <div className={cn('flex-1 min-h-0 flex', editMode && configPanel ? 'flex-row' : 'flex-col')}>
+        {/* Chart area */}
+        <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
+          {children}
+        </div>
+
+        {/* Right config panel (edit mode only) */}
+        {editMode && configPanel && (
+          <div className="w-[260px] shrink-0 border-l border-border/40 overflow-y-auto max-h-[600px] animate-in fade-in slide-in-from-right-2 duration-200">
+            {configPanel}
+          </div>
+        )}
       </div>
 
       {/* ── Footer ── */}

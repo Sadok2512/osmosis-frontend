@@ -5,8 +5,8 @@ import { Switch } from '../ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  X, Plus, TrendingUp, AreaChart, BarChart, BarChart3, Layers2, CircleDot,
-  Check, AlertTriangle, SlidersHorizontal, Settings2, Axis3D, LayoutGrid,
+  X, Plus, TrendingUp, AreaChart, BarChart, Layers2, CircleDot,
+  Check, AlertTriangle, ChevronDown,
 } from 'lucide-react';
 import type { WidgetThreshold, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
 
@@ -58,106 +58,314 @@ const MiniSelect: React.FC<{ value: string; options: { value: string; label: str
 );
 
 const FieldRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="flex items-center justify-between gap-2 min-h-[28px]">
+  <div className="flex items-center justify-between gap-2 min-h-[26px]">
     <span className="text-[10px] text-muted-foreground font-medium shrink-0">{label}</span>
     <div className="flex items-center gap-1">{children}</div>
   </div>
 );
 
-/* ════════════════════════════════════════════════════
-   AXES POPOVER — attached to header button
-   ════════════════════════════════════════════════════ */
-export const AxesPopover: React.FC<{
-  axisConfig?: WidgetAxisConfig;
-  onAxisConfigChange?: (c: WidgetAxisConfig) => void;
-  children: React.ReactNode; // trigger button
-}> = ({ axisConfig: externalAxis, onAxisConfigChange, children }) => {
-  const axis = externalAxis || DEFAULT_AXIS;
-  const setAxis = (u: Partial<WidgetAxisConfig>) => onAxisConfigChange?.({ ...axis, ...u });
-  const [tab, setTab] = useState<'y' | 'x'>('y');
+const SectionHeader: React.FC<{ label: string; checked?: boolean; onCheckedChange?: (v: boolean) => void }> = ({ label, checked, onCheckedChange }) => (
+  <div className="flex items-center gap-2 py-1.5 border-b border-border/30">
+    {onCheckedChange !== undefined && (
+      <input type="checkbox" checked={checked} onChange={e => onCheckedChange(e.target.checked)}
+        className="w-3.5 h-3.5 rounded border-border text-primary accent-primary cursor-pointer" />
+    )}
+    <span className="text-[11px] font-bold text-foreground">{label}</span>
+  </div>
+);
+
+/* ════════════════════════════════════════════════════════════════
+   SERIES TABLE — top of card in edit mode (reference-style)
+   ════════════════════════════════════════════════════════════════ */
+export type QuickSettingsSection = 'kpis' | 'style' | 'full' | null;
+
+export interface SeriesTableProps {
+  catalogMap: Record<string, KpiCatalogEntry>;
+  onOpenKpiSelector: () => void;
+}
+
+export const SeriesTable: React.FC<SeriesTableProps> = ({ catalogMap, onOpenKpiSelector }) => {
+  const store = useKpiMonitorStore();
+
+  if (store.selectedKpis.length === 0) {
+    return (
+      <div className="px-4 py-3">
+        <button
+          onClick={onOpenKpiSelector}
+          className="w-full py-3 rounded-lg border border-dashed border-border/50 hover:border-primary/40 transition-colors flex items-center justify-center gap-1.5 text-muted-foreground hover:text-primary text-[11px] font-medium"
+        >
+          <Plus className="w-3.5 h-3.5" /> Sélectionner des KPIs
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-[280px] p-0" align="end" sideOffset={8}>
-        <div className="flex flex-col">
-          {/* Tabs */}
-          <div className="flex border-b border-border/40">
-            {(['y', 'x'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`flex-1 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
-                  tab === t
-                    ? 'text-primary border-b-2 border-primary bg-primary/5'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {t === 'y' ? 'Y Axis' : 'X Axis'}
-              </button>
-            ))}
-          </div>
-
-          {/* Content */}
-          <div className="p-3 space-y-1">
-            {tab === 'y' ? (
-              <>
-                <FieldRow label="Title">
-                  <MiniInput value={axis.yTitle} placeholder="Auto" onChange={e => setAxis({ yTitle: e.target.value })} className="w-24" />
-                </FieldRow>
-                <FieldRow label="Min">
-                  <MiniInput type="number" value={axis.yMin === 'auto' ? '' : String(axis.yMin)} placeholder="Auto" onChange={e => { const v = e.target.value; setAxis({ yMin: v === '' ? 'auto' : Number(v) }); }} className="w-16" />
-                </FieldRow>
-                <FieldRow label="Max">
-                  <MiniInput type="number" value={axis.yMax === 'auto' ? '' : String(axis.yMax)} placeholder="Auto" onChange={e => { const v = e.target.value; setAxis({ yMax: v === '' ? 'auto' : Number(v) }); }} className="w-16" />
-                </FieldRow>
-                <FieldRow label="Unit">
-                  <MiniSelect
-                    value={axis.yUnit}
-                    options={[{ value: '', label: 'Auto' }, { value: '%', label: '%' }, { value: 'Mbps', label: 'Mbps' }, { value: 'ms', label: 'ms' }, { value: 'GB', label: 'GB' }, { value: 'k', label: 'k' }]}
-                    onChange={v => setAxis({ yUnit: v })}
-                    className="w-[68px]"
-                  />
-                </FieldRow>
-                <FieldRow label="Decimals">
-                  <MiniSelect
-                    value={String(axis.yDecimals)}
-                    options={[{ value: '0', label: '0' }, { value: '1', label: '1' }, { value: '2', label: '2' }, { value: '3', label: '3' }]}
-                    onChange={v => setAxis({ yDecimals: Number(v) })}
-                    className="w-14"
-                  />
-                </FieldRow>
-                <FieldRow label="Invert">
-                  <Switch checked={axis.yInvert} onCheckedChange={v => setAxis({ yInvert: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-                </FieldRow>
-              </>
-            ) : (
-              <>
-                <FieldRow label="Format">
-                  <MiniSelect
-                    value={axis.xFormat}
-                    options={[{ value: 'short', label: 'Short' }, { value: 'full', label: 'Full' }, { value: 'date', label: 'Date' }, { value: 'datetime', label: 'Date+H' }]}
-                    onChange={v => setAxis({ xFormat: v as any })}
-                    className="w-[72px]"
-                  />
-                </FieldRow>
-                <FieldRow label="Grid V">
-                  <Switch checked={axis.xShowGrid} onCheckedChange={v => setAxis({ xShowGrid: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-                </FieldRow>
-              </>
-            )}
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <div className="overflow-x-auto">
+      <table className="w-full text-[10px]">
+        <thead>
+          <tr className="border-b border-border/30 text-muted-foreground font-semibold uppercase tracking-wider">
+            <th className="px-3 py-1.5 text-left w-6"></th>
+            <th className="px-2 py-1.5 text-left">Style</th>
+            <th className="px-2 py-1.5 text-left">Type</th>
+            <th className="px-2 py-1.5 text-left">Axe Y</th>
+            <th className="px-2 py-1.5 text-left">Valeur / Légende</th>
+            <th className="px-2 py-1.5 text-right w-8"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {store.selectedKpis.map(kpi => {
+            const cat = catalogMap[kpi.kpi_key];
+            const color = kpi.color || cat?.color || '#3b82f6';
+            const name = cat?.display_name || kpi.kpi_key;
+            return (
+              <tr key={kpi.kpi_key} className="border-b border-border/20 hover:bg-muted/30 transition-colors group">
+                {/* Checkbox */}
+                <td className="px-3 py-1.5">
+                  <input type="checkbox" defaultChecked className="w-3 h-3 rounded border-border accent-primary cursor-pointer" />
+                </td>
+                {/* Style (color dot) */}
+                <td className="px-2 py-1.5">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="w-4 h-4 rounded-full ring-1 ring-border/30 hover:scale-110 transition-transform" style={{ backgroundColor: color }} />
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-2" align="start">
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {PRESET_COLORS.map(c => (
+                          <button key={c} onClick={() => store.updateKpi(kpi.kpi_key, { color: c })}
+                            className={`w-5 h-5 rounded-full hover:scale-125 transition-transform ${color === c ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+                            style={{ backgroundColor: c }} />
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </td>
+                {/* Type */}
+                <td className="px-2 py-1.5">
+                  <Select value={kpi.graphType || 'line'} onValueChange={v => store.updateKpi(kpi.kpi_key, { graphType: v as GraphType })}>
+                    <SelectTrigger className="h-6 w-[70px] text-[10px] px-1.5 border-border/40 bg-background rounded-md">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GRAPH_TYPES.map(g => (
+                        <SelectItem key={g.value} value={g.value} className="text-[10px]">
+                          <div className="flex items-center gap-1"><g.icon className="w-3 h-3" /> {g.label}</div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </td>
+                {/* Axe Y */}
+                <td className="px-2 py-1.5">
+                  <select
+                    value={kpi.axis}
+                    onChange={e => store.updateKpi(kpi.kpi_key, { axis: e.target.value as any })}
+                    className="px-1.5 py-0.5 rounded-md border border-border/40 bg-background text-[10px] cursor-pointer"
+                  >
+                    <option value="left">Gauche</option>
+                    <option value="right">Droite</option>
+                  </select>
+                </td>
+                {/* Valeur / Légende */}
+                <td className="px-2 py-1.5">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium text-white"
+                    style={{ backgroundColor: color }}>
+                    {name}
+                    <button onClick={() => store.removeKpi(kpi.kpi_key)} className="hover:text-white/70 transition-colors">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                </td>
+                {/* Actions */}
+                <td className="px-2 py-1.5 text-right">
+                  <button onClick={() => store.removeKpi(kpi.kpi_key)}
+                    className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
+                    <X className="w-3 h-3" />
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {/* Add new series */}
+      <button onClick={onOpenKpiSelector}
+        className="flex items-center gap-1 px-4 py-2 text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors">
+        <Plus className="w-3 h-3" /> Nouvelle série
+      </button>
+    </div>
   );
 };
 
-/* ════════════════════════════════════════════════════
-   QUICK SETTINGS BAR — compact inline under header
-   ════════════════════════════════════════════════════ */
-export type QuickSettingsSection = 'kpis' | 'style' | 'full' | null;
+/* ════════════════════════════════════════════════════════════════
+   RIGHT CONFIG PANEL — Légende / Axe X / Axe Y gauche / droite / Seuils
+   ════════════════════════════════════════════════════════════════ */
+export interface RightConfigPanelProps {
+  axisConfig?: WidgetAxisConfig;
+  onAxisConfigChange?: (c: WidgetAxisConfig) => void;
+  graphConfig?: WidgetGraphConfig;
+  onGraphConfigChange?: (c: WidgetGraphConfig) => void;
+  thresholds: WidgetThreshold[];
+  onThresholdsChange: (t: WidgetThreshold[]) => void;
+  thresholdsEnabled: boolean;
+  onThresholdsEnabledChange: (v: boolean) => void;
+}
 
+export const RightConfigPanel: React.FC<RightConfigPanelProps> = ({
+  axisConfig: externalAxis, onAxisConfigChange,
+  graphConfig: externalGraph, onGraphConfigChange,
+  thresholds, onThresholdsChange, thresholdsEnabled, onThresholdsEnabledChange,
+}) => {
+  const axis = externalAxis || DEFAULT_AXIS;
+  const setAxis = (u: Partial<WidgetAxisConfig>) => onAxisConfigChange?.({ ...axis, ...u });
+  const graph = externalGraph || DEFAULT_GRAPH;
+  const setGraph = (u: Partial<WidgetGraphConfig>) => onGraphConfigChange?.({ ...graph, ...u });
+
+  const addThreshold = () => {
+    onThresholdsChange([
+      ...thresholds,
+      { id: crypto.randomUUID(), value: 0, label: 'Seuil', color: THRESHOLD_COLORS[thresholds.length % THRESHOLD_COLORS.length], style: 'dashed' },
+    ]);
+  };
+
+  return (
+    <div className="text-[11px] divide-y divide-border/30">
+      {/* ── Légende ── */}
+      <div className="px-3 py-2.5 space-y-1.5">
+        <span className="text-[11px] font-bold text-foreground">Légende</span>
+        <div className="flex items-center gap-3 pt-1">
+          {(['top', 'bottom', 'hidden'] as const).map(pos => (
+            <label key={pos} className="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="legendPos"
+                checked={pos === 'hidden' ? !graph.showLegend : (graph.showLegend && graph.legendPosition === pos)}
+                onChange={() => {
+                  if (pos === 'hidden') setGraph({ showLegend: false });
+                  else setGraph({ showLegend: true, legendPosition: pos });
+                }}
+                className="w-3 h-3 accent-primary" />
+              <span className="text-[10px] text-muted-foreground">{pos === 'top' ? 'Haut' : pos === 'bottom' ? 'Bas' : 'Masquée'}</span>
+            </label>
+          ))}
+        </div>
+        <FieldRow label="Inverser les axes">
+          <Switch checked={axis.yInvert} onCheckedChange={v => setAxis({ yInvert: v })} className="h-4 w-7 data-[state=checked]:bg-primary" />
+        </FieldRow>
+      </div>
+
+      {/* ── Axe X ── */}
+      <div className="px-3 py-2.5 space-y-1.5">
+        <SectionHeader label="Axe X" checked={true} />
+        <FieldRow label="Format des dates">
+          <MiniSelect value={axis.xFormat}
+            options={[{ value: 'short', label: 'Court' }, { value: 'full', label: 'Complet' }, { value: 'date', label: 'Date' }, { value: 'datetime', label: 'Date+H' }]}
+            onChange={v => setAxis({ xFormat: v as any })} className="w-[72px]" />
+        </FieldRow>
+        <FieldRow label="Grille verticale">
+          <Switch checked={axis.xShowGrid} onCheckedChange={v => setAxis({ xShowGrid: v })} className="h-4 w-7 data-[state=checked]:bg-primary" />
+        </FieldRow>
+      </div>
+
+      {/* ── Axe Y gauche ── */}
+      <div className="px-3 py-2.5 space-y-1.5">
+        <SectionHeader label="Axe Y gauche" checked={true} />
+        <FieldRow label="Libellé">
+          <MiniInput value={axis.yTitle} placeholder="Auto" onChange={e => setAxis({ yTitle: e.target.value })} className="w-20" />
+        </FieldRow>
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <span className="text-[9px] text-muted-foreground block mb-0.5">Min</span>
+            <MiniInput type="number" value={axis.yMin === 'auto' ? '' : String(axis.yMin)} placeholder="Auto"
+              onChange={e => setAxis({ yMin: e.target.value === '' ? 'auto' : Number(e.target.value) })} className="w-full" />
+          </div>
+          <div className="flex-1">
+            <span className="text-[9px] text-muted-foreground block mb-0.5">Max</span>
+            <MiniInput type="number" value={axis.yMax === 'auto' ? '' : String(axis.yMax)} placeholder="Auto"
+              onChange={e => setAxis({ yMax: e.target.value === '' ? 'auto' : Number(e.target.value) })} className="w-full" />
+          </div>
+        </div>
+        <FieldRow label="Unité">
+          <MiniSelect value={axis.yUnit}
+            options={[{ value: '', label: 'Auto' }, { value: '%', label: '%' }, { value: 'Mbps', label: 'Mbps' }, { value: 'ms', label: 'ms' }, { value: 'GB', label: 'GB' }]}
+            onChange={v => setAxis({ yUnit: v })} className="w-[68px]" />
+        </FieldRow>
+        <FieldRow label="Décimales">
+          <MiniSelect value={String(axis.yDecimals)}
+            options={[{ value: '0', label: '0' }, { value: '1', label: '1' }, { value: '2', label: '2' }, { value: '3', label: '3' }]}
+            onChange={v => setAxis({ yDecimals: Number(v) })} className="w-12" />
+        </FieldRow>
+        {/* Add threshold */}
+        <button onClick={addThreshold} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors pt-1">
+          <Plus className="w-3 h-3" /> Ajouter seuil
+        </button>
+      </div>
+
+      {/* ── Style graphique ── */}
+      <div className="px-3 py-2.5 space-y-1.5">
+        <span className="text-[11px] font-bold text-foreground">Style</span>
+        <FieldRow label="Lissage">
+          <Switch checked={graph.smooth} onCheckedChange={v => setGraph({ smooth: v })} className="h-4 w-7 data-[state=checked]:bg-primary" />
+        </FieldRow>
+        <FieldRow label="Épaisseur">
+          <MiniSelect value={String(graph.lineWidth)}
+            options={[{ value: '1', label: '1px' }, { value: '1.5', label: '1.5' }, { value: '2', label: '2px' }, { value: '2.5', label: '2.5' }, { value: '3', label: '3px' }]}
+            onChange={v => setGraph({ lineWidth: Number(v) })} className="w-[56px]" />
+        </FieldRow>
+        <FieldRow label="Symboles">
+          <Switch checked={graph.showSymbols} onCheckedChange={v => setGraph({ showSymbols: v })} className="h-4 w-7 data-[state=checked]:bg-primary" />
+        </FieldRow>
+        <FieldRow label="Grille">
+          <MiniSelect value={graph.gridIntensity}
+            options={[{ value: 'light', label: 'Light' }, { value: 'medium', label: 'Medium' }]}
+            onChange={v => setGraph({ gridIntensity: v as any })} className="w-[68px]" />
+        </FieldRow>
+        <FieldRow label="Fond">
+          <div className="flex items-center gap-1">
+            {['transparent', '#f8fafc', '#0f172a'].map(c => (
+              <button key={c}
+                onClick={() => setGraph({ backgroundColor: c, transparentBg: c === 'transparent' })}
+                className={`w-5 h-5 rounded-md border transition-all ${graph.backgroundColor === c ? 'border-primary ring-1 ring-primary/20 scale-110' : 'border-border/40'}`}
+                style={{ backgroundColor: c === 'transparent' ? '#fff' : c }}
+              >
+                {c === 'transparent' && <span className="text-[7px] text-muted-foreground font-bold">T</span>}
+              </button>
+            ))}
+          </div>
+        </FieldRow>
+      </div>
+
+      {/* ── Seuils Y ── */}
+      <div className="px-3 py-2.5 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-foreground">Seuils Y</span>
+          <Switch checked={thresholdsEnabled} onCheckedChange={onThresholdsEnabledChange} className="h-4 w-7 data-[state=checked]:bg-primary" />
+        </div>
+        {thresholdsEnabled && (
+          <div className="space-y-1.5 pt-1">
+            {thresholds.map(t => (
+              <div key={t.id} className="flex items-center gap-1.5 group">
+                <button className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                <MiniInput type="number" value={t.value}
+                  onChange={e => onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, value: Number(e.target.value) } : th))} className="w-12" />
+                <MiniInput value={t.label}
+                  onChange={e => onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, label: e.target.value } : th))} className="flex-1 min-w-0" />
+                <button onClick={() => onThresholdsChange(thresholds.filter(th => th.id !== t.id))}
+                  className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            ))}
+            <button onClick={addThreshold} className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-1">
+              <Plus className="w-2.5 h-2.5" /> Ajouter
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ── Legacy exports (keep backward compat) ── */
 export interface InlineGraphConfigProps {
   catalogMap: Record<string, KpiCatalogEntry>;
   onOpenKpiSelector: () => void;
@@ -174,438 +382,8 @@ export interface InlineGraphConfigProps {
   onThresholdsEnabledChange: (v: boolean) => void;
 }
 
-const InlineGraphConfig: React.FC<InlineGraphConfigProps> = ({
-  catalogMap, onOpenKpiSelector, onCollapse, activeSection, onSetActiveSection,
-  axisConfig: externalAxis, onAxisConfigChange,
-  graphConfig: externalGraph, onGraphConfigChange,
-  thresholds, onThresholdsChange, thresholdsEnabled, onThresholdsEnabledChange,
-}) => {
-  const store = useKpiMonitorStore();
-  const graph = externalGraph || DEFAULT_GRAPH;
-  const setGraph = (u: Partial<WidgetGraphConfig>) => onGraphConfigChange?.({ ...graph, ...u });
+const InlineGraphConfig: React.FC<InlineGraphConfigProps> = () => null;
 
-  const addThreshold = () => {
-    onThresholdsChange([
-      ...thresholds,
-      { id: crypto.randomUUID(), value: 0, label: 'Threshold', color: THRESHOLD_COLORS[thresholds.length % THRESHOLD_COLORS.length], style: 'dashed' },
-    ]);
-  };
-
-  if (!activeSection) return null;
-
-  return (
-    <div className="border-b border-border/30 animate-in fade-in slide-in-from-top-1 duration-150">
-      <div className="px-3 py-2.5">
-
-        {/* ── KPIs Section (compact) ── */}
-        {activeSection === 'kpis' && (
-          <div className="space-y-1.5">
-            {store.selectedKpis.length === 0 ? (
-              <button
-                onClick={onOpenKpiSelector}
-                className="w-full py-3 rounded-lg border border-dashed border-border/50 hover:border-primary/40 transition-colors flex items-center justify-center gap-1.5 text-muted-foreground hover:text-primary text-[11px] font-medium"
-              >
-                <Plus className="w-3.5 h-3.5" /> Select KPIs
-              </button>
-            ) : (
-              <>
-                {store.selectedKpis.map(kpi => {
-                  const cat = catalogMap[kpi.kpi_key];
-                  const color = kpi.color || cat?.color || '#3b82f6';
-                  const name = cat?.display_name || kpi.kpi_key;
-                  return (
-                    <div key={kpi.kpi_key} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-muted/50 transition-colors group">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button className="w-3 h-3 rounded-full shrink-0 ring-1 ring-border/30 hover:scale-110 transition-transform" style={{ backgroundColor: color }} />
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-2" align="start">
-                          <div className="grid grid-cols-5 gap-1.5">
-                            {PRESET_COLORS.map(c => (
-                              <button
-                                key={c}
-                                onClick={() => store.updateKpi(kpi.kpi_key, { color: c })}
-                                className={`w-5 h-5 rounded-full transition-transform hover:scale-125 ${color === c ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-                                style={{ backgroundColor: c }}
-                              />
-                            ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <span className="text-[11px] font-medium text-foreground truncate flex-1 min-w-0">{name}</span>
-                      <div className="flex rounded-md border border-border/40 overflow-hidden shrink-0">
-                        {(['left', 'right'] as const).map(side => (
-                          <button
-                            key={side}
-                            onClick={() => store.updateKpi(kpi.kpi_key, { axis: side })}
-                            className={`px-1.5 py-0.5 text-[9px] font-bold transition-colors ${kpi.axis === side ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                          >{side === 'left' ? 'L' : 'R'}</button>
-                        ))}
-                      </div>
-                      <Select value={kpi.graphType || 'line'} onValueChange={v => store.updateKpi(kpi.kpi_key, { graphType: v as GraphType })}>
-                        <SelectTrigger className="h-5 w-14 text-[9px] px-1 border-border/40 bg-background rounded-md shrink-0">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GRAPH_TYPES.map(g => (
-                            <SelectItem key={g.value} value={g.value} className="text-[10px]">
-                              <div className="flex items-center gap-1"><g.icon className="w-3 h-3" /> {g.label}</div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <button onClick={() => store.removeKpi(kpi.kpi_key)} className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  );
-                })}
-                <button onClick={onOpenKpiSelector} className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors">
-                  <Plus className="w-3 h-3" /> Add KPI
-                </button>
-              </>
-            )}
-            {/* Thresholds mini */}
-            <div className="flex items-center gap-2 pt-1.5 mt-1.5 border-t border-border/20">
-              <AlertTriangle className="w-3 h-3 text-muted-foreground/60" />
-              <span className="text-[10px] font-medium text-muted-foreground flex-1">Thresholds</span>
-              <Switch checked={thresholdsEnabled} onCheckedChange={onThresholdsEnabledChange} className="h-4 w-8 data-[state=checked]:bg-primary" />
-            </div>
-            {thresholdsEnabled && (
-              <div className="space-y-1 pl-5">
-                {thresholds.map(t => (
-                  <div key={t.id} className="flex items-center gap-1.5 group">
-                    <button className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                    <MiniInput type="number" value={t.value} onChange={e => onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, value: Number(e.target.value) } : th))} className="w-12" />
-                    <MiniInput value={t.label} onChange={e => onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, label: e.target.value } : th))} className="flex-1 min-w-0" />
-                    <button onClick={() => onThresholdsChange(thresholds.filter(th => th.id !== t.id))} className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
-                ))}
-                <button onClick={addThreshold} className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-1">
-                  <Plus className="w-2.5 h-2.5" /> Add
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Style Section (compact) ── */}
-        {activeSection === 'style' && (
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground font-medium">Smooth</span>
-              <Switch checked={graph.smooth} onCheckedChange={v => setGraph({ smooth: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground font-medium">Symbols</span>
-              <Switch checked={graph.showSymbols} onCheckedChange={v => setGraph({ showSymbols: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground font-medium">Legend</span>
-              <Switch checked={graph.showLegend} onCheckedChange={v => setGraph({ showLegend: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground font-medium">Grid V</span>
-              <Switch checked={graph.showVerticalGrid || false} onCheckedChange={v => setGraph({ showVerticalGrid: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground font-medium">Line</span>
-              <MiniSelect
-                value={String(graph.lineWidth)}
-                options={[{ value: '1', label: '1px' }, { value: '1.5', label: '1.5' }, { value: '2', label: '2px' }, { value: '2.5', label: '2.5' }, { value: '3', label: '3px' }]}
-                onChange={v => setGraph({ lineWidth: Number(v) })}
-                className="w-14"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground font-medium">Grid</span>
-              <MiniSelect
-                value={graph.gridIntensity}
-                options={[{ value: 'light', label: 'Light' }, { value: 'medium', label: 'Medium' }]}
-                onChange={v => setGraph({ gridIntensity: v as any })}
-                className="w-[68px]"
-              />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-muted-foreground font-medium">Bg</span>
-              {['transparent', '#f8fafc', '#0f172a'].map(c => (
-                <button
-                  key={c}
-                  onClick={() => setGraph({ backgroundColor: c, transparentBg: c === 'transparent' })}
-                  className={`w-5 h-5 rounded-md border transition-all ${graph.backgroundColor === c ? 'border-primary ring-1 ring-primary/20 scale-110' : 'border-border/40 hover:border-border'}`}
-                  style={{ backgroundColor: c === 'transparent' ? '#ffffff' : c }}
-                >
-                  {c === 'transparent' && <span className="text-[7px] text-muted-foreground font-bold">T</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Advanced config link — shown in compact modes */}
-        {(activeSection === 'kpis' || activeSection === 'style') && onSetActiveSection && (
-          <div className="flex justify-end pt-1.5 mt-1.5 border-t border-border/20">
-            <button
-              onClick={() => onSetActiveSection('full')}
-              className="text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-            >
-              <LayoutGrid className="w-3 h-3" />
-              Configuration avancée ›
-            </button>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════
-           FULL CONFIG — 4-card expanded layout
-           ══════════════════════════════════════════════ */}
-        {activeSection === 'full' && (
-          <FullConfigPanel
-            catalogMap={catalogMap}
-            onOpenKpiSelector={onOpenKpiSelector}
-            store={store}
-            axis={externalAxis || DEFAULT_AXIS}
-            setAxis={(u) => onAxisConfigChange?.({ ...(externalAxis || DEFAULT_AXIS), ...u })}
-            graph={graph}
-            setGraph={setGraph}
-            thresholds={thresholds}
-            onThresholdsChange={onThresholdsChange}
-            thresholdsEnabled={thresholdsEnabled}
-            onThresholdsEnabledChange={onThresholdsEnabledChange}
-            onCollapse={onCollapse}
-          />
-        )}
-      </div>
-    </div>
-  );
-};
-
-/* ══════════════════════════════════════════════════════════════
-   FULL CONFIG PANEL — 4 cards side by side (desktop)
-   ══════════════════════════════════════════════════════════════ */
-const CardSection: React.FC<{
-  icon: React.ElementType;
-  title: string;
-  children: React.ReactNode;
-  headerRight?: React.ReactNode;
-  className?: string;
-}> = ({ icon: Icon, title, children, headerRight, className }) => (
-  <div className={`rounded-xl border border-border/50 bg-background flex flex-col ${className || ''}`}>
-    <div className="flex items-center justify-between px-3 py-2 border-b border-border/30">
-      <div className="flex items-center gap-1.5">
-        <Icon className="w-3.5 h-3.5 text-primary" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{title}</span>
-      </div>
-      {headerRight}
-    </div>
-    <div className="px-3 py-2.5 space-y-1.5 flex-1 overflow-y-auto max-h-[260px]">
-      {children}
-    </div>
-  </div>
-);
-
-const FullConfigPanel: React.FC<{
-  catalogMap: Record<string, KpiCatalogEntry>;
-  onOpenKpiSelector: () => void;
-  store: any;
-  axis: WidgetAxisConfig;
-  setAxis: (u: Partial<WidgetAxisConfig>) => void;
-  graph: WidgetGraphConfig;
-  setGraph: (u: Partial<WidgetGraphConfig>) => void;
-  thresholds: WidgetThreshold[];
-  onThresholdsChange: (t: WidgetThreshold[]) => void;
-  thresholdsEnabled: boolean;
-  onThresholdsEnabledChange: (v: boolean) => void;
-  onCollapse: () => void;
-}> = ({ catalogMap, onOpenKpiSelector, store, axis, setAxis, graph, setGraph, thresholds, onThresholdsChange, thresholdsEnabled, onThresholdsEnabledChange, onCollapse }) => {
-  const addThreshold = () => {
-    onThresholdsChange([
-      ...thresholds,
-      { id: crypto.randomUUID(), value: 0, label: 'Seuil', color: THRESHOLD_COLORS[thresholds.length % THRESHOLD_COLORS.length], style: 'dashed' },
-    ]);
-  };
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        {/* ── Card 1: KPI CONFIG ── */}
-        <CardSection
-          icon={BarChart3}
-          title="KPI Config"
-          headerRight={
-            <button onClick={onOpenKpiSelector} className="text-[10px] font-semibold text-primary hover:text-primary/80 flex items-center gap-0.5">
-              <Plus className="w-3 h-3" /> Ajouter
-            </button>
-          }
-        >
-          {store.selectedKpis.length === 0 ? (
-            <button
-              onClick={onOpenKpiSelector}
-              className="w-full py-4 rounded-lg border border-dashed border-border/50 hover:border-primary/40 transition-colors flex items-center justify-center gap-1.5 text-muted-foreground hover:text-primary text-[11px] font-medium"
-            >
-              <BarChart3 className="w-4 h-4" /> Sélectionner des KPIs
-            </button>
-          ) : (
-            store.selectedKpis.map(kpi => {
-              const cat = catalogMap[kpi.kpi_key];
-              const color = kpi.color || cat?.color || '#3b82f6';
-              const name = cat?.display_name || kpi.kpi_key;
-              return (
-                <div key={kpi.kpi_key} className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-muted/40 group">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-border/30" style={{ backgroundColor: color }} />
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-2" align="start">
-                      <div className="grid grid-cols-5 gap-1.5">
-                        {PRESET_COLORS.map(c => (
-                          <button key={c} onClick={() => store.updateKpi(kpi.kpi_key, { color: c })}
-                            className={`w-5 h-5 rounded-full hover:scale-125 transition-transform ${color === c ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-                            style={{ backgroundColor: c }} />
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <span className="text-[10px] font-medium text-foreground truncate flex-1">{name}</span>
-                  <button onClick={() => store.removeKpi(kpi.kpi_key)} className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-              );
-            })
-          )}
-        </CardSection>
-
-        {/* ── Card 2: AXES ── */}
-        <CardSection icon={Axis3D} title="Axes">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 block mb-1">Axe Y</span>
-          <FieldRow label="Titre">
-            <MiniInput value={axis.yTitle} placeholder="Auto" onChange={e => setAxis({ yTitle: e.target.value })} className="w-20" />
-          </FieldRow>
-          <FieldRow label="Min">
-            <MiniInput type="number" value={axis.yMin === 'auto' ? '' : String(axis.yMin)} placeholder="Auto"
-              onChange={e => setAxis({ yMin: e.target.value === '' ? 'auto' : Number(e.target.value) })} className="w-14" />
-          </FieldRow>
-          <FieldRow label="Max">
-            <MiniInput type="number" value={axis.yMax === 'auto' ? '' : String(axis.yMax)} placeholder="Auto"
-              onChange={e => setAxis({ yMax: e.target.value === '' ? 'auto' : Number(e.target.value) })} className="w-14" />
-          </FieldRow>
-          <FieldRow label="Unité">
-            <MiniSelect value={axis.yUnit}
-              options={[{ value: '', label: 'Auto' }, { value: '%', label: '%' }, { value: 'Mbps', label: 'Mbps' }, { value: 'ms', label: 'ms' }, { value: 'GB', label: 'GB' }]}
-              onChange={v => setAxis({ yUnit: v })} className="w-[68px]" />
-          </FieldRow>
-          <FieldRow label="Décimales">
-            <MiniSelect value={String(axis.yDecimals)}
-              options={[{ value: '0', label: '0' }, { value: '1', label: '1' }, { value: '2', label: '2' }, { value: '3', label: '3' }]}
-              onChange={v => setAxis({ yDecimals: Number(v) })} className="w-12" />
-          </FieldRow>
-          <FieldRow label="Inverser">
-            <Switch checked={axis.yInvert} onCheckedChange={v => setAxis({ yInvert: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-          </FieldRow>
-
-          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 block mt-2 mb-1">Axe X</span>
-          <FieldRow label="Format">
-            <MiniSelect value={axis.xFormat}
-              options={[{ value: 'short', label: 'Court' }, { value: 'full', label: 'Complet' }, { value: 'date', label: 'Date' }, { value: 'datetime', label: 'Date+H' }]}
-              onChange={v => setAxis({ xFormat: v as any })} className="w-[68px]" />
-          </FieldRow>
-          <FieldRow label="Grille V">
-            <Switch checked={axis.xShowGrid} onCheckedChange={v => setAxis({ xShowGrid: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-          </FieldRow>
-        </CardSection>
-
-        {/* ── Card 3: GRAPH ── */}
-        <CardSection icon={Settings2} title="Graph">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 block mb-1">Ligne</span>
-          <FieldRow label="Lissage">
-            <Switch checked={graph.smooth} onCheckedChange={v => setGraph({ smooth: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-          </FieldRow>
-          <FieldRow label="Épaisseur">
-            <MiniSelect value={String(graph.lineWidth)}
-              options={[{ value: '1', label: '1px' }, { value: '1.5', label: '1.5px' }, { value: '2', label: '2px' }, { value: '2.5', label: '2.5px' }, { value: '3', label: '3px' }]}
-              onChange={v => setGraph({ lineWidth: Number(v) })} className="w-[60px]" />
-          </FieldRow>
-          <FieldRow label="Symboles">
-            <Switch checked={graph.showSymbols} onCheckedChange={v => setGraph({ showSymbols: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-          </FieldRow>
-
-          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 block mt-2 mb-1">Grille</span>
-          <FieldRow label="Intensité">
-            <MiniSelect value={graph.gridIntensity}
-              options={[{ value: 'light', label: 'Light' }, { value: 'medium', label: 'Medium' }]}
-              onChange={v => setGraph({ gridIntensity: v as any })} className="w-[68px]" />
-          </FieldRow>
-          <FieldRow label="Grille V">
-            <Switch checked={graph.showVerticalGrid || false} onCheckedChange={v => setGraph({ showVerticalGrid: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-          </FieldRow>
-
-          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 block mt-2 mb-1">Fond</span>
-          <FieldRow label="Couleur">
-            <div className="flex items-center gap-1">
-              {['transparent', '#f8fafc', '#0f172a'].map(c => (
-                <button key={c}
-                  onClick={() => setGraph({ backgroundColor: c, transparentBg: c === 'transparent' })}
-                  className={`w-5 h-5 rounded-md border transition-all ${graph.backgroundColor === c ? 'border-primary ring-1 ring-primary/20 scale-110' : 'border-border/40'}`}
-                  style={{ backgroundColor: c === 'transparent' ? '#fff' : c }}
-                >
-                  {c === 'transparent' && <span className="text-[7px] text-muted-foreground font-bold">T</span>}
-                </button>
-              ))}
-            </div>
-          </FieldRow>
-
-          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 block mt-2 mb-1">Légende</span>
-          <FieldRow label="Afficher">
-            <Switch checked={graph.showLegend} onCheckedChange={v => setGraph({ showLegend: v })} className="h-4 w-8 data-[state=checked]:bg-primary" />
-          </FieldRow>
-        </CardSection>
-
-        {/* ── Card 4: SEUILS Y ── */}
-        <CardSection
-          icon={AlertTriangle}
-          title="Seuils Y"
-          headerRight={
-            <Switch checked={thresholdsEnabled} onCheckedChange={onThresholdsEnabledChange} className="h-4 w-8 data-[state=checked]:bg-primary" />
-          }
-        >
-          {thresholdsEnabled ? (
-            <>
-              {thresholds.map(t => (
-                <div key={t.id} className="flex items-center gap-1.5 group">
-                  <button className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                  <MiniInput type="number" value={t.value}
-                    onChange={e => onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, value: Number(e.target.value) } : th))} className="w-12" />
-                  <MiniInput value={t.label}
-                    onChange={e => onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, label: e.target.value } : th))} className="flex-1 min-w-0" />
-                  <button onClick={() => onThresholdsChange(thresholds.filter(th => th.id !== t.id))}
-                    className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-              ))}
-              <button onClick={addThreshold} className="text-[10px] text-primary hover:text-primary/80 flex items-center gap-1 mt-1">
-                <Plus className="w-2.5 h-2.5" /> Ajouter
-              </button>
-            </>
-          ) : (
-            <p className="text-[10px] text-muted-foreground/50 italic py-2">Activer pour configurer les seuils</p>
-          )}
-        </CardSection>
-      </div>
-
-      {/* Apply button */}
-      <div className="flex justify-end">
-        <button
-          onClick={onCollapse}
-          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold shadow-sm hover:bg-primary/90 transition-colors"
-        >
-          <Check className="w-3.5 h-3.5" /> Appliquer
-        </button>
-      </div>
-    </div>
-  );
-};
+export const AxesPopover: React.FC<{ axisConfig?: WidgetAxisConfig; onAxisConfigChange?: (c: WidgetAxisConfig) => void; children: React.ReactNode }> = ({ children }) => <>{children}</>;
 
 export default InlineGraphConfig;

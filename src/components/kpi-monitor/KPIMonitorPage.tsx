@@ -28,10 +28,10 @@ import { toast } from '@/hooks/use-toast';
 import DashboardTopBar from './DashboardTopBar';
 import DashboardConfigPanel from './DashboardConfigPanel';
 import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
-import InlineGraphConfig, { AxesPopover, type QuickSettingsSection } from './InlineGraphConfig';
+import { SeriesTable, RightConfigPanel, type QuickSettingsSection } from './InlineGraphConfig';
 import AIFloatingModal from './AIFloatingModal';
 import {
-  LayoutGrid, FileDown, Plus, Axis3D,
+  LayoutGrid, FileDown, Plus,
 } from 'lucide-react';
 
 const COLS = 12;
@@ -461,30 +461,15 @@ const KPIMonitorInner: React.FC = () => {
                     thresholds={widgetThresholds['__kpi_main__']}
                     thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
                     editMode={showInlineConfig}
-                    onToggleEditMode={() => { const next = !showInlineConfig; setShowInlineConfig(next); setQuickSection(next ? 'kpis' : null); }}
-                    activeSection={quickSection}
-                    onSetActiveSection={setQuickSection}
-                    axesPopover={
-                      <AxesPopover
-                        axisConfig={widgetAxisConfigs['__kpi_main__']}
-                        onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                      >
-                        <button
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
-                        >
-                          <Axis3D className="w-3 h-3" />
-                          <span className="hidden sm:inline">Axes</span>
-                        </button>
-                      </AxesPopover>
-                    }
-                    configPanel={
-                      <InlineGraphConfig
+                    onToggleEditMode={() => { setShowInlineConfig(!showInlineConfig); }}
+                    seriesTable={
+                      <SeriesTable
                         catalogMap={catalogMap}
                         onOpenKpiSelector={() => setShowKpiSelector(true)}
-                        onCollapse={() => { setShowInlineConfig(false); setQuickSection(null); }}
-                        activeSection={quickSection}
-                        onSetActiveSection={setQuickSection}
+                      />
+                    }
+                    configPanel={
+                      <RightConfigPanel
                         axisConfig={widgetAxisConfigs['__kpi_main__']}
                         onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
                         graphConfig={widgetGraphConfigs['__kpi_main__']}
