@@ -574,65 +574,65 @@ const KPIMonitorInner: React.FC = () => {
               </div>
 
               {/* Right Config Sidebar */}
-              <div className="w-[340px] shrink-0 h-full border-l border-border/50 bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
-                <div className="px-5 py-4 border-b border-border/50">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Settings2 className="w-3.5 h-3.5 text-primary" />
+              {editingWidget?.kind === 'chart' ? (
+                /* Chart widgets use ChartConfigPanel which has its own full sidebar wrapper */
+                <ChartConfigPanel
+                  config={editingWidget.config as ChartConfig}
+                  onChange={cfg => updateChartConfig(editingWidgetId!, cfg)}
+                  onClose={closeEdit}
+                />
+              ) : (
+                <div className="w-[340px] shrink-0 h-full border-l border-border/50 bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+                  <div className="px-5 py-4 border-b border-border/50">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Settings2 className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
                       </div>
-                      <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
+                      <button onClick={closeEdit}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                        <X className="w-4 h-4 text-muted-foreground" />
+                      </button>
                     </div>
+                    <p className="text-sm font-semibold text-foreground truncate">{monoTitle}</p>
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    <HorizontalConfigPanel
+                      catalogMap={catalogMap}
+                      onOpenKpiSelector={() => setShowKpiSelector(true)}
+                      axisConfig={widgetAxisConfigs[isEditingMain ? '__kpi_main__' : editingWidgetId!]}
+                      onAxisConfigChange={c => {
+                        const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
+                        setWidgetAxisConfigs(prev => ({ ...prev, [key]: c }));
+                      }}
+                      graphConfig={widgetGraphConfigs[isEditingMain ? '__kpi_main__' : editingWidgetId!]}
+                      onGraphConfigChange={c => {
+                        const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
+                        setWidgetGraphConfigs(prev => ({ ...prev, [key]: c }));
+                      }}
+                      thresholds={widgetThresholds[isEditingMain ? '__kpi_main__' : editingWidgetId!] || []}
+                      onThresholdsChange={t => {
+                        const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
+                        setWidgetThresholds(prev => ({ ...prev, [key]: t }));
+                      }}
+                      thresholdsEnabled={widgetThresholdsEnabled[isEditingMain ? '__kpi_main__' : editingWidgetId!] || false}
+                      onThresholdsEnabledChange={v => {
+                        const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
+                        setWidgetThresholdsEnabled(prev => ({ ...prev, [key]: v }));
+                      }}
+                    />
+                  </div>
+                  {/* Sticky Confirmer button */}
+                  <div className="px-4 py-3 border-t border-border/40 shrink-0">
                     <button onClick={closeEdit}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
-                      <X className="w-4 h-4 text-muted-foreground" />
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm">
+                      <Check className="w-3.5 h-3.5" /> Confirmer
                     </button>
                   </div>
-                  <p className="text-sm font-semibold text-foreground truncate">{monoTitle}</p>
                 </div>
-                <div className="flex-1 overflow-y-auto">
-                  {isEditingMain ? (
-                    <HorizontalConfigPanel
-                      catalogMap={catalogMap}
-                      onOpenKpiSelector={() => setShowKpiSelector(true)}
-                      axisConfig={widgetAxisConfigs['__kpi_main__']}
-                      onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                      graphConfig={widgetGraphConfigs['__kpi_main__']}
-                      onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                      thresholds={widgetThresholds['__kpi_main__'] || []}
-                      onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, '__kpi_main__': t }))}
-                      thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__'] || false}
-                      onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, '__kpi_main__': v }))}
-                    />
-                  ) : editingWidget?.kind === 'chart' ? (
-                    <ChartConfigPanel
-                      config={editingWidget.config as ChartConfig}
-                      onChange={cfg => updateChartConfig(editingWidgetId!, cfg)}
-                      onClose={closeEdit}
-                    />
-                  ) : (
-                    <HorizontalConfigPanel
-                      catalogMap={catalogMap}
-                      onOpenKpiSelector={() => setShowKpiSelector(true)}
-                      axisConfig={widgetAxisConfigs[editingWidgetId!]}
-                      onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [editingWidgetId!]: c }))}
-                      graphConfig={widgetGraphConfigs[editingWidgetId!]}
-                      onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [editingWidgetId!]: c }))}
-                      thresholds={widgetThresholds[editingWidgetId!] || []}
-                      onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [editingWidgetId!]: t }))}
-                      thresholdsEnabled={widgetThresholdsEnabled[editingWidgetId!] || false}
-                      onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [editingWidgetId!]: v }))}
-                    />
-                  )}
-                </div>
-                {/* Sticky Confirmer button */}
-                <div className="px-4 py-3 border-t border-border/40 shrink-0">
-                  <button onClick={closeEdit}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm">
-                    <Check className="w-3.5 h-3.5" /> Confirmer
-                  </button>
-                </div>
-              </div>
+              )}
             </>
           );
         })()}
