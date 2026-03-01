@@ -351,7 +351,7 @@ const KPIMonitorInner: React.FC = () => {
   const renderWidget = (w: WidgetItem) => {
     const wId = getId(w);
     const isSelected = store.selectedWidgetId === wId;
-    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { setEditingId(wId); setShowAI(false); }} onDuplicate={() => duplicateWidget(wId)} onDelete={() => deleteWidget(wId)} />;
+    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { store.setSelectedWidgetId(wId); setEditingId(null); setShowAI(false); }} onDuplicate={() => duplicateWidget(wId)} onDelete={() => deleteWidget(wId)} />;
     if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={cfg => updateMapConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
     if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={cfg => updateImageConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
     if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
@@ -533,56 +533,57 @@ const KPIMonitorInner: React.FC = () => {
           </div>
         )}
 
-        {/* Right: Config Sidebar — BI widget (non-main) */}
-        {store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__' && !editingChart && (
-          <div className="w-[340px] shrink-0 h-full border-l border-border/50 bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
-            <div className="px-5 py-4 border-b border-border/50">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Settings2 className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
-                </div>
-                <button onClick={() => store.setSelectedWidgetId(null)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </div>
-              <p className="text-sm font-semibold text-foreground truncate">
-                {(() => {
-                  const w = widgets.find(w => getId(w) === store.selectedWidgetId);
-                  if (!w) return 'Widget';
-                  if (w.kind === 'chart') return (w.config as ChartConfig).title || 'Chart';
-                  return store.selectedWidgetId || 'Widget';
-                })()}
-              </p>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <HorizontalConfigPanel
-                catalogMap={catalogMap}
-                onOpenKpiSelector={() => setShowKpiSelector(true)}
-                axisConfig={widgetAxisConfigs[store.selectedWidgetId]}
-                onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
-                graphConfig={widgetGraphConfigs[store.selectedWidgetId]}
-                onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
-                thresholds={widgetThresholds[store.selectedWidgetId] || []}
-                onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [store.selectedWidgetId!]: t }))}
-                thresholdsEnabled={widgetThresholdsEnabled[store.selectedWidgetId] || false}
-                onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId!]: v }))}
-              />
-            </div>
-          </div>
-        )}
+        {/* Right: Config Sidebar — BI widget selected (use ChartConfigPanel for charts, HorizontalConfigPanel for others) */}
+        {store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__' && (() => {
+          const selectedWidget = widgets.find(w => getId(w) === store.selectedWidgetId);
+          if (!selectedWidget) return null;
 
-        {/* Right: BI Chart Config Sidebar (full config panel) */}
-        {editingChart && (
-          <ChartConfigPanel
-            config={editingChart.config as ChartConfig}
-            onChange={cfg => updateChartConfig(editingId!, cfg)}
-            onClose={() => setEditingId(null)}
-          />
-        )}
+          // For chart widgets, show the full BI ChartConfigPanel
+          if (selectedWidget.kind === 'chart') {
+            return (
+              <ChartConfigPanel
+                config={selectedWidget.config as ChartConfig}
+                onChange={cfg => updateChartConfig(store.selectedWidgetId!, cfg)}
+                onClose={() => store.setSelectedWidgetId(null)}
+              />
+            );
+          }
+
+          // For other widgets (text, map, image, table), show KPI-style config
+          return (
+            <div className="w-[340px] shrink-0 h-full border-l border-border/50 bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+              <div className="px-5 py-4 border-b border-border/50">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Settings2 className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
+                  </div>
+                  <button onClick={() => store.setSelectedWidgetId(null)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+                <p className="text-sm font-semibold text-foreground truncate">{store.selectedWidgetId}</p>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <HorizontalConfigPanel
+                  catalogMap={catalogMap}
+                  onOpenKpiSelector={() => setShowKpiSelector(true)}
+                  axisConfig={widgetAxisConfigs[store.selectedWidgetId]}
+                  onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
+                  graphConfig={widgetGraphConfigs[store.selectedWidgetId]}
+                  onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
+                  thresholds={widgetThresholds[store.selectedWidgetId] || []}
+                  onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [store.selectedWidgetId!]: t }))}
+                  thresholdsEnabled={widgetThresholdsEnabled[store.selectedWidgetId] || false}
+                  onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId!]: v }))}
+                />
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Side panels (dashboard list, CSV) ── */}
