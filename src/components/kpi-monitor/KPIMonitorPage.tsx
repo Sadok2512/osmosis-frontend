@@ -416,124 +416,33 @@ const KPIMonitorInner: React.FC = () => {
       {/* GraphSettingsPanel removed — config is now in the right sidebar */}
 
       {/* ── Dashboard Canvas + Right Config Sidebar ── */}
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      {(() => {
+        const isEditingMain = store.activeEditingWidgetId === '__kpi_main__';
+        const editingWidgetId = store.activeEditingWidgetId && store.activeEditingWidgetId !== '__kpi_main__' ? store.activeEditingWidgetId : null;
+        const editingWidget = editingWidgetId ? widgets.find(w => getId(w) === editingWidgetId) : null;
+        const isMonoView = !!(isEditingMain || editingWidget);
 
-        {/* ════════════════════════════════════════════════════
-            MONO-GRAPH EDIT VIEW — shown when editing a widget
-           ════════════════════════════════════════════════════ */}
-        {(() => {
-          const isEditingMain = store.activeEditingWidgetId === '__kpi_main__';
-          const editingWidgetId = store.activeEditingWidgetId && store.activeEditingWidgetId !== '__kpi_main__' ? store.activeEditingWidgetId : null;
-          const editingWidget = editingWidgetId ? widgets.find(w => getId(w) === editingWidgetId) : null;
-          const isMonoView = isEditingMain || editingWidget;
+        const closeEdit = () => {
+          store.setActiveEditingWidgetId(null);
+          store.setSelectedWidgetId(null);
+          toast({ title: 'Configuration appliquée', description: 'Retour au dashboard.' });
+        };
 
-          if (!isMonoView) {
-            // ── MULTI-GRAPH DASHBOARD VIEW ──
-            return (
-              <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4" style={canvasBg ? { backgroundColor: canvasBg } : undefined}>
-                {store.selectedKpis.length > 0 && (
-                  <MainChartResizable
-                    isSelected={store.selectedWidgetId === '__kpi_main__'}
-                    onSelect={() => {}}
-                  >
-                    {(chartHeight) => (
-                      <>
-                        {store.viewMode === 'graph' && (
-                          <EChartsTimeSeries
-                            data={tsResponse.data}
-                            catalogMap={catalogMap}
-                            title={store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
-                            badge={catalogSource === 'db' ? 'DB' : 'Static'}
-                            granularity={tsResponse.granularity_used}
-                            height={chartHeight}
-                            onRefresh={() => {}}
-                            onDuplicate={() => {}}
-                            onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
-                            graphConfig={widgetGraphConfigs['__kpi_main__']}
-                            axisConfig={widgetAxisConfigs['__kpi_main__']}
-                            thresholds={widgetThresholds['__kpi_main__']}
-                            thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
-                            editMode={false}
-                            onToggleEditMode={() => store.setActiveEditingWidgetId('__kpi_main__')}
-                            onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                            onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                          />
-                        )}
-                        {store.viewMode === 'table' && <KPITableView rows={summaryRows} />}
-                      </>
-                    )}
-                  </MainChartResizable>
-                )}
+        const monoTitle = isEditingMain
+          ? store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')
+          : editingWidget?.kind === 'chart'
+            ? (editingWidget.config as ChartConfig).title || 'Chart'
+            : editingWidgetId || 'Widget';
 
-                {widgets.length === 0 && store.selectedKpis.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                      <LayoutGrid className="w-8 h-8 text-primary" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">Sélectionnez des KPIs ou cliquez <strong>Chart</strong>, <strong>Map</strong> ou <strong>Text</strong> pour commencer</p>
-                  </div>
-                ) : widgets.length > 0 && layoutMode === 'grid' ? (
-                  <GridLayout
-                    className="layout"
-                    layout={layout}
-                    cols={COLS}
-                    rowHeight={ROW_HEIGHT}
-                    width={containerWidth}
-                    onLayoutChange={onLayoutChange}
-                    draggableHandle=".drag-handle"
-                    compactType="vertical"
-                    isResizable={editMode}
-                    isDraggable={editMode}
-                    margin={[12, 12]}
-                  >
-                    {widgets.map(w => (
-                      <div key={getId(w)}
-                        onClickCapture={() => {
-                          const wId = getId(w);
-                          store.setSelectedWidgetId(store.selectedWidgetId === wId ? null : wId);
-                        }}
-                        className={`cursor-pointer transition-all duration-200 rounded-xl ${
-                          store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
-                        }`}
-                      >{renderWidget(w)}</div>
-                    ))}
-                  </GridLayout>
-                ) : widgets.length > 0 ? (
-                  <FreeLayoutCanvas items={widgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
-                    {widgets.map(w => (
-                      <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
-                        store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
-                      }`}
-                        onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
-                      >{renderWidget(w)}</div>
-                    ))}
-                  </FreeLayoutCanvas>
-                ) : null}
-              </div>
-            );
-          }
+        const configKey = isEditingMain ? '__kpi_main__' : editingWidgetId!;
 
-          // ── MONO-GRAPH EDIT VIEW ──
-          const closeEdit = () => {
-            store.setActiveEditingWidgetId(null);
-            store.setSelectedWidgetId(null);
-            toast({ title: 'Configuration appliquée', description: 'Retour au dashboard.' });
-            // Force all ECharts instances to recalculate size after sidebar disappears
-            setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
-            setTimeout(() => window.dispatchEvent(new Event('resize')), 200);
-          };
+        return (
+          <div className="flex-1 min-h-0 flex overflow-hidden">
+            {/* ── Main content area ── */}
+            <div className="flex-1 overflow-auto flex flex-col min-w-0">
 
-          const monoTitle = isEditingMain
-            ? store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')
-            : editingWidget?.kind === 'chart'
-              ? (editingWidget.config as ChartConfig).title || 'Chart'
-              : editingWidgetId || 'Widget';
-
-          return (
-            <>
-              {/* Mono chart area */}
-               <div className="flex-1 overflow-auto flex flex-col">
-                {/* Mono header bar */}
+              {/* Mono header bar — only visible during edit */}
+              {isMonoView && (
                 <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
                   <button onClick={closeEdit}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
@@ -542,43 +451,110 @@ const KPIMonitorInner: React.FC = () => {
                   <div className="h-4 w-px bg-border/50" />
                   <span className="text-[13px] font-semibold text-foreground truncate">{monoTitle}</span>
                 </div>
+              )}
 
-                {/* The single graph rendered large */}
-                <div className="flex-1 p-4" style={canvasBg ? { backgroundColor: canvasBg } : undefined}>
-                  {isEditingMain ? (
-                    <div className="h-full">
-                      {store.viewMode === 'graph' && (
-                        <EChartsTimeSeries
-                          data={tsResponse.data}
-                          catalogMap={catalogMap}
-                          title={monoTitle}
-                          badge={catalogSource === 'db' ? 'DB' : 'Static'}
-                          granularity={tsResponse.granularity_used}
-                          height={600}
-                          onRefresh={() => {}}
-                          onDuplicate={() => {}}
-                          onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
-                          graphConfig={widgetGraphConfigs['__kpi_main__']}
-                          axisConfig={widgetAxisConfigs['__kpi_main__']}
-                          thresholds={widgetThresholds['__kpi_main__']}
-                          thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
-                          editMode={true}
-                          onToggleEditMode={() => {}}
-                          onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                          onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                        />
-                      )}
-                      {store.viewMode === 'table' && <KPITableView rows={summaryRows} />}
-                    </div>
-                  ) : editingWidget ? (
-                    <div className="h-full min-h-[500px]">
-                      {renderWidget(editingWidget)}
-                    </div>
-                  ) : null}
-                </div>
+              {/* Canvas area */}
+              <div
+                ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }}
+                className="flex-1 overflow-auto p-4"
+                style={canvasBg ? { backgroundColor: canvasBg } : undefined}
+              >
+                {/* ── Main KPI Chart (always mounted — never destroyed on view switch) ── */}
+                {store.selectedKpis.length > 0 && store.viewMode === 'graph' && (isEditingMain || !isMonoView) && (
+                  <MainChartResizable
+                    isSelected={store.selectedWidgetId === '__kpi_main__'}
+                    onSelect={() => {}}
+                  >
+                    {(chartHeight) => (
+                      <EChartsTimeSeries
+                        data={tsResponse.data}
+                        catalogMap={catalogMap}
+                        title={isMonoView ? monoTitle : store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
+                        badge={catalogSource === 'db' ? 'DB' : 'Static'}
+                        granularity={tsResponse.granularity_used}
+                        height={isMonoView ? 600 : chartHeight}
+                        onRefresh={() => {}}
+                        onDuplicate={() => {}}
+                        onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
+                        graphConfig={widgetGraphConfigs['__kpi_main__']}
+                        axisConfig={widgetAxisConfigs['__kpi_main__']}
+                        thresholds={widgetThresholds['__kpi_main__']}
+                        thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
+                        editMode={isEditingMain}
+                        onToggleEditMode={() => store.setActiveEditingWidgetId('__kpi_main__')}
+                        onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                        onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                      />
+                    )}
+                  </MainChartResizable>
+                )}
+
+                {/* Table view */}
+                {store.selectedKpis.length > 0 && store.viewMode === 'table' && !isMonoView && (
+                  <KPITableView rows={summaryRows} />
+                )}
+
+                {/* Editing a BI widget (not main chart) */}
+                {editingWidget && (
+                  <div className="h-full min-h-[500px]">
+                    {renderWidget(editingWidget)}
+                  </div>
+                )}
+
+                {/* ── Dashboard grid/free widgets (hidden during mono edit) ── */}
+                {!isMonoView && (
+                  <>
+                    {widgets.length === 0 && store.selectedKpis.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
+                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                          <LayoutGrid className="w-8 h-8 text-primary" />
+                        </div>
+                        <p className="text-sm text-muted-foreground">Sélectionnez des KPIs ou cliquez <strong>Chart</strong>, <strong>Map</strong> ou <strong>Text</strong> pour commencer</p>
+                      </div>
+                    ) : widgets.length > 0 && layoutMode === 'grid' ? (
+                      <GridLayout
+                        className="layout"
+                        layout={layout}
+                        cols={COLS}
+                        rowHeight={ROW_HEIGHT}
+                        width={containerWidth}
+                        onLayoutChange={onLayoutChange}
+                        draggableHandle=".drag-handle"
+                        compactType="vertical"
+                        isResizable={editMode}
+                        isDraggable={editMode}
+                        margin={[12, 12]}
+                      >
+                        {widgets.map(w => (
+                          <div key={getId(w)}
+                            onClickCapture={() => {
+                              const wId = getId(w);
+                              store.setSelectedWidgetId(store.selectedWidgetId === wId ? null : wId);
+                            }}
+                            className={`cursor-pointer transition-all duration-200 rounded-xl ${
+                              store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                            }`}
+                          >{renderWidget(w)}</div>
+                        ))}
+                      </GridLayout>
+                    ) : widgets.length > 0 ? (
+                      <FreeLayoutCanvas items={widgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
+                        {widgets.map(w => (
+                          <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
+                            store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                          }`}
+                            onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
+                          >{renderWidget(w)}</div>
+                        ))}
+                      </FreeLayoutCanvas>
+                    ) : null}
+                  </>
+                )}
               </div>
+            </div>
 
-              {/* Right Config Sidebar — always use unified KPI Monitor panel */}
+            {/* ── Right Config Sidebar — only visible during edit ── */}
+            {isMonoView && (
               <HorizontalConfigPanel
                 catalogMap={catalogMap}
                 onOpenKpiSelector={() => setShowKpiSelector(true)}
@@ -588,31 +564,19 @@ const KPIMonitorInner: React.FC = () => {
                   toast({ title: 'Configuration enregistrée', description: 'Les paramètres du widget ont été sauvegardés.' });
                   closeEdit();
                 }}
-                axisConfig={widgetAxisConfigs[isEditingMain ? '__kpi_main__' : editingWidgetId!]}
-                onAxisConfigChange={c => {
-                  const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
-                  setWidgetAxisConfigs(prev => ({ ...prev, [key]: c }));
-                }}
-                graphConfig={widgetGraphConfigs[isEditingMain ? '__kpi_main__' : editingWidgetId!]}
-                onGraphConfigChange={c => {
-                  const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
-                  setWidgetGraphConfigs(prev => ({ ...prev, [key]: c }));
-                }}
-                thresholds={widgetThresholds[isEditingMain ? '__kpi_main__' : editingWidgetId!] || []}
-                onThresholdsChange={t => {
-                  const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
-                  setWidgetThresholds(prev => ({ ...prev, [key]: t }));
-                }}
-                thresholdsEnabled={widgetThresholdsEnabled[isEditingMain ? '__kpi_main__' : editingWidgetId!] || false}
-                onThresholdsEnabledChange={v => {
-                  const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
-                  setWidgetThresholdsEnabled(prev => ({ ...prev, [key]: v }));
-                }}
+                axisConfig={widgetAxisConfigs[configKey]}
+                onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [configKey]: c }))}
+                graphConfig={widgetGraphConfigs[configKey]}
+                onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [configKey]: c }))}
+                thresholds={widgetThresholds[configKey] || []}
+                onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [configKey]: t }))}
+                thresholdsEnabled={widgetThresholdsEnabled[configKey] || false}
+                onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [configKey]: v }))}
               />
-            </>
-          );
-        })()}
-      </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Side panels (dashboard list, CSV) ── */}
       {dm.showList && (
