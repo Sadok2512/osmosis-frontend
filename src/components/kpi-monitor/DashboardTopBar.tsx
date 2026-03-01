@@ -212,32 +212,14 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
 
   return (
     <div className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-md">
-      {/* ── Row 1: Filter bar ── */}
-      <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/20 min-h-[36px] flex-wrap">
+      {/* ── Row 1: Minimal filter trigger ── */}
+      <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/20 min-h-[36px]">
         <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
           <Filter className="w-3.5 h-3.5" />
         </div>
         <AddFilterButton />
-        {globalFilters.map(f => (
-          <FilterChip key={f.id} filter={f} allFilters={globalFilters} />
-        ))}
-        {crossFilter && (
-          <button onClick={() => setCrossFilter(null)}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-primary/30 bg-primary/5 text-[11px] font-medium text-primary"
-          >
-            🔗 {crossFilter.dimension}: {crossFilter.value}
-            <X className="w-3 h-3" />
-          </button>
-        )}
-        {hasActiveFilters && (
-          <>
-            <span className="text-[10px] text-muted-foreground/60 ml-auto">
-              {activeCount} filtre(s) actifs
-            </span>
-            <button onClick={clearGlobalFilters}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors font-medium shrink-0"
-            ><RotateCcw className="w-3 h-3" /> Reset</button>
-          </>
+        {activeCount > 0 && (
+          <span className="text-[10px] text-muted-foreground/50 font-medium">{activeCount} filtre(s) actifs</span>
         )}
       </div>
 
