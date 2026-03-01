@@ -411,10 +411,7 @@ const KPIMonitorInner: React.FC = () => {
         )}
       </div>
 
-      {/* ── Side panels (chart config, dashboard list, CSV) ── */}
-      {editingChart && editingChart.kind === 'chart' && (
-        <ChartConfigPanel config={editingChart.config as ChartConfig} onChange={cfg => updateChartConfig(getId(editingChart), cfg)} onClose={() => setEditingId(null)} />
-      )}
+      {/* ── Side panels (dashboard list, CSV) ── */}
       {dm.showList && (
         <DashboardListPanel
           dashboards={dm.savedDashboards}
