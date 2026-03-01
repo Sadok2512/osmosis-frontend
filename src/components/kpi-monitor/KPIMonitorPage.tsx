@@ -407,7 +407,7 @@ const KPIMonitorInner: React.FC = () => {
       {/* GraphSettingsPanel removed — config is now in the right sidebar */}
 
       {/* ── Dashboard Canvas + Right Config Sidebar ── */}
-      <div className="flex-1 min-h-0 flex overflow-hidden" style={canvasBg ? { backgroundColor: canvasBg } : undefined}>
+      <div className="flex-1 min-h-0 flex overflow-hidden">
 
         {/* ════════════════════════════════════════════════════
             MONO-GRAPH EDIT VIEW — shown when editing a widget
@@ -421,7 +421,7 @@ const KPIMonitorInner: React.FC = () => {
           if (!isMonoView) {
             // ── MULTI-GRAPH DASHBOARD VIEW ──
             return (
-              <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
+              <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4" style={canvasBg ? { backgroundColor: canvasBg } : undefined}>
                 {store.selectedKpis.length > 0 && (
                   <MainChartResizable
                     isSelected={store.selectedWidgetId === '__kpi_main__'}
@@ -520,7 +520,7 @@ const KPIMonitorInner: React.FC = () => {
           return (
             <>
               {/* Mono chart area */}
-              <div className="flex-1 overflow-auto flex flex-col">
+              <div className="flex-1 overflow-auto flex flex-col" style={canvasBg ? { backgroundColor: canvasBg } : undefined}>
                 {/* Mono header bar */}
                 <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
                   <button onClick={closeEdit}
