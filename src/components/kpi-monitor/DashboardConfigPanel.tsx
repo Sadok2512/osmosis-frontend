@@ -258,26 +258,6 @@ const DashboardConfigPanel: React.FC<DashboardConfigPanelProps> = ({
                   </div>
                 )}
               </div>
-
-              {/* ── CATALOGUE ── */}
-              <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 w-[160px] shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <Database className="w-3 h-3 text-primary" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Catalogue</span>
-                </div>
-                <Collapsible open={showCatalog} onOpenChange={setShowCatalog}>
-                  <CollapsibleTrigger className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors">
-                    <Database className="w-2.5 h-2.5" /> Import / Gestion
-                    {showCatalog ? <ChevronUp className="w-2 h-2" /> : <ChevronDown className="w-2 h-2" />}
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="pt-1.5">
-                    <KPICatalogImport />
-                    <Button variant="outline" size="sm" className="w-full mt-1 text-[8px] h-5 gap-1" onClick={onRefreshCatalog}>
-                      Recharger
-                    </Button>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
             </div>
           </div>
         </CollapsibleContent>
