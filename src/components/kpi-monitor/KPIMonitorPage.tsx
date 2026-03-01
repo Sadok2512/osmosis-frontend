@@ -422,8 +422,8 @@ const KPIMonitorInner: React.FC = () => {
             onLayoutChange={onLayoutChange}
             draggableHandle=".drag-handle"
             compactType="vertical"
-            isResizable
-            isDraggable
+            isResizable={editMode}
+            isDraggable={editMode}
             margin={[12, 12]}
           >
             {widgets.map(w => (
