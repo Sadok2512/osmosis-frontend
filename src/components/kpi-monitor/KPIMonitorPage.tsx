@@ -351,7 +351,7 @@ const KPIMonitorInner: React.FC = () => {
   const renderWidget = (w: WidgetItem) => {
     const wId = getId(w);
     const isSelected = store.selectedWidgetId === wId;
-    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { store.setSelectedWidgetId(wId); setEditingId(null); setShowAI(false); }} onDuplicate={() => duplicateWidget(wId)} onDelete={() => deleteWidget(wId)} />;
+    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { store.setActiveEditingWidgetId(wId); setShowAI(false); }} onDuplicate={() => duplicateWidget(wId)} onDelete={() => deleteWidget(wId)} />;
     if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={cfg => updateMapConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
     if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={cfg => updateImageConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
     if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
@@ -416,7 +416,7 @@ const KPIMonitorInner: React.FC = () => {
            ════════════════════════════════════════════════════ */}
         {(() => {
           const isEditingMain = store.activeEditingWidgetId === '__kpi_main__';
-          const editingWidgetId = store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__' ? store.selectedWidgetId : null;
+          const editingWidgetId = store.activeEditingWidgetId && store.activeEditingWidgetId !== '__kpi_main__' ? store.activeEditingWidgetId : null;
           const editingWidget = editingWidgetId ? widgets.find(w => getId(w) === editingWidgetId) : null;
           const isMonoView = isEditingMain || editingWidget;
 
