@@ -5,6 +5,7 @@ import { KPI_CATALOG_MAP } from './kpiCatalog';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import PremiumGraphCard from './PremiumGraphCard';
 import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
+import type { QuickSettingsSection } from './InlineGraphConfig';
 
 interface Props {
   data: KpiTimeSeriesPoint[];
@@ -24,11 +25,13 @@ interface Props {
   axisConfig?: WidgetAxisConfig;
   thresholds?: WidgetThreshold[];
   thresholdsEnabled?: boolean;
-  /** Inline config props passed to PremiumGraphCard */
-  showEditButton?: boolean;
-  isConfigOpen?: boolean;
-  onToggleConfig?: () => void;
+  /** Compact edit mode props */
+  editMode?: boolean;
+  onToggleEditMode?: () => void;
+  activeSection?: QuickSettingsSection;
+  onSetActiveSection?: (s: QuickSettingsSection) => void;
   configPanel?: React.ReactNode;
+  axesPopover?: React.ReactNode;
 }
 
 /* ── Color palette (enterprise neutral + accent) ── */
@@ -73,7 +76,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
   title, badge, granularity, onOpenSettings, onExportPNG: externalExportPNG,
   onExportCSV, onRefresh, onExpand, onDuplicate, onDelete,
   graphConfig: gc, axisConfig: ac, thresholds: thresholdList, thresholdsEnabled,
-  showEditButton, isConfigOpen, onToggleConfig, configPanel,
+  editMode, onToggleEditMode, activeSection, onSetActiveSection, configPanel, axesPopover,
 }) => {
   const { selectedKpis } = useKpiMonitorStore();
   const chartRef = useRef<ReactECharts>(null);
@@ -306,17 +309,18 @@ const EChartsTimeSeries: React.FC<Props> = ({
       granularity={granularity}
       seriesCount={totalSeries}
       lastUpdated={now}
-      onOpenSettings={onOpenSettings}
       onExportPNG={externalExportPNG || handleExportPNG}
       onExportCSV={onExportCSV}
       onRefresh={onRefresh}
       onExpand={onExpand}
       onDuplicate={onDuplicate}
       onDelete={onDelete}
-      showEditButton={showEditButton}
-      isConfigOpen={isConfigOpen}
-      onToggleConfig={onToggleConfig}
+      editMode={editMode}
+      onToggleEditMode={onToggleEditMode}
+      activeSection={activeSection}
+      onSetActiveSection={onSetActiveSection}
       configPanel={configPanel}
+      axesPopover={axesPopover}
     >
       {data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3">
