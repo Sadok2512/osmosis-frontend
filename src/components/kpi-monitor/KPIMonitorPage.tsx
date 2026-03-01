@@ -28,10 +28,10 @@ import { toast } from '@/hooks/use-toast';
 import DashboardTopBar from './DashboardTopBar';
 import DashboardConfigPanel from './DashboardConfigPanel';
 import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
-import InlineGraphConfig from './InlineGraphConfig';
+import InlineGraphConfig, { AxesPopover, type QuickSettingsSection } from './InlineGraphConfig';
 import AIFloatingModal from './AIFloatingModal';
 import {
-  LayoutGrid, FileDown, Plus,
+  LayoutGrid, FileDown, Plus, Axis3D,
 } from 'lucide-react';
 
 const COLS = 12;
@@ -178,6 +178,7 @@ const KPIMonitorInner: React.FC = () => {
   const [showKpiSelector, setShowKpiSelector] = useState(false);
   const [editMode, setEditMode] = useState(true);
   const [showInlineConfig, setShowInlineConfig] = useState(false);
+  const [quickSection, setQuickSection] = useState<QuickSettingsSection>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [widgetThresholds, setWidgetThresholds] = useState<Record<string, WidgetThreshold[]>>({});
   const [widgetThresholdsEnabled, setWidgetThresholdsEnabled] = useState<Record<string, boolean>>({});
@@ -452,7 +453,6 @@ const KPIMonitorInner: React.FC = () => {
                     badge={catalogSource === 'db' ? 'DB' : 'Static'}
                     granularity={tsResponse.granularity_used}
                     height={chartHeight}
-                    onOpenSettings={() => setShowInlineConfig(!showInlineConfig)}
                     onRefresh={() => { /* trigger re-render */ }}
                     onDuplicate={() => { /* main chart duplicate not applicable */ }}
                     onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
@@ -460,16 +460,30 @@ const KPIMonitorInner: React.FC = () => {
                     axisConfig={widgetAxisConfigs['__kpi_main__']}
                     thresholds={widgetThresholds['__kpi_main__']}
                     thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
-                    showEditButton
-                    isConfigOpen={showInlineConfig}
-                    onToggleConfig={() => setShowInlineConfig(!showInlineConfig)}
+                    editMode={showInlineConfig}
+                    onToggleEditMode={() => { setShowInlineConfig(!showInlineConfig); if (showInlineConfig) setQuickSection(null); }}
+                    activeSection={quickSection}
+                    onSetActiveSection={setQuickSection}
+                    axesPopover={
+                      <AxesPopover
+                        axisConfig={widgetAxisConfigs['__kpi_main__']}
+                        onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                      >
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+                        >
+                          <Axis3D className="w-3 h-3" />
+                          <span className="hidden sm:inline">Axes</span>
+                        </button>
+                      </AxesPopover>
+                    }
                     configPanel={
                       <InlineGraphConfig
                         catalogMap={catalogMap}
                         onOpenKpiSelector={() => setShowKpiSelector(true)}
-                        onCollapse={() => setShowInlineConfig(false)}
-                        axisConfig={widgetAxisConfigs['__kpi_main__']}
-                        onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                        onCollapse={() => { setShowInlineConfig(false); setQuickSection(null); }}
+                        activeSection={quickSection}
                         graphConfig={widgetGraphConfigs['__kpi_main__']}
                         onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
                         thresholds={widgetThresholds['__kpi_main__'] || []}
