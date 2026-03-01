@@ -248,14 +248,23 @@ const KPIMonitorInner: React.FC = () => {
     if (name) toast({ title: `Dashboard "${name}" saved`, description: 'Sauvegardé avec succès.' });
   };
 
+  const containerNodeRef = React.useRef<HTMLDivElement | null>(null);
   const containerRef = useCallback((node: HTMLDivElement | null) => {
+    containerNodeRef.current = node;
+    if (!node) return;
+    setContainerWidth(node.getBoundingClientRect().width);
+  }, []);
+
+  // Keep containerWidth in sync via ResizeObserver
+  React.useEffect(() => {
+    const node = containerNodeRef.current;
     if (!node) return;
     const ro = new ResizeObserver(entries => {
       for (const entry of entries) setContainerWidth(entry.contentRect.width);
     });
     ro.observe(node);
     return () => ro.disconnect();
-  }, []);
+  });
 
   const getId = (w: WidgetItem) => w?.config?.id ?? 'unknown';
   const validWidgets = widgets.filter(w => w?.config?.id && w?.layout);
