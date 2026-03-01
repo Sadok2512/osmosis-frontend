@@ -333,17 +333,19 @@ const KPIMonitorInner: React.FC = () => {
         onToggleEditMode={() => setEditMode(!editMode)}
       />
 
-      {/* ── Dashboard Config Panel (global) ── */}
-      <DashboardConfigPanel
-        seriesInfo={{
-          total: tsResponse.total_series,
-          granularity: tsResponse.granularity_used,
-          truncated: tsResponse.truncated,
-        }}
-      />
+      {/* ── Dashboard Config Panel (global) — only in edit mode ── */}
+      {editMode && (
+        <DashboardConfigPanel
+          seriesInfo={{
+            total: tsResponse.total_series,
+            granularity: tsResponse.granularity_used,
+            truncated: tsResponse.truncated,
+          }}
+        />
+      )}
 
-      {/* ── Graph Settings Panel (widget-level, shows for main KPI chart OR selected widget) ── */}
-      {(store.selectedWidgetId === '__kpi_main__' || store.selectedWidgetId) && (
+      {/* ── Graph Settings Panel (widget-level) — only in edit mode ── */}
+      {editMode && (store.selectedWidgetId === '__kpi_main__' || store.selectedWidgetId) && (
         <GraphSettingsPanel
           widgetId={store.selectedWidgetId || '__kpi_main__'}
           widgetTitle={(() => {
