@@ -48,7 +48,7 @@ interface KpiMonitorState {
 }
 
 export const useKpiMonitorStore = create<KpiMonitorState>((set) => ({
-  selectedKpis: [{ kpi_key: 'rrc_setup_sr', agg: 'avg', axis: 'left' }],
+  selectedKpis: [],
   addKpi: (kpi) => set((s) => ({ selectedKpis: [...s.selectedKpis, kpi] })),
   removeKpi: (key) => set((s) => ({ selectedKpis: s.selectedKpis.filter(k => k.kpi_key !== key) })),
   updateKpi: (key, updates) => set((s) => ({
