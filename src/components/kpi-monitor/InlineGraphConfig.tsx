@@ -119,8 +119,8 @@ const InlineGraphConfig: React.FC<InlineGraphConfigProps> = ({
   };
 
   return (
-    <div className="animate-in slide-in-from-top-3 duration-300 ease-out">
-      <div className="mx-4 mt-3 mb-2 rounded-2xl border border-border/50 bg-muted/30 shadow-[0_2px_12px_rgba(0,0,0,0.04)] overflow-hidden">
+    <div className="animate-in slide-in-from-top-3 lg:slide-in-from-right-3 duration-200 ease-out h-full">
+      <div className="h-full border-0 bg-muted/30 overflow-hidden">
 
         {/* ── Config Header ── */}
         <div className="flex items-center justify-between px-5 py-3 bg-background/80 border-b border-border/40">

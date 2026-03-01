@@ -162,32 +162,55 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
       </div>
 
-      {/* ── Inline Config Panel (expands inside card) ── */}
-      {isConfigOpen && configPanel}
+      {/* ── Body: flex-row on desktop when config open, flex-col on mobile ── */}
+      <div className={cn(
+        'flex-1 min-h-0 flex',
+        isConfigOpen ? 'flex-col lg:flex-row' : 'flex-col'
+      )}>
+        {/* Chart area */}
+        <div className={cn(
+          'flex-1 min-w-0 flex flex-col',
+          isConfigOpen ? 'order-2 lg:order-1' : ''
+        )}>
+          <div className="flex-1 min-h-0 px-2 pt-2 pb-1">
+            {children}
+          </div>
 
-      {/* ── Body ── */}
-      <div className="flex-1 min-h-0 px-2 pt-2 pb-1">
-        {children}
-      </div>
-
-      {/* ── Footer ── */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-border/30">
-        <div className="flex items-center gap-3">
-          {granularity && (
-            <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider">
-              {granularity}
-            </span>
-          )}
-          {seriesCount != null && (
-            <span className="text-[10px] font-medium text-muted-foreground/70">
-              {seriesCount} {seriesCount === 1 ? 'série' : 'séries'}
-            </span>
-          )}
+          {/* ── Footer ── */}
+          <div className="flex items-center justify-between px-4 py-2 border-t border-border/30">
+            <div className="flex items-center gap-3">
+              {granularity && (
+                <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider">
+                  {granularity}
+                </span>
+              )}
+              {seriesCount != null && (
+                <span className="text-[10px] font-medium text-muted-foreground/70">
+                  {seriesCount} {seriesCount === 1 ? 'série' : 'séries'}
+                </span>
+              )}
+            </div>
+            {lastUpdated && (
+              <span className="text-[10px] text-muted-foreground/50 tabular-nums">
+                {lastUpdated}
+              </span>
+            )}
+          </div>
         </div>
-        {lastUpdated && (
-          <span className="text-[10px] text-muted-foreground/50 tabular-nums">
-            {lastUpdated}
-          </span>
+
+        {/* Editor panel — right side on desktop, top on mobile */}
+        {isConfigOpen && configPanel && (
+          <div className={cn(
+            'shrink-0 border-border/40 overflow-y-auto overflow-x-hidden',
+            'transition-all duration-200 ease-out',
+            // Mobile: full width, border bottom, accordion on top
+            'w-full border-b lg:border-b-0',
+            // Desktop: fixed width right panel, border left
+            'lg:w-[400px] lg:border-l lg:max-h-none',
+            'order-1 lg:order-2'
+          )}>
+            {configPanel}
+          </div>
         )}
       </div>
     </div>
