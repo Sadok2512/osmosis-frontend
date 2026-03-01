@@ -147,7 +147,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
 
       {/* ── Series Table (edit mode, above chart) ── */}
       {editMode && seriesTable && (
-        <div className="border-b border-border/30 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="border-b border-border/30 bg-card animate-in fade-in slide-in-from-top-1 duration-200">
           {seriesTable}
         </div>
       )}
@@ -161,7 +161,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
 
         {/* Right config panel (edit mode only) */}
         {editMode && configPanel && (
-          <div className="w-[260px] shrink-0 border-l border-border/40 overflow-y-auto max-h-[600px] animate-in fade-in slide-in-from-right-2 duration-200">
+          <div className="w-[260px] shrink-0 border-l border-border/40 overflow-y-auto max-h-[700px] bg-card/50 animate-in fade-in slide-in-from-right-2 duration-200">
             {configPanel}
           </div>
         )}
@@ -169,7 +169,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
 
       {/* ── Bottom Panel (edit mode, e.g. filter cards) ── */}
       {editMode && bottomPanel && (
-        <div className="animate-in fade-in slide-in-from-bottom-1 duration-150">
+        <div className="bg-card animate-in fade-in slide-in-from-bottom-1 duration-200">
           {bottomPanel}
         </div>
       )}
