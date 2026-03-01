@@ -11,8 +11,10 @@ import {
   Plus, Save, FileDown, Copy, FolderOpen, Eye, Globe, Lock,
   MoreHorizontal, Sparkles, FileSpreadsheet, BarChart3, Map as MapIcon,
   Table2, Type, ImageIcon, Grid3X3, Move, ChevronDown, X, Filter,
-  RotateCcw, Search, Check, Share2, Pencil, EyeIcon,
+  RotateCcw, Search, Check, Share2, Pencil, EyeIcon, Settings,
 } from 'lucide-react';
+import DashboardSettingsPopup from './DashboardSettingsPopup';
+import { useDashboardSettingsStore } from '@/stores/dashboardSettingsStore';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import {
@@ -203,7 +205,10 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
 }) => {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
   const { globalFilters, clearGlobalFilters, crossFilter, setCrossFilter } = useGlobalFilterStore();
+  const dashSettings = useDashboardSettingsStore();
+  const currentSettings = dashSettings.getSettings(dm.activeTabId, dm.activeTab?.name);
   const hasActiveFilters = globalFilters.some(f => f.values.length > 0) || crossFilter !== null;
   const activeCount = globalFilters.filter(f => f.values.length > 0).length;
 
@@ -241,9 +246,23 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
                 autoFocus
               />
             ) : (
-              <h1 className="text-sm font-bold text-foreground cursor-pointer hover:text-primary transition-colors truncate max-w-[240px]"
-                onClick={startEditName} title="Cliquez pour renommer"
-              >{dm.activeTab?.name || 'KPI Monitor'}</h1>
+              <div className="flex items-center gap-1.5">
+                <h1
+                  className="text-sm font-bold cursor-pointer hover:text-primary transition-colors truncate max-w-[240px]"
+                  style={{ color: currentSettings.theme.titleTextColor || undefined }}
+                  onClick={startEditName}
+                  title="Cliquez pour renommer"
+                >
+                  {dm.activeTab?.name || 'KPI Monitor'}
+                </h1>
+                <button
+                  onClick={() => setShowSettings(true)}
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  title="Dashboard Settings"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
             <div className="flex items-center gap-1.5">
               <input type="text" placeholder="Description..." value={dm.activeTab?.description || ''}
@@ -325,6 +344,14 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Dashboard Settings Popup */}
+      <DashboardSettingsPopup
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        dashboardId={dm.activeTabId}
+        dashboardName={dm.activeTab?.name || 'Dashboard'}
+      />
     </div>
   );
 };
