@@ -5,6 +5,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import { useGlobalFilterStore } from '../../stores/globalFilterStore';
+import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
 import { KPI_CATALOG_STATIC, fetchKpiCatalogFromDB, buildCatalogMap } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
 import { generateMockTimeSeries, generateMockSummary } from './mockKpiData';
@@ -156,6 +157,7 @@ const MainChartResizable: React.FC<{
 const KPIMonitorInner: React.FC = () => {
   const store = useKpiMonitorStore();
   const globalFilter = useGlobalFilterStore();
+  const dashSettingsStore = useDashboardSettingsStore();
   const dm = useDashboardManager();
   const { datasets } = useCSVData();
   const widgets = dm.activeTab?.widgets || [];
@@ -358,8 +360,10 @@ const KPIMonitorInner: React.FC = () => {
     return <BITextWidget config={w.config as TextWidgetConfig} onChange={cfg => updateTextConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
   };
 
+  const canvasBg = dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor;
+
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-background">
+    <div className="flex-1 flex flex-col overflow-hidden bg-background" style={canvasBg ? { backgroundColor: canvasBg } : undefined}>
       {/* ── Tab Bar ── */}
       <DashboardTabBar
         tabs={dm.tabs}
