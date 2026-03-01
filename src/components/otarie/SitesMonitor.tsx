@@ -2447,7 +2447,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* ── Dashboard Selector — top left floating ── */}
       {viewMode === 'map' && (
-        <div className="absolute top-4 left-[416px] z-[1001] pointer-events-auto" style={{ maxWidth: 260 }}>
+        <div className="absolute bottom-4 left-[416px] z-[1001] pointer-events-auto" style={{ maxWidth: 260 }}>
           <div className="relative">
             <button
               onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}
@@ -2461,7 +2461,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </button>
 
             {showDashboardDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden z-[1002] max-h-[300px] overflow-y-auto">
+              <div className="absolute bottom-full left-0 right-0 mb-1 bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden z-[1002] max-h-[300px] overflow-y-auto">
                 {/* No dashboard option */}
                 <button
                   onClick={() => { setActiveDashboardId(null); localStorage.removeItem('qoebit_active_dashboard'); setShowDashboardDropdown(false); }}
