@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useCallback } from 'react';
+import React, { useMemo, useRef, useCallback, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { KpiTimeSeriesPoint, KpiCatalogEntry, GraphType } from './types';
 import { KPI_CATALOG_MAP } from './kpiCatalog';
@@ -79,6 +79,17 @@ const EChartsTimeSeries: React.FC<Props> = ({
   const { selectedKpis } = useKpiMonitorStore();
   const chartRef = useRef<ReactECharts>(null);
   const catMap = externalMap || KPI_CATALOG_MAP;
+
+  // Force ECharts resize when editMode changes (sidebar appears/disappears)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const instance = chartRef.current?.getEchartsInstance?.();
+        instance?.resize({ width: 'auto', height: 'auto' });
+      } catch { /* noop */ }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [editMode]);
 
   const option = useMemo(() => {
     // ── Series grouping ──
