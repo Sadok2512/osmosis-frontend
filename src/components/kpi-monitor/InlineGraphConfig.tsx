@@ -135,10 +135,10 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   };
 
   return (
-    <div className="px-4 py-3 flex gap-3 overflow-x-auto">
+    <div className="px-3 py-3 flex flex-col gap-3 overflow-y-auto">
 
       {/* ─── 1: KPI CONFIG ─── */}
-      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2 min-w-[260px] flex-1">
+      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <BarChart3 className="w-3.5 h-3.5 text-primary" />
@@ -209,7 +209,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
       </div>
 
       {/* ─── 2: AXES ─── */}
-      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2 min-w-[200px]">
+      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2">
         <div className="flex items-center gap-1.5 mb-1">
           <Axis3D className="w-3.5 h-3.5 text-primary" />
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Axes</span>
@@ -251,7 +251,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
       </div>
 
       {/* ─── 3: GRAPH ─── */}
-      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2 min-w-[200px]">
+      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2">
         <div className="flex items-center gap-1.5 mb-1">
           <Settings2 className="w-3.5 h-3.5 text-primary" />
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Graph</span>
@@ -310,7 +310,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
       </div>
 
       {/* ─── 4: SEUILS Y ─── */}
-      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2 min-w-[180px]">
+      <div className="rounded-xl border border-dashed border-border/50 bg-background p-3 space-y-2">
         <div className="flex items-center gap-1.5 mb-1">
           <AlertTriangle className="w-3.5 h-3.5 text-primary" />
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Seuils Y</span>
