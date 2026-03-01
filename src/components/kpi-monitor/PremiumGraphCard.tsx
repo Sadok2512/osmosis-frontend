@@ -1,5 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { Settings2, Download, FileSpreadsheet, RefreshCw, Maximize2, Copy, Trash2, MoreHorizontal } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface PremiumGraphCardProps {
   title?: string;
@@ -9,6 +14,13 @@ interface PremiumGraphCardProps {
   lastUpdated?: string;
   children: React.ReactNode;
   className?: string;
+  onOpenSettings?: () => void;
+  onExportPNG?: () => void;
+  onExportCSV?: () => void;
+  onRefresh?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+  onExpand?: () => void;
 }
 
 const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
@@ -19,7 +31,16 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
   lastUpdated,
   children,
   className,
+  onOpenSettings,
+  onExportPNG,
+  onExportCSV,
+  onRefresh,
+  onDuplicate,
+  onDelete,
+  onExpand,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <div
       className={cn(
@@ -29,6 +50,8 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         'transition-shadow duration-200',
         className
       )}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 drag-handle cursor-grab">
@@ -42,7 +65,75 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
             </span>
           )}
         </div>
-        <span className="text-[9px] text-muted-foreground/50 italic">Cliquer pour configurer</span>
+
+        <div className={cn(
+          'flex items-center gap-0.5 transition-opacity duration-150',
+          isHovered ? 'opacity-100' : 'opacity-0'
+        )}>
+          {/* Settings button → opens GraphSettingsPanel */}
+          {onOpenSettings && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onOpenSettings(); }}
+              className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+              title="Graph Settings"
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* ⋯ Actions menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className="p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <MoreHorizontal className="w-3.5 h-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {onOpenSettings && (
+                <>
+                  <DropdownMenuItem onClick={onOpenSettings} className="gap-2 text-xs">
+                    <Settings2 className="w-3.5 h-3.5" /> Graph Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              {onExportPNG && (
+                <DropdownMenuItem onClick={onExportPNG} className="gap-2 text-xs">
+                  <Download className="w-3.5 h-3.5" /> Download PNG
+                </DropdownMenuItem>
+              )}
+              {onExportCSV && (
+                <DropdownMenuItem onClick={onExportCSV} className="gap-2 text-xs">
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> Export CSV
+                </DropdownMenuItem>
+              )}
+              {onRefresh && (
+                <DropdownMenuItem onClick={onRefresh} className="gap-2 text-xs">
+                  <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                </DropdownMenuItem>
+              )}
+              {onExpand && (
+                <DropdownMenuItem onClick={onExpand} className="gap-2 text-xs">
+                  <Maximize2 className="w-3.5 h-3.5" /> Expand fullscreen
+                </DropdownMenuItem>
+              )}
+              {(onDuplicate || onDelete) && <DropdownMenuSeparator />}
+              {onDuplicate && (
+                <DropdownMenuItem onClick={onDuplicate} className="gap-2 text-xs">
+                  <Copy className="w-3.5 h-3.5" /> Duplicate widget
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <DropdownMenuItem onClick={onDelete} className="gap-2 text-xs text-destructive focus:text-destructive">
+                  <Trash2 className="w-3.5 h-3.5" /> Remove widget
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* ── Body ── */}

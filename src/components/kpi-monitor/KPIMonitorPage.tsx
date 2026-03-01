@@ -387,6 +387,7 @@ const KPIMonitorInner: React.FC = () => {
                 badge={catalogSource === 'db' ? 'DB' : 'Static'}
                 granularity={tsResponse.granularity_used}
                 height={460}
+                onOpenSettings={() => store.setSelectedWidgetId('__kpi_main__')}
               />
             )}
             {store.viewMode === 'table' && (
