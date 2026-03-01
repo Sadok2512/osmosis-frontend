@@ -34,24 +34,46 @@ export const FilterChip: React.FC<{ filter: ActiveFilter; allFilters: ActiveFilt
     setGlobalFilterValues(filter.id, next);
   };
   const label = dim?.label || filter.dimension;
-  const valueLabel = filter.values.length === 0
-    ? 'Tous'
-    : filter.values.length <= 2
-      ? filter.values.join(', ')
-      : `${filter.values.slice(0, 2).join(', ')}… +${filter.values.length - 2}`;
+  const firstValue = filter.values[0];
+  const extraCount = filter.values.length - 1;
+  const isEmpty = filter.values.length === 0;
+  const tooltipText = filter.values.join('\n');
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="group inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-border/60 bg-background hover:bg-muted/40 hover:border-border transition-all text-[11px] shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          <span className="text-muted-foreground font-medium">{label}</span>
-          <span className="text-[9px] text-muted-foreground/40 uppercase font-semibold">{filter.op.replace('_', ' ')}</span>
-          <span className="text-foreground font-semibold max-w-[180px] truncate">{valueLabel}</span>
-          <ChevronDown className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+        <button
+          className="group inline-flex items-center h-7 rounded-lg border border-border/50 bg-background hover:bg-muted/30 hover:border-border transition-all text-[11px] shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden"
+          title={tooltipText}
+        >
+          {/* Dimension badge */}
+          <span className="px-2 h-full flex items-center bg-muted/50 text-muted-foreground font-semibold text-[10px] uppercase tracking-wide border-r border-border/40">
+            {label}
+          </span>
+          {/* Operator */}
+          <span className="px-1.5 text-[9px] text-muted-foreground/50 font-medium uppercase">
+            {filter.op.replace('_', ' ')}
+          </span>
+          {/* Value(s) */}
+          {isEmpty ? (
+            <span className="text-muted-foreground/40 italic text-[10px] pr-1">Tous</span>
+          ) : (
+            <span className="flex items-center gap-1 pr-1">
+              <span className="text-foreground font-medium max-w-[160px] truncate">{firstValue}</span>
+              {extraCount > 0 && (
+                <span className="inline-flex items-center justify-center h-4 min-w-[18px] px-1 rounded-full bg-primary/10 text-primary text-[9px] font-bold">
+                  +{extraCount}
+                </span>
+              )}
+            </span>
+          )}
+          {/* Chevron */}
+          <ChevronDown className="w-3 h-3 text-muted-foreground/40 mr-1 shrink-0" />
+          {/* Remove */}
           <span
             role="button"
             onClick={e => { e.stopPropagation(); removeGlobalFilter(filter.id); }}
-            className="ml-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            className="h-full px-1.5 flex items-center border-l border-border/30 text-muted-foreground/30 hover:text-destructive hover:bg-destructive/5 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
           >
             <X className="w-3 h-3" />
           </span>
