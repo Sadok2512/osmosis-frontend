@@ -27,6 +27,7 @@ import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
 import DashboardTopBar from './DashboardTopBar';
 import DashboardConfigPanel from './DashboardConfigPanel';
+import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig } from './GraphSettingsPanel';
 import AIFloatingModal from './AIFloatingModal';
 import {
   LayoutGrid, FileDown, Plus,
@@ -120,6 +121,9 @@ const KPIMonitorInner: React.FC = () => {
   const [showKpiSelector, setShowKpiSelector] = useState(false);
   const [editMode, setEditMode] = useState(true);
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const [widgetThresholds, setWidgetThresholds] = useState<Record<string, WidgetThreshold[]>>({});
+  const [widgetThresholdsEnabled, setWidgetThresholdsEnabled] = useState<Record<string, boolean>>({});
+  const [widgetStyles, setWidgetStyles] = useState<Record<string, WidgetStyleConfig>>({});
 
   useEffect(() => {
     fetchKpiCatalogFromDB().then(entries => {
@@ -285,11 +289,13 @@ const KPIMonitorInner: React.FC = () => {
   const editingChart = validWidgets.find(w => getId(w) === editingId && w.kind === 'chart');
 
   const renderWidget = (w: WidgetItem) => {
-    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { setEditingId(getId(w)); setShowAI(false); }} onDuplicate={() => duplicateWidget(getId(w))} onDelete={() => deleteWidget(getId(w))} />;
-    if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={cfg => updateMapConfig(getId(w), cfg)} onDelete={() => deleteWidget(getId(w))} />;
-    if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={cfg => updateImageConfig(getId(w), cfg)} onDelete={() => deleteWidget(getId(w))} />;
-    if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(getId(w), cfg)} onDelete={() => deleteWidget(getId(w))} />;
-    return <BITextWidget config={w.config as TextWidgetConfig} onChange={cfg => updateTextConfig(getId(w), cfg)} onDelete={() => deleteWidget(getId(w))} />;
+    const wId = getId(w);
+    const isSelected = store.selectedWidgetId === wId;
+    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { setEditingId(wId); setShowAI(false); }} onDuplicate={() => duplicateWidget(wId)} onDelete={() => deleteWidget(wId)} />;
+    if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={cfg => updateMapConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
+    if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={cfg => updateImageConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
+    if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
+    return <BITextWidget config={w.config as TextWidgetConfig} onChange={cfg => updateTextConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
   };
 
   return (
@@ -327,19 +333,38 @@ const KPIMonitorInner: React.FC = () => {
         onToggleEditMode={() => setEditMode(!editMode)}
       />
 
-      {/* ── Horizontal Config Panel ── */}
+      {/* ── Dashboard Config Panel (global) ── */}
       <DashboardConfigPanel
-        catalogMap={catalogMap}
-        onOpenKpiSelector={() => setShowKpiSelector(true)}
         seriesInfo={{
           total: tsResponse.total_series,
           granularity: tsResponse.granularity_used,
           truncated: tsResponse.truncated,
         }}
-        catalog={catalog}
-        catalogSource={catalogSource}
-        onRefreshCatalog={refreshCatalog}
       />
+
+      {/* ── Graph Settings Panel (widget-level, only when selected) ── */}
+      {store.selectedWidgetId && (
+        <GraphSettingsPanel
+          widgetId={store.selectedWidgetId}
+          widgetTitle={(() => {
+            const w = widgets.find(w => getId(w) === store.selectedWidgetId);
+            if (!w) return '';
+            if (w.kind === 'chart') return (w.config as ChartConfig).title || 'Chart';
+            return store.selectedWidgetId;
+          })()}
+          catalogMap={catalogMap}
+          onOpenKpiSelector={() => setShowKpiSelector(true)}
+          onClose={() => store.setSelectedWidgetId(null)}
+          onDuplicate={() => { duplicateWidget(store.selectedWidgetId!); }}
+          onDelete={() => { deleteWidget(store.selectedWidgetId!); store.setSelectedWidgetId(null); }}
+          thresholds={widgetThresholds[store.selectedWidgetId] || []}
+          onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [store.selectedWidgetId!]: t }))}
+          thresholdsEnabled={widgetThresholdsEnabled[store.selectedWidgetId] || false}
+          onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId!]: v }))}
+          styleConfig={widgetStyles[store.selectedWidgetId] || { backgroundColor: 'transparent', gridIntensity: 'light', smoothLine: true }}
+          onStyleChange={s => setWidgetStyles(prev => ({ ...prev, [store.selectedWidgetId!]: s }))}
+        />
+      )}
 
       {/* ── Dashboard Canvas (full-width) ── */}
       <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
@@ -365,13 +390,22 @@ const KPIMonitorInner: React.FC = () => {
             margin={[12, 12]}
           >
             {widgets.map(w => (
-              <div key={getId(w)}>{renderWidget(w)}</div>
+              <div key={getId(w)}
+                onClick={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
+                className={`cursor-pointer transition-all duration-200 rounded-xl ${
+                  store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                }`}
+              >{renderWidget(w)}</div>
             ))}
           </GridLayout>
         ) : (
           <FreeLayoutCanvas items={widgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
             {widgets.map(w => (
-              <div key={getId(w)} className="w-full h-full">{renderWidget(w)}</div>
+              <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
+                store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+              }`}
+                onClick={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
+              >{renderWidget(w)}</div>
             ))}
           </FreeLayoutCanvas>
         )}

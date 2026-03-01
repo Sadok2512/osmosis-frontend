@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import { KpiSelection, DynamicFilter, SplitDimension, KpiMonitorView, GraphType } from '../components/kpi-monitor/types';
 
+export interface Milestone {
+  id: string;
+  date: string;
+  label: string;
+  color: string;
+}
+
 interface KpiMonitorState {
   // KPI selections
   selectedKpis: KpiSelection[];
@@ -26,6 +33,18 @@ interface KpiMonitorState {
   removeFilter: (id: string) => void;
   updateFilter: (id: string, updates: Partial<DynamicFilter>) => void;
   clearFilters: () => void;
+
+  // Milestones
+  milestones: Milestone[];
+  showMilestones: boolean;
+  setShowMilestones: (v: boolean) => void;
+  addMilestone: (m: Milestone) => void;
+  updateMilestone: (id: string, updates: Partial<Milestone>) => void;
+  removeMilestone: (id: string) => void;
+
+  // Selected widget
+  selectedWidgetId: string | null;
+  setSelectedWidgetId: (id: string | null) => void;
 }
 
 export const useKpiMonitorStore = create<KpiMonitorState>((set) => ({
@@ -53,4 +72,18 @@ export const useKpiMonitorStore = create<KpiMonitorState>((set) => ({
     localFilters: s.localFilters.map(f => f.id === id ? { ...f, ...updates } : f),
   })),
   clearFilters: () => set({ localFilters: [] }),
+
+  // Milestones
+  milestones: [],
+  showMilestones: true,
+  setShowMilestones: (v) => set({ showMilestones: v }),
+  addMilestone: (m) => set((s) => ({ milestones: [...s.milestones, m] })),
+  updateMilestone: (id, updates) => set((s) => ({
+    milestones: s.milestones.map(m => m.id === id ? { ...m, ...updates } : m),
+  })),
+  removeMilestone: (id) => set((s) => ({ milestones: s.milestones.filter(m => m.id !== id) })),
+
+  // Selected widget
+  selectedWidgetId: null,
+  setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
 }));
