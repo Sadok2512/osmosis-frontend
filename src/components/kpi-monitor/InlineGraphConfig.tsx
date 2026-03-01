@@ -95,6 +95,33 @@ const SmallToggle: React.FC<{ label: string; checked: boolean; onChange: (v: boo
   </div>
 );
 
+/* ── Collapsible Section (extracted to avoid remount on parent re-render) ── */
+const CollapsibleSection: React.FC<{
+  title: string; icon: React.ReactNode; isOpen: boolean; onToggle: () => void;
+  badge?: string; children: React.ReactNode;
+}> = ({ title: sTitle, icon, isOpen, onToggle, badge, children }) => (
+  <div className="border-b border-border/30 last:border-b-0">
+    <button
+      onClick={onToggle}
+      className="flex items-center gap-2.5 w-full px-4 py-3 text-left group transition-colors hover:bg-muted/30"
+    >
+      <span className="text-primary/70 group-hover:text-primary transition-colors">{icon}</span>
+      <span className="text-[12px] font-semibold text-foreground flex-1 tracking-tight uppercase">{sTitle}</span>
+      {badge && (
+        <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-bold tabular-nums">
+          {badge}
+        </span>
+      )}
+      <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform duration-200', !isOpen && '-rotate-90')} />
+    </button>
+    <div className={cn('transition-all duration-200 ease-out', isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden')}>
+      <div className="px-4 pb-4 pt-1 space-y-2">
+        {children}
+      </div>
+    </div>
+  </div>
+);
+
 /* ════════════════════════════════════════════════════════════════
    SIDEBAR CONFIG PANEL — Professional BI-style collapsible sections
    (KPIs | Axes | Graph Style | Seuils Y)
@@ -175,35 +202,9 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
     onSave?.();
   };
 
-  /* ── Collapsible Section ── */
-  const Section: React.FC<{
-    title: string; icon: React.ReactNode; sectionKey: keyof typeof sections;
-    badge?: string; children: React.ReactNode;
-  }> = ({ title: sTitle, icon, sectionKey, badge, children }) => {
-    const isOpen = sections[sectionKey];
-    return (
-      <div className="border-b border-border/30 last:border-b-0">
-        <button
-          onClick={() => toggle(sectionKey)}
-          className="flex items-center gap-2.5 w-full px-4 py-3 text-left group transition-colors hover:bg-muted/30"
-        >
-          <span className="text-primary/70 group-hover:text-primary transition-colors">{icon}</span>
-          <span className="text-[12px] font-semibold text-foreground flex-1 tracking-tight uppercase">{sTitle}</span>
-          {badge && (
-            <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-bold tabular-nums">
-              {badge}
-            </span>
-          )}
-          <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform duration-200', !isOpen && '-rotate-90')} />
-        </button>
-        <div className={cn('transition-all duration-200 ease-out', isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden')}>
-          <div className="px-4 pb-4 pt-1 space-y-2">
-            {children}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const Section = ({ sectionKey, ...rest }: { title: string; icon: React.ReactNode; sectionKey: keyof typeof sections; badge?: string; children: React.ReactNode }) => (
+    <CollapsibleSection {...rest} isOpen={sections[sectionKey]} onToggle={() => toggle(sectionKey)} />
+  );
 
   return (
     <div className="w-[360px] shrink-0 h-full border-l border-border/40 bg-muted/10 flex flex-col overflow-hidden">
