@@ -96,6 +96,59 @@ const PrintPreviewModal: React.FC<{
   );
 };
 
+/* ── Resizable wrapper for the main KPI chart ── */
+const MainChartResizable: React.FC<{
+  isSelected: boolean;
+  onClick: () => void;
+  children: (height: number) => React.ReactNode;
+}> = ({ isSelected, onClick, children }) => {
+  const [height, setHeight] = useState(460);
+  const dragging = useRef(false);
+  const startY = useRef(0);
+  const startH = useRef(460);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragging.current = true;
+    startY.current = e.clientY;
+    startH.current = height;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    const delta = e.clientY - startY.current;
+    setHeight(Math.max(200, Math.min(1200, startH.current + delta)));
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    dragging.current = false;
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+  };
+
+  return (
+    <div
+      className={`mb-4 cursor-pointer transition-all duration-200 rounded-xl relative ${
+        isSelected ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : 'hover:ring-1 hover:ring-border'
+      }`}
+      onClick={onClick}
+    >
+      {children(height)}
+      {/* Resize handle */}
+      <div
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onClick={e => e.stopPropagation()}
+        className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center group z-10 hover:bg-primary/5 transition-colors rounded-b-xl"
+      >
+        <div className="w-12 h-1 rounded-full bg-border group-hover:bg-primary/40 transition-colors" />
+      </div>
+    </div>
+  );
+};
+
 const KPIMonitorInner: React.FC = () => {
   const store = useKpiMonitorStore();
   const globalFilter = useGlobalFilterStore();
@@ -381,30 +434,32 @@ const KPIMonitorInner: React.FC = () => {
       <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
         {/* ── Default KPI Time Series (always visible when KPIs selected) ── */}
         {store.selectedKpis.length > 0 && (
-          <div
-            className={`mb-4 cursor-pointer transition-all duration-200 rounded-xl ${
-              store.selectedWidgetId === '__kpi_main__' ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : 'hover:ring-1 hover:ring-border'
-            }`}
+          <MainChartResizable
+            isSelected={store.selectedWidgetId === '__kpi_main__'}
             onClick={() => store.setSelectedWidgetId(store.selectedWidgetId === '__kpi_main__' ? null : '__kpi_main__')}
           >
-            {store.viewMode === 'graph' && (
-              <EChartsTimeSeries
-                data={tsResponse.data}
-                catalogMap={catalogMap}
-                title={store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
-                badge={catalogSource === 'db' ? 'DB' : 'Static'}
-                granularity={tsResponse.granularity_used}
-                height={460}
-                onOpenSettings={() => store.setSelectedWidgetId('__kpi_main__')}
-                onRefresh={() => { /* trigger re-render */ }}
-                onDuplicate={() => { /* main chart duplicate not applicable */ }}
-                onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
-              />
+            {(chartHeight) => (
+              <>
+                {store.viewMode === 'graph' && (
+                  <EChartsTimeSeries
+                    data={tsResponse.data}
+                    catalogMap={catalogMap}
+                    title={store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
+                    badge={catalogSource === 'db' ? 'DB' : 'Static'}
+                    granularity={tsResponse.granularity_used}
+                    height={chartHeight}
+                    onOpenSettings={() => store.setSelectedWidgetId('__kpi_main__')}
+                    onRefresh={() => { /* trigger re-render */ }}
+                    onDuplicate={() => { /* main chart duplicate not applicable */ }}
+                    onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
+                  />
+                )}
+                {store.viewMode === 'table' && (
+                  <KPITableView rows={summaryRows} />
+                )}
+              </>
             )}
-            {store.viewMode === 'table' && (
-              <KPITableView rows={summaryRows} />
-            )}
-          </div>
+          </MainChartResizable>
         )}
 
         {/* ── BI Widgets grid ── */}
