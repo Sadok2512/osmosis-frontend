@@ -34,19 +34,27 @@ export const FilterChip: React.FC<{ filter: ActiveFilter; allFilters: ActiveFilt
     setGlobalFilterValues(filter.id, next);
   };
   const label = dim?.label || filter.dimension;
-  const valueLabel = filter.values.length === 0 ? 'Tous' : filter.values.length <= 2 ? filter.values.join(', ') : `${filter.values.length} sel.`;
+  const valueLabel = filter.values.length === 0
+    ? 'Tous'
+    : filter.values.length <= 2
+      ? filter.values.join(', ')
+      : `${filter.values.slice(0, 2).join(', ')}… +${filter.values.length - 2}`;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="group flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-background hover:bg-muted/60 transition-all text-[11px] font-medium">
-          <span className="text-muted-foreground">{label}</span>
-          <span className="text-[9px] text-muted-foreground/50">{filter.op}</span>
-          <span className="text-foreground font-semibold max-w-[140px] truncate">{valueLabel}</span>
-          <ChevronDown className="w-2.5 h-2.5 text-muted-foreground" />
-          <button onClick={e => { e.stopPropagation(); removeGlobalFilter(filter.id); }} className="ml-0.5 text-muted-foreground/40 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-            <X className="w-2.5 h-2.5" />
-          </button>
+        <button className="group inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-border/60 bg-background hover:bg-muted/40 hover:border-border transition-all text-[11px] shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <span className="text-muted-foreground font-medium">{label}</span>
+          <span className="text-[9px] text-muted-foreground/40 uppercase font-semibold">{filter.op.replace('_', ' ')}</span>
+          <span className="text-foreground font-semibold max-w-[180px] truncate">{valueLabel}</span>
+          <ChevronDown className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+          <span
+            role="button"
+            onClick={e => { e.stopPropagation(); removeGlobalFilter(filter.id); }}
+            className="ml-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          >
+            <X className="w-3 h-3" />
+          </span>
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-0" align="start">
@@ -99,7 +107,7 @@ export const AddFilterButton: React.FC = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-border text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all">
+        <button className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-dashed border-border/50 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted/30 transition-all">
           <Plus className="w-3 h-3" /> Filtre
         </button>
       </PopoverTrigger>
