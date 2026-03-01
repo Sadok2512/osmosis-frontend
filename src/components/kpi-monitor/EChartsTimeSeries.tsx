@@ -27,6 +27,15 @@ const PREMIUM_COLORS = [
   '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
 ];
 
+/* Convert any CSS color to hex so we can safely append alpha hex digits */
+const toHex = (c: string): string => {
+  if (/^#[0-9a-fA-F]{6}$/.test(c)) return c;
+  const ctx = document.createElement('canvas').getContext('2d');
+  if (!ctx) return c;
+  ctx.fillStyle = c;
+  return ctx.fillStyle; // browsers normalize to #rrggbb
+};
+
 const getSeriesType = (graphType?: GraphType): string => {
   if (!graphType || graphType === 'scatter') return graphType || 'line';
   if (graphType === 'stacked_area') return 'line';
@@ -100,7 +109,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
       const kpiSel = selectedKpis.find(k => k.kpi_key === kpiKey);
       const cat = catMap[kpiKey];
       const yAxisIndex = kpiSel?.axis === 'right' && yAxis.length > 1 ? 1 : 0;
-      const color = kpiSel?.color || cat?.color || PREMIUM_COLORS[colorIdx % PREMIUM_COLORS.length];
+      const color = toHex(kpiSel?.color || cat?.color || PREMIUM_COLORS[colorIdx % PREMIUM_COLORS.length]);
       colorIdx++;
 
       const chartType = getSeriesType(kpiSel?.graphType);
