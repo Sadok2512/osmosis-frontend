@@ -270,10 +270,8 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
          ══════════════════════════════════════════════ */}
       <div className="flex items-center gap-3 px-4 py-1.5">
         {/* LEFT: Identity */}
-        <div className="flex items-center gap-2.5 min-w-0 shrink-0">
-          <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <BarChart3 className="w-3 h-3 text-primary" />
-          </div>
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
+          <BarChart3 className="w-4 h-4 text-primary shrink-0" />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               {editingName ? (
