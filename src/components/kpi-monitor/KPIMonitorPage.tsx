@@ -31,7 +31,7 @@ import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig, WidgetAxisConfi
 import { HorizontalConfigPanel, type QuickSettingsSection } from './InlineGraphConfig';
 import AIFloatingModal from './AIFloatingModal';
 import {
-  LayoutGrid, FileDown, Plus, Settings2, X,
+  LayoutGrid, FileDown, Plus, Settings2, X, Check, ArrowLeft,
 } from 'lucide-react';
 
 const COLS = 12;
@@ -410,178 +410,230 @@ const KPIMonitorInner: React.FC = () => {
 
       {/* ── Dashboard Canvas + Right Config Sidebar ── */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        {/* Left: Dashboard canvas */}
-        <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
-          {/* ── Default KPI Time Series (always visible when KPIs selected) ── */}
-          {store.selectedKpis.length > 0 && (
-            <MainChartResizable
-              isSelected={store.selectedWidgetId === '__kpi_main__'}
-              onSelect={() => {/* selection only via settings button */}}
-            >
-              {(chartHeight) => (
-                <>
-                  {store.viewMode === 'graph' && (
-                    <EChartsTimeSeries
-                      data={tsResponse.data}
-                      catalogMap={catalogMap}
-                      title={store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
-                      badge={catalogSource === 'db' ? 'DB' : 'Static'}
-                      granularity={tsResponse.granularity_used}
-                      height={chartHeight}
-                      onRefresh={() => { /* trigger re-render */ }}
-                      onDuplicate={() => { /* main chart duplicate not applicable */ }}
-                      onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
-                      graphConfig={widgetGraphConfigs['__kpi_main__']}
-                      axisConfig={widgetAxisConfigs['__kpi_main__']}
-                      thresholds={widgetThresholds['__kpi_main__']}
-                      thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
-                      editMode={store.activeEditingWidgetId === '__kpi_main__'}
-                      onToggleEditMode={() => store.setActiveEditingWidgetId('__kpi_main__')}
-                      onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                      onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                    />
-                  )}
-                  {store.viewMode === 'table' && (
-                    <KPITableView rows={summaryRows} />
-                  )}
-                </>
-              )}
-            </MainChartResizable>
-          )}
 
-          {/* ── BI Widgets grid ── */}
-          {widgets.length === 0 && store.selectedKpis.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <LayoutGrid className="w-8 h-8 text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">Sélectionnez des KPIs ou cliquez <strong>Chart</strong>, <strong>Map</strong> ou <strong>Text</strong> pour commencer</p>
-            </div>
-          ) : widgets.length > 0 && layoutMode === 'grid' ? (
-            <GridLayout
-              className="layout"
-              layout={layout}
-              cols={COLS}
-              rowHeight={ROW_HEIGHT}
-              width={containerWidth}
-              onLayoutChange={onLayoutChange}
-              draggableHandle=".drag-handle"
-              compactType="vertical"
-              isResizable={editMode}
-              isDraggable={editMode}
-              margin={[12, 12]}
-            >
-              {widgets.map(w => (
-                <div key={getId(w)}
-                  onClickCapture={() => {
-                    const wId = getId(w);
-                    store.setSelectedWidgetId(store.selectedWidgetId === wId ? null : wId);
-                  }}
-                  className={`cursor-pointer transition-all duration-200 rounded-xl ${
-                    store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
-                  }`}
-                >{renderWidget(w)}</div>
-              ))}
-            </GridLayout>
-          ) : widgets.length > 0 ? (
-            <FreeLayoutCanvas items={widgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
-              {widgets.map(w => (
-                <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
-                  store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
-                }`}
-                  onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
-                >{renderWidget(w)}</div>
-              ))}
-            </FreeLayoutCanvas>
-          ) : null}
-        </div>
+        {/* ════════════════════════════════════════════════════
+            MONO-GRAPH EDIT VIEW — shown when editing a widget
+           ════════════════════════════════════════════════════ */}
+        {(() => {
+          const isEditingMain = store.activeEditingWidgetId === '__kpi_main__';
+          const editingWidgetId = store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__' ? store.selectedWidgetId : null;
+          const editingWidget = editingWidgetId ? widgets.find(w => getId(w) === editingWidgetId) : null;
+          const isMonoView = isEditingMain || editingWidget;
 
-        {/* Right: Page-level Config Sidebar — Main KPI chart */}
-        {store.activeEditingWidgetId === '__kpi_main__' && (
-          <div className="w-[340px] shrink-0 h-full border-l border-border/50 bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
-            <div className="px-5 py-4 border-b border-border/50">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Settings2 className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
-                </div>
-                <button onClick={() => store.setActiveEditingWidgetId(null)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </div>
-              <p className="text-sm font-semibold text-foreground truncate">
-                {store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
-              </p>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <HorizontalConfigPanel
-                catalogMap={catalogMap}
-                onOpenKpiSelector={() => setShowKpiSelector(true)}
-                axisConfig={widgetAxisConfigs['__kpi_main__']}
-                onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                graphConfig={widgetGraphConfigs['__kpi_main__']}
-                onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                thresholds={widgetThresholds['__kpi_main__'] || []}
-                onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, '__kpi_main__': t }))}
-                thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__'] || false}
-                onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, '__kpi_main__': v }))}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Right: Config Sidebar — BI widget selected (use ChartConfigPanel for charts, HorizontalConfigPanel for others) */}
-        {store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__' && (() => {
-          const selectedWidget = widgets.find(w => getId(w) === store.selectedWidgetId);
-          if (!selectedWidget) return null;
-
-          // For chart widgets, show the full BI ChartConfigPanel
-          if (selectedWidget.kind === 'chart') {
+          if (!isMonoView) {
+            // ── MULTI-GRAPH DASHBOARD VIEW ──
             return (
-              <ChartConfigPanel
-                config={selectedWidget.config as ChartConfig}
-                onChange={cfg => updateChartConfig(store.selectedWidgetId!, cfg)}
-                onClose={() => store.setSelectedWidgetId(null)}
-              />
+              <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
+                {store.selectedKpis.length > 0 && (
+                  <MainChartResizable
+                    isSelected={store.selectedWidgetId === '__kpi_main__'}
+                    onSelect={() => {}}
+                  >
+                    {(chartHeight) => (
+                      <>
+                        {store.viewMode === 'graph' && (
+                          <EChartsTimeSeries
+                            data={tsResponse.data}
+                            catalogMap={catalogMap}
+                            title={store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
+                            badge={catalogSource === 'db' ? 'DB' : 'Static'}
+                            granularity={tsResponse.granularity_used}
+                            height={chartHeight}
+                            onRefresh={() => {}}
+                            onDuplicate={() => {}}
+                            onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
+                            graphConfig={widgetGraphConfigs['__kpi_main__']}
+                            axisConfig={widgetAxisConfigs['__kpi_main__']}
+                            thresholds={widgetThresholds['__kpi_main__']}
+                            thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
+                            editMode={false}
+                            onToggleEditMode={() => store.setActiveEditingWidgetId('__kpi_main__')}
+                            onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                            onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                          />
+                        )}
+                        {store.viewMode === 'table' && <KPITableView rows={summaryRows} />}
+                      </>
+                    )}
+                  </MainChartResizable>
+                )}
+
+                {widgets.length === 0 && store.selectedKpis.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <LayoutGrid className="w-8 h-8 text-primary" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Sélectionnez des KPIs ou cliquez <strong>Chart</strong>, <strong>Map</strong> ou <strong>Text</strong> pour commencer</p>
+                  </div>
+                ) : widgets.length > 0 && layoutMode === 'grid' ? (
+                  <GridLayout
+                    className="layout"
+                    layout={layout}
+                    cols={COLS}
+                    rowHeight={ROW_HEIGHT}
+                    width={containerWidth}
+                    onLayoutChange={onLayoutChange}
+                    draggableHandle=".drag-handle"
+                    compactType="vertical"
+                    isResizable={editMode}
+                    isDraggable={editMode}
+                    margin={[12, 12]}
+                  >
+                    {widgets.map(w => (
+                      <div key={getId(w)}
+                        onClickCapture={() => {
+                          const wId = getId(w);
+                          store.setSelectedWidgetId(store.selectedWidgetId === wId ? null : wId);
+                        }}
+                        className={`cursor-pointer transition-all duration-200 rounded-xl ${
+                          store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                        }`}
+                      >{renderWidget(w)}</div>
+                    ))}
+                  </GridLayout>
+                ) : widgets.length > 0 ? (
+                  <FreeLayoutCanvas items={widgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
+                    {widgets.map(w => (
+                      <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
+                        store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                      }`}
+                        onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
+                      >{renderWidget(w)}</div>
+                    ))}
+                  </FreeLayoutCanvas>
+                ) : null}
+              </div>
             );
           }
 
-          // For other widgets (text, map, image, table), show KPI-style config
+          // ── MONO-GRAPH EDIT VIEW ──
+          const closeEdit = () => {
+            store.setActiveEditingWidgetId(null);
+            store.setSelectedWidgetId(null);
+            toast({ title: 'Configuration appliquée', description: 'Retour au dashboard.' });
+          };
+
+          const monoTitle = isEditingMain
+            ? store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')
+            : editingWidget?.kind === 'chart'
+              ? (editingWidget.config as ChartConfig).title || 'Chart'
+              : editingWidgetId || 'Widget';
+
           return (
-            <div className="w-[340px] shrink-0 h-full border-l border-border/50 bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
-              <div className="px-5 py-4 border-b border-border/50">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Settings2 className="w-3.5 h-3.5 text-primary" />
-                    </div>
-                    <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
-                  </div>
-                  <button onClick={() => store.setSelectedWidgetId(null)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
-                    <X className="w-4 h-4 text-muted-foreground" />
+            <>
+              {/* Mono chart area */}
+              <div className="flex-1 overflow-auto flex flex-col">
+                {/* Mono header bar */}
+                <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
+                  <button onClick={closeEdit}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                    <ArrowLeft className="w-3.5 h-3.5" /> Retour
+                  </button>
+                  <div className="h-4 w-px bg-border/50" />
+                  <span className="text-[13px] font-semibold text-foreground truncate">{monoTitle}</span>
+                  <div className="flex-1" />
+                  <button onClick={closeEdit}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm">
+                    <Check className="w-3.5 h-3.5" /> Confirmer
                   </button>
                 </div>
-                <p className="text-sm font-semibold text-foreground truncate">{store.selectedWidgetId}</p>
+
+                {/* The single graph rendered large */}
+                <div className="flex-1 p-4">
+                  {isEditingMain ? (
+                    <div className="h-full">
+                      {store.viewMode === 'graph' && (
+                        <EChartsTimeSeries
+                          data={tsResponse.data}
+                          catalogMap={catalogMap}
+                          title={monoTitle}
+                          badge={catalogSource === 'db' ? 'DB' : 'Static'}
+                          granularity={tsResponse.granularity_used}
+                          height={600}
+                          onRefresh={() => {}}
+                          onDuplicate={() => {}}
+                          onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
+                          graphConfig={widgetGraphConfigs['__kpi_main__']}
+                          axisConfig={widgetAxisConfigs['__kpi_main__']}
+                          thresholds={widgetThresholds['__kpi_main__']}
+                          thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
+                          editMode={true}
+                          onToggleEditMode={() => {}}
+                          onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                          onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                        />
+                      )}
+                      {store.viewMode === 'table' && <KPITableView rows={summaryRows} />}
+                    </div>
+                  ) : editingWidget ? (
+                    <div className="h-full min-h-[500px]">
+                      {renderWidget(editingWidget)}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto">
-                <HorizontalConfigPanel
-                  catalogMap={catalogMap}
-                  onOpenKpiSelector={() => setShowKpiSelector(true)}
-                  axisConfig={widgetAxisConfigs[store.selectedWidgetId]}
-                  onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
-                  graphConfig={widgetGraphConfigs[store.selectedWidgetId]}
-                  onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
-                  thresholds={widgetThresholds[store.selectedWidgetId] || []}
-                  onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [store.selectedWidgetId!]: t }))}
-                  thresholdsEnabled={widgetThresholdsEnabled[store.selectedWidgetId] || false}
-                  onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId!]: v }))}
-                />
+
+              {/* Right Config Sidebar */}
+              <div className="w-[340px] shrink-0 h-full border-l border-border/50 bg-background/95 backdrop-blur-xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+                <div className="px-5 py-4 border-b border-border/50">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Settings2 className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
+                    </div>
+                    <button onClick={closeEdit}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground truncate">{monoTitle}</p>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {isEditingMain ? (
+                    <HorizontalConfigPanel
+                      catalogMap={catalogMap}
+                      onOpenKpiSelector={() => setShowKpiSelector(true)}
+                      axisConfig={widgetAxisConfigs['__kpi_main__']}
+                      onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                      graphConfig={widgetGraphConfigs['__kpi_main__']}
+                      onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                      thresholds={widgetThresholds['__kpi_main__'] || []}
+                      onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, '__kpi_main__': t }))}
+                      thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__'] || false}
+                      onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, '__kpi_main__': v }))}
+                    />
+                  ) : editingWidget?.kind === 'chart' ? (
+                    <ChartConfigPanel
+                      config={editingWidget.config as ChartConfig}
+                      onChange={cfg => updateChartConfig(editingWidgetId!, cfg)}
+                      onClose={closeEdit}
+                    />
+                  ) : (
+                    <HorizontalConfigPanel
+                      catalogMap={catalogMap}
+                      onOpenKpiSelector={() => setShowKpiSelector(true)}
+                      axisConfig={widgetAxisConfigs[editingWidgetId!]}
+                      onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [editingWidgetId!]: c }))}
+                      graphConfig={widgetGraphConfigs[editingWidgetId!]}
+                      onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [editingWidgetId!]: c }))}
+                      thresholds={widgetThresholds[editingWidgetId!] || []}
+                      onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [editingWidgetId!]: t }))}
+                      thresholdsEnabled={widgetThresholdsEnabled[editingWidgetId!] || false}
+                      onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [editingWidgetId!]: v }))}
+                    />
+                  )}
+                </div>
+                {/* Sticky Confirmer button */}
+                <div className="px-4 py-3 border-t border-border/40 shrink-0">
+                  <button onClick={closeEdit}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm">
+                    <Check className="w-3.5 h-3.5" /> Confirmer
+                  </button>
+                </div>
               </div>
-            </div>
+            </>
           );
         })()}
       </div>
