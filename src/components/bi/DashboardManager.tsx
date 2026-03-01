@@ -37,36 +37,7 @@ export interface OpenTab {
 }
 
 function createDefaultWidgets(): WidgetItem[] {
-  return [
-    {
-      kind: 'text',
-      config: createDefaultTextWidget('text_default'),
-      layout: { x: 0, y: 0, w: 4, h: 2 },
-    },
-    {
-      kind: 'map',
-      config: createDefaultMapWidget('map_default'),
-      layout: { x: 4, y: 0, w: 8, h: 5 },
-    },
-    {
-      kind: 'chart',
-      config: {
-        ...createDefaultChart('chart_1'),
-        title: 'QoE Index',
-        yMetrics: [{ kpi: 'qoe_index', aggregation: 'AVG', axis: 'left', chartType: 'line', color: 'hsl(210, 100%, 56%)', showMovingAvg: false, smoothCurve: true }],
-      },
-      layout: { x: 0, y: 5, w: 6, h: 4 },
-    },
-    {
-      kind: 'chart',
-      config: {
-        ...createDefaultChart('chart_2'),
-        title: 'Throughput DL',
-        yMetrics: [{ kpi: 'debit_dl', aggregation: 'AVG', axis: 'left', chartType: 'area', color: 'hsl(160, 84%, 39%)', showMovingAvg: false, smoothCurve: true }],
-      },
-      layout: { x: 6, y: 5, w: 6, h: 4 },
-    },
-  ];
+  return [];
 }
 
 // ── DB helpers (local API) ──
