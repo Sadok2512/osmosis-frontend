@@ -461,7 +461,7 @@ const KPIMonitorInner: React.FC = () => {
                     thresholds={widgetThresholds['__kpi_main__']}
                     thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
                     editMode={showInlineConfig}
-                    onToggleEditMode={() => { setShowInlineConfig(!showInlineConfig); if (showInlineConfig) setQuickSection(null); }}
+                    onToggleEditMode={() => { const next = !showInlineConfig; setShowInlineConfig(next); setQuickSection(next ? 'kpis' : null); }}
                     activeSection={quickSection}
                     onSetActiveSection={setQuickSection}
                     axesPopover={
