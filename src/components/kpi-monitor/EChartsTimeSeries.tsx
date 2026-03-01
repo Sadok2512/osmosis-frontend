@@ -24,6 +24,11 @@ interface Props {
   axisConfig?: WidgetAxisConfig;
   thresholds?: WidgetThreshold[];
   thresholdsEnabled?: boolean;
+  /** Inline config props passed to PremiumGraphCard */
+  showEditButton?: boolean;
+  isConfigOpen?: boolean;
+  onToggleConfig?: () => void;
+  configPanel?: React.ReactNode;
 }
 
 /* ── Color palette (enterprise neutral + accent) ── */
@@ -68,6 +73,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
   title, badge, granularity, onOpenSettings, onExportPNG: externalExportPNG,
   onExportCSV, onRefresh, onExpand, onDuplicate, onDelete,
   graphConfig: gc, axisConfig: ac, thresholds: thresholdList, thresholdsEnabled,
+  showEditButton, isConfigOpen, onToggleConfig, configPanel,
 }) => {
   const { selectedKpis } = useKpiMonitorStore();
   const chartRef = useRef<ReactECharts>(null);
@@ -307,6 +313,10 @@ const EChartsTimeSeries: React.FC<Props> = ({
       onExpand={onExpand}
       onDuplicate={onDuplicate}
       onDelete={onDelete}
+      showEditButton={showEditButton}
+      isConfigOpen={isConfigOpen}
+      onToggleConfig={onToggleConfig}
+      configPanel={configPanel}
     >
       {data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3">

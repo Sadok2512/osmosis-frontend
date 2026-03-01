@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Settings2, Download, FileSpreadsheet, RefreshCw, Maximize2, Copy, Trash2, MoreHorizontal } from 'lucide-react';
+import { Settings2, Download, FileSpreadsheet, RefreshCw, Maximize2, Copy, Trash2, MoreHorizontal, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -21,6 +21,11 @@ interface PremiumGraphCardProps {
   onDuplicate?: () => void;
   onDelete?: () => void;
   onExpand?: () => void;
+  /** Inline config panel rendered between header and chart */
+  configPanel?: React.ReactNode;
+  showEditButton?: boolean;
+  isConfigOpen?: boolean;
+  onToggleConfig?: () => void;
 }
 
 const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
@@ -38,6 +43,10 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
   onDuplicate,
   onDelete,
   onExpand,
+  configPanel,
+  showEditButton = false,
+  isConfigOpen = false,
+  onToggleConfig,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -70,8 +79,25 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
           'flex items-center gap-0.5 transition-opacity duration-150',
           isHovered ? 'opacity-100' : 'opacity-0'
         )}>
+          {/* Edit Configuration button */}
+          {showEditButton && onToggleConfig && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleConfig(); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all",
+                isConfigOpen
+                  ? "bg-primary/15 text-primary"
+                  : "hover:bg-primary/10 text-muted-foreground hover:text-primary"
+              )}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Edit configuration</span>
+              <ChevronDown className={cn("w-3 h-3 transition-transform duration-200", isConfigOpen && "rotate-180")} />
+            </button>
+          )}
+
           {/* Settings button → opens GraphSettingsPanel */}
-          {onOpenSettings && (
+          {onOpenSettings && !showEditButton && (
             <button
               onClick={(e) => { e.stopPropagation(); onOpenSettings(); }}
               className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
@@ -135,6 +161,9 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
           </DropdownMenu>
         </div>
       </div>
+
+      {/* ── Inline Config Panel (expands inside card) ── */}
+      {isConfigOpen && configPanel}
 
       {/* ── Body ── */}
       <div className="flex-1 min-h-0 px-2 pt-2 pb-1">

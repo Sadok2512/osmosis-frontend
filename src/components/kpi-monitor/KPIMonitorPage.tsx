@@ -28,6 +28,7 @@ import { toast } from '@/hooks/use-toast';
 import DashboardTopBar from './DashboardTopBar';
 import DashboardConfigPanel from './DashboardConfigPanel';
 import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
+import InlineGraphConfig from './InlineGraphConfig';
 import AIFloatingModal from './AIFloatingModal';
 import {
   LayoutGrid, FileDown, Plus,
@@ -176,6 +177,7 @@ const KPIMonitorInner: React.FC = () => {
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
   const [showKpiSelector, setShowKpiSelector] = useState(false);
   const [editMode, setEditMode] = useState(true);
+  const [showInlineConfig, setShowInlineConfig] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [widgetThresholds, setWidgetThresholds] = useState<Record<string, WidgetThreshold[]>>({});
   const [widgetThresholdsEnabled, setWidgetThresholdsEnabled] = useState<Record<string, boolean>>({});
@@ -404,14 +406,11 @@ const KPIMonitorInner: React.FC = () => {
 
       {/* Filter is now inside DashboardConfigPanel */}
 
-      {/* ── Graph Settings Panel (widget-level) — visible when a widget is selected ── */}
-      {(store.selectedWidgetId === '__kpi_main__' || store.selectedWidgetId) && (
+      {/* ── Graph Settings Panel (widget-level) — only for BI widgets, NOT main chart ── */}
+      {store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__' && (
         <GraphSettingsPanel
-          widgetId={store.selectedWidgetId || '__kpi_main__'}
+          widgetId={store.selectedWidgetId}
           widgetTitle={(() => {
-            if (store.selectedWidgetId === '__kpi_main__') {
-              return store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ') || 'KPI Chart';
-            }
             const w = widgets.find(w => getId(w) === store.selectedWidgetId);
             if (!w) return '';
             if (w.kind === 'chart') return (w.config as ChartConfig).title || 'Chart';
@@ -420,18 +419,18 @@ const KPIMonitorInner: React.FC = () => {
           catalogMap={catalogMap}
           onOpenKpiSelector={() => setShowKpiSelector(true)}
           onClose={() => store.setSelectedWidgetId(null)}
-          onDuplicate={() => { if (store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__') duplicateWidget(store.selectedWidgetId); }}
-          onDelete={() => { if (store.selectedWidgetId && store.selectedWidgetId !== '__kpi_main__') { deleteWidget(store.selectedWidgetId); store.setSelectedWidgetId(null); } }}
-          thresholds={widgetThresholds[store.selectedWidgetId || '__kpi_main__'] || []}
-          onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: t }))}
-          thresholdsEnabled={widgetThresholdsEnabled[store.selectedWidgetId || '__kpi_main__'] || false}
-          onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: v }))}
-          styleConfig={widgetStyles[store.selectedWidgetId || '__kpi_main__'] || { backgroundColor: 'transparent', gridIntensity: 'light', smoothLine: true }}
-          onStyleChange={s => setWidgetStyles(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: s }))}
-          axisConfig={widgetAxisConfigs[store.selectedWidgetId || '__kpi_main__']}
-          onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: c }))}
-          graphConfig={widgetGraphConfigs[store.selectedWidgetId || '__kpi_main__']}
-          onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: c }))}
+          onDuplicate={() => { if (store.selectedWidgetId) duplicateWidget(store.selectedWidgetId); }}
+          onDelete={() => { if (store.selectedWidgetId) { deleteWidget(store.selectedWidgetId); store.setSelectedWidgetId(null); } }}
+          thresholds={widgetThresholds[store.selectedWidgetId] || []}
+          onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [store.selectedWidgetId!]: t }))}
+          thresholdsEnabled={widgetThresholdsEnabled[store.selectedWidgetId] || false}
+          onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId!]: v }))}
+          styleConfig={widgetStyles[store.selectedWidgetId] || { backgroundColor: 'transparent', gridIntensity: 'light', smoothLine: true }}
+          onStyleChange={s => setWidgetStyles(prev => ({ ...prev, [store.selectedWidgetId!]: s }))}
+          axisConfig={widgetAxisConfigs[store.selectedWidgetId]}
+          onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
+          graphConfig={widgetGraphConfigs[store.selectedWidgetId]}
+          onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [store.selectedWidgetId!]: c }))}
         />
       )}
 
@@ -453,7 +452,7 @@ const KPIMonitorInner: React.FC = () => {
                     badge={catalogSource === 'db' ? 'DB' : 'Static'}
                     granularity={tsResponse.granularity_used}
                     height={chartHeight}
-                    onOpenSettings={() => store.setSelectedWidgetId('__kpi_main__')}
+                    onOpenSettings={() => setShowInlineConfig(!showInlineConfig)}
                     onRefresh={() => { /* trigger re-render */ }}
                     onDuplicate={() => { /* main chart duplicate not applicable */ }}
                     onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
@@ -461,6 +460,24 @@ const KPIMonitorInner: React.FC = () => {
                     axisConfig={widgetAxisConfigs['__kpi_main__']}
                     thresholds={widgetThresholds['__kpi_main__']}
                     thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
+                    showEditButton
+                    isConfigOpen={showInlineConfig}
+                    onToggleConfig={() => setShowInlineConfig(!showInlineConfig)}
+                    configPanel={
+                      <InlineGraphConfig
+                        catalogMap={catalogMap}
+                        onOpenKpiSelector={() => setShowKpiSelector(true)}
+                        onCollapse={() => setShowInlineConfig(false)}
+                        axisConfig={widgetAxisConfigs['__kpi_main__']}
+                        onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                        graphConfig={widgetGraphConfigs['__kpi_main__']}
+                        onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                        thresholds={widgetThresholds['__kpi_main__'] || []}
+                        onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, '__kpi_main__': t }))}
+                        thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__'] || false}
+                        onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, '__kpi_main__': v }))}
+                      />
+                    }
                   />
                 )}
                 {store.viewMode === 'table' && (
