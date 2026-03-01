@@ -264,7 +264,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
   };
 
   return (
-    <div className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-md">
+    <div className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-md" style={{ backgroundColor: currentSettings.theme.backgroundColor || undefined }}>
 
       {/* ══════════════════════════════════════════════
           ROW 1: Dashboard Header
