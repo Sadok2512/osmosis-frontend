@@ -226,7 +226,8 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
   const store = useKpiMonitorStore();
   const dashSettings = useDashboardSettingsStore();
   const currentSettings = dashSettings.getSettings(dm.activeTabId, dm.activeTab?.name);
-  const hasActiveFilters = gf.globalFilters.some(f => f.values.length > 0) || gf.crossFilter !== null;
+  const filterCount = gf.globalFilters.filter(f => f.values.length > 0).length + (gf.crossFilter ? 1 : 0);
+  const hasActiveFilters = filterCount > 0;
 
   const startEditName = () => { setNameValue(dm.activeTab?.name || ''); setEditingName(true); };
   const commitName = () => { if (nameValue.trim() && dm.activeTab) dm.renameTab(dm.activeTab.id, nameValue.trim()); setEditingName(false); };
@@ -381,9 +382,9 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
       </div>
 
       {/* ══════════════════════════════════════════════
-          ROW 2: Time controls
+          ROW 2: Time + Filter controls (wraps if needed)
          ══════════════════════════════════════════════ */}
-      <div className="flex items-center gap-1.5 px-4 py-1 border-t border-border/30">
+      <div className="flex items-center gap-1.5 px-4 py-1 border-t border-border/30 flex-wrap">
         {/* Date range */}
         <Popover>
           <PopoverTrigger asChild>
@@ -431,8 +432,6 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           ))}
         </div>
 
-        <div className="w-px h-4 bg-border/40 shrink-0" />
-
         {/* Granularity segmented */}
         <div className={cn('flex items-center rounded-md border border-border/40 bg-muted/30 overflow-hidden shrink-0', CTL_H)}>
           {GRANULARITIES.map((g, i) => (
@@ -447,8 +446,6 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
             >{g.label}</button>
           ))}
         </div>
-
-        <div className="w-px h-4 bg-border/40 shrink-0" />
 
         {/* Milestones */}
         <Popover>
@@ -504,7 +501,16 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           </PopoverContent>
         </Popover>
 
-        <div className="flex-1 min-w-0" />
+        <div className="w-px h-4 bg-border/40 shrink-0" />
+
+        {/* Filter controls */}
+        <div className="flex items-center gap-1 shrink-0">
+          <Filter className="w-3 h-3 text-muted-foreground/40" />
+          <AddFilterButton />
+          {filterCount > 0 && (
+            <span className="text-[9px] font-bold text-primary bg-primary/10 rounded-full px-1.5 py-0 leading-4">{filterCount}</span>
+          )}
+        </div>
 
         {/* Series info */}
         {seriesInfo && (
@@ -518,22 +524,9 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           </>
         )}
 
-        {/* Apply */}
-        <button
-          onClick={() => toast.success('Configuration appliquée')}
-          className={cn(CTL_H, 'px-3 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-all flex items-center gap-1 shrink-0')}
-        >
-          <Check className="w-3 h-3" /> Appliquer
-        </button>
-      </div>
+        <div className="flex-1 min-w-0" />
 
-      {/* ══════════════════════════════════════════════
-          ROW 3: Filter selection (+ Filtre / Reset)
-         ══════════════════════════════════════════════ */}
-      <div className="flex items-center gap-1.5 px-4 py-1 border-t border-border/30">
-        <Filter className="w-3 h-3 text-muted-foreground/40 shrink-0" />
-        <AddFilterButton />
-        <div className="flex-1" />
+        {/* Reset + Apply aligned right */}
         {hasActiveFilters && (
           <button
             onClick={gf.clearGlobalFilters}
@@ -542,6 +535,12 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
             <RotateCcw className="w-2.5 h-2.5" /> Reset
           </button>
         )}
+        <button
+          onClick={() => toast.success('Configuration appliquée')}
+          className={cn(CTL_H, 'px-3 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-all flex items-center gap-1 shrink-0')}
+        >
+          <Check className="w-3 h-3" /> Appliquer
+        </button>
       </div>
 
       {/* ══════════════════════════════════════════════
