@@ -22,7 +22,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 /* ── Filter Chip ── */
-const FilterChip: React.FC<{ filter: ActiveFilter; allFilters: ActiveFilter[] }> = ({ filter, allFilters }) => {
+export const FilterChip: React.FC<{ filter: ActiveFilter; allFilters: ActiveFilter[] }> = ({ filter, allFilters }) => {
   const { removeGlobalFilter, updateGlobalFilter, setGlobalFilterValues } = useGlobalFilterStore();
   const dim = FILTER_DIMENSIONS.find(d => d.key === filter.dimension);
   const availableValues = useMemo(() => resolveAvailableValues(filter.dimension, allFilters), [filter.dimension, allFilters]);
@@ -93,7 +93,7 @@ const FilterChip: React.FC<{ filter: ActiveFilter; allFilters: ActiveFilter[] }>
 };
 
 /* ── Add Filter Button ── */
-const AddFilterButton: React.FC = () => {
+export const AddFilterButton: React.FC = () => {
   const { addGlobalFilter } = useGlobalFilterStore();
   const [open, setOpen] = useState(false);
   return (
@@ -197,26 +197,8 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
         {/* SEPARATOR */}
         <div className="w-px h-8 bg-border shrink-0" />
 
-        {/* CENTER: Filter chips (scrollable) */}
-        <div className="flex-1 flex items-center gap-1.5 min-w-0 overflow-x-auto scrollbar-none">
-          <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-          {globalFilters.map(f => <FilterChip key={f.id} filter={f} allFilters={globalFilters} />)}
-          {crossFilter && (
-            <Badge variant="outline" className="gap-1 text-[10px] font-medium cursor-pointer shrink-0" onClick={() => setCrossFilter(null)}>
-              🔗 {crossFilter.dimension}: {crossFilter.value}
-              <X className="w-2.5 h-2.5" />
-            </Badge>
-          )}
-          <AddFilterButton />
-          {activeCount > 0 && (
-            <Badge variant="secondary" className="text-[9px] px-1.5 h-5 shrink-0">{activeCount}</Badge>
-          )}
-          {hasActiveFilters && (
-            <button onClick={clearGlobalFilters} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-destructive transition-colors shrink-0">
-              <RotateCcw className="w-2.5 h-2.5" /> Reset
-            </button>
-          )}
-        </div>
+        {/* Spacer to push actions right */}
+        <div className="flex-1" />
 
         {/* SEPARATOR */}
         <div className="w-px h-8 bg-border shrink-0" />
