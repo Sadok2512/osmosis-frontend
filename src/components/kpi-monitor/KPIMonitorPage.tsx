@@ -27,7 +27,7 @@ import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
 import DashboardTopBar from './DashboardTopBar';
 import DashboardConfigPanel from './DashboardConfigPanel';
-import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig } from './GraphSettingsPanel';
+import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
 import AIFloatingModal from './AIFloatingModal';
 import {
   LayoutGrid, FileDown, Plus,
@@ -124,6 +124,8 @@ const KPIMonitorInner: React.FC = () => {
   const [widgetThresholds, setWidgetThresholds] = useState<Record<string, WidgetThreshold[]>>({});
   const [widgetThresholdsEnabled, setWidgetThresholdsEnabled] = useState<Record<string, boolean>>({});
   const [widgetStyles, setWidgetStyles] = useState<Record<string, WidgetStyleConfig>>({});
+  const [widgetAxisConfigs, setWidgetAxisConfigs] = useState<Record<string, WidgetAxisConfig>>({});
+  const [widgetGraphConfigs, setWidgetGraphConfigs] = useState<Record<string, WidgetGraphConfig>>({});
 
   useEffect(() => {
     fetchKpiCatalogFromDB().then(entries => {
@@ -368,6 +370,10 @@ const KPIMonitorInner: React.FC = () => {
           onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: v }))}
           styleConfig={widgetStyles[store.selectedWidgetId || '__kpi_main__'] || { backgroundColor: 'transparent', gridIntensity: 'light', smoothLine: true }}
           onStyleChange={s => setWidgetStyles(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: s }))}
+          axisConfig={widgetAxisConfigs[store.selectedWidgetId || '__kpi_main__']}
+          onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: c }))}
+          graphConfig={widgetGraphConfigs[store.selectedWidgetId || '__kpi_main__']}
+          onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [store.selectedWidgetId || '__kpi_main__']: c }))}
         />
       )}
 
