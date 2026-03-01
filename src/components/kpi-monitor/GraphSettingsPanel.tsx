@@ -57,6 +57,7 @@ export interface WidgetAxisConfig {
   yUnit: string;
   yDecimals: number;
   yInvert: boolean;
+  xMode: 'date' | 'dimension' | 'kpi';
   xFormat: 'short' | 'full' | 'date' | 'datetime';
   xShowGrid: boolean;
 }
@@ -104,7 +105,7 @@ interface GraphSettingsPanelProps {
 
 const DEFAULT_AXIS: WidgetAxisConfig = {
   yTitle: '', yMin: 'auto', yMax: 'auto', yUnit: '', yDecimals: 2, yInvert: false,
-  xFormat: 'short', xShowGrid: false,
+  xMode: 'date', xFormat: 'short', xShowGrid: false,
 };
 
 const DEFAULT_GRAPH: WidgetGraphConfig = {
