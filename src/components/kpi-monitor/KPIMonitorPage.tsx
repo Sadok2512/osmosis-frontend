@@ -368,14 +368,34 @@ const KPIMonitorInner: React.FC = () => {
 
       {/* ── Dashboard Canvas (full-width) ── */}
       <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
-        {widgets.length === 0 ? (
+        {/* ── Default KPI Time Series (always visible when KPIs selected) ── */}
+        {store.selectedKpis.length > 0 && (
+          <div className="mb-4">
+            {store.viewMode === 'graph' && (
+              <EChartsTimeSeries
+                data={tsResponse.data}
+                catalogMap={catalogMap}
+                title={store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
+                badge={catalogSource === 'db' ? 'DB' : 'Static'}
+                granularity={tsResponse.granularity_used}
+                height={460}
+              />
+            )}
+            {store.viewMode === 'table' && (
+              <KPITableView rows={summaryRows} />
+            )}
+          </div>
+        )}
+
+        {/* ── BI Widgets grid ── */}
+        {widgets.length === 0 && store.selectedKpis.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
               <LayoutGrid className="w-8 h-8 text-primary" />
             </div>
-            <p className="text-sm text-muted-foreground">Cliquez <strong>Chart</strong>, <strong>Map</strong> ou <strong>Text</strong> pour commencer</p>
+            <p className="text-sm text-muted-foreground">Sélectionnez des KPIs ou cliquez <strong>Chart</strong>, <strong>Map</strong> ou <strong>Text</strong> pour commencer</p>
           </div>
-        ) : layoutMode === 'grid' ? (
+        ) : widgets.length > 0 && layoutMode === 'grid' ? (
           <GridLayout
             className="layout"
             layout={layout}
@@ -398,7 +418,7 @@ const KPIMonitorInner: React.FC = () => {
               >{renderWidget(w)}</div>
             ))}
           </GridLayout>
-        ) : (
+        ) : widgets.length > 0 ? (
           <FreeLayoutCanvas items={widgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
             {widgets.map(w => (
               <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
@@ -408,7 +428,7 @@ const KPIMonitorInner: React.FC = () => {
               >{renderWidget(w)}</div>
             ))}
           </FreeLayoutCanvas>
-        )}
+        ) : null}
       </div>
 
       {/* ── Side panels (dashboard list, CSV) ── */}
