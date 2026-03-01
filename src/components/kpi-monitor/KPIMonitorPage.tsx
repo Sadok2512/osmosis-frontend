@@ -25,45 +25,19 @@ import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/
 import { CSVDataProvider, CSVUploadButton, CSVDataPanel, useCSVData } from '../bi/CSVDataStore';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
-import DashboardTopBar, { FilterChip, AddFilterButton } from './DashboardTopBar';
+import DashboardTopBar from './DashboardTopBar';
 import DashboardConfigPanel from './DashboardConfigPanel';
 import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
 import AIFloatingModal from './AIFloatingModal';
 import {
-  LayoutGrid, FileDown, Plus, Filter, X, RotateCcw,
+  LayoutGrid, FileDown, Plus,
 } from 'lucide-react';
-import { Badge } from '../ui/badge';
 
 const COLS = 12;
 const ROW_HEIGHT = 80;
 
-/* ── Filter Bar Row ── */
-const FilterBarRow: React.FC = () => {
-  const { globalFilters, clearGlobalFilters, crossFilter, setCrossFilter } = useGlobalFilterStore();
-  const hasActiveFilters = globalFilters.some(f => f.values.length > 0) || crossFilter !== null;
-  const activeCount = globalFilters.filter(f => f.values.length > 0).length;
-  return (
-    <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-border bg-card/80 overflow-x-auto scrollbar-none">
-      <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-      {globalFilters.map(f => <FilterChip key={f.id} filter={f} allFilters={globalFilters} />)}
-      {crossFilter && (
-        <Badge variant="outline" className="gap-1 text-[10px] font-medium cursor-pointer shrink-0" onClick={() => setCrossFilter(null)}>
-          🔗 {crossFilter.dimension}: {crossFilter.value}
-          <X className="w-2.5 h-2.5" />
-        </Badge>
-      )}
-      <AddFilterButton />
-      {activeCount > 0 && (
-        <Badge variant="secondary" className="text-[9px] px-1.5 h-5 shrink-0">{activeCount}</Badge>
-      )}
-      {hasActiveFilters && (
-        <button onClick={clearGlobalFilters} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-destructive transition-colors shrink-0">
-          <RotateCcw className="w-2.5 h-2.5" /> Reset
-        </button>
-      )}
-    </div>
-  );
-};
+
+
 
 /* ── Print Preview Modal ── */
 const PrintPreviewModal: React.FC<{
@@ -428,8 +402,7 @@ const KPIMonitorInner: React.FC = () => {
         />
       )}
 
-      {/* ── Filter Bar (below config) ── */}
-      <FilterBarRow />
+      {/* Filter is now inside DashboardConfigPanel */}
 
       {/* ── Graph Settings Panel (widget-level) — visible when a widget is selected ── */}
       {(store.selectedWidgetId === '__kpi_main__' || store.selectedWidgetId) && (

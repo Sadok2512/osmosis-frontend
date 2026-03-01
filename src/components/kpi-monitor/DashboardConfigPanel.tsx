@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGlobalFilterStore } from '@/stores/globalFilterStore';
 import { useKpiMonitorStore } from '@/stores/kpiMonitorStore';
+import {
+  FILTER_DIMENSIONS,
+  resolveAvailableValues,
+  ActiveFilter,
+  FilterOp,
+} from '@/config/filterDimensions';
 import { Badge } from '../ui/badge';
 import {
   ChevronUp, ChevronDown, Calendar, Layers, Settings2, Flag, Plus, X, Palette, Check,
+  Filter, Search, RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { Switch } from '../ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { FilterChip, AddFilterButton } from './DashboardTopBar';
 
 const PRESET_MILESTONE_COLORS = [
   '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899',
@@ -185,6 +193,39 @@ const DashboardConfigPanel: React.FC<DashboardConfigPanelProps> = ({ seriesInfo 
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+
+              {/* ── FILTRES ── */}
+              <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 flex-1 min-w-[260px]">
+                <div className="flex items-center gap-1.5">
+                  <Filter className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Filtres</span>
+                  {globalFilter.globalFilters.filter(f => f.values.length > 0).length > 0 && (
+                    <Badge variant="secondary" className="text-[8px] h-4 px-1.5">
+                      {globalFilter.globalFilters.filter(f => f.values.length > 0).length}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {globalFilter.globalFilters.map(f => (
+                    <FilterChip key={f.id} filter={f} allFilters={globalFilter.globalFilters} />
+                  ))}
+                  {globalFilter.crossFilter && (
+                    <Badge variant="outline" className="gap-1 text-[10px] font-medium cursor-pointer" onClick={() => globalFilter.setCrossFilter(null)}>
+                      🔗 {globalFilter.crossFilter.dimension}: {globalFilter.crossFilter.value}
+                      <X className="w-2.5 h-2.5" />
+                    </Badge>
+                  )}
+                  <AddFilterButton />
+                  {(globalFilter.globalFilters.some(f => f.values.length > 0) || globalFilter.crossFilter) && (
+                    <button onClick={globalFilter.clearGlobalFilters} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-destructive transition-colors">
+                      <RotateCcw className="w-2.5 h-2.5" /> Reset
+                    </button>
+                  )}
+                </div>
+                {globalFilter.globalFilters.length === 0 && (
+                  <p className="text-[9px] text-muted-foreground/60 italic">Aucun filtre configuré</p>
                 )}
               </div>
 
