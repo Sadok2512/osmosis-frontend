@@ -2447,7 +2447,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* ── Dashboard Selector — top left floating ── */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-4 left-[416px] z-[1001] pointer-events-auto" style={{ maxWidth: 260 }}>
+        <div className="absolute top-4 left-[416px] z-[1001] pointer-events-auto" style={{ maxWidth: 260 }}>
           <div className="relative">
             <button
               onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}
@@ -2461,7 +2461,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </button>
 
             {showDashboardDropdown && (
-              <div className="absolute bottom-full left-0 right-0 mb-1 bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden z-[1002] max-h-[300px] overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden z-[1002] max-h-[300px] overflow-y-auto">
                 {/* No dashboard option */}
                 <button
                   onClick={() => { setActiveDashboardId(null); localStorage.removeItem('qoebit_active_dashboard'); setShowDashboardDropdown(false); }}
@@ -2629,205 +2629,200 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       </div>
 
-      {/* ══ RIGHT-SIDE MAP CONTROLS PANEL ══ */}
+      {/* Floating bottom-right: techno filter + layer switcher + legend */}
       {viewMode === 'map' && (
-        <div className="absolute top-4 right-4 z-[1000] pointer-events-auto flex flex-col gap-3 items-end">
-
-          {/* ── Unified control strip ── */}
-          <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-lg overflow-hidden">
-
-            {/* Display mode: Sites / Points / Heatmap */}
-            <div className="px-2 pt-2 pb-1.5">
-              <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 px-1">Display</span>
-              <div className="flex flex-col gap-0.5 mt-1">
-                {([
-                  { key: 'sites' as const, label: '📍', title: 'Sites' },
-                  { key: 'points' as const, label: '●', title: 'Points' },
-                  { key: 'heatmap' as const, label: '🔥', title: 'Heatmap' },
-                ]).map(({ key, label, title }) => (
-                  <button
-                    key={key}
-                    onClick={() => setMapDisplayMode(key)}
-                    className={`w-9 h-8 flex items-center justify-center text-sm rounded-lg transition-all ${
-                      mapDisplayMode === key
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                    }`}
-                    title={title}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mx-2 h-px bg-border/40" />
-
-            {/* Technology filter: ALL / 5G / 4G / OFF */}
-            {sites.length > 0 && (
-              <div className="px-2 py-1.5">
-                <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 px-1">Tech</span>
-                <div className="flex flex-col gap-0.5 mt-1">
-                  {(['ALL', '5G', '4G', 'OFF'] as const).map((tech) => (
-                    <button
-                      key={tech}
-                      onClick={() => {
-                        setMapTechnoFilter(tech);
-                        const NR_BANDS = ['NR3500', 'NR700', 'NR2100'];
-                        const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
-                        if (tech === 'ALL') {
-                          setEnabledBands(new Set([...NR_BANDS, ...LTE_BANDS]));
-                        } else if (tech === '5G') {
-                          setEnabledBands(new Set(NR_BANDS));
-                        } else if (tech === '4G') {
-                          setEnabledBands(new Set(LTE_BANDS));
-                        } else {
-                          setEnabledBands(new Set());
-                        }
-                      }}
-                      className={`w-9 h-8 flex items-center justify-center text-[9px] font-black tracking-wider rounded-lg transition-all ${
-                        mapTechnoFilter === tech
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      {tech}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="mx-2 h-px bg-border/40" />
-
-            {/* Layer switcher: L / D / S */}
-            <div className="px-2 py-1.5">
-              <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60 px-1">Layer</span>
-              <div className="flex flex-col gap-0.5 mt-1">
-                {([
-                  { key: 'light' as const, label: 'L', title: 'Light' },
-                  { key: 'dark' as const, label: 'D', title: 'Dark' },
-                  { key: 'satellite' as const, label: 'S', title: 'Satellite' },
-                ]).map(({ key, label, title }) => (
-                  <button
-                    key={key}
-                    onClick={() => setMapLayer(key)}
-                    className={`w-9 h-8 flex items-center justify-center text-xs font-black tracking-wider rounded-lg transition-all ${
-                      mapLayer === key
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                    }`}
-                    title={title}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mx-2 h-px bg-border/40" />
-
-            {/* Band layers toggle */}
-            <div className="px-2 pt-1.5 pb-2">
+        <div className="absolute bottom-6 right-6 z-[1000] pointer-events-auto flex items-end gap-2">
+          {/* Display mode: Sites / Points / Heatmap */}
+          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+            {([
+              { key: 'sites' as const, label: '📍' },
+              { key: 'points' as const, label: '●' },
+              { key: 'heatmap' as const, label: '🔥' },
+            ]).map(({ key, label }) => (
               <button
-                onClick={() => setShowBandPanel(!showBandPanel)}
-                className={`w-9 h-8 flex items-center justify-center rounded-lg transition-all ${
-                  showBandPanel
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                key={key}
+                onClick={() => setMapDisplayMode(key)}
+                className={`w-10 h-10 flex items-center justify-center text-sm transition-all ${
+                  mapDisplayMode === key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
-                title="Band Layers"
+                title={key.charAt(0).toUpperCase() + key.slice(1)}
               >
-                <Signal size={14} />
+                {label}
               </button>
-            </div>
+            ))}
           </div>
 
-          {/* ── Band legend panel (expands below) ── */}
-          {showBandPanel && (
-            <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden min-w-[170px]">
-              {mapTechnoFilter === 'ALL' ? (
-                <div className="px-4 py-3 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Technologies</span>
-                    <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
-                  </div>
-                  {[
-                    { key: '5G_GROUP', label: '5G', defaultColor: '#a855f7' },
-                    { key: '4G_GROUP', label: '4G', defaultColor: '#f97316' },
-                  ].map(({ key, label, defaultColor }) => (
-                    <div key={key} className="flex items-center gap-2.5">
-                      <div className="w-4 h-4 rounded" style={{ background: bandColors[key] || defaultColor }} />
-                      <span className="text-[11px] font-bold text-foreground flex-1">{label}</span>
-                      <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[key] || defaultColor }} title={`Change ${label} color`}>
-                        <input type="color" value={bandColors[key] || defaultColor} onChange={(e) => updateBandColor(key, e.target.value)} className="opacity-0 w-0 h-0 absolute" />
-                      </label>
+          {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
+          {sites.length > 0 && (
+            <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+              {(['ALL', '5G', '4G', 'OFF'] as const).map((tech) => (
+                <button
+                  key={tech}
+                  onClick={() => {
+                    setMapTechnoFilter(tech);
+                    const NR_BANDS = ['NR3500', 'NR700', 'NR2100'];
+                    const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
+                    if (tech === 'ALL') {
+                      setEnabledBands(new Set([...NR_BANDS, ...LTE_BANDS]));
+                    } else if (tech === '5G') {
+                      setEnabledBands(new Set(NR_BANDS));
+                    } else if (tech === '4G') {
+                      setEnabledBands(new Set(LTE_BANDS));
+                    } else {
+                      setEnabledBands(new Set());
+                    }
+                  }}
+                  className={`w-10 h-10 flex items-center justify-center text-[10px] font-black tracking-wider transition-all ${
+                    mapTechnoFilter === tech
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {tech}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Layer switcher: L / D / S */}
+          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+            {([
+              { key: 'light' as const, label: 'L' },
+              { key: 'dark' as const, label: 'D' },
+              { key: 'satellite' as const, label: 'S' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setMapLayer(key)}
+                className={`w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all ${
+                  mapLayer === key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Band layer toggle panel */}
+          <div className="relative">
+            <button
+              onClick={() => setShowBandPanel(!showBandPanel)}
+              className={`w-10 h-10 flex items-center justify-center rounded-full shadow-lg transition-all ${
+                showBandPanel
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card/95 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+              title="Band Layers"
+            >
+              <Signal size={16} />
+            </button>
+            {showBandPanel && (
+              <div className="absolute right-12 bottom-0 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500]">
+                {mapTechnoFilter === 'ALL' ? (
+                  /* ── ALL mode: show only 5G / 4G with group color pickers ── */
+                  <div className="px-4 py-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Technologies</span>
+                      <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <>
-                  <div className="px-4 py-3 border-b border-border/50">
-                    <div className="flex items-center justify-between mb-2">
+                    {[
+                      { key: '5G_GROUP', label: '5G', defaultColor: '#a855f7' },
+                      { key: '4G_GROUP', label: '4G', defaultColor: '#f97316' },
+                    ].map(({ key, label, defaultColor }) => (
+                      <div key={key} className="flex items-center gap-2.5">
+                        <div className="w-4 h-4 rounded" style={{ background: bandColors[key] || defaultColor }} />
+                        <span className="text-[11px] font-bold text-foreground flex-1">{label}</span>
+                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[key] || defaultColor }} title={`Change ${label} color`}>
+                          <input type="color" value={bandColors[key] || defaultColor} onChange={(e) => updateBandColor(key, e.target.value)} className="opacity-0 w-0 h-0 absolute" />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* ── 5G or 4G mode: show detailed bands ── */
+                  <>
+                <div className="px-4 py-3 border-b border-border/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
                       <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['5G_GROUP'] || '#a855f7' }}>
                         5G NR
                       </button>
-                      <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
                     </div>
-                    <div className="space-y-1.5">
-                      {(['NR3500', 'NR700', 'NR2100'] as const).map(band => (
-                        <div key={band} className="flex items-center gap-2.5 w-full group">
-                          <button
-                            onClick={() => toggleBand(band)}
-                            className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
-                              enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
-                            }`}
-                            style={{ background: enabledBands.has(band) ? bandColors[band] : 'transparent' }}
-                          >
-                            {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
-                          </button>
-                          <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
-                            enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
-                          }`} onClick={() => toggleBand(band)}>{band}</span>
-                          <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[band] }} title="Change color">
-                            <input type="color" value={bandColors[band]} onChange={(e) => updateBandColor(band, e.target.value)} className="opacity-0 w-0 h-0 absolute" />
-                          </label>
-                        </div>
-                      ))}
-                    </div>
+                    <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
                   </div>
-                  <div className="px-4 py-3">
-                    <div className="flex items-center justify-between mb-2">
+                  <div className="space-y-1.5">
+                    {(['NR3500', 'NR700', 'NR2100'] as const).map(band => (
+                      <div key={band} className="flex items-center gap-2.5 w-full group">
+                        <button
+                          onClick={() => toggleBand(band)}
+                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
+                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
+                          }`}
+                          style={{ background: enabledBands.has(band) ? bandColors[band] : 'transparent' }}
+                        >
+                          {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
+                        </button>
+                        <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
+                          enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
+                        }`} onClick={() => toggleBand(band)}>{band}</span>
+                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[band] }} title="Change color">
+                          <input
+                            type="color"
+                            value={bandColors[band]}
+                            onChange={(e) => updateBandColor(band, e.target.value)}
+                            className="opacity-0 w-0 h-0 absolute"
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* LTE group */}
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
                       <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>
                         4G LTE
                       </button>
                     </div>
-                    <div className="space-y-1.5">
-                      {(['L2600', 'L2100', 'L1800', 'L800', 'L700'] as const).map(band => (
-                        <div key={band} className="flex items-center gap-2.5 w-full group">
-                          <button
-                            onClick={() => toggleBand(band)}
-                            className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
-                              enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
-                            }`}
-                            style={{ background: enabledBands.has(band) ? bandColors[band] : 'transparent' }}
-                          >
-                            {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
-                          </button>
-                          <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
-                            enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
-                          }`} onClick={() => toggleBand(band)}>{band}</span>
-                          <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[band] }} title="Change color">
-                            <input type="color" value={bandColors[band]} onChange={(e) => updateBandColor(band, e.target.value)} className="opacity-0 w-0 h-0 absolute" />
-                          </label>
-                        </div>
-                      ))}
-                    </div>
                   </div>
-                </>
-              )}
-            </div>
-          )}
+                  <div className="space-y-1.5">
+                    {(['L2600', 'L2100', 'L1800', 'L800', 'L700'] as const).map(band => (
+                      <div key={band} className="flex items-center gap-2.5 w-full group">
+                        <button
+                          onClick={() => toggleBand(band)}
+                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
+                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
+                          }`}
+                          style={{ background: enabledBands.has(band) ? bandColors[band] : 'transparent' }}
+                        >
+                          {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
+                        </button>
+                        <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
+                          enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
+                        }`} onClick={() => toggleBand(band)}>{band}</span>
+                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[band] }} title="Change color">
+                          <input
+                            type="color"
+                            value={bandColors[band]}
+                            onChange={(e) => updateBandColor(band, e.target.value)}
+                            className="opacity-0 w-0 h-0 absolute"
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
         </div>
       )}
 
