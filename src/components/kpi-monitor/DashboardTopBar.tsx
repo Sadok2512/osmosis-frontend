@@ -57,36 +57,63 @@ export const FilterChip: React.FC<{ filter: ActiveFilter; allFilters: ActiveFilt
           </span>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-0" align="start">
-        <div className="p-3 space-y-2">
-          <div className="flex items-center gap-1">
-            {(['IN', 'NOT_IN', 'EQ'] as FilterOp[]).map(op => (
-              <button key={op} onClick={() => updateGlobalFilter(filter.id, { op })}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${filter.op === op ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-              >{op.replace('_', ' ')}</button>
-            ))}
+      <PopoverContent className="w-72 p-0 overflow-hidden" align="start">
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-2 bg-muted/30 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-foreground">{label}</span>
+            <div className="flex items-center gap-0.5 rounded-md bg-muted p-0.5">
+              {(['IN', 'NOT_IN', 'EQ'] as FilterOp[]).map(op => (
+                <button key={op} onClick={() => updateGlobalFilter(filter.id, { op })}
+                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${filter.op === op ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >{op.replace('_', ' ')}</button>
+              ))}
+            </div>
           </div>
+          <span className="text-[10px] font-medium text-muted-foreground tabular-nums">
+            {filter.values.length}/{availableValues.length}
+          </span>
+        </div>
+
+        <div className="p-2.5 space-y-2">
+          {/* Search */}
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..." autoFocus
-              className="w-full pl-7 pr-2 py-1.5 rounded-md border border-border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30" />
+              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border/60 bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/40" />
           </div>
-          <div className="flex items-center gap-2 text-[10px]">
-            <button onClick={() => setGlobalFilterValues(filter.id, [...availableValues])} className="text-primary hover:underline font-medium">Tout</button>
-            <span className="text-muted-foreground/30">•</span>
-            <button onClick={() => setGlobalFilterValues(filter.id, [])} className="text-muted-foreground hover:underline font-medium">Aucun</button>
-            <span className="ml-auto text-muted-foreground">{filter.values.length}/{availableValues.length}</span>
+
+          {/* Quick actions */}
+          <div className="flex items-center gap-1">
+            <button onClick={() => setGlobalFilterValues(filter.id, [...availableValues])}
+              className="px-2 py-0.5 rounded-md text-[10px] font-medium text-primary bg-primary/5 hover:bg-primary/10 transition-colors">
+              Tout sélectionner
+            </button>
+            <button onClick={() => setGlobalFilterValues(filter.id, [])}
+              className="px-2 py-0.5 rounded-md text-[10px] font-medium text-muted-foreground hover:bg-muted transition-colors">
+              Effacer
+            </button>
           </div>
-          <div className="max-h-44 overflow-y-auto space-y-0.5 border border-border rounded-md p-1">
+
+          {/* Values list */}
+          <div className="max-h-52 overflow-y-auto space-y-0.5 rounded-lg border border-border/40 bg-muted/10 p-1">
             {filtered.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground text-center py-3">Aucun résultat</p>
+              <p className="text-[10px] text-muted-foreground/50 text-center py-4 italic">Aucun résultat</p>
             ) : filtered.map(val => {
               const selected = filter.values.includes(val);
               return (
                 <button key={val} onClick={() => toggleValue(val)}
-                  className={`w-full flex items-center gap-2 px-2 py-1 rounded text-xs text-left transition-colors ${selected ? 'bg-primary/10 text-foreground' : 'hover:bg-muted text-muted-foreground'}`}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[11px] text-left transition-all ${
+                    selected
+                      ? 'bg-primary/8 text-foreground font-medium'
+                      : 'hover:bg-muted/60 text-muted-foreground'
+                  }`}
                 >
-                  <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${selected ? 'bg-primary border-primary' : 'border-border'}`}>
+                  <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all border ${
+                    selected
+                      ? 'bg-primary border-primary shadow-sm'
+                      : 'border-border/80 bg-background'
+                  }`}>
                     {selected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
                   </div>
                   <span className="truncate">{val}</span>
