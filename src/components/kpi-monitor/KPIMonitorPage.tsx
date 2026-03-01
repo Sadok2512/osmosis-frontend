@@ -375,7 +375,7 @@ const KPIMonitorInner: React.FC = () => {
         onSetColor={dm.setTabColor}
       />
 
-      {/* ── Sticky Top Bar (full-width) ── */}
+      {/* ── Sticky Top Bar (unified: header + time + filters) ── */}
       <DashboardTopBar
         dm={dm}
         onSave={handleSave}
@@ -395,18 +395,12 @@ const KPIMonitorInner: React.FC = () => {
         onCreateNew={handleCreateNew}
         editMode={editMode}
         onToggleEditMode={() => setEditMode(!editMode)}
+        seriesInfo={{
+          total: tsResponse.total_series,
+          granularity: tsResponse.granularity_used,
+          truncated: tsResponse.truncated,
+        }}
       />
-
-      {/* ── Dashboard Config Panel (global) — only in edit mode ── */}
-      {editMode && (
-        <DashboardConfigPanel
-          seriesInfo={{
-            total: tsResponse.total_series,
-            granularity: tsResponse.granularity_used,
-            truncated: tsResponse.truncated,
-          }}
-        />
-      )}
 
       {/* Filter is now inside DashboardConfigPanel */}
 
