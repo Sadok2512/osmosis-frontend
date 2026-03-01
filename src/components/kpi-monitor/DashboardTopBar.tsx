@@ -254,8 +254,26 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
         {/* SEPARATOR */}
         <div className="w-px h-8 bg-border shrink-0" />
 
-        {/* Spacer to push actions right */}
-        <div className="flex-1" />
+        {/* CENTER: Filters */}
+        <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto">
+          {globalFilters.map(f => (
+            <FilterChip key={f.id} filter={f} allFilters={globalFilters} />
+          ))}
+          {crossFilter && (
+            <button onClick={() => setCrossFilter(null)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg border border-primary/30 bg-primary/5 text-[11px] font-medium text-primary"
+            >
+              🔗 {crossFilter.dimension}: {crossFilter.value}
+              <X className="w-3 h-3" />
+            </button>
+          )}
+          <AddFilterButton />
+          {hasActiveFilters && (
+            <button onClick={clearGlobalFilters}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors font-medium shrink-0"
+            ><RotateCcw className="w-3 h-3" /> Reset</button>
+          )}
+        </div>
 
         {/* SEPARATOR */}
         <div className="w-px h-8 bg-border shrink-0" />
