@@ -12,6 +12,8 @@ import {
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import type { WidgetThreshold, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
+import { useDashboardSettingsStore } from '@/stores/dashboardSettingsStore';
+import { useDashboardManager } from '../bi/DashboardManager';
 
 /* ── Constants ── */
 const GRAPH_TYPES: { value: GraphType; label: string; icon: React.ElementType }[] = [
@@ -128,6 +130,9 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   title, onClose, onSave,
 }) => {
   const store = useKpiMonitorStore();
+  const dm = useDashboardManager();
+  const dashSettings = useDashboardSettingsStore();
+  const themeBg = dashSettings.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor;
   const axis = externalAxis || DEFAULT_AXIS;
   const setAxis = (u: Partial<WidgetAxisConfig>) => onAxisConfigChange?.({ ...axis, ...u });
   const graph = externalGraph || DEFAULT_GRAPH;
@@ -189,7 +194,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   };
 
   return (
-    <div className="w-[360px] shrink-0 h-full border-l border-border/40 bg-muted/10 flex flex-col overflow-hidden">
+    <div className="w-[360px] shrink-0 h-full border-l border-border/40 bg-muted/10 flex flex-col overflow-hidden" style={{ backgroundColor: themeBg || undefined }}>
 
       {/* ─── Header ─── */}
       <div className="px-4 py-3.5 border-b border-border/40 bg-background/80 backdrop-blur-sm">
