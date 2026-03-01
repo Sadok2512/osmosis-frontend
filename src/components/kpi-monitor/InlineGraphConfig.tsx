@@ -126,7 +126,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const graph = externalGraph || DEFAULT_GRAPH;
   const setGraph = (u: Partial<WidgetGraphConfig>) => onGraphConfigChange?.({ ...graph, ...u });
 
-  const [sections, setSections] = useState({ kpis: true, axeX: true, axeY: true, graph: false, seuils: false });
+  const [sections, setSections] = useState({ kpis: true, axes: true, graph: true, seuils: false });
   const toggle = (s: keyof typeof sections) => setSections(p => ({ ...p, [s]: !p[s] }));
 
   const addThreshold = () => {
@@ -228,37 +228,9 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
         )}
       </SectionCard>
 
-      {/* ─── 2: AXE X ─── */}
-      <SectionCard title="Axe X" icon={<Axis3D className="w-4 h-4" />} sectionKey="axeX">
-        {/* Segmented tabs: Date / Dimension / KPI */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/40 border border-border/40">
-          {(['date', 'dimension', 'kpi'] as const).map(mode => (
-            <button
-              key={mode}
-              onClick={() => setAxis({ xMode: mode })}
-              className={cn(
-                'flex-1 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all',
-                (axis as any).xMode === mode || (!((axis as any).xMode) && mode === 'date')
-                  ? 'bg-background text-foreground shadow-sm border border-border/50'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {mode === 'date' ? 'Date' : mode === 'dimension' ? 'Dimension' : 'KPI'}
-            </button>
-          ))}
-        </div>
-
-        <FieldRow label="Format">
-          <SmallSelect value={axis.xFormat} options={[
-            { value: 'short', label: 'Court' }, { value: 'full', label: 'Complet' },
-            { value: 'date', label: 'Date' }, { value: 'datetime', label: 'Date+H' },
-          ]} onChange={v => setAxis({ xFormat: v as any })} className="w-[80px]" />
-        </FieldRow>
-        <SmallToggle label="Grille V" checked={axis.xShowGrid} onChange={v => setAxis({ xShowGrid: v })} />
-      </SectionCard>
-
-      {/* ─── 3: AXE Y ─── */}
-      <SectionCard title="Axe Y" icon={<Axis3D className="w-4 h-4" />} sectionKey="axeY">
+      {/* ─── 2: AXES ─── */}
+      <SectionCard title="Axes" icon={<Axis3D className="w-4 h-4" />} sectionKey="axes">
+        <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Axe Y</p>
         <FieldRow label="Titre">
           <SmallInput value={axis.yTitle} onChange={e => setAxis({ yTitle: e.target.value })} placeholder="" className="w-[100px]" />
         </FieldRow>
@@ -282,6 +254,17 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
           ]} onChange={v => setAxis({ yDecimals: Number(v) })} className="w-[80px]" />
         </FieldRow>
         <SmallToggle label="Inverser" checked={axis.yInvert} onChange={v => setAxis({ yInvert: v })} />
+
+        <div className="pt-2 border-t border-border/30">
+          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider mb-2">Axe X</p>
+          <FieldRow label="Format">
+            <SmallSelect value={axis.xFormat} options={[
+              { value: 'short', label: 'Court' }, { value: 'full', label: 'Complet' },
+              { value: 'date', label: 'Date' }, { value: 'datetime', label: 'Date+H' },
+            ]} onChange={v => setAxis({ xFormat: v as any })} className="w-[80px]" />
+          </FieldRow>
+          <SmallToggle label="Grille V" checked={axis.xShowGrid} onChange={v => setAxis({ xShowGrid: v })} />
+        </div>
       </SectionCard>
 
       {/* ─── 3: GRAPH ─── */}
