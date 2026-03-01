@@ -351,13 +351,8 @@ const EChartsTimeSeries: React.FC<Props> = ({
           ref={chartRef}
           option={option}
           style={{ height: height - 80, width: '100%' }}
-          opts={{ renderer: 'canvas' }}
+          opts={{ renderer: 'canvas', width: 'auto', height: 'auto' }}
           notMerge
-          onChartReady={(instance) => {
-            // Deferred resize to ensure container has reached final width
-            setTimeout(() => instance.resize({ width: 'auto', height: 'auto' }), 100);
-            setTimeout(() => instance.resize({ width: 'auto', height: 'auto' }), 350);
-          }}
         />
       )}
     </PremiumGraphCard>
