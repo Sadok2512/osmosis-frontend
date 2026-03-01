@@ -153,18 +153,21 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
       </div>
 
-      {/* ── Config Panel (edit mode, above chart) ── */}
-      {editMode && configPanel && (
-        <div className="border-b border-border/30 bg-muted/10 animate-in fade-in slide-in-from-top-1 duration-200 overflow-x-auto">
-          {configPanel}
+      {/* ── Chart + Right config sidebar ── */}
+      <div className="flex-1 min-h-0 flex">
+        {/* Chart area */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
+            {children}
+          </div>
         </div>
-      )}
 
-      {/* ── Chart area ── */}
-      <div className="flex-1 min-h-0 flex flex-col">
-        <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
-          {children}
-        </div>
+        {/* Right sidebar: all config sections stacked vertically */}
+        {editMode && configPanel && (
+          <div className="w-[340px] shrink-0 border-l border-border/40 bg-muted/20 overflow-y-auto animate-in slide-in-from-right duration-200">
+            {configPanel}
+          </div>
+        )}
       </div>
 
       {/* ── Bottom Panel ── */}
