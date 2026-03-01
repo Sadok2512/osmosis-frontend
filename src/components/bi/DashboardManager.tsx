@@ -448,7 +448,9 @@ export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelec
     <div className="flex items-center gap-0.5 px-2 py-1 border-b border-border bg-muted/30 overflow-x-auto">
       {tabs.map(tab => {
         const isActive = tab.id === activeId;
-        const titleColor = isActive ? dashSettings.getSettings(tab.id, tab.name).theme.titleTextColor : undefined;
+        const settings = dashSettings.getSettings(tab.id, tab.name);
+        const titleColor = isActive ? settings.theme.titleTextColor : undefined;
+        const tabBg = isActive ? settings.theme.backgroundColor : undefined;
         return (
           <div
             key={tab.id}
@@ -461,6 +463,7 @@ export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelec
             style={{
               ...(tab.color ? { borderTopColor: tab.color, borderTopWidth: isActive ? 2 : 0 } : {}),
               ...(isActive && titleColor ? { color: titleColor } : isActive ? { color: 'var(--foreground)' } : {}),
+              ...(isActive && tabBg ? { backgroundColor: tabBg } : {}),
             }}
           >
             {tab.color && (
