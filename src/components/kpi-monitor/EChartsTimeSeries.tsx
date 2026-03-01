@@ -197,7 +197,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
             if (p.value == null) continue;
             const val = typeof p.value === 'number' ? p.value.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) : p.value;
             html += `<div style="display:flex;align-items:center;gap:8px;padding:2px 0">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};box-shadow:0 0 6px ${p.color}60"></span>
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};box-shadow:0 0 6px ${p.color}"></span>
               <span style="flex:1;color:#cbd5e1;font-size:11px">${p.seriesName}</span>
               <span style="font-weight:700;color:#f8fafc;font-size:11px;font-variant-numeric:tabular-nums">${val}</span>
             </div>`;

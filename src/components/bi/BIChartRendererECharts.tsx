@@ -4,6 +4,29 @@ import { ChartConfig, CHART_COLORS, KPI_UNITS } from './biTypes';
 import { generateChartData, getKPIBase } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
 
+/* Convert any CSS color to hex, then create rgba with alpha */
+const _hexCache = new Map<string, string>();
+const toHex = (c: string): string => {
+  if (/^#[0-9a-fA-F]{6}$/.test(c)) return c;
+  if (_hexCache.has(c)) return _hexCache.get(c)!;
+  try {
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return '#64748b';
+    ctx.fillStyle = '#000000';
+    ctx.fillStyle = c;
+    const hex = ctx.fillStyle;
+    _hexCache.set(c, hex);
+    return hex;
+  } catch { return '#64748b'; }
+};
+const withAlpha = (c: string, alpha: number): string => {
+  const hex = toHex(c);
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+};
+
 interface Props {
   config: ChartConfig;
 }
@@ -17,7 +40,7 @@ const premiumTooltipFormatter = (params: any) => {
     if (p.value == null) continue;
     const val = typeof p.value === 'number' ? p.value.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) : p.value;
     html += `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
-      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};box-shadow:0 0 6px ${p.color}50"></span>
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};box-shadow:0 0 6px ${p.color}"></span>
       <span style="flex:1;color:#cbd5e1;font-size:11px">${p.seriesName}</span>
       <span style="font-weight:700;color:#f8fafc;font-size:11px;font-variant-numeric:tabular-nums">${val}</span>
     </div>`;
@@ -280,7 +303,7 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
           emphasis: {
             focus: 'series',
             lineStyle: { width: 3 },
-            itemStyle: { borderWidth: 2, borderColor: '#fff', shadowBlur: 6, shadowColor: `${s.color}40` },
+            itemStyle: { borderWidth: 2, borderColor: '#fff', shadowBlur: 6, shadowColor: withAlpha(s.color, 0.25) },
           },
         };
 
@@ -304,13 +327,13 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
             series.push({
               ...baseSeries, type: 'line', smooth: m.smoothCurve ? 0.3 : false,
               symbol: 'none', showSymbol: false,
-              lineStyle: { width: 2.5, color: s.color, shadowColor: `${s.color}25`, shadowBlur: 8, shadowOffsetY: 3 },
+              lineStyle: { width: 2.5, color: s.color, shadowColor: withAlpha(s.color, 0.15), shadowBlur: 8, shadowOffsetY: 3 },
               areaStyle: {
                 color: {
                   type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
-                    { offset: 0, color: `${s.color}18` },
-                    { offset: 1, color: `${s.color}02` },
+                    { offset: 0, color: withAlpha(s.color, 0.09) },
+                    { offset: 1, color: withAlpha(s.color, 0.01) },
                   ],
                 },
               },
@@ -324,13 +347,13 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
             series.push({
               ...baseSeries, type: 'line', smooth: m.smoothCurve ? 0.3 : false,
               symbol: 'none', showSymbol: false,
-              lineStyle: { width: 2.5, color: s.color, shadowColor: `${s.color}25`, shadowBlur: 8, shadowOffsetY: 3 },
+              lineStyle: { width: 2.5, color: s.color, shadowColor: withAlpha(s.color, 0.15), shadowBlur: 8, shadowOffsetY: 3 },
               areaStyle: {
                 color: {
                   type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
-                    { offset: 0, color: `${s.color}0A` },
-                    { offset: 1, color: `${s.color}00` },
+                    { offset: 0, color: withAlpha(s.color, 0.04) },
+                    { offset: 1, color: withAlpha(s.color, 0) },
                   ],
                 },
               },
