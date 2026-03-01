@@ -363,7 +363,7 @@ const KPIMonitorInner: React.FC = () => {
   const canvasBg = dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor;
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-background" style={canvasBg ? { backgroundColor: canvasBg } : undefined}>
+    <div className="flex-1 flex flex-col overflow-hidden bg-background">
       {/* ── Tab Bar ── */}
       <DashboardTabBar
         tabs={dm.tabs}
@@ -413,7 +413,7 @@ const KPIMonitorInner: React.FC = () => {
       {/* GraphSettingsPanel removed — config is now in the right sidebar */}
 
       {/* ── Dashboard Canvas + Right Config Sidebar ── */}
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div className="flex-1 min-h-0 flex overflow-hidden" style={canvasBg ? { backgroundColor: canvasBg } : undefined}>
 
         {/* ════════════════════════════════════════════════════
             MONO-GRAPH EDIT VIEW — shown when editing a widget
