@@ -37,6 +37,7 @@ export interface KpiSelection {
   color?: string;
   graphType?: GraphType;
   splitOverride?: SplitDimension | null;
+  yAxisIndex?: number;
 }
 
 export interface DynamicFilter {
