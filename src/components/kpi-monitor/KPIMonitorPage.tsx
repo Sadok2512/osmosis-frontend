@@ -428,7 +428,15 @@ const KPIMonitorInner: React.FC = () => {
           >
             {widgets.map(w => (
               <div key={getId(w)}
-                onClick={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
+                onClick={() => {
+                  const wId = getId(w);
+                  if (store.selectedWidgetId === wId) {
+                    store.setSelectedWidgetId(null);
+                  } else {
+                    if (!editMode) setEditMode(true);
+                    store.setSelectedWidgetId(wId);
+                  }
+                }}
                 className={`cursor-pointer transition-all duration-200 rounded-xl ${
                   store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                 }`}
