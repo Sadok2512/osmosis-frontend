@@ -99,9 +99,9 @@ const PrintPreviewModal: React.FC<{
 /* ── Resizable wrapper for the main KPI chart ── */
 const MainChartResizable: React.FC<{
   isSelected: boolean;
-  onClick: () => void;
+  onSelect: () => void;
   children: (height: number) => React.ReactNode;
-}> = ({ isSelected, onClick, children }) => {
+}> = ({ isSelected, onSelect, children }) => {
   const [height, setHeight] = useState(460);
   const dragging = useRef(false);
   const startY = useRef(0);
@@ -132,7 +132,7 @@ const MainChartResizable: React.FC<{
       className={`mb-4 cursor-pointer transition-all duration-200 rounded-xl relative ${
         isSelected ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : 'hover:ring-1 hover:ring-border'
       }`}
-      onClick={onClick}
+      onClickCapture={onSelect}
     >
       {children(height)}
       {/* Resize handle */}
@@ -436,7 +436,7 @@ const KPIMonitorInner: React.FC = () => {
         {store.selectedKpis.length > 0 && (
           <MainChartResizable
             isSelected={store.selectedWidgetId === '__kpi_main__'}
-            onClick={() => store.setSelectedWidgetId(store.selectedWidgetId === '__kpi_main__' ? null : '__kpi_main__')}
+            onSelect={() => store.setSelectedWidgetId(store.selectedWidgetId === '__kpi_main__' ? null : '__kpi_main__')}
           >
             {(chartHeight) => (
               <>
@@ -486,7 +486,7 @@ const KPIMonitorInner: React.FC = () => {
           >
             {widgets.map(w => (
               <div key={getId(w)}
-                onClick={() => {
+                onClickCapture={() => {
                   const wId = getId(w);
                   store.setSelectedWidgetId(store.selectedWidgetId === wId ? null : wId);
                 }}
@@ -502,7 +502,7 @@ const KPIMonitorInner: React.FC = () => {
               <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
                 store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
               }`}
-                onClick={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
+                onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
               >{renderWidget(w)}</div>
             ))}
           </FreeLayoutCanvas>
