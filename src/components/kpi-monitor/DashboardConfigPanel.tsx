@@ -204,15 +204,18 @@ const DashboardConfigPanel: React.FC<DashboardConfigPanelProps> = ({ seriesInfo 
                 </div>
               </div>
 
-              {/* ── Milestones ── */}
-              <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+              {/* ── Separator ── */}
+              <div className="w-px h-4 bg-border/50 shrink-0" />
+
+              {/* ── Milestones (inline with time controls) ── */}
+              <div className="flex items-center gap-1.5 shrink-0">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors">
-                      <Flag className="w-3.5 h-3.5" />
-                      <span>Milestones</span>
+                    <button className="flex items-center gap-1.5 h-6 px-2 rounded-full bg-muted/40 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
+                      <Flag className="w-3 h-3" />
+                      <span>Jalons</span>
                       {store.milestones.length > 0 && (
-                        <span className="bg-primary/15 text-primary text-[9px] font-bold rounded-full px-1.5 py-0">
+                        <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-primary/15 text-primary text-[9px] font-bold leading-none">
                           {store.milestones.length}
                         </span>
                       )}
@@ -288,7 +291,8 @@ const DashboardConfigPanel: React.FC<DashboardConfigPanelProps> = ({ seriesInfo 
 
                 <button
                   onClick={addMilestone}
-                  className="w-5 h-5 rounded-full flex items-center justify-center bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted/60 transition-all"
+                  title="Ajouter un jalon"
                 >
                   <Plus className="w-3 h-3" />
                 </button>
