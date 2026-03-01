@@ -80,15 +80,17 @@ const EChartsTimeSeries: React.FC<Props> = ({
   const chartRef = useRef<ReactECharts>(null);
   const catMap = externalMap || KPI_CATALOG_MAP;
 
-  // Force ECharts resize when editMode changes (sidebar appears/disappears)
+  // Force ECharts resize after mount and when editMode changes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        const instance = chartRef.current?.getEchartsInstance?.();
-        instance?.resize({ width: 'auto', height: 'auto' });
-      } catch { /* noop */ }
-    }, 100);
-    return () => clearTimeout(timer);
+    const timers = [50, 150, 400].map(delay =>
+      setTimeout(() => {
+        try {
+          const instance = chartRef.current?.getEchartsInstance?.();
+          instance?.resize({ width: 'auto', height: 'auto' });
+        } catch { /* noop */ }
+      }, delay)
+    );
+    return () => timers.forEach(clearTimeout);
   }, [editMode]);
 
   const option = useMemo(() => {
@@ -351,6 +353,11 @@ const EChartsTimeSeries: React.FC<Props> = ({
           style={{ height: height - 80, width: '100%' }}
           opts={{ renderer: 'canvas' }}
           notMerge
+          onChartReady={(instance) => {
+            // Deferred resize to ensure container has reached final width
+            setTimeout(() => instance.resize({ width: 'auto', height: 'auto' }), 100);
+            setTimeout(() => instance.resize({ width: 'auto', height: 'auto' }), 350);
+          }}
         />
       )}
     </PremiumGraphCard>
