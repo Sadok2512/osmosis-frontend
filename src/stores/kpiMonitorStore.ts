@@ -93,5 +93,5 @@ export const useKpiMonitorStore = create<KpiMonitorState>((set) => ({
 
   // Active editing widget
   activeEditingWidgetId: null,
-  setActiveEditingWidgetId: (id) => set((s) => ({ activeEditingWidgetId: s.activeEditingWidgetId === id ? null : id })),
+  setActiveEditingWidgetId: (id) => set({ activeEditingWidgetId: id }),
 }));
