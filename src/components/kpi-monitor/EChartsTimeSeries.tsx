@@ -14,6 +14,11 @@ interface Props {
   granularity?: string;
   onOpenSettings?: () => void;
   onExportPNG?: () => void;
+  onExportCSV?: () => void;
+  onRefresh?: () => void;
+  onExpand?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
 }
 
 /* ── Color palette (enterprise neutral + accent) ── */
@@ -31,6 +36,7 @@ const getSeriesType = (graphType?: GraphType): string => {
 const EChartsTimeSeries: React.FC<Props> = ({
   data, height = 460, catalogMap: externalMap,
   title, badge, granularity, onOpenSettings, onExportPNG: externalExportPNG,
+  onExportCSV, onRefresh, onExpand, onDuplicate, onDelete,
 }) => {
   const { selectedKpis } = useKpiMonitorStore();
   const chartRef = useRef<ReactECharts>(null);
@@ -240,6 +246,11 @@ const EChartsTimeSeries: React.FC<Props> = ({
       lastUpdated={now}
       onOpenSettings={onOpenSettings}
       onExportPNG={externalExportPNG || handleExportPNG}
+      onExportCSV={onExportCSV}
+      onRefresh={onRefresh}
+      onExpand={onExpand}
+      onDuplicate={onDuplicate}
+      onDelete={onDelete}
     >
       {data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3">
