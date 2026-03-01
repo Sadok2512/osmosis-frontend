@@ -28,7 +28,7 @@ import { toast } from '@/hooks/use-toast';
 import DashboardTopBar from './DashboardTopBar';
 import DashboardConfigPanel from './DashboardConfigPanel';
 import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
-import { SeriesTable, RightConfigPanel, BottomFilterCards, type QuickSettingsSection } from './InlineGraphConfig';
+import { HorizontalConfigPanel, type QuickSettingsSection } from './InlineGraphConfig';
 import AIFloatingModal from './AIFloatingModal';
 import {
   LayoutGrid, FileDown, Plus,
@@ -462,14 +462,10 @@ const KPIMonitorInner: React.FC = () => {
                     thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
                     editMode={showInlineConfig}
                     onToggleEditMode={() => { setShowInlineConfig(!showInlineConfig); }}
-                    seriesTable={
-                      <SeriesTable
+                    configPanel={
+                      <HorizontalConfigPanel
                         catalogMap={catalogMap}
                         onOpenKpiSelector={() => setShowKpiSelector(true)}
-                      />
-                    }
-                    configPanel={
-                      <RightConfigPanel
                         axisConfig={widgetAxisConfigs['__kpi_main__']}
                         onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
                         graphConfig={widgetGraphConfigs['__kpi_main__']}
@@ -478,12 +474,6 @@ const KPIMonitorInner: React.FC = () => {
                         onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, '__kpi_main__': t }))}
                         thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__'] || false}
                         onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, '__kpi_main__': v }))}
-                      />
-                    }
-                    bottomPanel={
-                      <BottomFilterCards
-                        catalogMap={catalogMap}
-                        onOpenKpiSelector={() => setShowKpiSelector(true)}
                       />
                     }
                   />

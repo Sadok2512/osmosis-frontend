@@ -25,7 +25,6 @@ interface Props {
   thresholdsEnabled?: boolean;
   editMode?: boolean;
   onToggleEditMode?: () => void;
-  seriesTable?: React.ReactNode;
   configPanel?: React.ReactNode;
   bottomPanel?: React.ReactNode;
 }
@@ -72,7 +71,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
   title, badge, granularity, onExportPNG: externalExportPNG,
   onExportCSV, onRefresh, onExpand, onDuplicate, onDelete,
   graphConfig: gc, axisConfig: ac, thresholds: thresholdList, thresholdsEnabled,
-  editMode, onToggleEditMode, seriesTable, configPanel, bottomPanel,
+  editMode, onToggleEditMode, configPanel, bottomPanel,
 }) => {
   const { selectedKpis } = useKpiMonitorStore();
   const chartRef = useRef<ReactECharts>(null);
@@ -313,7 +312,6 @@ const EChartsTimeSeries: React.FC<Props> = ({
       onDelete={onDelete}
       editMode={editMode}
       onToggleEditMode={onToggleEditMode}
-      seriesTable={seriesTable}
       configPanel={configPanel}
       bottomPanel={bottomPanel}
     >
