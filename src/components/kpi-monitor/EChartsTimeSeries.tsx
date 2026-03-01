@@ -27,6 +27,8 @@ interface Props {
   onToggleEditMode?: () => void;
   configPanel?: React.ReactNode;
   bottomPanel?: React.ReactNode;
+  onAxisConfigChange?: (c: WidgetAxisConfig) => void;
+  onGraphConfigChange?: (c: WidgetGraphConfig) => void;
 }
 
 /* ── Color palette (enterprise neutral + accent) ── */
@@ -72,6 +74,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
   onExportCSV, onRefresh, onExpand, onDuplicate, onDelete,
   graphConfig: gc, axisConfig: ac, thresholds: thresholdList, thresholdsEnabled,
   editMode, onToggleEditMode, configPanel, bottomPanel,
+  onAxisConfigChange, onGraphConfigChange,
 }) => {
   const { selectedKpis } = useKpiMonitorStore();
   const chartRef = useRef<ReactECharts>(null);
@@ -314,6 +317,10 @@ const EChartsTimeSeries: React.FC<Props> = ({
       onToggleEditMode={onToggleEditMode}
       configPanel={configPanel}
       bottomPanel={bottomPanel}
+      axisConfig={ac}
+      onAxisConfigChange={onAxisConfigChange}
+      graphConfig={gc}
+      onGraphConfigChange={onGraphConfigChange}
     >
       {data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3">
