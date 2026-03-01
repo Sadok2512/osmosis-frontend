@@ -9,7 +9,6 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
-import { GraphCard } from './GraphPopover';
 
 interface PremiumGraphCardProps {
   title?: string;
@@ -161,21 +160,11 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
       )}
 
-      {/* ── Chart area + Right Graph sidebar ── */}
-      <div className="flex-1 min-h-0 flex">
-        {/* Chart */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
-            {children}
-          </div>
+      {/* ── Chart area ── */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
+          {children}
         </div>
-
-        {/* Right sidebar: GRAPH config */}
-        {editMode && graphConfig && onGraphConfigChange && (
-          <div className="w-[220px] shrink-0 border-l border-border/40 bg-muted/20 p-3 overflow-y-auto animate-in slide-in-from-right duration-200">
-            <GraphCard graphConfig={graphConfig} onGraphConfigChange={onGraphConfigChange} />
-          </div>
-        )}
       </div>
 
       {/* ── Bottom Panel ── */}
