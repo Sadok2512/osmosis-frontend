@@ -1931,7 +1931,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const color = getKpiColor(getCellKpiValue(site.cells[0] || {}));
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
-          const isFocusFaded = focusMode !== 'global' && !isSelectedSite;
+          const isFocusFaded = false; // keep all sites visible when one is selected
           const radius = viewport.zoom >= 10 ? (isHovered ? 7 : (isSelectedSite ? 7 : 5)) : (isHovered ? 5 : 3);
           return (
             <CircleMarker
@@ -1972,7 +1972,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           const beamScale = beamVisibility / 100;
           const overlapFactor = baseOverlap + (1 - baseOverlap) * beamScale;
-          const isFocusFaded = focusMode !== 'global' && !isSelectedSite;
+          const isFocusFaded = false; // keep all sites visible when one is selected
 
           /* ── ALL mode: technology-only (no bands), fixed radii ── */
           if (mapTechnoFilter === 'ALL') {
