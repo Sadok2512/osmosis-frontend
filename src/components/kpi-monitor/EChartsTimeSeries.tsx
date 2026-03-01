@@ -208,30 +208,9 @@ const EChartsTimeSeries: React.FC<Props> = ({
       },
       yAxis,
       series,
-      // ── DataZoom (premium slider) ──
+      // ── DataZoom (inside only — no slider preview line) ──
       dataZoom: [
         { type: 'inside', xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: true, moveOnMouseMove: true },
-        {
-          type: 'slider', xAxisIndex: 0, start: 0, end: 100,
-          height: 16,
-          bottom: 38,
-          borderColor: 'transparent',
-          backgroundColor: 'rgba(0,0,0,0.02)',
-          fillerColor: 'rgba(59,130,246,0.12)',
-          handleIcon: 'path://M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
-          handleSize: '80%',
-          handleStyle: { color: '#94a3b8', borderColor: '#94a3b8', shadowBlur: 3, shadowColor: 'rgba(0,0,0,0.1)' },
-          dataBackground: {
-            lineStyle: { color: 'rgba(59,130,246,0.2)', width: 1 },
-            areaStyle: { color: 'rgba(59,130,246,0.05)' },
-          },
-          selectedDataBackground: {
-            lineStyle: { color: '#3b82f6', width: 1 },
-            areaStyle: { color: 'rgba(59,130,246,0.1)' },
-          },
-          textStyle: { fontSize: 9, color: '#9ca3af' },
-          brushSelect: false,
-        },
       ],
       animation: true,
       animationDuration: 600,
