@@ -9,8 +9,9 @@ import {
   X, Plus, Pencil, MoreHorizontal, BarChart3, GitBranch,
   TrendingUp, AreaChart, BarChart, Layers2, CircleDot,
   Download, FileSpreadsheet, RefreshCw, Copy, Trash2,
-  AlertTriangle, Palette, Grid3X3,
+  AlertTriangle, Palette, Grid3X3, Check,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -315,6 +316,17 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
                 className="h-3.5 w-7 data-[state=checked]:bg-primary" />
             </div>
           </div>
+        </div>
+
+        {/* ─── Bouton Appliquer ─── */}
+        <div className="flex items-center shrink-0 self-end">
+          <button
+            onClick={() => toast.success('Configuration graph appliquée')}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Check className="w-3.5 h-3.5" />
+            Appliquer
+          </button>
         </div>
       </div>
     </div>
