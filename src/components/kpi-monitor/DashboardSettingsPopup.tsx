@@ -80,8 +80,8 @@ const DashboardSettingsPopup: React.FC<Props> = ({ open, onClose, dashboardId, d
   const nameValid = draft.name.trim().length > 0 && draft.name.length <= 80;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] pb-4 overflow-y-auto bg-black/40 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-[480px] max-h-[84vh] overflow-hidden flex flex-col my-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[8vh] pb-4 overflow-y-auto bg-black/40 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-[480px] max-h-[84vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
           <h2 className="text-sm font-bold text-foreground">Dashboard Settings</h2>
