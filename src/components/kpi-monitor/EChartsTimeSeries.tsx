@@ -174,23 +174,13 @@ const EChartsTimeSeries: React.FC<Props> = ({
           return html;
         },
       },
-      // ── Legend ──
-      legend: {
-        type: 'scroll',
-        bottom: 8,
-        textStyle: { fontSize: 11, color: '#64748b', fontFamily: 'Inter, system-ui, sans-serif' },
-        icon: 'circle',
-        itemWidth: 8,
-        itemHeight: 8,
-        itemGap: 16,
-        selectedMode: true,
-        inactiveColor: '#d1d5db',
-      },
+      // ── Legend (hidden — info in title & config panel) ──
+      legend: { show: false },
       // ── Grid ──
       grid: {
         top: 24,
         right: rightKpis.length > 0 ? 72 : 24,
-        bottom: 64,
+        bottom: 40,
         left: 56,
         containLabel: false,
       },
