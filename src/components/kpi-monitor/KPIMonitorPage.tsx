@@ -28,7 +28,7 @@ import { toast } from '@/hooks/use-toast';
 import DashboardTopBar from './DashboardTopBar';
 import DashboardConfigPanel from './DashboardConfigPanel';
 import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
-import { SeriesTable, RightConfigPanel, type QuickSettingsSection } from './InlineGraphConfig';
+import { SeriesTable, RightConfigPanel, BottomFilterCards, type QuickSettingsSection } from './InlineGraphConfig';
 import AIFloatingModal from './AIFloatingModal';
 import {
   LayoutGrid, FileDown, Plus,
@@ -478,6 +478,12 @@ const KPIMonitorInner: React.FC = () => {
                         onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, '__kpi_main__': t }))}
                         thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__'] || false}
                         onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, '__kpi_main__': v }))}
+                      />
+                    }
+                    bottomPanel={
+                      <BottomFilterCards
+                        catalogMap={catalogMap}
+                        onOpenKpiSelector={() => setShowKpiSelector(true)}
                       />
                     }
                   />
