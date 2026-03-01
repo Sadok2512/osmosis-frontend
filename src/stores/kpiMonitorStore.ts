@@ -45,6 +45,10 @@ interface KpiMonitorState {
   // Selected widget
   selectedWidgetId: string | null;
   setSelectedWidgetId: (id: string | null) => void;
+
+  // Active editing widget (only one at a time — Option A)
+  activeEditingWidgetId: string | null;
+  setActiveEditingWidgetId: (id: string | null) => void;
 }
 
 export const useKpiMonitorStore = create<KpiMonitorState>((set) => ({
@@ -86,4 +90,8 @@ export const useKpiMonitorStore = create<KpiMonitorState>((set) => ({
   // Selected widget
   selectedWidgetId: null,
   setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
+
+  // Active editing widget
+  activeEditingWidgetId: null,
+  setActiveEditingWidgetId: (id) => set((s) => ({ activeEditingWidgetId: s.activeEditingWidgetId === id ? null : id })),
 }));

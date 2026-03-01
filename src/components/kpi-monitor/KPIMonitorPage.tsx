@@ -177,7 +177,6 @@ const KPIMonitorInner: React.FC = () => {
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
   const [showKpiSelector, setShowKpiSelector] = useState(false);
   const [editMode, setEditMode] = useState(true);
-  const [showInlineConfig, setShowInlineConfig] = useState(false);
   const [quickSection, setQuickSection] = useState<QuickSettingsSection>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [widgetThresholds, setWidgetThresholds] = useState<Record<string, WidgetThreshold[]>>({});
@@ -460,8 +459,8 @@ const KPIMonitorInner: React.FC = () => {
                     axisConfig={widgetAxisConfigs['__kpi_main__']}
                     thresholds={widgetThresholds['__kpi_main__']}
                     thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
-                    editMode={showInlineConfig}
-                    onToggleEditMode={() => { setShowInlineConfig(!showInlineConfig); }}
+                    editMode={store.activeEditingWidgetId === '__kpi_main__'}
+                    onToggleEditMode={() => store.setActiveEditingWidgetId('__kpi_main__')}
                     configPanel={
                       <HorizontalConfigPanel
                         catalogMap={catalogMap}
