@@ -129,10 +129,9 @@ const MainChartResizable: React.FC<{
 
   return (
     <div
-      className={`mb-4 cursor-pointer transition-all duration-200 rounded-xl relative ${
+      className={`mb-4 transition-all duration-200 rounded-xl relative ${
         isSelected ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : 'hover:ring-1 hover:ring-border'
       }`}
-      onClickCapture={onSelect}
     >
       {children(height)}
       {/* Resize handle */}
@@ -486,11 +485,7 @@ const KPIMonitorInner: React.FC = () => {
           >
             {widgets.map(w => (
               <div key={getId(w)}
-                onClickCapture={() => {
-                  const wId = getId(w);
-                  store.setSelectedWidgetId(store.selectedWidgetId === wId ? null : wId);
-                }}
-                className={`cursor-pointer transition-all duration-200 rounded-xl ${
+                className={`transition-all duration-200 rounded-xl ${
                   store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                 }`}
               >{renderWidget(w)}</div>
@@ -499,10 +494,9 @@ const KPIMonitorInner: React.FC = () => {
         ) : widgets.length > 0 ? (
           <FreeLayoutCanvas items={widgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
             {widgets.map(w => (
-              <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
+              <div key={getId(w)} className={`w-full h-full transition-all duration-200 rounded-xl ${
                 store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
               }`}
-                onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
               >{renderWidget(w)}</div>
             ))}
           </FreeLayoutCanvas>
