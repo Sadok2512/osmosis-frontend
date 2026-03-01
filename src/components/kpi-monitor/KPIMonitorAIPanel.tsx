@@ -9,6 +9,8 @@ import { useKpiMonitorStore } from '@/stores/kpiMonitorStore';
 import { parseVisualizationBlocks } from '../otarie/chat-visualizations/parseVisualizationBlocks';
 import InlineChart from '../otarie/chat-visualizations/InlineChart';
 import InlineKPICards from '../otarie/chat-visualizations/InlineKPICards';
+import AIClarifyingQuestions, { detectNeedsClarification, generateClarifyingQuestions, ClarifyQuestion } from './AIClarifyingQuestions';
+import { fetchParameterChanges, changesToMilestones } from '@/services/parameterChangesService';
 const InlineMap = lazy(() => import('../otarie/chat-visualizations/InlineMap'));
 
 type Msg = { role: 'user' | 'assistant'; content: string };
@@ -28,6 +30,8 @@ const KPIMonitorAIPanel: React.FC<KPIMonitorAIPanelProps> = ({ onClose }) => {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [clarifyQuestions, setClarifyQuestions] = useState<ClarifyQuestion[] | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -180,6 +184,17 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
   const send = async (text?: string) => {
     const msg = text || input.trim();
     if (!msg || isLoading) return;
+
+    // Detect if prompt needs clarification (parameter changes, etc.)
+    if (detectNeedsClarification(msg) && !clarifyQuestions) {
+      setPendingPrompt(msg);
+      setClarifyQuestions(generateClarifyingQuestions());
+      // Show user message immediately
+      setMessages(prev => [...prev, { role: 'user', content: msg }]);
+      setInput('');
+      return;
+    }
+
     const userMsg: Msg = { role: 'user', content: msg };
     const updated = [...messages, userMsg];
     setMessages(updated);
@@ -194,7 +209,74 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
     }
   };
 
-  const clearChat = () => setMessages([]);
+  const handleClarifySubmit = async (answers: Record<string, string[]>) => {
+    setClarifyQuestions(null);
+
+    // Build enriched prompt from answers
+    const scopeStr = answers.change_scope?.join(', ') || 'all';
+    const topoStr = answers.topo_level?.join(', ') || 'all';
+    const rangeStr = answers.time_range?.[0] || '14';
+    const typeStr = answers.change_type?.join(', ') || 'all';
+    const displayStr = answers.display_mode?.[0] || 'milestones';
+
+    const enrichedPrompt = `${pendingPrompt}
+
+[Configuration assistée]
+- Périmètre changements: ${scopeStr}
+- Niveau topo: ${topoStr}
+- Période: ${rangeStr === 'custom' ? 'période actuelle' : rangeStr + ' jours'}
+- Types: ${typeStr}
+- Affichage: ${displayStr}`;
+
+    // Fetch parameter changes and inject as milestones
+    const dateFrom = rangeStr === 'custom'
+      ? globalFilter.dateFrom
+      : new Date(Date.now() - parseInt(rangeStr) * 86400000).toISOString().split('T')[0];
+    const dateTo = rangeStr === 'custom' ? globalFilter.dateTo : new Date().toISOString().split('T')[0];
+
+    try {
+      const changes = await fetchParameterChanges({
+        change_scope: answers.change_scope,
+        change_type: answers.change_type?.includes('all') ? undefined : answers.change_type,
+        date_from: dateFrom,
+        date_to: dateTo,
+      });
+
+      if (changes.length > 0) {
+        const milestones = changesToMilestones(changes);
+        milestones.forEach(m => kpiStore.addMilestone(m));
+        if (!kpiStore.showMilestones) kpiStore.setShowMilestones(true);
+        toast({ title: `${milestones.length} jalons ajoutés`, description: 'Les changements de paramètres sont affichés sur le graphe.' });
+      }
+    } catch (e) {
+      console.error('Failed to fetch parameter changes:', e);
+    }
+
+    // Add system info and send to AI
+    const systemMsg: Msg = { role: 'assistant', content: `✅ Configuration appliquée : périmètre **${scopeStr}**, types **${typeStr}**, affichage **${displayStr}**. Génération du dashboard en cours...` };
+    const updated = [...messages, systemMsg, { role: 'user' as const, content: enrichedPrompt }];
+    setMessages(prev => [...prev, systemMsg]);
+    setIsLoading(true);
+    try {
+      await streamChat(updated);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClarifySkip = () => {
+    setClarifyQuestions(null);
+    const msg = pendingPrompt;
+    setPendingPrompt('');
+    // Send original prompt without enrichment
+    const updated = [...messages, { role: 'user' as const, content: msg }];
+    setIsLoading(true);
+    streamChat(updated).catch(console.error).finally(() => setIsLoading(false));
+  };
+
+  const clearChat = () => { setMessages([]); setClarifyQuestions(null); setPendingPrompt(''); };
 
   return (
     <div className="w-full h-full bg-card flex flex-col overflow-hidden">
@@ -285,7 +367,22 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
                 )}
               </div>
             ))}
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
+            {/* Clarifying questions */}
+            {clarifyQuestions && (
+              <div className="flex gap-2">
+                <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-1">
+                  <Bot className="w-3 h-3 text-primary" />
+                </div>
+                <div className="max-w-[90%]">
+                  <AIClarifyingQuestions
+                    questions={clarifyQuestions}
+                    onSubmit={handleClarifySubmit}
+                    onSkip={handleClarifySkip}
+                  />
+                </div>
+              </div>
+            )}
+            {isLoading && messages[messages.length - 1]?.role === 'user' && !clarifyQuestions && (
               <div className="flex gap-2">
                 <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Bot className="w-3 h-3 text-primary" />

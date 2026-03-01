@@ -230,6 +230,66 @@ export type Database = {
         }
         Relationships: []
       }
+      parameter_changes: {
+        Row: {
+          cell_name: string | null
+          change_date: string
+          change_scope: string
+          change_type: string
+          created_at: string
+          description: string | null
+          dor: string | null
+          dr: string | null
+          id: number
+          new_value: string | null
+          old_value: string | null
+          param_name: string
+          plaque: string | null
+          site_name: string | null
+          techno: string | null
+          vendor: string | null
+          zone_arcep: string | null
+        }
+        Insert: {
+          cell_name?: string | null
+          change_date: string
+          change_scope?: string
+          change_type?: string
+          created_at?: string
+          description?: string | null
+          dor?: string | null
+          dr?: string | null
+          id?: never
+          new_value?: string | null
+          old_value?: string | null
+          param_name: string
+          plaque?: string | null
+          site_name?: string | null
+          techno?: string | null
+          vendor?: string | null
+          zone_arcep?: string | null
+        }
+        Update: {
+          cell_name?: string | null
+          change_date?: string
+          change_scope?: string
+          change_type?: string
+          created_at?: string
+          description?: string | null
+          dor?: string | null
+          dr?: string | null
+          id?: never
+          new_value?: string | null
+          old_value?: string | null
+          param_name?: string
+          plaque?: string | null
+          site_name?: string | null
+          techno?: string | null
+          vendor?: string | null
+          zone_arcep?: string | null
+        }
+        Relationships: []
+      }
       qoe_metrics: {
         Row: {
           bande: string | null
