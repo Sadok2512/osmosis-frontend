@@ -520,6 +520,15 @@ const KPIMonitorInner: React.FC = () => {
       )}
       {showCSVPanel && <CSVDataPanel onClose={() => setShowCSVPanel(false)} />}
 
+      {/* ── Chart Config Panel (BI widget edit) ── */}
+      {editingChart && (
+        <ChartConfigPanel
+          config={editingChart.config as ChartConfig}
+          onChange={(cfg) => updateChartConfig(editingId!, cfg)}
+          onClose={() => setEditingId(null)}
+        />
+      )}
+
       {/* ── AI Floating Modal ── */}
       <AIFloatingModal open={showAI} onClose={() => setShowAI(false)} />
 
