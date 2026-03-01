@@ -28,12 +28,28 @@ const PREMIUM_COLORS = [
 ];
 
 /* Convert any CSS color to hex so we can safely append alpha hex digits */
+const _hexCache = new Map<string, string>();
 const toHex = (c: string): string => {
   if (/^#[0-9a-fA-F]{6}$/.test(c)) return c;
-  const ctx = document.createElement('canvas').getContext('2d');
-  if (!ctx) return c;
-  ctx.fillStyle = c;
-  return ctx.fillStyle; // browsers normalize to #rrggbb
+  if (_hexCache.has(c)) return _hexCache.get(c)!;
+  try {
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return '#64748b';
+    ctx.fillStyle = '#000000';
+    ctx.fillStyle = c;
+    const hex = ctx.fillStyle;
+    _hexCache.set(c, hex);
+    return hex;
+  } catch { return '#64748b'; }
+};
+
+/* Create rgba string with alpha (0-1) from any CSS color */
+const withAlpha = (c: string, alpha: number): string => {
+  const hex = toHex(c);
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 };
 
 const getSeriesType = (graphType?: GraphType): string => {
@@ -132,7 +148,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
         lineStyle: {
           width: 2.5,
           color,
-          shadowColor: `${color}30`,
+          shadowColor: withAlpha(color, 0.19),
           shadowBlur: 8,
           shadowOffsetY: 3,
         },
@@ -141,15 +157,15 @@ const EChartsTimeSeries: React.FC<Props> = ({
           color: {
             type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: `${color}18` },
-              { offset: 1, color: `${color}02` },
+              { offset: 0, color: withAlpha(color, 0.09) },
+              { offset: 1, color: withAlpha(color, 0.01) },
             ],
           },
         } : undefined,
         emphasis: {
           focus: 'series',
           lineStyle: { width: 3 },
-          itemStyle: { borderWidth: 2, borderColor: '#fff', shadowBlur: 6, shadowColor: `${color}40` },
+          itemStyle: { borderWidth: 2, borderColor: '#fff', shadowBlur: 6, shadowColor: withAlpha(color, 0.25) },
         },
         showSymbol: false,
         connectNulls: true,
