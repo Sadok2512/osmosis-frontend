@@ -457,6 +457,10 @@ const KPIMonitorInner: React.FC = () => {
                     onRefresh={() => { /* trigger re-render */ }}
                     onDuplicate={() => { /* main chart duplicate not applicable */ }}
                     onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
+                    graphConfig={widgetGraphConfigs['__kpi_main__']}
+                    axisConfig={widgetAxisConfigs['__kpi_main__']}
+                    thresholds={widgetThresholds['__kpi_main__']}
+                    thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
                   />
                 )}
                 {store.viewMode === 'table' && (

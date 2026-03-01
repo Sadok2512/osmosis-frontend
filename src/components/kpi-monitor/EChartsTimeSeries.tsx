@@ -4,6 +4,7 @@ import { KpiTimeSeriesPoint, KpiCatalogEntry, GraphType } from './types';
 import { KPI_CATALOG_MAP } from './kpiCatalog';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import PremiumGraphCard from './PremiumGraphCard';
+import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
 
 interface Props {
   data: KpiTimeSeriesPoint[];
@@ -19,6 +20,10 @@ interface Props {
   onExpand?: () => void;
   onDuplicate?: () => void;
   onDelete?: () => void;
+  graphConfig?: WidgetGraphConfig;
+  axisConfig?: WidgetAxisConfig;
+  thresholds?: WidgetThreshold[];
+  thresholdsEnabled?: boolean;
 }
 
 /* ── Color palette (enterprise neutral + accent) ── */
@@ -62,6 +67,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
   data, height = 460, catalogMap: externalMap,
   title, badge, granularity, onOpenSettings, onExportPNG: externalExportPNG,
   onExportCSV, onRefresh, onExpand, onDuplicate, onDelete,
+  graphConfig: gc, axisConfig: ac, thresholds: thresholdList, thresholdsEnabled,
 }) => {
   const { selectedKpis } = useKpiMonitorStore();
   const chartRef = useRef<ReactECharts>(null);
@@ -82,11 +88,13 @@ const EChartsTimeSeries: React.FC<Props> = ({
     const rightKpis = selectedKpis.filter(k => k.axis === 'right');
     const yAxis: any[] = [];
 
+    const yDecimals = ac?.yDecimals ?? 2;
     const axisBase = {
       axisLabel: { fontSize: 10, color: '#9ca3af', fontFamily: 'Inter, system-ui, sans-serif', formatter: (v: number) => {
+        if (ac?.yUnit) return v.toFixed(yDecimals) + ' ' + ac.yUnit;
         if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(1) + 'M';
         if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(1) + 'k';
-        return v % 1 === 0 ? v.toString() : v.toFixed(1);
+        return v % 1 === 0 ? v.toString() : v.toFixed(yDecimals);
       }},
       nameTextStyle: { fontSize: 10, color: '#9ca3af', fontFamily: 'Inter, system-ui, sans-serif', padding: [0, 0, 0, 0] },
       axisLine: { show: false },
@@ -98,10 +106,13 @@ const EChartsTimeSeries: React.FC<Props> = ({
       yAxis.push({
         ...axisBase,
         type: 'value',
-        name: cat?.unit || '',
+        name: ac?.yTitle || cat?.unit || '',
         position: 'left',
+        inverse: ac?.yInvert || false,
+        min: ac?.yMin !== 'auto' && ac?.yMin !== undefined ? ac.yMin : undefined,
+        max: ac?.yMax !== 'auto' && ac?.yMax !== undefined ? ac.yMax : undefined,
         splitLine: {
-          lineStyle: { color: 'rgba(0,0,0,0.06)', type: [4, 4], width: 1 },
+          lineStyle: { color: gc?.gridIntensity === 'medium' ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.06)', type: [4, 4], width: 1 },
         },
       });
     }
@@ -136,17 +147,21 @@ const EChartsTimeSeries: React.FC<Props> = ({
         return pt ? pt.value : null;
       });
 
+      const lineW = gc?.lineWidth ?? 2.5;
+      const isSmooth = gc?.smooth ?? true;
+      const showSym = gc?.showSymbols ?? false;
+
       series.push({
         name,
         type: chartType === 'scatter' ? 'scatter' : chartType === 'bar' ? 'bar' : 'line',
-        smooth: chartType !== 'bar' && chartType !== 'scatter' ? 0.3 : false,
-        symbol: chartType === 'scatter' ? 'circle' : 'none',
-        symbolSize: chartType === 'scatter' ? 6 : 0,
+        smooth: chartType !== 'bar' && chartType !== 'scatter' ? (isSmooth ? 0.3 : false) : false,
+        symbol: chartType === 'scatter' ? 'circle' : showSym ? 'circle' : 'none',
+        symbolSize: chartType === 'scatter' ? 6 : showSym ? 4 : 0,
         yAxisIndex,
         data: dataArr,
         stack: isStacked ? 'stack' : undefined,
         lineStyle: {
-          width: 2.5,
+          width: lineW,
           color,
           shadowColor: withAlpha(color, 0.19),
           shadowBlur: 8,
@@ -164,11 +179,23 @@ const EChartsTimeSeries: React.FC<Props> = ({
         } : undefined,
         emphasis: {
           focus: 'series',
-          lineStyle: { width: 3 },
+          lineStyle: { width: lineW + 0.5 },
           itemStyle: { borderWidth: 2, borderColor: '#fff', shadowBlur: 6, shadowColor: withAlpha(color, 0.25) },
         },
-        showSymbol: false,
+        showSymbol: showSym,
         connectNulls: true,
+        // ── Threshold markLines ──
+        ...(thresholdsEnabled && thresholdList && thresholdList.length > 0 && colorIdx === 1 ? {
+          markLine: {
+            silent: true,
+            symbol: 'none',
+            data: thresholdList.map(t => ({
+              yAxis: t.value,
+              lineStyle: { color: t.color, type: t.style, width: 1.5 },
+              label: { formatter: t.label, fontSize: 9, color: t.color, position: 'insideEndTop' },
+            })),
+          },
+        } : {}),
       });
     }
 
@@ -205,8 +232,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
           return html;
         },
       },
-      // ── Legend (hidden — info in title & config panel) ──
-      legend: { show: false },
+      legend: { show: gc?.showLegend ?? false, bottom: gc?.legendPosition === 'top' ? undefined : 8, top: gc?.legendPosition === 'top' ? 0 : undefined, textStyle: { fontSize: 11, color: '#64748b' }, icon: 'circle', itemWidth: 8, itemHeight: 8 },
       // ── Grid ──
       grid: {
         top: 24,
@@ -220,6 +246,10 @@ const EChartsTimeSeries: React.FC<Props> = ({
         type: 'category',
         data: allTs.map(ts => {
           const d = new Date(ts);
+          const xFmt = ac?.xFormat || 'short';
+          if (xFmt === 'date') return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+          if (xFmt === 'datetime') return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          if (xFmt === 'full') return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
           return d.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }) +
             (allTs.length > 60 ? '' : ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
         }),
@@ -233,8 +263,8 @@ const EChartsTimeSeries: React.FC<Props> = ({
         axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
         axisTick: { show: false },
         splitLine: {
-          show: true,
-          lineStyle: { color: 'rgba(0,0,0,0.03)', type: [2, 4] },
+          show: gc?.showVerticalGrid ?? false,
+          lineStyle: { color: gc?.gridIntensity === 'medium' ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.03)', type: [2, 4] },
         },
       },
       yAxis,
@@ -243,11 +273,12 @@ const EChartsTimeSeries: React.FC<Props> = ({
       dataZoom: [
         { type: 'inside', xAxisIndex: 0, start: 0, end: 100, zoomOnMouseWheel: true, moveOnMouseMove: true },
       ],
+      backgroundColor: gc?.backgroundColor && gc.backgroundColor !== 'transparent' && !gc.transparentBg ? gc.backgroundColor : 'transparent',
       animation: true,
       animationDuration: 600,
       animationEasing: 'cubicInOut',
     };
-  }, [data, selectedKpis, catMap]);
+  }, [data, selectedKpis, catMap, gc, ac, thresholdList, thresholdsEnabled]);
 
   const handleExportPNG = useCallback(() => {
     const instance = chartRef.current?.getEchartsInstance();
