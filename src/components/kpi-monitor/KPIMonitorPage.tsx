@@ -568,44 +568,36 @@ const KPIMonitorInner: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right Config Sidebar */}
-              {editingWidget?.kind === 'chart' ? (
-                <ChartConfigPanel
-                  config={editingWidget.config as ChartConfig}
-                  onChange={cfg => updateChartConfig(editingWidgetId!, cfg)}
-                  onClose={closeEdit}
-                />
-              ) : (
-                <HorizontalConfigPanel
-                  catalogMap={catalogMap}
-                  onOpenKpiSelector={() => setShowKpiSelector(true)}
-                  title={monoTitle}
-                  onClose={closeEdit}
-                  onSave={() => {
-                    toast({ title: 'Configuration enregistrée', description: 'Les paramètres du widget ont été sauvegardés.' });
-                  }}
-                  axisConfig={widgetAxisConfigs[isEditingMain ? '__kpi_main__' : editingWidgetId!]}
-                  onAxisConfigChange={c => {
-                    const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
-                    setWidgetAxisConfigs(prev => ({ ...prev, [key]: c }));
-                  }}
-                  graphConfig={widgetGraphConfigs[isEditingMain ? '__kpi_main__' : editingWidgetId!]}
-                  onGraphConfigChange={c => {
-                    const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
-                    setWidgetGraphConfigs(prev => ({ ...prev, [key]: c }));
-                  }}
-                  thresholds={widgetThresholds[isEditingMain ? '__kpi_main__' : editingWidgetId!] || []}
-                  onThresholdsChange={t => {
-                    const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
-                    setWidgetThresholds(prev => ({ ...prev, [key]: t }));
-                  }}
-                  thresholdsEnabled={widgetThresholdsEnabled[isEditingMain ? '__kpi_main__' : editingWidgetId!] || false}
-                  onThresholdsEnabledChange={v => {
-                    const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
-                    setWidgetThresholdsEnabled(prev => ({ ...prev, [key]: v }));
-                  }}
-                />
-              )}
+              {/* Right Config Sidebar — always use unified KPI Monitor panel */}
+              <HorizontalConfigPanel
+                catalogMap={catalogMap}
+                onOpenKpiSelector={() => setShowKpiSelector(true)}
+                title={monoTitle}
+                onClose={closeEdit}
+                onSave={() => {
+                  toast({ title: 'Configuration enregistrée', description: 'Les paramètres du widget ont été sauvegardés.' });
+                }}
+                axisConfig={widgetAxisConfigs[isEditingMain ? '__kpi_main__' : editingWidgetId!]}
+                onAxisConfigChange={c => {
+                  const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
+                  setWidgetAxisConfigs(prev => ({ ...prev, [key]: c }));
+                }}
+                graphConfig={widgetGraphConfigs[isEditingMain ? '__kpi_main__' : editingWidgetId!]}
+                onGraphConfigChange={c => {
+                  const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
+                  setWidgetGraphConfigs(prev => ({ ...prev, [key]: c }));
+                }}
+                thresholds={widgetThresholds[isEditingMain ? '__kpi_main__' : editingWidgetId!] || []}
+                onThresholdsChange={t => {
+                  const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
+                  setWidgetThresholds(prev => ({ ...prev, [key]: t }));
+                }}
+                thresholdsEnabled={widgetThresholdsEnabled[isEditingMain ? '__kpi_main__' : editingWidgetId!] || false}
+                onThresholdsEnabledChange={v => {
+                  const key = isEditingMain ? '__kpi_main__' : editingWidgetId!;
+                  setWidgetThresholdsEnabled(prev => ({ ...prev, [key]: v }));
+                }}
+              />
             </>
           );
         })()}
