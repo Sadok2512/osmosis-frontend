@@ -40,7 +40,7 @@ const SPLIT_OPTIONS: { value: SplitDimension; label: string }[] = [
 
 const DEFAULT_AXIS: WidgetAxisConfig = {
   yTitle: '', yMin: 'auto', yMax: 'auto', yUnit: '', yDecimals: 2, yInvert: false,
-  xFormat: 'short', xShowGrid: false,
+  xMode: 'date', xFormat: 'short', xShowGrid: false,
 };
 
 const DEFAULT_GRAPH: WidgetGraphConfig = {
@@ -230,6 +230,24 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
 
       {/* ─── 2: AXE X ─── */}
       <SectionCard title="Axe X" icon={<Axis3D className="w-4 h-4" />} sectionKey="axeX">
+        {/* Segmented tabs: Date / Dimension / KPI */}
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/40 border border-border/40">
+          {(['date', 'dimension', 'kpi'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setAxis({ xMode: mode })}
+              className={cn(
+                'flex-1 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all',
+                (axis as any).xMode === mode || (!((axis as any).xMode) && mode === 'date')
+                  ? 'bg-background text-foreground shadow-sm border border-border/50'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {mode === 'date' ? 'Date' : mode === 'dimension' ? 'Dimension' : 'KPI'}
+            </button>
+          ))}
+        </div>
+
         <FieldRow label="Format">
           <SmallSelect value={axis.xFormat} options={[
             { value: 'short', label: 'Court' }, { value: 'full', label: 'Complet' },

@@ -7,7 +7,7 @@ import type { WidgetAxisConfig } from './GraphSettingsPanel';
 
 const DEFAULT_AXIS: WidgetAxisConfig = {
   yTitle: '', yMin: 'auto', yMax: 'auto', yUnit: '', yDecimals: 2, yInvert: false,
-  xFormat: 'short', xShowGrid: false,
+  xMode: 'date', xFormat: 'short', xShowGrid: false,
 };
 
 const FieldRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
