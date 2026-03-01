@@ -2631,7 +2631,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating bottom-right: techno filter + layer switcher + legend */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 right-6 z-[1000] pointer-events-auto flex items-end gap-2">
+        <div className="absolute bottom-6 left-6 z-[1000] pointer-events-auto flex items-end gap-2">
           {/* Display mode: Sites / Points / Heatmap */}
           <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
             {([
