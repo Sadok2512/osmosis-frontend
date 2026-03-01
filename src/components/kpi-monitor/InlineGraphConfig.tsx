@@ -194,7 +194,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   };
 
   return (
-    <div className="w-[360px] shrink-0 h-full border-l border-border/40 bg-muted/10 flex flex-col overflow-hidden" style={{ backgroundColor: themeBg || undefined }}>
+    <div className="w-[360px] shrink-0 h-full border-l border-border/40 bg-muted/10 flex flex-col overflow-hidden">
 
       {/* ─── Header ─── */}
       <div className="px-4 py-3.5 border-b border-border/40 bg-background/80 backdrop-blur-sm">
