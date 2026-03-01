@@ -396,6 +396,9 @@ const KPIMonitorInner: React.FC = () => {
                 granularity={tsResponse.granularity_used}
                 height={460}
                 onOpenSettings={() => store.setSelectedWidgetId('__kpi_main__')}
+                onRefresh={() => { /* trigger re-render */ }}
+                onDuplicate={() => { /* main chart duplicate not applicable */ }}
+                onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
               />
             )}
             {store.viewMode === 'table' && (
