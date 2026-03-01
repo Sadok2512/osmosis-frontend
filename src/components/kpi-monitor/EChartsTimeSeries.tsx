@@ -141,23 +141,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
       });
     }
 
-    // ── Threshold mark lines ──
-    const markLines: any[] = [];
-    for (const kpiSel of selectedKpis) {
-      const cat = catMap[kpiSel.kpi_key];
-      if (cat?.thresholds) {
-        markLines.push(
-          { yAxis: cat.thresholds.warning, name: 'Warning', lineStyle: { color: '#f59e0b', type: [6, 4], width: 1.5, opacity: 0.7 } },
-          { yAxis: cat.thresholds.critical, name: 'Critical', lineStyle: { color: '#ef4444', type: [6, 4], width: 1.5, opacity: 0.7 } },
-        );
-      }
-    }
-    if (markLines.length > 0 && series.length > 0) {
-      series[0].markLine = {
-        silent: true, symbol: 'none', data: markLines,
-        label: { fontSize: 9, fontWeight: 600, position: 'insideEndTop', fontFamily: 'Inter, system-ui, sans-serif' },
-      };
-    }
+    // ── Threshold mark lines (only from user-configured thresholds, not auto) ──
 
     return {
       // ── Premium Tooltip ──
