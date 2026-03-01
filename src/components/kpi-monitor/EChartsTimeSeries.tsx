@@ -80,18 +80,17 @@ const EChartsTimeSeries: React.FC<Props> = ({
   const chartRef = useRef<ReactECharts>(null);
   const catMap = externalMap || KPI_CATALOG_MAP;
 
-  // Force ECharts resize after mount and when editMode changes
-  useEffect(() => {
-    const timers = [50, 150, 400].map(delay =>
+  // Force ECharts to always use container width (never a fixed pixel value)
+  const echartsOpts = useMemo(() => ({ renderer: 'canvas' as const }), []);
+
+  const handleChartReady = useCallback((instance: any) => {
+    // Multiple deferred resizes to handle layout settling
+    [0, 100, 300, 600].forEach(delay =>
       setTimeout(() => {
-        try {
-          const instance = chartRef.current?.getEchartsInstance?.();
-          instance?.resize({ width: 'auto', height: 'auto' });
-        } catch { /* noop */ }
+        try { instance.resize({ width: 'auto', height: 'auto' }); } catch { /* noop */ }
       }, delay)
     );
-    return () => timers.forEach(clearTimeout);
-  }, [editMode]);
+  }, []);
 
   const option = useMemo(() => {
     // ── Series grouping ──
@@ -351,8 +350,9 @@ const EChartsTimeSeries: React.FC<Props> = ({
           ref={chartRef}
           option={option}
           style={{ height: height - 80, width: '100%' }}
-          opts={{ renderer: 'canvas', width: 'auto', height: 'auto' }}
+          opts={echartsOpts}
           notMerge
+          onChartReady={handleChartReady}
         />
       )}
     </PremiumGraphCard>
