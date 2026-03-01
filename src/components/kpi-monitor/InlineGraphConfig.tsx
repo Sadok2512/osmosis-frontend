@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   X, Plus, TrendingUp, AreaChart, BarChart, BarChart3, Layers2, CircleDot,
-  Check, AlertTriangle, SlidersHorizontal, Settings2, Axis3D,
+  Check, AlertTriangle, SlidersHorizontal, Settings2, Axis3D, LayoutGrid,
 } from 'lucide-react';
 import type { WidgetThreshold, WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
 
@@ -163,6 +163,7 @@ export interface InlineGraphConfigProps {
   onOpenKpiSelector: () => void;
   onCollapse: () => void;
   activeSection: QuickSettingsSection;
+  onSetActiveSection?: (s: QuickSettingsSection) => void;
   axisConfig?: WidgetAxisConfig;
   onAxisConfigChange?: (c: WidgetAxisConfig) => void;
   graphConfig?: WidgetGraphConfig;
@@ -174,7 +175,7 @@ export interface InlineGraphConfigProps {
 }
 
 const InlineGraphConfig: React.FC<InlineGraphConfigProps> = ({
-  catalogMap, onOpenKpiSelector, onCollapse, activeSection,
+  catalogMap, onOpenKpiSelector, onCollapse, activeSection, onSetActiveSection,
   axisConfig: externalAxis, onAxisConfigChange,
   graphConfig: externalGraph, onGraphConfigChange,
   thresholds, onThresholdsChange, thresholdsEnabled, onThresholdsEnabledChange,
@@ -340,6 +341,19 @@ const InlineGraphConfig: React.FC<InlineGraphConfigProps> = ({
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Advanced config link — shown in compact modes */}
+        {(activeSection === 'kpis' || activeSection === 'style') && onSetActiveSection && (
+          <div className="flex justify-end pt-1.5 mt-1.5 border-t border-border/20">
+            <button
+              onClick={() => onSetActiveSection('full')}
+              className="text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+            >
+              <LayoutGrid className="w-3 h-3" />
+              Configuration avancée ›
+            </button>
           </div>
         )}
 

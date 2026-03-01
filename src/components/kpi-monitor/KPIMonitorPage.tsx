@@ -484,6 +484,7 @@ const KPIMonitorInner: React.FC = () => {
                         onOpenKpiSelector={() => setShowKpiSelector(true)}
                         onCollapse={() => { setShowInlineConfig(false); setQuickSection(null); }}
                         activeSection={quickSection}
+                        onSetActiveSection={setQuickSection}
                         axisConfig={widgetAxisConfigs['__kpi_main__']}
                         onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
                         graphConfig={widgetGraphConfigs['__kpi_main__']}
