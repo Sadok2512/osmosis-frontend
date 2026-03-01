@@ -202,9 +202,6 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
     onSave?.();
   };
 
-  const Section = ({ sectionKey, ...rest }: { title: string; icon: React.ReactNode; sectionKey: keyof typeof sections; badge?: string; children: React.ReactNode }) => (
-    <CollapsibleSection {...rest} isOpen={sections[sectionKey]} onToggle={() => toggle(sectionKey)} />
-  );
 
   return (
     <div className="w-[360px] shrink-0 h-full border-l border-border/40 bg-muted/10 flex flex-col overflow-hidden">
@@ -244,7 +241,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
       <div className="flex-1 overflow-y-auto scrollbar-thin">
 
         {/* ── 1: KPIs ── */}
-        <Section title="KPIs" icon={<BarChart3 className="w-4 h-4" />} sectionKey="kpis"
+        <CollapsibleSection title="KPIs" icon={<BarChart3 className="w-4 h-4" />} isOpen={sections.kpis} onToggle={() => toggle('kpis')}
           badge={store.selectedKpis.length > 0 ? String(store.selectedKpis.length) : undefined}>
           <div className="flex items-center justify-end">
             <button onClick={onOpenKpiSelector}
@@ -319,10 +316,10 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
               })}
             </div>
           )}
-        </Section>
+        </CollapsibleSection>
 
         {/* ── 2: AXES ── */}
-        <Section title="Axes" icon={<Axis3D className="w-4 h-4" />} sectionKey="axes">
+        <CollapsibleSection title="Axes" icon={<Axis3D className="w-4 h-4" />} isOpen={sections.axes} onToggle={() => toggle('axes')}>
           <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">Axe Y</p>
           <FieldRow label="Titre">
             <SmallInput value={axis.yTitle} onChange={e => setAxisD({ yTitle: e.target.value })} placeholder="Auto" className="w-[100px]" />
@@ -358,10 +355,10 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             </FieldRow>
             <SmallToggle label="Grille V" checked={axis.xShowGrid} onChange={v => setAxisD({ xShowGrid: v })} />
           </div>
-        </Section>
+        </CollapsibleSection>
 
         {/* ── 3: GRAPH STYLE ── */}
-        <Section title="Graph Style" icon={<Settings2 className="w-4 h-4" />} sectionKey="graph">
+        <CollapsibleSection title="Graph Style" icon={<Settings2 className="w-4 h-4" />} isOpen={sections.graph} onToggle={() => toggle('graph')}>
           <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">Ligne</p>
           <SmallToggle label="Lissage" checked={graph.smooth} onChange={v => setGraphD({ smooth: v })} />
           <FieldRow label="Épaisseur">
@@ -415,10 +412,10 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
               </FieldRow>
             )}
           </div>
-        </Section>
+        </CollapsibleSection>
 
         {/* ── 4: SEUILS Y ── */}
-        <Section title="Seuils Y" icon={<AlertTriangle className="w-4 h-4" />} sectionKey="seuils"
+        <CollapsibleSection title="Seuils Y" icon={<AlertTriangle className="w-4 h-4" />} isOpen={sections.seuils} onToggle={() => toggle('seuils')}
           badge={thresholdsEnabled ? String(thresholds.length) : undefined}>
           <SmallToggle label="Activer" checked={thresholdsEnabled} onChange={v => { onThresholdsEnabledChange(v); markDirty(); }} />
           {thresholdsEnabled && (
@@ -462,7 +459,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
               </button>
             </>
           )}
-        </Section>
+        </CollapsibleSection>
       </div>
 
       {/* ─── Sticky Footer ─── */}
