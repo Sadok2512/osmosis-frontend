@@ -8,6 +8,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import type { WidgetAxisConfig, WidgetGraphConfig } from './GraphSettingsPanel';
+import AxesPopover from './AxesPopover';
+import GraphPopover from './GraphPopover';
 
 interface PremiumGraphCardProps {
   title?: string;
@@ -29,6 +32,12 @@ interface PremiumGraphCardProps {
   configPanel?: React.ReactNode;
   /** Bottom panel rendered below chart in edit mode */
   bottomPanel?: React.ReactNode;
+  /** Axes popover config */
+  axisConfig?: WidgetAxisConfig;
+  onAxisConfigChange?: (c: WidgetAxisConfig) => void;
+  /** Graph popover config */
+  graphConfig?: WidgetGraphConfig;
+  onGraphConfigChange?: (c: WidgetGraphConfig) => void;
 }
 
 const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
@@ -49,6 +58,10 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
   onToggleEditMode,
   configPanel,
   bottomPanel,
+  axisConfig,
+  onAxisConfigChange,
+  graphConfig,
+  onGraphConfigChange,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -91,6 +104,14 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
               {editMode ? <PencilOff className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
               <span className="hidden sm:inline">{editMode ? 'Done' : 'Edit'}</span>
             </button>
+          )}
+
+          {/* Axes & Graph popovers (visible in edit mode) */}
+          {editMode && (
+            <div className="flex items-center gap-0.5 border-l border-border/30 ml-1 pl-1">
+              <AxesPopover axisConfig={axisConfig} onAxisConfigChange={onAxisConfigChange} />
+              <GraphPopover graphConfig={graphConfig} onGraphConfigChange={onGraphConfigChange} />
+            </div>
           )}
 
           {/* ⋯ Actions menu */}

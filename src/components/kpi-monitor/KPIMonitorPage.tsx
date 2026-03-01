@@ -461,6 +461,8 @@ const KPIMonitorInner: React.FC = () => {
                     thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
                     editMode={store.activeEditingWidgetId === '__kpi_main__'}
                     onToggleEditMode={() => store.setActiveEditingWidgetId('__kpi_main__')}
+                    onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
+                    onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
                     configPanel={
                       <HorizontalConfigPanel
                         catalogMap={catalogMap}
