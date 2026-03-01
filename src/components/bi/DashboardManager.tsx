@@ -4,6 +4,7 @@ import { WidgetItem, createDefaultMapWidget } from './dashboardTypes';
 import { createDefaultChart } from './biTypes';
 import { createDefaultTextWidget } from './BITextWidget';
 import { dashboardsApi } from '@/lib/localDb';
+import { useDashboardSettingsStore } from '@/stores/dashboardSettingsStore';
 
 export interface SavedDashboard {
   id: string;
@@ -429,6 +430,7 @@ interface TabBarProps {
 export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelect, onClose, onRename, onCreate, onSetColor }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const dashSettings = useDashboardSettingsStore();
 
   const startRename = (id: string, name: string) => {
     setEditingId(id);
@@ -446,16 +448,20 @@ export const DashboardTabBar: React.FC<TabBarProps> = ({ tabs, activeId, onSelec
     <div className="flex items-center gap-0.5 px-2 py-1 border-b border-border bg-muted/30 overflow-x-auto">
       {tabs.map(tab => {
         const isActive = tab.id === activeId;
+        const titleColor = isActive ? dashSettings.getSettings(tab.id, tab.name).theme.titleTextColor : undefined;
         return (
           <div
             key={tab.id}
             className={`group flex items-center gap-1 px-3 py-1.5 rounded-t-lg text-[11px] font-medium cursor-pointer transition-all shrink-0 ${
               isActive
-                ? 'bg-card text-foreground border border-b-0 border-border shadow-sm'
+                ? 'bg-card border border-b-0 border-border shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
             onClick={() => onSelect(tab.id)}
-            style={tab.color ? { borderTopColor: tab.color, borderTopWidth: isActive ? 2 : 0 } : undefined}
+            style={{
+              ...(tab.color ? { borderTopColor: tab.color, borderTopWidth: isActive ? 2 : 0 } : {}),
+              ...(isActive && titleColor ? { color: titleColor } : isActive ? { color: 'var(--foreground)' } : {}),
+            }}
           >
             {tab.color && (
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tab.color }} />
