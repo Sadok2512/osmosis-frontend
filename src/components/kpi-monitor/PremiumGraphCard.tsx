@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Download, FileSpreadsheet, RefreshCw, Maximize2,
-  Copy, Trash2, MoreHorizontal, Pencil, PencilOff,
+  Copy, Trash2, MoreHorizontal, Pencil, PencilOff, Settings2,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -163,29 +163,26 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
       </div>
 
-      {/* ── Body: Config Panel LEFT + Chart RIGHT ── */}
-      <div className="flex-1 min-h-0 flex">
-        {/* Config panel as left sidebar in edit mode */}
-        {editMode && configPanel && (
-          <div className="w-[280px] shrink-0 border-r border-border/30 bg-muted/5 overflow-y-auto overflow-x-hidden animate-in fade-in slide-in-from-left-2 duration-200">
-            {configPanel}
-          </div>
-        )}
+      {/* ── Config Panel (edit mode, above chart) ── */}
+      {editMode && configPanel && (
+        <div className="border-b border-border/30 bg-muted/10 animate-in fade-in slide-in-from-top-1 duration-200 overflow-x-auto">
+          {configPanel}
+        </div>
+      )}
 
-        {/* Chart area */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
-            {children}
-          </div>
-
-          {/* Bottom Panel (edit mode, e.g. filter cards) */}
-          {editMode && bottomPanel && (
-            <div className="bg-card animate-in fade-in slide-in-from-bottom-1 duration-200">
-              {bottomPanel}
-            </div>
-          )}
+      {/* ── Chart area ── */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-w-0 px-2 pt-2 pb-1">
+          {children}
         </div>
       </div>
+
+      {/* ── Bottom Panel ── */}
+      {editMode && bottomPanel && (
+        <div className="bg-card animate-in fade-in slide-in-from-bottom-1 duration-200">
+          {bottomPanel}
+        </div>
+      )}
 
       {/* ── Footer ── */}
       <div className="flex items-center justify-between px-4 py-2 border-t border-border/30">
