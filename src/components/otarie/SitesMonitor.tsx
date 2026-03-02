@@ -2620,7 +2620,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <>
           {/* Value legend */}
           {paramUniqueValues.length > 0 && paramUniqueValues.length <= 25 && (
-            <div className="absolute bottom-16 left-4 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-3 max-h-[240px] overflow-y-auto">
+            <div className="absolute bottom-16 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl p-3.5 max-h-[240px] overflow-y-auto transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16 }}>
               <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">{paramConfirmed} — {paramPoints.length} pts</div>
               <div className="space-y-0.5">
                 {paramUniqueValues.map(v => (
@@ -2655,7 +2655,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
 
       {/* Floating info badge — site count + zoom level */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+      <div className="absolute bottom-6 z-[1000] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`, transform: 'translateX(-50%)' }}>
         <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-5 py-2.5 flex items-center gap-4">
           {paramMode ? (
             <>
@@ -2949,7 +2949,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating bottom-right: techno filter + layer switcher + legend */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 right-6 z-[1000] pointer-events-auto flex items-end gap-2">
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 24 }}>
           {/* Display mode: Sites / Points / Heatmap */}
           <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
             {([
