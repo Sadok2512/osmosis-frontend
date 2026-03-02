@@ -868,7 +868,7 @@ app.get('/api/dump-parameter', async (req, res) => {
       // 1) Wait for cache if still loading, then check in-memory cache
       await waitForCache();
       const hasFilter = !!(site_name || cell_name || dor || plaque || vendor);
-      if (!hasFilter && distinctCache[distinct_col]) {
+      if (!hasFilter && distinctCache[distinct_col] && distinctCache[distinct_col].length > 0) {
         console.log(`   ⚡ Cache mémoire: ${distinctCache[distinct_col].length} valeurs pour ${distinct_col} (${Date.now() - reqStart}ms)`);
         return res.json(distinctCache[distinct_col].map(v => ({ [distinct_col]: v })));
       }
