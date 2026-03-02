@@ -2733,9 +2733,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {/* ── Unified mode selector: QoE / Topo / Parameters ── */}
             <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
               <button
-                onClick={() => { setSectorColorMode('kpi'); if (paramMode) handleParamReset(); }}
+                onClick={() => { setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
-                  sectorColorMode === 'kpi' && !paramMode
+                  sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -2744,9 +2744,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 QoE
               </button>
               <button
-                onClick={() => { setSectorColorMode('topo'); if (paramMode) handleParamReset(); }}
+                onClick={() => { setSectorColorMode('topo'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
-                  sectorColorMode === 'topo' && !paramMode
+                  sectorColorMode === 'topo' && !paramMode && !paramPanelOpen
                     ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -2755,9 +2755,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 Topo
               </button>
               <button
-                onClick={() => { setParamPanelOpen(!paramPanelOpen); if (!paramMode) setSectorColorMode('kpi'); }}
+                onClick={() => { setParamPanelOpen(!paramPanelOpen); }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
-                  paramMode
+                  paramMode || paramPanelOpen
                     ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-md shadow-emerald-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
