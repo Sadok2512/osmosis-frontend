@@ -65,45 +65,45 @@ const MultiSelectFilter: React.FC<{
   const overflow = selected.length - maxChips;
 
   return (
-    <div className="flex flex-col gap-0.5">
-      <label className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">{label}</label>
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">{label}</label>
       <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
         <PopoverTrigger asChild>
-          <button className="flex items-center gap-1 flex-wrap min-h-[26px] px-1.5 py-0.5 text-[11px] rounded border border-input bg-background hover:bg-accent/50 transition-colors text-left max-w-[160px]">
+          <button className="flex items-center gap-1.5 flex-wrap min-h-[32px] px-2.5 py-1 text-xs rounded-md border border-input bg-background hover:bg-accent/50 transition-colors text-left min-w-[120px]">
             {selected.length === 0 ? (
-              <span className="text-muted-foreground text-[10px]">Tous</span>
+              <span className="text-muted-foreground text-xs">Tous</span>
             ) : (
               <>
                 {displayChips.map(v => (
-                  <span key={v} className="inline-flex items-center gap-0.5 px-1 py-px rounded bg-primary/10 text-primary text-[9px] font-medium max-w-[70px] truncate">
+                  <span key={v} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-medium max-w-[90px] truncate">
                     {v}
-                    <X className="w-2 h-2 cursor-pointer opacity-60 hover:opacity-100 shrink-0" onClick={(e) => { e.stopPropagation(); toggle(v); }} />
+                    <X className="w-3 h-3 cursor-pointer opacity-60 hover:opacity-100 shrink-0" onClick={(e) => { e.stopPropagation(); toggle(v); }} />
                   </span>
                 ))}
-                {overflow > 0 && <span className="text-[9px] text-muted-foreground">+{overflow}</span>}
+                {overflow > 0 && <span className="text-[11px] text-muted-foreground">+{overflow}</span>}
               </>
             )}
-            <ChevronDown className="w-2.5 h-2.5 shrink-0 opacity-50 ml-auto" />
+            <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-50 ml-auto" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-[200px] p-0" align="start">
-          <div className="flex items-center border-b border-border px-2">
-            <Search className="w-3 h-3 text-muted-foreground shrink-0" />
-            <input className="flex h-7 w-full bg-transparent px-2 py-1 text-[11px] outline-none placeholder:text-muted-foreground" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+        <PopoverContent className="w-[220px] p-0" align="start">
+          <div className="flex items-center border-b border-border px-2.5">
+            <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <input className="flex h-8 w-full bg-transparent px-2 py-1 text-xs outline-none placeholder:text-muted-foreground" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} autoFocus />
           </div>
           {selected.length > 0 && (
-            <button onClick={() => onChange([])} className="w-full px-2 py-1 text-[9px] text-muted-foreground hover:text-foreground text-left border-b border-border hover:bg-muted/50">
+            <button onClick={() => onChange([])} className="w-full px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground text-left border-b border-border hover:bg-muted/50">
               Tout désélectionner
             </button>
           )}
-          <div className="max-h-[180px] overflow-auto p-0.5">
+          <div className="max-h-[200px] overflow-auto p-1">
             {filtered.length === 0 ? (
-              <div className="py-3 text-center text-[10px] text-muted-foreground">Aucun résultat</div>
+              <div className="py-3 text-center text-xs text-muted-foreground">Aucun résultat</div>
             ) : filtered.map(opt => (
               <button key={opt} onClick={() => toggle(opt)}
-                className="flex items-center gap-1.5 w-full px-2 py-1 text-[11px] rounded-sm hover:bg-accent transition-colors">
-                <div className={`w-3 h-3 rounded border flex items-center justify-center shrink-0 ${selected.includes(opt) ? 'bg-primary border-primary' : 'border-input'}`}>
-                  {selected.includes(opt) && <Check className="w-2 h-2 text-primary-foreground" />}
+                className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs rounded-sm hover:bg-accent transition-colors">
+                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${selected.includes(opt) ? 'bg-primary border-primary' : 'border-input'}`}>
+                  {selected.includes(opt) && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
                 </div>
                 <span className="truncate">{opt}</span>
               </button>
@@ -122,12 +122,12 @@ const SegmentedControl: React.FC<{
   options: { value: string; label: string }[];
   onChange: (v: string) => void;
 }> = ({ label, value, options, onChange }) => (
-  <div className="flex items-center gap-1.5">
-    <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{label}</span>
-    <div className="flex rounded border border-input overflow-hidden">
+  <div className="flex items-center gap-2">
+    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{label}</span>
+    <div className="flex rounded-md border border-input overflow-hidden">
       {options.map(opt => (
         <button key={opt.value} onClick={() => onChange(opt.value)}
-          className={`px-2 py-[3px] text-[10px] font-medium transition-colors ${value === opt.value ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
+          className={`px-3 py-1 text-xs font-medium transition-colors ${value === opt.value ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
           {opt.label}
         </button>
       ))}
@@ -480,56 +480,56 @@ const TopologiePage: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* ─── COMPACT HEADER ─── */}
-      <div className="border-b border-border bg-card px-4 py-2">
+      <div className="border-b border-border bg-card px-5 py-2.5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-sm font-bold text-foreground">Topologie Réseau</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-base font-bold text-foreground">Topologie Réseau</h1>
             <Tabs value={mainTab} onValueChange={setMainTab}>
-              <TabsList className="h-7 bg-muted/50">
-                <TabsTrigger value="param_distribution" className="gap-1 text-[10px] h-6 px-2.5">
-                  <Layers className="w-3 h-3" /> Distribution
+              <TabsList className="h-8 bg-muted/50">
+                <TabsTrigger value="param_distribution" className="gap-1.5 text-xs h-7 px-3">
+                  <Layers className="w-3.5 h-3.5" /> Distribution
                 </TabsTrigger>
-                <TabsTrigger value="raw_parameter" className="gap-1 text-[10px] h-6 px-2.5">
-                  <FileSpreadsheet className="w-3 h-3" /> Raw
+                <TabsTrigger value="raw_parameter" className="gap-1.5 text-xs h-7 px-3">
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> Raw
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Badge variant="outline" className="text-[9px] h-5 gap-0.5 px-1.5"><Database className="w-2.5 h-2.5" />{backendLabel}</Badge>
-            <div className="inline-flex rounded border border-input overflow-hidden">
-              <button onClick={() => switchDataSource('local')} className={`px-2 py-0.5 text-[9px] font-medium ${dataSource === 'local' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}>Local</button>
-              <button onClick={() => switchDataSource('cloud')} className={`px-2 py-0.5 text-[9px] font-medium ${dataSource === 'cloud' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}>Cloud</button>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[10px] h-6 gap-1 px-2"><Database className="w-3 h-3" />{backendLabel}</Badge>
+            <div className="inline-flex rounded-md border border-input overflow-hidden">
+              <button onClick={() => switchDataSource('local')} className={`px-2.5 py-1 text-[11px] font-medium ${dataSource === 'local' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}>Local</button>
+              <button onClick={() => switchDataSource('cloud')} className={`px-2.5 py-1 text-[11px] font-medium ${dataSource === 'cloud' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}>Cloud</button>
             </div>
             <button onClick={testConnection} disabled={cnxStatus === 'testing'}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-medium ${cnxStatus === 'ok' ? 'bg-primary/10 text-primary' : cnxStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>
-              {cnxStatus === 'testing' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Wifi className="w-2.5 h-2.5" />}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium ${cnxStatus === 'ok' ? 'bg-primary/10 text-primary' : cnxStatus === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>
+              {cnxStatus === 'testing' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wifi className="w-3 h-3" />}
               Test
             </button>
           </div>
         </div>
-        {cnxMessage && <div className={`text-[10px] px-2 py-1 rounded mt-1 ${cnxStatus === 'ok' ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'}`}>{cnxMessage}</div>}
+        {cnxMessage && <div className={`text-xs px-3 py-1.5 rounded mt-1.5 ${cnxStatus === 'ok' ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'}`}>{cnxMessage}</div>}
         {shouldUseLocal && backendReachable === false && (
-          <div className="flex items-center gap-2 text-[10px] px-2 py-1.5 rounded bg-destructive/10 border border-destructive/30 text-destructive mt-1">
-            <WifiOff className="w-3 h-3 shrink-0" />
-            Serveur local injoignable — <code className="bg-muted px-1 rounded text-[9px]">cd server && npm run dev</code>
+          <div className="flex items-center gap-2 text-xs px-3 py-2 rounded bg-destructive/10 border border-destructive/30 text-destructive mt-1.5">
+            <WifiOff className="w-3.5 h-3.5 shrink-0" />
+            Serveur local injoignable — <code className="bg-muted px-1 rounded text-[10px]">cd server && npm run dev</code>
           </div>
         )}
       </div>
 
-      {/* ─── COMPACT FILTER BAR ─── */}
-      <div className="border-b border-border bg-card/80 px-4 py-2">
+      {/* ─── FILTER BAR ─── */}
+      <div className="border-b border-border bg-card/80 px-5 py-3">
         {filtersLoading ? (
-          <div className="flex gap-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-7 w-28" />)}</div>
+          <div className="flex gap-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-32" />)}</div>
         ) : mainTab === 'param_distribution' ? (
-          <div className="flex items-end gap-2 flex-wrap">
+          <div className="flex items-end gap-3 flex-wrap">
             <MultiSelectFilter label="Paramètres *" selected={pdPendingParams} options={availableParams} onChange={setPdPendingParams} />
             <MultiSelectFilter label="Vendor" selected={pdPendingVendor} options={availableVendors} onChange={setPdPendingVendor} />
             <MultiSelectFilter label="NetAct" selected={pdPendingVendor} options={availableUrs} onChange={() => {}} />
             <MultiSelectFilter label="DOR" selected={pdPendingDor} options={availableDors} onChange={setPdPendingDor} />
             <MultiSelectFilter label="Plaque" selected={pdPendingPlaque} options={availablePlaques} onChange={setPdPendingPlaque} />
 
-            <div className="h-px w-px" /> {/* spacer */}
+            <div className="w-px h-6 bg-border mx-1" />
 
             <SegmentedControl label="Agg" value={pdPendingAggregator}
               options={[{ value: 'vendor', label: 'Vendor' }, { value: 'ur', label: 'NetAct' }, { value: 'dor', label: 'DOR' }, { value: 'plaque', label: 'Plaque' }, { value: 'value', label: 'Valeur' }]}
@@ -539,20 +539,20 @@ const TopologiePage: React.FC = () => {
               options={[{ value: 'ne_aggregation', label: `NE (${aggLabel(pdPendingAggregator)})` }, { value: 'value', label: 'Valeur' }]}
               onChange={v => setPdPendingColorBy(v as ColorByKey)} />
 
-            <div className="flex items-center gap-1.5 ml-auto">
-              {pdDirty && <span className="flex items-center gap-0.5 text-[9px] text-destructive font-medium animate-pulse"><AlertCircle className="w-2.5 h-2.5" />Non appliqué</span>}
-              {pdPendingParams.length === 0 && <span className="text-[9px] text-destructive">≥1 param</span>}
+            <div className="flex items-center gap-2 ml-auto">
+              {pdDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
+              {pdPendingParams.length === 0 && <span className="text-xs text-destructive">≥1 param</span>}
               <button onClick={pdConfirm} disabled={pdPendingParams.length === 0}
-                className="flex items-center gap-1 px-3 py-1 rounded text-[10px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed">
-                <Check className="w-3 h-3" /> Confirm
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed">
+                <Check className="w-3.5 h-3.5" /> Confirm
               </button>
-              <button onClick={pdReset} className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] font-medium border border-input text-muted-foreground hover:bg-muted/50">
-                <RotateCcw className="w-2.5 h-2.5" /> Reset
+              <button onClick={pdReset} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-input text-muted-foreground hover:bg-muted/50">
+                <RotateCcw className="w-3 h-3" /> Reset
               </button>
             </div>
           </div>
         ) : (
-          <div className="flex items-end gap-2 flex-wrap">
+          <div className="flex items-end gap-3 flex-wrap">
             <MultiSelectFilter label="Vendor" selected={rawPendingVendor} options={availableVendors} onChange={setRawPendingVendor} />
             <MultiSelectFilter label="NetAct" selected={rawPendingDor} options={availableUrs} onChange={setRawPendingDor} />
             <MultiSelectFilter label="DOR" selected={rawPendingDor} options={availableDors} onChange={setRawPendingDor} />
@@ -560,13 +560,13 @@ const TopologiePage: React.FC = () => {
             <MultiSelectFilter label="Site" selected={rawPendingSite} options={availableSites} onChange={setRawPendingSite} />
             <MultiSelectFilter label="Cell" selected={rawPendingCell} options={availableCells} onChange={setRawPendingCell} />
 
-            <div className="flex items-center gap-1.5 ml-auto">
-              {rawDirty && <span className="flex items-center gap-0.5 text-[9px] text-destructive font-medium animate-pulse"><AlertCircle className="w-2.5 h-2.5" />Non appliqué</span>}
-              <button onClick={rawConfirm} className="flex items-center gap-1 px-3 py-1 rounded text-[10px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90">
-                <Check className="w-3 h-3" /> Confirm
+            <div className="flex items-center gap-2 ml-auto">
+              {rawDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
+              <button onClick={rawConfirm} className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90">
+                <Check className="w-3.5 h-3.5" /> Confirm
               </button>
-              <button onClick={rawReset} className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] font-medium border border-input text-muted-foreground hover:bg-muted/50">
-                <RotateCcw className="w-2.5 h-2.5" /> Reset
+              <button onClick={rawReset} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-input text-muted-foreground hover:bg-muted/50">
+                <RotateCcw className="w-3 h-3" /> Reset
               </button>
             </div>
           </div>
