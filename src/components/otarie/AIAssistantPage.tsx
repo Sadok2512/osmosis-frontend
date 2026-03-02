@@ -433,7 +433,11 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
               <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                 {msg.role === 'assistant' && (
                   <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-1">
-                    <Bot className="w-4 h-4 text-primary" />
+                    {msg.agent && AGENT_META[msg.agent] ? (
+                      <span className="text-base leading-none">{AGENT_META[msg.agent].emoji}</span>
+                    ) : (
+                      <Bot className="w-4 h-4 text-primary" />
+                    )}
                   </div>
                 )}
                 <div className={`max-w-[85%] overflow-hidden relative group ${
@@ -450,6 +454,16 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                     </>
                   ) : (
                     <>
+                      {msg.agent && AGENT_META[msg.agent] && (
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white"
+                            style={{ backgroundColor: AGENT_META[msg.agent].color }}
+                          >
+                            {AGENT_META[msg.agent].emoji} {AGENT_META[msg.agent].label}
+                          </span>
+                        </div>
+                      )}
                       <AssistantMessage content={msg.content} />
                       {/* Map action button */}
                       {msg.mapCellIds && msg.mapCellIds.length > 0 && onShowWorstCells && (
