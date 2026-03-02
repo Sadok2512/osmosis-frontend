@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal, Globe, Lock, Grid3X3, Move, Filter } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal, Globe, Lock, Grid3X3, Move } from 'lucide-react';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
@@ -11,8 +11,7 @@ import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Filters } from '../../types';
-import { ChartConfig, createDefaultChart, BIDimension } from '../bi/biTypes';
-import { getDimensionValues } from '../bi/mockBIData';
+import { ChartConfig, createDefaultChart } from '../bi/biTypes';
 import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode } from '../bi/dashboardTypes';
 import BIChartCard from '../bi/BIChartCard';
 import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/BITextWidget';
@@ -124,20 +123,6 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
   const dashboardRef = useRef<HTMLDivElement>(null);
-
-  // Global BI filters
-  const FILTER_DIMENSIONS: { key: BIDimension; label: string }[] = [
-    { key: 'DOR', label: 'UR' },
-    { key: 'Plaque', label: 'PLAQUE' },
-    { key: 'Vendor', label: 'VENDOR' },
-    { key: 'Site', label: 'SITE' },
-    { key: 'Cellule', label: 'CELLULE' },
-  ];
-  const [globalBIFilters, setGlobalBIFilters] = useState<Record<string, string>>(
-    () => Object.fromEntries(FILTER_DIMENSIONS.map(d => [d.key, 'Tous']))
-  );
-  const setGlobalFilter = (dim: string, val: string) =>
-    setGlobalBIFilters(prev => ({ ...prev, [dim]: val }));
 
   const handleExportDashboardPDF = async () => {
     if (!dashboardRef.current) return;
@@ -483,35 +468,6 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Global Filter Bar */}
-        <div className="flex items-center gap-4 px-4 py-2.5 border-b border-border/50 bg-muted/20">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Filter className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Filtres</span>
-          </div>
-          {FILTER_DIMENSIONS.map(({ key, label }) => {
-            const values = getDimensionValues(key);
-            return (
-              <div key={key} className="flex flex-col gap-0.5">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-center">{label}</span>
-                <select
-                  value={globalBIFilters[key]}
-                  onChange={e => setGlobalFilter(key, e.target.value)}
-                  className="min-w-[110px] bg-background border border-border/70 rounded-lg px-3 py-1.5 text-[12px] text-foreground
-                    outline-none transition-all duration-150
-                    focus:ring-2 focus:ring-primary/20 focus:border-primary/50
-                    hover:border-border appearance-none cursor-pointer"
-                >
-                  <option value="Tous">Tous</option>
-                  {values.map(v => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
-              </div>
-            );
-          })}
         </div>
 
         {/* Dashboard canvas */}

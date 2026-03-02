@@ -10,8 +10,7 @@ import {
 import {
   ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine,
   MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI,
-  Aggregation, ChartType, Granularity, AxisSide, LineStyle, KPI_UNITS,
-  USER_GROUPBY_DIMENSIONS, LOCKED_FILTERS, LOCKED_GROUPBY
+  Aggregation, ChartType, Granularity, AxisSide, LineStyle, KPI_UNITS
 } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
@@ -571,61 +570,43 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           badge={draft.filters.length > 0 ? `${draft.filters.length}` : undefined}
         >
           <div className="space-y-2.5">
-            {/* Locked Vendor=Nokia filter */}
-            {LOCKED_FILTERS.map((lf, li) => (
-              <div key={`locked-${li}`} className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+            {draft.filters.map((f, i) => (
+              <div key={i} className="rounded-xl border border-border/50 bg-background p-3 space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-md bg-primary/15 text-primary text-[11px] font-bold tracking-wide">
-                    {lf.dimension}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">=</span>
-                  <span className="text-[12px] font-semibold text-foreground">{lf.values.join(', ')}</span>
-                  <span className="ml-auto px-1.5 py-0.5 rounded bg-muted text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">figé</span>
+                  <StyledSelect
+                    value={f.dimension}
+                    options={BI_DIMENSIONS}
+                    onChange={v => updateFilter(i, { dimension: v as BIDimension, values: [] })}
+                    className="flex-1"
+                  />
+                  <button
+                    onClick={() => removeFilter(i)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center
+                      text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                  {getDimensionValues(f.dimension).map(val => (
+                    <button
+                      key={val}
+                      onClick={() => {
+                        const vals = f.values.includes(val) ? f.values.filter(v => v !== val) : [...f.values, val];
+                        updateFilter(i, { values: vals });
+                      }}
+                      className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-all duration-150 ${
+                        f.values.includes(val)
+                          ? 'bg-primary/10 text-primary border-primary/30'
+                          : 'bg-background text-muted-foreground border-border/50 hover:border-primary/30'
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
                 </div>
               </div>
             ))}
-
-            {/* User-added filters */}
-            {draft.filters.filter(f => !LOCKED_FILTERS.some(lf => lf.dimension === f.dimension)).map((f) => {
-              const realIdx = draft.filters.indexOf(f);
-              return (
-                <div key={realIdx} className="rounded-xl border border-border/50 bg-background p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <StyledSelect
-                      value={f.dimension}
-                      options={BI_DIMENSIONS.filter(d => d !== 'Vendor')}
-                      onChange={v => updateFilter(realIdx, { dimension: v as BIDimension, values: [] })}
-                      className="flex-1"
-                    />
-                    <button
-                      onClick={() => removeFilter(realIdx)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center
-                        text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                    {getDimensionValues(f.dimension).map(val => (
-                      <button
-                        key={val}
-                        onClick={() => {
-                          const vals = f.values.includes(val) ? f.values.filter(v => v !== val) : [...f.values, val];
-                          updateFilter(realIdx, { values: vals });
-                        }}
-                        className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-all duration-150 ${
-                          f.values.includes(val)
-                            ? 'bg-primary/10 text-primary border-primary/30'
-                            : 'bg-background text-muted-foreground border-border/50 hover:border-primary/30'
-                        }`}
-                      >
-                        {val}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
           </div>
 
           <button
@@ -639,79 +620,32 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </button>
         </SectionCard>
 
-        {/* ── AGRÉGER PAR ── */}
+        {/* ── GROUP BY / SCATTER ── */}
         <SectionCard
-          title="Agréger par"
+          title="Grouper / Scatter"
           icon={<GitBranch className="w-4 h-4" />}
           open={sections.group}
           toggle={() => toggle('group')}
-          badge={`${draft.groupBy.length}`}
         >
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <FieldLabel>Agrégation</FieldLabel>
-              <div className="flex flex-wrap gap-1.5 items-center">
-                {/* ORF locked chip */}
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-primary/30 bg-primary/10 text-[11px] font-bold text-primary">
-                  ORF
-                  <span className="px-1 py-0.5 rounded bg-primary/20 text-[8px] font-bold uppercase tracking-wider">figé</span>
-                </span>
-
-                {/* User-selectable dimension chips */}
-                {USER_GROUPBY_DIMENSIONS.map(dim => {
-                  const isActive = draft.groupBy.includes(dim);
-                  return (
-                    <button
-                      key={dim}
-                      onClick={() => {
-                        const newGroupBy = isActive
-                          ? draft.groupBy.filter(d => d !== dim)
-                          : [...draft.groupBy, dim];
-                        if (!newGroupBy.includes(LOCKED_GROUPBY)) newGroupBy.unshift(LOCKED_GROUPBY);
-                        update({ groupBy: newGroupBy });
-                      }}
-                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all duration-150 ${
-                        isActive
-                          ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40 dark:text-emerald-400'
-                          : 'bg-background text-muted-foreground border-border/60 hover:border-primary/40 hover:text-foreground'
-                      }`}
-                    >
-                      {dim === 'DOR' ? 'UR' : dim}
-                    </button>
-                  );
-                })}
-              </div>
+              <FieldLabel>Group By</FieldLabel>
+              <StyledSelect
+                value={draft.groupBy[0] || ''}
+                options={['', ...BI_DIMENSIONS] as any}
+                onChange={v => update({ groupBy: v ? [v as BIDimension] : [] })}
+                placeholder="Aucun"
+              />
             </div>
-
             <div className="space-y-1.5">
               <FieldLabel>Coloré par</FieldLabel>
-              <div className="flex flex-wrap gap-1.5 items-center">
-                <button
-                  onClick={() => update({ colorBy: undefined })}
-                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all duration-150 ${
-                    !draft.colorBy
-                      ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40 dark:text-emerald-400'
-                      : 'bg-background text-muted-foreground border-border/60 hover:border-primary/40'
-                  }`}
-                >
-                  Valeur
-                </button>
-                {USER_GROUPBY_DIMENSIONS.map(dim => (
-                  <button
-                    key={dim}
-                    onClick={() => update({ colorBy: draft.colorBy === dim ? undefined : dim })}
-                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all duration-150 ${
-                      draft.colorBy === dim
-                        ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40 dark:text-emerald-400'
-                        : 'bg-background text-muted-foreground border-border/60 hover:border-primary/40'
-                    }`}
-                  >
-                    {dim === 'DOR' ? 'UR' : dim}
-                  </button>
-                ))}
-              </div>
+              <StyledSelect
+                value={draft.colorBy || ''}
+                options={['', ...BI_DIMENSIONS] as any}
+                onChange={v => update({ colorBy: v ? v as BIDimension : undefined })}
+                placeholder="Aucun"
+              />
             </div>
-
             <div className="space-y-1.5">
               <FieldLabel>Taille par</FieldLabel>
               <StyledSelect

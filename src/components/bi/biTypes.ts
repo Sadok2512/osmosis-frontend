@@ -125,17 +125,6 @@ export const KPI_UNITS: Record<string, string> = {
   'time_rat_5g_%': '%', bad_session_rate: '%', qoe_index: ''
 };
 
-// Dimensions the user can pick for groupBy (ORF is always locked)
-export const USER_GROUPBY_DIMENSIONS: BIDimension[] = ['DOR', 'Plaque', 'Site', 'Cellule'];
-
-// Fixed filter that cannot be removed
-export const LOCKED_FILTERS: FilterConfig[] = [
-  { dimension: 'Vendor', values: ['Nokia'] },
-];
-
-// Fixed groupBy dimension that cannot be removed
-export const LOCKED_GROUPBY: BIDimension = 'ORF_NETWORK';
-
 export function createDefaultChart(id: string): ChartConfig {
   return {
     id,
@@ -156,8 +145,8 @@ export function createDefaultChart(id: string): ChartConfig {
       showMovingAvg: false,
       smoothCurve: true,
     }],
-    filters: [...LOCKED_FILTERS],
-    groupBy: [LOCKED_GROUPBY],
+    filters: [],
+    groupBy: [],
     advanced: {
       thresholds: [],
       milestones: [],
