@@ -1953,6 +1953,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
 
         {/* ── Parameter overlay markers ── */}
+        {paramMode && !paramLoading && paramPoints.length > 0 && (
+          <FitHighlightBounds coords={paramPoints.map(p => [p.latitude, p.longitude] as [number, number])} />
+        )}
         {paramMode && !paramLoading && paramPoints.map(pt => (
           <CircleMarker
             key={pt.id}
@@ -2609,6 +2612,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl px-6 py-4 flex items-center gap-3 shadow-xl">
                 <RefreshCw className="w-5 h-5 animate-spin text-primary" />
                 <span className="text-xs font-bold text-foreground">Chargement des paramètres...</span>
+              </div>
+            </div>
+          )}
+          {/* Empty state — no points with coordinates */}
+          {!paramLoading && paramPoints.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center z-[1001] pointer-events-none">
+              <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl px-6 py-4 flex flex-col items-center gap-2 shadow-xl max-w-[320px]">
+                <MapPin className="w-8 h-8 text-muted-foreground/40" />
+                <span className="text-xs font-bold text-foreground text-center">Aucun point avec coordonnées</span>
+                <span className="text-[10px] text-muted-foreground text-center">Le paramètre « {paramConfirmed} » n'a pas d'entités avec latitude/longitude renseignées.</span>
               </div>
             </div>
           )}
