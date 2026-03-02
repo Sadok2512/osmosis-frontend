@@ -171,16 +171,27 @@ const getSectorCoords = (
   return points;
 };
 
-// Fly to a site when selected
-const FlyToSite = ({ coords, onFlyStart, onFlyEnd }: { coords: [number, number] | null; onFlyStart?: () => void; onFlyEnd?: () => void }) => {
+// Fly to a site when selected — smart zoom: don't zoom out if already close
+const FlyToSite = ({ coords, onFlyStart, onFlyEnd, onDone }: { coords: [number, number] | null; onFlyStart?: () => void; onFlyEnd?: () => void; onDone?: () => void }) => {
   const map = useMap();
   useEffect(() => {
     if (coords) {
+      const currentZoom = map.getZoom();
+      const targetZoom = Math.max(currentZoom, 14); // never zoom out below current level, min 14
+      const currentCenter = map.getCenter();
+      const dist = map.distance(currentCenter, coords);
+
       onFlyStart?.();
-      map.flyTo(coords, 15, { duration: 1 });
-      const handler = () => { onFlyEnd?.(); };
-      map.once('moveend', handler);
-      return () => { map.off('moveend', handler); };
+      if (dist < 500 && Math.abs(currentZoom - targetZoom) < 1) {
+        // Already very close — just pan smoothly without zoom animation
+        map.panTo(coords, { duration: 0.4, animate: true });
+        setTimeout(() => { onFlyEnd?.(); onDone?.(); }, 450);
+      } else {
+        map.flyTo(coords, targetZoom, { duration: 1 });
+        const handler = () => { onFlyEnd?.(); onDone?.(); };
+        map.once('moveend', handler);
+        return () => { map.off('moveend', handler); };
+      }
     }
   }, [coords, map]);
   return null;
@@ -1973,7 +1984,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           url={TILE_URLS[mapLayer].url}
           attribution={TILE_URLS[mapLayer].attribution}
         />
-        <FlyToSite coords={flyTarget} onFlyStart={() => setIsFlying(true)} onFlyEnd={() => setIsFlying(false)} />
+        <FlyToSite coords={flyTarget} onFlyStart={() => setIsFlying(true)} onFlyEnd={() => setIsFlying(false)} onDone={() => setFlyTarget(null)} />
         <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChange} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
