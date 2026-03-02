@@ -304,6 +304,7 @@ const TopologiePage: React.FC = () => {
 
   // ─── Raw Confirm ───
   const rawConfirm = useCallback(async () => {
+    if (rawPendingParams.length === 0) return;
     setRawAppliedParams([...rawPendingParams]);
     setRawAppliedVendor([...rawPendingVendor]); setRawAppliedDor([...rawPendingDor]);
     setRawAppliedPlaque([...rawPendingPlaque]); setRawAppliedSite([...rawPendingSite]);
