@@ -14,13 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import ReactEChartsCore from 'echarts-for-react';
-import * as echarts from 'echarts/core';
-import { BarChart as EBarChart } from 'echarts/charts';
-import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components';
-import { CanvasRenderer } from 'echarts/renderers';
-
-echarts.use([EBarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
+import ReactECharts from 'echarts-for-react';
 
 const CHART_COLORS = [
   'hsl(210, 80%, 55%)', 'hsl(25, 95%, 53%)', 'hsl(160, 84%, 39%)', 'hsl(262, 83%, 58%)',
@@ -760,8 +754,7 @@ const TopologiePage: React.FC = () => {
                   {chartData.length > 0 ? (
                     <div className="flex justify-center overflow-x-auto">
                       <div style={{ width: chartWidth, height: chartHeight, minWidth: 520 }}>
-                        <ReactEChartsCore
-                          echarts={echarts}
+                        <ReactECharts
                           option={echartsOption}
                           style={{ width: '100%', height: '100%' }}
                           notMerge={true}
