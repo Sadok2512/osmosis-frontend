@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   AreaChart, Area, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceDot, Legend
+  Tooltip, ResponsiveContainer, ReferenceDot, Legend, Label as RLabel
 } from 'recharts';
 import { ProfilePoint, LOSAnalysis, FresnelAnalysis } from '@/utils/geodesicUtils';
 
@@ -62,6 +62,30 @@ const ProfileChart: React.FC<Props> = ({
     }
     return entry;
   });
+
+  // Find ground impact point: first index where tilt beam drops below terrain
+  let groundImpact: { distance: number; altitude: number } | null = null;
+  if (showTilt && ant && ant.totalTilt > 0) {
+    const antennaAMSL = ant.antennaAMSL;
+    const tiltRad = ant.totalTilt * Math.PI / 180;
+    for (let i = 1; i < profilePoints.length; i++) {
+      const tiltAlt = antennaAMSL - profilePoints[i].distance * Math.tan(tiltRad);
+      if (tiltAlt <= analysis.effectiveTerrain[i]) {
+        // Interpolate exact crossing
+        const prevTilt = antennaAMSL - profilePoints[i - 1].distance * Math.tan(tiltRad);
+        const prevTerrain = analysis.effectiveTerrain[i - 1];
+        const currTerrain = analysis.effectiveTerrain[i];
+        const t = (prevTilt - prevTerrain) / ((prevTilt - prevTerrain) - (tiltAlt - currTerrain));
+        const impactDist = profilePoints[i - 1].distance + t * (profilePoints[i].distance - profilePoints[i - 1].distance);
+        const impactAlt = prevTerrain + t * (currTerrain - prevTerrain);
+        groundImpact = {
+          distance: Math.round(impactDist) / 1000,
+          altitude: Math.round(impactAlt * 10) / 10,
+        };
+        break;
+      }
+    }
+  }
 
   const obstructionPoint = analysis.obstructionIndex !== null ? {
     distance: data[analysis.obstructionIndex]?.distance,
@@ -313,16 +337,42 @@ const ProfileChart: React.FC<Props> = ({
             />
           )}
 
-          {/* Antenna point marker */}
-          {data.length > 0 && (
+          {/* Antenna tower marker */}
+          {data.length > 0 && ant && (
             <ReferenceDot
               x={data[0].distance}
-              y={ant?.antennaAMSL ?? data[0].beam}
-              r={5}
+              y={ant.antennaAMSL}
+              r={7}
               fill="rgba(56,189,248,0.9)"
               stroke="rgba(255,255,255,0.8)"
               strokeWidth={2}
-            />
+            >
+              <RLabel
+                value={`📡 Az:${ant.azimuth}° T:${ant.totalTilt}° H:${ant.hba}m`}
+                position="top"
+                style={{ fontSize: 9, fill: 'rgba(56,189,248,0.9)', fontWeight: 700 }}
+                offset={10}
+              />
+            </ReferenceDot>
+          )}
+
+          {/* Ground impact marker */}
+          {showTilt && groundImpact && (
+            <ReferenceDot
+              x={groundImpact.distance}
+              y={groundImpact.altitude}
+              r={7}
+              fill="rgba(239,68,68,0.95)"
+              stroke="rgba(255,255,255,0.8)"
+              strokeWidth={2}
+            >
+              <RLabel
+                value={`🎯 Impact ${groundImpact.distance.toFixed(2)} km`}
+                position="top"
+                style={{ fontSize: 9, fill: 'rgba(239,68,68,0.9)', fontWeight: 700 }}
+                offset={10}
+              />
+            </ReferenceDot>
           )}
 
           {/* UE target point marker */}
