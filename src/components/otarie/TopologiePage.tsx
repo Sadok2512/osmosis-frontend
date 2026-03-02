@@ -272,7 +272,7 @@ const TopologiePage: React.FC = () => {
 
   const aggLabel = aggregator === 'ur' ? 'UR' : 'Plaque';
   const backendLabel = dataSource === 'local' ? 'Local (RAN_OP)' : 'Cloud';
-  const tableTarget = shouldUseLocal ? 'dump_parameter' : 'parameter_dump';
+  const tableTarget = 'parameter_dump';
 
   const testConnection = async () => {
     setCnxStatus('testing');
@@ -284,7 +284,7 @@ const TopologiePage: React.FC = () => {
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const rows = await resp.json();
           setCnxStatus('ok');
-          setCnxMessage(`✅ Connecté (Local) — ${rows.length} paramètres trouvés dans dump_parameter`);
+          setCnxMessage(`✅ Connecté (Local) — ${rows.length} paramètres trouvés dans parameter_dump`);
           return;
         } catch (localErr: any) {
           console.warn('[Topologie] Local connection failed', localErr);
