@@ -1800,12 +1800,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
   }, []);
 
+  const siteRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
   const handleSiteClick = (site: SiteSummary) => {
     setFlyTarget(site.coordinates);
     setSelectedSiteId(site.site_id);
     setFocusMode('site');
     setFocusCellId(null);
     setShowRightPanel(true);
+    // Scroll inventory to selected site
+    requestAnimationFrame(() => {
+      const el = siteRowRefs.current.get(site.site_id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
   };
 
   const handleCellClick = (cellId: string) => {
@@ -3047,6 +3054,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       return (
                         <div
                           key={site.site_id}
+                          ref={(el) => { if (el) siteRowRefs.current.set(site.site_id, el); }}
                           className={`rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
                             isSelected
                               ? 'border-primary/40 bg-card shadow-lg'
