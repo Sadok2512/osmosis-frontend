@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import MapViewManager, { MapViewSettings } from './MapViewManager';
 import CoverageCanvasOverlay from './CoverageCanvasOverlay';
 import CoverageSimPanel from './CoverageSimPanel';
+import TiltOverlay from './TiltOverlay';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 
 // Heatmap layer component using leaflet.heat
@@ -1523,6 +1524,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [losVbw, setLosVbw] = useState(7);
   const [losF2b, setLosF2b] = useState(25);
   const [showLosPanel, setShowLosPanel] = useState(false);
+  const [showTiltOverlay, setShowTiltOverlay] = useState(false);
 
   const { loading: losLoading, error: losError, profilePoints: losProfilePoints, analysis: losAnalysis, computeProfile: losComputeProfile } = useTerrainProfile();
 
@@ -2499,6 +2501,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         )}
         {/* Coverage simulation overlay */}
         <CoverageCanvasOverlay grid={coverageGrid} opacity={0.55} visible={!!coverageGrid} />
+
+        {/* Tilt visualization overlay for selected site */}
+        {showTiltOverlay && selectedSiteId && (() => {
+          const selectedSite = sites.find(s => s.site_id === selectedSiteId);
+          return selectedSite ? <TiltOverlay site={selectedSite} visible={true} /> : null;
+        })()}
       </MapContainer>
 
       {/* Floating simulation button when site is selected */}
@@ -3019,6 +3027,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <span className="w-px h-7 bg-border/50 shrink-0" />
 
                 <span className="text-[10px] font-bold text-muted-foreground shrink-0">Couleur par bande de fréquence</span>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                {/* Show Tilt toggle */}
+                <button
+                  onClick={() => setShowTiltOverlay(prev => !prev)}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                    showTiltOverlay
+                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm shadow-red-500/20'
+                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+                  }`}
+                >
+                  <Signal size={12} />
+                  Tilt
+                </button>
               </>
             )}
 
