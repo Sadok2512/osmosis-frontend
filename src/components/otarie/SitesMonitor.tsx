@@ -1873,6 +1873,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
 
   const siteRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const toolbarScrollRef = useRef<HTMLDivElement>(null);
+  const [toolbarCanScrollLeft, setToolbarCanScrollLeft] = useState(false);
+  const [toolbarCanScrollRight, setToolbarCanScrollRight] = useState(false);
+
+  const updateToolbarScrollState = useCallback(() => {
+    const el = toolbarScrollRef.current;
+    if (!el) return;
+    setToolbarCanScrollLeft(el.scrollLeft > 2);
+    setToolbarCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    const el = toolbarScrollRef.current;
+    if (!el) return;
+    updateToolbarScrollState();
+    el.addEventListener('scroll', updateToolbarScrollState, { passive: true });
+    const ro = new ResizeObserver(updateToolbarScrollState);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', updateToolbarScrollState); ro.disconnect(); };
+  }, [updateToolbarScrollState]);
+
+  const scrollToolbar = useCallback((dir: 'left' | 'right') => {
+    const el = toolbarScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir === 'left' ? -250 : 250, behavior: 'smooth' });
+  }, []);
 
   const handleSiteClick = (site: SiteSummary) => {
     setFlyTarget(site.coordinates);
@@ -2661,170 +2687,195 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
 
-      {/* Floating top bar — smart responsive centered toolbar */}
+      {/* Floating top bar — single row with scroll */}
       <div
         className="absolute z-[1000] pointer-events-auto"
         style={{
           top: 12,
           left: '50%',
           transform: 'translateX(-50%)',
-          width: 'fit-content',
-          maxWidth: 'calc(100vw - 32px)',
-          minWidth: 'min(520px, calc(100vw - 32px))',
+          maxWidth: 'min(1060px, calc(100vw - 32px))',
+          width: '100%',
         }}
       >
         <div
-          className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl px-5 py-3.5 flex flex-wrap items-center justify-center gap-3"
-          style={{ minHeight: 60 }}
+          className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl flex items-center"
+          style={{ minHeight: 60, height: 60 }}
         >
-          {/* Sector color mode toggle */}
-          <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
+          {/* Scroll-left button */}
+          {toolbarCanScrollLeft && (
             <button
-              onClick={() => setSectorColorMode('kpi')}
-              className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
-                sectorColorMode === 'kpi'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              onClick={() => scrollToolbar('left')}
+              className="shrink-0 flex items-center justify-center w-7 h-full text-muted-foreground hover:text-foreground transition-colors border-r border-border/30"
+              aria-label="Scroll left"
             >
-              <Zap size={11} />
-              QoE
+              <ChevronLeft size={14} />
             </button>
-            <button
-              onClick={() => setSectorColorMode('topo')}
-              className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
-                sectorColorMode === 'topo'
-                  ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Radio size={11} />
-              Topo
-            </button>
-          </div>
+          )}
 
-          <span className="w-px h-7 bg-border/50 shrink-0" />
-
-          {/* DL group */}
-          <div className="flex items-center gap-0.5 shrink-0">
-            <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬇ DL</span>
-            {MAP_KPIS.filter(k => ['qoe_score_avg', 'dms_dl_3', 'dms_dl_8', 'dms_dl_30', 'p50_thr_dn_mbps'].includes(k.id)).map(kpi => {
-              const shortLabels: Record<string, string> = {
-                'qoe_score_avg': 'QoE',
-                'dms_dl_3': '≥3',
-                'dms_dl_8': '≥8',
-                'dms_dl_30': '≥30',
-                'p50_thr_dn_mbps': 'Débit',
-              };
-              return (
-                <button
-                  key={kpi.id}
-                  onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                  className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
-                    mapKpi === kpi.id
-                      ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                  }`}
-                  title={kpi.label}
-                >
-                  {shortLabels[kpi.id] || kpi.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <span className="w-px h-7 bg-border/50 shrink-0" />
-
-          {/* UL group */}
-          <div className="flex items-center gap-0.5 shrink-0">
-            <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬆ UL</span>
-            {MAP_KPIS.filter(k => ['dms_ul_3', 'p50_thr_up_mbps'].includes(k.id)).map(kpi => {
-              const shortLabels: Record<string, string> = {
-                'dms_ul_3': '≥3',
-                'p50_thr_up_mbps': 'Débit',
-              };
-              return (
-                <button
-                  key={kpi.id}
-                  onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                  className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
-                    mapKpi === kpi.id
-                      ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                  }`}
-                  title={kpi.label}
-                >
-                  {shortLabels[kpi.id] || kpi.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <span className="w-px h-7 bg-border/50 shrink-0" />
-
-          {/* Plus dropdown for TCP/RTT/Volume */}
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-              className={`px-3.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
-                ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
-                  ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
-              }`}
-            >
-              <SlidersHorizontal size={12} />
-              Plus
-              {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-            </button>
-            {showKpiDropdown && (
-              <div className="absolute top-10 right-0 w-[300px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
-                <div className="max-h-[400px] overflow-y-auto py-1">
-                  {['RTT', 'TCP', 'VOLUME'].map(cat => (
-                    <div key={cat}>
-                      <div className="px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30">{cat}</div>
-                      {MAP_KPIS.filter(k => k.category === cat).map(kpi => (
-                        <button
-                          key={kpi.id}
-                          onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); }}
-                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-all ${
-                            mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
-                          }`}
-                        >
-                          <div className="text-[11px] font-bold">{kpi.label}</div>
-                          {mapKpi === kpi.id && <span className="text-xs">✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <span className="w-px h-7 bg-border/50 shrink-0" />
-
-          {/* Map Views Manager */}
-          <MapViewManager
-            currentSettings={getCurrentMapSettings()}
-            onLoadView={handleLoadView}
-          />
-
-          <span className="w-px h-7 bg-border/50 shrink-0" />
-
-          {/* Parameters — button only (panel rendered outside overflow container) */}
-          <button
-            onClick={() => setParamPanelOpen(!paramPanelOpen)}
-            className={`px-3.5 py-2.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border shrink-0 ${
-              paramMode
-                ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
-                : 'bg-accent/60 text-foreground hover:bg-primary hover:text-primary-foreground border-border/50 hover:border-primary/30'
-            }`}
+          {/* Scrollable KPI zone */}
+          <div
+            ref={toolbarScrollRef}
+            className="flex-1 overflow-x-auto overflow-y-hidden flex items-center gap-3 px-4 scrollbar-hide"
+            style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap', scrollbarWidth: 'none' }}
           >
-            <MapPin size={13} />
-            Parameters
-            {paramConfirmed && <span className="ml-1 text-[9px] opacity-70">({paramPoints.length})</span>}
-            {paramPanelOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-          </button>
+            {/* Sector color mode toggle */}
+            <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
+              <button
+                onClick={() => setSectorColorMode('kpi')}
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
+                  sectorColorMode === 'kpi'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Zap size={11} />
+                QoE
+              </button>
+              <button
+                onClick={() => setSectorColorMode('topo')}
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
+                  sectorColorMode === 'topo'
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Radio size={11} />
+                Topo
+              </button>
+            </div>
+
+            <span className="w-px h-7 bg-border/50 shrink-0" />
+
+            {/* DL group */}
+            <div className="flex items-center gap-0.5 shrink-0">
+              <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬇ DL</span>
+              {MAP_KPIS.filter(k => ['qoe_score_avg', 'dms_dl_3', 'dms_dl_8', 'dms_dl_30', 'p50_thr_dn_mbps'].includes(k.id)).map(kpi => {
+                const shortLabels: Record<string, string> = {
+                  'qoe_score_avg': 'QoE',
+                  'dms_dl_3': '≥3',
+                  'dms_dl_8': '≥8',
+                  'dms_dl_30': '≥30',
+                  'p50_thr_dn_mbps': 'Débit',
+                };
+                return (
+                  <button
+                    key={kpi.id}
+                    onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
+                    className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                      mapKpi === kpi.id
+                        ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                    }`}
+                    title={kpi.label}
+                  >
+                    {shortLabels[kpi.id] || kpi.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <span className="w-px h-7 bg-border/50 shrink-0" />
+
+            {/* UL group */}
+            <div className="flex items-center gap-0.5 shrink-0">
+              <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬆ UL</span>
+              {MAP_KPIS.filter(k => ['dms_ul_3', 'p50_thr_up_mbps'].includes(k.id)).map(kpi => {
+                const shortLabels: Record<string, string> = {
+                  'dms_ul_3': '≥3',
+                  'p50_thr_up_mbps': 'Débit',
+                };
+                return (
+                  <button
+                    key={kpi.id}
+                    onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
+                    className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                      mapKpi === kpi.id
+                        ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                    }`}
+                    title={kpi.label}
+                  >
+                    {shortLabels[kpi.id] || kpi.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <span className="w-px h-7 bg-border/50 shrink-0" />
+
+            {/* Plus dropdown for TCP/RTT/Volume */}
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowKpiDropdown(!showKpiDropdown)}
+                className={`px-3.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
+                  ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
+                    ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
+                }`}
+              >
+                <SlidersHorizontal size={12} />
+                Plus
+                {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+              </button>
+              {showKpiDropdown && (
+                <div className="absolute top-10 right-0 w-[300px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
+                  <div className="max-h-[400px] overflow-y-auto py-1">
+                    {['RTT', 'TCP', 'VOLUME'].map(cat => (
+                      <div key={cat}>
+                        <div className="px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30">{cat}</div>
+                        {MAP_KPIS.filter(k => k.category === cat).map(kpi => (
+                          <button
+                            key={kpi.id}
+                            onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); }}
+                            className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-all ${
+                              mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
+                            }`}
+                          >
+                            <div className="text-[11px] font-bold">{kpi.label}</div>
+                            {mapKpi === kpi.id && <span className="text-xs">✓</span>}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Scroll-right button */}
+          {toolbarCanScrollRight && (
+            <button
+              onClick={() => scrollToolbar('right')}
+              className="shrink-0 flex items-center justify-center w-7 h-full text-muted-foreground hover:text-foreground transition-colors border-l border-border/30"
+              aria-label="Scroll right"
+            >
+              <ChevronRight size={14} />
+            </button>
+          )}
+
+          {/* Fixed right zone — always visible */}
+          <div className="shrink-0 flex items-center gap-2 px-3 border-l border-border/40">
+            <MapViewManager
+              currentSettings={getCurrentMapSettings()}
+              onLoadView={handleLoadView}
+            />
+
+            <button
+              onClick={() => setParamPanelOpen(!paramPanelOpen)}
+              className={`px-3.5 py-2.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border shrink-0 ${
+                paramMode
+                  ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
+                  : 'bg-accent/60 text-foreground hover:bg-primary hover:text-primary-foreground border-border/50 hover:border-primary/30'
+              }`}
+            >
+              <MapPin size={13} />
+              Parameters
+              {paramConfirmed && <span className="ml-1 text-[9px] opacity-70">({paramPoints.length})</span>}
+              {paramPanelOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+            </button>
+          </div>
         </div>
       </div>
 
