@@ -58,78 +58,91 @@ sharedPool.connect(async (err, client, release) => {
   if (err) {
     console.error('❌ PostgreSQL connection failed:', err.message);
     console.error('   Vérifiez que PostgreSQL tourne et que le fichier server/.env est correct.');
-  } else {
-    console.log('✅ PostgreSQL pool connected to', dbConfig.database);
-    try {
-      console.log('🔍 Vérification des tables...');
-      // Check parameter_dump table
-      const tableCheck = await client.query(`
-        SELECT CASE
-          WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='parameter_dump') THEN 'parameter_dump'
-          ELSE NULL
-        END AS table_name
-      `);
-      const dumpTable = tableCheck.rows[0]?.table_name;
-      console.log(`   Table détectée: ${dumpTable || '❌ AUCUNE'}`);
-      if (dumpTable) {
-        // Fast estimate from pg_class (instant, no table scan)
-        const estRes = await client.query(`SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = $1`, [dumpTable]);
-        const estimate = parseInt(estRes.rows[0]?.estimate || '0');
-        console.log(`   Estimation rapide: ~${estimate.toLocaleString()} lignes`);
-        // Skip exact counts for very large tables (>1M rows) — too slow
-        if (estimate > 1000000) {
-          const paramEst = await client.query(`SELECT n_distinct FROM pg_stats WHERE tablename = $1 AND attname = 'parameter'`, [dumpTable]);
-          const siteEst = await client.query(`SELECT n_distinct FROM pg_stats WHERE tablename = $1 AND attname = 'site_name'`, [dumpTable]);
-          const pVal = parseFloat(paramEst.rows[0]?.n_distinct || '0');
-          const sVal = parseFloat(siteEst.rows[0]?.n_distinct || '0');
-          const pCount = pVal < 0 ? Math.abs(Math.round(pVal * estimate)) : Math.round(pVal);
-          const sCount = sVal < 0 ? Math.abs(Math.round(sVal * estimate)) : Math.round(sVal);
-          console.log(`📊 Table "${dumpTable}": ~${estimate.toLocaleString()} lignes, ~${pCount} paramètres, ~${sCount} sites (estimations pg_stats)`);
-          console.log(`   ⚡ Comptages exacts ignorés (table > 1M lignes)`);
-        } else {
-          const countRes = await client.query(`SELECT COUNT(*) AS cnt FROM ${dumpTable}`);
-          const paramRes = await client.query(`SELECT COUNT(DISTINCT parameter) AS cnt FROM ${dumpTable}`);
-          const siteRes = await client.query(`SELECT COUNT(DISTINCT site_name) AS cnt FROM ${dumpTable}`);
-          console.log(`📊 Table "${dumpTable}": ${countRes.rows[0].cnt} lignes, ${paramRes.rows[0].cnt} paramètres distincts, ${siteRes.rows[0].cnt} sites`);
-        }
-      } else {
-        console.warn('⚠️  Aucune table parameter_dump trouvée dans la base RAN_OP');
-      }
-      // Check topo table
-      const topoCheck = await client.query(`SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='topo'`);
-      if (parseInt(topoCheck.rows[0].cnt) > 0) {
-        const topoCount = await client.query('SELECT COUNT(*) AS cnt FROM topo');
-        console.log(`📊 Table "topo": ${topoCount.rows[0].cnt} lignes`);
-      }
-      // List all public tables for debugging
-      const allTables = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name`);
-      console.log(`📋 Tables dans "${dbConfig.database}":`, allTables.rows.map(r => r.table_name).join(', '));
+    return;
+  }
+  console.log('✅ PostgreSQL pool connected to', dbConfig.database);
+  try {
+    console.log('═══════════════════════════════════════════');
+    console.log('🔍 DEBUG: Vérification des tables...');
+    console.log('═══════════════════════════════════════════');
 
-      // ─── Pre-populate DISTINCT cache for heavy columns ───
-      if (dumpTable) {
-        let cacheResolve;
-        distinctCachePromise = new Promise(r => { cacheResolve = r; });
-        console.log('🔄 Pré-chargement du cache DISTINCT...');
-        const cacheCols = ['parameter', 'site_name', 'cell_name'];
-        const cacheStart = Date.now();
-        for (const col of cacheCols) {
-          try {
-            const r = await client.query(`SELECT DISTINCT ${col} FROM ${dumpTable} WHERE ${col} IS NOT NULL ORDER BY ${col} LIMIT 10000`);
-            distinctCache[col] = r.rows.map(row => row[col]);
-            console.log(`   ✅ Cache ${col}: ${distinctCache[col].length} valeurs (${Date.now() - cacheStart}ms)`);
-          } catch (e) {
-            console.warn(`   ⚠️ Cache ${col} failed:`, e.message);
-          }
-        }
-        distinctCacheReady = true;
-        cacheResolve();
-        console.log(`✅ Cache DISTINCT prêt (${Date.now() - cacheStart}ms total)`);
+    // List ALL public tables
+    const allTables = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name`);
+    const tableNames = allTables.rows.map(r => r.table_name);
+    console.log(`📋 Tables dans "${dbConfig.database}" (${tableNames.length}):`, tableNames.join(', '));
+
+    // Check parameter_dump specifically
+    const hasParameterDump = tableNames.includes('parameter_dump');
+    const hasDumpParameter = tableNames.includes('dump_parameter');
+    console.log(`   parameter_dump: ${hasParameterDump ? '✅ EXISTE' : '❌ N\'EXISTE PAS'}`);
+    console.log(`   dump_parameter (legacy): ${hasDumpParameter ? '⚠️ EXISTE ENCORE' : '— supprimée'}`);
+
+    const dumpTable = hasParameterDump ? 'parameter_dump' : (hasDumpParameter ? 'dump_parameter' : null);
+
+    if (dumpTable) {
+      console.log(`\n📊 Analyse de "${dumpTable}":`);
+
+      // Exact count
+      const countRes = await client.query(`SELECT COUNT(*) AS cnt FROM ${dumpTable}`);
+      const totalRows = parseInt(countRes.rows[0].cnt);
+      console.log(`   Total lignes: ${totalRows.toLocaleString()}`);
+
+      if (totalRows > 0) {
+        // Distinct counts
+        const paramRes = await client.query(`SELECT COUNT(DISTINCT parameter) AS cnt FROM ${dumpTable}`);
+        const siteRes = await client.query(`SELECT COUNT(DISTINCT site_name) AS cnt FROM ${dumpTable}`);
+        const vendorRes = await client.query(`SELECT COUNT(DISTINCT vendor) AS cnt FROM ${dumpTable}`);
+        console.log(`   Paramètres distincts: ${paramRes.rows[0].cnt}`);
+        console.log(`   Sites distincts: ${siteRes.rows[0].cnt}`);
+        console.log(`   Vendors distincts: ${vendorRes.rows[0].cnt}`);
+
+        // Show first 10 parameters as sanity check
+        const sampleParams = await client.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter IS NOT NULL ORDER BY parameter LIMIT 10`);
+        console.log(`   🔎 Échantillon paramètres: [${sampleParams.rows.map(r => r.parameter).join(', ')}]`);
+
+        // Show first 5 sites
+        const sampleSites = await client.query(`SELECT DISTINCT site_name FROM ${dumpTable} WHERE site_name IS NOT NULL ORDER BY site_name LIMIT 5`);
+        console.log(`   🔎 Échantillon sites: [${sampleSites.rows.map(r => r.site_name).join(', ')}]`);
+      } else {
+        console.log(`   ⚠️ TABLE VIDE — aucune donnée importée`);
       }
-    } catch (statErr) {
-      console.warn('⚠️  Stats check error:', statErr.message);
-    } finally {
-      release();
+    } else {
+      console.warn('⚠️  AUCUNE table parameter_dump trouvée !');
+      console.warn('   Créez-la via Backend Admin ou lancez un import CSV.');
     }
+
+    // Check topo table
+    if (tableNames.includes('topo')) {
+      const topoCount = await client.query('SELECT COUNT(*) AS cnt FROM topo');
+      console.log(`\n📊 Table "topo": ${topoCount.rows[0].cnt} lignes`);
+    }
+
+    console.log('═══════════════════════════════════════════');
+
+    // ─── Pre-populate DISTINCT cache for heavy columns ───
+    if (dumpTable) {
+      let cacheResolve;
+      distinctCachePromise = new Promise(r => { cacheResolve = r; });
+      console.log('🔄 Pré-chargement du cache DISTINCT...');
+      const cacheCols = ['parameter', 'site_name', 'cell_name'];
+      const cacheStart = Date.now();
+      for (const col of cacheCols) {
+        try {
+          const r = await client.query(`SELECT DISTINCT ${col} FROM ${dumpTable} WHERE ${col} IS NOT NULL ORDER BY ${col} LIMIT 10000`);
+          distinctCache[col] = r.rows.map(row => row[col]);
+          console.log(`   ✅ Cache ${col}: ${distinctCache[col].length} valeurs (${Date.now() - cacheStart}ms)`);
+        } catch (e) {
+          console.warn(`   ⚠️ Cache ${col} failed:`, e.message);
+        }
+      }
+      distinctCacheReady = true;
+      cacheResolve();
+      console.log(`✅ Cache DISTINCT prêt (${Date.now() - cacheStart}ms total)`);
+    }
+  } catch (statErr) {
+    console.warn('⚠️  Stats check error:', statErr.message);
+  } finally {
+    release();
   }
 });
 
