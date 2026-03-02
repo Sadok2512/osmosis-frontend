@@ -2687,14 +2687,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
 
-      {/* Floating top bar — single row with scroll */}
+      {/* Floating top bar — single row with scroll, dynamically positioned between sidebars */}
       <div
-        className="absolute z-[1000] pointer-events-auto"
+        className="absolute z-[1000] pointer-events-auto transition-all duration-300"
         style={{
           top: 12,
-          left: '50%',
+          left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
           transform: 'translateX(-50%)',
-          maxWidth: 'min(1060px, calc(100vw - 32px))',
+          maxWidth: `min(1060px, calc(100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
           width: '100%',
         }}
       >
@@ -2881,7 +2881,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Parameters panel — rendered outside overflow container */}
       {paramPanelOpen && (
-        <div className="absolute top-[80px] z-[1100] pointer-events-auto w-[320px]" style={{ left: '50%', transform: 'translateX(30%)' }}>
+        <div className="absolute top-[80px] z-[1100] pointer-events-auto w-[320px] transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16 }}>
           <div className="bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-3 border-b border-border">
               <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Sélectionner un paramètre</div>
