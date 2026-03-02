@@ -175,12 +175,14 @@ const TopologiePage: React.FC = () => {
   const [pdConfirmed, setPdConfirmed] = useState(false);
 
   // ─── RAW pending vs applied ───
+  const [rawPendingParams, setRawPendingParams] = useState<string[]>([]);
   const [rawPendingVendor, setRawPendingVendor] = useState<string[]>([]);
   const [rawPendingDor, setRawPendingDor] = useState<string[]>([]);
   const [rawPendingPlaque, setRawPendingPlaque] = useState<string[]>([]);
   const [rawPendingSite, setRawPendingSite] = useState<string[]>([]);
   const [rawPendingCell, setRawPendingCell] = useState<string[]>([]);
 
+  const [rawAppliedParams, setRawAppliedParams] = useState<string[]>([]);
   const [rawAppliedVendor, setRawAppliedVendor] = useState<string[]>([]);
   const [rawAppliedDor, setRawAppliedDor] = useState<string[]>([]);
   const [rawAppliedPlaque, setRawAppliedPlaque] = useState<string[]>([]);
@@ -206,9 +208,9 @@ const TopologiePage: React.FC = () => {
   }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingAggregator, pdPendingColorBy, pdAppliedParams, pdAppliedVendor, pdAppliedDor, pdAppliedPlaque, pdAppliedAggregator, pdAppliedColorBy]);
 
   const rawDirty = useMemo(() => {
-    return JSON.stringify({ v: rawPendingVendor, d: rawPendingDor, pl: rawPendingPlaque, s: rawPendingSite, c: rawPendingCell }) !==
-      JSON.stringify({ v: rawAppliedVendor, d: rawAppliedDor, pl: rawAppliedPlaque, s: rawAppliedSite, c: rawAppliedCell });
-  }, [rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingSite, rawPendingCell, rawAppliedVendor, rawAppliedDor, rawAppliedPlaque, rawAppliedSite, rawAppliedCell]);
+    return JSON.stringify({ p: rawPendingParams, v: rawPendingVendor, d: rawPendingDor, pl: rawPendingPlaque, s: rawPendingSite, c: rawPendingCell }) !==
+      JSON.stringify({ p: rawAppliedParams, v: rawAppliedVendor, d: rawAppliedDor, pl: rawAppliedPlaque, s: rawAppliedSite, c: rawAppliedCell });
+  }, [rawPendingParams, rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingSite, rawPendingCell, rawAppliedParams, rawAppliedVendor, rawAppliedDor, rawAppliedPlaque, rawAppliedSite, rawAppliedCell]);
 
   const switchDataSource = (next: 'local' | 'cloud') => { setDataSource(next); setPreferredDataSource(next); };
 
@@ -302,12 +304,14 @@ const TopologiePage: React.FC = () => {
 
   // ─── Raw Confirm ───
   const rawConfirm = useCallback(async () => {
+    setRawAppliedParams([...rawPendingParams]);
     setRawAppliedVendor([...rawPendingVendor]); setRawAppliedDor([...rawPendingDor]);
     setRawAppliedPlaque([...rawPendingPlaque]); setRawAppliedSite([...rawPendingSite]);
     setRawAppliedCell([...rawPendingCell]);
     setRawLoading(true); setRawConfirmed(true); setRawPage(1);
 
     const filters: Record<string, string | string[]> = {};
+    if (rawPendingParams.length > 0) filters.parameter = rawPendingParams;
     if (rawPendingVendor.length > 0) filters.vendor = rawPendingVendor;
     if (rawPendingDor.length > 0) filters.dor = rawPendingDor;
     if (rawPendingPlaque.length > 0) filters.plaque = rawPendingPlaque;
@@ -316,12 +320,12 @@ const TopologiePage: React.FC = () => {
 
     const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor');
     setRawData(rows || []); setRawLoading(false);
-  }, [rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingSite, rawPendingCell, fetchRows]);
+  }, [rawPendingParams, rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingSite, rawPendingCell, fetchRows]);
 
   const rawReset = () => {
-    setRawPendingVendor([]); setRawPendingDor([]); setRawPendingPlaque([]);
+    setRawPendingParams([]); setRawPendingVendor([]); setRawPendingDor([]); setRawPendingPlaque([]);
     setRawPendingSite([]); setRawPendingCell([]);
-    setRawAppliedVendor([]); setRawAppliedDor([]); setRawAppliedPlaque([]);
+    setRawAppliedParams([]); setRawAppliedVendor([]); setRawAppliedDor([]); setRawAppliedPlaque([]);
     setRawAppliedSite([]); setRawAppliedCell([]);
     setRawData([]); setRawConfirmed(false); setRawPage(1);
   };
@@ -711,6 +715,7 @@ const TopologiePage: React.FC = () => {
             <div className="flex gap-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-32" />)}</div>
           ) : (
             <div className="flex items-end gap-3 flex-wrap">
+              <MultiSelectFilter label="Paramètre" selected={rawPendingParams} options={availableParams} onChange={setRawPendingParams} maxChips={3} />
               <MultiSelectFilter label="Vendor" selected={rawPendingVendor} options={availableVendors} onChange={setRawPendingVendor} />
               <MultiSelectFilter label="NetAct" selected={rawPendingDor} options={availableUrs} onChange={setRawPendingDor} />
               <MultiSelectFilter label="DOR" selected={rawPendingDor} options={availableDors} onChange={setRawPendingDor} />
