@@ -19,27 +19,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const tableCandidates = ["dump_parametre", "dump_parameter"];
-    let activeDumpTable: string | null = null;
-    for (const tableName of tableCandidates) {
-      const probe = await supabase.from(tableName).select("id").limit(1);
-      if (!probe.error) {
-        activeDumpTable = tableName;
-        break;
-      }
-      const msg = probe.error?.message?.toLowerCase() || "";
-      if (!msg.includes("does not exist") && !msg.includes("relation") && !msg.includes("could not find")) {
-        activeDumpTable = tableName;
-        break;
-      }
-    }
-
-    if (!activeDumpTable) {
-      return new Response(JSON.stringify({ success: false, error: "Aucune table dump_parameter/dump_parametre trouvée" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const activeDumpTable = "parameter_dump";
 
     if (clear_before) {
       const { error: delErr } = await supabase.from(activeDumpTable).delete().neq("id", 0);
