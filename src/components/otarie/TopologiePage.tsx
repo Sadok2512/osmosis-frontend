@@ -5,7 +5,7 @@ import { getApiUrl, getPreferredDataSource, setPreferredDataSource } from '@/lib
 import {
   Search, Filter, Download, Loader2, ChevronDown, Wifi, WifiOff, Database,
   Layers, FileSpreadsheet, Check, X, AlertCircle, ChevronLeft, ChevronRight, RotateCcw,
-  BarChart3, AlignStartVertical, ArrowUpDown
+  BarChart3, AlignStartVertical, ArrowUpDown, Eye, EyeOff
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -14,7 +14,13 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, ResponsiveContainer } from 'recharts';
+import ReactEChartsCore from 'echarts-for-react';
+import * as echarts from 'echarts/core';
+import { BarChart as EBarChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+
+echarts.use([EBarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
 
 const CHART_COLORS = [
   'hsl(210, 80%, 55%)', 'hsl(25, 95%, 53%)', 'hsl(160, 84%, 39%)', 'hsl(262, 83%, 58%)',
@@ -143,6 +149,7 @@ const TopologiePage: React.FC = () => {
   const [dataSource, setDataSource] = useState<'local' | 'cloud'>(getPreferredDataSource());
   const shouldUseLocal = dataSource === 'local';
   const [chartMode, setChartMode] = useState<ChartMode>('stacked');
+  const [showLabels, setShowLabels] = useState(true);
 
   // ─── Available filter options ───
   const [availableParams, setAvailableParams] = useState<string[]>([]);
@@ -375,7 +382,100 @@ const TopologiePage: React.FC = () => {
   const catCount = chartData.length;
   const chartHeight = catCount <= 4 ? 220 : catCount <= 10 ? 280 : 340;
   const chartWidth = Math.min(1100, Math.max(520, catCount * 140 + 160));
-  const xAngle = catCount <= 6 ? 0 : -35;
+  const xRotate = catCount > 6 ? 35 : 0;
+
+  // ─── ECharts options ───
+  const echartsOption = useMemo(() => {
+    if (chartData.length === 0) return {};
+    const categories = chartData.map(d => d._key);
+    const series = stackKeys.map((key, i) => ({
+      name: key,
+      type: 'bar' as const,
+      stack: chartMode === 'stacked' ? 'total' : undefined,
+      barMaxWidth: 32,
+      itemStyle: { color: CHART_COLORS[i % CHART_COLORS.length] },
+      label: {
+        show: showLabels,
+        position: (chartMode === 'stacked' ? 'inside' : 'top') as 'inside' | 'top',
+        fontSize: 10,
+        color: chartMode === 'stacked' ? '#fff' : undefined,
+        formatter: (p: any) => (p.value && p.value > 0 ? Math.round(p.value) : ''),
+      },
+      data: chartData.map(d => (d as any)[key] || 0),
+    }));
+
+    // In stacked mode, add a transparent "total" series on top for total labels
+    if (chartMode === 'stacked') {
+      const totals = chartData.map(d => d.total);
+      series.push({
+        name: '__total__',
+        type: 'bar',
+        stack: 'total',
+        barMaxWidth: 32,
+        itemStyle: { color: 'transparent' },
+        label: {
+          show: showLabels,
+          position: 'top',
+          fontSize: 10,
+          color: undefined,
+          formatter: (p: any) => {
+            const t = totals[p.dataIndex];
+            return t > 0 ? `Σ${t}` : '';
+          },
+        },
+        data: chartData.map(() => 0),
+      } as any);
+    }
+
+    return {
+      grid: { left: 40, right: 20, top: 40, bottom: xRotate > 0 ? 60 : 30, containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: categories,
+        axisLabel: { rotate: xRotate, fontSize: 10, interval: 0 },
+        axisTick: { show: true, alignWithLabel: true },
+        axisLine: { lineStyle: { color: 'hsl(var(--border))' } },
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: { fontSize: 10 },
+        splitLine: { show: true, lineStyle: { color: 'hsl(var(--border))', opacity: 0.5 } },
+        axisTick: { show: true },
+        axisLine: { show: true, lineStyle: { color: 'hsl(var(--border))' } },
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        textStyle: { fontSize: 11 },
+        formatter: (params: any[]) => {
+          const filtered = params.filter((p: any) => p.seriesName !== '__total__');
+          if (!filtered.length) return '';
+          let html = `<strong>${filtered[0].axisValue}</strong><br/>`;
+          let total = 0;
+          filtered.forEach((p: any) => {
+            if (p.value > 0) {
+              html += `${p.marker} ${p.seriesName}: <strong>${p.value}</strong><br/>`;
+              total += p.value;
+            }
+          });
+          if (chartMode === 'stacked' && filtered.length > 1) {
+            html += `<br/><strong>Total: ${total}</strong>`;
+          }
+          return html;
+        },
+      },
+      legend: {
+        show: true,
+        top: 4,
+        right: 10,
+        textStyle: { fontSize: 10 },
+        itemWidth: 12,
+        itemHeight: 8,
+        data: stackKeys,
+      },
+      series,
+    };
+  }, [chartData, stackKeys, chartMode, showLabels, xRotate]);
 
   // ─── Distribution table with explicit value columns ───
   const distTableColumns = useMemo(() => {
@@ -646,6 +746,11 @@ const TopologiePage: React.FC = () => {
                           <BarChart3 className="w-2.5 h-2.5" /> Grouped
                         </button>
                       </div>
+                      {/* Show labels toggle */}
+                      <button onClick={() => setShowLabels(v => !v)}
+                        className={`flex items-center gap-0.5 px-2 py-[2px] text-[9px] font-medium rounded border border-input ${showLabels ? 'bg-accent text-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}>
+                        {showLabels ? <Eye className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5" />} Valeurs
+                      </button>
                     </div>
                     <button onClick={() => exportCSV(pdData)} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80">
                       <Download className="w-3 h-3" /> Export
@@ -655,23 +760,13 @@ const TopologiePage: React.FC = () => {
                   {chartData.length > 0 ? (
                     <div className="flex justify-center overflow-x-auto">
                       <div style={{ width: chartWidth, height: chartHeight, minWidth: 520 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartData} margin={{ top: 4, right: 12, left: 4, bottom: xAngle !== 0 ? 40 : 16 }}
-                            barSize={chartMode === 'grouped' ? Math.max(12, Math.min(30, 280 / (catCount * stackKeys.length))) : 30}>
-                            <CartesianGrid strokeDasharray="3 3" opacity={0.12} />
-                            <XAxis dataKey="_key" tick={{ fontSize: 9 }} angle={xAngle} textAnchor={xAngle !== 0 ? 'end' : 'middle'} interval={0} />
-                            <YAxis tick={{ fontSize: 9 }} width={36} />
-                            <RTooltip formatter={(v: number, name: string) => [`${v}`, name]} contentStyle={{ fontSize: 10, padding: '4px 8px' }} />
-                            <Legend wrapperStyle={{ fontSize: 9, paddingTop: 4 }} align="right" verticalAlign="top" />
-                            {stackKeys.map((key, i) => (
-                              <Bar key={key} dataKey={key}
-                                stackId={chartMode === 'stacked' ? 'a' : undefined}
-                                fill={CHART_COLORS[i % CHART_COLORS.length]}
-                                radius={chartMode === 'grouped' ? [2, 2, 0, 0] : undefined}
-                              />
-                            ))}
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <ReactEChartsCore
+                          echarts={echarts}
+                          option={echartsOption}
+                          style={{ width: '100%', height: '100%' }}
+                          notMerge={true}
+                          opts={{ renderer: 'canvas' }}
+                        />
                       </div>
                     </div>
                   ) : <p className="text-[10px] text-muted-foreground">Aucune donnée</p>}
