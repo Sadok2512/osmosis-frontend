@@ -2505,51 +2505,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       </div>
 
-      {/* ── Dashboard Selector — top left floating ── */}
-      {viewMode === 'map' && (
-        <div className="absolute top-4 left-[416px] z-[1001] pointer-events-auto" style={{ maxWidth: 260 }}>
-          <div className="relative">
-            <button
-              onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}
-              className="bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-lg px-3 py-2 flex items-center gap-2 hover:bg-muted/80 transition-all w-full"
-            >
-              <FolderOpen size={13} className="text-primary shrink-0" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-foreground truncate flex-1 text-left">
-                {activeDashboard ? activeDashboard.name : 'No Dashboard'}
-              </span>
-              <ChevronDown size={12} className={`text-muted-foreground transition-transform ${showDashboardDropdown ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showDashboardDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden z-[1002] max-h-[300px] overflow-y-auto">
-                {/* No dashboard option */}
-                <button
-                  onClick={() => { setActiveDashboardId(null); localStorage.removeItem('qoebit_active_dashboard'); setShowDashboardDropdown(false); }}
-                  className={`w-full px-3 py-2.5 text-left text-[10px] font-bold transition-all flex items-center gap-2 ${
-                    !activeDashboardId ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                >
-                  <X size={11} className="shrink-0" />
-                  <span className="uppercase tracking-widest">Aucun</span>
-                </button>
-                {dashboardList.map(db => (
-                  <button
-                    key={db.id}
-                    onClick={() => loadDashboardSettings(db.id)}
-                    className={`w-full px-3 py-2.5 text-left text-[10px] font-bold transition-all flex items-center gap-2 ${
-                      activeDashboardId === db.id ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    <LayoutGrid size={11} className="shrink-0 text-primary/60" />
-                    <span className="truncate flex-1">{db.name}</span>
-                    {activeDashboardId === db.id && <Check size={12} className="text-primary shrink-0" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
 
       {/* Floating top bar — redesigned KPI selector with grouped tabs */}
