@@ -911,17 +911,19 @@ app.get('/api/dump-parameter', async (req, res) => {
     }
 
     // Normal query mode — validate select columns against known schema
-    const ALLOWED_COLS = new Set([
-      'id', 'dn', 'cell_dn', 'cell_name', 'site_name', 'parameter', 'value',
-      'version', 'vendor', 'mrbts_id', 'enodeb_id', 'gnodeb_id', 'bande',
-      'freq_downlink', 'tgv', 'latitude', 'longitude', 'city', 'dr', 'ur',
-      'dor', 'plaque', 'omc', 'zone_arcep', 'created_at'
-    ]);
+    // Dynamically validate requested columns against actual table schema
+    if (!app.locals._dumpCols) {
+      const schemaRes = await sharedPool.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
+        [dumpTable]
+      );
+      app.locals._dumpCols = new Set(schemaRes.rows.map(r => r.column_name));
+    }
+    const realCols = app.locals._dumpCols;
 
-    // If select is provided, filter out any columns that don't exist in the table
     let cols;
     if (select) {
-      const requestedCols = select.split(',').map(c => c.trim()).filter(c => ALLOWED_COLS.has(c));
+      const requestedCols = select.split(',').map(c => c.trim()).filter(c => realCols.has(c));
       cols = requestedCols.length > 0 ? requestedCols.join(', ') : 'site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
     } else {
       cols = 'site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
