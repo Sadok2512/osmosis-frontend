@@ -81,6 +81,7 @@ const RadioProfilePage: React.FC = () => {
   const [vbw, setVbw] = useState(7);
   const [f2b, setF2b] = useState(25);
   const [fullscreen, setFullscreen] = useState(false);
+  const [enableTilt, setEnableTilt] = useState(true);
   const [basemap, setBasemap] = useState<'light' | 'dark' | 'satellite'>('light');
 
   const { loading, error, profilePoints, analysis, computeProfile } = useTerrainProfile();
@@ -413,6 +414,10 @@ const RadioProfilePage: React.FC = () => {
                       <span className="text-xs font-mono font-bold text-foreground w-10 text-right">{clutterHeight} m</span>
                     </div>
                   )}
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Tilt beam (downtilt)</Label>
+                    <Switch checked={enableTilt} onCheckedChange={setEnableTilt} />
+                  </div>
                 </div>
 
                 <button onClick={handleStartDrawing}
@@ -451,13 +456,17 @@ const RadioProfilePage: React.FC = () => {
                       <Switch checked={enableFresnel} onCheckedChange={setEnableFresnel} />
                       <Label className="text-[11px]">Fresnel F1</Label>
                     </div>
-                    <div className="flex items-center gap-2">
+                     <div className="flex items-center gap-2">
                       <Switch checked={enableClutter} onCheckedChange={(v) => {
                         setEnableClutter(v);
                         if (!v) setClutterHeight(0);
                         else setClutterHeight(10);
                       }} />
                       <Label className="text-[11px]">Clutter</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={enableTilt} onCheckedChange={setEnableTilt} />
+                      <Label className="text-[11px]">Tilt beam</Label>
                     </div>
                     {enableClutter && (
                       <div className="flex items-center gap-1">
@@ -478,6 +487,7 @@ const RadioProfilePage: React.FC = () => {
                     showFresnel={enableFresnel}
                     showCurvature={enableCurvature}
                     clutterHeight={enableClutter ? clutterHeight : 0}
+                    showTilt={enableTilt}
                   />
                 </div>
 

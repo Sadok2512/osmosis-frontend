@@ -12,10 +12,11 @@ interface Props {
   showFresnel?: boolean;
   showCurvature?: boolean;
   clutterHeight?: number;
+  showTilt?: boolean;
 }
 
 const ProfileChart: React.FC<Props> = ({
-  profilePoints, analysis, fresnel, showFresnel = false, showCurvature = true, clutterHeight = 0,
+  profilePoints, analysis, fresnel, showFresnel = false, showCurvature = true, clutterHeight = 0, showTilt = false,
 }) => {
   const ant = analysis.antennaParams;
   const data = profilePoints.map((p, i) => {
@@ -36,6 +37,29 @@ const ProfileChart: React.FC<Props> = ({
       entry.fresnelUpper = Math.round(fresnel.fresnelUpperBound[i] * 10) / 10;
       entry.fresnelLower = Math.round(fresnel.fresnelLowerBound[i] * 10) / 10;
     }
+    // Tilt beam line: h(x) = antennaAMSL - d * tan(totalTilt)
+    if (showTilt && ant) {
+      const antennaAMSL = ant.antennaAMSL;
+      const tiltRad = ant.totalTilt * Math.PI / 180;
+      const tiltAlt = antennaAMSL - p.distance * Math.tan(tiltRad);
+      // Stop rendering below terrain
+      if (tiltAlt >= analysis.effectiveTerrain[i]) {
+        entry.tiltBeam = Math.round(tiltAlt * 10) / 10;
+      }
+      // Beam cone: tilt ± vbw/2
+      if (ant.vbw > 0) {
+        const upperRad = (ant.totalTilt - ant.vbw / 2) * Math.PI / 180;
+        const lowerRad = (ant.totalTilt + ant.vbw / 2) * Math.PI / 180;
+        const upperAlt = antennaAMSL - p.distance * Math.tan(upperRad);
+        const lowerAlt = antennaAMSL - p.distance * Math.tan(lowerRad);
+        if (upperAlt >= analysis.effectiveTerrain[i]) {
+          entry.tiltConeUpper = Math.round(upperAlt * 10) / 10;
+        }
+        if (lowerAlt >= analysis.effectiveTerrain[i]) {
+          entry.tiltConeLower = Math.round(lowerAlt * 10) / 10;
+        }
+      }
+    }
     return entry;
   });
 
@@ -50,6 +74,9 @@ const ProfileChart: React.FC<Props> = ({
     if (d.clutter) vals.push(d.clutter);
     if (d.fresnelUpper) vals.push(d.fresnelUpper);
     if (d.fresnelLower) vals.push(d.fresnelLower);
+    if (d.tiltBeam) vals.push(d.tiltBeam);
+    if (d.tiltConeUpper) vals.push(d.tiltConeUpper);
+    if (d.tiltConeLower) vals.push(d.tiltConeLower);
     return vals;
   });
   const maxAlt = Math.max(...allValues, 50);
@@ -111,6 +138,9 @@ const ProfileChart: React.FC<Props> = ({
                 clutter: 'Terrain+Clutter',
                 fresnelUpper: 'Fresnel F1 sup',
                 fresnelLower: 'Fresnel F1 inf',
+                tiltBeam: `Tilt ${ant?.totalTilt ?? 0}°`,
+                tiltConeUpper: 'Beam sup',
+                tiltConeLower: 'Beam inf',
               };
               return [`${value.toFixed(1)} m`, labels[name] || name];
             }}
@@ -127,6 +157,9 @@ const ProfileChart: React.FC<Props> = ({
                 clutter: 'Clutter',
                 fresnelUpper: 'Fresnel F1',
                 fresnelLower: 'Fresnel F1',
+                tiltBeam: `Tilt ${ant?.totalTilt ?? 0}°`,
+                tiltConeUpper: 'Beam cone',
+                tiltConeLower: 'Beam cone',
               };
               return labels[value] || value;
             }}
@@ -201,6 +234,58 @@ const ProfileChart: React.FC<Props> = ({
                 strokeDasharray="4 2"
                 dot={false}
                 isAnimationActive={false}
+              />
+            </>
+          )}
+
+          {/* Tilt beam line + cone */}
+          {showTilt && ant && (
+            <>
+              {/* Beam cone shaded area */}
+              {ant.vbw > 0 && (
+                <Area
+                  type="monotone"
+                  dataKey="tiltConeUpper"
+                  stroke="none"
+                  fill="rgba(251,146,60,0.08)"
+                  dot={false}
+                  isAnimationActive={false}
+                  connectNulls={false}
+                />
+              )}
+              {ant.vbw > 0 && (
+                <>
+                  <Line
+                    type="monotone"
+                    dataKey="tiltConeUpper"
+                    stroke="rgba(251,146,60,0.35)"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    dot={false}
+                    isAnimationActive={false}
+                    connectNulls={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="tiltConeLower"
+                    stroke="rgba(251,146,60,0.35)"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    dot={false}
+                    isAnimationActive={false}
+                    connectNulls={false}
+                  />
+                </>
+              )}
+              {/* Main tilt beam ray */}
+              <Line
+                type="monotone"
+                dataKey="tiltBeam"
+                stroke="rgba(251,146,60,0.9)"
+                strokeWidth={2.5}
+                dot={false}
+                isAnimationActive={false}
+                connectNulls={false}
               />
             </>
           )}
