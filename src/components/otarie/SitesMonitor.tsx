@@ -1260,6 +1260,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'OFF'>('ALL');
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(DEFAULT_BAND_COLORS)));
+  const [enabledTechnos, setEnabledTechnos] = useState<Set<string>>(new Set(['5G', '4G']));
   const [showBandPanel, setShowBandPanel] = useState(true);
   const [sectorColorMode, setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
   const [bandColors, setBandColors] = useState<Record<string, string>>(loadCustomBandColors);
@@ -1649,9 +1650,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Sites filtered by techno (for map rendering only)
   const mapFilteredSites = useMemo(() => {
     if (mapTechnoFilter === 'OFF') return [];
-    if (mapTechnoFilter === 'ALL') return filteredSites;
+    if (mapTechnoFilter === 'ALL') {
+      // In ALL mode, filter out sites that have no cells matching enabled technos
+      if (enabledTechnos.size === 0) return [];
+      if (enabledTechnos.size === 2) return filteredSites;
+      return filteredSites.filter(s => s.cells.some(c => {
+        const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
+        return enabledTechnos.has(tech);
+      }));
+    }
     return filteredSites.filter(s => s.cells.some(c => c.techno === mapTechnoFilter));
-  }, [filteredSites, mapTechnoFilter]);
+  }, [filteredSites, mapTechnoFilter, enabledTechnos]);
 
   // Dynamic filter options based on actual data
   const uniqueVendors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.vendor).filter(Boolean))].sort(), [sites]);
@@ -1869,7 +1878,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Points mode — individual cell markers colored by KPI threshold */}
         {mapDisplayMode === 'points' && visibleSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
-          const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells
+          const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells.filter(c => {
+              const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
+              return enabledTechnos.has(tech);
+            })
             : site.cells.filter(c => c.techno === mapTechnoFilter)).filter(c => isBandEnabled(c.bande, c.techno));
           return (
             <React.Fragment key={site.site_id}>
@@ -1997,15 +2009,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
             // Step 4: Build render list — 4G first (below), 5G second (above)
             const renderItems: { tech: string; az: number; radius: number }[] = [];
-            if (has4G) {
+            if (has4G && enabledTechnos.has('4G')) {
               allAzimuths.forEach(az => {
-                // Only draw 4G on azimuths where 4G exists
                 if (techAzimuths.get('4G')!.has(az)) {
                   renderItems.push({ tech: '4G', az, radius: R_4G });
                 }
               });
             }
-            if (has5G) {
+            if (has5G && enabledTechnos.has('5G')) {
               allAzimuths.forEach(az => {
                 if (techAzimuths.get('5G')!.has(az)) {
                   renderItems.push({ tech: '5G', az, radius: R_5G });
@@ -2730,12 +2741,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
                     </div>
                     {[
-                      { key: '5G_GROUP', label: '5G', defaultColor: '#a855f7' },
-                      { key: '4G_GROUP', label: '4G', defaultColor: '#f97316' },
-                    ].map(({ key, label, defaultColor }) => (
+                      { key: '5G_GROUP', tech: '5G', label: '5G', defaultColor: '#a855f7' },
+                      { key: '4G_GROUP', tech: '4G', label: '4G', defaultColor: '#f97316' },
+                    ].map(({ key, tech, label, defaultColor }) => (
                       <div key={key} className="flex items-center gap-2.5">
-                        <div className="w-4 h-4 rounded" style={{ background: bandColors[key] || defaultColor }} />
-                        <span className="text-[11px] font-bold text-foreground flex-1">{label}</span>
+                        <div className="w-4 h-4 rounded" style={{ background: enabledTechnos.has(tech) ? (bandColors[key] || defaultColor) : '#94a3b8' }} />
+                        <span className={`text-[11px] font-bold flex-1 ${enabledTechnos.has(tech) ? 'text-foreground' : 'text-muted-foreground line-through'}`}>{label}</span>
+                        <Switch
+                          checked={enabledTechnos.has(tech)}
+                          onCheckedChange={(checked) => {
+                            setEnabledTechnos(prev => {
+                              const next = new Set(prev);
+                              if (checked) next.add(tech); else next.delete(tech);
+                              return next;
+                            });
+                          }}
+                          className="h-4 w-7 data-[state=checked]:bg-primary"
+                        />
                         <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[key] || defaultColor }} title={`Change ${label} color`}>
                           <input type="color" value={bandColors[key] || defaultColor} onChange={(e) => updateBandColor(key, e.target.value)} className="opacity-0 w-0 h-0 absolute" />
                         </label>
