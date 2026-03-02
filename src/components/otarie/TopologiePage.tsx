@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { dumpParameterApi } from '@/lib/localDb';
 import { supabase } from '@/integrations/supabase/client';
 import { getApiUrl, getPreferredDataSource, setPreferredDataSource } from '@/lib/apiConfig';
-import { Search, Filter, Download, BarChart3, TableIcon, Loader2, ChevronDown, Wifi, WifiOff, Database } from 'lucide-react';
+import { Search, Filter, Download, BarChart3, TableIcon, Loader2, ChevronDown, Wifi, WifiOff, Database, Settings2, Layers, FileSpreadsheet } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -34,6 +34,7 @@ type AggregatorKey = 'ur' | 'plaque';
 type ColorBy = 'value' | 'aggregator';
 
 const TopologiePage: React.FC = () => {
+  const [mainTab, setMainTab] = useState('site_config');
   const [data, setData] = useState<DumpRow[]>([]);
   const [cnxStatus, setCnxStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
   const [cnxMessage, setCnxMessage] = useState('');
@@ -64,6 +65,17 @@ const TopologiePage: React.FC = () => {
   const [urs, setUrs] = useState<string[]>([]);
   const [plaques, setPlaques] = useState<string[]>([]);
   const [vendors, setVendors] = useState<string[]>([]);
+
+  // Site Configuration state
+  const [topoData, setTopoData] = useState<any[]>([]);
+  const [topoLoading, setTopoLoading] = useState(false);
+  const [topoSearch, setTopoSearch] = useState('');
+  const [topoSiteFilter, setTopoSiteFilter] = useState('ALL');
+  const [topoTechnoFilter, setTopoTechnoFilter] = useState('ALL');
+  const [topoBandeFilter, setTopoBandeFilter] = useState('ALL');
+  const [topoSites, setTopoSites] = useState<string[]>([]);
+  const [topoTechnos, setTopoTechnos] = useState<string[]>([]);
+  const [topoBandes, setTopoBandes] = useState<string[]>([]);
 
   const shouldUseLocal = dataSource === 'local';
 
@@ -126,10 +138,9 @@ const TopologiePage: React.FC = () => {
   const fetchDistinct = shouldUseLocal ? fetchDistinctLocal : fetchDistinctCloud;
   const fetchRows = shouldUseLocal ? fetchRowsLocal : fetchRowsCloud;
 
-  // Probe backend reachability on mount (only relevant for local mode)
+  // Probe backend reachability on mount
   useEffect(() => {
     if (!shouldUseLocal) {
-      // Cloud mode — no local health check needed
       setBackendReachable(null);
       return;
     }
@@ -144,8 +155,9 @@ const TopologiePage: React.FC = () => {
     probe();
   }, [shouldUseLocal]);
 
-  // Load filter options — react to dataSource change too
+  // Load filter options
   useEffect(() => {
+    if (mainTab !== 'param_distribution' && mainTab !== 'raw_parameter') return;
     if (shouldUseLocal && backendReachable === false) return;
     setLoading(true);
     const loadFilters = async () => {
@@ -160,14 +172,7 @@ const TopologiePage: React.FC = () => {
       setLoading(false);
     };
     loadFilters();
-  }, [backendReachable, dataSource]);
-
-  // Don't auto-select — let user pick their parameter
-  // useEffect(() => {
-  //   if (selectedParam === 'ALL' && params.length > 0) {
-  //     setSelectedParam(params[0]);
-  //   }
-  // }, [params, selectedParam]);
+  }, [backendReachable, dataSource, mainTab]);
 
   // Filtered params for search
   const filteredParams = useMemo(() => {
@@ -204,6 +209,53 @@ const TopologiePage: React.FC = () => {
     loadData();
   }, [selectedParam, selectedSite, selectedCell, selectedUr, selectedPlaque, selectedVendor, dataSource]);
 
+  // ─── Site Configuration: load topo data ───
+  useEffect(() => {
+    if (mainTab !== 'site_config') return;
+    setTopoLoading(true);
+    const loadTopo = async () => {
+      try {
+        const { data: rows, error } = await supabase.from('topo').select('*').limit(5000);
+        if (error) throw error;
+        setTopoData(rows || []);
+        // Extract filter options
+        const siteSet = new Set<string>();
+        const technoSet = new Set<string>();
+        const bandeSet = new Set<string>();
+        (rows || []).forEach((r: any) => {
+          if (r.nom_site) siteSet.add(r.nom_site);
+          if (r.techno) technoSet.add(r.techno);
+          if (r.bande) bandeSet.add(r.bande);
+        });
+        setTopoSites([...siteSet].sort());
+        setTopoTechnos([...technoSet].sort());
+        setTopoBandes([...bandeSet].sort());
+      } catch (err) {
+        console.warn('[Topologie] topo fetch failed', err);
+        setTopoData([]);
+      } finally {
+        setTopoLoading(false);
+      }
+    };
+    loadTopo();
+  }, [mainTab]);
+
+  const filteredTopoData = useMemo(() => {
+    let d = topoData;
+    if (topoSiteFilter !== 'ALL') d = d.filter((r: any) => r.nom_site === topoSiteFilter);
+    if (topoTechnoFilter !== 'ALL') d = d.filter((r: any) => r.techno === topoTechnoFilter);
+    if (topoBandeFilter !== 'ALL') d = d.filter((r: any) => r.bande === topoBandeFilter);
+    if (topoSearch) {
+      const s = topoSearch.toLowerCase();
+      d = d.filter((r: any) =>
+        r.nom_site?.toLowerCase().includes(s) ||
+        r.nom_cellule?.toLowerCase().includes(s) ||
+        r.code_nidt?.toLowerCase().includes(s)
+      );
+    }
+    return d;
+  }, [topoData, topoSiteFilter, topoTechnoFilter, topoBandeFilter, topoSearch]);
+
   // Table search
   const filteredData = useMemo(() => {
     if (!searchTerm) return data;
@@ -217,10 +269,9 @@ const TopologiePage: React.FC = () => {
   const allValues = useMemo(() => [...new Set(data.map(r => r.value || 'N/A'))].sort(), [data]);
   const allAggKeys = useMemo(() => [...new Set(data.map(r => r[aggregator] || 'N/A'))].sort(), [data, aggregator]);
 
-  // Distribution: aggregator dimension, colored by value or aggregator
+  // Distribution
   const chartData = useMemo(() => {
     if (colorBy === 'value') {
-      // Group by aggregator key, stack by value
       const map: Record<string, Record<string, number>> = {};
       data.forEach(r => {
         const key = r[aggregator] || 'N/A';
@@ -233,7 +284,6 @@ const TopologiePage: React.FC = () => {
         return { _key: key, total, ...vals, _details: Object.entries(vals).map(([v, c]) => ({ value: v, count: c, pct: ((c / total) * 100).toFixed(1) })) };
       }).sort((a, b) => b.total - a.total);
     } else {
-      // Group by value, stack by aggregator key
       const map: Record<string, Record<string, number>> = {};
       data.forEach(r => {
         const val = r.value || 'N/A';
@@ -250,7 +300,6 @@ const TopologiePage: React.FC = () => {
 
   const stackKeys = colorBy === 'value' ? allValues : allAggKeys;
 
-  // Global distribution
   const globalDistribution = useMemo(() => {
     const map: Record<string, number> = {};
     data.forEach(r => { const val = r.value || 'N/A'; map[val] = (map[val] || 0) + 1; });
@@ -270,9 +319,18 @@ const TopologiePage: React.FC = () => {
     const a = document.createElement('a'); a.href = url; a.download = `topologie_${selectedParam}.csv`; a.click();
   };
 
+  const exportTopoCSV = () => {
+    if (!filteredTopoData.length) return;
+    const headers = ['Code NIDT', 'Site', 'Cellule', 'Techno', 'Bande', 'Region', 'Lat', 'Lon', 'Azimut', 'HBA', 'Tilt', 'PCI', 'Etat'];
+    const rows = filteredTopoData.map((r: any) => [r.code_nidt, r.nom_site, r.nom_cellule, r.techno, r.bande, r.region, r.latitude, r.longitude, r.azimut, r.hba, r.tilt, r.pci, r.etat_cellule].join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'site_configuration.csv'; a.click();
+  };
+
   const aggLabel = aggregator === 'ur' ? 'UR' : 'Plaque';
   const backendLabel = dataSource === 'local' ? 'Local (RAN_OP)' : 'Cloud';
-  const tableTarget = 'parameter_dump';
 
   const testConnection = async () => {
     setCnxStatus('testing');
@@ -284,21 +342,15 @@ const TopologiePage: React.FC = () => {
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const rows = await resp.json();
           setCnxStatus('ok');
-          setCnxMessage(`✅ Connecté (Local) — ${rows.length} paramètres trouvés dans parameter_dump`);
+          setCnxMessage(`✅ Connecté (Local) — ${rows.length} paramètres trouvés`);
           return;
         } catch (localErr: any) {
-          console.warn('[Topologie] Local connection failed', localErr);
           setCnxStatus('error');
           setCnxMessage(`❌ Local indisponible: ${localErr.message}`);
           return;
         }
       }
-
-      // Cloud mode — query parameter_dump via Supabase
-      const { data: rows, error } = await (supabase as any)
-        .from('parameter_dump')
-        .select('parameter')
-        .limit(1);
+      const { data: rows, error } = await (supabase as any).from('parameter_dump').select('parameter').limit(1);
       if (error) throw error;
       setCnxStatus('ok');
       setCnxMessage(`✅ Connecté (Cloud) — parameter_dump accessible`);
@@ -308,46 +360,30 @@ const TopologiePage: React.FC = () => {
     }
   };
 
-
-
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="border-b border-border bg-card px-6 py-4 space-y-3">
-        <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-card px-6 py-4">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-foreground">Topologie Réseau</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Exploration des paramètres CM Dump</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Configuration sites, distribution paramètres, données brutes</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Backend info badge */}
             <Badge variant="outline" className="text-xs gap-1">
               <Database className="w-3 h-3" />
-              {backendLabel} → <span className="font-mono">{tableTarget}</span>
+              {backendLabel}
             </Badge>
             <div className="inline-flex rounded-lg border border-border overflow-hidden">
               <button
                 onClick={() => switchDataSource('local')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  dataSource === 'local'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-background text-muted-foreground hover:bg-accent'
-                }`}
-              >
-                Local
-              </button>
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${dataSource === 'local' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}
+              >Local</button>
               <button
                 onClick={() => switchDataSource('cloud')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  dataSource === 'cloud'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-background text-muted-foreground hover:bg-accent'
-                }`}
-              >
-                Cloud
-              </button>
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${dataSource === 'cloud' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}
+              >Cloud</button>
             </div>
-            {/* Connection test button */}
             <button
               onClick={testConnection}
               disabled={cnxStatus === 'testing'}
@@ -363,233 +399,395 @@ const TopologiePage: React.FC = () => {
                <Wifi className="w-3.5 h-3.5" />}
               Test CNX
             </button>
-            <Badge variant="secondary" className="text-xs">{data.length} cellules</Badge>
-            <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-              <Download className="w-3.5 h-3.5" /> Export CSV
-            </button>
           </div>
         </div>
-        {/* Connection test result */}
+
         {cnxMessage && (
-          <div className={`text-xs px-3 py-2 rounded-md ${cnxStatus === 'ok' ? 'bg-green-500/10 text-green-400' : 'bg-destructive/10 text-destructive'}`}>
+          <div className={`text-xs px-3 py-2 rounded-md mb-3 ${cnxStatus === 'ok' ? 'bg-green-500/10 text-green-400' : 'bg-destructive/10 text-destructive'}`}>
             {cnxMessage}
           </div>
         )}
 
-        {/* Backend unreachable warning */}
         {shouldUseLocal && backendReachable === false && (
-          <div className="flex items-center gap-3 text-sm px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
+          <div className="flex items-center gap-3 text-sm px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 mb-3">
             <WifiOff className="w-5 h-5 shrink-0" />
             <div>
               <p className="font-semibold">Serveur local injoignable</p>
               <p className="text-xs text-amber-400/80 mt-0.5">
-                Impossible de contacter <code className="bg-amber-500/20 px-1 rounded">localhost:3001</code>. 
-                Lancez le backend avec <code className="bg-amber-500/20 px-1 rounded">cd server &amp;&amp; npm run dev</code> puis rechargez cette page.
-                Si vous êtes sur la preview Lovable, ouvrez l'app en local sur <code className="bg-amber-500/20 px-1 rounded">http://localhost:5173</code>.
+                Lancez le backend avec <code className="bg-amber-500/20 px-1 rounded">cd server && npm run dev</code>
               </p>
             </div>
           </div>
         )}
 
-        <div className="space-y-1">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">🔍 Rechercher un paramètre</label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className="flex items-center justify-between w-full max-w-md h-9 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/50 transition-colors text-left">
-                <span className={`truncate ${selectedParam === 'ALL' ? 'text-muted-foreground' : 'font-medium text-foreground'}`}>
-                  {selectedParam === 'ALL' ? 'Sélectionner un paramètre…' : selectedParam}
-                </span>
-                <Search className="w-3.5 h-3.5 shrink-0 opacity-50 ml-1" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[400px] p-0" align="start">
-              <div className="flex items-center border-b border-border px-3">
-                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-                <input
-                  className="flex h-9 w-full bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground"
-                  placeholder="Rechercher paramètre..."
-                  value={paramSearch}
-                  onChange={e => setParamSearch(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <div className="max-h-[280px] overflow-auto p-1">
-                {filteredParams.length === 0 ? (
-                  <div className="py-6 text-center text-xs text-muted-foreground">Aucun paramètre trouvé</div>
-                ) : (
-                  filteredParams.map(p => (
-                    <button
-                      key={p}
-                      onClick={() => { setSelectedParam(p); setParamSearch(''); }}
-                      className={`flex items-center w-full px-3 py-2 text-xs rounded-sm hover:bg-accent transition-colors ${selectedParam === p ? 'bg-accent font-semibold' : ''}`}
-                    >
-                      {p}
-                    </button>
-                  ))
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        {/* Row 2: Filters */}
-        <div className="flex items-end gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
-            <Filter className="w-3 h-3" /> Filtres
-          </div>
-          <FilterSelect label="UR" value={selectedUr} options={['ALL', ...urs]} onChange={setSelectedUr} />
-          <FilterSelect label="Plaque" value={selectedPlaque} options={['ALL', ...plaques]} onChange={setSelectedPlaque} />
-          <FilterSelect label="Vendor" value={selectedVendor} options={['ALL', ...vendors]} onChange={setSelectedVendor} />
-          <FilterSelect label="Site" value={selectedSite} options={['ALL', ...sites]} onChange={setSelectedSite} />
-          <FilterSelect label="Cellule" value={selectedCell} options={['ALL', ...cells]} onChange={setSelectedCell} />
-        </div>
-
-        {/* Row 3: Aggregator & Color */}
-        {selectedParam !== 'ALL' && (
-          <div className="flex items-center gap-4 pt-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Agréger par</span>
-              <div className="flex rounded-md border border-input overflow-hidden">
-                <button
-                  onClick={() => setAggregator('ur')}
-                  className={`px-3 py-1 text-xs font-medium transition-colors ${aggregator === 'ur' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}
-                >UR</button>
-                <button
-                  onClick={() => setAggregator('plaque')}
-                  className={`px-3 py-1 text-xs font-medium transition-colors ${aggregator === 'plaque' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}
-                >Plaque</button>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Couleur par</span>
-              <div className="flex rounded-md border border-input overflow-hidden">
-                <button
-                  onClick={() => setColorBy('value')}
-                  className={`px-3 py-1 text-xs font-medium transition-colors ${colorBy === 'value' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}
-                >Valeur</button>
-                <button
-                  onClick={() => setColorBy('aggregator')}
-                  className={`px-3 py-1 text-xs font-medium transition-colors ${colorBy === 'aggregator' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}
-                >{aggLabel}</button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Main 3 Tabs */}
+        <Tabs value={mainTab} onValueChange={setMainTab}>
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="site_config" className="gap-1.5 text-xs">
+              <Settings2 className="w-3.5 h-3.5" /> Site Configuration
+            </TabsTrigger>
+            <TabsTrigger value="param_distribution" className="gap-1.5 text-xs">
+              <Layers className="w-3.5 h-3.5" /> Paramètre Distribution
+            </TabsTrigger>
+            <TabsTrigger value="raw_parameter" className="gap-1.5 text-xs">
+              <FileSpreadsheet className="w-3.5 h-3.5" /> Raw Parameter
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-4 space-y-4">
-        {selectedParam === 'ALL' ? (
-          <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-            <div className="text-center">
-              <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Recherchez un paramètre</p>
-              <p className="text-xs mt-1">Utilisez la barre de recherche ci-dessus pour trouver un paramètre CM Dump</p>
+      <div className="flex-1 overflow-auto">
+        {/* ═══════════════ TAB 1: Site Configuration ═══════════════ */}
+        {mainTab === 'site_config' && (
+          <div className="p-4 space-y-4">
+            {/* Filters */}
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
+                <Filter className="w-3 h-3" /> Filtres
+              </div>
+              <FilterSelect label="Site" value={topoSiteFilter} options={['ALL', ...topoSites]} onChange={setTopoSiteFilter} />
+              <FilterSelect label="Techno" value={topoTechnoFilter} options={['ALL', ...topoTechnos]} onChange={setTopoTechnoFilter} />
+              <FilterSelect label="Bande" value={topoBandeFilter} options={['ALL', ...topoBandes]} onChange={setTopoBandeFilter} />
+              <div className="relative flex-1 max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input placeholder="Rechercher site, cellule, code..." value={topoSearch} onChange={e => setTopoSearch(e.target.value)} className="pl-9 h-8 text-xs" />
+              </div>
+              <Badge variant="secondary" className="text-xs">{filteredTopoData.length} cellules</Badge>
+              <button onClick={exportTopoCSV} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                <Download className="w-3.5 h-3.5" /> Export CSV
+              </button>
             </div>
-          </div>
-        ) : loading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <Tabs defaultValue="distribution" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="distribution" className="gap-1.5"><BarChart3 className="w-3.5 h-3.5" /> Distribution</TabsTrigger>
-              <TabsTrigger value="table" className="gap-1.5"><TableIcon className="w-3.5 h-3.5" /> Données</TabsTrigger>
-            </TabsList>
 
-            {/* Distribution View */}
-            <TabsContent value="distribution" className="space-y-6">
-              {/* Global Summary */}
-              <div className="border border-border rounded-lg bg-card p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-3">Distribution globale — {selectedParam}</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {globalDistribution.map((g, i) => (
-                    <div key={g.value} className="rounded-lg border border-border p-3 text-center bg-muted/20">
-                      <div className="text-lg font-bold text-foreground">{g.pct}%</div>
-                      <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{g.value}</div>
-                      <div className="text-[10px] text-muted-foreground">{g.count} cellules</div>
-                    </div>
-                  ))}
+            {topoLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : filteredTopoData.length === 0 ? (
+              <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+                <div className="text-center">
+                  <Settings2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Aucune donnée topo</p>
+                  <p className="text-xs mt-1">Importez vos données dans la table topo pour voir la configuration des sites</p>
                 </div>
               </div>
-
-              {/* Chart */}
-              <div className="border border-border rounded-lg bg-card p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-3">
-                  Distribution par {aggLabel}
-                  <span className="text-muted-foreground font-normal ml-2 text-xs">
-                    — coloré par {colorBy === 'value' ? 'valeur' : aggLabel}
-                  </span>
-                </h3>
-                {chartData.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="h-[320px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 50 }}>
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                          <XAxis dataKey="_key" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip formatter={(v: number, name: string) => [`${v} cellules`, name]} contentStyle={{ fontSize: 11 }} />
-                          <Legend wrapperStyle={{ fontSize: 10 }} />
-                          {stackKeys.map((key, i) => (
-                            <Bar key={key} dataKey={key} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                          ))}
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <DistributionTable data={chartData} dimensionLabel={colorBy === 'value' ? aggLabel : 'Valeur'} />
-                  </div>
-                ) : <p className="text-xs text-muted-foreground">Aucune donnée</p>}
-              </div>
-            </TabsContent>
-
-            {/* Table View */}
-            <TabsContent value="table" className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input placeholder="Rechercher site, cellule..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9 text-xs" />
-                </div>
-                <span className="text-xs text-muted-foreground">{filteredData.length} résultats</span>
-              </div>
+            ) : (
               <div className="border border-border rounded-lg overflow-hidden bg-card">
-                <div className="max-h-[400px] overflow-auto">
+                <div className="max-h-[calc(100vh-320px)] overflow-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">
+                        <TableHead className="text-xs font-semibold">Code NIDT</TableHead>
                         <TableHead className="text-xs font-semibold">Site</TableHead>
                         <TableHead className="text-xs font-semibold">Cellule</TableHead>
-                        <TableHead className="text-xs font-semibold">Valeur</TableHead>
-                        <TableHead className="text-xs font-semibold">DOR</TableHead>
-                        <TableHead className="text-xs font-semibold">Plaque</TableHead>
-                        <TableHead className="text-xs font-semibold">Vendor</TableHead>
+                        <TableHead className="text-xs font-semibold">Techno</TableHead>
                         <TableHead className="text-xs font-semibold">Bande</TableHead>
+                        <TableHead className="text-xs font-semibold">Région</TableHead>
+                        <TableHead className="text-xs font-semibold">Azimut</TableHead>
+                        <TableHead className="text-xs font-semibold">HBA</TableHead>
+                        <TableHead className="text-xs font-semibold">Tilt</TableHead>
+                        <TableHead className="text-xs font-semibold">PCI</TableHead>
+                        <TableHead className="text-xs font-semibold">ECI</TableHead>
+                        <TableHead className="text-xs font-semibold">État</TableHead>
+                        <TableHead className="text-xs font-semibold">Constructeur</TableHead>
+                        <TableHead className="text-xs font-semibold">Plaque</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredData.slice(0, 200).map(row => (
-                        <TableRow key={row.id} className="hover:bg-muted/30">
-                          <TableCell className="text-xs font-medium">{row.site_name || '—'}</TableCell>
-                          <TableCell className="text-xs">{row.cell_name || '—'}</TableCell>
-                          <TableCell><Badge variant="outline" className="text-xs font-mono">{row.value || '—'}</Badge></TableCell>
-                          <TableCell className="text-xs">{row.dor || '—'}</TableCell>
-                          <TableCell className="text-xs">{row.plaque || '—'}</TableCell>
-                          <TableCell className="text-xs">{row.vendor || '—'}</TableCell>
+                      {filteredTopoData.slice(0, 300).map((row: any, i: number) => (
+                        <TableRow key={row.id || i} className="hover:bg-muted/30">
+                          <TableCell className="text-xs font-mono">{row.code_nidt || '—'}</TableCell>
+                          <TableCell className="text-xs font-medium">{row.nom_site || '—'}</TableCell>
+                          <TableCell className="text-xs">{row.nom_cellule || '—'}</TableCell>
+                          <TableCell><Badge variant="outline" className="text-[10px]">{row.techno || '—'}</Badge></TableCell>
                           <TableCell className="text-xs">{row.bande || '—'}</TableCell>
+                          <TableCell className="text-xs">{row.region || '—'}</TableCell>
+                          <TableCell className="text-xs font-mono">{row.azimut ?? '—'}</TableCell>
+                          <TableCell className="text-xs font-mono">{row.hba ?? '—'}</TableCell>
+                          <TableCell className="text-xs font-mono">{row.tilt ?? '—'}</TableCell>
+                          <TableCell className="text-xs font-mono">{row.pci ?? '—'}</TableCell>
+                          <TableCell className="text-xs font-mono">{row.eci ?? '—'}</TableCell>
+                          <TableCell>
+                            <Badge variant={row.etat_cellule === 'Active' ? 'default' : 'secondary'} className="text-[10px]">
+                              {row.etat_cellule || '—'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">{row.constructeur || '—'}</TableCell>
+                          <TableCell className="text-xs">{row.plaque || '—'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
-                {filteredData.length > 200 && (
+                {filteredTopoData.length > 300 && (
                   <div className="text-center py-2 text-xs text-muted-foreground bg-muted/30">
-                    Affichage limité à 200 lignes sur {filteredData.length}
+                    Affichage limité à 300 lignes sur {filteredTopoData.length}
                   </div>
                 )}
               </div>
-            </TabsContent>
-          </Tabs>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════ TAB 2: Paramètre Distribution ═══════════════ */}
+        {mainTab === 'param_distribution' && (
+          <div className="p-4 space-y-4">
+            {/* Parameter search + filters */}
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">🔍 Rechercher un paramètre</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className="flex items-center justify-between w-full max-w-md h-9 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/50 transition-colors text-left">
+                      <span className={`truncate ${selectedParam === 'ALL' ? 'text-muted-foreground' : 'font-medium text-foreground'}`}>
+                        {selectedParam === 'ALL' ? 'Sélectionner un paramètre…' : selectedParam}
+                      </span>
+                      <Search className="w-3.5 h-3.5 shrink-0 opacity-50 ml-1" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <div className="flex items-center border-b border-border px-3">
+                      <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <input
+                        className="flex h-9 w-full bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground"
+                        placeholder="Rechercher paramètre..."
+                        value={paramSearch}
+                        onChange={e => setParamSearch(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="max-h-[280px] overflow-auto p-1">
+                      {filteredParams.length === 0 ? (
+                        <div className="py-6 text-center text-xs text-muted-foreground">Aucun paramètre trouvé</div>
+                      ) : (
+                        filteredParams.map(p => (
+                          <button
+                            key={p}
+                            onClick={() => { setSelectedParam(p); setParamSearch(''); }}
+                            className={`flex items-center w-full px-3 py-2 text-xs rounded-sm hover:bg-accent transition-colors ${selectedParam === p ? 'bg-accent font-semibold' : ''}`}
+                          >
+                            {p}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="flex items-end gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
+                  <Filter className="w-3 h-3" /> Filtres
+                </div>
+                <FilterSelect label="UR" value={selectedUr} options={['ALL', ...urs]} onChange={setSelectedUr} />
+                <FilterSelect label="Plaque" value={selectedPlaque} options={['ALL', ...plaques]} onChange={setSelectedPlaque} />
+                <FilterSelect label="Vendor" value={selectedVendor} options={['ALL', ...vendors]} onChange={setSelectedVendor} />
+                <FilterSelect label="Site" value={selectedSite} options={['ALL', ...sites]} onChange={setSelectedSite} />
+                <FilterSelect label="Cellule" value={selectedCell} options={['ALL', ...cells]} onChange={setSelectedCell} />
+                <Badge variant="secondary" className="text-xs">{data.length} cellules</Badge>
+              </div>
+
+              {selectedParam !== 'ALL' && (
+                <div className="flex items-center gap-4 pt-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Agréger par</span>
+                    <div className="flex rounded-md border border-input overflow-hidden">
+                      <button onClick={() => setAggregator('ur')} className={`px-3 py-1 text-xs font-medium transition-colors ${aggregator === 'ur' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}>UR</button>
+                      <button onClick={() => setAggregator('plaque')} className={`px-3 py-1 text-xs font-medium transition-colors ${aggregator === 'plaque' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}>Plaque</button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Couleur par</span>
+                    <div className="flex rounded-md border border-input overflow-hidden">
+                      <button onClick={() => setColorBy('value')} className={`px-3 py-1 text-xs font-medium transition-colors ${colorBy === 'value' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}>Valeur</button>
+                      <button onClick={() => setColorBy('aggregator')} className={`px-3 py-1 text-xs font-medium transition-colors ${colorBy === 'aggregator' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}>{aggLabel}</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {selectedParam === 'ALL' ? (
+              <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+                <div className="text-center">
+                  <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Recherchez un paramètre</p>
+                  <p className="text-xs mt-1">Sélectionnez un paramètre pour voir sa distribution</p>
+                </div>
+              </div>
+            ) : loading ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Global Summary */}
+                <div className="border border-border rounded-lg bg-card p-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Distribution globale — {selectedParam}</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                    {globalDistribution.map((g) => (
+                      <div key={g.value} className="rounded-lg border border-border p-3 text-center bg-muted/20">
+                        <div className="text-lg font-bold text-foreground">{g.pct}%</div>
+                        <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{g.value}</div>
+                        <div className="text-[10px] text-muted-foreground">{g.count} cellules</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Chart */}
+                <div className="border border-border rounded-lg bg-card p-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">
+                    Distribution par {aggLabel}
+                    <span className="text-muted-foreground font-normal ml-2 text-xs">— coloré par {colorBy === 'value' ? 'valeur' : aggLabel}</span>
+                  </h3>
+                  {chartData.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="h-[320px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 50 }}>
+                            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                            <XAxis dataKey="_key" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" />
+                            <YAxis tick={{ fontSize: 10 }} />
+                            <Tooltip formatter={(v: number, name: string) => [`${v} cellules`, name]} contentStyle={{ fontSize: 11 }} />
+                            <Legend wrapperStyle={{ fontSize: 10 }} />
+                            {stackKeys.map((key, i) => (
+                              <Bar key={key} dataKey={key} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <DistributionTable data={chartData} dimensionLabel={colorBy === 'value' ? aggLabel : 'Valeur'} />
+                    </div>
+                  ) : <p className="text-xs text-muted-foreground">Aucune donnée</p>}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════ TAB 3: Raw Parameter ═══════════════ */}
+        {mainTab === 'raw_parameter' && (
+          <div className="p-4 space-y-4">
+            {/* Parameter search + filters */}
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">🔍 Rechercher un paramètre</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className="flex items-center justify-between w-full max-w-md h-9 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/50 transition-colors text-left">
+                      <span className={`truncate ${selectedParam === 'ALL' ? 'text-muted-foreground' : 'font-medium text-foreground'}`}>
+                        {selectedParam === 'ALL' ? 'Sélectionner un paramètre…' : selectedParam}
+                      </span>
+                      <Search className="w-3.5 h-3.5 shrink-0 opacity-50 ml-1" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <div className="flex items-center border-b border-border px-3">
+                      <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <input
+                        className="flex h-9 w-full bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground"
+                        placeholder="Rechercher paramètre..."
+                        value={paramSearch}
+                        onChange={e => setParamSearch(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="max-h-[280px] overflow-auto p-1">
+                      {filteredParams.length === 0 ? (
+                        <div className="py-6 text-center text-xs text-muted-foreground">Aucun paramètre trouvé</div>
+                      ) : (
+                        filteredParams.map(p => (
+                          <button
+                            key={p}
+                            onClick={() => { setSelectedParam(p); setParamSearch(''); }}
+                            className={`flex items-center w-full px-3 py-2 text-xs rounded-sm hover:bg-accent transition-colors ${selectedParam === p ? 'bg-accent font-semibold' : ''}`}
+                          >
+                            {p}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="flex items-end gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
+                  <Filter className="w-3 h-3" /> Filtres
+                </div>
+                <FilterSelect label="UR" value={selectedUr} options={['ALL', ...urs]} onChange={setSelectedUr} />
+                <FilterSelect label="Plaque" value={selectedPlaque} options={['ALL', ...plaques]} onChange={setSelectedPlaque} />
+                <FilterSelect label="Vendor" value={selectedVendor} options={['ALL', ...vendors]} onChange={setSelectedVendor} />
+                <FilterSelect label="Site" value={selectedSite} options={['ALL', ...sites]} onChange={setSelectedSite} />
+                <FilterSelect label="Cellule" value={selectedCell} options={['ALL', ...cells]} onChange={setSelectedCell} />
+                <Badge variant="secondary" className="text-xs">{filteredData.length} résultats</Badge>
+                <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                  <Download className="w-3.5 h-3.5" /> Export CSV
+                </button>
+              </div>
+            </div>
+
+            {selectedParam === 'ALL' ? (
+              <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+                <div className="text-center">
+                  <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Recherchez un paramètre</p>
+                  <p className="text-xs mt-1">Sélectionnez un paramètre pour voir les données brutes</p>
+                </div>
+              </div>
+            ) : loading ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input placeholder="Rechercher site, cellule..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9 text-xs" />
+                  </div>
+                </div>
+                <div className="border border-border rounded-lg overflow-hidden bg-card">
+                  <div className="max-h-[calc(100vh-360px)] overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="text-xs font-semibold">Site</TableHead>
+                          <TableHead className="text-xs font-semibold">Cellule</TableHead>
+                          <TableHead className="text-xs font-semibold">Paramètre</TableHead>
+                          <TableHead className="text-xs font-semibold">Valeur</TableHead>
+                          <TableHead className="text-xs font-semibold">DOR</TableHead>
+                          <TableHead className="text-xs font-semibold">Plaque</TableHead>
+                          <TableHead className="text-xs font-semibold">Vendor</TableHead>
+                          <TableHead className="text-xs font-semibold">Bande</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredData.slice(0, 200).map(row => (
+                          <TableRow key={row.id} className="hover:bg-muted/30">
+                            <TableCell className="text-xs font-medium">{row.site_name || '—'}</TableCell>
+                            <TableCell className="text-xs">{row.cell_name || '—'}</TableCell>
+                            <TableCell className="text-xs font-mono">{row.parameter}</TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs font-mono">{row.value || '—'}</Badge></TableCell>
+                            <TableCell className="text-xs">{row.dor || '—'}</TableCell>
+                            <TableCell className="text-xs">{row.plaque || '—'}</TableCell>
+                            <TableCell className="text-xs">{row.vendor || '—'}</TableCell>
+                            <TableCell className="text-xs">{row.bande || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {filteredData.length > 200 && (
+                    <div className="text-center py-2 text-xs text-muted-foreground bg-muted/30">
+                      Affichage limité à 200 lignes sur {filteredData.length}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
