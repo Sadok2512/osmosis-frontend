@@ -1940,7 +1940,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Sites mode — Circle markers when sectors not visible */}
         {mapDisplayMode === 'sites' && !showSectors && visibleSites.map(site => {
-          const color = getKpiColor(getCellKpiValue(site.cells[0] || {}));
+          const kpiColor = getKpiColor(getCellKpiValue(site.cells[0] || {}));
+          const has5G = site.cells.some(c => (c.techno || '').toUpperCase().includes('5G'));
+          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
+          const color = sectorColorMode === 'topo' ? topoColor : kpiColor;
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isFocusFaded = false; // keep all sites visible when one is selected
@@ -2028,7 +2031,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <React.Fragment key={site.site_id}>
                 {renderItems.map(({ tech, az, radius }) => {
                   const groupColorKey = tech === '5G' ? '5G_GROUP' : '4G_GROUP';
-                  const fillColor = isFocusFaded ? FADED_COLOR : (bandColors[groupColorKey] || (tech === '5G' ? '#a855f7' : '#f97316'));
+                  // In topo mode: use 5G/4G group colors; in kpi mode: use KPI-based color from representative cell
+                  const topoColor = bandColors[groupColorKey] || (tech === '5G' ? '#a855f7' : '#f97316');
+                  let kpiColor = topoColor;
+                  if (sectorColorMode === 'kpi') {
+                    const repCell = site.cells.find(c => {
+                      const t = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
+                      return t === tech;
+                    });
+                    if (repCell) kpiColor = getKpiColor(getCellKpiValue(repCell));
+                  }
+                  const fillColor = isFocusFaded ? FADED_COLOR : (sectorColorMode === 'topo' ? topoColor : kpiColor);
                   const strokeColor = isFocusFaded ? '#cbd5e1' : deriveStrokeColor(fillColor);
                   const sectorCoords = getSectorCoords(site.coordinates, az, radius, 60);
                   return (
