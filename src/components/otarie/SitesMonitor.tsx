@@ -2094,8 +2094,44 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const color = sectorColorMode === 'topo' ? topoColor : kpiColor;
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
-          const isFocusFaded = false; // keep all sites visible when one is selected
+          const isFocusFaded = false;
+          const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           const radius = viewport.zoom >= 10 ? (isHovered ? 7 : (isSelectedSite ? 7 : 5)) : (isHovered ? 5 : 3);
+
+          if (isIndoor) {
+            const iconSize = viewport.zoom >= 10 ? 20 : 14;
+            return (
+              <Marker
+                key={site.site_id}
+                position={site.coordinates}
+                icon={L.divIcon({
+                  className: '',
+                  iconSize: [iconSize, iconSize],
+                  iconAnchor: [iconSize / 2, iconSize / 2],
+                  html: `<div style="width:${iconSize}px;height:${iconSize}px;border-radius:50%;background:${isFocusFaded ? FADED_COLOR : color};border:2px solid ${isSelectedSite || isHovered ? '#fff' : '#555'};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.3);">
+                    <span style="color:#fff;font-weight:900;font-size:${iconSize * 0.55}px;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,0.5);">I</span>
+                  </div>`,
+                })}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Popup>
+                  <div className="p-1">
+                    <div className="font-bold text-sm">{site.site_name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor} • Indoor</div>
+                    <div className="text-sm font-bold mt-2" style={{ color }}>
+                      {selectedKpiLabel}: {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                    </div>
+                    <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          }
+
           return (
             <CircleMarker
               key={site.site_id}
@@ -2135,7 +2171,44 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           const beamScale = beamVisibility / 100;
           const overlapFactor = baseOverlap + (1 - baseOverlap) * beamScale;
-          const isFocusFaded = false; // keep all sites visible when one is selected
+          const isFocusFaded = false;
+
+          /* ── Indoor sites: circle with "I" instead of sectors ── */
+          const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
+          if (isIndoor) {
+            const has5G = site.cells.some(c => (c.techno || '').toUpperCase().includes('5G'));
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
+            const kpiColor = getKpiColor(getCellKpiValue(site.cells[0] || {}));
+            const color = sectorColorMode === 'topo' ? topoColor : kpiColor;
+            const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
+            return (
+              <Marker
+                key={site.site_id}
+                position={site.coordinates}
+                icon={L.divIcon({
+                  className: '',
+                  iconSize: [iconSize, iconSize],
+                  iconAnchor: [iconSize / 2, iconSize / 2],
+                  html: `<div style="width:${iconSize}px;height:${iconSize}px;border-radius:50%;background:${isFocusFaded ? FADED_COLOR : color};border:2px solid ${isSelectedSite || isHovered ? '#fff' : '#555'};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.35);opacity:0.9;">
+                    <span style="color:#fff;font-weight:900;font-size:${iconSize * 0.55}px;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,0.5);">I</span>
+                  </div>`,
+                })}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Popup>
+                  <div className="p-1">
+                    <div className="font-bold text-sm">{site.site_name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor} • Indoor</div>
+                    <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          }
 
           /* ── ALL mode: technology-only (no bands), fixed radii ── */
           if (mapTechnoFilter === 'ALL') {
