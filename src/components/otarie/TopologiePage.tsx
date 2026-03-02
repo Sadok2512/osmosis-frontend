@@ -5,7 +5,7 @@ import { getApiUrl, getPreferredDataSource, setPreferredDataSource } from '@/lib
 import {
   Search, Filter, Download, Loader2, ChevronDown, Wifi, WifiOff, Database,
   Layers, FileSpreadsheet, Check, X, AlertCircle, ChevronLeft, ChevronRight, RotateCcw,
-  BarChart3, AlignStartVertical, ArrowUpDown, Eye, EyeOff
+  BarChart3, AlignStartVertical, ArrowUpDown, Eye, EyeOff, List
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -34,6 +34,7 @@ interface DumpRow {
   bande: string | null;
   dr: string | null;
   ur: string | null;
+  dn: string | null;
 }
 
 type AggregatorKey = 'vendor' | 'dor' | 'plaque' | 'ur' | 'value';
@@ -193,10 +194,11 @@ const TopologiePage: React.FC = () => {
   const [rawConfirmed, setRawConfirmed] = useState(false);
   const [rawPage, setRawPage] = useState(1);
   const [rawSearch, setRawSearch] = useState('');
-  
+  const [rawCollapsedSites, setRawCollapsedSites] = useState<Set<string>>(new Set());
+  const [rawGroupBySite, setRawGroupBySite] = useState(true);
   const [rawSortCol, setRawSortCol] = useState<string>('site_name');
   const [rawSortDir, setRawSortDir] = useState<'asc' | 'desc'>('asc');
-  const RAW_PAGE_SIZE = 50;
+  const RAW_PAGE_SIZE = 100;
 
   // ─── Table sort for distribution ───
   const [distSortCol, setDistSortCol] = useState<string>('total');
@@ -291,7 +293,7 @@ const TopologiePage: React.FC = () => {
     if (pdPendingDor.length > 0) filters.dor = pdPendingDor;
     if (pdPendingPlaque.length > 0) filters.plaque = pdPendingPlaque;
 
-    const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor');
+    const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor, dn');
     setPdData(rows || []); setPdLoading(false);
   }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingAggregator, pdPendingColorBy, fetchRows]);
 
@@ -320,7 +322,7 @@ const TopologiePage: React.FC = () => {
     if (rawPendingSite.length > 0) filters.site_name = rawPendingSite;
     if (rawPendingCell.length > 0) filters.cell_name = rawPendingCell;
 
-    const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor');
+    const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor, dn');
     setRawData(rows || []); setRawLoading(false);
   }, [rawPendingParams, rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingSite, rawPendingCell, fetchRows]);
 
@@ -549,6 +551,43 @@ const TopologiePage: React.FC = () => {
     });
     return d;
   }, [rawData, rawSearch, rawSortCol, rawSortDir]);
+
+  // Color map for parameters
+  const rawParamColorMap = useMemo(() => {
+    const params = [...new Set(rawData.map(r => r.parameter))].sort();
+    const map: Record<string, string> = {};
+    params.forEach((p, i) => { map[p] = CHART_COLORS[i % CHART_COLORS.length]; });
+    return map;
+  }, [rawData]);
+
+  // Grouped by site for accordion
+  const rawGroupedData = useMemo(() => {
+    if (!rawGroupBySite) return null;
+    const groups: { site: string; rows: DumpRow[]; cellCount: number; paramCount: number }[] = [];
+    const map = new Map<string, DumpRow[]>();
+    rawFiltered.forEach(r => {
+      const key = r.site_name || '—';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    });
+    map.forEach((rows, site) => {
+      groups.push({
+        site,
+        rows,
+        cellCount: new Set(rows.map(r => r.cell_name)).size,
+        paramCount: new Set(rows.map(r => r.parameter)).size,
+      });
+    });
+    return groups;
+  }, [rawFiltered, rawGroupBySite]);
+
+  const toggleRawSiteCollapse = (site: string) => {
+    setRawCollapsedSites(prev => {
+      const next = new Set(prev);
+      if (next.has(site)) next.delete(site); else next.add(site);
+      return next;
+    });
+  };
 
   const rawTotalPages = Math.max(1, Math.ceil(rawFiltered.length / RAW_PAGE_SIZE));
   const rawPageData = rawFiltered.slice((rawPage - 1) * RAW_PAGE_SIZE, rawPage * RAW_PAGE_SIZE);
@@ -1009,64 +1048,175 @@ const TopologiePage: React.FC = () => {
                     <Input placeholder="Rechercher..." value={rawSearch} onChange={e => { setRawSearch(e.target.value); setRawPage(1); }} className="pl-7 h-7 text-[10px]" />
                   </div>
                   <Badge variant="secondary" className="text-[9px] h-5">{rawFiltered.length} rows</Badge>
-                  <button onClick={() => exportCSV(rawFiltered)} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-primary text-primary-foreground hover:bg-primary/90">
-                    <Download className="w-3 h-3" /> CSV
-                  </button>
+                  {/* Param color legend */}
+                  {rawAppliedParams.length > 1 && (
+                    <div className="flex items-center gap-1.5 ml-2">
+                      {rawAppliedParams.map(p => (
+                        <span key={p} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium" style={{ backgroundColor: `${rawParamColorMap[p]}18`, color: rawParamColorMap[p], border: `1px solid ${rawParamColorMap[p]}40` }}>
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rawParamColorMap[p] }} />
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <button onClick={() => setRawGroupBySite(v => !v)}
+                      className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded border transition-colors ${rawGroupBySite ? 'bg-primary/10 text-primary border-primary/30' : 'bg-background text-muted-foreground border-input hover:bg-accent'}`}>
+                      <List className="w-3 h-3" /> {rawGroupBySite ? 'Groupé' : 'Plat'}
+                    </button>
+                    <button onClick={() => exportCSV(rawFiltered)} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-primary text-primary-foreground hover:bg-primary/90">
+                      <Download className="w-3 h-3" /> CSV
+                    </button>
+                  </div>
                 </div>
 
-                <div className="rounded-lg border border-border overflow-hidden bg-card">
-                  <div className="max-h-[calc(100vh-260px)] overflow-auto">
-                    <Table>
-                      <TableHeader className="sticky top-0 z-10">
-                        <TableRow className="bg-muted/70">
-                          {[
-                            { key: 'site_name', label: 'Site' }, { key: 'cell_name', label: 'Cell' },
-                            { key: 'parameter', label: 'Param' }, { key: 'value', label: 'Value' },
-                            { key: 'dor', label: 'DOR' }, { key: 'plaque', label: 'Plaque' },
-                            { key: 'vendor', label: 'Vendor' }, { key: 'bande', label: 'Bande' },
-                          ].map(col => (
-                            <TableHead key={col.key} className="text-[10px] font-semibold cursor-pointer select-none hover:text-foreground py-1.5" onClick={() => toggleRawSort(col.key)}>
-                              <span className="flex items-center gap-0.5">
-                                {col.label}
-                                {rawSortCol === col.key && <span className="text-primary text-[8px]">{rawSortDir === 'asc' ? '▲' : '▼'}</span>}
-                              </span>
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {rawPageData.map((row, idx) => (
-                          <TableRow key={row.id} className={`${idx % 2 === 0 ? '' : 'bg-muted/20'} h-[36px]`}>
-                            <TableCell className="text-[10px] font-medium py-1">{row.site_name || '—'}</TableCell>
-                            <TableCell className="text-[10px] py-1">{row.cell_name || '—'}</TableCell>
-                            <TableCell className="text-[10px] font-mono py-1">{row.parameter}</TableCell>
-                            <TableCell className="py-1"><Badge variant="outline" className="text-[9px] font-mono h-4 px-1">{row.value || '—'}</Badge></TableCell>
-                            <TableCell className="text-[10px] py-1">{row.dor || '—'}</TableCell>
-                            <TableCell className="text-[10px] py-1">{row.plaque || '—'}</TableCell>
-                            <TableCell className="text-[10px] py-1">{row.vendor || '—'}</TableCell>
-                            <TableCell className="text-[10px] py-1">{row.bande || '—'}</TableCell>
+                {/* ─── GROUPED VIEW ─── */}
+                {rawGroupBySite && rawGroupedData ? (
+                  <div className="rounded-lg border border-border overflow-hidden bg-card">
+                    <div className="max-h-[calc(100vh-260px)] overflow-auto">
+                      {rawGroupedData.map(group => {
+                        const isCollapsed = rawCollapsedSites.has(group.site);
+                        return (
+                          <div key={group.site}>
+                            {/* Site header row */}
+                            <button onClick={() => toggleRawSiteCollapse(group.site)}
+                              className="w-full flex items-center gap-2 px-3 py-2 bg-muted/60 hover:bg-muted/80 border-b border-border text-left transition-colors">
+                              <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
+                              <Database className="w-3.5 h-3.5 text-primary/70" />
+                              <span className="text-[11px] font-bold text-foreground">{group.site}</span>
+                              <Badge variant="outline" className="text-[8px] h-4 px-1">{group.rows.length} rows</Badge>
+                              <Badge variant="outline" className="text-[8px] h-4 px-1">{group.cellCount} cells</Badge>
+                              <Badge variant="outline" className="text-[8px] h-4 px-1">{group.paramCount} params</Badge>
+                              {/* Mini param pills */}
+                              <div className="flex gap-0.5 ml-auto">
+                                {[...new Set(group.rows.map(r => r.parameter))].map(p => (
+                                  <span key={p} className="w-2 h-2 rounded-full" style={{ backgroundColor: rawParamColorMap[p] }} title={p} />
+                                ))}
+                              </div>
+                            </button>
+                            {/* Expanded rows */}
+                            {!isCollapsed && (
+                              <Table>
+                                <TableHeader>
+                                  <TableRow className="bg-muted/30">
+                                    <TableHead className="text-[9px] font-semibold py-1 w-[50px]"></TableHead>
+                                    <TableHead className="text-[9px] font-semibold py-1">Cell</TableHead>
+                                    <TableHead className="text-[9px] font-semibold py-1">Param</TableHead>
+                                    <TableHead className="text-[9px] font-semibold py-1">Value</TableHead>
+                                    <TableHead className="text-[9px] font-semibold py-1">MO (DN)</TableHead>
+                                    <TableHead className="text-[9px] font-semibold py-1">DOR</TableHead>
+                                    <TableHead className="text-[9px] font-semibold py-1">Plaque</TableHead>
+                                    <TableHead className="text-[9px] font-semibold py-1">Vendor</TableHead>
+                                    <TableHead className="text-[9px] font-semibold py-1">Bande</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {group.rows.map((row, idx) => {
+                                    const pColor = rawParamColorMap[row.parameter] || CHART_COLORS[0];
+                                    return (
+                                      <TableRow key={row.id} className={`${idx % 2 === 0 ? '' : 'bg-muted/10'} h-[32px]`}>
+                                        <TableCell className="py-0.5 w-[50px]">
+                                          <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: pColor }} />
+                                        </TableCell>
+                                        <TableCell className="text-[10px] py-0.5">{row.cell_name || '—'}</TableCell>
+                                        <TableCell className="py-0.5">
+                                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: `${pColor}15`, color: pColor }}>
+                                            {row.parameter}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell className="py-0.5"><Badge variant="outline" className="text-[9px] font-mono h-4 px-1">{row.value || '—'}</Badge></TableCell>
+                                        <TableCell className="text-[10px] py-0.5 font-mono text-muted-foreground max-w-[200px] truncate" title={row.dn || ''}>{row.dn || '—'}</TableCell>
+                                        <TableCell className="text-[10px] py-0.5">{row.dor || '—'}</TableCell>
+                                        <TableCell className="text-[10px] py-0.5">{row.plaque || '—'}</TableCell>
+                                        <TableCell className="text-[10px] py-0.5">{row.vendor || '—'}</TableCell>
+                                        <TableCell className="text-[10px] py-0.5">{row.bande || '—'}</TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                              </Table>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  /* ─── FLAT VIEW ─── */
+                  <div className="rounded-lg border border-border overflow-hidden bg-card">
+                    <div className="max-h-[calc(100vh-260px)] overflow-auto">
+                      <Table>
+                        <TableHeader className="sticky top-0 z-10">
+                          <TableRow className="bg-muted/70">
+                            {[
+                              { key: 'site_name', label: 'Site' }, { key: 'cell_name', label: 'Cell' },
+                              { key: 'parameter', label: 'Param' }, { key: 'value', label: 'Value' },
+                              { key: 'dn', label: 'MO (DN)' },
+                              { key: 'dor', label: 'DOR' }, { key: 'plaque', label: 'Plaque' },
+                              { key: 'vendor', label: 'Vendor' }, { key: 'bande', label: 'Bande' },
+                            ].map(col => (
+                              <TableHead key={col.key} className="text-[10px] font-semibold cursor-pointer select-none hover:text-foreground py-1.5" onClick={() => toggleRawSort(col.key)}>
+                                <span className="flex items-center gap-0.5">
+                                  {col.label}
+                                  {rawSortCol === col.key && <span className="text-primary text-[8px]">{rawSortDir === 'asc' ? '▲' : '▼'}</span>}
+                                </span>
+                              </TableHead>
+                            ))}
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {rawPageData.map((row, idx) => {
+                            const pColor = rawParamColorMap[row.parameter] || CHART_COLORS[0];
+                            return (
+                              <TableRow key={row.id} className={`${idx % 2 === 0 ? '' : 'bg-muted/20'} h-[34px]`}>
+                                <TableCell className="text-[10px] font-medium py-1">{row.site_name || '—'}</TableCell>
+                                <TableCell className="text-[10px] py-1">{row.cell_name || '—'}</TableCell>
+                                <TableCell className="py-1">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: `${pColor}15`, color: pColor }}>
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: pColor }} />
+                                    {row.parameter}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="py-1"><Badge variant="outline" className="text-[9px] font-mono h-4 px-1">{row.value || '—'}</Badge></TableCell>
+                                <TableCell className="text-[10px] py-1 font-mono text-muted-foreground max-w-[200px] truncate" title={row.dn || ''}>{row.dn || '—'}</TableCell>
+                                <TableCell className="text-[10px] py-1">{row.dor || '—'}</TableCell>
+                                <TableCell className="text-[10px] py-1">{row.plaque || '—'}</TableCell>
+                                <TableCell className="text-[10px] py-1">{row.vendor || '—'}</TableCell>
+                                <TableCell className="text-[10px] py-1">{row.bande || '—'}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="flex items-center justify-between">
-                  <p className="text-[9px] text-muted-foreground">
-                    Page {rawPage}/{rawTotalPages} — {((rawPage - 1) * RAW_PAGE_SIZE) + 1}–{Math.min(rawPage * RAW_PAGE_SIZE, rawFiltered.length)} / {rawFiltered.length}
-                  </p>
-                  <div className="flex items-center gap-0.5">
-                    <button disabled={rawPage <= 1} onClick={() => setRawPage(p => p - 1)}
-                      className="p-1 rounded border border-input text-muted-foreground hover:bg-muted/50 disabled:opacity-30">
-                      <ChevronLeft className="w-3 h-3" />
-                    </button>
-                    <button disabled={rawPage >= rawTotalPages} onClick={() => setRawPage(p => p + 1)}
-                      className="p-1 rounded border border-input text-muted-foreground hover:bg-muted/50 disabled:opacity-30">
-                      <ChevronRight className="w-3 h-3" />
-                    </button>
+                {/* Pagination (flat view only) */}
+                {!rawGroupBySite && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] text-muted-foreground">
+                      Page {rawPage}/{rawTotalPages} — {((rawPage - 1) * RAW_PAGE_SIZE) + 1}–{Math.min(rawPage * RAW_PAGE_SIZE, rawFiltered.length)} / {rawFiltered.length}
+                    </p>
+                    <div className="flex items-center gap-0.5">
+                      <button disabled={rawPage <= 1} onClick={() => setRawPage(p => p - 1)}
+                        className="p-1 rounded border border-input text-muted-foreground hover:bg-muted/50 disabled:opacity-30">
+                        <ChevronLeft className="w-3 h-3" />
+                      </button>
+                      <button disabled={rawPage >= rawTotalPages} onClick={() => setRawPage(p => p + 1)}
+                        className="p-1 rounded border border-input text-muted-foreground hover:bg-muted/50 disabled:opacity-30">
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
+                {rawGroupBySite && (
+                  <div className="flex items-center gap-2">
+                    <p className="text-[9px] text-muted-foreground">{rawGroupedData?.length} sites · {rawFiltered.length} rows</p>
+                    <button onClick={() => setRawCollapsedSites(new Set())} className="text-[9px] text-primary hover:underline">Tout ouvrir</button>
+                    <button onClick={() => setRawCollapsedSites(new Set(rawGroupedData?.map(g => g.site) || []))} className="text-[9px] text-primary hover:underline">Tout fermer</button>
+                  </div>
+                )}
               </div>
             )}
           </div>
