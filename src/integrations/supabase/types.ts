@@ -206,6 +206,90 @@ export type Database = {
         }
         Relationships: []
       }
+      parameter_dump: {
+        Row: {
+          bande: string | null
+          cell_dn: string | null
+          cell_name: string | null
+          city: string | null
+          created_at: string | null
+          dn: string | null
+          dor: string | null
+          dr: string | null
+          enodeb_id: number | null
+          freq_downlink: number | null
+          gnodeb_id: number | null
+          id: number
+          latitude: number | null
+          longitude: number | null
+          mrbts_id: number | null
+          omc: string | null
+          parameter: string
+          plaque: string | null
+          site_name: string | null
+          tgv: number | null
+          ur: string | null
+          value: string | null
+          vendor: string | null
+          version: string | null
+          zone_arcep: string | null
+        }
+        Insert: {
+          bande?: string | null
+          cell_dn?: string | null
+          cell_name?: string | null
+          city?: string | null
+          created_at?: string | null
+          dn?: string | null
+          dor?: string | null
+          dr?: string | null
+          enodeb_id?: number | null
+          freq_downlink?: number | null
+          gnodeb_id?: number | null
+          id?: never
+          latitude?: number | null
+          longitude?: number | null
+          mrbts_id?: number | null
+          omc?: string | null
+          parameter: string
+          plaque?: string | null
+          site_name?: string | null
+          tgv?: number | null
+          ur?: string | null
+          value?: string | null
+          vendor?: string | null
+          version?: string | null
+          zone_arcep?: string | null
+        }
+        Update: {
+          bande?: string | null
+          cell_dn?: string | null
+          cell_name?: string | null
+          city?: string | null
+          created_at?: string | null
+          dn?: string | null
+          dor?: string | null
+          dr?: string | null
+          enodeb_id?: number | null
+          freq_downlink?: number | null
+          gnodeb_id?: number | null
+          id?: never
+          latitude?: number | null
+          longitude?: number | null
+          mrbts_id?: number | null
+          omc?: string | null
+          parameter?: string
+          plaque?: string | null
+          site_name?: string | null
+          tgv?: number | null
+          ur?: string | null
+          value?: string | null
+          vendor?: string | null
+          version?: string | null
+          zone_arcep?: string | null
+        }
+        Relationships: []
+      }
       qoe_metrics: {
         Row: {
           bande: string | null
