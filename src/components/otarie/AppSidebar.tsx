@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
   Database, Activity, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
-  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart
+  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin
 } from 'lucide-react';
 import { Filters, AppTab } from '../../types';
 
@@ -30,6 +30,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'ai_assistant', label: 'QOEBIT', icon: <Sparkles className="w-5 h-5" /> },
   { id: 'radio_profile', label: 'Radio Profile', icon: <Radio className="w-5 h-5" /> },
   { id: 'topologie', label: 'Topologie Réseau', icon: <Sliders className="w-5 h-5" /> },
+  { id: 'parameters', label: 'Parameters', icon: <MapPin className="w-5 h-5" /> },
   { id: 'rag', label: 'RAG Knowledge Base', icon: <Database className="w-5 h-5" /> },
   { id: 'docs', label: 'Documentation', icon: <BookOpen className="w-5 h-5" /> },
   { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },
@@ -39,6 +40,23 @@ const AppSidebar: React.FC<SidebarProps> = ({
   filters, setFilters, activeTab, setActiveTab, isCollapsed, setIsCollapsed, theme, setTheme, enabledModules
 }) => {
   const visibleNavItems = navItems.filter(item => !enabledModules || enabledModules[item.id] !== false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollTop > 4);
+    setCanScrollRight(el.scrollTop + el.clientHeight < el.scrollHeight - 4);
+  }, []);
+
+  useEffect(() => { checkScroll(); }, [checkScroll, visibleNavItems]);
+
+  const scrollBy = (dir: number) => {
+    scrollRef.current?.scrollBy({ top: dir * 120, behavior: 'smooth' });
+  };
+
   return (
     <div className={`relative h-full flex flex-col z-50 transition-all duration-300 bg-sidebar border-r border-sidebar-border ${isCollapsed ? 'w-[70px]' : 'w-[260px]'}`}>
 
@@ -63,7 +81,19 @@ const AppSidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      <div className={`flex-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-3'} space-y-6 scrollbar-hide pb-20 pt-4`}>
+      {/* Scroll-up chevron */}
+      {canScrollLeft && (
+        <button onClick={() => scrollBy(-1)} className="flex items-center justify-center py-1 text-sidebar-foreground/40 hover:text-sidebar-primary transition-colors">
+          <ChevronLeft size={16} className="rotate-90" />
+        </button>
+      )}
+
+      <div
+        ref={scrollRef}
+        onScroll={checkScroll}
+        className={`flex-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-3'} space-y-6 scrollbar-hide pb-20 pt-4`}
+        style={{ scrollBehavior: 'smooth' }}
+      >
 
         {/* SECTION LABEL */}
         {!isCollapsed && (
@@ -72,19 +102,23 @@ const AppSidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        {/* NAVIGATION */}
+        {/* NAVIGATION — improved items with h-14 (56px), pill + underline active */}
         <div className="space-y-1">
           {visibleNavItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center rounded-xl transition-all text-left group ${isCollapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'} ${
+              className={`w-full flex items-center rounded-xl transition-all text-left group relative ${isCollapsed ? 'justify-center p-3 h-14' : 'gap-3 px-3 py-3 h-14'} ${
                 activeTab === item.id
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
               }`}
               title={isCollapsed ? item.label : undefined}
             >
+              {/* Active underline indicator */}
+              {activeTab === item.id && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full bg-sidebar-primary-foreground/60" />
+              )}
               <span className={activeTab === item.id ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}>{item.icon}</span>
               {!isCollapsed && <span className="text-[13px] font-medium tracking-tight">{item.label}</span>}
             </button>
@@ -92,6 +126,13 @@ const AppSidebar: React.FC<SidebarProps> = ({
         </div>
 
       </div>
+
+      {/* Scroll-down chevron */}
+      {canScrollRight && (
+        <button onClick={() => scrollBy(1)} className="flex items-center justify-center py-1 text-sidebar-foreground/40 hover:text-sidebar-primary transition-colors">
+          <ChevronLeft size={16} className="-rotate-90" />
+        </button>
+      )}
 
       {/* FOOTER */}
       <div className="p-4 border-t border-sidebar-border space-y-3">
