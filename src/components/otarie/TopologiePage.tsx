@@ -144,6 +144,7 @@ const TopologiePage: React.FC = () => {
   const shouldUseLocal = dataSource === 'local';
   const [chartMode, setChartMode] = useState<ChartMode>('stacked');
   const [showLabels, setShowLabels] = useState(true);
+  const [showAllCharts, setShowAllCharts] = useState(false);
 
   // ─── Available filter options ───
   const [availableParams, setAvailableParams] = useState<string[]>([]);
@@ -328,40 +329,59 @@ const TopologiePage: React.FC = () => {
   // ─── PD Chart data ───
   const aggregator = pdAppliedAggregator;
   const colorBy = pdAppliedColorBy;
+  const isMultiParam = pdAppliedParams.length > 1;
 
-  const allValues = useMemo(() => [...new Set(pdData.map(r => r.value || 'N/A'))].sort(), [pdData]);
-  const allAggKeys = useMemo(() => [...new Set(pdData.map(r => (r as any)[aggregator] || 'N/A'))].sort(), [pdData, aggregator]);
+  // ─── Per-parameter data split ───
+  const perParamData = useMemo(() => {
+    const map: Record<string, DumpRow[]> = {};
+    pdData.forEach(r => {
+      const p = r.parameter || 'N/A';
+      if (!map[p]) map[p] = [];
+      map[p].push(r);
+    });
+    return map;
+  }, [pdData]);
 
-  const chartData = useMemo(() => {
-    if (pdData.length === 0) return [];
+  // ─── Build chart data for a subset of rows ───
+  const buildChartData = useCallback((rows: DumpRow[]) => {
+    if (rows.length === 0) return { chartData: [], stackKeys: [] as string[], allValues: [] as string[], allAggKeys: [] as string[] };
+    const allValues = [...new Set(rows.map(r => r.value || 'N/A'))].sort();
+    const allAggKeys = [...new Set(rows.map(r => (r as any)[aggregator] || 'N/A'))].sort();
+
+    let chartData: any[];
     if (colorBy === 'value') {
       const map: Record<string, Record<string, number>> = {};
-      pdData.forEach(r => {
+      rows.forEach(r => {
         const key = (r as any)[aggregator] || 'N/A';
         const val = r.value || 'N/A';
         if (!map[key]) map[key] = {};
         map[key][val] = (map[key][val] || 0) + 1;
       });
-      return Object.entries(map).map(([key, vals]) => {
+      chartData = Object.entries(map).map(([key, vals]) => {
         const total = Object.values(vals).reduce((a, b) => a + b, 0);
         return { _key: key, total, ...vals, _details: Object.entries(vals).map(([v, c]) => ({ value: v, count: c, pct: ((c / total) * 100).toFixed(1) })) };
       }).sort((a, b) => b.total - a.total);
     } else {
       const map: Record<string, Record<string, number>> = {};
-      pdData.forEach(r => {
+      rows.forEach(r => {
         const val = r.value || 'N/A';
         const key = (r as any)[aggregator] || 'N/A';
         if (!map[val]) map[val] = {};
         map[val][key] = (map[val][key] || 0) + 1;
       });
-      return Object.entries(map).map(([val, keys]) => {
+      chartData = Object.entries(map).map(([val, keys]) => {
         const total = Object.values(keys).reduce((a, b) => a + b, 0);
         return { _key: val, total, ...keys, _details: Object.entries(keys).map(([k, c]) => ({ value: k, count: c, pct: ((c / total) * 100).toFixed(1) })) };
       }).sort((a, b) => b.total - a.total);
     }
-  }, [pdData, aggregator, colorBy]);
+    const stackKeys = colorBy === 'value' ? allValues : allAggKeys;
+    return { chartData, stackKeys, allValues, allAggKeys };
+  }, [aggregator, colorBy]);
 
-  const stackKeys = colorBy === 'value' ? allValues : allAggKeys;
+  // Single-param (legacy) chart data
+  const allValues = useMemo(() => [...new Set(pdData.map(r => r.value || 'N/A'))].sort(), [pdData]);
+  const allAggKeys = useMemo(() => [...new Set(pdData.map(r => (r as any)[aggregator] || 'N/A'))].sort(), [pdData, aggregator]);
+  const { chartData, stackKeys } = useMemo(() => buildChartData(pdData), [buildChartData, pdData]);
 
   const globalDistribution = useMemo(() => {
     const map: Record<string, number> = {};
@@ -372,34 +392,29 @@ const TopologiePage: React.FC = () => {
     })).sort((a, b) => b.count - a.count);
   }, [pdData]);
 
-  // ─── Dynamic chart sizing ───
-  const catCount = chartData.length;
-  const xRotate = catCount > 6 ? 35 : 0;
-
-  // ─── ECharts options ───
-  const echartsOption = useMemo(() => {
-    if (chartData.length === 0) return {};
-    const categories = chartData.map(d => d._key);
-    const series = stackKeys.map((key, i) => ({
+  // ─── Build ECharts option for any dataset ───
+  const buildEChartsOption = useCallback((cData: any[], sKeys: string[], mode: ChartMode, labels: boolean) => {
+    if (cData.length === 0) return {};
+    const categories = cData.map((d: any) => d._key);
+    const xRot = categories.length > 6 ? 35 : 0;
+    const series = sKeys.map((key: string, i: number) => ({
       name: key,
       type: 'bar' as const,
-      stack: chartMode === 'stacked' ? 'total' : undefined,
+      stack: mode === 'stacked' ? 'total' : undefined,
       barMaxWidth: 44,
       barMinWidth: 20,
       itemStyle: { color: CHART_COLORS[i % CHART_COLORS.length] },
       label: {
-        show: showLabels,
-        position: (chartMode === 'stacked' ? 'inside' : 'top') as 'inside' | 'top',
+        show: labels,
+        position: (mode === 'stacked' ? 'inside' : 'top') as 'inside' | 'top',
         fontSize: 10,
-        color: chartMode === 'stacked' ? '#fff' : undefined,
+        color: mode === 'stacked' ? '#fff' : undefined,
         formatter: (p: any) => (p.value && p.value > 0 ? Math.round(p.value) : ''),
       },
-      data: chartData.map(d => (d as any)[key] || 0),
+      data: cData.map((d: any) => (d as any)[key] || 0),
     }));
-
-    // In stacked mode, add a transparent "total" series on top for total labels
-    if (chartMode === 'stacked') {
-      const totals = chartData.map(d => d.total);
+    if (mode === 'stacked') {
+      const totals = cData.map((d: any) => d.total);
       series.push({
         name: '__total__',
         type: 'bar',
@@ -408,68 +423,86 @@ const TopologiePage: React.FC = () => {
         barMinWidth: 20,
         itemStyle: { color: 'transparent' },
         label: {
-          show: showLabels,
+          show: labels,
           position: 'top',
           fontSize: 10,
           color: undefined,
-          formatter: (p: any) => {
-            const t = totals[p.dataIndex];
-            return t > 0 ? `Σ${t}` : '';
-          },
+          formatter: (p: any) => { const t = totals[p.dataIndex]; return t > 0 ? `Σ${t}` : ''; },
         },
-        data: chartData.map(() => 0),
+        data: cData.map(() => 0),
       } as any);
     }
-
     return {
-      grid: { left: 50, right: 30, top: 50, bottom: xRotate > 0 ? 70 : 40, containLabel: true },
+      grid: { left: 50, right: 30, top: 50, bottom: xRot > 0 ? 70 : 40, containLabel: true },
       xAxis: {
-        type: 'category',
-        data: categories,
-        axisLabel: { rotate: xRotate, fontSize: 10, interval: 0 },
+        type: 'category', data: categories,
+        axisLabel: { rotate: xRot, fontSize: 10, interval: 0 },
         axisTick: { show: true, alignWithLabel: true },
         axisLine: { lineStyle: { color: 'hsl(var(--border))' } },
       },
       yAxis: {
-        type: 'value',
-        axisLabel: { fontSize: 10 },
+        type: 'value', axisLabel: { fontSize: 10 },
         splitLine: { show: true, lineStyle: { color: 'hsl(var(--border))', opacity: 0.5 } },
         axisTick: { show: true },
         axisLine: { show: true, lineStyle: { color: 'hsl(var(--border))' } },
       },
       tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' },
-        textStyle: { fontSize: 11 },
+        trigger: 'axis', axisPointer: { type: 'shadow' }, textStyle: { fontSize: 11 },
         formatter: (params: any[]) => {
           const filtered = params.filter((p: any) => p.seriesName !== '__total__');
           if (!filtered.length) return '';
           let html = `<strong>${filtered[0].axisValue}</strong><br/>`;
           let total = 0;
-          filtered.forEach((p: any) => {
-            if (p.value > 0) {
-              html += `${p.marker} ${p.seriesName}: <strong>${p.value}</strong><br/>`;
-              total += p.value;
-            }
-          });
-          if (chartMode === 'stacked' && filtered.length > 1) {
-            html += `<br/><strong>Total: ${total}</strong>`;
-          }
+          filtered.forEach((p: any) => { if (p.value > 0) { html += `${p.marker} ${p.seriesName}: <strong>${p.value}</strong><br/>`; total += p.value; } });
+          if (mode === 'stacked' && filtered.length > 1) html += `<br/><strong>Total: ${total}</strong>`;
           return html;
         },
       },
-      legend: {
-        show: true,
-        top: 4,
-        right: 10,
-        textStyle: { fontSize: 10 },
-        itemWidth: 12,
-        itemHeight: 8,
-        data: stackKeys,
-      },
+      legend: { show: true, top: 4, right: 10, textStyle: { fontSize: 10 }, itemWidth: 12, itemHeight: 8, data: sKeys },
       series,
     };
-  }, [chartData, stackKeys, chartMode, showLabels, xRotate]);
+  }, []);
+
+  const echartsOption = useMemo(() => buildEChartsOption(chartData, stackKeys, chartMode, showLabels), [buildEChartsOption, chartData, stackKeys, chartMode, showLabels]);
+
+  // ─── Per-param chart options (for small multiples) ───
+  const perParamCharts = useMemo(() => {
+    if (!isMultiParam) return [];
+    return pdAppliedParams.map(paramName => {
+      const rows = perParamData[paramName] || [];
+      const { chartData: cd, stackKeys: sk } = buildChartData(rows);
+      const option = buildEChartsOption(cd, sk, chartMode, showLabels);
+      const distinctValues = [...new Set(rows.map(r => r.value || 'N/A'))].length;
+      return { paramName, chartData: cd, stackKeys: sk, option, rowCount: rows.length, distinctValues };
+    });
+  }, [isMultiParam, pdAppliedParams, perParamData, buildChartData, buildEChartsOption, chartMode, showLabels]);
+
+  const visibleCharts = showAllCharts ? perParamCharts : perParamCharts.slice(0, 6);
+
+  // ─── Multi-param table: rows = (AggKey, ParameterName) ───
+  const multiParamTableData = useMemo(() => {
+    if (!isMultiParam || pdData.length === 0) return { rows: [] as any[], valueKeys: [] as string[] };
+    const map: Record<string, Record<string, number>> = {};
+    pdData.forEach(r => {
+      const aggVal = (r as any)[aggregator] || 'N/A';
+      const param = r.parameter || 'N/A';
+      const val = r.value || 'N/A';
+      const compositeKey = `${aggVal}|||${param}`;
+      if (!map[compositeKey]) map[compositeKey] = {};
+      map[compositeKey][val] = (map[compositeKey][val] || 0) + 1;
+    });
+    const allVals = [...new Set(pdData.map(r => r.value || 'N/A'))].sort();
+    const rows = Object.entries(map).map(([ck, vals]) => {
+      const [aggVal, param] = ck.split('|||');
+      const total = Object.values(vals).reduce((a, b) => a + b, 0);
+      return {
+        _aggKey: aggVal, _param: param, total,
+        _details: Object.entries(vals).map(([v, c]) => ({ value: v, count: c, pct: ((c / total) * 100).toFixed(1) })),
+        ...vals,
+      };
+    }).sort((a, b) => a._aggKey.localeCompare(b._aggKey) || a._param.localeCompare(b._param));
+    return { rows, valueKeys: allVals };
+  }, [isMultiParam, pdData, aggregator]);
 
   // ─── Distribution table with explicit value columns ───
   const distTableColumns = useMemo(() => {
@@ -725,117 +758,214 @@ const TopologiePage: React.FC = () => {
                 <div className="text-center"><Search className="w-8 h-8 mx-auto mb-2 opacity-30" /><p className="font-medium">Aucun résultat</p></div>
               </div>
             ) : (
-              <div className="space-y-3">
+               <div className="space-y-4">
 
-                {/* ─ KPI tiles (2 compact) ─ */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg border border-border bg-card p-3 flex items-center gap-3">
-                    <div>
-                      <div className="text-xl font-bold text-foreground">{globalDistribution[0]?.pct || 0}%</div>
-                      <div className="text-[10px] text-muted-foreground font-mono truncate max-w-[120px]">{globalDistribution[0]?.value || '—'}</div>
+                {/* ─ KPI summary ─ */}
+                {isMultiParam ? (
+                  <div className="rounded-lg border border-border bg-card p-3 flex items-center gap-4 flex-wrap">
+                    <Badge variant="secondary" className="text-xs h-7 px-3 font-semibold">{pdAppliedParams.length} paramètres sélectionnés</Badge>
+                    <span className="text-xs text-muted-foreground">Agg: <strong className="text-foreground">{aggLabel(pdAppliedAggregator)}</strong></span>
+                    <span className="text-xs text-muted-foreground">Rows: <strong className="text-foreground">{pdData.length}</strong></span>
+                    <span className="text-xs text-muted-foreground">{globalDistribution.length} valeurs distinctes</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-border bg-card p-3 flex items-center gap-3">
+                      <div>
+                        <div className="text-xl font-bold text-foreground">{globalDistribution[0]?.pct || 0}%</div>
+                        <div className="text-[10px] text-muted-foreground font-mono truncate max-w-[120px]">{globalDistribution[0]?.value || '—'}</div>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        <div>{globalDistribution[0]?.count || 0} / {pdData.length} cells</div>
+                        <div className="mt-0.5">{globalDistribution.length} distinct values</div>
+                      </div>
                     </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      <div>{globalDistribution[0]?.count || 0} / {pdData.length} cells</div>
-                      <div className="mt-0.5">{globalDistribution.length} distinct values</div>
+                    <div className="rounded-lg border border-border bg-card p-3">
+                      <div className="flex gap-1.5 flex-wrap">
+                        {globalDistribution.slice(0, 6).map((g, i) => (
+                          <div key={g.value} className="flex items-center gap-1 text-[10px]">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                            <span className="text-muted-foreground truncate max-w-[60px]">{g.value}</span>
+                            <span className="font-semibold text-foreground">{g.pct}%</span>
+                          </div>
+                        ))}
+                        {globalDistribution.length > 6 && <span className="text-[9px] text-muted-foreground">+{globalDistribution.length - 6}</span>}
+                      </div>
                     </div>
                   </div>
-                  <div className="rounded-lg border border-border bg-card p-3">
-                    <div className="flex gap-1.5 flex-wrap">
-                      {globalDistribution.slice(0, 6).map((g, i) => (
-                        <div key={g.value} className="flex items-center gap-1 text-[10px]">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                          <span className="text-muted-foreground truncate max-w-[60px]">{g.value}</span>
-                          <span className="font-semibold text-foreground">{g.pct}%</span>
+                )}
+
+                {/* ─ Charts ─ */}
+                {isMultiParam ? (
+                  <>
+                    {perParamCharts.length > 6 && !showAllCharts && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Affichage des 6 premiers charts sur {perParamCharts.length}</span>
+                        <button onClick={() => setShowAllCharts(true)} className="text-primary font-medium hover:underline">Afficher tout</button>
+                      </div>
+                    )}
+                    {showAllCharts && perParamCharts.length > 6 && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{perParamCharts.length} charts affichés</span>
+                        <button onClick={() => setShowAllCharts(false)} className="text-primary font-medium hover:underline">Réduire à 6</button>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {visibleCharts.map(pc => (
+                        <div key={pc.paramName} className="rounded-lg border border-border bg-card p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <h3 className="text-xs font-semibold text-foreground truncate">
+                                {aggLabel(pdAppliedAggregator)} — <span className="text-primary">{pc.paramName}</span>
+                              </h3>
+                              <Badge variant="outline" className="text-[9px] h-5 shrink-0">{pc.rowCount} rows · {pc.distinctValues} val</Badge>
+                            </div>
+                          </div>
+                          {pc.chartData.length > 0 ? (
+                            <div style={{ width: '100%', height: 320 }}>
+                              <ReactECharts option={pc.option} style={{ width: '100%', height: '100%' }} notMerge={true} opts={{ renderer: 'canvas' }} />
+                            </div>
+                          ) : <p className="text-xs text-muted-foreground py-8 text-center">Aucune donnée</p>}
                         </div>
                       ))}
-                      {globalDistribution.length > 6 && <span className="text-[9px] text-muted-foreground">+{globalDistribution.length - 6}</span>}
                     </div>
-                  </div>
-                </div>
-
-                {/* ─ Chart card ─ */}
-                <div className="rounded-lg border border-border bg-card p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-foreground">
-                      Distribution — {aggLabel(pdAppliedAggregator)}
-                    </h3>
-                  </div>
-                  {chartData.length > 0 ? (
-                    <div style={{ width: '100%', height: 320 }}>
-                      <ReactECharts
-                        option={echartsOption}
-                        style={{ width: '100%', height: '100%' }}
-                        notMerge={true}
-                        opts={{ renderer: 'canvas' }}
-                      />
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-border bg-card p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Distribution — {aggLabel(pdAppliedAggregator)}
+                      </h3>
                     </div>
-                  ) : <p className="text-xs text-muted-foreground py-8 text-center">Aucune donnée</p>}
-                </div>
+                    {chartData.length > 0 ? (
+                      <div style={{ width: '100%', height: 320 }}>
+                        <ReactECharts option={echartsOption} style={{ width: '100%', height: '100%' }} notMerge={true} opts={{ renderer: 'canvas' }} />
+                      </div>
+                    ) : <p className="text-xs text-muted-foreground py-8 text-center">Aucune donnée</p>}
+                  </div>
+                )}
 
-                {/* ─ Table (redesigned with colored pills) ─ */}
-                <div className="rounded-lg border border-border bg-card overflow-hidden">
-                  <div className="overflow-auto max-h-[400px]">
-                    <Table>
-                      <TableHeader className="sticky top-0 z-10">
-                        <TableRow className="bg-muted/80 border-b-2 border-border">
-                          <TableHead className="text-xs font-semibold cursor-pointer select-none min-w-[160px] py-3" onClick={() => toggleDistSort('_key')}>
-                            <span className="flex items-center gap-1">
-                              {colorBy === 'value' ? aggLabel(pdAppliedAggregator) : 'Valeur'}
-                              {distSortCol === '_key' && <ArrowUpDown className="w-3 h-3 text-primary" />}
-                            </span>
-                          </TableHead>
-                          <TableHead className="text-xs font-semibold text-right cursor-pointer select-none w-[80px] py-3" onClick={() => toggleDistSort('total')}>
-                            <span className="flex items-center justify-end gap-1">
-                              Total
-                              {distSortCol === 'total' && <ArrowUpDown className="w-3 h-3 text-primary" />}
-                            </span>
-                          </TableHead>
-                          {distTableColumns.valueKeys.map(vk => (
-                            <TableHead key={vk} className="text-xs font-semibold text-center cursor-pointer select-none min-w-[140px] py-3" onClick={() => toggleDistSort(vk)}>
-                              <span className="flex items-center justify-center gap-1">
-                                {vk}
-                                {distSortCol === vk && <ArrowUpDown className="w-3 h-3 text-primary" />}
+                {/* ─ Table ─ */}
+                {isMultiParam ? (
+                  <div className="rounded-lg border border-border bg-card overflow-hidden">
+                    <div className="overflow-auto max-h-[400px]">
+                      <Table>
+                        <TableHeader className="sticky top-0 z-10">
+                          <TableRow className="bg-muted/80 border-b-2 border-border">
+                            <TableHead className="text-xs font-semibold min-w-[140px] py-3 cursor-pointer select-none" onClick={() => toggleDistSort('_key')}>
+                              <span className="flex items-center gap-1">
+                                {aggLabel(pdAppliedAggregator)}
+                                {distSortCol === '_key' && <ArrowUpDown className="w-3 h-3 text-primary" />}
                               </span>
                             </TableHead>
-                          ))}
-                          <TableHead className="text-xs font-semibold w-[100px] py-3">Répartition</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {sortedChartData.map((row, idx) => (
-                          <TableRow key={idx} className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`} style={{ height: 52 }}>
-                            <TableCell className="text-sm font-medium py-2">{row._key}</TableCell>
-                            <TableCell className="text-sm font-semibold font-mono text-right py-2">{row.total}</TableCell>
-                            {distTableColumns.valueKeys.map((vk, vi) => {
-                              const detail = row._details.find((d: any) => d.value === vk);
-                              const color = CHART_COLORS[vi % CHART_COLORS.length];
-                              return (
-                                <TableCell key={vk} className="text-center py-2">
-                                  {detail ? (
-                                    <span
-                                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-                                      style={{
-                                        backgroundColor: `${color}20`,
-                                        color: color,
-                                        border: `1px solid ${color}40`,
-                                      }}
-                                    >
-                                      {vk} <span className="font-bold">{detail.count}</span>
-                                      <span className="opacity-70">({detail.pct}%)</span>
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs text-muted-foreground">—</span>
-                                  )}
-                                </TableCell>
-                              );
-                            })}
-                            <TableCell className="py-2"><MiniBar details={row._details} total={row.total} /></TableCell>
+                            <TableHead className="text-xs font-semibold min-w-[140px] py-3 cursor-pointer select-none" onClick={() => toggleDistSort('_param')}>
+                              <span className="flex items-center gap-1">
+                                Paramètre
+                                {distSortCol === '_param' && <ArrowUpDown className="w-3 h-3 text-primary" />}
+                              </span>
+                            </TableHead>
+                            <TableHead className="text-xs font-semibold text-right w-[80px] py-3 cursor-pointer select-none" onClick={() => toggleDistSort('total')}>
+                              <span className="flex items-center justify-end gap-1">
+                                Total
+                                {distSortCol === 'total' && <ArrowUpDown className="w-3 h-3 text-primary" />}
+                              </span>
+                            </TableHead>
+                            {multiParamTableData.valueKeys.map(vk => (
+                              <TableHead key={vk} className="text-xs font-semibold text-center min-w-[130px] py-3 cursor-pointer select-none" onClick={() => toggleDistSort(vk)}>
+                                <span className="flex items-center justify-center gap-1">
+                                  {vk}
+                                  {distSortCol === vk && <ArrowUpDown className="w-3 h-3 text-primary" />}
+                                </span>
+                              </TableHead>
+                            ))}
+                            <TableHead className="text-xs font-semibold w-[100px] py-3">Répartition</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {multiParamTableData.rows.map((row: any, idx: number) => (
+                            <TableRow key={idx} className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`} style={{ height: 52 }}>
+                              <TableCell className="text-sm font-medium py-2">{row._aggKey}</TableCell>
+                              <TableCell className="text-xs font-mono text-muted-foreground py-2">{row._param}</TableCell>
+                              <TableCell className="text-sm font-semibold font-mono text-right py-2">{row.total}</TableCell>
+                              {multiParamTableData.valueKeys.map((vk: string, vi: number) => {
+                                const detail = row._details.find((d: any) => d.value === vk);
+                                const color = CHART_COLORS[vi % CHART_COLORS.length];
+                                return (
+                                  <TableCell key={vk} className="text-center py-2">
+                                    {detail ? (
+                                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                                        style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}40` }}>
+                                        {vk} <span className="font-bold">{detail.count}</span>
+                                        <span className="opacity-70">({detail.pct}%)</span>
+                                      </span>
+                                    ) : <span className="text-xs text-muted-foreground">—</span>}
+                                  </TableCell>
+                                );
+                              })}
+                              <TableCell className="py-2"><MiniBar details={row._details} total={row.total} /></TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="rounded-lg border border-border bg-card overflow-hidden">
+                    <div className="overflow-auto max-h-[400px]">
+                      <Table>
+                        <TableHeader className="sticky top-0 z-10">
+                          <TableRow className="bg-muted/80 border-b-2 border-border">
+                            <TableHead className="text-xs font-semibold cursor-pointer select-none min-w-[160px] py-3" onClick={() => toggleDistSort('_key')}>
+                              <span className="flex items-center gap-1">
+                                {colorBy === 'value' ? aggLabel(pdAppliedAggregator) : 'Valeur'}
+                                {distSortCol === '_key' && <ArrowUpDown className="w-3 h-3 text-primary" />}
+                              </span>
+                            </TableHead>
+                            <TableHead className="text-xs font-semibold text-right cursor-pointer select-none w-[80px] py-3" onClick={() => toggleDistSort('total')}>
+                              <span className="flex items-center justify-end gap-1">
+                                Total
+                                {distSortCol === 'total' && <ArrowUpDown className="w-3 h-3 text-primary" />}
+                              </span>
+                            </TableHead>
+                            {distTableColumns.valueKeys.map(vk => (
+                              <TableHead key={vk} className="text-xs font-semibold text-center cursor-pointer select-none min-w-[140px] py-3" onClick={() => toggleDistSort(vk)}>
+                                <span className="flex items-center justify-center gap-1">
+                                  {vk}
+                                  {distSortCol === vk && <ArrowUpDown className="w-3 h-3 text-primary" />}
+                                </span>
+                              </TableHead>
+                            ))}
+                            <TableHead className="text-xs font-semibold w-[100px] py-3">Répartition</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sortedChartData.map((row, idx) => (
+                            <TableRow key={idx} className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`} style={{ height: 52 }}>
+                              <TableCell className="text-sm font-medium py-2">{row._key}</TableCell>
+                              <TableCell className="text-sm font-semibold font-mono text-right py-2">{row.total}</TableCell>
+                              {distTableColumns.valueKeys.map((vk, vi) => {
+                                const detail = row._details.find((d: any) => d.value === vk);
+                                const color = CHART_COLORS[vi % CHART_COLORS.length];
+                                return (
+                                  <TableCell key={vk} className="text-center py-2">
+                                    {detail ? (
+                                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                                        style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}40` }}>
+                                        {vk} <span className="font-bold">{detail.count}</span>
+                                        <span className="opacity-70">({detail.pct}%)</span>
+                                      </span>
+                                    ) : <span className="text-xs text-muted-foreground">—</span>}
+                                  </TableCell>
+                                );
+                              })}
+                              <TableCell className="py-2"><MiniBar details={row._details} total={row.total} /></TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
