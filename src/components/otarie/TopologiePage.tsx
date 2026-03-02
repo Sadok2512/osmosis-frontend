@@ -126,22 +126,23 @@ const TopologiePage: React.FC = () => {
   const fetchDistinct = shouldUseLocal ? fetchDistinctLocal : fetchDistinctCloud;
   const fetchRows = shouldUseLocal ? fetchRowsLocal : fetchRowsCloud;
 
-  // Probe backend reachability on mount
+  // Probe backend reachability on mount (only relevant for local mode)
   useEffect(() => {
+    if (!shouldUseLocal) {
+      // Cloud mode — no local health check needed
+      setBackendReachable(null);
+      return;
+    }
     const probe = async () => {
-      const healthUrl = getApiUrl('health');
-      console.log('[Topologie] Probing backend at:', healthUrl);
       try {
-        const resp = await fetch(healthUrl, { signal: AbortSignal.timeout(3000) });
-        console.log('[Topologie] Health probe result:', resp.status, resp.ok);
+        const resp = await fetch(`${import.meta.env.VITE_LOCAL_API || 'http://localhost:3001'}/api/health`, { signal: AbortSignal.timeout(3000) });
         setBackendReachable(resp.ok);
-      } catch (err) {
-        console.warn('[Topologie] Health probe FAILED:', err);
+      } catch {
         setBackendReachable(false);
       }
     };
     probe();
-  }, []);
+  }, [shouldUseLocal]);
 
   // Load filter options — react to dataSource change too
   useEffect(() => {
