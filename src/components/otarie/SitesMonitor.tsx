@@ -1808,11 +1808,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setFocusMode('site');
     setFocusCellId(null);
     setShowRightPanel(true);
-    // Scroll inventory to selected site
-    requestAnimationFrame(() => {
+    // Ensure inventory panel is open and on sites tab before scrolling
+    setPanelCollapsed(false);
+    setInventoryTab('sites');
+    // Scroll inventory to selected site with delay for DOM update
+    setTimeout(() => {
       const el = siteRowRefs.current.get(site.site_id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
+    }, 350);
   };
 
   const handleCellClick = (cellId: string) => {
