@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { dumpParameterApi } from '@/lib/localDb';
+import { supabase } from '@/integrations/supabase/client';
 import { getApiUrl, getPreferredDataSource, setPreferredDataSource } from '@/lib/apiConfig';
 import { Search, Filter, Download, BarChart3, TableIcon, Loader2, ChevronDown, Wifi, WifiOff, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -71,29 +72,59 @@ const TopologiePage: React.FC = () => {
     setPreferredDataSource(next);
   };
 
-  const fetchDistinct = async (col: string, extraParams?: Record<string, string>) => {
+  // ─── Cloud helpers (Supabase → parameter_dump) ───
+  const fetchDistinctCloud = async (col: string, extraParams?: Record<string, string>): Promise<string[]> => {
+    try {
+      let query = (supabase as any).from('parameter_dump').select(col);
+      if (extraParams) {
+        Object.entries(extraParams).forEach(([k, v]) => { query = query.eq(k, v); });
+      }
+      const { data: rows, error } = await query.limit(10000);
+      if (error) throw error;
+      return [...new Set((rows || []).map((r: any) => r[col]).filter(Boolean))].sort() as string[];
+    } catch (err) {
+      console.warn('[Topologie][Cloud] distinct fetch failed', err);
+      return [];
+    }
+  };
+
+  const fetchRowsCloud = async (filters: Record<string, string>, cols: string, limit = 5000): Promise<any[]> => {
+    try {
+      const colArr = cols.split(',').map(c => c.trim()).join(',');
+      let query = (supabase as any).from('parameter_dump').select(colArr).limit(limit);
+      Object.entries(filters).forEach(([k, v]) => { query = query.eq(k, v); });
+      const { data: rows, error } = await query;
+      if (error) throw error;
+      return rows || [];
+    } catch (err) {
+      console.warn('[Topologie][Cloud] rows fetch failed', err);
+      return [];
+    }
+  };
+
+  // ─── Local helpers (Express → dump-parameter) ───
+  const fetchDistinctLocal = async (col: string, extraParams?: Record<string, string>) => {
     try {
       const rows = await dumpParameterApi.distinct(col, extraParams);
       return [...new Set((rows || []).map((r: any) => r[col]).filter(Boolean))].sort() as string[];
     } catch (error) {
-      console.warn('[Topologie] distinct fetch failed', error);
+      console.warn('[Topologie][Local] distinct fetch failed', error);
       return [];
     }
   };
 
-  const fetchRows = async (filters: Record<string, string>, cols: string, limit = 5000) => {
+  const fetchRowsLocal = async (filters: Record<string, string>, cols: string, limit = 5000) => {
     try {
       return await dumpParameterApi.query(filters, cols, limit);
     } catch (error) {
-      console.warn('[Topologie] rows fetch failed', error);
+      console.warn('[Topologie][Local] rows fetch failed', error);
       return [];
     }
   };
 
-  const fetchRowsCloud = async (filters: Record<string, string>, cols: string, limit = 5000) => {
-    // Cloud disabled — delegate to local
-    return fetchRows(filters, cols, limit);
-  };
+  // ─── Unified dispatch ───
+  const fetchDistinct = shouldUseLocal ? fetchDistinctLocal : fetchDistinctCloud;
+  const fetchRows = shouldUseLocal ? fetchRowsLocal : fetchRowsCloud;
 
   // Probe backend reachability on mount
   useEffect(() => {
@@ -112,9 +143,9 @@ const TopologiePage: React.FC = () => {
     probe();
   }, []);
 
-  // Load filter options
+  // Load filter options — react to dataSource change too
   useEffect(() => {
-    if (backendReachable === false) return; // skip if confirmed unreachable
+    if (shouldUseLocal && backendReachable === false) return;
     setLoading(true);
     const loadFilters = async () => {
       const [s, p, d, pl, v] = await Promise.all([
@@ -128,7 +159,7 @@ const TopologiePage: React.FC = () => {
       setLoading(false);
     };
     loadFilters();
-  }, [backendReachable]);
+  }, [backendReachable, dataSource]);
 
   // Don't auto-select — let user pick their parameter
   // useEffect(() => {
@@ -165,12 +196,12 @@ const TopologiePage: React.FC = () => {
       if (selectedUr !== 'ALL') filters.ur = selectedUr;
       if (selectedPlaque !== 'ALL') filters.plaque = selectedPlaque;
       if (selectedVendor !== 'ALL') filters.vendor = selectedVendor;
-      const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr');
+      const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor');
       setData(rows || []);
       setLoading(false);
     };
     loadData();
-  }, [selectedParam, selectedSite, selectedCell, selectedUr, selectedPlaque, selectedVendor]);
+  }, [selectedParam, selectedSite, selectedCell, selectedUr, selectedPlaque, selectedVendor, dataSource]);
 
   // Table search
   const filteredData = useMemo(() => {
@@ -239,31 +270,37 @@ const TopologiePage: React.FC = () => {
   };
 
   const aggLabel = aggregator === 'ur' ? 'UR' : 'Plaque';
-  const isLocal = shouldUseLocal;
   const backendLabel = dataSource === 'local' ? 'Local (RAN_OP)' : 'Cloud';
-  const tableTarget = 'dump_parameter';
+  const tableTarget = shouldUseLocal ? 'dump_parameter' : 'parameter_dump';
 
   const testConnection = async () => {
     setCnxStatus('testing');
     setCnxMessage('');
     try {
-      if (isLocal) {
+      if (shouldUseLocal) {
         try {
           const resp = await fetch(`${getApiUrl('dump-parameter')}?${new URLSearchParams({ distinct_col: 'parameter' })}`);
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const rows = await resp.json();
           setCnxStatus('ok');
-          setCnxMessage(`✅ Connecté (Local) — ${rows.length} paramètres trouvés`);
+          setCnxMessage(`✅ Connecté (Local) — ${rows.length} paramètres trouvés dans dump_parameter`);
           return;
         } catch (localErr: any) {
-          console.warn('[Topologie] Local connection failed, fallback to cloud', localErr);
-          switchDataSource('cloud');
+          console.warn('[Topologie] Local connection failed', localErr);
+          setCnxStatus('error');
+          setCnxMessage(`❌ Local indisponible: ${localErr.message}`);
+          return;
         }
       }
 
-      const probe = await dumpParameterApi.query({}, 'parameter', 1);
+      // Cloud mode — query parameter_dump via Supabase
+      const { data: rows, error } = await (supabase as any)
+        .from('parameter_dump')
+        .select('parameter')
+        .limit(1);
+      if (error) throw error;
       setCnxStatus('ok');
-      setCnxMessage(`✅ Connecté (Local) — dump_parameter accessible`);
+      setCnxMessage(`✅ Connecté (Cloud) — parameter_dump accessible`);
     } catch (err: any) {
       setCnxStatus('error');
       setCnxMessage(`❌ Erreur: ${err.message || err}`);
@@ -339,7 +376,7 @@ const TopologiePage: React.FC = () => {
         )}
 
         {/* Backend unreachable warning */}
-        {backendReachable === false && (
+        {shouldUseLocal && backendReachable === false && (
           <div className="flex items-center gap-3 text-sm px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
             <WifiOff className="w-5 h-5 shrink-0" />
             <div>
