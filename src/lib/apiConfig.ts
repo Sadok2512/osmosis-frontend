@@ -39,8 +39,13 @@ const isDataSource = (value: string | null): value is DataSource => value === 'l
 const getLocalApiBase = (): string => LOCAL_API_ENV || DEFAULT_LOCAL_API;
 
 export const getPreferredDataSource = (): DataSource => {
-  // Force local mode — Cloud is disabled
-  return 'local';
+  if (typeof window === 'undefined') return 'local';
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlSource = urlParams.get('source');
+  if (isDataSource(urlSource)) return urlSource;
+  const stored = window.localStorage.getItem(DATA_SOURCE_KEY);
+  if (isDataSource(stored)) return stored;
+  return isBrowserRunningLocally() ? 'local' : 'cloud';
 };
 
 export const setPreferredDataSource = (source: DataSource): void => {
