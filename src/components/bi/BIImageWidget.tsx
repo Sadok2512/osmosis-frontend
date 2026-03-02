@@ -51,7 +51,7 @@ const BIImageWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
 
   return (
     <div
-      className="h-full flex flex-col rounded-2xl border border-border shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)] group transition-shadow hover:shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.1)] overflow-hidden"
+      className="h-full flex flex-col rounded-2xl border border-border bg-card shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)] group transition-shadow hover:shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.1)] overflow-hidden"
       style={{ backgroundColor: config.bgColor || undefined }}
       onMouseEnter={() => setShowToolbar(true)}
       onMouseLeave={() => setShowToolbar(false)}

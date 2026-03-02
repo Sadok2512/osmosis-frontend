@@ -133,7 +133,7 @@ const BIChartCard: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete })
 
   return (
     <>
-      <div className="h-full flex flex-col rounded-2xl border border-border shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)] overflow-hidden group transition-shadow hover:shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.1)]"
+      <div className="h-full flex flex-col rounded-2xl border border-border bg-card shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)] overflow-hidden group transition-shadow hover:shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.1)]"
         style={{ backgroundColor: config.advanced.backgroundColor && config.advanced.backgroundColor !== 'transparent' ? config.advanced.backgroundColor : undefined }}
         >
         {headerContent(false)}
