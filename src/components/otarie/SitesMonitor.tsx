@@ -2168,13 +2168,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   mouseout: () => setHoveredSiteId(null),
                 }}
               >
-                {viewport.zoom >= 15 && (
+                {viewport.zoom >= 14 && (
                   <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
                     <span style={{
-                      fontSize: viewport.zoom >= 17 ? '10px' : '8px',
-                      fontWeight: 500,
-                      letterSpacing: '0.03em',
-                      color: '#4B5563',
+                      fontSize: '8px',
+                      fontWeight: 600,
+                      letterSpacing: '0.02em',
+                      color: '#1a1a1a',
                       textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 1px 2px rgba(255,255,255,0.9)',
                       background: 'none',
                       border: 'none',
