@@ -374,8 +374,6 @@ const TopologiePage: React.FC = () => {
 
   // ─── Dynamic chart sizing ───
   const catCount = chartData.length;
-  const chartHeight = catCount <= 4 ? 220 : catCount <= 10 ? 280 : 340;
-  const chartWidth = Math.min(1100, Math.max(520, catCount * 140 + 160));
   const xRotate = catCount > 6 ? 35 : 0;
 
   // ─── ECharts options ───
@@ -386,7 +384,8 @@ const TopologiePage: React.FC = () => {
       name: key,
       type: 'bar' as const,
       stack: chartMode === 'stacked' ? 'total' : undefined,
-      barMaxWidth: 32,
+      barMaxWidth: 44,
+      barMinWidth: 20,
       itemStyle: { color: CHART_COLORS[i % CHART_COLORS.length] },
       label: {
         show: showLabels,
@@ -405,7 +404,8 @@ const TopologiePage: React.FC = () => {
         name: '__total__',
         type: 'bar',
         stack: 'total',
-        barMaxWidth: 32,
+        barMaxWidth: 44,
+        barMinWidth: 20,
         itemStyle: { color: 'transparent' },
         label: {
           show: showLabels,
@@ -422,7 +422,7 @@ const TopologiePage: React.FC = () => {
     }
 
     return {
-      grid: { left: 40, right: 20, top: 40, bottom: xRotate > 0 ? 60 : 30, containLabel: true },
+      grid: { left: 50, right: 30, top: 50, bottom: xRotate > 0 ? 70 : 40, containLabel: true },
       xAxis: {
         type: 'category',
         data: categories,
@@ -557,7 +557,7 @@ const TopologiePage: React.FC = () => {
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className="flex h-3 w-20 rounded overflow-hidden bg-muted/50">
+            <div className="flex h-4 w-24 rounded-full overflow-hidden bg-muted/50">
               {details.map((d, i) => (
                 <div key={i} style={{ width: `${(d.count / total) * 100}%`, backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
               ))}
@@ -612,67 +612,98 @@ const TopologiePage: React.FC = () => {
       </div>
 
       {/* ─── FILTER BAR ─── */}
-      <div className="border-b border-border bg-card/80 px-5 py-3">
-        {filtersLoading ? (
-          <div className="flex gap-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-32" />)}</div>
-        ) : mainTab === 'param_distribution' ? (
-          <div className="flex items-end gap-3 flex-wrap">
-            <MultiSelectFilter label="Paramètres *" selected={pdPendingParams} options={availableParams} onChange={setPdPendingParams} />
-            <MultiSelectFilter label="Vendor" selected={pdPendingVendor} options={availableVendors} onChange={setPdPendingVendor} />
-            <MultiSelectFilter label="NetAct" selected={pdPendingVendor} options={availableUrs} onChange={() => {}} />
-            <MultiSelectFilter label="DOR" selected={pdPendingDor} options={availableDors} onChange={setPdPendingDor} />
-            <MultiSelectFilter label="Plaque" selected={pdPendingPlaque} options={availablePlaques} onChange={setPdPendingPlaque} />
-
-            <div className="w-px h-6 bg-border mx-1" />
-
-            <SegmentedControl label="Agg" value={pdPendingAggregator}
-              options={[{ value: 'vendor', label: 'Vendor' }, { value: 'ur', label: 'NetAct' }, { value: 'dor', label: 'DOR' }, { value: 'plaque', label: 'Plaque' }, { value: 'value', label: 'Valeur' }]}
-              onChange={v => setPdPendingAggregator(v as AggregatorKey)} />
-
-            <SegmentedControl label="Couleur" value={pdPendingColorBy}
-              options={[{ value: 'ne_aggregation', label: `NE (${aggLabel(pdPendingAggregator)})` }, { value: 'value', label: 'Valeur' }]}
-              onChange={v => setPdPendingColorBy(v as ColorByKey)} />
-
-            <div className="flex items-center gap-2 ml-auto">
-              {pdDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
-              {pdPendingParams.length === 0 && <span className="text-xs text-destructive">≥1 param</span>}
-              <button onClick={pdConfirm} disabled={pdPendingParams.length === 0}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed">
-                <Check className="w-3.5 h-3.5" /> Confirm
-              </button>
-              <button onClick={pdReset} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-input text-muted-foreground hover:bg-muted/50">
-                <RotateCcw className="w-3 h-3" /> Reset
-              </button>
+      {mainTab === 'param_distribution' && (
+        <div className="border-b border-border bg-card/80 px-5 py-3 space-y-2.5">
+          {filtersLoading ? (
+            <div className="flex gap-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-32" />)}</div>
+          ) : (
+            <>
+              {/* Row 1: Filters + Confirm/Reset */}
+              <div className="flex items-end gap-3">
+                <div className="flex-[2] min-w-[200px]">
+                  <MultiSelectFilter label="Paramètres *" selected={pdPendingParams} options={availableParams} onChange={setPdPendingParams} maxChips={3} />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <MultiSelectFilter label="Vendor" selected={pdPendingVendor} options={availableVendors} onChange={setPdPendingVendor} />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <MultiSelectFilter label="NetAct" selected={pdPendingVendor} options={availableUrs} onChange={() => {}} />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <MultiSelectFilter label="DOR" selected={pdPendingDor} options={availableDors} onChange={setPdPendingDor} />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <MultiSelectFilter label="Plaque" selected={pdPendingPlaque} options={availablePlaques} onChange={setPdPendingPlaque} />
+                </div>
+                <div className="flex items-center gap-2 ml-auto shrink-0 pb-0.5">
+                  {pdDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
+                  {pdPendingParams.length === 0 && <span className="text-xs text-destructive whitespace-nowrap">≥1 param</span>}
+                  <button onClick={pdConfirm} disabled={pdPendingParams.length === 0}
+                    className="flex items-center gap-1.5 px-5 py-1.5 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
+                    <Check className="w-3.5 h-3.5" /> Confirm
+                  </button>
+                  <button onClick={pdReset} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-input text-muted-foreground hover:bg-muted/50 whitespace-nowrap">
+                    <RotateCcw className="w-3 h-3" /> Reset
+                  </button>
+                </div>
+              </div>
+              {/* Row 2: Controls */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <SegmentedControl label="Agrégation" value={pdPendingAggregator}
+                  options={[{ value: 'vendor', label: 'Vendor' }, { value: 'ur', label: 'NetAct' }, { value: 'dor', label: 'DOR' }, { value: 'plaque', label: 'Plaque' }, { value: 'value', label: 'Valeur' }]}
+                  onChange={v => setPdPendingAggregator(v as AggregatorKey)} />
+                <div className="w-px h-5 bg-border" />
+                <SegmentedControl label="Couleur" value={pdPendingColorBy}
+                  options={[{ value: 'ne_aggregation', label: `NE (${aggLabel(pdPendingAggregator)})` }, { value: 'value', label: 'Valeur' }]}
+                  onChange={v => setPdPendingColorBy(v as ColorByKey)} />
+                <div className="w-px h-5 bg-border" />
+                <SegmentedControl label="Mode" value={chartMode}
+                  options={[{ value: 'stacked', label: 'Empilé' }, { value: 'grouped', label: 'Groupé' }]}
+                  onChange={v => setChartMode(v as ChartMode)} />
+                <button onClick={() => setShowLabels(v => !v)}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border border-input transition-colors ${showLabels ? 'bg-accent text-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}>
+                  {showLabels ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />} Valeurs
+                </button>
+                <button onClick={() => exportCSV(pdData)} className="flex items-center gap-1 px-3 py-1 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors ml-auto">
+                  <Download className="w-3.5 h-3.5" /> Export CSV
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {mainTab === 'raw_parameter' && (
+        <div className="border-b border-border bg-card/80 px-5 py-3">
+          {filtersLoading ? (
+            <div className="flex gap-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-32" />)}</div>
+          ) : (
+            <div className="flex items-end gap-3 flex-wrap">
+              <MultiSelectFilter label="Vendor" selected={rawPendingVendor} options={availableVendors} onChange={setRawPendingVendor} />
+              <MultiSelectFilter label="NetAct" selected={rawPendingDor} options={availableUrs} onChange={setRawPendingDor} />
+              <MultiSelectFilter label="DOR" selected={rawPendingDor} options={availableDors} onChange={setRawPendingDor} />
+              <MultiSelectFilter label="Plaque" selected={rawPendingPlaque} options={availablePlaques} onChange={setRawPendingPlaque} />
+              <MultiSelectFilter label="Site" selected={rawPendingSite} options={availableSites} onChange={setRawPendingSite} />
+              <MultiSelectFilter label="Cell" selected={rawPendingCell} options={availableCells} onChange={setRawPendingCell} />
+              <div className="flex items-center gap-2 ml-auto">
+                {rawDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
+                <button onClick={rawConfirm} className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90">
+                  <Check className="w-3.5 h-3.5" /> Confirm
+                </button>
+                <button onClick={rawReset} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-input text-muted-foreground hover:bg-muted/50">
+                  <RotateCcw className="w-3 h-3" /> Reset
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex items-end gap-3 flex-wrap">
-            <MultiSelectFilter label="Vendor" selected={rawPendingVendor} options={availableVendors} onChange={setRawPendingVendor} />
-            <MultiSelectFilter label="NetAct" selected={rawPendingDor} options={availableUrs} onChange={setRawPendingDor} />
-            <MultiSelectFilter label="DOR" selected={rawPendingDor} options={availableDors} onChange={setRawPendingDor} />
-            <MultiSelectFilter label="Plaque" selected={rawPendingPlaque} options={availablePlaques} onChange={setRawPendingPlaque} />
-            <MultiSelectFilter label="Site" selected={rawPendingSite} options={availableSites} onChange={setRawPendingSite} />
-            <MultiSelectFilter label="Cell" selected={rawPendingCell} options={availableCells} onChange={setRawPendingCell} />
-
-            <div className="flex items-center gap-2 ml-auto">
-              {rawDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
-              <button onClick={rawConfirm} className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90">
-                <Check className="w-3.5 h-3.5" /> Confirm
-              </button>
-              <button onClick={rawReset} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-input text-muted-foreground hover:bg-muted/50">
-                <RotateCcw className="w-3 h-3" /> Reset
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* ─── RESULTS ─── */}
       <div className="flex-1 overflow-auto">
 
         {/* ═══ PARAM DISTRIBUTION ═══ */}
         {mainTab === 'param_distribution' && (
-          <div className="p-3 space-y-3">
+          <div className="p-4 space-y-4">
             {pdSummary && <div className="text-[10px] text-muted-foreground bg-muted/30 rounded px-3 py-1 border border-border">{pdSummary}</div>}
 
             {!pdConfirmed ? (
@@ -723,91 +754,82 @@ const TopologiePage: React.FC = () => {
                 </div>
 
                 {/* ─ Chart card ─ */}
-                <div className="rounded-lg border border-border bg-card p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-semibold text-foreground">
-                        Distribution — {aggLabel(pdAppliedAggregator)}
-                      </h3>
-                      {/* Stacked/Grouped toggle */}
-                      <div className="flex rounded border border-input overflow-hidden">
-                        <button onClick={() => setChartMode('stacked')}
-                          className={`flex items-center gap-0.5 px-2 py-[2px] text-[9px] font-medium ${chartMode === 'stacked' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}>
-                          <AlignStartVertical className="w-2.5 h-2.5" /> Stacked
-                        </button>
-                        <button onClick={() => setChartMode('grouped')}
-                          className={`flex items-center gap-0.5 px-2 py-[2px] text-[9px] font-medium ${chartMode === 'grouped' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}>
-                          <BarChart3 className="w-2.5 h-2.5" /> Grouped
-                        </button>
-                      </div>
-                      {/* Show labels toggle */}
-                      <button onClick={() => setShowLabels(v => !v)}
-                        className={`flex items-center gap-0.5 px-2 py-[2px] text-[9px] font-medium rounded border border-input ${showLabels ? 'bg-accent text-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}>
-                        {showLabels ? <Eye className="w-2.5 h-2.5" /> : <EyeOff className="w-2.5 h-2.5" />} Valeurs
-                      </button>
-                    </div>
-                    <button onClick={() => exportCSV(pdData)} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                      <Download className="w-3 h-3" /> Export
-                    </button>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Distribution — {aggLabel(pdAppliedAggregator)}
+                    </h3>
                   </div>
-
                   {chartData.length > 0 ? (
-                    <div className="flex justify-center overflow-x-auto">
-                      <div style={{ width: chartWidth, height: chartHeight, minWidth: 520 }}>
-                        <ReactECharts
-                          option={echartsOption}
-                          style={{ width: '100%', height: '100%' }}
-                          notMerge={true}
-                          opts={{ renderer: 'canvas' }}
-                        />
-                      </div>
+                    <div style={{ width: '100%', height: 320 }}>
+                      <ReactECharts
+                        option={echartsOption}
+                        style={{ width: '100%', height: '100%' }}
+                        notMerge={true}
+                        opts={{ renderer: 'canvas' }}
+                      />
                     </div>
-                  ) : <p className="text-[10px] text-muted-foreground">Aucune donnée</p>}
+                  ) : <p className="text-xs text-muted-foreground py-8 text-center">Aucune donnée</p>}
                 </div>
 
-                {/* ─ Table (compact redesign) ─ */}
+                {/* ─ Table (redesigned with colored pills) ─ */}
                 <div className="rounded-lg border border-border bg-card overflow-hidden">
-                  <div className="overflow-auto max-h-[280px]">
+                  <div className="overflow-auto max-h-[400px]">
                     <Table>
                       <TableHeader className="sticky top-0 z-10">
-                        <TableRow className="bg-muted/70">
-                          <TableHead className="text-[10px] font-semibold cursor-pointer select-none w-[140px]" onClick={() => toggleDistSort('_key')}>
-                            <span className="flex items-center gap-0.5">
+                        <TableRow className="bg-muted/80 border-b-2 border-border">
+                          <TableHead className="text-xs font-semibold cursor-pointer select-none min-w-[160px] py-3" onClick={() => toggleDistSort('_key')}>
+                            <span className="flex items-center gap-1">
                               {colorBy === 'value' ? aggLabel(pdAppliedAggregator) : 'Valeur'}
-                              {distSortCol === '_key' && <ArrowUpDown className="w-2.5 h-2.5 text-primary" />}
+                              {distSortCol === '_key' && <ArrowUpDown className="w-3 h-3 text-primary" />}
                             </span>
                           </TableHead>
-                          <TableHead className="text-[10px] font-semibold text-right cursor-pointer select-none w-[60px]" onClick={() => toggleDistSort('total')}>
-                            <span className="flex items-center justify-end gap-0.5">
+                          <TableHead className="text-xs font-semibold text-right cursor-pointer select-none w-[80px] py-3" onClick={() => toggleDistSort('total')}>
+                            <span className="flex items-center justify-end gap-1">
                               Total
-                              {distSortCol === 'total' && <ArrowUpDown className="w-2.5 h-2.5 text-primary" />}
+                              {distSortCol === 'total' && <ArrowUpDown className="w-3 h-3 text-primary" />}
                             </span>
                           </TableHead>
                           {distTableColumns.valueKeys.map(vk => (
-                            <TableHead key={vk} className="text-[10px] font-semibold text-right cursor-pointer select-none" onClick={() => toggleDistSort(vk)}>
-                              <span className="flex items-center justify-end gap-0.5">
+                            <TableHead key={vk} className="text-xs font-semibold text-center cursor-pointer select-none min-w-[140px] py-3" onClick={() => toggleDistSort(vk)}>
+                              <span className="flex items-center justify-center gap-1">
                                 {vk}
-                                {distSortCol === vk && <ArrowUpDown className="w-2.5 h-2.5 text-primary" />}
+                                {distSortCol === vk && <ArrowUpDown className="w-3 h-3 text-primary" />}
                               </span>
                             </TableHead>
                           ))}
-                          <TableHead className="text-[10px] font-semibold w-[80px]">Répartition</TableHead>
+                          <TableHead className="text-xs font-semibold w-[100px] py-3">Répartition</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {sortedChartData.map((row, idx) => (
-                          <TableRow key={idx} className={`${idx % 2 === 0 ? '' : 'bg-muted/20'} h-[44px]`}>
-                            <TableCell className="text-[10px] font-medium py-1">{row._key}</TableCell>
-                            <TableCell className="text-[10px] font-mono text-right py-1">{row.total}</TableCell>
-                            {distTableColumns.valueKeys.map(vk => {
+                          <TableRow key={idx} className={`${idx % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`} style={{ height: 52 }}>
+                            <TableCell className="text-sm font-medium py-2">{row._key}</TableCell>
+                            <TableCell className="text-sm font-semibold font-mono text-right py-2">{row.total}</TableCell>
+                            {distTableColumns.valueKeys.map((vk, vi) => {
                               const detail = row._details.find((d: any) => d.value === vk);
+                              const color = CHART_COLORS[vi % CHART_COLORS.length];
                               return (
-                                <TableCell key={vk} className="text-[10px] font-mono text-right py-1 text-muted-foreground">
-                                  {detail ? <><span className="text-foreground">{detail.count}</span> <span className="text-[9px]">({detail.pct}%)</span></> : '—'}
+                                <TableCell key={vk} className="text-center py-2">
+                                  {detail ? (
+                                    <span
+                                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                                      style={{
+                                        backgroundColor: `${color}20`,
+                                        color: color,
+                                        border: `1px solid ${color}40`,
+                                      }}
+                                    >
+                                      {vk} <span className="font-bold">{detail.count}</span>
+                                      <span className="opacity-70">({detail.pct}%)</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                  )}
                                 </TableCell>
                               );
                             })}
-                            <TableCell className="py-1"><MiniBar details={row._details} total={row.total} /></TableCell>
+                            <TableCell className="py-2"><MiniBar details={row._details} total={row.total} /></TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
