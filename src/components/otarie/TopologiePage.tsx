@@ -516,93 +516,134 @@ const TopologiePage: React.FC = () => {
         </Tabs>
       </div>
 
-      {/* Content: sidebar + main */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* ═══════════ LEFT FILTER PANEL ═══════════ */}
-        <div className="w-[260px] shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto p-4 space-y-5">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              <Filter className="w-3 h-3" /> Filtres
+        {/* ═══════════ HORIZONTAL FILTER BAR ═══════════ */}
+        <div className="border-b border-border bg-card px-5 py-3 space-y-3">
+          {filtersLoading ? (
+            <div className="flex gap-3">
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-36" />)}
             </div>
-
-            {filtersLoading ? (
-              <div className="space-y-3">
-                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          ) : mainTab === 'param_distribution' ? (
+            <>
+              {/* Row 1: Parameter + Filters */}
+              <div className="flex items-end gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground self-center mr-1">
+                  <Filter className="w-3 h-3" /> Filtres
+                </div>
+                <div className="min-w-[180px]">
+                  <MultiSelectFilter label="Paramètres *" selected={pdPendingParams} options={availableParams} onChange={setPdPendingParams} />
+                </div>
+                <div className="min-w-[140px]">
+                  <MultiSelectFilter label="Vendor" selected={pdPendingVendor} options={availableVendors} onChange={setPdPendingVendor} />
+                </div>
+                <div className="min-w-[140px]">
+                  <MultiSelectFilter label="NetAct (UR)" selected={pdPendingVendor} options={availableUrs} onChange={() => {}} />
+                </div>
+                <div className="min-w-[140px]">
+                  <MultiSelectFilter label="DOR" selected={pdPendingDor} options={availableDors} onChange={setPdPendingDor} />
+                </div>
+                <div className="min-w-[140px]">
+                  <MultiSelectFilter label="Plaque" selected={pdPendingPlaque} options={availablePlaques} onChange={setPdPendingPlaque} />
+                </div>
               </div>
-            ) : mainTab === 'param_distribution' ? (
-              <>
-                <MultiSelectFilter label="Paramètres *" selected={pdPendingParams} options={availableParams} onChange={setPdPendingParams} />
-                {pdPendingParams.length === 0 && (
-                  <p className="text-[10px] text-amber-500">Sélectionnez au moins 1 paramètre</p>
-                )}
-                <MultiSelectFilter label="Vendor" selected={pdPendingVendor} options={availableVendors} onChange={setPdPendingVendor} />
-                <MultiSelectFilter label="NetAct (UR)" selected={pdPendingVendor} options={availableUrs} onChange={() => {}} />
-                <MultiSelectFilter label="DOR" selected={pdPendingDor} options={availableDors} onChange={setPdPendingDor} />
-                <MultiSelectFilter label="Plaque" selected={pdPendingPlaque} options={availablePlaques} onChange={setPdPendingPlaque} />
+              {pdPendingParams.length === 0 && (
+                <p className="text-[10px] text-destructive">Sélectionnez au moins 1 paramètre</p>
+              )}
 
-                <div className="border-t border-border pt-4">
-                  <SingleSelect
-                    label="Agrégation"
-                    value={pdPendingAggregator}
-                    options={[
+              {/* Row 2: Aggregation + Color by + Confirm/Reset */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Agrégation</span>
+                  <div className="flex rounded-md border border-input overflow-hidden">
+                    {[
                       { value: 'vendor', label: 'Vendor' },
                       { value: 'ur', label: 'NetAct' },
                       { value: 'dor', label: 'DOR' },
                       { value: 'plaque', label: 'Plaque' },
                       { value: 'value', label: 'Valeur' },
-                    ]}
-                    onChange={v => setPdPendingAggregator(v as AggregatorKey)}
-                  />
+                    ].map(opt => (
+                      <button key={opt.value} onClick={() => setPdPendingAggregator(opt.value as AggregatorKey)}
+                        className={`px-2.5 py-1 text-xs font-medium transition-colors ${pdPendingAggregator === opt.value ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="border-t border-border pt-4">
-                  <SingleSelect
-                    label="Coloré par"
-                    value={pdPendingColorBy}
-                    options={[
-                      { value: 'ne_aggregation', label: `NE (${aggLabel(pdPendingAggregator)})` },
-                      { value: 'value', label: 'Valeur' },
-                    ]}
-                    onChange={v => setPdPendingColorBy(v as ColorByKey)}
-                  />
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Coloré par</span>
+                  <div className="flex rounded-md border border-input overflow-hidden">
+                    <button onClick={() => setPdPendingColorBy('ne_aggregation')}
+                      className={`px-2.5 py-1 text-xs font-medium transition-colors ${pdPendingColorBy === 'ne_aggregation' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}>
+                      NE ({aggLabel(pdPendingAggregator)})
+                    </button>
+                    <button onClick={() => setPdPendingColorBy('value')}
+                      className={`px-2.5 py-1 text-xs font-medium transition-colors ${pdPendingColorBy === 'value' ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-accent'}`}>
+                      Valeur
+                    </button>
+                  </div>
                 </div>
-              </>
-            ) : (
-              <>
-                <MultiSelectFilter label="Vendor" selected={rawPendingVendor} options={availableVendors} onChange={setRawPendingVendor} />
-                <MultiSelectFilter label="NetAct (UR)" selected={rawPendingDor} options={availableUrs} onChange={setRawPendingDor} />
-                <MultiSelectFilter label="DOR" selected={rawPendingDor} options={availableDors} onChange={setRawPendingDor} />
-                <MultiSelectFilter label="Plaque" selected={rawPendingPlaque} options={availablePlaques} onChange={setRawPendingPlaque} />
-                <MultiSelectFilter label="Site" selected={rawPendingSite} options={availableSites} onChange={setRawPendingSite} />
-                <MultiSelectFilter label="Cell" selected={rawPendingCell} options={availableCells} onChange={setRawPendingCell} />
-              </>
-            )}
-          </div>
 
-          {/* Dirty indicator + Confirm / Reset */}
-          <div className="border-t border-border p-3 space-y-2 bg-card">
-            {((mainTab === 'param_distribution' && pdDirty) || (mainTab === 'raw_parameter' && rawDirty)) && (
-              <div className="flex items-center gap-1.5 text-[10px] text-amber-500 font-medium">
-                <AlertCircle className="w-3 h-3" /> Filtres non appliqués
+                <div className="flex items-center gap-2 ml-auto">
+                  {pdDirty && (
+                    <span className="flex items-center gap-1 text-[10px] text-destructive font-medium">
+                      <AlertCircle className="w-3 h-3" /> Non appliqué
+                    </span>
+                  )}
+                  <button onClick={pdConfirm} disabled={pdPendingParams.length === 0}
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <Check className="w-3.5 h-3.5" /> Confirm
+                  </button>
+                  <button onClick={pdReset}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:bg-muted/50 transition-colors">
+                    <RotateCcw className="w-3 h-3" /> Reset
+                  </button>
+                </div>
               </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={mainTab === 'param_distribution' ? pdConfirm : rawConfirm}
-                disabled={mainTab === 'param_distribution' && pdPendingParams.length === 0}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Check className="w-3.5 h-3.5" /> Confirm
-              </button>
-              <button
-                onClick={mainTab === 'param_distribution' ? pdReset : rawReset}
-                className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:bg-muted/50 transition-colors"
-              >
-                <RotateCcw className="w-3 h-3" /> Reset
-              </button>
+            </>
+          ) : (
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground self-center mr-1">
+                <Filter className="w-3 h-3" /> Filtres
+              </div>
+              <div className="min-w-[140px]">
+                <MultiSelectFilter label="Vendor" selected={rawPendingVendor} options={availableVendors} onChange={setRawPendingVendor} />
+              </div>
+              <div className="min-w-[140px]">
+                <MultiSelectFilter label="NetAct (UR)" selected={rawPendingDor} options={availableUrs} onChange={setRawPendingDor} />
+              </div>
+              <div className="min-w-[140px]">
+                <MultiSelectFilter label="DOR" selected={rawPendingDor} options={availableDors} onChange={setRawPendingDor} />
+              </div>
+              <div className="min-w-[140px]">
+                <MultiSelectFilter label="Plaque" selected={rawPendingPlaque} options={availablePlaques} onChange={setRawPendingPlaque} />
+              </div>
+              <div className="min-w-[140px]">
+                <MultiSelectFilter label="Site" selected={rawPendingSite} options={availableSites} onChange={setRawPendingSite} />
+              </div>
+              <div className="min-w-[140px]">
+                <MultiSelectFilter label="Cell" selected={rawPendingCell} options={availableCells} onChange={setRawPendingCell} />
+              </div>
+
+              <div className="flex items-center gap-2 ml-auto self-end">
+                {rawDirty && (
+                  <span className="flex items-center gap-1 text-[10px] text-destructive font-medium">
+                    <AlertCircle className="w-3 h-3" /> Non appliqué
+                  </span>
+                )}
+                <button onClick={rawConfirm}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                  <Check className="w-3.5 h-3.5" /> Confirm
+                </button>
+                <button onClick={rawReset}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:bg-muted/50 transition-colors">
+                  <RotateCcw className="w-3 h-3" /> Reset
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ═══════════ MAIN RESULTS AREA ═══════════ */}
