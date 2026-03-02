@@ -1884,6 +1884,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
 
   const siteRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Auto-scroll inventory to selected site whenever it changes
+  useEffect(() => {
+    if (!selectedSiteId) return;
+    setPanelCollapsed(false);
+    setInventoryTab('sites');
+    const tryScroll = (attempt = 0) => {
+      const el = siteRowRefs.current.get(selectedSiteId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (attempt < 5) {
+        setTimeout(() => tryScroll(attempt + 1), 200);
+      }
+    };
+    setTimeout(() => tryScroll(), 150);
+  }, [selectedSiteId]);
   const toolbarScrollRef = useRef<HTMLDivElement>(null);
   const [toolbarCanScrollLeft, setToolbarCanScrollLeft] = useState(false);
   const [toolbarCanScrollRight, setToolbarCanScrollRight] = useState(false);
@@ -3489,7 +3505,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {filteredSites.slice(0, 100).map(site => {
+                    {(() => {
+                      const displayed = filteredSites.slice(0, 100);
+                      // Ensure selected site is always in the list even if beyond first 100
+                      if (selectedSiteId && !displayed.find(s => s.site_id === selectedSiteId)) {
+                        const sel = filteredSites.find(s => s.site_id === selectedSiteId);
+                        if (sel) displayed.unshift(sel);
+                      }
+                      return displayed;
+                    })().map(site => {
                       const isSelected = selectedSiteId === site.site_id;
                       const isExpanded = isSelected;
                       // Group cells by sector
