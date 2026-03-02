@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { dashboardsApi, mapViewsApi, qoeMetricsApi } from '@/lib/localDb';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -65,7 +66,6 @@ interface SitesMonitorProps {
   highlightedCellIds?: string[];
   onClearHighlights?: () => void;
   onLaunchAI?: (siteName: string) => void;
-  onNavigateToParameters?: () => void;
 }
 
 // Zoom threshold: above this we show sectors, below we show clusters
@@ -1214,7 +1214,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   );
 };
 
-const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI, onNavigateToParameters }) => {
+const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
@@ -1321,6 +1321,77 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [dashboardSaving, setDashboardSaving] = useState(false);
   const [dashboardSaveFlash, setDashboardSaveFlash] = useState(false);
 
+  // ── Parameter overlay mode ──
+  const [paramMode, setParamMode] = useState(false); // true = parameter markers on map
+  const [paramPanelOpen, setParamPanelOpen] = useState(false);
+  const [paramAvailable, setParamAvailable] = useState<string[]>([]);
+  const [paramAvailableLoading, setParamAvailableLoading] = useState(false);
+  const [paramSelected, setParamSelected] = useState<string | null>(null); // pending
+  const [paramConfirmed, setParamConfirmed] = useState<string | null>(null); // applied
+  const [paramPoints, setParamPoints] = useState<{ id: number; cell_name: string | null; site_name: string | null; latitude: number; longitude: number; parameter: string; value: string | null; bande: string | null; vendor: string | null; dn: string | null }[]>([]);
+  const [paramLoading, setParamLoading] = useState(false);
+  const [paramSearch, setParamSearch] = useState('');
+
+  // Load available parameters once panel opens
+  useEffect(() => {
+    if (!paramPanelOpen || paramAvailable.length > 0) return;
+    (async () => {
+      setParamAvailableLoading(true);
+      try {
+        const { data, error } = await (supabase as any).from('parameter_dump').select('parameter').limit(10000);
+        if (!error && data) {
+          const unique = [...new Set(data.map((r: any) => r.parameter).filter(Boolean))].sort() as string[];
+          setParamAvailable(unique);
+        }
+      } catch {}
+      setParamAvailableLoading(false);
+    })();
+  }, [paramPanelOpen]);
+
+  const paramFilteredList = useMemo(() => {
+    if (!paramSearch) return paramAvailable;
+    const s = paramSearch.toLowerCase();
+    return paramAvailable.filter(p => p.toLowerCase().includes(s));
+  }, [paramAvailable, paramSearch]);
+
+  const handleParamConfirm = useCallback(async () => {
+    if (!paramSelected) return;
+    setParamConfirmed(paramSelected);
+    setParamMode(true);
+    setParamLoading(true);
+    setParamPanelOpen(false);
+    try {
+      const { data, error } = await (supabase as any)
+        .from('parameter_dump')
+        .select('id, cell_name, site_name, latitude, longitude, parameter, value, bande, vendor, dn')
+        .eq('parameter', paramSelected)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+        .limit(5000);
+      if (!error && data) setParamPoints(data.filter((r: any) => r.latitude && r.longitude));
+      else setParamPoints([]);
+    } catch { setParamPoints([]); }
+    setParamLoading(false);
+  }, [paramSelected]);
+
+  const handleParamReset = useCallback(() => {
+    setParamMode(false);
+    setParamConfirmed(null);
+    setParamSelected(null);
+    setParamPoints([]);
+    setParamPanelOpen(false);
+  }, []);
+
+  const paramValueColor = useCallback((val: string | null): string => {
+    if (!val) return 'hsl(0, 0%, 60%)';
+    let hash = 0;
+    for (let i = 0; i < val.length; i++) hash = val.charCodeAt(i) + ((hash << 5) - hash);
+    return `hsl(${Math.abs(hash) % 360}, 70%, 50%)`;
+  }, []);
+
+  const paramUniqueValues = useMemo(() => {
+    return [...new Set(paramPoints.map(p => p.value || '(vide)'))].sort();
+  }, [paramPoints]);
   // Fetch dashboards list
   useEffect(() => {
     const fetchDashboards = async () => {
@@ -1881,13 +1952,39 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <MapViewportTracker onViewportChange={handleViewportChange} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
 
+        {/* ── Parameter overlay markers ── */}
+        {paramMode && !paramLoading && paramPoints.map(pt => (
+          <CircleMarker
+            key={pt.id}
+            center={[pt.latitude, pt.longitude]}
+            radius={6}
+            pathOptions={{
+              fillColor: paramValueColor(pt.value),
+              fillOpacity: 0.85,
+              color: 'hsl(var(--border))',
+              weight: 0.5,
+            }}
+          >
+            <Popup>
+              <div className="text-xs space-y-1 min-w-[180px]">
+                <div className="font-bold text-sm">{pt.cell_name || pt.site_name || `#${pt.id}`}</div>
+                <div className="flex justify-between"><span className="opacity-60">Paramètre</span><span className="font-semibold">{pt.parameter}</span></div>
+                <div className="flex justify-between"><span className="opacity-60">Valeur</span><span className="font-semibold" style={{ color: paramValueColor(pt.value) }}>{pt.value ?? '—'}</span></div>
+                {pt.bande && <div className="flex justify-between"><span className="opacity-60">Bande</span><span>{pt.bande}</span></div>}
+                {pt.vendor && <div className="flex justify-between"><span className="opacity-60">Vendor</span><span>{pt.vendor}</span></div>}
+                {pt.dn && <div className="flex justify-between"><span className="opacity-60">MO</span><span className="truncate max-w-[120px]">{pt.dn}</span></div>}
+              </div>
+            </Popup>
+          </CircleMarker>
+        ))}
+
         {/* Heatmap layer */}
-        {mapDisplayMode === 'heatmap' && (
+        {!paramMode && mapDisplayMode === 'heatmap' && (
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
         {/* Points mode — individual cell markers colored by KPI threshold */}
-        {mapDisplayMode === 'points' && visibleSites.map(site => {
+        {!paramMode && mapDisplayMode === 'points' && visibleSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells.filter(c => {
               const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
@@ -1950,7 +2047,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Circle markers when sectors not visible */}
-        {mapDisplayMode === 'sites' && !showSectors && visibleSites.map(site => {
+        {!paramMode && mapDisplayMode === 'sites' && !showSectors && visibleSites.map(site => {
           const kpiColor = getKpiColor(getCellKpiValue(site.cells[0] || {}));
           const has5G = site.cells.some(c => (c.techno || '').toUpperCase().includes('5G'));
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
@@ -1991,7 +2088,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {showSectors && visibleSites.map(site => {
+        {!paramMode && showSectors && visibleSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * (0.5 + 0.5 * (beamVisibility / 100));
@@ -2489,20 +2586,63 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Map controls removed — moved into legend group below */}
 
+      {/* Parameter mode — value legend + info badge */}
+      {paramMode && (
+        <>
+          {/* Value legend */}
+          {paramUniqueValues.length > 0 && paramUniqueValues.length <= 25 && (
+            <div className="absolute bottom-16 left-4 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-3 max-h-[240px] overflow-y-auto">
+              <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">{paramConfirmed} — {paramPoints.length} pts</div>
+              <div className="space-y-0.5">
+                {paramUniqueValues.map(v => (
+                  <div key={v} className="flex items-center gap-2 text-[10px]">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: paramValueColor(v === '(vide)' ? null : v) }} />
+                    <span className="truncate max-w-[140px]">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Param loading indicator */}
+          {paramLoading && (
+            <div className="absolute inset-0 flex items-center justify-center z-[1001] pointer-events-none">
+              <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl px-6 py-4 flex items-center gap-3 shadow-xl">
+                <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+                <span className="text-xs font-bold text-foreground">Chargement des paramètres...</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Floating info badge — site count + zoom level */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
         <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-5 py-2.5 flex items-center gap-4">
-          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-            {filteredSites.length} sites
-          </span>
-          <span className="w-px h-4 bg-border" />
-          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-            Zoom {viewport.zoom}
-          </span>
-          <span className="w-px h-4 bg-border" />
-          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: showSectors ? '#10b981' : 'hsl(var(--primary))' }}>
-            {showSectors ? `${visibleSites.length} visible • Sectors` : 'Clusters'}
-          </span>
+          {paramMode ? (
+            <>
+              <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                ⬡ Param: {paramConfirmed}
+              </span>
+              <span className="w-px h-4 bg-border" />
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                {paramPoints.length} points
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                {filteredSites.length} sites
+              </span>
+              <span className="w-px h-4 bg-border" />
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                Zoom {viewport.zoom}
+              </span>
+              <span className="w-px h-4 bg-border" />
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: showSectors ? '#10b981' : 'hsl(var(--primary))' }}>
+                {showSectors ? `${visibleSites.length} visible • Sectors` : 'Clusters'}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -2645,15 +2785,87 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           <span className="w-px h-7 bg-border/50 shrink-0" />
 
-          {/* Parameters link */}
-          <button
-            onClick={() => onNavigateToParameters?.()}
-            className="px-3.5 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 bg-accent/60 text-foreground hover:bg-primary hover:text-primary-foreground border border-border/50 hover:border-primary/30 shrink-0"
-            title="Ouvrir la page Parameters Map"
-          >
-            <MapPin size={13} />
-            Parameters
-          </button>
+          {/* Parameters — inline popover */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setParamPanelOpen(!paramPanelOpen)}
+              className={`px-3.5 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border ${
+                paramMode
+                  ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
+                  : 'bg-accent/60 text-foreground hover:bg-primary hover:text-primary-foreground border-border/50 hover:border-primary/30'
+              }`}
+            >
+              <MapPin size={13} />
+              Parameters
+              {paramConfirmed && <span className="ml-1 text-[9px] opacity-70">({paramPoints.length})</span>}
+              {paramPanelOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+            </button>
+
+            {paramPanelOpen && (
+              <div className="absolute top-12 right-0 w-[320px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl z-[1002] overflow-hidden">
+                <div className="p-3 border-b border-border">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Sélectionner un paramètre</div>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      autoFocus
+                      value={paramSearch}
+                      onChange={e => setParamSearch(e.target.value)}
+                      placeholder="Rechercher..."
+                      className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+                <div className="max-h-[240px] overflow-y-auto p-1">
+                  {paramAvailableLoading ? (
+                    <div className="flex items-center justify-center py-6"><RefreshCw className="w-4 h-4 animate-spin text-primary" /></div>
+                  ) : paramFilteredList.length === 0 ? (
+                    <div className="py-4 text-center text-xs text-muted-foreground">Aucun paramètre</div>
+                  ) : paramFilteredList.map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setParamSelected(p)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors ${
+                        paramSelected === p ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground hover:bg-accent'
+                      }`}
+                    >
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        paramSelected === p ? 'border-primary bg-primary' : 'border-input'
+                      }`}>
+                        {paramSelected === p && <Check size={8} className="text-primary-foreground" />}
+                      </div>
+                      <span className="truncate">{p}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="p-3 border-t border-border flex items-center gap-2">
+                  {paramSelected && paramSelected !== paramConfirmed && (
+                    <span className="text-[9px] text-amber-500 font-bold uppercase mr-auto">Non appliqué</span>
+                  )}
+                  {!paramSelected && !paramConfirmed && (
+                    <span className="text-[9px] text-muted-foreground mr-auto">Choisir un paramètre</span>
+                  )}
+                  {paramConfirmed && paramSelected === paramConfirmed && (
+                    <span className="text-[9px] text-primary font-bold mr-auto truncate max-w-[120px]">✓ {paramConfirmed}</span>
+                  )}
+                  <button
+                    onClick={handleParamReset}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition-all"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    onClick={handleParamConfirm}
+                    disabled={!paramSelected || paramLoading}
+                    className="px-4 py-1.5 rounded-lg text-[10px] font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
+                  >
+                    {paramLoading ? <RefreshCw size={10} className="animate-spin" /> : <Check size={10} />}
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
