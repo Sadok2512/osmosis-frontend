@@ -2743,26 +2743,41 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {[
                       { key: '5G_GROUP', tech: '5G', label: '5G', defaultColor: '#a855f7' },
                       { key: '4G_GROUP', tech: '4G', label: '4G', defaultColor: '#f97316' },
-                    ].map(({ key, tech, label, defaultColor }) => (
-                      <div key={key} className="flex items-center gap-2.5">
-                        <div className="w-4 h-4 rounded" style={{ background: enabledTechnos.has(tech) ? (bandColors[key] || defaultColor) : '#94a3b8' }} />
-                        <span className={`text-[11px] font-bold flex-1 ${enabledTechnos.has(tech) ? 'text-foreground' : 'text-muted-foreground line-through'}`}>{label}</span>
-                        <Switch
-                          checked={enabledTechnos.has(tech)}
-                          onCheckedChange={(checked) => {
+                    ].map(({ key, tech, label, defaultColor }) => {
+                      const enabled = enabledTechnos.has(tech);
+                      const color = bandColors[key] || defaultColor;
+                      return (
+                        <div key={key} className="flex items-center gap-2.5 w-full group">
+                          <button
+                            onClick={() => {
+                              setEnabledTechnos(prev => {
+                                const next = new Set(prev);
+                                if (next.has(tech)) next.delete(tech); else next.add(tech);
+                                return next;
+                              });
+                            }}
+                            className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
+                              enabled ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
+                            }`}
+                            style={{ background: enabled ? color : 'transparent' }}
+                          >
+                            {enabled && <span className="text-white text-[8px] font-black">✓</span>}
+                          </button>
+                          <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
+                            enabled ? 'text-foreground' : 'text-muted-foreground line-through'
+                          }`} onClick={() => {
                             setEnabledTechnos(prev => {
                               const next = new Set(prev);
-                              if (checked) next.add(tech); else next.delete(tech);
+                              if (next.has(tech)) next.delete(tech); else next.add(tech);
                               return next;
                             });
-                          }}
-                          className="h-4 w-7 data-[state=checked]:bg-primary"
-                        />
-                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[key] || defaultColor }} title={`Change ${label} color`}>
-                          <input type="color" value={bandColors[key] || defaultColor} onChange={(e) => updateBandColor(key, e.target.value)} className="opacity-0 w-0 h-0 absolute" />
-                        </label>
-                      </div>
-                    ))}
+                          }}>{label}</span>
+                          <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: color }} title={`Change ${label} color`}>
+                            <input type="color" value={color} onChange={(e) => updateBandColor(key, e.target.value)} className="opacity-0 w-0 h-0 absolute" />
+                          </label>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   /* ── 5G or 4G mode: show detailed bands ── */
