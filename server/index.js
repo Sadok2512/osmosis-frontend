@@ -910,8 +910,23 @@ app.get('/api/dump-parameter', async (req, res) => {
       return res.json(result.rows);
     }
 
-    // Normal query mode
-    const cols = select || 'id, site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
+    // Normal query mode — validate select columns against known schema
+    const ALLOWED_COLS = new Set([
+      'id', 'dn', 'cell_dn', 'cell_name', 'site_name', 'parameter', 'value',
+      'version', 'vendor', 'mrbts_id', 'enodeb_id', 'gnodeb_id', 'bande',
+      'freq_downlink', 'tgv', 'latitude', 'longitude', 'city', 'dr', 'ur',
+      'dor', 'plaque', 'omc', 'zone_arcep', 'created_at'
+    ]);
+
+    // If select is provided, filter out any columns that don't exist in the table
+    let cols;
+    if (select) {
+      const requestedCols = select.split(',').map(c => c.trim()).filter(c => ALLOWED_COLS.has(c));
+      cols = requestedCols.length > 0 ? requestedCols.join(', ') : 'site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
+    } else {
+      cols = 'site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
+    }
+
     let q = `SELECT ${cols} FROM ${dumpTable} WHERE 1=1`;
     const params = [];
     if (parameter) { params.push(parameter); q += ` AND parameter = $${params.length}`; }
