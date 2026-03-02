@@ -65,6 +65,7 @@ interface SitesMonitorProps {
   highlightedCellIds?: string[];
   onClearHighlights?: () => void;
   onLaunchAI?: (siteName: string) => void;
+  onNavigateToParameters?: () => void;
 }
 
 // Zoom threshold: above this we show sectors, below we show clusters
@@ -1213,7 +1214,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   );
 };
 
-const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI }) => {
+const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI, onNavigateToParameters }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
@@ -2509,7 +2510,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating top bar — redesigned KPI selector with grouped tabs */}
       <div className="absolute top-14 left-[416px] right-[466px] z-[1000] pointer-events-auto">
-        <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl px-3 py-2 flex items-center gap-2 overflow-x-auto">
+        <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 overflow-x-auto scrollbar-hide" style={{ minHeight: 56 }}>
           {/* Sector color mode toggle */}
           <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
             <button
@@ -2634,13 +2635,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             )}
           </div>
 
-          <span className="w-px h-6 bg-border/50 shrink-0" />
+          <span className="w-px h-7 bg-border/50 shrink-0" />
 
           {/* Map Views Manager */}
           <MapViewManager
             currentSettings={getCurrentMapSettings()}
             onLoadView={handleLoadView}
           />
+
+          <span className="w-px h-7 bg-border/50 shrink-0" />
+
+          {/* Parameters link */}
+          <button
+            onClick={() => onNavigateToParameters?.()}
+            className="px-3.5 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 bg-accent/60 text-foreground hover:bg-primary hover:text-primary-foreground border border-border/50 hover:border-primary/30 shrink-0"
+            title="Ouvrir la page Parameters Map"
+          >
+            <MapPin size={13} />
+            Parameters
+          </button>
         </div>
       </div>
 
