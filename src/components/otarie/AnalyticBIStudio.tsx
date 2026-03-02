@@ -112,6 +112,7 @@ const PrintPreviewModal: React.FC<{
 
 const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const dm = useDashboardManager();
+  const dashSettingsStore = useDashboardSettingsStore();
   const { datasets } = useCSVData();
   const widgets = dm.activeTab?.widgets || [];
   const setWidgets = dm.updateActiveWidgets;
@@ -475,7 +476,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
         </div>
 
         {/* Dashboard canvas */}
-        <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4">
+        <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4" style={dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor ? { backgroundColor: dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor } : undefined}>
           {widgets.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
