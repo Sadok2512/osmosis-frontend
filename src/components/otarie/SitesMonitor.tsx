@@ -2661,14 +2661,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
 
-      {/* Floating top bar — redesigned KPI selector with grouped tabs */}
-      <div className="absolute top-14 left-[416px] right-[466px] z-[1000] pointer-events-auto">
-        <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 overflow-x-auto scrollbar-hide" style={{ minHeight: 56 }}>
+      {/* Floating top bar — smart responsive centered toolbar */}
+      <div
+        className="absolute z-[1000] pointer-events-auto"
+        style={{
+          top: 12,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'fit-content',
+          maxWidth: 'calc(100vw - 32px)',
+          minWidth: 'min(520px, calc(100vw - 32px))',
+        }}
+      >
+        <div
+          className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl px-5 py-3.5 flex flex-wrap items-center justify-center gap-3"
+          style={{ minHeight: 60 }}
+        >
           {/* Sector color mode toggle */}
           <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
             <button
               onClick={() => setSectorColorMode('kpi')}
-              className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
+              className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
                 sectorColorMode === 'kpi'
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
                   : 'text-muted-foreground hover:text-foreground'
@@ -2679,7 +2692,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </button>
             <button
               onClick={() => setSectorColorMode('topo')}
-              className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
+              className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
                 sectorColorMode === 'topo'
                   ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
                   : 'text-muted-foreground hover:text-foreground'
@@ -2690,7 +2703,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </button>
           </div>
 
-          <span className="w-px h-6 bg-border/50 shrink-0" />
+          <span className="w-px h-7 bg-border/50 shrink-0" />
 
           {/* DL group */}
           <div className="flex items-center gap-0.5 shrink-0">
@@ -2707,7 +2720,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <button
                   key={kpi.id}
                   onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                  className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
                     mapKpi === kpi.id
                       ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
@@ -2720,7 +2733,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             })}
           </div>
 
-          <span className="w-px h-6 bg-border/50 shrink-0" />
+          <span className="w-px h-7 bg-border/50 shrink-0" />
 
           {/* UL group */}
           <div className="flex items-center gap-0.5 shrink-0">
@@ -2734,7 +2747,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <button
                   key={kpi.id}
                   onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                  className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
                     mapKpi === kpi.id
                       ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
@@ -2747,13 +2760,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             })}
           </div>
 
-          <span className="w-px h-6 bg-border/50 shrink-0" />
+          <span className="w-px h-7 bg-border/50 shrink-0" />
 
           {/* Plus dropdown for TCP/RTT/Volume */}
           <div className="relative shrink-0">
             <button
               onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
+              className={`px-3.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
                 ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
                   ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
@@ -2801,7 +2814,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Parameters — button only (panel rendered outside overflow container) */}
           <button
             onClick={() => setParamPanelOpen(!paramPanelOpen)}
-            className={`px-3.5 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border shrink-0 ${
+            className={`px-3.5 py-2.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 border shrink-0 ${
               paramMode
                 ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
                 : 'bg-accent/60 text-foreground hover:bg-primary hover:text-primary-foreground border-border/50 hover:border-primary/30'
@@ -2817,7 +2830,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Parameters panel — rendered outside overflow container */}
       {paramPanelOpen && (
-        <div className="absolute top-[120px] right-[470px] w-[320px] z-[1100] pointer-events-auto">
+        <div className="absolute top-[80px] z-[1100] pointer-events-auto w-[320px]" style={{ left: '50%', transform: 'translateX(30%)' }}>
           <div className="bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-3 border-b border-border">
               <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Sélectionner un paramètre</div>
