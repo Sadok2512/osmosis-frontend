@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal, Globe, Lock, Grid3X3, Move } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal, Globe, Lock, Grid3X3, Move, Settings } from 'lucide-react';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
@@ -22,6 +22,8 @@ import ChartConfigPanel from '../bi/ChartConfigPanel';
 import AIAssistantPanel from '../bi/AIAssistantPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
 import { CSVDataProvider, CSVUploadButton, CSVDataPanel, useCSVData } from '../bi/CSVDataStore';
+import DashboardSettingsPopup from '../kpi-monitor/DashboardSettingsPopup';
+import { useDashboardSettingsStore } from '@/stores/dashboardSettingsStore';
 
 const COLS = 12;
 const ROW_HEIGHT = 80;
@@ -122,6 +124,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const [showCSVPanel, setShowCSVPanel] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
+  const [showSettings, setShowSettings] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
 
   const handleExportDashboardPDF = async () => {
@@ -437,6 +440,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
                   <DropdownMenuItem onClick={handleSave}><Save className="w-3.5 h-3.5 mr-2" /> Save</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowSettings(true)}><Settings className="w-3.5 h-3.5 mr-2" /> Settings</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => { dm.duplicateDashboard(dm.activeTabId); toast({ title: 'Dashboard dupliqué', description: 'Une copie a été créée.' }); }}><Copy className="w-3.5 h-3.5 mr-2" /> Duplicate</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => dm.setShowList(!dm.showList)}><FolderOpen className="w-3.5 h-3.5 mr-2" /> Load</DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -577,6 +581,25 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
           dashboardRef={dashboardRef}
           onClose={() => setShowPrintPreview(false)}
           onExport={handleExportDashboardPDF}
+        />
+      )}
+      {/* Dashboard Settings Popup */}
+      {dm.activeTab && (
+        <DashboardSettingsPopup
+          open={showSettings}
+          onClose={() => setShowSettings(false)}
+          dashboardId={dm.activeTabId}
+          dashboardName={dm.activeTab.name}
+          dashboardDescription={dm.activeTab.description}
+          dashboardIsShared={dm.activeTab.isShared}
+          onApply={(settings) => {
+            dm.renameTab(dm.activeTabId, settings.name);
+            dm.updateDescription(dm.activeTabId, settings.description);
+            if ((settings.visibility === 'public') !== dm.activeTab!.isShared) {
+              dm.toggleShared(dm.activeTabId);
+            }
+            toast({ title: 'Settings saved', description: `Dashboard "${settings.name}" updated.` });
+          }}
         />
       )}
     </div>
