@@ -2509,27 +2509,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
       </MapContainer>
 
-      {/* Floating simulation button when site is selected */}
-      {!showCoverageSim && siteDetail && focusMode !== 'global' && (
-        <button
-          onClick={() => handleLaunchCoverageSim(siteDetail)}
-          className="absolute bottom-20 left-4 z-[1000] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all text-[11px] font-extrabold uppercase tracking-wider"
-        >
-          <Signal size={14} />
-          Simulation Couverture
-        </button>
-      )}
-
-      {/* Coverage simulation panel */}
-      {showCoverageSim && (
-        <CoverageSimPanel
-          site={coverageSite}
-          onSimulate={handleCoverageSimulate}
-          onClear={handleCoverageClear}
-          isSimulating={coverageSimulating}
-          onClose={() => { setShowCoverageSim(false); setCoverageGrid(null); }}
-        />
-      )}
+      {/* Coverage simulation overlay kept in right panel only */}
 
       {/* LOS Drawing mode banner */}
       {losDrawingMode && (
