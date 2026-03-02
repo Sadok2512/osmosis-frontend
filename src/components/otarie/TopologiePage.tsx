@@ -585,7 +585,7 @@ const TopologiePage: React.FC = () => {
   const backendLabel = dataSource === 'local' ? 'Local' : 'Cloud';
 
   const pdSummary = pdConfirmed ? `${pdAppliedParams.length} param(s)${pdAppliedVendor.length ? ` · Vendor: ${pdAppliedVendor.join(',')}` : ''}${pdAppliedDor.length ? ` · DOR: ${pdAppliedDor.join(',')}` : ''} · Agg: ${aggLabel(pdAppliedAggregator)} · ${pdData.length} rows` : null;
-  const rawSummary = rawConfirmed ? `${rawAppliedVendor.length ? `Vendor: ${rawAppliedVendor.join(',')} · ` : ''}${rawAppliedSite.length ? `Sites: ${rawAppliedSite.length} · ` : ''}${rawFiltered.length} rows` : null;
+  const rawSummary = rawConfirmed ? `${rawAppliedParams.length} param(s)${rawAppliedVendor.length ? ` · Vendor: ${rawAppliedVendor.join(',')}` : ''}${rawAppliedSite.length ? ` · Sites: ${rawAppliedSite.length}` : ''} · ${rawFiltered.length} rows` : null;
 
   // Mini stacked bar for table
   const MiniBar: React.FC<{ details: { value: string; count: number; pct: string }[]; total: number }> = ({ details, total }) => {
@@ -715,19 +715,23 @@ const TopologiePage: React.FC = () => {
             <div className="flex gap-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-32" />)}</div>
           ) : (
             <div className="flex items-end gap-3 flex-wrap">
-              <MultiSelectFilter label="Paramètre" selected={rawPendingParams} options={availableParams} onChange={setRawPendingParams} maxChips={3} />
+              <div className="flex-[2] min-w-[200px]">
+                <MultiSelectFilter label="Paramètres *" selected={rawPendingParams} options={availableParams} onChange={setRawPendingParams} maxChips={3} />
+              </div>
               <MultiSelectFilter label="Vendor" selected={rawPendingVendor} options={availableVendors} onChange={setRawPendingVendor} />
               <MultiSelectFilter label="NetAct" selected={rawPendingDor} options={availableUrs} onChange={setRawPendingDor} />
               <MultiSelectFilter label="DOR" selected={rawPendingDor} options={availableDors} onChange={setRawPendingDor} />
               <MultiSelectFilter label="Plaque" selected={rawPendingPlaque} options={availablePlaques} onChange={setRawPendingPlaque} />
               <MultiSelectFilter label="Site" selected={rawPendingSite} options={availableSites} onChange={setRawPendingSite} />
               <MultiSelectFilter label="Cell" selected={rawPendingCell} options={availableCells} onChange={setRawPendingCell} />
-              <div className="flex items-center gap-2 ml-auto">
+              <div className="flex items-center gap-2 ml-auto shrink-0 pb-0.5">
                 {rawDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
-                <button onClick={rawConfirm} className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90">
+                {rawPendingParams.length === 0 && <span className="text-xs text-destructive whitespace-nowrap">≥1 param</span>}
+                <button onClick={rawConfirm} disabled={rawPendingParams.length === 0}
+                  className="flex items-center gap-1.5 px-5 py-1.5 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
                   <Check className="w-3.5 h-3.5" /> Confirm
                 </button>
-                <button onClick={rawReset} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-input text-muted-foreground hover:bg-muted/50">
+                <button onClick={rawReset} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-input text-muted-foreground hover:bg-muted/50 whitespace-nowrap">
                   <RotateCcw className="w-3 h-3" /> Reset
                 </button>
               </div>
@@ -986,7 +990,7 @@ const TopologiePage: React.FC = () => {
                 <div className="text-center">
                   <FileSpreadsheet className="w-10 h-10 mx-auto mb-2 opacity-20" />
                   <p className="font-medium text-xs">Configurez vos filtres</p>
-                  <p className="text-[10px] mt-0.5">Puis cliquez <strong>Confirm</strong></p>
+                  <p className="text-[10px] mt-0.5">Sélectionnez ≥1 paramètre puis cliquez <strong>Confirm</strong></p>
                 </div>
               </div>
             ) : rawLoading ? (
