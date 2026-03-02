@@ -193,6 +193,7 @@ const TopologiePage: React.FC = () => {
   const [rawConfirmed, setRawConfirmed] = useState(false);
   const [rawPage, setRawPage] = useState(1);
   const [rawSearch, setRawSearch] = useState('');
+  const [rawParamSearch, setRawParamSearch] = useState('');
   const [rawSortCol, setRawSortCol] = useState<string>('site_name');
   const [rawSortDir, setRawSortDir] = useState<'asc' | 'desc'>('asc');
   const RAW_PAGE_SIZE = 50;
@@ -328,7 +329,7 @@ const TopologiePage: React.FC = () => {
     setRawPendingSite([]); setRawPendingCell([]);
     setRawAppliedParams([]); setRawAppliedVendor([]); setRawAppliedDor([]); setRawAppliedPlaque([]);
     setRawAppliedSite([]); setRawAppliedCell([]);
-    setRawData([]); setRawConfirmed(false); setRawPage(1);
+    setRawData([]); setRawConfirmed(false); setRawPage(1); setRawParamSearch('');
   };
 
   // ─── PD Chart data ───
@@ -716,8 +717,66 @@ const TopologiePage: React.FC = () => {
             <div className="flex gap-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-9 w-32" />)}</div>
           ) : (
             <div className="flex items-end gap-3 flex-wrap">
-              <div className="flex-[2] min-w-[200px]">
-                <MultiSelectFilter label="Paramètres *" selected={rawPendingParams} options={availableParams} onChange={setRawPendingParams} maxChips={3} />
+              <div className="flex-[3] min-w-[240px]">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-primary leading-none flex items-center gap-1">
+                    Paramètres <span className="text-destructive">*</span>
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className={`flex items-center gap-1.5 flex-wrap min-h-[32px] px-2.5 py-1 text-xs rounded-md border-2 ${rawPendingParams.length > 0 ? 'border-primary/50 bg-primary/5' : 'border-destructive/40 bg-destructive/5'} hover:bg-accent/50 transition-colors text-left min-w-[180px]`}>
+                        {rawPendingParams.length === 0 ? (
+                          <span className="text-destructive/70 text-xs">Sélectionner ≥1 paramètre</span>
+                        ) : (
+                          <>
+                            {rawPendingParams.slice(0, 3).map(v => (
+                              <span key={v} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-medium max-w-[100px] truncate">
+                                {v}
+                                <X className="w-3 h-3 cursor-pointer opacity-60 hover:opacity-100 shrink-0" onClick={(e) => { e.stopPropagation(); setRawPendingParams(rawPendingParams.filter(p => p !== v)); }} />
+                              </span>
+                            ))}
+                            {rawPendingParams.length > 3 && <span className="text-[11px] text-muted-foreground">+{rawPendingParams.length - 3}</span>}
+                          </>
+                        )}
+                        <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-50 ml-auto" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[260px] p-0" align="start">
+                      {(() => {
+                        const filteredParams = availableParams.filter(o => !rawParamSearch || o.toLowerCase().includes(rawParamSearch.toLowerCase()));
+                        return (
+                          <>
+                            <div className="flex items-center border-b border-border px-2.5">
+                              <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <input className="flex h-8 w-full bg-transparent px-2 py-1 text-xs outline-none placeholder:text-muted-foreground" placeholder="Rechercher..." value={rawParamSearch} onChange={e => setRawParamSearch(e.target.value)} autoFocus />
+                            </div>
+                            {rawPendingParams.length > 0 && (
+                              <button onClick={() => setRawPendingParams([])} className="w-full px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground text-left border-b border-border hover:bg-muted/50">
+                                Tout désélectionner
+                              </button>
+                            )}
+                            <div className="max-h-[240px] overflow-auto p-1">
+                              {filteredParams.length === 0 ? (
+                                <div className="py-3 text-center text-xs text-muted-foreground">Aucun résultat</div>
+                              ) : filteredParams.map(opt => (
+                                <button key={opt} onClick={() => {
+                                  if (rawPendingParams.includes(opt)) setRawPendingParams(rawPendingParams.filter(v => v !== opt));
+                                  else setRawPendingParams([...rawPendingParams, opt]);
+                                }}
+                                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs rounded-sm hover:bg-accent transition-colors">
+                                  <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${rawPendingParams.includes(opt) ? 'bg-primary border-primary' : 'border-input'}`}>
+                                    {rawPendingParams.includes(opt) && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                                  </div>
+                                  <span className="truncate">{opt}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
               <MultiSelectFilter label="Vendor" selected={rawPendingVendor} options={availableVendors} onChange={setRawPendingVendor} />
               <MultiSelectFilter label="NetAct" selected={rawPendingDor} options={availableUrs} onChange={setRawPendingDor} />
