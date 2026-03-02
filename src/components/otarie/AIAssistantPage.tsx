@@ -11,7 +11,24 @@ import InlineKPICards from './chat-visualizations/InlineKPICards';
 import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
-type Msg = { role: 'user' | 'assistant'; content: string; mapCellIds?: string[]; mapDescription?: string };
+type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'ARCHITECT' | 'QOEBIT';
+type Msg = { role: 'user' | 'assistant'; content: string; mapCellIds?: string[]; mapDescription?: string; agent?: AgentId };
+
+const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
+  PULSE: { emoji: '📡', label: 'PULSE', color: 'hsl(200, 80%, 50%)' },
+  TRACE: { emoji: '🔧', label: 'TRACE', color: 'hsl(35, 90%, 50%)' },
+  SENTINEL: { emoji: '🚨', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
+  ARCHITECT: { emoji: '🗼', label: 'ARCHITECT', color: 'hsl(270, 70%, 55%)' },
+  QOEBIT: { emoji: '🧠', label: 'QOEBIT', color: 'hsl(142, 60%, 45%)' },
+};
+
+function extractAgent(content: string): { agent: AgentId | null; cleanContent: string } {
+  const match = content.match(/<!--\s*AGENT:(\w+)\s*-->\n?/);
+  if (match) {
+    return { agent: match[1] as AgentId, cleanContent: content.replace(match[0], '') };
+  }
+  return { agent: null, cleanContent: content };
+}
 
 const SUGGESTIONS = [
   "Donne-moi les 10 pires sites en QoE",
@@ -229,12 +246,13 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (content) {
             assistantSoFar += content;
+            const { agent, cleanContent } = extractAgent(assistantSoFar);
             setMessages(prev => {
               const last = prev[prev.length - 1];
               if (last?.role === 'assistant') {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: cleanContent, agent: agent || m.agent } : m);
               }
-              return [...prev, { role: 'assistant', content: assistantSoFar }];
+              return [...prev, { role: 'assistant', content: cleanContent, agent: agent || undefined }];
             });
           }
         } catch {
