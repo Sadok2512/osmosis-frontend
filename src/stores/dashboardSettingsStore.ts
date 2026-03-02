@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface DashboardTheme {
   backgroundColor: string;
@@ -14,7 +15,6 @@ export interface DashboardSettings {
 }
 
 interface DashboardSettingsState {
-  // Per-dashboard settings keyed by dashboard id
   settings: Record<string, DashboardSettings>;
   getSettings: (id: string, fallbackName?: string) => DashboardSettings;
   updateSettings: (id: string, updates: Partial<DashboardSettings>) => void;
@@ -35,27 +35,34 @@ const makeDefault = (name?: string): DashboardSettings => ({
   theme: { ...DEFAULT_THEME },
 });
 
-export const useDashboardSettingsStore = create<DashboardSettingsState>((set, get) => ({
-  settings: {},
+export const useDashboardSettingsStore = create<DashboardSettingsState>()(
+  persist(
+    (set, get) => ({
+      settings: {},
 
-  getSettings: (id, fallbackName) => {
-    const s = get().settings[id];
-    if (s) return s;
-    return makeDefault(fallbackName);
-  },
+      getSettings: (id, fallbackName) => {
+        const s = get().settings[id];
+        if (s) return s;
+        return makeDefault(fallbackName);
+      },
 
-  updateSettings: (id, updates) => set(state => {
-    const current = state.settings[id] || makeDefault();
-    return { settings: { ...state.settings, [id]: { ...current, ...updates } } };
-  }),
+      updateSettings: (id, updates) => set(state => {
+        const current = state.settings[id] || makeDefault();
+        return { settings: { ...state.settings, [id]: { ...current, ...updates } } };
+      }),
 
-  updateTheme: (id, theme) => set(state => {
-    const current = state.settings[id] || makeDefault();
-    return { settings: { ...state.settings, [id]: { ...current, theme: { ...current.theme, ...theme } } } };
-  }),
+      updateTheme: (id, theme) => set(state => {
+        const current = state.settings[id] || makeDefault();
+        return { settings: { ...state.settings, [id]: { ...current, theme: { ...current.theme, ...theme } } } };
+      }),
 
-  resetTheme: (id) => set(state => {
-    const current = state.settings[id] || makeDefault();
-    return { settings: { ...state.settings, [id]: { ...current, theme: { ...DEFAULT_THEME } } } };
-  }),
-}));
+      resetTheme: (id) => set(state => {
+        const current = state.settings[id] || makeDefault();
+        return { settings: { ...state.settings, [id]: { ...current, theme: { ...DEFAULT_THEME } } } };
+      }),
+    }),
+    {
+      name: 'dashboard-settings-storage',
+    }
+  )
+);
