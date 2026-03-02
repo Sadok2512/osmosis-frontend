@@ -62,11 +62,10 @@ sharedPool.connect(async (err, client, release) => {
     console.log('✅ PostgreSQL pool connected to', dbConfig.database);
     try {
       console.log('🔍 Vérification des tables...');
-      // Check dump_parameter table
+      // Check parameter_dump table
       const tableCheck = await client.query(`
         SELECT CASE
-          WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='dump_parameter') THEN 'dump_parameter'
-          WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='dump_parametre') THEN 'dump_parametre'
+          WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='parameter_dump') THEN 'parameter_dump'
           ELSE NULL
         END AS table_name
       `);
@@ -94,7 +93,7 @@ sharedPool.connect(async (err, client, release) => {
           console.log(`📊 Table "${dumpTable}": ${countRes.rows[0].cnt} lignes, ${paramRes.rows[0].cnt} paramètres distincts, ${siteRes.rows[0].cnt} sites`);
         }
       } else {
-        console.warn('⚠️  Aucune table dump_parameter/dump_parametre trouvée dans la base RAN_OP');
+        console.warn('⚠️  Aucune table parameter_dump trouvée dans la base RAN_OP');
       }
       // Check topo table
       const topoCheck = await client.query(`SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema='public' AND table_name='topo'`);
@@ -239,7 +238,7 @@ CREATE TABLE IF NOT EXISTS qoe_metrics (
   UNIQUE(cell_id, dt, service)
 );
 
-CREATE TABLE IF NOT EXISTS dump_parameter (
+CREATE TABLE IF NOT EXISTS parameter_dump (
   id BIGSERIAL PRIMARY KEY,
   dn TEXT,
   cell_dn TEXT,
@@ -273,8 +272,8 @@ CREATE INDEX IF NOT EXISTS idx_qoe_service ON qoe_metrics(service);
 `;
 }
 
-const ENSURE_DUMP_PARAMETER_SQL = `
-CREATE TABLE IF NOT EXISTS dump_parameter (
+const ENSURE_PARAMETER_DUMP_SQL = `
+CREATE TABLE IF NOT EXISTS parameter_dump (
   id BIGSERIAL PRIMARY KEY,
   dn TEXT,
   enodeb_id INTEGER,
@@ -326,14 +325,14 @@ app.post('/api/backend-admin', async (req, res) => {
       }
 
       await pool.query(buildTableSQL(hasVector));
-      await pool.query(ENSURE_DUMP_PARAMETER_SQL); // safety net for legacy instances
+      await pool.query(ENSURE_PARAMETER_DUMP_SQL); // safety net for legacy instances
 
       // Count actual tables created
       const schema = config.schema || 'public';
       const countRes = await pool.query(
         `SELECT COUNT(*)::int as cnt FROM information_schema.tables
          WHERE table_schema = $1 AND table_type = 'BASE TABLE'
-         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'dump_parameter')`, [schema]
+         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'parameter_dump')`, [schema]
       );
       const tablesCreated = countRes.rows[0]?.cnt || 0;
 
@@ -345,7 +344,7 @@ app.post('/api/backend-admin', async (req, res) => {
       const tables = await pool.query(
         `SELECT table_name FROM information_schema.tables
          WHERE table_schema = $1 AND table_type = 'BASE TABLE'
-         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'dump_parameter')
+         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'parameter_dump')
          ORDER BY table_name`, [schema]
       );
 
@@ -531,24 +530,14 @@ app.post('/api/rag-embed', async (req, res) => {
   }
 });
 
-// ─── /api/import-dump (import dump_parameter/dump_parametre CSV rows) ───
+// ─── /api/import-dump (import parameter_dump CSV rows) ───
 app.post('/api/import-dump', async (req, res) => {
   const { rows, clear_before, config } = req.body;
   const pool = createPool(config || getLocalDbConfig());
 
   try {
-    const tableChoice = await pool.query(`
-      SELECT CASE
-        WHEN to_regclass('public.dump_parametre') IS NOT NULL THEN 'dump_parametre'
-        WHEN to_regclass('public.dump_parameter') IS NOT NULL THEN 'dump_parameter'
-        ELSE 'dump_parameter'
-      END AS table_name
-    `);
-    const dumpTable = tableChoice.rows[0]?.table_name || 'dump_parameter';
-
-    if (dumpTable === 'dump_parameter') {
-      await pool.query(ENSURE_DUMP_PARAMETER_SQL);
-    }
+    const dumpTable = 'parameter_dump';
+    await pool.query(ENSURE_PARAMETER_DUMP_SQL);
 
     if (clear_before) {
       await pool.query(`DELETE FROM ${dumpTable}`);
@@ -628,21 +617,12 @@ function extractSiteName(query) {
   return null;
 }
 
-// ─── Helper: search dump_parameter locally ───
+// ─── Helper: search parameter_dump locally ───
 async function searchDumpParameterLocal(query) {
   const pool = createPool(getLocalDbConfig());
   try {
-    const tableChoice = await pool.query(`
-      SELECT CASE
-        WHEN to_regclass('public.dump_parametre') IS NOT NULL THEN 'dump_parametre'
-        WHEN to_regclass('public.dump_parameter') IS NOT NULL THEN 'dump_parameter'
-        ELSE 'dump_parameter'
-      END AS table_name
-    `);
-    const dumpTable = tableChoice.rows[0]?.table_name || 'dump_parameter';
-    if (dumpTable === 'dump_parameter') {
-      await pool.query(ENSURE_DUMP_PARAMETER_SQL);
-    }
+    const dumpTable = 'parameter_dump';
+    await pool.query(ENSURE_PARAMETER_DUMP_SQL);
 
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
@@ -771,7 +751,7 @@ Dimensions : Vendor (Ericsson, Nokia), DOR, Plaque, RAT (2G/3G/4G/5G), Site, Cel
 SCHÉMA DES TABLES DE LA BASE DE DONNÉES :
 Si l'utilisateur demande la liste des champs, colonnes, structure ou schéma d'une table, réponds directement avec les informations ci-dessous sans chercher dans les données.
 
-Table **dump_parameter** : id (bigint PK), dn (text), cell_dn (text), cell_name (text), site_name (text), parameter (text NOT NULL), value (text), version (text), vendor (text), bande (text), plaque (text), omc (text), dor (text), dr (text), ur (text), city (text), zone_arcep (text), enodeb_id (integer), mrbts_id (integer), gnodeb_id (integer), freq_downlink (double), tgv (integer), latitude (double), longitude (double), created_at (timestamp).
+Table **parameter_dump** : id (bigint PK), dn (text), cell_dn (text), cell_name (text), site_name (text), parameter (text NOT NULL), value (text), version (text), vendor (text), bande (text), plaque (text), omc (text), dor (text), dr (text), ur (text), city (text), zone_arcep (text), enodeb_id (integer), mrbts_id (integer), gnodeb_id (integer), freq_downlink (double), tgv (integer), latitude (double), longitude (double), created_at (timestamp).
 
 Table **topo** : id (bigint PK), code_nidt (text NOT NULL), nom_cellule (text NOT NULL), nom_site (text NOT NULL), techno (text), bande (text), constructeur (text), region (text), plaque (text), azimut (integer), latitude (double), longitude (double), tac (integer), hba (integer), date_mes (date), date_fn8 (date), created_at (timestamp).
 
@@ -854,20 +834,13 @@ Réponds TOUJOURS en français.`;
   }
 });
 
-// ─── /api/dump-parameter (query with filters) ───
+// ─── /api/dump-parameter (query parameter_dump with filters) ───
 app.get('/api/dump-parameter', async (req, res) => {
   const reqStart = Date.now();
   console.log(`\n📥 [/api/dump-parameter] ← ${req.method} query:`, JSON.stringify(req.query));
   try {
-    const tableChoice = await sharedPool.query(`
-      SELECT CASE
-        WHEN to_regclass('public.dump_parametre') IS NOT NULL THEN 'dump_parametre'
-        WHEN to_regclass('public.dump_parameter') IS NOT NULL THEN 'dump_parameter'
-        ELSE 'dump_parameter'
-      END AS table_name
-    `);
-    const dumpTable = tableChoice.rows[0]?.table_name || 'dump_parameter';
-    console.log(`   📋 Table détectée: ${dumpTable}`);
+    const dumpTable = 'parameter_dump';
+    console.log(`   📋 Table: ${dumpTable}`);
 
     const { select, parameter, site_name, cell_name, dor, plaque, vendor, order, limit: lim, distinct_col } = req.query;
 
