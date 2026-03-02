@@ -2088,6 +2088,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Polygon>
                   );
                 })}
+                {/* Site name label at zoom >= 14 */}
+                {viewport.zoom >= 14 && (
+                  <Marker
+                    position={site.coordinates}
+                    icon={L.divIcon({
+                      html: `<div style="width:6px;height:6px;"></div>`,
+                      className: '',
+                      iconSize: L.point(6, 6),
+                      iconAnchor: L.point(3, 3),
+                    })}
+                    interactive={false}
+                  >
+                    <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
+                      <span style={{
+                        fontSize: '8px',
+                        fontWeight: 600,
+                        letterSpacing: '0.02em',
+                        color: '#1a1a1a',
+                        textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 1px 2px rgba(255,255,255,0.9)',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                      }}>{site.site_name}</span>
+                    </Tooltip>
+                  </Marker>
+                )}
               </React.Fragment>
             );
           }
