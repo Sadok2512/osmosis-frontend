@@ -1078,26 +1078,30 @@ app.get('/api/dump-parameter', async (req, res) => {
 
     // Normal query mode — validate select columns against known schema
     // Dynamically validate requested columns against actual table schema
-    if (!app.locals._dumpCols) {
+    // Force re-discover on first call or if cache seems stale
+    if (!app.locals._dumpCols || app.locals._dumpColsTable !== dumpTable) {
       const schemaRes = await sharedPool.query(
-        `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
+        `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1`,
         [dumpTable]
       );
       app.locals._dumpCols = new Set(schemaRes.rows.map(r => r.column_name));
+      app.locals._dumpColsTable = dumpTable;
+      console.log(`   📦 Schema cache: ${app.locals._dumpCols.size} colonnes détectées: [${[...app.locals._dumpCols].join(', ')}]`);
     }
     const realCols = app.locals._dumpCols;
 
+    const defaultCols = 'site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
     let cols;
     if (select) {
-      const requestedCols = select.split(',').map(c => c.trim());
+      const requestedCols = select.split(',').map(c => c.trim()).filter(c => c.length > 0);
       const validCols = requestedCols.filter(c => realCols.has(c));
       const invalidCols = requestedCols.filter(c => !realCols.has(c));
       if (invalidCols.length > 0) {
         console.log(`   ⚠️ Colonnes ignorées (inexistantes): ${invalidCols.join(', ')}`);
       }
-      cols = validCols.length > 0 ? validCols.join(', ') : 'site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
+      cols = validCols.length > 0 ? validCols.join(', ') : defaultCols;
     } else {
-      cols = 'site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
+      cols = defaultCols;
     }
 
     let q = `SELECT ${cols} FROM ${dumpTable} WHERE 1=1`;
