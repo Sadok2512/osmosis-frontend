@@ -1381,7 +1381,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         .eq('parameter', paramSelected)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null)
-        .limit(5000);
+        .limit(100000);
       if (!error && data) setParamPoints(data.filter((r: any) => r.latitude && r.longitude));
       else setParamPoints([]);
     } catch { setParamPoints([]); }

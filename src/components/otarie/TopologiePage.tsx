@@ -246,7 +246,7 @@ const TopologiePage: React.FC = () => {
     } catch { return []; }
   };
 
-  const fetchRowsCloud = async (filters: Record<string, string | string[]>, cols: string, limit = 5000): Promise<any[]> => {
+  const fetchRowsCloud = async (filters: Record<string, string | string[]>, cols: string, limit = 100000): Promise<any[]> => {
     try {
       let query = (supabase as any).from('parameter_dump').select(cols).limit(limit);
       Object.entries(filters).forEach(([k, v]) => {
@@ -266,7 +266,7 @@ const TopologiePage: React.FC = () => {
     } catch { return []; }
   };
 
-  const fetchRowsLocal = async (filters: Record<string, string | string[]>, cols: string, limit = 5000) => {
+  const fetchRowsLocal = async (filters: Record<string, string | string[]>, cols: string, limit = 100000) => {
     try { return await dumpParameterApi.query(filters as any, cols, limit); } catch { return []; }
   };
 

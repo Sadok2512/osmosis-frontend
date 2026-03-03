@@ -175,7 +175,7 @@ export const dumpParameterApi = {
     const qs = new URLSearchParams({ distinct_col: col, ...extra });
     return get<any[]>(`dump-parameter?${qs}`);
   },
-  query: (filters: Record<string, string>, cols?: string, limit = 5000) => {
+  query: (filters: Record<string, string>, cols?: string, limit = 100000) => {
     const qs = new URLSearchParams({ limit: String(limit), ...filters });
     if (cols) qs.set('select', cols);
     return get<any[]>(`dump-parameter?${qs}`);

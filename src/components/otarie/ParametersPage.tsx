@@ -99,7 +99,7 @@ const ParametersPage: React.FC = () => {
         .eq('parameter', selectedParam)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null)
-        .limit(5000);
+        .limit(100000);
       if (error) throw error;
       setPoints((data || []).filter((r: any) => r.latitude && r.longitude) as ParamPoint[]);
     } catch (e) { console.error(e); setPoints([]); }
