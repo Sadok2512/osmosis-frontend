@@ -619,9 +619,30 @@ app.get('/api/topo', async (req, res) => {
   }
 });
 
+// ─── Detect available topo columns once at startup ───
+let topoColumnsSet = null; // Set of column names available in the topo table
+
+async function getTopoColumns() {
+  if (topoColumnsSet) return topoColumnsSet;
+  try {
+    const res = await sharedPool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'topo' AND table_schema = 'public'
+    `);
+    topoColumnsSet = new Set(res.rows.map(r => r.column_name));
+    console.log(`[topo] detected columns: ${[...topoColumnsSet].join(', ')}`);
+  } catch {
+    topoColumnsSet = new Set(); // fallback: empty → all optional cols skipped
+  }
+  return topoColumnsSet;
+}
+
 // ─── /api/topo/sites (aggregated by code_nidt, bbox + filters) ───
 app.get('/api/topo/sites', async (req, res) => {
   try {
+    const cols = await getTopoColumns();
+    const hasCol = (c) => cols.has(c);
+
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 8000, 1), 30000);
     const params = [];
     const wheres = ['latitude IS NOT NULL', 'longitude IS NOT NULL'];
@@ -639,10 +660,10 @@ app.get('/api/topo/sites', async (req, res) => {
       }
     }
 
-    // Optional filters
+    // Optional filters — only apply if column exists in the table
     const filterCols = { dor: 'dor', vendor: 'constructeur', plaque: 'plaque', techno: 'techno', bande: 'bande', zone_arcep: 'zone_arcep' };
     for (const [qp, col] of Object.entries(filterCols)) {
-      if (req.query[qp] && req.query[qp] !== 'ALL') {
+      if (req.query[qp] && req.query[qp] !== 'ALL' && hasCol(col)) {
         wheres.push(`${col} = $${paramIdx++}`);
         params.push(req.query[qp]);
       }
@@ -662,34 +683,40 @@ app.get('/api/topo/sites', async (req, res) => {
     const includeCells = req.query.include_cells === '1';
 
     if (includeCells) {
-      // Return flat cell rows (for sector rendering at high zoom)
+      // Build SELECT list dynamically based on available columns
+      const baseCellCols = ['code_nidt', 'nom_site', 'nom_cellule', 'latitude', 'longitude'];
+      const optionalCellCols = ['azimut', 'hba', 'techno', 'bande', 'constructeur', 'plaque', 'dor', 'region',
+        'tac', 'pci', 'cid', 'eci', 'nci', 'etat_cellule', 'zone_arcep', 'essentiel',
+        'remote_electrical_tilt', 'date_mes', 'date_fn8'];
+      const selectCols = [...baseCellCols, ...optionalCellCols.filter(c => hasCol(c))];
+
       const sql = `
-        SELECT code_nidt, nom_site, nom_cellule, latitude, longitude, azimut, hba,
-               techno, bande, constructeur, plaque, dor, region,
-               tac, pci, cid, eci, nci, etat_cellule, zone_arcep, essentiel,
-               remote_electrical_tilt, date_mes, date_fn8
+        SELECT ${selectCols.join(', ')}
         FROM topo ${whereClause}
         ORDER BY code_nidt, nom_cellule
         LIMIT $${paramIdx}`;
-      params.push(limit * 10); // allow more rows since these are cells not sites
+      params.push(limit * 10);
 
       const result = await sharedPool.query(sql, params);
       console.log(`[/api/topo/sites?include_cells] ${result.rows.length} cells`);
       return res.json({ cells: result.rows, total: result.rows.length });
     }
 
-    // Aggregated site-level query
+    // Aggregated site-level query — build SELECT dynamically
+    const aggParts = [
+      'code_nidt',
+      'MIN(nom_site) AS nom_site',
+      'AVG(latitude) AS lat',
+      'AVG(longitude) AS lng',
+      'COUNT(*) AS nb_cells',
+    ];
+    if (hasCol('constructeur')) aggParts.push('MIN(constructeur) AS vendor');
+    if (hasCol('plaque')) aggParts.push('MIN(plaque) AS plaque');
+    if (hasCol('dor')) aggParts.push('MIN(dor) AS dor');
+    if (hasCol('region')) aggParts.push('MIN(region) AS region');
+
     const sql = `
-      SELECT
-        code_nidt,
-        MIN(nom_site) AS nom_site,
-        AVG(latitude) AS lat,
-        AVG(longitude) AS lng,
-        COUNT(*) AS nb_cells,
-        MIN(constructeur) AS vendor,
-        MIN(plaque) AS plaque,
-        MIN(dor) AS dor,
-        MIN(region) AS region
+      SELECT ${aggParts.join(', ')}
       FROM topo
       ${whereClause}
       GROUP BY code_nidt
@@ -701,7 +728,7 @@ app.get('/api/topo/sites', async (req, res) => {
 
     const [result, countRes] = await Promise.all([
       sharedPool.query(sql, params),
-      sharedPool.query(countSql, params.slice(0, -1)), // without limit param
+      sharedPool.query(countSql, params.slice(0, -1)),
     ]);
 
     const total = parseInt(countRes.rows[0]?.total || '0');
