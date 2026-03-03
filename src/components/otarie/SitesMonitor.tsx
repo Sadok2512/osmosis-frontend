@@ -1669,8 +1669,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     q: localSearch || undefined,
   }), [localDor, localVendor, localPlaque, localSearch]);
 
-  // Core bbox fetch function
-  const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters) => {
+  // Core bbox fetch function — switches to cell-level fetch at sector zoom
+  const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
 
     // Cancel any in-flight request
@@ -1685,14 +1685,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       maxLat: bounds.getNorth(),
     };
 
+    const needCells = (zoom ?? viewport.zoom) >= SECTOR_ZOOM_THRESHOLD;
+
     setBboxLoading(true);
     try {
-      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
-      if (!controller.signal.aborted) {
-        setSites(newSites);
-        setBboxTotal(total);
-        setBboxLoading(false);
-        setLoading(false);
+      if (needCells) {
+        // Fetch cell-level data for sector polygon rendering
+        const cellSites = await fetchCellsByBbox(bbox, bboxFilters, controller.signal);
+        if (!controller.signal.aborted) {
+          setSites(cellSites);
+          setBboxTotal(cellSites.length);
+          setBboxLoading(false);
+          setLoading(false);
+          console.log(`[SitesMonitor] CELLS mode: ${cellSites.length} sites with cells`);
+        }
+      } else {
+        // Fetch aggregated site-level data (no cells)
+        const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
+        if (!controller.signal.aborted) {
+          setSites(newSites);
+          setBboxTotal(total);
+          setBboxLoading(false);
+          setLoading(false);
+        }
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return; // expected
@@ -1700,13 +1715,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setBboxLoading(false);
       setLoading(false);
     }
-  }, []);
+  }, [viewport.zoom]);
 
   // Debounced viewport change handler
   const handleViewportForFetch = useCallback((v: ViewportState) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      fetchForViewport(v.bounds, currentBboxFilters);
+      fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
     }, 300);
   }, [fetchForViewport, currentBboxFilters]);
 
