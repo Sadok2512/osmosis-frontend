@@ -2318,12 +2318,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const overlapFactor = baseOverlap + (1 - baseOverlap) * beamScale;
           const isFocusFaded = false;
 
-          /* ── Indoor sites: circle with "I" instead of sectors ── */
+          /* ── Indoor sites: circle with "I" instead of sectors (rendered at all zooms including sector zoom) ── */
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           if (isIndoor) {
-            const has5G = site.cells.some(c => (c.techno || '').toUpperCase().includes('5G'));
+            const has5G = site.cells.length > 0 ? site.cells.some(c => (c.techno || '').toUpperCase().includes('5G')) : site.site_name.toUpperCase().includes('5G');
             const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
-            const kpiColor = getKpiColor(getCellKpiValue(site.cells[0] || {}));
+            const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
             const color = sectorColorMode === 'topo' ? topoColor : kpiColor;
             const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
             return (
