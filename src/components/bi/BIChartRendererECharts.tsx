@@ -173,6 +173,8 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     return generateChartData(config);
   }, [config, csvDataset, liveData, isLocal]);
 
+
+
   const effectiveYMetrics = useMemo(() => {
     if (csvDataset && config.dataSource?.yColumns?.length) {
       return config.dataSource.yColumns.map((col, i) => ({
@@ -212,6 +214,16 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
         Add a metric to display
+      </div>
+    );
+  }
+
+  if (rawData.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+        <span className="text-2xl">📊</span>
+        <span className="text-xs font-medium">Aucune donnée</span>
+        <span className="text-[10px] opacity-70">Connectez une source de données (CSV ou serveur local)</span>
       </div>
     );
   }
