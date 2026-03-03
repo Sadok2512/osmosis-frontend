@@ -1246,24 +1246,17 @@ export type Database = {
           bande: string | null
           cell_dn: string | null
           cell_name: string | null
-          city: string | null
-          created_at: string | null
           dn: string | null
           dor: string | null
-          dr: string | null
           enodeb_id: number | null
-          freq_downlink: number | null
           gnodeb_id: number | null
-          id: number
           latitude: number | null
           longitude: number | null
           mrbts_id: number | null
-          omc: string | null
+          netact: string | null
           parameter: string
           plaque: string | null
           site_name: string | null
-          tgv: number | null
-          ur: string | null
           value: string | null
           vendor: string | null
           version: string | null
@@ -1273,24 +1266,17 @@ export type Database = {
           bande?: string | null
           cell_dn?: string | null
           cell_name?: string | null
-          city?: string | null
-          created_at?: string | null
           dn?: string | null
           dor?: string | null
-          dr?: string | null
           enodeb_id?: number | null
-          freq_downlink?: number | null
           gnodeb_id?: number | null
-          id?: never
           latitude?: number | null
           longitude?: number | null
           mrbts_id?: number | null
-          omc?: string | null
+          netact?: string | null
           parameter: string
           plaque?: string | null
           site_name?: string | null
-          tgv?: number | null
-          ur?: string | null
           value?: string | null
           vendor?: string | null
           version?: string | null
@@ -1300,24 +1286,17 @@ export type Database = {
           bande?: string | null
           cell_dn?: string | null
           cell_name?: string | null
-          city?: string | null
-          created_at?: string | null
           dn?: string | null
           dor?: string | null
-          dr?: string | null
           enodeb_id?: number | null
-          freq_downlink?: number | null
           gnodeb_id?: number | null
-          id?: never
           latitude?: number | null
           longitude?: number | null
           mrbts_id?: number | null
-          omc?: string | null
+          netact?: string | null
           parameter?: string
           plaque?: string | null
           site_name?: string | null
-          tgv?: number | null
-          ur?: string | null
           value?: string | null
           vendor?: string | null
           version?: string | null
