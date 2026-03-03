@@ -2212,24 +2212,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           );
         })}
 
-        {/* Sites mode — Clustered circle markers when sectors not visible */}
-        {!paramMode && mapDisplayMode === 'sites' && !showSectors && (
-        <MarkerClusterGroup
-          chunkedLoading
-          maxClusterRadius={60}
-          spiderfyOnMaxZoom={false}
-          disableClusteringAtZoom={SECTOR_ZOOM_THRESHOLD}
-          iconCreateFunction={(cluster: any) => {
-            const count = cluster.getChildCount();
-            const size = count > 100 ? 44 : count > 30 ? 36 : 28;
-            return L.divIcon({
-              html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:hsl(var(--primary));color:hsl(var(--primary-foreground));display:flex;align-items:center;justify-content:center;font-size:${size > 36 ? 13 : 11}px;font-weight:700;border:2px solid hsl(var(--border));box-shadow:0 2px 8px rgba(0,0,0,0.25);">${count}</div>`,
-              className: '',
-              iconSize: L.point(size, size),
-            });
-          }}
-        >
-        {visibleSites.map(site => {
+        {/* Sites mode — Circle markers when sectors not visible */}
+        {!paramMode && mapDisplayMode === 'sites' && !showSectors && visibleSites.map(site => {
           const kpiColor = getKpiColor(getCellKpiValue(site.cells[0] || {}));
           const has5G = site.cells.some(c => (c.techno || '').toUpperCase().includes('5G'));
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
@@ -2304,8 +2288,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </CircleMarker>
           );
         })}
-        </MarkerClusterGroup>
-        )}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
         {!paramMode && showSectors && visibleSites.map(site => {
