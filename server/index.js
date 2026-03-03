@@ -619,6 +619,100 @@ app.get('/api/topo', async (req, res) => {
   }
 });
 
+// ─── /api/topo/sites (aggregated by code_nidt, bbox + filters) ───
+app.get('/api/topo/sites', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 8000, 1), 30000);
+    const params = [];
+    const wheres = ['latitude IS NOT NULL', 'longitude IS NOT NULL'];
+    let paramIdx = 1;
+
+    // bbox: minLng,minLat,maxLng,maxLat
+    if (req.query.bbox) {
+      const parts = req.query.bbox.split(',').map(Number);
+      if (parts.length === 4 && parts.every(v => !isNaN(v))) {
+        const [minLng, minLat, maxLng, maxLat] = parts;
+        wheres.push(`longitude >= $${paramIdx++}`); params.push(minLng);
+        wheres.push(`latitude >= $${paramIdx++}`); params.push(minLat);
+        wheres.push(`longitude <= $${paramIdx++}`); params.push(maxLng);
+        wheres.push(`latitude <= $${paramIdx++}`); params.push(maxLat);
+      }
+    }
+
+    // Optional filters
+    const filterCols = { dor: 'dor', vendor: 'constructeur', plaque: 'plaque', techno: 'techno', bande: 'bande', zone_arcep: 'zone_arcep' };
+    for (const [qp, col] of Object.entries(filterCols)) {
+      if (req.query[qp] && req.query[qp] !== 'ALL') {
+        wheres.push(`${col} = $${paramIdx++}`);
+        params.push(req.query[qp]);
+      }
+    }
+
+    // Free-text search on nom_site or code_nidt
+    if (req.query.q && req.query.q.trim()) {
+      const pattern = `%${req.query.q.trim()}%`;
+      wheres.push(`(nom_site ILIKE $${paramIdx} OR code_nidt ILIKE $${paramIdx})`);
+      params.push(pattern);
+      paramIdx++;
+    }
+
+    const whereClause = wheres.length ? `WHERE ${wheres.join(' AND ')}` : '';
+
+    // include_cells=1 → return cell-level data for sector rendering
+    const includeCells = req.query.include_cells === '1';
+
+    if (includeCells) {
+      // Return flat cell rows (for sector rendering at high zoom)
+      const sql = `
+        SELECT code_nidt, nom_site, nom_cellule, latitude, longitude, azimut, hba,
+               techno, bande, constructeur, plaque, dor, region,
+               tac, pci, cid, eci, nci, etat_cellule, zone_arcep, essentiel,
+               remote_electrical_tilt, date_mes, date_fn8
+        FROM topo ${whereClause}
+        ORDER BY code_nidt, nom_cellule
+        LIMIT $${paramIdx}`;
+      params.push(limit * 10); // allow more rows since these are cells not sites
+
+      const result = await sharedPool.query(sql, params);
+      console.log(`[/api/topo/sites?include_cells] ${result.rows.length} cells`);
+      return res.json({ cells: result.rows, total: result.rows.length });
+    }
+
+    // Aggregated site-level query
+    const sql = `
+      SELECT
+        code_nidt,
+        MIN(nom_site) AS nom_site,
+        AVG(latitude) AS lat,
+        AVG(longitude) AS lng,
+        COUNT(*) AS nb_cells,
+        MIN(constructeur) AS vendor,
+        MIN(plaque) AS plaque,
+        MIN(dor) AS dor,
+        MIN(region) AS region
+      FROM topo
+      ${whereClause}
+      GROUP BY code_nidt
+      ORDER BY code_nidt
+      LIMIT $${paramIdx}`;
+    params.push(limit);
+
+    const countSql = `SELECT COUNT(DISTINCT code_nidt) AS total FROM topo ${whereClause}`;
+
+    const [result, countRes] = await Promise.all([
+      sharedPool.query(sql, params),
+      sharedPool.query(countSql, params.slice(0, -1)), // without limit param
+    ]);
+
+    const total = parseInt(countRes.rows[0]?.total || '0');
+    console.log(`[/api/topo/sites] ${result.rows.length}/${total} sites (bbox=${!!req.query.bbox})`);
+    res.json({ sites: result.rows, total });
+  } catch (e) {
+    console.error('[/api/topo/sites]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── /api/dashboards CRUD ───
 app.get('/api/dashboards', async (req, res) => {
   const pool = createPool({ host: 'localhost', port: '5432', database: 'postgres', user: 'postgres', password: 'root' });

@@ -15,6 +15,12 @@ async function get<T = any>(path: string): Promise<T> {
   return resp.json();
 }
 
+async function fetchWithSignal<T = any>(path: string, signal?: AbortSignal): Promise<T> {
+  const resp = await fetch(url(path), { signal });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
 async function post<T = any>(path: string, body: any): Promise<T> {
   const resp = await fetch(url(path), {
     method: 'POST',
@@ -62,6 +68,38 @@ export const mapViewsApi = {
 };
 
 // ─── Topo ───
+export interface BboxSiteDTO {
+  code_nidt: string;
+  nom_site: string;
+  lat: number;
+  lng: number;
+  nb_cells: number;
+  vendor: string | null;
+  plaque: string | null;
+  dor: string | null;
+  region: string | null;
+}
+
+export interface BboxSitesResponse {
+  sites: BboxSiteDTO[];
+  total: number;
+}
+
+export interface BboxCellsResponse {
+  cells: any[];
+  total: number;
+}
+
+export interface BboxFilters {
+  dor?: string;
+  vendor?: string;
+  plaque?: string;
+  techno?: string;
+  bande?: string;
+  zone_arcep?: string;
+  q?: string;
+}
+
 export const topoApi = {
   list: (limit = 100000, offset = 0) =>
     get<{ rows: any[]; total: number }>(`topo?limit=${limit}&offset=${offset}`),
@@ -72,6 +110,43 @@ export const topoApi = {
     return res.total;
   },
   remove: () => post('topo/clear', {}),
+
+  /** Fetch aggregated sites within a bounding box */
+  listSitesByBbox: (
+    bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number },
+    filters?: BboxFilters,
+    limit = 8000,
+    signal?: AbortSignal,
+  ): Promise<BboxSitesResponse> => {
+    const qs = new URLSearchParams();
+    qs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
+    qs.set('limit', String(limit));
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v && v !== 'ALL') qs.set(k, v);
+      });
+    }
+    return fetchWithSignal<BboxSitesResponse>(`topo/sites?${qs}`, signal);
+  },
+
+  /** Fetch cell-level rows within a bounding box (for sector rendering) */
+  listCellsByBbox: (
+    bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number },
+    filters?: BboxFilters,
+    limit = 8000,
+    signal?: AbortSignal,
+  ): Promise<BboxCellsResponse> => {
+    const qs = new URLSearchParams();
+    qs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
+    qs.set('limit', String(limit));
+    qs.set('include_cells', '1');
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v && v !== 'ALL') qs.set(k, v);
+      });
+    }
+    return fetchWithSignal<BboxCellsResponse>(`topo/sites?${qs}`, signal);
+  },
 };
 
 // ─── QoE Metrics ───
