@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Search, Check, RotateCcw, ChevronRight } from 'lucide-react';
 import { BI_KPI_CATALOG, BI_KPI_CATEGORIES, BIKpiDefinition } from './biTypes';
 
@@ -77,7 +78,7 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="relative w-[720px] max-w-[90vw] h-[540px] max-h-[80vh] flex flex-col rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
         {/* Header */}
@@ -226,7 +227,8 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
