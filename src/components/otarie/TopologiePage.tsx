@@ -1215,7 +1215,7 @@ Fournis:
                                   {group.rows.map((row, idx) => {
                                     const pColor = rawParamColorMap[row.parameter] || CHART_COLORS[0];
                                     return (
-                                      <TableRow key={row.id} className={`${idx % 2 === 0 ? '' : 'bg-muted/10'} h-[32px]`}>
+                                      <TableRow key={idx} className={`${idx % 2 === 0 ? '' : 'bg-muted/10'} h-[32px]`}>
                                         <TableCell className="py-0.5 w-[50px]">
                                           <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: pColor }} />
                                         </TableCell>
@@ -1269,7 +1269,7 @@ Fournis:
                           {rawPageData.map((row, idx) => {
                             const pColor = rawParamColorMap[row.parameter] || CHART_COLORS[0];
                             return (
-                              <TableRow key={row.id} className={`${idx % 2 === 0 ? '' : 'bg-muted/20'} h-[34px]`}>
+                              <TableRow key={idx} className={`${idx % 2 === 0 ? '' : 'bg-muted/20'} h-[34px]`}>
                                 <TableCell className="text-[10px] font-medium py-1">{row.site_name || '—'}</TableCell>
                                 <TableCell className="text-[10px] py-1">{row.cell_name || '—'}</TableCell>
                                 <TableCell className="py-1">
