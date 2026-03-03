@@ -193,6 +193,8 @@ export const biQueryApi = {
     groupBy?: string[];
     filters?: { dimension: string; values: string[] }[];
     topN?: number;
+    xAxisType?: string;
+    xAxisDimension?: string;
   }) => post<{ rows: any[]; total: number }>('bi-query', params),
 
   distinct: (dimension: string) =>

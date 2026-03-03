@@ -134,6 +134,9 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
         dimension: f.dimension,
         values: [...f.values],
       })),
+      xAxisType: config.xAxis.type,
+      xAxisDimension: config.xAxis.type === 'dimension' ? config.xAxis.value : undefined,
+      topN: config.advanced.topN || undefined,
     }).then(res => {
       if (!cancelled) setLiveData(res.rows || []);
     }).catch(err => {
@@ -147,9 +150,11 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     isLocal,
     JSON.stringify(config.yMetrics.map(m => m.kpi)),
     config.yMetrics[0]?.aggregation,
+    config.xAxis.type, config.xAxis.value,
     config.xAxis.dateStart, config.xAxis.dateEnd, config.xAxis.granularity,
     JSON.stringify(config.groupBy),
     JSON.stringify(config.filters),
+    config.advanced.topN,
   ]);
 
   const rawData = useMemo(() => {

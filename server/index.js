@@ -1699,45 +1699,77 @@ app.post('/api/ml-features', async (req, res) => {
 // ─── /api/bi-query (BI Studio — query qoe_metric) ───
 app.post('/api/bi-query', async (req, res) => {
   try {
-    const { kpis, aggregation, dateStart, dateEnd, granularity, groupBy, filters, topN } = req.body;
+    const { kpis, aggregation, dateStart, dateEnd, granularity, groupBy, filters, topN, xAxisType, xAxisDimension } = req.body;
     if (!kpis || !kpis.length) return res.status(400).json({ error: 'kpis required' });
 
     const agg = (aggregation || 'AVG').toUpperCase();
     const validAggs = ['AVG', 'SUM', 'MAX', 'MIN'];
     const aggFn = validAggs.includes(agg) ? agg : 'AVG';
 
-    // Build SELECT
     const selectKpis = kpis.map(k => `${aggFn}("${k}") AS "${k}"`).join(', ');
 
-    // Date grouping
+    const where = [];
+    const params = [];
+    let pi = 1;
+
+    // ── Dimension-based X axis (bar chart by Site, Vendor, etc.) ──
+    if (xAxisType === 'dimension' && xAxisDimension) {
+      // X axis = Dimension_2 values where Dimension_1 = xAxisDimension
+      where.push(`"Dimension_1" = $${pi++}`);
+      params.push(xAxisDimension);
+
+      if (dateStart) { where.push(`date_part >= $${pi++}::date`); params.push(dateStart); }
+      if (dateEnd) { where.push(`date_part <= $${pi++}::date`); params.push(dateEnd); }
+
+      // Apply extra filters
+      if (filters && filters.length > 0) {
+        for (const f of filters) {
+          if (!f.values || f.values.length === 0) continue;
+          const placeholders = f.values.map((_, j) => `$${pi + j}`);
+          where.push(`(
+            ("Dimension_1" = $${pi + f.values.length} AND "Dimension_2" IN (${placeholders.join(',')}))
+            OR
+            ("Dimension_2" = $${pi + f.values.length} AND "Dimension_1" IN (${placeholders.join(',')}))
+          )`);
+          params.push(...f.values, f.dimension);
+          pi += f.values.length + 1;
+        }
+      }
+
+      const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
+      let orderClause = `ORDER BY "${kpis[0]}" DESC`;
+      const limitClause = topN ? `LIMIT ${Math.min(parseInt(topN), 500)}` : 'LIMIT 50';
+
+      const sql = `SELECT "Dimension_2" AS x, ${selectKpis}
+                   FROM qoe_metric ${whereSQL}
+                   GROUP BY "Dimension_2" ${orderClause} ${limitClause}`;
+
+      console.log(`[bi-query/dim] SQL: ${sql.substring(0, 300)}... params=${JSON.stringify(params).substring(0, 100)}`);
+      const result = await sharedPool.query(sql, params);
+      console.log(`[bi-query/dim] ${result.rows.length} rows`);
+      return res.json({ rows: result.rows, total: result.rows.length });
+    }
+
+    // ── Date-based X axis (time series) ──
     let dateExpr = `date_part::text`;
     if (granularity === 'week') dateExpr = `date_trunc('week', date_part)::date::text`;
     else if (granularity === 'month') dateExpr = `date_trunc('month', date_part)::date::text`;
 
-    // Group by dimension
     let groupSelect = '';
     let groupByClause = `GROUP BY ${dateExpr}`;
     let orderBy = `ORDER BY ${dateExpr}`;
     if (groupBy && groupBy.length > 0) {
-      // groupBy is a dimension name — we filter Dimension_1 = dimName and group by Dimension_2
       groupSelect = `, "Dimension_2" AS "group"`;
       groupByClause = `GROUP BY ${dateExpr}, "Dimension_2"`;
       orderBy = `ORDER BY ${dateExpr}, "Dimension_2"`;
     }
 
-    // WHERE
-    const where = [];
-    const params = [];
-    let pi = 1;
-
     if (dateStart) { where.push(`date_part >= $${pi++}::date`); params.push(dateStart); }
     if (dateEnd) { where.push(`date_part <= $${pi++}::date`); params.push(dateEnd); }
 
-    // Dimension filters: { dimension: "Vendor", values: ["Nokia", "Ericsson"] }
     if (filters && filters.length > 0) {
       for (const f of filters) {
         if (!f.values || f.values.length === 0) continue;
-        // Check both Dimension_1 and Dimension_2 for the filter values
         const placeholders = f.values.map((_, j) => `$${pi + j}`);
         where.push(`(
           ("Dimension_1" = $${pi + f.values.length} AND "Dimension_2" IN (${placeholders.join(',')}))
@@ -1749,14 +1781,12 @@ app.post('/api/bi-query', async (req, res) => {
       }
     }
 
-    // If groupBy dimension, filter Dimension_1 = that dimension
     if (groupBy && groupBy.length > 0) {
       where.push(`"Dimension_1" = $${pi++}`);
       params.push(groupBy[0]);
     }
 
     const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
-
     const sql = `SELECT ${dateExpr} AS x${groupSelect}, ${selectKpis}
                  FROM qoe_metric ${whereSQL} ${groupByClause} ${orderBy}`;
 
