@@ -525,7 +525,6 @@ app.post('/api/backend-admin', async (req, res) => {
          AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'parameter_dump', 'kpi_qoe_aggregated', 'ml_features')
          ORDER BY table_name`, [schema]
       );
-      );
 
       const result = [];
       for (const t of tables.rows) {
