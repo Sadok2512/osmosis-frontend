@@ -1801,12 +1801,66 @@ app.post('/api/bi-query', async (req, res) => {
   }
 });
 
+// ─── QoE dimension table mapping ───
+const qoeDimTableMap = {
+  'RAT': 'dim_qoe_rat', 'AS': 'dim_qoe_as', 'Application': 'dim_qoe_application',
+  'OS': 'dim_qoe_os', 'Device_brand': 'dim_qoe_device_brand', 'TAC': 'dim_qoe_tac',
+  'POP': 'dim_qoe_pop', 'ORF': 'dim_qoe_orf', 'Vendor': 'dim_qoe_vendor',
+  'Bande': 'dim_qoe_bande', 'ARCEP': 'dim_qoe_arcep', 'DOR': 'dim_qoe_dor',
+  'Plaque': 'dim_qoe_plaque', 'Site': 'dim_qoe_site', 'Cellule': 'dim_qoe_cellule',
+};
+
+// ─── /api/refresh-qoe-dims (manual trigger for QoE dimension table refresh) ───
+app.post('/api/refresh-qoe-dims', async (req, res) => {
+  const start = Date.now();
+  console.log('\n🔄 [/api/refresh-qoe-dims] Manual refresh triggered');
+  try {
+    await sharedPool.query('CALL refresh_qoe_dims()');
+
+    const elapsed = Date.now() - start;
+    console.log(`✅ [/api/refresh-qoe-dims] Done in ${elapsed}ms`);
+
+    // Return counts per dimension
+    const counts = {};
+    for (const [dim, table] of Object.entries(qoeDimTableMap)) {
+      try {
+        const r = await sharedPool.query(`SELECT count(*)::int AS cnt FROM ${table}`);
+        counts[dim] = r.rows[0]?.cnt || 0;
+      } catch { counts[dim] = -1; }
+    }
+    try {
+      const r = await sharedPool.query(`SELECT count(*)::int AS cnt FROM dim_qoe_date`);
+      counts['date'] = r.rows[0]?.cnt || 0;
+    } catch { counts['date'] = -1; }
+
+    res.json({ success: true, elapsed_ms: elapsed, counts });
+  } catch (e) {
+    console.error(`❌ [/api/refresh-qoe-dims]`, e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── /api/bi-distinct (BI Studio — get distinct dimension values) ───
 app.get('/api/bi-distinct', async (req, res) => {
   try {
     const dim = req.query.dimension;
     if (!dim) return res.status(400).json({ error: 'dimension required' });
-    // Look for values in both Dimension_1 and Dimension_2
+
+    // Try dim table first for fast lookup
+    const dimTable = qoeDimTableMap[dim];
+    if (dimTable) {
+      try {
+        const r = await sharedPool.query(`SELECT value FROM ${dimTable} ORDER BY value`);
+        if (r.rows.length > 0) {
+          console.log(`[bi-distinct] ${dim} → ${r.rows.length} values from ${dimTable}`);
+          return res.json(r.rows.map(row => row.value));
+        }
+      } catch (e) {
+        console.log(`[bi-distinct] dim table ${dimTable} not available, falling back to DISTINCT`);
+      }
+    }
+
+    // Fallback: direct DISTINCT query
     const sql = `
       SELECT DISTINCT val FROM (
         SELECT "Dimension_2" AS val FROM qoe_metric WHERE "Dimension_1" = $1
