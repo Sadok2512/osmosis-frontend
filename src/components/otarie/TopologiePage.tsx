@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { dumpParameterApi } from '@/lib/localDb';
 import { supabase } from '@/integrations/supabase/client';
-import { getApiUrl, getPreferredDataSource, setPreferredDataSource } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, getPreferredDataSource, setPreferredDataSource } from '@/lib/apiConfig';
 import {
   Search, Filter, Download, Loader2, ChevronDown, Wifi, WifiOff, Database,
   Layers, FileSpreadsheet, Check, X, AlertCircle, ChevronLeft, ChevronRight, RotateCcw,
-  BarChart3, AlignStartVertical, ArrowUpDown, Eye, EyeOff, List, Bot, PanelRightClose
+  BarChart3, AlignStartVertical, ArrowUpDown, Eye, EyeOff, List, Sparkles
 } from 'lucide-react';
-import AIAssistantPage from './AIAssistantPage';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -139,6 +140,9 @@ const SegmentedControl: React.FC<{
 
 const TopologiePage: React.FC = () => {
   const [showAI, setShowAI] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const aiScrollRef = useRef<HTMLDivElement>(null);
   const [mainTab, setMainTab] = useState('param_distribution');
   const [cnxStatus, setCnxStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
   const [cnxMessage, setCnxMessage] = useState('');
@@ -630,6 +634,93 @@ const TopologiePage: React.FC = () => {
   const pdSummary = pdConfirmed ? `${pdAppliedParams.length} param(s)${pdAppliedVendor.length ? ` · Vendor: ${pdAppliedVendor.join(',')}` : ''}${pdAppliedDor.length ? ` · DOR: ${pdAppliedDor.join(',')}` : ''} · Agg: ${aggLabel(pdAppliedAggregator)} · ${pdData.length} rows` : null;
   const rawSummary = rawConfirmed ? `${rawAppliedParams.length} param(s)${rawAppliedVendor.length ? ` · Vendor: ${rawAppliedVendor.join(',')}` : ''}${rawAppliedSite.length ? ` · Sites: ${rawAppliedSite.length}` : ''} · ${rawFiltered.length} rows` : null;
 
+  // ─── AI Analysis ───
+  const launchAIAnalysis = useCallback(async () => {
+    const activeData = mainTab === 'param_distribution' ? pdData : rawData;
+    const activeParams = mainTab === 'param_distribution' ? pdAppliedParams : rawAppliedParams;
+    const activeVendor = mainTab === 'param_distribution' ? pdAppliedVendor : rawAppliedVendor;
+
+    if (activeData.length === 0) return;
+
+    const valueDist: Record<string, number> = {};
+    activeData.forEach(r => {
+      const v = r.value || 'N/A';
+      valueDist[v] = (valueDist[v] || 0) + 1;
+    });
+    const topValues = Object.entries(valueDist).sort((a, b) => b[1] - a[1]).slice(0, 15)
+      .map(([v, c]) => `${v}: ${c} (${((c / activeData.length) * 100).toFixed(1)}%)`).join('\n');
+
+    const prompt = `Analyse les paramètres réseau suivants et donne des recommandations d'optimisation.
+
+**Contexte:**
+- Paramètres analysés: ${activeParams.join(', ')}
+- Filtres vendor: ${activeVendor.length > 0 ? activeVendor.join(', ') : 'Tous'}
+- Nombre total de cellules: ${activeData.length}
+
+**Distribution des valeurs:**
+${topValues}
+
+Fournis:
+1. Un résumé de la distribution observée
+2. Les anomalies ou incohérences détectées
+3. Des recommandations concrètes d'optimisation radio
+4. Un verdict global (✅ OK / ⚠️ À VÉRIFIER / 🔴 PROBLÈME)`;
+
+    setShowAI(true);
+    setAiAnalysis('');
+    setAiLoading(true);
+
+    try {
+      const url = getApiUrl('qoe-assistant');
+      const headers = getApiHeaders();
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
+      });
+
+      if (!resp.ok || !resp.body) {
+        setAiAnalysis('❌ Erreur lors de l\'analyse AI.');
+        setAiLoading(false);
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let nlIdx: number;
+        while ((nlIdx = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, nlIdx);
+          buffer = buffer.slice(nlIdx + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              accumulated += content;
+              setAiAnalysis(accumulated);
+            }
+          } catch { /* partial JSON */ }
+        }
+      }
+    } catch (e: any) {
+      setAiAnalysis(`❌ Erreur: ${e.message || 'Connexion impossible'}`);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [mainTab, pdData, rawData, pdAppliedParams, rawAppliedParams, pdAppliedVendor, rawAppliedVendor]);
+
   // Mini stacked bar for table
   const MiniBar: React.FC<{ details: { value: string; count: number; pct: string }[]; total: number }> = ({ details, total }) => {
     if (total === 0) return null;
@@ -670,9 +761,9 @@ const TopologiePage: React.FC = () => {
             </Tabs>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowAI(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>
-              <Bot className="w-3.5 h-3.5" /> AI Assistant
+            <button onClick={launchAIAnalysis} disabled={aiLoading || (!pdConfirmed && !rawConfirmed)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${aiLoading ? 'bg-primary text-primary-foreground animate-pulse' : showAI ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'} disabled:opacity-40 disabled:cursor-not-allowed`}>
+              {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Analyse AI
             </button>
             <Badge variant="outline" className="text-[10px] h-6 gap-1 px-2"><Database className="w-3 h-3" />{backendLabel}</Badge>
             <div className="inline-flex rounded-md border border-input overflow-hidden">
@@ -1234,20 +1325,29 @@ const TopologiePage: React.FC = () => {
       </div>
         </div>
 
-        {/* ─── AI ASSISTANT PANEL ─── */}
+        {/* ─── AI ANALYSIS PANEL ─── */}
         {showAI && (
-          <div className="w-[40%] min-w-[340px] max-w-[500px] border-l border-border flex flex-col bg-background relative">
+          <div className="w-[40%] min-w-[340px] max-w-[500px] border-l border-border flex flex-col bg-background">
             <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card">
               <div className="flex items-center gap-2">
-                <Bot className="w-4 h-4 text-primary" />
-                <span className="text-xs font-semibold text-foreground">QOEBIT Assistant</span>
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Analyse AI</span>
+                {aiLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />}
               </div>
               <button onClick={() => setShowAI(false)} className="p-1 rounded hover:bg-muted transition-colors">
-                <PanelRightClose className="w-4 h-4 text-muted-foreground" />
+                <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
-            <div className="flex-1 overflow-hidden">
-              <AIAssistantPage />
+            <div ref={aiScrollRef} className="flex-1 overflow-auto p-4">
+              {aiAnalysis ? (
+                <div className="prose prose-sm dark:prose-invert max-w-none text-xs">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiAnalysis}</ReactMarkdown>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-32 text-muted-foreground text-xs">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                </div>
+              )}
             </div>
           </div>
         )}
