@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Download, FileSpreadsheet, RefreshCw, Maximize2,
-  Copy, Trash2, MoreHorizontal, Pencil, PencilOff,
+  Copy, Trash2, MoreHorizontal, Pencil, PencilOff, Settings,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -116,6 +116,12 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
+                {onToggleEditMode && (
+                  <DropdownMenuItem onClick={onToggleEditMode} className="gap-2 text-xs">
+                    <Settings className="w-3.5 h-3.5" /> Configure
+                  </DropdownMenuItem>
+                )}
+                {onToggleEditMode && <DropdownMenuSeparator />}
                 {onExportPNG && (
                   <DropdownMenuItem onClick={onExportPNG} className="gap-2 text-xs">
                     <Download className="w-3.5 h-3.5" /> Download PNG
