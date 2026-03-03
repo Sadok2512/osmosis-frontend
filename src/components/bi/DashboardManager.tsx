@@ -84,8 +84,11 @@ async function deleteDashboardFromDB(id: string) {
 }
 
 export function useDashboardManager() {
-  const [tabs, setTabs] = useState<OpenTab[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string>('');
+  const defaultId = 'db_default';
+  const [tabs, setTabs] = useState<OpenTab[]>([
+    { id: defaultId, name: 'Dashboard 1', description: '', isShared: true, widgets: createDefaultWidgets(), dirty: true }
+  ]);
+  const [activeTabId, setActiveTabId] = useState<string>(defaultId);
   const [showList, setShowList] = useState(false);
   const [dbDashboards, setDbDashboards] = useState<SavedDashboard[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -97,12 +100,8 @@ export function useDashboardManager() {
         const openTabs = saved.map(s => ({ id: s.id, name: s.name, description: s.description, isShared: s.isShared, widgets: s.widgets, dirty: false }));
         setTabs(openTabs);
         setActiveTabId(openTabs[0].id);
-      } else {
-        const id = `db_${Date.now()}`;
-        const defaultTab: OpenTab = { id, name: 'Dashboard 1', description: '', isShared: true, widgets: createDefaultWidgets(), dirty: true };
-        setTabs([defaultTab]);
-        setActiveTabId(id);
       }
+      // If no saved dashboards, keep the default tab
       setLoaded(true);
     });
   }, []);
