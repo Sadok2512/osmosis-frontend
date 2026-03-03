@@ -5,7 +5,7 @@ import {
   X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart,
   ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check,
   Grid3X3, ArrowLeftRight, Calendar, Filter, GitBranch, Settings2, Palette,
-  GripVertical, Zap, Target, Milestone
+  GripVertical, Zap, Target, Milestone, ArrowRight, BarChart2
 } from 'lucide-react';
 import {
   ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine,
@@ -40,15 +40,15 @@ const BG_PALETTE = [
 ];
 
 const CHART_TYPE_OPTIONS: { type: ChartType; icon: React.ReactNode; label: string }[] = [
-  { type: 'line', icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'Ligne' },
-  { type: 'bar', icon: <BarChart3 className="w-3.5 h-3.5" />, label: 'Barres' },
-  { type: 'area', icon: <AreaChart className="w-3.5 h-3.5" />, label: 'Aire' },
-  { type: 'scatter', icon: <ScatterChart className="w-3.5 h-3.5" />, label: 'Scatter' },
-  { type: 'stacked_bar', icon: <Layers className="w-3.5 h-3.5" />, label: 'Empilé' },
-  { type: 'grouped_bar', icon: <Columns3 className="w-3.5 h-3.5" />, label: 'Superposé' },
-  { type: 'heatmap', icon: <Grid3X3 className="w-3.5 h-3.5" />, label: 'Heatmap' },
-  { type: 'pie', icon: <PieChart className="w-3.5 h-3.5" />, label: 'Pie' },
-  { type: 'kpi_card', icon: <Hash className="w-3.5 h-3.5" />, label: 'KPI' },
+  { type: 'line', icon: <TrendingUp className="w-4 h-4" />, label: 'Ligne' },
+  { type: 'bar', icon: <BarChart3 className="w-4 h-4" />, label: 'Barres' },
+  { type: 'area', icon: <AreaChart className="w-4 h-4" />, label: 'Aire' },
+  { type: 'scatter', icon: <ScatterChart className="w-4 h-4" />, label: 'Scatter' },
+  { type: 'stacked_bar', icon: <Layers className="w-4 h-4" />, label: 'Empilé' },
+  { type: 'grouped_bar', icon: <Columns3 className="w-4 h-4" />, label: 'Superposé' },
+  { type: 'heatmap', icon: <Grid3X3 className="w-4 h-4" />, label: 'Heatmap' },
+  { type: 'pie', icon: <PieChart className="w-4 h-4" />, label: 'Pie' },
+  { type: 'kpi_card', icon: <Hash className="w-4 h-4" />, label: 'KPI' },
 ];
 
 const DATE_PRESETS = [
@@ -58,7 +58,7 @@ const DATE_PRESETS = [
   { label: '90D', days: 90 },
 ];
 
-/* ─── FilterValuePicker: loads live DISTINCT values from local DB, falls back to mock ─── */
+/* ─── FilterValuePicker ─── */
 const FilterValuePicker: React.FC<{
   dimension: string;
   selected: string[];
@@ -70,7 +70,7 @@ const FilterValuePicker: React.FC<{
     let cancelled = false;
     biQueryApi.distinct(dimension).then(res => {
       if (!cancelled && Array.isArray(res) && res.length > 0) setValues(res);
-    }).catch(() => { /* keep mock fallback */ });
+    }).catch(() => {});
     return () => { cancelled = true; };
   }, [dimension]);
 
@@ -83,10 +83,10 @@ const FilterValuePicker: React.FC<{
             const vals = selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val];
             onChange(vals);
           }}
-          className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-all duration-150 ${
+          className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-all duration-150 ${
             selected.includes(val)
               ? 'bg-primary/10 text-primary border-primary/30'
-              : 'bg-background text-muted-foreground border-border/50 hover:border-primary/30'
+              : 'bg-background text-muted-foreground border-border/50 hover:border-primary/30 hover:bg-muted/40'
           }`}
         >
           {val}
@@ -96,8 +96,14 @@ const FilterValuePicker: React.FC<{
   );
 };
 
-/* ─── Reusable Components ─── */
+/* ─── Section Header (category label) ─── */
+const SectionCategory: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="px-1 pt-2 pb-1">
+    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">{children}</span>
+  </div>
+);
 
+/* ─── Section Card ─── */
 const SectionCard: React.FC<{
   title: string;
   icon: React.ReactNode;
@@ -106,22 +112,22 @@ const SectionCard: React.FC<{
   badge?: string;
   children: React.ReactNode;
 }> = ({ title, icon, open, toggle, badge, children }) => (
-  <div className="rounded-xl border border-border/60 bg-card/50 overflow-hidden transition-all duration-200 hover:border-border">
+  <div className="rounded-xl border border-border/40 bg-card/30 overflow-hidden transition-all duration-200 hover:border-border/70">
     <button
       onClick={toggle}
-      className="flex items-center gap-2.5 w-full px-4 py-3 text-left group transition-colors hover:bg-muted/30"
+      className="flex items-center gap-2.5 w-full px-4 py-3.5 text-left group transition-colors hover:bg-muted/20"
     >
-      <span className="text-primary/80 group-hover:text-primary transition-colors">{icon}</span>
+      <span className="text-primary/70 group-hover:text-primary transition-colors">{icon}</span>
       <span className="text-[13px] font-semibold text-foreground flex-1 tracking-tight">{title}</span>
       {badge && (
-        <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-semibold tabular-nums">
+        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold tabular-nums min-w-[22px] text-center">
           {badge}
         </span>
       )}
-      <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-0' : '-rotate-90'}`} />
+      <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground/60 transition-transform duration-200 ${open ? 'rotate-0' : '-rotate-90'}`} />
     </button>
     <div className={`transition-all duration-200 ease-out ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-      <div className="px-4 pb-4 pt-1 space-y-3">
+      <div className="px-4 pb-5 pt-1 space-y-4">
         {children}
       </div>
     </div>
@@ -129,7 +135,7 @@ const SectionCard: React.FC<{
 );
 
 const FieldLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{children}</span>
+  <span className="text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">{children}</span>
 );
 
 const StyledSelect: React.FC<{
@@ -142,7 +148,7 @@ const StyledSelect: React.FC<{
   <select
     value={value}
     onChange={e => onChange(e.target.value)}
-    className={`w-full bg-background border border-border/70 rounded-lg px-3 py-2 text-[13px] text-foreground
+    className={`w-full bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[13px] text-foreground
       outline-none transition-all duration-150
       focus:ring-2 focus:ring-primary/20 focus:border-primary/50
       hover:border-border appearance-none cursor-pointer ${className || ''}`}
@@ -177,15 +183,15 @@ const SegmentedControl: React.FC<{
   value: string;
   onChange: (v: string) => void;
 }> = ({ options, value, onChange }) => (
-  <div className="inline-flex rounded-lg bg-muted/60 p-0.5 border border-border/40">
+  <div className="inline-flex rounded-lg bg-muted/50 p-1 border border-border/30 gap-0.5">
     {options.map(opt => (
       <button
         key={opt.value}
         onClick={() => onChange(opt.value)}
-        className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-all duration-150 ${
+        className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all duration-200 ${
           value === opt.value
-            ? 'bg-background text-foreground shadow-sm border border-border/50'
-            : 'text-muted-foreground hover:text-foreground'
+            ? 'bg-primary text-primary-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
         }`}
       >
         {opt.label}
@@ -198,7 +204,7 @@ const SegmentedControl: React.FC<{
 
 const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   const [sections, setSections] = useState({
-    source: false, x: false, y: false, filters: false, group: false, advanced: false
+    source: false, x: true, y: true, filters: false, group: false, advanced: false
   });
   const toggle = (s: keyof typeof sections) => setSections(p => ({ ...p, [s]: !p[s] }));
   const { datasets } = useCSVData();
@@ -213,13 +219,11 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   useEffect(() => {
     biQueryApi.dateRange().then(range => {
       setAvailableDateRange(range);
-      // If the current dates look like placeholders or are outside data range, auto-update
       if (range.min_date && range.max_date) {
         const currentStart = draft.xAxis.dateStart || '';
         const currentEnd = draft.xAxis.dateEnd || '';
         const dataStart = range.min_date;
         const dataEnd = range.max_date;
-        // Auto-set dates if they're the hardcoded defaults or empty
         if (!currentStart || !currentEnd || currentStart === '2026-02-01' || currentEnd === '2026-02-15' ||
             currentStart > dataEnd || currentEnd < dataStart) {
           const start = new Date(dataEnd);
@@ -232,7 +236,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           setDirty(true);
         }
       }
-    }).catch(() => { /* local server not available */ });
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -290,7 +294,6 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   };
 
   const applyDatePreset = (days: number) => {
-    // Use the end of available data range if known, otherwise today
     const endDate = availableDateRange.max_date ? new Date(availableDateRange.max_date) : new Date();
     const startDate = new Date(endDate);
     startDate.setDate(startDate.getDate() - days);
@@ -303,20 +306,23 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   };
 
   return (
-    <div className="w-[340px] h-full bg-background/95 backdrop-blur-xl border-l border-border/50 flex flex-col overflow-hidden">
+    <div className="w-[360px] h-full bg-background border-l border-border/40 flex flex-col overflow-hidden">
 
       {/* ─── Header ─── */}
-      <div className="px-5 py-4 border-b border-border/50">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Settings2 className="w-3.5 h-3.5 text-primary" />
+      <div className="px-5 py-5 border-b border-border/40 bg-card/50">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <BarChart2 className="w-4 h-4 text-primary" />
             </div>
-            <span className="text-[13px] font-semibold text-foreground tracking-tight">Configuration</span>
+            <div>
+              <h2 className="text-sm font-bold text-foreground tracking-tight">New Chart</h2>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Configure chart settings</p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted/60 transition-colors"
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -324,15 +330,18 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         <input
           value={draft.title}
           onChange={e => update({ title: e.target.value })}
-          className="w-full bg-transparent text-base font-semibold text-foreground outline-none
-            border-b-2 border-transparent focus:border-primary/40 transition-colors
-            placeholder:text-muted-foreground/50 pb-1"
+          className="w-full bg-muted/30 rounded-lg text-sm font-semibold text-foreground outline-none
+            border border-border/40 px-3 py-2.5 focus:border-primary/40 focus:bg-background
+            transition-all duration-200 placeholder:text-muted-foreground/40"
           placeholder="Titre du graphique…"
         />
       </div>
 
       {/* ─── Scrollable Sections ─── */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-thin">
+
+        {/* ═══ DATA ═══ */}
+        <SectionCategory>Data</SectionCategory>
 
         {/* ── DATA SOURCE ── */}
         {datasets.length > 0 && (
@@ -414,9 +423,9 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </SectionCard>
         )}
 
-        {/* ── X AXIS ── */}
+        {/* ── DATE RANGE ── */}
         <SectionCard
-          title="Axe X"
+          title="Date Range"
           icon={<Calendar className="w-4 h-4" />}
           open={sections.x}
           toggle={() => toggle('x')}
@@ -455,45 +464,54 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </div>
 
           {draft.xAxis.type === 'date' && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {/* Quick date presets */}
               <div className="flex gap-1.5">
                 {DATE_PRESETS.map(p => (
                   <button
                     key={p.label}
                     onClick={() => applyDatePreset(p.days)}
-                    className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-border/50
-                      bg-background text-muted-foreground hover:text-primary hover:border-primary/30
-                      transition-all duration-150"
+                    className="flex-1 py-2 rounded-lg text-[11px] font-bold border border-border/40
+                      bg-muted/30 text-muted-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5
+                      transition-all duration-200"
                   >
                     {p.label}
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <FieldLabel>Début</FieldLabel>
+
+              {/* Date inputs on same row with arrow */}
+              <div className="flex items-end gap-2">
+                <div className="flex-1 space-y-1.5">
+                  <FieldLabel>Start</FieldLabel>
                   <input
                     type="date"
                     value={draft.xAxis.dateStart}
                     onChange={e => updateX({ dateStart: e.target.value })}
-                    className="w-full bg-background border border-border/70 rounded-lg px-3 py-2 text-[12px] text-foreground
-                      outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+                    className="w-full bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[12px] text-foreground
+                      outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                      hover:border-border transition-all duration-150"
                   />
                 </div>
-                <div className="space-y-1">
-                  <FieldLabel>Fin</FieldLabel>
+                <div className="pb-2.5">
+                  <ArrowRight className="w-4 h-4 text-muted-foreground/50" />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <FieldLabel>End</FieldLabel>
                   <input
                     type="date"
                     value={draft.xAxis.dateEnd}
                     onChange={e => updateX({ dateEnd: e.target.value })}
-                    className="w-full bg-background border border-border/70 rounded-lg px-3 py-2 text-[12px] text-foreground
-                      outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+                    className="w-full bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[12px] text-foreground
+                      outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                      hover:border-border transition-all duration-150"
                   />
                 </div>
               </div>
-              <div className="space-y-1">
-                <FieldLabel>Granularité</FieldLabel>
+
+              {/* Granularity */}
+              <div className="space-y-2">
+                <FieldLabel>Granularity</FieldLabel>
                 <SegmentedControl
                   options={GRANULARITIES.map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
                   value={draft.xAxis.granularity || 'day'}
@@ -508,70 +526,79 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           {draft.xAxis.type === 'kpi' && (
             <button
               onClick={() => { setKpiModalTarget({ type: 'xAxis' }); setKpiModalOpen(true); }}
-              className="w-full text-left bg-background border border-border/70 rounded-lg px-3 py-2 text-[13px] text-foreground hover:border-primary/40 transition-all"
+              className="w-full text-left bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[13px] text-foreground hover:border-primary/40 transition-all"
             >
               {getKpiDisplayName(draft.xAxis.value) || 'Sélectionner un KPI…'}
             </button>
           )}
         </SectionCard>
 
+        {/* ═══ METRICS ═══ */}
+        <SectionCategory>Metrics</SectionCategory>
+
         {/* ── Y AXIS (METRICS) ── */}
         <SectionCard
-          title="Métriques Y"
+          title="KPI Selection"
           icon={<TrendingUp className="w-4 h-4" />}
           open={sections.y}
           toggle={() => toggle('y')}
           badge={`${draft.yMetrics.length}`}
         >
-          {/* Multi-select KPI button */}
+          {/* Add Metrics CTA */}
           <button
             onClick={() => { setKpiModalTarget({ type: 'metric', index: -1 }); setKpiModalOpen(true); }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border/60
-              text-[12px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40
-              transition-all duration-200 hover:bg-primary/5"
+            className="w-full flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-muted/20
+              hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 group"
           >
-            <Plus className="w-4 h-4" />
-            Sélectionner des KPIs
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center
+              group-hover:bg-primary/20 transition-colors duration-200">
+              <Plus className="w-5 h-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <span className="text-[13px] font-semibold text-foreground block">Add Metrics</span>
+              <span className="text-[11px] text-muted-foreground">Select KPIs to visualize</span>
+            </div>
           </button>
 
-          <div className="space-y-2.5">
+          {/* Metric cards */}
+          <div className="space-y-3">
             {draft.yMetrics.map((m, i) => (
               <div
                 key={i}
-                className="rounded-xl border border-border/50 bg-background overflow-hidden transition-all duration-200 hover:border-border hover:shadow-sm"
+                className="rounded-xl border border-border/40 bg-card/40 overflow-hidden transition-all duration-200 hover:border-border/70 hover:shadow-sm"
               >
                 {/* Metric header with colored accent */}
                 <div className="flex items-stretch">
-                  <div className="w-1 rounded-l-xl" style={{ background: m.color }} />
-                  <div className="flex-1 p-3 space-y-3">
+                  <div className="w-1 rounded-l-xl shrink-0" style={{ background: m.color }} />
+                  <div className="flex-1 p-4 space-y-4">
                     {/* Top row: KPI name + delete */}
                     <div className="flex items-center gap-2">
-                      <span className="flex-1 text-[12px] font-semibold text-foreground truncate">
+                      <span className="flex-1 text-[13px] font-bold text-foreground truncate">
                         {getKpiDisplayName(m.kpi)}
                       </span>
                       <button
                         onClick={() => removeMetric(i)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center
-                          text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-150"
+                          text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all duration-150"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
-                    {/* Chart type segmented */}
-                    <div>
-                      <FieldLabel>Type de graphique</FieldLabel>
+                    {/* ── VISUALIZATION subsection ── */}
+                    <div className="space-y-3">
+                      <FieldLabel>Chart Type</FieldLabel>
                       <TooltipProvider delayDuration={200}>
-                        <div className="flex gap-1 mt-1.5">
+                        <div className="grid grid-cols-9 gap-1">
                           {CHART_TYPE_OPTIONS.map(opt => (
                             <Tooltip key={opt.type}>
                               <TooltipTrigger asChild>
                                 <button
                                   onClick={() => updateMetric(i, { chartType: opt.type })}
-                                  className={`flex-1 p-1.5 rounded-lg border transition-all duration-150 ${
+                                  className={`aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 ${
                                     m.chartType === opt.type
-                                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                      : 'bg-muted/30 text-muted-foreground border-transparent hover:border-border hover:text-foreground'
+                                      ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-105'
+                                      : 'bg-muted/20 text-muted-foreground border-transparent hover:border-border/60 hover:text-foreground hover:bg-muted/40'
                                   }`}
                                 >
                                   {opt.icon}
@@ -584,42 +611,50 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                       </TooltipProvider>
                     </div>
 
-                    {/* Axis + Toggles row */}
-                    <div className="flex items-center justify-between">
-                      <SegmentedControl
-                        options={[
-                          { value: 'left', label: 'Gauche' },
-                          { value: 'right', label: 'Droite' },
-                        ]}
-                        value={m.axis}
-                        onChange={v => updateMetric(i, { axis: v as AxisSide })}
-                      />
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <Switch
-                            checked={m.smoothCurve}
-                            onCheckedChange={v => updateMetric(i, { smoothCurve: v })}
-                            className="scale-75 origin-left"
+                    {/* Axis + Toggles */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1.5">
+                          <FieldLabel>Axis</FieldLabel>
+                          <SegmentedControl
+                            options={[
+                              { value: 'left', label: 'Left' },
+                              { value: 'right', label: 'Right' },
+                            ]}
+                            value={m.axis}
+                            onChange={v => updateMetric(i, { axis: v as AxisSide })}
                           />
-                          <span className="text-[10px] font-medium text-muted-foreground">Smooth</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <Switch
-                            checked={m.showMovingAvg}
-                            onCheckedChange={v => updateMetric(i, { showMovingAvg: v })}
-                            className="scale-75 origin-left"
-                          />
-                          <span className="text-[10px] font-medium text-muted-foreground">MA</span>
-                        </label>
+                        </div>
+                        <div className="space-y-2 pt-4">
+                          <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                            <Switch
+                              checked={m.smoothCurve}
+                              onCheckedChange={v => updateMetric(i, { smoothCurve: v })}
+                              className="scale-[0.8] origin-left"
+                            />
+                            <span className="text-[11px] font-medium text-muted-foreground group-hover/toggle:text-foreground transition-colors">Smooth</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                            <Switch
+                              checked={m.showMovingAvg}
+                              onCheckedChange={v => updateMetric(i, { showMovingAvg: v })}
+                              className="scale-[0.8] origin-left"
+                            />
+                            <span className="text-[11px] font-medium text-muted-foreground group-hover/toggle:text-foreground transition-colors">Moving Avg</span>
+                          </label>
+                        </div>
                       </div>
                     </div>
 
                     {/* Color picker */}
-                    <div className="flex items-center gap-2">
-                      <Palette className="w-3 h-3 text-muted-foreground" />
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <Palette className="w-3 h-3 text-muted-foreground/60" />
+                        <FieldLabel>Color</FieldLabel>
+                      </div>
                       <div className="flex gap-1.5 flex-wrap">
                         {SIMPLE_PALETTE.map(c => (
-                          <ColorDot key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} size={18} />
+                          <ColorDot key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} size={20} />
                         ))}
                       </div>
                     </div>
@@ -630,17 +665,20 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </div>
         </SectionCard>
 
+        {/* ═══ VISUALIZATION ═══ */}
+        <SectionCategory>Filters & Groups</SectionCategory>
+
         {/* ── FILTERS ── */}
         <SectionCard
-          title="Filtres"
+          title="Filters"
           icon={<Filter className="w-4 h-4" />}
           open={sections.filters}
           toggle={() => toggle('filters')}
           badge={draft.filters.length > 0 ? `${draft.filters.length}` : undefined}
         >
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {draft.filters.map((f, i) => (
-              <div key={i} className="rounded-xl border border-border/50 bg-background p-3 space-y-2">
+              <div key={i} className="rounded-xl border border-border/40 bg-card/30 p-3.5 space-y-2.5">
                 <div className="flex items-center gap-2">
                   <StyledSelect
                     value={f.dimension}
@@ -651,7 +689,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   <button
                     onClick={() => removeFilter(i)}
                     className="w-7 h-7 rounded-lg flex items-center justify-center
-                      text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                      text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -663,69 +701,71 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
 
           <button
             onClick={addFilter}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border/60
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-border/50
               text-[12px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40
               transition-all duration-200 hover:bg-primary/5"
           >
             <Plus className="w-4 h-4" />
-            Ajouter un filtre
+            Add Filter
           </button>
         </SectionCard>
 
         {/* ── GROUP BY / SCATTER ── */}
         <SectionCard
-          title="Grouper / Scatter"
+          title="Group By / Scatter"
           icon={<GitBranch className="w-4 h-4" />}
           open={sections.group}
           toggle={() => toggle('group')}
         >
-          <div className="space-y-3">
-            <div className="space-y-1.5">
+          <div className="space-y-4">
+            <div className="space-y-2">
               <FieldLabel>Group By</FieldLabel>
               <StyledSelect
                 value={draft.groupBy[0] || ''}
                 options={['', ...BI_DIMENSIONS] as any}
                 onChange={v => update({ groupBy: v ? [v as BIDimension] : [] })}
-                placeholder="Aucun"
+                placeholder="None"
               />
             </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Coloré par</FieldLabel>
+            <div className="space-y-2">
+              <FieldLabel>Color By</FieldLabel>
               <StyledSelect
                 value={draft.colorBy || ''}
                 options={['', ...BI_DIMENSIONS] as any}
                 onChange={v => update({ colorBy: v ? v as BIDimension : undefined })}
-                placeholder="Aucun"
+                placeholder="None"
               />
             </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Taille par</FieldLabel>
+            <div className="space-y-2">
+              <FieldLabel>Size By</FieldLabel>
               <button
                 onClick={() => { setKpiModalTarget({ type: 'sizeBy' }); setKpiModalOpen(true); }}
-                className="w-full text-left bg-background border border-border/70 rounded-lg px-3 py-2 text-[13px] text-foreground hover:border-primary/40 transition-all"
+                className="w-full text-left bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[13px] text-foreground hover:border-primary/40 transition-all"
               >
-                {draft.sizeBy ? getKpiDisplayName(draft.sizeBy) : 'Aucun'}
+                {draft.sizeBy ? getKpiDisplayName(draft.sizeBy) : 'None'}
               </button>
             </div>
           </div>
         </SectionCard>
 
-        {/* ── ADVANCED ── */}
+        {/* ═══ ADVANCED ═══ */}
+        <SectionCategory>Advanced</SectionCategory>
+
         <SectionCard
-          title="Avancé"
+          title="Advanced Settings"
           icon={<Settings2 className="w-4 h-4" />}
           open={sections.advanced}
           toggle={() => toggle('advanced')}
         >
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Toggles */}
             <div className="space-y-3">
               {[
-                { key: 'showLegend' as const, label: 'Légende' },
+                { key: 'showLegend' as const, label: 'Legend' },
                 { key: 'highlightAnomalies' as const, label: 'Anomalies' },
-                { key: 'sortByValue' as const, label: 'Tri par valeur' },
+                { key: 'sortByValue' as const, label: 'Sort by value' },
               ].map(opt => (
-                <div key={opt.key} className="flex items-center justify-between">
+                <div key={opt.key} className="flex items-center justify-between py-1">
                   <span className="text-[12px] text-foreground font-medium">{opt.label}</span>
                   <Switch
                     checked={draft.advanced[opt.key] as boolean}
@@ -733,27 +773,26 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   />
                 </div>
               ))}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between py-1">
                 <span className="text-[12px] text-foreground font-medium">Top N</span>
                 <input
                   type="number" min={0} max={100}
                   value={draft.advanced.topN || ''}
-                  placeholder="Tous"
+                  placeholder="All"
                   onChange={e => update({ advanced: { ...draft.advanced, topN: e.target.value ? Number(e.target.value) : null } })}
-                  className="w-20 bg-background border border-border/70 rounded-lg px-3 py-1.5 text-[12px] text-foreground text-right
+                  className="w-20 bg-background border border-border/60 rounded-lg px-3 py-1.5 text-[12px] text-foreground text-right
                     outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
                 />
               </div>
             </div>
 
-            {/* Divider */}
-            <div className="h-px bg-border/50" />
+            <div className="h-px bg-border/30" />
 
             {/* Background color */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <div className="flex items-center gap-1.5">
-                <Paintbrush className="w-3.5 h-3.5 text-muted-foreground" />
-                <FieldLabel>Couleur de fond</FieldLabel>
+                <Paintbrush className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <FieldLabel>Background</FieldLabel>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {BG_PALETTE.map(c => (
@@ -766,17 +805,16 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
               </div>
             </div>
 
-            {/* Divider */}
-            <div className="h-px bg-border/50" />
+            <div className="h-px bg-border/30" />
 
             {/* Thresholds */}
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               <div className="flex items-center gap-1.5">
-                <Target className="w-3.5 h-3.5 text-muted-foreground" />
-                <FieldLabel>Seuils horizontaux</FieldLabel>
+                <Target className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <FieldLabel>Thresholds</FieldLabel>
               </div>
               {draft.advanced.thresholds.map((t, i) => (
-                <div key={i} className="rounded-xl border border-border/50 bg-background p-3 space-y-2">
+                <div key={i} className="rounded-xl border border-border/40 bg-card/30 p-3.5 space-y-2.5">
                   <div className="flex items-center gap-2">
                     <input
                       type="number" value={t.value}
@@ -785,9 +823,9 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                         thresholds[i] = { ...t, value: Number(e.target.value) };
                         update({ advanced: { ...draft.advanced, thresholds } });
                       }}
-                      className="w-20 bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-[12px] text-foreground
+                      className="w-20 bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
                         outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                      placeholder="Valeur"
+                      placeholder="Value"
                     />
                     <input
                       value={t.label}
@@ -796,7 +834,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                         thresholds[i] = { ...t, label: e.target.value };
                         update({ advanced: { ...draft.advanced, thresholds } });
                       }}
-                      className="flex-1 bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-[12px] text-foreground
+                      className="flex-1 bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
                         outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       placeholder="Label"
                     />
@@ -812,7 +850,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                     />
                     <button
                       onClick={() => update({ advanced: { ...draft.advanced, thresholds: draft.advanced.thresholds.filter((_, j) => j !== i) } })}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -829,25 +867,24 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 </div>
               ))}
               <button
-                onClick={() => update({ advanced: { ...draft.advanced, thresholds: [...draft.advanced.thresholds, { value: 0, label: 'Seuil', color: '#EF4444', lineStyle: 'dashed' }] } })}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-border/60
-                  text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all"
+                onClick={() => update({ advanced: { ...draft.advanced, thresholds: [...draft.advanced.thresholds, { value: 0, label: 'Threshold', color: '#EF4444', lineStyle: 'dashed' }] } })}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed border-border/50
+                  text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all hover:bg-primary/5"
               >
-                <Plus className="w-3.5 h-3.5" /> Ajouter un seuil
+                <Plus className="w-3.5 h-3.5" /> Add Threshold
               </button>
             </div>
 
-            {/* Divider */}
-            <div className="h-px bg-border/50" />
+            <div className="h-px bg-border/30" />
 
             {/* Milestones */}
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               <div className="flex items-center gap-1.5">
-                <Milestone className="w-3.5 h-3.5 text-muted-foreground" />
-                <FieldLabel>Jalons verticaux</FieldLabel>
+                <Milestone className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <FieldLabel>Milestones</FieldLabel>
               </div>
               {(draft.advanced.milestones || []).map((m, i) => (
-                <div key={i} className="rounded-xl border border-border/50 bg-background p-3 space-y-2">
+                <div key={i} className="rounded-xl border border-border/40 bg-card/30 p-3.5 space-y-2.5">
                   <div className="flex items-center gap-2">
                     <input
                       type="date" value={m.date}
@@ -856,12 +893,12 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                         milestones[i] = { ...m, date: e.target.value };
                         update({ advanced: { ...draft.advanced, milestones } });
                       }}
-                      className="flex-1 bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-[12px] text-foreground
+                      className="flex-1 bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
                         outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                     <button
                       onClick={() => update({ advanced: { ...draft.advanced, milestones: (draft.advanced.milestones || []).filter((_, j) => j !== i) } })}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -873,9 +910,9 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                       milestones[i] = { ...m, label: e.target.value };
                       update({ advanced: { ...draft.advanced, milestones } });
                     }}
-                    className="w-full bg-background border border-border/70 rounded-lg px-2.5 py-1.5 text-[12px] text-foreground
+                    className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
                       outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                    placeholder="Label du jalon"
+                    placeholder="Milestone label"
                   />
                   <div className="flex items-center gap-2">
                     <StyledSelect
@@ -901,11 +938,11 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 </div>
               ))}
               <button
-                onClick={() => update({ advanced: { ...draft.advanced, milestones: [...(draft.advanced.milestones || []), { date: '2026-02-08', label: 'Jalon', color: '#8B5CF6', lineStyle: 'dashed' }] } })}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-border/60
-                  text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all"
+                onClick={() => update({ advanced: { ...draft.advanced, milestones: [...(draft.advanced.milestones || []), { date: '2026-02-08', label: 'Milestone', color: '#8B5CF6', lineStyle: 'dashed' }] } })}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed border-border/50
+                  text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all hover:bg-primary/5"
               >
-                <Plus className="w-3.5 h-3.5" /> Ajouter un jalon
+                <Plus className="w-3.5 h-3.5" /> Add Milestone
               </button>
             </div>
           </div>
@@ -913,19 +950,19 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
       </div>
 
       {/* ─── Apply Button ─── */}
-      <div className="px-4 py-3 border-t border-border/50 bg-background/80 backdrop-blur-sm">
+      <div className="px-5 py-4 border-t border-border/40 bg-card/50">
         <button
           onClick={handleApply}
           disabled={!dirty}
-          className={`w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-[13px] font-semibold
+          className={`w-full flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[13px] font-bold
             tracking-wide transition-all duration-200 ${
             dirty
               ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 active:scale-[0.98]'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
+              : 'bg-muted/50 text-muted-foreground cursor-not-allowed'
           }`}
         >
           <Check className="w-4 h-4" />
-          {dirty ? 'Appliquer les changements' : 'Configuration à jour'}
+          {dirty ? 'Apply Changes' : 'Up to date'}
         </button>
       </div>
 
@@ -946,7 +983,6 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         onConfirm={(keys) => {
           if (!kpiModalTarget) return;
           if (kpiModalTarget.type === 'metric') {
-            // Sync yMetrics with selected keys: keep existing configs, add new ones, remove deselected
             const existingMap = new Map(draft.yMetrics.map(m => [m.kpi, m]));
             const newMetrics: YMetricConfig[] = keys.map((key, idx) => {
               const existing = existingMap.get(key as BIKPI);
