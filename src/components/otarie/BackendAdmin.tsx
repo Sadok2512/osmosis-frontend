@@ -68,7 +68,7 @@ const MODULE_TABLE_MAP = [
     icon: '⚙️',
     tables: ['parameter_dump', 'parameter_changes'],
     description: 'Dump CM, historique des changements paramètres',
-    apiEndpoints: ['/api/dump-parameter'],
+    apiEndpoints: ['/api/dump-parameter', '/api/parameter-changes'],
   },
   {
     module: 'QOEBIT Assistant',
