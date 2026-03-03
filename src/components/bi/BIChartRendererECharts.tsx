@@ -116,13 +116,15 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
   // Live data from local qoe_metric
   const [liveData, setLiveData] = useState<any[] | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
 
-  const isLocal = config.dataSource?.type === 'local';
+  const isLocal = config.dataSource?.type === 'local' || !config.dataSource?.type;
 
   useEffect(() => {
-    if (!isLocal) { setLiveData(null); return; }
+    if (!isLocal) { setLiveData(null); setLiveError(null); return; }
     let cancelled = false;
     setLiveLoading(true);
+    setLiveError(null);
     biQueryApi.query({
       kpis: config.yMetrics.map(m => m.kpi),
       aggregation: config.yMetrics[0]?.aggregation || 'AVG',
@@ -140,8 +142,11 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     }).then(res => {
       if (!cancelled) setLiveData(res.rows || []);
     }).catch(err => {
-      console.warn('[BI] Live query failed, falling back to mock:', err.message);
-      if (!cancelled) setLiveData(null);
+      console.warn('[BI] Live query failed:', err.message);
+      if (!cancelled) {
+        setLiveData(null);
+        setLiveError(err.message);
+      }
     }).finally(() => {
       if (!cancelled) setLiveLoading(false);
     });
@@ -218,12 +223,25 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     );
   }
 
+  if (isLocal && liveLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+        <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        <span className="text-[10px] font-medium">Chargement…</span>
+      </div>
+    );
+  }
+
   if (rawData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
         <span className="text-2xl">📊</span>
         <span className="text-xs font-medium">Aucune donnée</span>
-        <span className="text-[10px] opacity-70">Connectez une source de données (CSV ou serveur local)</span>
+        <span className="text-[10px] opacity-70">
+          {liveError
+            ? `Serveur local indisponible: ${liveError}`
+            : 'Vérifiez la plage de dates ou les filtres'}
+        </span>
       </div>
     );
   }

@@ -204,6 +204,33 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
 
   const [draft, setDraft] = useState<ChartConfig>(() => JSON.parse(JSON.stringify(config)));
   const [dirty, setDirty] = useState(false);
+  const [availableDateRange, setAvailableDateRange] = useState<{ min_date: string | null; max_date: string | null }>({ min_date: null, max_date: null });
+
+  // Auto-detect available date range from local DB
+  useEffect(() => {
+    biQueryApi.dateRange().then(range => {
+      setAvailableDateRange(range);
+      // If the current dates look like placeholders or are outside data range, auto-update
+      if (range.min_date && range.max_date) {
+        const currentStart = draft.xAxis.dateStart || '';
+        const currentEnd = draft.xAxis.dateEnd || '';
+        const dataStart = range.min_date;
+        const dataEnd = range.max_date;
+        // Auto-set dates if they're the hardcoded defaults or empty
+        if (!currentStart || !currentEnd || currentStart === '2026-02-01' || currentEnd === '2026-02-15' ||
+            currentStart > dataEnd || currentEnd < dataStart) {
+          const start = new Date(dataEnd);
+          start.setDate(start.getDate() - 14);
+          const autoStart = start.toISOString().split('T')[0] < dataStart ? dataStart : start.toISOString().split('T')[0];
+          setDraft(prev => ({
+            ...prev,
+            xAxis: { ...prev.xAxis, dateStart: autoStart, dateEnd: dataEnd }
+          }));
+          setDirty(true);
+        }
+      }
+    }).catch(() => { /* local server not available */ });
+  }, []);
 
   useEffect(() => {
     setDraft(JSON.parse(JSON.stringify(config)));
@@ -260,12 +287,15 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   };
 
   const applyDatePreset = (days: number) => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - days);
+    // Use the end of available data range if known, otherwise today
+    const endDate = availableDateRange.max_date ? new Date(availableDateRange.max_date) : new Date();
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - days);
+    const minDate = availableDateRange.min_date;
+    const startStr = minDate && startDate.toISOString().split('T')[0] < minDate ? minDate : startDate.toISOString().split('T')[0];
     updateX({
-      dateStart: start.toISOString().split('T')[0],
-      dateEnd: end.toISOString().split('T')[0],
+      dateStart: startStr,
+      dateEnd: endDate.toISOString().split('T')[0],
     });
   };
 
