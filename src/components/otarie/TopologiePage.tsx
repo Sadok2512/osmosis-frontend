@@ -25,7 +25,6 @@ const CHART_COLORS = [
 ];
 
 interface DumpRow {
-  id: number;
   site_name: string | null;
   cell_name: string | null;
   parameter: string;
@@ -34,12 +33,12 @@ interface DumpRow {
   dor: string | null;
   vendor: string | null;
   bande: string | null;
-  dr: string | null;
-  ur: string | null;
+  netact: string | null;
+  zone_arcep: string | null;
   dn: string | null;
 }
 
-type AggregatorKey = 'vendor' | 'dor' | 'plaque' | 'ur' | 'value';
+type AggregatorKey = 'vendor' | 'dor' | 'plaque' | 'netact' | 'bande' | 'zone_arcep' | 'value';
 type ColorByKey = 'ne_aggregation' | 'value';
 type ChartMode = 'stacked' | 'grouped';
 
@@ -160,7 +159,9 @@ const TopologiePage: React.FC = () => {
   const [availablePlaques, setAvailablePlaques] = useState<string[]>([]);
   const [availableSites, setAvailableSites] = useState<string[]>([]);
   const [availableCells, setAvailableCells] = useState<string[]>([]);
-  const [availableUrs, setAvailableUrs] = useState<string[]>([]);
+  const [availableNetacts, setAvailableNetacts] = useState<string[]>([]);
+  const [availableBandes, setAvailableBandes] = useState<string[]>([]);
+  const [availableZoneArceps, setAvailableZoneArceps] = useState<string[]>([]);
   const [filtersLoading, setFiltersLoading] = useState(false);
 
   // ─── PD pending vs applied ───
@@ -168,6 +169,9 @@ const TopologiePage: React.FC = () => {
   const [pdPendingVendor, setPdPendingVendor] = useState<string[]>([]);
   const [pdPendingDor, setPdPendingDor] = useState<string[]>([]);
   const [pdPendingPlaque, setPdPendingPlaque] = useState<string[]>([]);
+  const [pdPendingNetact, setPdPendingNetact] = useState<string[]>([]);
+  const [pdPendingBande, setPdPendingBande] = useState<string[]>([]);
+  const [pdPendingZoneArcep, setPdPendingZoneArcep] = useState<string[]>([]);
   const [pdPendingAggregator, setPdPendingAggregator] = useState<AggregatorKey>('vendor');
   const [pdPendingColorBy, setPdPendingColorBy] = useState<ColorByKey>('value');
 
@@ -175,6 +179,9 @@ const TopologiePage: React.FC = () => {
   const [pdAppliedVendor, setPdAppliedVendor] = useState<string[]>([]);
   const [pdAppliedDor, setPdAppliedDor] = useState<string[]>([]);
   const [pdAppliedPlaque, setPdAppliedPlaque] = useState<string[]>([]);
+  const [pdAppliedNetact, setPdAppliedNetact] = useState<string[]>([]);
+  const [pdAppliedBande, setPdAppliedBande] = useState<string[]>([]);
+  const [pdAppliedZoneArcep, setPdAppliedZoneArcep] = useState<string[]>([]);
   const [pdAppliedAggregator, setPdAppliedAggregator] = useState<AggregatorKey>('vendor');
   const [pdAppliedColorBy, setPdAppliedColorBy] = useState<ColorByKey>('value');
   const [pdData, setPdData] = useState<DumpRow[]>([]);
@@ -186,6 +193,9 @@ const TopologiePage: React.FC = () => {
   const [rawPendingVendor, setRawPendingVendor] = useState<string[]>([]);
   const [rawPendingDor, setRawPendingDor] = useState<string[]>([]);
   const [rawPendingPlaque, setRawPendingPlaque] = useState<string[]>([]);
+  const [rawPendingNetact, setRawPendingNetact] = useState<string[]>([]);
+  const [rawPendingBande, setRawPendingBande] = useState<string[]>([]);
+  const [rawPendingZoneArcep, setRawPendingZoneArcep] = useState<string[]>([]);
   const [rawPendingSite, setRawPendingSite] = useState<string[]>([]);
   const [rawPendingCell, setRawPendingCell] = useState<string[]>([]);
 
@@ -193,6 +203,9 @@ const TopologiePage: React.FC = () => {
   const [rawAppliedVendor, setRawAppliedVendor] = useState<string[]>([]);
   const [rawAppliedDor, setRawAppliedDor] = useState<string[]>([]);
   const [rawAppliedPlaque, setRawAppliedPlaque] = useState<string[]>([]);
+  const [rawAppliedNetact, setRawAppliedNetact] = useState<string[]>([]);
+  const [rawAppliedBande, setRawAppliedBande] = useState<string[]>([]);
+  const [rawAppliedZoneArcep, setRawAppliedZoneArcep] = useState<string[]>([]);
   const [rawAppliedSite, setRawAppliedSite] = useState<string[]>([]);
   const [rawAppliedCell, setRawAppliedCell] = useState<string[]>([]);
   const [rawData, setRawData] = useState<DumpRow[]>([]);
@@ -212,14 +225,14 @@ const TopologiePage: React.FC = () => {
 
   // ─── Dirty detection ───
   const pdDirty = useMemo(() => {
-    return JSON.stringify({ p: pdPendingParams, v: pdPendingVendor, d: pdPendingDor, pl: pdPendingPlaque, a: pdPendingAggregator, c: pdPendingColorBy }) !==
-      JSON.stringify({ p: pdAppliedParams, v: pdAppliedVendor, d: pdAppliedDor, pl: pdAppliedPlaque, a: pdAppliedAggregator, c: pdAppliedColorBy });
-  }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingAggregator, pdPendingColorBy, pdAppliedParams, pdAppliedVendor, pdAppliedDor, pdAppliedPlaque, pdAppliedAggregator, pdAppliedColorBy]);
+    return JSON.stringify({ p: pdPendingParams, v: pdPendingVendor, d: pdPendingDor, pl: pdPendingPlaque, n: pdPendingNetact, b: pdPendingBande, z: pdPendingZoneArcep, a: pdPendingAggregator, c: pdPendingColorBy }) !==
+      JSON.stringify({ p: pdAppliedParams, v: pdAppliedVendor, d: pdAppliedDor, pl: pdAppliedPlaque, n: pdAppliedNetact, b: pdAppliedBande, z: pdAppliedZoneArcep, a: pdAppliedAggregator, c: pdAppliedColorBy });
+  }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingNetact, pdPendingBande, pdPendingZoneArcep, pdPendingAggregator, pdPendingColorBy, pdAppliedParams, pdAppliedVendor, pdAppliedDor, pdAppliedPlaque, pdAppliedNetact, pdAppliedBande, pdAppliedZoneArcep, pdAppliedAggregator, pdAppliedColorBy]);
 
   const rawDirty = useMemo(() => {
-    return JSON.stringify({ p: rawPendingParams, v: rawPendingVendor, d: rawPendingDor, pl: rawPendingPlaque, s: rawPendingSite, c: rawPendingCell }) !==
-      JSON.stringify({ p: rawAppliedParams, v: rawAppliedVendor, d: rawAppliedDor, pl: rawAppliedPlaque, s: rawAppliedSite, c: rawAppliedCell });
-  }, [rawPendingParams, rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingSite, rawPendingCell, rawAppliedParams, rawAppliedVendor, rawAppliedDor, rawAppliedPlaque, rawAppliedSite, rawAppliedCell]);
+    return JSON.stringify({ p: rawPendingParams, v: rawPendingVendor, d: rawPendingDor, pl: rawPendingPlaque, n: rawPendingNetact, b: rawPendingBande, z: rawPendingZoneArcep, s: rawPendingSite, c: rawPendingCell }) !==
+      JSON.stringify({ p: rawAppliedParams, v: rawAppliedVendor, d: rawAppliedDor, pl: rawAppliedPlaque, n: rawAppliedNetact, b: rawAppliedBande, z: rawAppliedZoneArcep, s: rawAppliedSite, c: rawAppliedCell });
+  }, [rawPendingParams, rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingNetact, rawPendingBande, rawPendingZoneArcep, rawPendingSite, rawPendingCell, rawAppliedParams, rawAppliedVendor, rawAppliedDor, rawAppliedPlaque, rawAppliedNetact, rawAppliedBande, rawAppliedZoneArcep, rawAppliedSite, rawAppliedCell]);
 
   const switchDataSource = (next: 'local' | 'cloud') => { setDataSource(next); setPreferredDataSource(next); };
 
@@ -274,12 +287,14 @@ const TopologiePage: React.FC = () => {
     if (shouldUseLocal && backendReachable === false) return;
     setFiltersLoading(true);
     const load = async () => {
-      const [p, v, d, pl, s, c, u] = await Promise.all([
+      const [p, v, d, pl, s, c, n, b, z] = await Promise.all([
         fetchDistinct('parameter'), fetchDistinct('vendor'), fetchDistinct('dor'),
-        fetchDistinct('plaque'), fetchDistinct('site_name'), fetchDistinct('cell_name'), fetchDistinct('ur'),
+        fetchDistinct('plaque'), fetchDistinct('site_name'), fetchDistinct('cell_name'),
+        fetchDistinct('netact'), fetchDistinct('bande'), fetchDistinct('zone_arcep'),
       ]);
       setAvailableParams(p); setAvailableVendors(v); setAvailableDors(d);
-      setAvailablePlaques(pl); setAvailableSites(s); setAvailableCells(c); setAvailableUrs(u);
+      setAvailablePlaques(pl); setAvailableSites(s); setAvailableCells(c);
+      setAvailableNetacts(n); setAvailableBandes(b); setAvailableZoneArceps(z);
       setFiltersLoading(false);
     };
     load();
@@ -290,6 +305,8 @@ const TopologiePage: React.FC = () => {
     if (pdPendingParams.length === 0) return;
     setPdAppliedParams([...pdPendingParams]); setPdAppliedVendor([...pdPendingVendor]);
     setPdAppliedDor([...pdPendingDor]); setPdAppliedPlaque([...pdPendingPlaque]);
+    setPdAppliedNetact([...pdPendingNetact]); setPdAppliedBande([...pdPendingBande]);
+    setPdAppliedZoneArcep([...pdPendingZoneArcep]);
     setPdAppliedAggregator(pdPendingAggregator); setPdAppliedColorBy(pdPendingColorBy);
     setPdLoading(true); setPdConfirmed(true);
 
@@ -298,15 +315,20 @@ const TopologiePage: React.FC = () => {
     if (pdPendingVendor.length > 0) filters.vendor = pdPendingVendor;
     if (pdPendingDor.length > 0) filters.dor = pdPendingDor;
     if (pdPendingPlaque.length > 0) filters.plaque = pdPendingPlaque;
+    if (pdPendingNetact.length > 0) filters.netact = pdPendingNetact;
+    if (pdPendingBande.length > 0) filters.bande = pdPendingBande;
+    if (pdPendingZoneArcep.length > 0) filters.zone_arcep = pdPendingZoneArcep;
 
-    const rows = await fetchRows(filters, 'site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor, dn');
+    const rows = await fetchRows(filters, 'site_name, cell_name, parameter, value, plaque, netact, vendor, bande, dor, zone_arcep, dn');
     setPdData(rows || []); setPdLoading(false);
-  }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingAggregator, pdPendingColorBy, fetchRows]);
+  }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingNetact, pdPendingBande, pdPendingZoneArcep, pdPendingAggregator, pdPendingColorBy, fetchRows]);
 
   const pdReset = () => {
     setPdPendingParams([]); setPdPendingVendor([]); setPdPendingDor([]); setPdPendingPlaque([]);
+    setPdPendingNetact([]); setPdPendingBande([]); setPdPendingZoneArcep([]);
     setPdPendingAggregator('vendor'); setPdPendingColorBy('value');
     setPdAppliedParams([]); setPdAppliedVendor([]); setPdAppliedDor([]); setPdAppliedPlaque([]);
+    setPdAppliedNetact([]); setPdAppliedBande([]); setPdAppliedZoneArcep([]);
     setPdAppliedAggregator('vendor'); setPdAppliedColorBy('value');
     setPdData([]); setPdConfirmed(false);
   };
@@ -320,22 +342,36 @@ const TopologiePage: React.FC = () => {
     setRawAppliedCell([...rawPendingCell]);
     setRawLoading(true); setRawConfirmed(true); setRawPage(1);
 
+  const rawConfirm = useCallback(async () => {
+    if (rawPendingParams.length === 0) return;
+    setRawAppliedParams([...rawPendingParams]);
+    setRawAppliedVendor([...rawPendingVendor]); setRawAppliedDor([...rawPendingDor]);
+    setRawAppliedPlaque([...rawPendingPlaque]); setRawAppliedNetact([...rawPendingNetact]);
+    setRawAppliedBande([...rawPendingBande]); setRawAppliedZoneArcep([...rawPendingZoneArcep]);
+    setRawAppliedSite([...rawPendingSite]); setRawAppliedCell([...rawPendingCell]);
+    setRawLoading(true); setRawConfirmed(true); setRawPage(1);
+
     const filters: Record<string, string | string[]> = {};
     if (rawPendingParams.length > 0) filters.parameter = rawPendingParams;
     if (rawPendingVendor.length > 0) filters.vendor = rawPendingVendor;
     if (rawPendingDor.length > 0) filters.dor = rawPendingDor;
     if (rawPendingPlaque.length > 0) filters.plaque = rawPendingPlaque;
+    if (rawPendingNetact.length > 0) filters.netact = rawPendingNetact;
+    if (rawPendingBande.length > 0) filters.bande = rawPendingBande;
+    if (rawPendingZoneArcep.length > 0) filters.zone_arcep = rawPendingZoneArcep;
     if (rawPendingSite.length > 0) filters.site_name = rawPendingSite;
     if (rawPendingCell.length > 0) filters.cell_name = rawPendingCell;
 
-    const rows = await fetchRows(filters, 'site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor, dn');
+    const rows = await fetchRows(filters, 'site_name, cell_name, parameter, value, plaque, netact, vendor, bande, dor, zone_arcep, dn');
     setRawData(rows || []); setRawLoading(false);
-  }, [rawPendingParams, rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingSite, rawPendingCell, fetchRows]);
+  }, [rawPendingParams, rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingNetact, rawPendingBande, rawPendingZoneArcep, rawPendingSite, rawPendingCell, fetchRows]);
 
   const rawReset = () => {
     setRawPendingParams([]); setRawPendingVendor([]); setRawPendingDor([]); setRawPendingPlaque([]);
+    setRawPendingNetact([]); setRawPendingBande([]); setRawPendingZoneArcep([]);
     setRawPendingSite([]); setRawPendingCell([]);
     setRawAppliedParams([]); setRawAppliedVendor([]); setRawAppliedDor([]); setRawAppliedPlaque([]);
+    setRawAppliedNetact([]); setRawAppliedBande([]); setRawAppliedZoneArcep([]);
     setRawAppliedSite([]); setRawAppliedCell([]);
     setRawData([]); setRawConfirmed(false); setRawPage(1);
   };
@@ -605,8 +641,8 @@ const TopologiePage: React.FC = () => {
 
   const exportCSV = (rows: DumpRow[]) => {
     if (!rows.length) return;
-    const headers = ['Site', 'Cell', 'Parameter', 'Value', 'DOR', 'Plaque', 'Vendor', 'Bande'];
-    const csv = [headers.join(','), ...rows.map(r => [r.site_name, r.cell_name, r.parameter, r.value, r.dor, r.plaque, r.vendor, r.bande].join(','))].join('\n');
+    const headers = ['Site', 'Cell', 'Parameter', 'Value', 'DOR', 'Plaque', 'Vendor', 'Bande', 'NetAct', 'Zone ARCEP'];
+    const csv = [headers.join(','), ...rows.map(r => [r.site_name, r.cell_name, r.parameter, r.value, r.dor, r.plaque, r.vendor, r.bande, r.netact, r.zone_arcep].join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `parameters_export.csv`; a.click();
@@ -628,7 +664,7 @@ const TopologiePage: React.FC = () => {
     } catch (err: any) { setCnxStatus('error'); setCnxMessage(`❌ Erreur: ${err.message || err}`); }
   };
 
-  const aggLabel = (key: AggregatorKey) => ({ vendor: 'Vendor', dor: 'DOR', plaque: 'Plaque', ur: 'NetAct', value: 'Valeur' }[key] || key);
+  const aggLabel = (key: AggregatorKey) => ({ vendor: 'Vendor', dor: 'DOR', plaque: 'Plaque', netact: 'NetAct', bande: 'Bande', zone_arcep: 'Zone ARCEP', value: 'Valeur' }[key] || key);
   const backendLabel = dataSource === 'local' ? 'Local' : 'Cloud';
 
   const pdSummary = pdConfirmed ? `${pdAppliedParams.length} param(s)${pdAppliedVendor.length ? ` · Vendor: ${pdAppliedVendor.join(',')}` : ''}${pdAppliedDor.length ? ` · DOR: ${pdAppliedDor.join(',')}` : ''} · Agg: ${aggLabel(pdAppliedAggregator)} · ${pdData.length} rows` : null;
@@ -798,7 +834,7 @@ Fournis:
           ) : (
             <>
               {/* Row 1: Filters + Confirm/Reset */}
-              <div className="flex items-end gap-3">
+               <div className="flex items-end gap-3 flex-wrap">
                 <div className="flex-[2] min-w-[200px]">
                   <MultiSelectFilter label="Paramètres *" selected={pdPendingParams} options={availableParams} onChange={setPdPendingParams} maxChips={3} />
                 </div>
@@ -806,13 +842,19 @@ Fournis:
                   <MultiSelectFilter label="Vendor" selected={pdPendingVendor} options={availableVendors} onChange={setPdPendingVendor} />
                 </div>
                 <div className="flex-1 min-w-[100px]">
-                  <MultiSelectFilter label="NetAct" selected={pdPendingVendor} options={availableUrs} onChange={() => {}} />
+                  <MultiSelectFilter label="NetAct" selected={pdPendingNetact} options={availableNetacts} onChange={setPdPendingNetact} />
                 </div>
                 <div className="flex-1 min-w-[100px]">
                   <MultiSelectFilter label="DOR" selected={pdPendingDor} options={availableDors} onChange={setPdPendingDor} />
                 </div>
                 <div className="flex-1 min-w-[100px]">
                   <MultiSelectFilter label="Plaque" selected={pdPendingPlaque} options={availablePlaques} onChange={setPdPendingPlaque} />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <MultiSelectFilter label="Bande" selected={pdPendingBande} options={availableBandes} onChange={setPdPendingBande} />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <MultiSelectFilter label="Zone ARCEP" selected={pdPendingZoneArcep} options={availableZoneArceps} onChange={setPdPendingZoneArcep} />
                 </div>
                 <div className="flex items-center gap-2 ml-auto shrink-0 pb-0.5">
                   {pdDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
@@ -829,7 +871,7 @@ Fournis:
               {/* Row 2: Controls */}
               <div className="flex items-center gap-4 flex-wrap">
                 <SegmentedControl label="Agrégation" value={pdPendingAggregator}
-                  options={[{ value: 'vendor', label: 'Vendor' }, { value: 'ur', label: 'NetAct' }, { value: 'dor', label: 'DOR' }, { value: 'plaque', label: 'Plaque' }, { value: 'value', label: 'Valeur' }]}
+                  options={[{ value: 'vendor', label: 'Vendor' }, { value: 'netact', label: 'NetAct' }, { value: 'dor', label: 'DOR' }, { value: 'plaque', label: 'Plaque' }, { value: 'bande', label: 'Bande' }, { value: 'zone_arcep', label: 'Zone ARCEP' }, { value: 'value', label: 'Valeur' }]}
                   onChange={v => setPdPendingAggregator(v as AggregatorKey)} />
                 <div className="w-px h-5 bg-border" />
                 <SegmentedControl label="Couleur" value={pdPendingColorBy}
@@ -861,9 +903,11 @@ Fournis:
                 <MultiSelectFilter label="PARAMÈTRES ✱" selected={rawPendingParams} options={availableParams} onChange={setRawPendingParams} maxChips={3} />
               </div>
               <MultiSelectFilter label="Vendor" selected={rawPendingVendor} options={availableVendors} onChange={setRawPendingVendor} />
-              <MultiSelectFilter label="NetAct" selected={rawPendingDor} options={availableUrs} onChange={setRawPendingDor} />
+              <MultiSelectFilter label="NetAct" selected={rawPendingNetact} options={availableNetacts} onChange={setRawPendingNetact} />
               <MultiSelectFilter label="DOR" selected={rawPendingDor} options={availableDors} onChange={setRawPendingDor} />
               <MultiSelectFilter label="Plaque" selected={rawPendingPlaque} options={availablePlaques} onChange={setRawPendingPlaque} />
+              <MultiSelectFilter label="Bande" selected={rawPendingBande} options={availableBandes} onChange={setRawPendingBande} />
+              <MultiSelectFilter label="Zone ARCEP" selected={rawPendingZoneArcep} options={availableZoneArceps} onChange={setRawPendingZoneArcep} />
               <MultiSelectFilter label="Site" selected={rawPendingSite} options={availableSites} onChange={setRawPendingSite} />
               <MultiSelectFilter label="Cell" selected={rawPendingCell} options={availableCells} onChange={setRawPendingCell} />
               <div className="flex items-center gap-2 ml-auto shrink-0 pb-0.5">
