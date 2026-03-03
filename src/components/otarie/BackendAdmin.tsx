@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Database, CheckCircle, XCircle, Loader2, Play, Table2, Sparkles, Server, Eye, EyeOff, RefreshCw, Upload, FileSpreadsheet } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Database, CheckCircle, XCircle, Loader2, Play, Table2, Sparkles, Server, Eye, EyeOff, RefreshCw, Upload, FileSpreadsheet, PlugZap, Activity, Clock } from 'lucide-react';
 import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 // Local-only mode: no supabase import needed
 import * as XLSX from 'xlsx';
@@ -34,119 +34,66 @@ interface TableInfo {
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 
-const TABLE_DEFINITIONS = [
+const MODULE_TABLE_MAP = [
   {
-    name: 'topo',
-    description: 'Network topology & cell inventory',
-    columns: [
-      'id BIGSERIAL PRIMARY KEY',
-      'code_nidt TEXT NOT NULL',
-      'nom_site TEXT NOT NULL',
-      'nom_cellule TEXT NOT NULL',
-      'latitude DOUBLE PRECISION',
-      'longitude DOUBLE PRECISION',
-      'azimut INTEGER',
-      'hba INTEGER',
-      'techno TEXT',
-      'bande TEXT',
-      'constructeur TEXT',
-      'plaque TEXT',
-      'region TEXT',
-      'tac INTEGER',
-      'date_mes DATE',
-      'date_fn8 DATE',
-      'created_at TIMESTAMPTZ DEFAULT now()',
-    ],
+    module: 'Sites Monitor',
+    icon: '🗺️',
+    tables: ['topo'],
+    description: 'Cartographie réseau, sites & cellules',
+    apiEndpoints: ['/api/topo/sites', '/api/topo'],
   },
   {
-    name: 'dashboards',
-    description: 'BI dashboard configurations',
-    columns: [
-      'id TEXT PRIMARY KEY',
-      'name TEXT NOT NULL',
-      'description TEXT DEFAULT \'\'',
-      'widgets JSONB DEFAULT \'[]\'',
-      'is_shared BOOLEAN DEFAULT true',
-      'created_at TIMESTAMPTZ DEFAULT now()',
-      'updated_at TIMESTAMPTZ DEFAULT now()',
-    ],
+    module: 'Analytic BI Studio',
+    icon: '📊',
+    tables: ['kpi_qoe_aggregated', 'dashboards'],
+    description: 'Dashboards BI, KPIs QoE agrégés',
+    apiEndpoints: ['/api/bi-query', '/api/bi-distinct', '/api/dashboards'],
   },
   {
-    name: 'rag_documents',
-    description: 'RAG knowledge base chunks',
-    columns: [
-      'id UUID PRIMARY KEY DEFAULT gen_random_uuid()',
-      'filename TEXT NOT NULL',
-      'content TEXT NOT NULL',
-      'chunk_index INTEGER DEFAULT 0',
-      'embedding VECTOR(768)',
-      'metadata JSONB DEFAULT \'{}\'',
-      'created_at TIMESTAMPTZ DEFAULT now()',
-    ],
+    module: 'KPI Monitor',
+    icon: '📈',
+    tables: ['kpi_qoe_aggregated', 'kpi_catalog'],
+    description: 'Supervision temps réel des KPIs réseau',
+    apiEndpoints: ['/api/bi-query', '/api/bi-date-range'],
   },
   {
-    name: 'qoe_metrics',
-    description: 'QoE KPIs par cellule + service + jour',
-    columns: [
-      'id BIGSERIAL PRIMARY KEY',
-      'cell_id TEXT NOT NULL',
-      'site_id TEXT',
-      'dt DATE NOT NULL',
-      'service TEXT NOT NULL DEFAULT \'ALL\'',
-      'techno TEXT',
-      'bande TEXT',
-      'qoe_score_avg DOUBLE PRECISION',
-      'p50_thr_dn_mbps DOUBLE PRECISION',
-      'p50_thr_up_mbps DOUBLE PRECISION',
-      'p95_rtt_ms DOUBLE PRECISION',
-      'dms_dl_3 DOUBLE PRECISION',
-      'dms_dl_8 DOUBLE PRECISION',
-      'dms_dl_30 DOUBLE PRECISION',
-      'dms_ul_3 DOUBLE PRECISION',
-      'loss_dn_sum DOUBLE PRECISION',
-      'traffic_dn_bytes DOUBLE PRECISION',
-      'traffic_up_bytes DOUBLE PRECISION',
-      'sessions INTEGER',
-      'window_full_ratio DOUBLE PRECISION',
-      'retransmission_rate DOUBLE PRECISION',
-      'tcp_loss_rate DOUBLE PRECISION',
-      'out_of_order_rate DOUBLE PRECISION',
-      'created_at TIMESTAMPTZ DEFAULT now()',
-      'UNIQUE(cell_id, dt, service)',
-    ],
+    module: 'Radio Profile',
+    icon: '📡',
+    tables: ['topo'],
+    description: 'Profil terrain, propagation, LOS/Fresnel',
+    apiEndpoints: ['/api/topo'],
   },
   {
-    name: 'dump_parameter',
-    description: 'Network equipment parameter dumps (CM export)',
-    columns: [
-      'id BIGSERIAL PRIMARY KEY',
-      'dn TEXT',
-      'enodeb_id INTEGER',
-      'mrbts_id INTEGER',
-      'gnodeb_id INTEGER',
-      'cell_dn TEXT',
-      'cell_name TEXT',
-      'vendor TEXT',
-      'dor TEXT',
-      'omc TEXT',
-      'plaque TEXT',
-      'longitude DOUBLE PRECISION',
-      'latitude DOUBLE PRECISION',
-      'site_name TEXT',
-      'freq_downlink DOUBLE PRECISION',
-      'bande TEXT',
-      'ur TEXT',
-      'dr TEXT',
-      'zone_arcep TEXT',
-      'tgv INTEGER',
-      'city TEXT',
-      'parameter TEXT NOT NULL',
-      'version TEXT',
-      'value TEXT',
-      'created_at TIMESTAMPTZ DEFAULT now()',
-    ],
+    module: 'Parameters',
+    icon: '⚙️',
+    tables: ['parameter_dump', 'parameter_changes'],
+    description: 'Dump CM, historique des changements paramètres',
+    apiEndpoints: ['/api/dump-parameter'],
+  },
+  {
+    module: 'QOEBIT Assistant',
+    icon: '🤖',
+    tables: ['rag_documents', 'kpi_qoe_aggregated'],
+    description: 'Assistant IA RAG + contexte QoE',
+    apiEndpoints: ['/api/qoe-assistant', '/api/rag-embed'],
+  },
+  {
+    module: 'Map Views',
+    icon: '🌍',
+    tables: ['map_views'],
+    description: 'Vues cartographiques sauvegardées',
+    apiEndpoints: ['/api/map-views'],
   },
 ];
+
+interface ConnectionLog {
+  timestamp: string;
+  module: string;
+  table: string;
+  status: 'ok' | 'error';
+  latency: number;
+  message: string;
+}
 
 const BackendAdmin: React.FC = () => {
   const [dbConfig, setDbConfig] = useState<DbConfig>({
@@ -189,6 +136,45 @@ const BackendAdmin: React.FC = () => {
   const [dumpImporting, setDumpImporting] = useState(false);
   const [dumpStatus, setDumpStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
   const dumpFileRef = useRef<HTMLInputElement>(null);
+  const [connectionLogs, setConnectionLogs] = useState<ConnectionLog[]>([]);
+  const [liveTableInfos, setLiveTableInfos] = useState<Record<string, { rows: number; cols: number; status: 'ok' | 'error' | 'loading' }>>({});
+
+  // ─── Check all module tables on mount ───
+  const checkModuleTables = useCallback(async () => {
+    const allTables = [...new Set(MODULE_TABLE_MAP.flatMap(m => m.tables))];
+    const newInfos: typeof liveTableInfos = {};
+    const newLogs: ConnectionLog[] = [];
+
+    for (const table of allTables) {
+      newInfos[table] = { rows: 0, cols: 0, status: 'loading' };
+    }
+    setLiveTableInfos({ ...newInfos });
+
+    await Promise.all(allTables.map(async (table) => {
+      const start = performance.now();
+      try {
+        const res = await fetch(`${import.meta.env.VITE_LOCAL_API || 'http://localhost:3001'}/api/table-info/${table}`);
+        const latency = Math.round(performance.now() - start);
+        if (res.ok) {
+          const data = await res.json();
+          newInfos[table] = { rows: data.rowCount ?? 0, cols: data.columnCount ?? 0, status: 'ok' };
+          newLogs.push({ timestamp: new Date().toLocaleTimeString(), module: '', table, status: 'ok', latency, message: `${data.rowCount ?? 0} rows, ${data.columnCount ?? 0} cols` });
+        } else {
+          newInfos[table] = { rows: 0, cols: 0, status: 'error' };
+          newLogs.push({ timestamp: new Date().toLocaleTimeString(), module: '', table, status: 'error', latency, message: `HTTP ${res.status}` });
+        }
+      } catch (err: any) {
+        const latency = Math.round(performance.now() - start);
+        newInfos[table] = { rows: 0, cols: 0, status: 'error' };
+        newLogs.push({ timestamp: new Date().toLocaleTimeString(), module: '', table, status: 'error', latency, message: err.message });
+      }
+    }));
+
+    setLiveTableInfos({ ...newInfos });
+    setConnectionLogs(prev => [...newLogs, ...prev].slice(0, 50));
+  }, []);
+
+  useEffect(() => { checkModuleTables(); }, [checkModuleTables]);
 
   // ─── Import dump_parameter CSV/XLSX ───
   const handleDumpImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -587,36 +573,116 @@ const BackendAdmin: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* ─── Table Definitions ─── */}
+      {/* ─── Module → Table Connectivity ─── */}
       <Card className="border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Table2 className="w-4 h-4 text-primary" />
-            Schéma des Tables (sera créé)
+            <PlugZap className="w-4 h-4 text-primary" />
+            Connectivité Modules → Tables
+            <Button size="sm" variant="ghost" onClick={checkModuleTables} className="ml-auto gap-1 text-xs h-6">
+              <RefreshCw className="w-3 h-3" /> Refresh
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {TABLE_DEFINITIONS.map(t => (
-              <div key={t.name} className="rounded-lg border border-border p-3 bg-muted/30">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className="text-xs font-mono">{t.name}</Badge>
-                  <span className="text-[10px] text-muted-foreground">{t.description}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {MODULE_TABLE_MAP.map(mod => {
+              const allOk = mod.tables.every(t => liveTableInfos[t]?.status === 'ok');
+              const anyError = mod.tables.some(t => liveTableInfos[t]?.status === 'error');
+              const anyLoading = mod.tables.some(t => liveTableInfos[t]?.status === 'loading');
+              return (
+                <div key={mod.module} className={`rounded-lg border p-3 ${allOk ? 'border-primary/30 bg-primary/5' : anyError ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-muted/30'}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-base">{mod.icon}</span>
+                    <span className="text-xs font-semibold text-foreground">{mod.module}</span>
+                    <span className="ml-auto">
+                      {anyLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" /> :
+                       allOk ? <CheckCircle className="w-3.5 h-3.5 text-primary" /> :
+                       <XCircle className="w-3.5 h-3.5 text-destructive" />}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mb-2">{mod.description}</p>
+                  <div className="space-y-1">
+                    {mod.tables.map(table => {
+                      const info = liveTableInfos[table];
+                      return (
+                        <div key={table} className="flex items-center justify-between text-[10px] font-mono bg-background/50 rounded px-2 py-1 border border-border/50">
+                          <div className="flex items-center gap-1.5">
+                            <Table2 className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-foreground font-semibold">{table}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {info?.status === 'loading' ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                            ) : info?.status === 'ok' ? (
+                              <>
+                                <Badge variant="outline" className="text-[9px] h-4 px-1">{info.rows.toLocaleString()} rows</Badge>
+                                <Badge variant="outline" className="text-[9px] h-4 px-1">{info.cols} cols</Badge>
+                                <CheckCircle className="w-3 h-3 text-primary" />
+                              </>
+                            ) : (
+                              <>
+                                <Badge variant="destructive" className="text-[9px] h-4 px-1">N/A</Badge>
+                                <XCircle className="w-3 h-3 text-destructive" />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {mod.apiEndpoints.map(ep => (
+                      <Badge key={ep} variant="outline" className="text-[8px] h-4 px-1 font-mono text-muted-foreground">{ep}</Badge>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  {t.columns.map((col, i) => {
-                    const parts = col.split(' ');
-                    return (
-                      <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
-                        <span className="text-foreground font-semibold">{parts[0]}</span>
-                        <span className="text-muted-foreground">{parts.slice(1).join(' ')}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── Connection Logs ─── */}
+      <Card className="border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" />
+            Logs de Connexion
+            <Badge variant="outline" className="text-[10px] ml-auto">{connectionLogs.length} entrées</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {connectionLogs.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">Aucun log — cliquez Refresh ci-dessus</p>
+          ) : (
+            <div className="max-h-48 overflow-auto rounded border border-border bg-muted/20">
+              <table className="w-full text-[10px] font-mono">
+                <thead className="sticky top-0 bg-muted border-b border-border">
+                  <tr>
+                    <th className="text-left px-2 py-1 text-muted-foreground">Heure</th>
+                    <th className="text-left px-2 py-1 text-muted-foreground">Table</th>
+                    <th className="text-left px-2 py-1 text-muted-foreground">Status</th>
+                    <th className="text-right px-2 py-1 text-muted-foreground">Latence</th>
+                    <th className="text-left px-2 py-1 text-muted-foreground">Détail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {connectionLogs.map((log, i) => (
+                    <tr key={i} className={`border-b border-border/30 ${log.status === 'error' ? 'bg-destructive/5' : ''}`}>
+                      <td className="px-2 py-1 text-muted-foreground"><Clock className="w-3 h-3 inline mr-1" />{log.timestamp}</td>
+                      <td className="px-2 py-1 text-foreground font-semibold">{log.table}</td>
+                      <td className="px-2 py-1">
+                        {log.status === 'ok' ? <CheckCircle className="w-3 h-3 text-primary inline" /> : <XCircle className="w-3 h-3 text-destructive inline" />}
+                      </td>
+                      <td className="px-2 py-1 text-right text-muted-foreground">{log.latency}ms</td>
+                      <td className="px-2 py-1 text-muted-foreground">{log.message}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

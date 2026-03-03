@@ -1469,6 +1469,40 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// ─── /api/table-info/:table (live table metadata) ───
+app.get('/api/table-info/:table', async (req, res) => {
+  const tableName = req.params.table.replace(/[^a-zA-Z0-9_]/g, '');
+  try {
+    const colResult = await sharedPool.query(
+      `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
+      [tableName]
+    );
+    if (colResult.rows.length === 0) {
+      return res.status(404).json({ error: `Table '${tableName}' not found` });
+    }
+    const countResult = await sharedPool.query(
+      `SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = $1`,
+      [tableName]
+    );
+    const estimate = parseInt(countResult.rows[0]?.estimate ?? '0');
+    let rowCount = estimate;
+    if (estimate < 10000) {
+      try {
+        const exact = await sharedPool.query(`SELECT COUNT(*)::int AS cnt FROM "${tableName}"`);
+        rowCount = exact.rows[0].cnt;
+      } catch {}
+    }
+    res.json({
+      table: tableName,
+      rowCount,
+      columnCount: colResult.rows.length,
+      columns: colResult.rows.map(c => ({ name: c.column_name, type: c.data_type, nullable: c.is_nullable === 'YES' })),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── /api/simulate — RF Coverage Simulation with SRTM terrain ───
 const simulationCache = new Map();
 const MAX_CACHE = 50;
