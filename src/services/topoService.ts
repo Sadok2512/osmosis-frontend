@@ -1,5 +1,5 @@
 import { SiteSummary, SiteDetail, CellProperties } from '../types';
-import { topoApi } from '@/lib/localDb';
+import { topoApi, BboxFilters, BboxSiteDTO } from '@/lib/localDb';
 import { supabase } from '@/integrations/supabase/client';
 import topoRaw from '../data/topoData';
 
@@ -99,7 +99,7 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
   return base;
 }
 
-function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
+export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
   const siteMap = new Map<string, TopoRow[]>();
   let autoIdx = 0;
   rows.forEach(row => {
@@ -206,6 +206,7 @@ async function fetchFromCloud(): Promise<TopoRow[]> {
 
 let cachedLocalSites: SiteSummary[] | null = null;
 
+// ── Legacy full-load (kept as fallback for inventory/detail views) ──
 export async function fetchTopoSites(): Promise<SiteSummary[]> {
   if (cachedLocalSites) return cachedLocalSites;
 
@@ -244,6 +245,103 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
 
 export function invalidateTopoCache() {
   cachedLocalSites = null;
+}
+
+// ── NEW: Bbox-based site fetching (Step 1 scalable approach) ──
+
+export interface BboxQuery {
+  minLng: number;
+  minLat: number;
+  maxLng: number;
+  maxLat: number;
+}
+
+/** Convert server DTO to lightweight SiteSummary (no cells for circle rendering) */
+function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary {
+  const vendor = dto.vendor
+    ? dto.vendor.charAt(0).toUpperCase() + dto.vendor.slice(1)
+    : 'Unknown';
+  const siteId = dto.code_nidt;
+  return {
+    site_id: siteId,
+    site_name: dto.nom_site,
+    vendor,
+    dor: dto.dor || DOR_MAP[dto.region || ''] || 'DOR IDF',
+    plaque: dto.plaque || '',
+    department: (dto.plaque || '').replace('DEPT_', ''),
+    cell_count: Number(dto.nb_cells) || 0,
+    qoe_score_avg: seededRand(siteId + 'qoe', 55, 98),
+    p50_thr_dn_mbps: seededRand(siteId + 'thr', 8, 120),
+    p50_thr_up_mbps: seededRand(siteId + 'thrup', 5, 40),
+    dms_dl_3: seededRand(siteId + 'dms3', 75, 99),
+    dms_dl_8: seededRand(siteId + 'dms8', 55, 95),
+    dms_dl_30: seededRand(siteId + 'dms30', 15, 55),
+    dms_ul_3: seededRand(siteId + 'ul3', 65, 95),
+    coordinates: [Number(dto.lat), Number(dto.lng)] as [number, number],
+    cells: [], // cells loaded on-demand when zoomed in
+  };
+}
+
+// Simple bbox+filters cache
+let bboxCache: { key: string; sites: SiteSummary[]; total: number } | null = null;
+
+function bboxCacheKey(bbox: BboxQuery, filters?: BboxFilters): string {
+  const b = `${bbox.minLng.toFixed(4)},${bbox.minLat.toFixed(4)},${bbox.maxLng.toFixed(4)},${bbox.maxLat.toFixed(4)}`;
+  const f = filters ? Object.entries(filters).filter(([,v]) => v && v !== 'ALL').map(([k,v]) => `${k}=${v}`).join('&') : '';
+  return `${b}|${f}`;
+}
+
+/**
+ * Fetch aggregated sites by viewport bbox from the server.
+ * Returns lightweight SiteSummary[] (no cells array).
+ */
+export async function fetchSitesByBbox(
+  bbox: BboxQuery,
+  filters?: BboxFilters,
+  signal?: AbortSignal,
+): Promise<{ sites: SiteSummary[]; total: number }> {
+  const key = bboxCacheKey(bbox, filters);
+  if (bboxCache && bboxCache.key === key) {
+    return { sites: bboxCache.sites, total: bboxCache.total };
+  }
+
+  try {
+    const resp = await topoApi.listSitesByBbox(bbox, filters, 8000, signal);
+    const sites = (resp.sites || []).map(dtoToSiteSummary);
+    bboxCache = { key, sites, total: resp.total };
+    console.log(`[TopoService] BBOX: ${sites.length}/${resp.total} sites`);
+    return { sites, total: resp.total };
+  } catch (err: any) {
+    if (err.name === 'AbortError') throw err;
+    console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
+    // Fallback to legacy full load
+    const allSites = await fetchTopoSites();
+    return { sites: allSites, total: allSites.length };
+  }
+}
+
+/**
+ * Fetch cell-level data for sites in bbox (for sector polygon rendering at high zoom).
+ * Returns full SiteSummary[] with cells populated.
+ */
+export async function fetchCellsByBbox(
+  bbox: BboxQuery,
+  filters?: BboxFilters,
+  signal?: AbortSignal,
+): Promise<SiteSummary[]> {
+  try {
+    const resp = await topoApi.listCellsByBbox(bbox, filters, 8000, signal);
+    const rows = (resp.cells || []) as TopoRow[];
+    return buildSitesFromRows(rows);
+  } catch (err: any) {
+    if (err.name === 'AbortError') throw err;
+    console.warn('[TopoService] BBOX cells fetch failed', err);
+    return [];
+  }
+}
+
+export function invalidateBboxCache() {
+  bboxCache = null;
 }
 
 export async function fetchTopoSiteDetail(siteId: string): Promise<SiteDetail> {

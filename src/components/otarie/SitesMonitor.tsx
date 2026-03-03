@@ -48,6 +48,8 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
 import { fetchSites, fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { invalidateSitesCache } from '../../services/mockData';
+import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery } from '../../services/topoService';
+import { BboxFilters } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters } from '../../types';
 import {
   Search, RefreshCw, ChevronLeft, MapPin,
@@ -1652,26 +1654,118 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'Score QoE Global';
 
-  // Single effect: invalidate cache on mount, then load sites whenever filters change
+  // ── Bbox-based data loading with debounce ──
   const mountedRef = useRef(false);
-  useEffect(() => {
-    // Always invalidate cache on first mount (e.g. after import)
-    if (!mountedRef.current) {
-      invalidateSitesCache();
-      mountedRef.current = true;
-    }
-    let cancelled = false;
-    const loadSites = async () => {
-      setLoading(true);
-      const data = await fetchSites(filters);
-      if (!cancelled) {
-        setSites(data || []);
+  const abortRef = useRef<AbortController | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [bboxTotal, setBboxTotal] = useState<number>(0);
+  const [bboxLoading, setBboxLoading] = useState(false);
+
+  // Derive current bbox filters from local filter state
+  const currentBboxFilters = useMemo((): BboxFilters => ({
+    dor: localDor !== 'ALL' ? localDor : undefined,
+    vendor: localVendor !== 'ALL' ? localVendor : undefined,
+    plaque: localPlaque !== 'ALL' ? localPlaque : undefined,
+    q: localSearch || undefined,
+  }), [localDor, localVendor, localPlaque, localSearch]);
+
+  // Core bbox fetch function
+  const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters) => {
+    if (!bounds) return;
+
+    // Cancel any in-flight request
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const bbox: BboxQuery = {
+      minLng: bounds.getWest(),
+      minLat: bounds.getSouth(),
+      maxLng: bounds.getEast(),
+      maxLat: bounds.getNorth(),
+    };
+
+    setBboxLoading(true);
+    try {
+      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
+      if (!controller.signal.aborted) {
+        setSites(newSites);
+        setBboxTotal(total);
+        setBboxLoading(false);
         setLoading(false);
       }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return; // expected
+      console.warn('[SitesMonitor] bbox fetch failed', err);
+      setBboxLoading(false);
+      setLoading(false);
+    }
+  }, []);
+
+  // Debounced viewport change handler
+  const handleViewportForFetch = useCallback((v: ViewportState) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchForViewport(v.bounds, currentBboxFilters);
+    }, 300);
+  }, [fetchForViewport, currentBboxFilters]);
+
+  // Initial load + filter changes → refetch for current viewport
+  useEffect(() => {
+    if (!mountedRef.current) {
+      invalidateSitesCache();
+      invalidateBboxCache();
+      mountedRef.current = true;
+    }
+    // If we have viewport bounds, fetch by bbox; otherwise load legacy
+    if (viewport.bounds) {
+      fetchForViewport(viewport.bounds, currentBboxFilters);
+    } else {
+      // Fallback: legacy full load (first render before map gives us bounds)
+      let cancelled = false;
+      const loadLegacy = async () => {
+        setLoading(true);
+        const data = await fetchSites(filters);
+        if (!cancelled) {
+          setSites(data || []);
+          setLoading(false);
+        }
+      };
+      loadLegacy();
+      return () => { cancelled = true; };
+    }
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
     };
-    loadSites();
-    return () => { cancelled = true; };
-  }, [filters]);
+  }, [currentBboxFilters, filters]);
+
+  // Re-fetch when viewport changes (debounced via MapViewportTracker)
+  const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
+  const handleViewportChange = useCallback((v: ViewportState) => {
+    setViewport(v);
+    // Only refetch if bounds actually changed meaningfully
+    const prev = prevViewportRef.current;
+    if (prev.bounds && v.bounds) {
+      const prevBounds = prev.bounds;
+      const newBounds = v.bounds;
+      const threshold = 0.001; // ~100m
+      const moved = Math.abs(prevBounds.getWest() - newBounds.getWest()) > threshold ||
+                    Math.abs(prevBounds.getSouth() - newBounds.getSouth()) > threshold ||
+                    Math.abs(prevBounds.getEast() - newBounds.getEast()) > threshold ||
+                    Math.abs(prevBounds.getNorth() - newBounds.getNorth()) > threshold;
+      if (!moved && prev.zoom === v.zoom) return;
+    }
+    prevViewportRef.current = v;
+    handleViewportForFetch(v);
+  }, [handleViewportForFetch]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedSiteId) {
@@ -1817,9 +1911,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const renderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleViewportChange = useCallback((v: ViewportState) => {
+  const handleViewportChangeLegacy = useCallback((v: ViewportState) => {
     const prevZoom = viewport.zoom;
-    setViewport(v);
+    // handleViewportChange already calls setViewport
+    handleViewportChange(v);
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
@@ -1829,7 +1924,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
     }
-  }, [viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
+  }, [handleViewportChange, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
@@ -1994,6 +2089,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
+      {/* Bbox loading indicator */}
+      {bboxLoading && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1001] px-3 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-lg flex items-center gap-2">
+          <RefreshCw size={12} className="text-primary animate-spin" />
+          <span className="text-[10px] font-semibold text-muted-foreground">Chargement {bboxTotal > 0 ? `(${bboxTotal} sites)` : ''}...</span>
+        </div>
+      )}
       {/* FULL SCREEN MAP */}
       <MapContainer
         center={sites.length > 0 ? sites[0].coordinates : [43.2965, 5.3698]}
@@ -2010,7 +2112,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         />
         <FlyToSite coords={flyTarget} onFlyStart={() => setIsFlying(true)} onFlyEnd={() => setIsFlying(false)} onDone={() => setFlyTarget(null)} />
         <TechPanes />
-        <MapViewportTracker onViewportChange={handleViewportChange} />
+        <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
 
         {/* ── Parameter overlay markers ── */}
