@@ -2337,6 +2337,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           }
 
+          /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
+          if (!site.cells || site.cells.length === 0) {
+            const fallbackColor = getKpiColor(site.qoe_score_avg ?? 0);
+            const radius = isHovered || isSelectedSite ? 7 : 5;
+            return (
+              <CircleMarker
+                key={site.site_id}
+                center={site.coordinates}
+                radius={radius}
+                fillColor={fallbackColor}
+                fillOpacity={0.85}
+                weight={isSelectedSite ? 3 : 1.5}
+                color={isSelectedSite ? '#fff' : '#222'}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                  <span className="text-[10px] font-bold">{site.site_name}</span>
+                </Tooltip>
+              </CircleMarker>
+            );
+          }
+
           /* ── ALL mode: technology-only (no bands), fixed radii ── */
           if (mapTechnoFilter === 'ALL') {
             // Step 1: Group cells by technology, collect unique azimuths
