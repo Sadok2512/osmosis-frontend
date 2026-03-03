@@ -10,8 +10,9 @@ import {
 import {
   ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine,
   MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI,
-  Aggregation, ChartType, Granularity, AxisSide, LineStyle, KPI_UNITS
+  Aggregation, ChartType, Granularity, AxisSide, LineStyle, KPI_UNITS, getKpiDisplayName
 } from './biTypes';
+import BIKpiSelectorModal from './BIKpiSelectorModal';
 import { getDimensionValues } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
 import { biQueryApi } from '@/lib/localDb';
@@ -205,6 +206,8 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   const [draft, setDraft] = useState<ChartConfig>(() => JSON.parse(JSON.stringify(config)));
   const [dirty, setDirty] = useState(false);
   const [availableDateRange, setAvailableDateRange] = useState<{ min_date: string | null; max_date: string | null }>({ min_date: null, max_date: null });
+  const [kpiModalOpen, setKpiModalOpen] = useState(false);
+  const [kpiModalTarget, setKpiModalTarget] = useState<{ type: 'metric'; index: number } | { type: 'xAxis' } | { type: 'sizeBy' } | null>(null);
 
   // Auto-detect available date range from local DB
   useEffect(() => {
@@ -503,7 +506,12 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             <StyledSelect value={draft.xAxis.value} options={BI_DIMENSIONS} onChange={v => updateX({ value: v })} />
           )}
           {draft.xAxis.type === 'kpi' && (
-            <StyledSelect value={draft.xAxis.value} options={BI_KPIS} onChange={v => updateX({ value: v })} />
+            <button
+              onClick={() => { setKpiModalTarget({ type: 'xAxis' }); setKpiModalOpen(true); }}
+              className="w-full text-left bg-background border border-border/70 rounded-lg px-3 py-2 text-[13px] text-foreground hover:border-primary/40 transition-all"
+            >
+              {getKpiDisplayName(draft.xAxis.value) || 'Sélectionner un KPI…'}
+            </button>
           )}
         </SectionCard>
 
@@ -527,12 +535,12 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   <div className="flex-1 p-3 space-y-3">
                     {/* Top row: KPI selector + aggregation + delete */}
                     <div className="flex items-center gap-2">
-                      <StyledSelect
-                        value={m.kpi}
-                        options={BI_KPIS}
-                        onChange={v => updateMetric(i, { kpi: v as BIKPI })}
-                        className="flex-1 !text-[12px] font-semibold"
-                      />
+                      <button
+                        onClick={() => { setKpiModalTarget({ type: 'metric', index: i }); setKpiModalOpen(true); }}
+                        className="flex-1 text-left bg-background border border-border/70 rounded-lg px-3 py-2 text-[12px] font-semibold text-foreground hover:border-primary/40 transition-all truncate"
+                      >
+                        {getKpiDisplayName(m.kpi)}
+                      </button>
                       <StyledSelect
                         value={m.aggregation}
                         options={AGGREGATIONS}
@@ -700,12 +708,12 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             </div>
             <div className="space-y-1.5">
               <FieldLabel>Taille par</FieldLabel>
-              <StyledSelect
-                value={draft.sizeBy || ''}
-                options={['', ...BI_KPIS] as any}
-                onChange={v => update({ sizeBy: v ? v as BIKPI : undefined })}
-                placeholder="Aucun"
-              />
+              <button
+                onClick={() => { setKpiModalTarget({ type: 'sizeBy' }); setKpiModalOpen(true); }}
+                className="w-full text-left bg-background border border-border/70 rounded-lg px-3 py-2 text-[13px] text-foreground hover:border-primary/40 transition-all"
+              >
+                {draft.sizeBy ? getKpiDisplayName(draft.sizeBy) : 'Aucun'}
+              </button>
             </div>
           </div>
         </SectionCard>
@@ -928,6 +936,33 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           {dirty ? 'Appliquer les changements' : 'Configuration à jour'}
         </button>
       </div>
+
+      {/* KPI Selector Modal */}
+      <BIKpiSelectorModal
+        open={kpiModalOpen}
+        onClose={() => { setKpiModalOpen(false); setKpiModalTarget(null); }}
+        selectedKeys={
+          kpiModalTarget?.type === 'metric'
+            ? [draft.yMetrics[kpiModalTarget.index]?.kpi].filter(Boolean)
+            : kpiModalTarget?.type === 'xAxis'
+              ? [draft.xAxis.value].filter(Boolean)
+              : kpiModalTarget?.type === 'sizeBy'
+                ? [draft.sizeBy].filter((v): v is string => !!v)
+                : []
+        }
+        single
+        onConfirm={(keys) => {
+          const key = keys[0];
+          if (!key || !kpiModalTarget) return;
+          if (kpiModalTarget.type === 'metric') {
+            updateMetric(kpiModalTarget.index, { kpi: key as BIKPI });
+          } else if (kpiModalTarget.type === 'xAxis') {
+            updateX({ value: key });
+          } else if (kpiModalTarget.type === 'sizeBy') {
+            update({ sizeBy: key as BIKPI });
+          }
+        }}
+      />
     </div>
   );
 };
