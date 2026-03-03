@@ -119,20 +119,39 @@ sharedPool.connect(async (err, client, release) => {
 
     console.log('═══════════════════════════════════════════');
 
-    // ─── Pre-populate DISTINCT cache for heavy columns ───
+    // ─── Pre-populate DISTINCT cache from dim_* tables (fast) or fallback to DISTINCT ───
     if (dumpTable) {
       let cacheResolve;
       distinctCachePromise = new Promise(r => { cacheResolve = r; });
       console.log('🔄 Pré-chargement du cache DISTINCT...');
-      const cacheCols = ['parameter', 'site_name', 'cell_name'];
+
+      // Map: cache key → dim table name → source column in parameter_dump
+      const dimMap = {
+        parameter:  { dim: 'dim_parameter', col: 'parameter' },
+        site_name:  { dim: 'dim_site',      col: 'site_name' },
+        cell_name:  { dim: 'dim_cell',      col: 'cell_name' },
+        vendor:     { dim: 'dim_vendor',     col: 'vendor' },
+        plaque:     { dim: 'dim_plaque',     col: 'plaque' },
+        dor:        { dim: 'dim_dor',        col: 'dor' },
+        omc:        { dim: 'dim_omc',        col: 'omc' },
+      };
+
       const cacheStart = Date.now();
-      for (const col of cacheCols) {
+      for (const [key, { dim, col }] of Object.entries(dimMap)) {
         try {
-          const r = await client.query(`SELECT DISTINCT ${col} FROM ${dumpTable} WHERE ${col} IS NOT NULL ORDER BY ${col} LIMIT 10000`);
-          distinctCache[col] = r.rows.map(row => row[col]);
-          console.log(`   ✅ Cache ${col}: ${distinctCache[col].length} valeurs (${Date.now() - cacheStart}ms)`);
-        } catch (e) {
-          console.warn(`   ⚠️ Cache ${col} failed:`, e.message);
+          // Try dim table first (instant)
+          const r = await client.query(`SELECT value FROM ${dim} ORDER BY value`);
+          distinctCache[key] = r.rows.map(row => row.value);
+          console.log(`   ⚡ Cache ${key} from ${dim}: ${distinctCache[key].length} valeurs (${Date.now() - cacheStart}ms)`);
+        } catch {
+          // Fallback: DISTINCT on parameter_dump
+          try {
+            const r = await client.query(`SELECT DISTINCT ${col} FROM ${dumpTable} WHERE ${col} IS NOT NULL ORDER BY ${col} LIMIT 10000`);
+            distinctCache[key] = r.rows.map(row => row[col]);
+            console.log(`   ✅ Cache ${key} via DISTINCT: ${distinctCache[key].length} valeurs (${Date.now() - cacheStart}ms)`);
+          } catch (e2) {
+            console.warn(`   ⚠️ Cache ${key} failed:`, e2.message);
+          }
         }
       }
       distinctCacheReady = true;
@@ -1144,7 +1163,7 @@ app.get('/api/dump-parameter', async (req, res) => {
 
     // Special mode: get distinct values for a column
     if (distinct_col) {
-      const allowedCols = ['site_name', 'cell_name', 'parameter', 'dor', 'plaque', 'vendor', 'ur', 'dr', 'bande'];
+      const allowedCols = ['site_name', 'cell_name', 'parameter', 'dor', 'plaque', 'vendor', 'ur', 'dr', 'bande', 'omc'];
       if (!allowedCols.includes(distinct_col)) {
         console.log(`   ⚠️ Colonne non autorisée: ${distinct_col}`);
         return res.json([]);
@@ -1158,9 +1177,25 @@ app.get('/api/dump-parameter', async (req, res) => {
         return res.json(distinctCache[distinct_col].map(v => ({ [distinct_col]: v })));
       }
 
-      // 2) For unfiltered DISTINCT on huge tables, try pg_stats (instant)
-      // Only use pg_stats shortcut for low-cardinality columns (few distinct values)
-      const lowCardinalityCols = ['vendor', 'ur', 'plaque', 'dor', 'dr', 'bande'];
+      // 2) Try dim_* table (instant, always up-to-date after refresh_all_dims)
+      const dimTableMap = {
+        parameter: 'dim_parameter', cell_name: 'dim_cell', site_name: 'dim_site',
+        plaque: 'dim_plaque', dor: 'dim_dor', omc: 'dim_omc', vendor: 'dim_vendor'
+      };
+      if (!hasFilter && dimTableMap[distinct_col]) {
+        try {
+          const dimRes = await sharedPool.query(`SELECT value AS "${distinct_col}" FROM ${dimTableMap[distinct_col]} ORDER BY value`);
+          if (dimRes.rows.length > 0) {
+            console.log(`   ⚡ dim table ${dimTableMap[distinct_col]}: ${dimRes.rows.length} valeurs (${Date.now() - reqStart}ms)`);
+            return res.json(dimRes.rows);
+          }
+        } catch {
+          // dim table doesn't exist yet, fall through
+        }
+      }
+
+      // 3) For unfiltered DISTINCT on huge tables, try pg_stats (instant)
+      const lowCardinalityCols = ['vendor', 'ur', 'plaque', 'dor', 'dr', 'bande', 'omc'];
       if (!hasFilter && lowCardinalityCols.includes(distinct_col)) {
         try {
           const statsRes = await sharedPool.query(
@@ -1184,6 +1219,7 @@ app.get('/api/dump-parameter', async (req, res) => {
         }
       }
 
+      // 4) Final fallback: DISTINCT on parameter_dump
       let q = `SELECT DISTINCT ${distinct_col} FROM ${dumpTable} WHERE ${distinct_col} IS NOT NULL`;
       const params = [];
       if (site_name) { params.push(site_name); q += ` AND site_name = $${params.length}`; }
@@ -1243,6 +1279,34 @@ app.get('/api/dump-parameter', async (req, res) => {
     res.json(result.rows);
   } catch (e) {
     console.error(`   ❌ [/api/dump-parameter] ERREUR (${Date.now() - reqStart}ms):`, e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/refresh-dims (manual trigger for dimension table refresh) ───
+app.post('/api/refresh-dims', async (req, res) => {
+  const start = Date.now();
+  console.log('\n🔄 [/api/refresh-dims] Manual refresh triggered');
+  try {
+    await sharedPool.query('CALL refresh_all_dims()');
+    
+    // Reload in-memory cache from fresh dim tables
+    const dimMap = {
+      parameter: 'dim_parameter', site_name: 'dim_site', cell_name: 'dim_cell',
+      vendor: 'dim_vendor', plaque: 'dim_plaque', dor: 'dim_dor', omc: 'dim_omc'
+    };
+    for (const [key, table] of Object.entries(dimMap)) {
+      try {
+        const r = await sharedPool.query(`SELECT value FROM ${table} ORDER BY value`);
+        distinctCache[key] = r.rows.map(row => row.value);
+      } catch {}
+    }
+
+    const elapsed = Date.now() - start;
+    console.log(`✅ [/api/refresh-dims] Done in ${elapsed}ms`);
+    res.json({ success: true, elapsed_ms: elapsed });
+  } catch (e) {
+    console.error(`❌ [/api/refresh-dims]`, e.message);
     res.status(500).json({ error: e.message });
   }
 });
