@@ -282,6 +282,170 @@ CREATE TABLE IF NOT EXISTS parameter_dump (
 CREATE INDEX IF NOT EXISTS idx_qoe_cell_dt ON qoe_metrics(cell_id, dt);
 CREATE INDEX IF NOT EXISTS idx_qoe_dt ON qoe_metrics(dt);
 CREATE INDEX IF NOT EXISTS idx_qoe_service ON qoe_metrics(service);
+
+CREATE TABLE IF NOT EXISTS kpi_qoe_aggregated (
+  id BIGSERIAL PRIMARY KEY,
+  date_part TEXT NOT NULL,
+  dimension_1 TEXT NOT NULL,
+  dimension_2 TEXT NOT NULL,
+  volume_totale_dl DOUBLE PRECISION, volume_totale_ul DOUBLE PRECISION, volume_totale_totale DOUBLE PRECISION,
+  debit_dl DOUBLE PRECISION, debit_dl_max DOUBLE PRECISION, debit_ul DOUBLE PRECISION, debit_ul_max DOUBLE PRECISION,
+  rtt_setup_avg DOUBLE PRECISION, rtt_data_avg DOUBLE PRECISION,
+  dms_debit_dl_3 DOUBLE PRECISION, dms_debit_dl_8 DOUBLE PRECISION, dms_debit_dl_30 DOUBLE PRECISION,
+  dms_debit_ul_1 DOUBLE PRECISION, dms_debit_ul_3 DOUBLE PRECISION, dms_debit_ul_5 DOUBLE PRECISION,
+  debit_dl_vol5 DOUBLE PRECISION, debit_ul_vol5 DOUBLE PRECISION,
+  dms_3_dl_vol5 DOUBLE PRECISION, dms_8_dl_vol5 DOUBLE PRECISION, dms_30_dl_vol5 BIGINT,
+  debit_dl_vol10 DOUBLE PRECISION, debit_ul_vol10 DOUBLE PRECISION,
+  dms_3_dl_vol10 BIGINT, dms_8_dl_vol10 DOUBLE PRECISION, dms_30_dl_vol10 BIGINT,
+  rtt_setup_0_40000 DOUBLE PRECISION, rtt_setup_40000_80000 DOUBLE PRECISION,
+  rtt_setup_80000_150000 DOUBLE PRECISION, rtt_setup_150000_300000 DOUBLE PRECISION, rtt_setup_300000_inf BIGINT,
+  rtt_data_0_40000 DOUBLE PRECISION, rtt_data_40000_80000 DOUBLE PRECISION,
+  rtt_data_80000_150000 DOUBLE PRECISION, rtt_data_150000_300000 BIGINT, rtt_data_300000_inf BIGINT,
+  loss_dl_rate DOUBLE PRECISION, loss_ul_rate DOUBLE PRECISION,
+  tcp_retr_rate_dl DOUBLE PRECISION, tcp_retr_rate_ul DOUBLE PRECISION,
+  "loss_dl_0_0.01" DOUBLE PRECISION, "loss_dl_0.01_0.03" DOUBLE PRECISION, "loss_dl_0.03_0.05" DOUBLE PRECISION, "loss_dl_0.05_inf" DOUBLE PRECISION,
+  "loss_ul_0_0.01" DOUBLE PRECISION, "loss_ul_0.01_0.03" DOUBLE PRECISION, "loss_ul_0.03_0.05" DOUBLE PRECISION, "loss_ul_0.05_inf" DOUBLE PRECISION,
+  "retr_dl_0_0.01" DOUBLE PRECISION, "retr_dl_0.01_0.03" DOUBLE PRECISION, "retr_dl_0.03_0.05" DOUBLE PRECISION, "retr_dl_0.05_inf" DOUBLE PRECISION,
+  "retr_ul_0_0.01" DOUBLE PRECISION, "retr_ul_0.01_0.03" DOUBLE PRECISION, "retr_ul_0.03_0.05" DOUBLE PRECISION, "retr_ul_0.05_inf" DOUBLE PRECISION,
+  session_nbr BIGINT, session_wifi_nbr BIGINT, session_3g2g_nbr BIGINT, session_4g_nbr BIGINT, session_5g_nbr BIGINT,
+  session_dur_moy DOUBLE PRECISION, session_dcr DOUBLE PRECISION,
+  out_of_order_nbr BIGINT, out_of_order_rate DOUBLE PRECISION,
+  wind_full_nbr BIGINT, wind_full_rate DOUBLE PRECISION,
+  "fallback_5G_to_4G_rate" DOUBLE PRECISION, "fallback_4G_to_3G2G_rate" DOUBLE PRECISION,
+  instability_rate DOUBLE PRECISION,
+  time_rat_5g_pct DOUBLE PRECISION, time_rat_4g_pct DOUBLE PRECISION, time_rat_3g2g_pct BIGINT, time_rat_wifi_pct BIGINT,
+  "Mauvaise_Session_nbr" BIGINT, "Mauvaise_Session_Rate" DOUBLE PRECISION,
+  qoe_index DOUBLE PRECISION, "5G_capable_rate" DOUBLE PRECISION, "5gue_attached_4G_rate" DOUBLE PRECISION,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(date_part, dimension_1, dimension_2)
+);
+CREATE INDEX IF NOT EXISTS idx_kqi_agg_date ON kpi_qoe_aggregated(date_part);
+CREATE INDEX IF NOT EXISTS idx_kqi_agg_dim1 ON kpi_qoe_aggregated(dimension_1);
+
+CREATE TABLE IF NOT EXISTS ml_features (
+  id BIGSERIAL PRIMARY KEY,
+  date_part TEXT NOT NULL,
+  dimension_1 TEXT NOT NULL,
+  dimension_2 TEXT NOT NULL,
+  volume_totale_dl DOUBLE PRECISION, volume_totale_ul DOUBLE PRECISION, volume_totale_totale DOUBLE PRECISION,
+  debit_dl DOUBLE PRECISION, debit_dl_max DOUBLE PRECISION, debit_ul DOUBLE PRECISION, debit_ul_max DOUBLE PRECISION,
+  rtt_setup_avg DOUBLE PRECISION, rtt_data_avg DOUBLE PRECISION,
+  dms_debit_dl_3 DOUBLE PRECISION, dms_debit_dl_8 DOUBLE PRECISION, dms_debit_dl_30 DOUBLE PRECISION,
+  dms_debit_ul_1 DOUBLE PRECISION, dms_debit_ul_3 DOUBLE PRECISION, dms_debit_ul_5 DOUBLE PRECISION,
+  debit_dl_vol5 DOUBLE PRECISION, debit_ul_vol5 DOUBLE PRECISION,
+  dms_3_dl_vol5 DOUBLE PRECISION, dms_8_dl_vol5 DOUBLE PRECISION, dms_30_dl_vol5 BIGINT,
+  debit_dl_vol10 DOUBLE PRECISION, debit_ul_vol10 DOUBLE PRECISION,
+  dms_3_dl_vol10 BIGINT, dms_8_dl_vol10 DOUBLE PRECISION, dms_30_dl_vol10 BIGINT,
+  rtt_setup_0_40000 DOUBLE PRECISION, rtt_setup_40000_80000 DOUBLE PRECISION,
+  rtt_setup_80000_150000 DOUBLE PRECISION, rtt_setup_150000_300000 DOUBLE PRECISION, rtt_setup_300000_inf BIGINT,
+  rtt_data_0_40000 DOUBLE PRECISION, rtt_data_40000_80000 DOUBLE PRECISION,
+  rtt_data_80000_150000 DOUBLE PRECISION, rtt_data_150000_300000 BIGINT, rtt_data_300000_inf BIGINT,
+  loss_dl_rate DOUBLE PRECISION, loss_ul_rate DOUBLE PRECISION,
+  tcp_retr_rate_dl DOUBLE PRECISION, tcp_retr_rate_ul DOUBLE PRECISION,
+  "loss_dl_0_0.01" DOUBLE PRECISION, "loss_dl_0.01_0.03" DOUBLE PRECISION, "loss_dl_0.03_0.05" DOUBLE PRECISION, "loss_dl_0.05_inf" DOUBLE PRECISION,
+  "loss_ul_0_0.01" DOUBLE PRECISION, "loss_ul_0.01_0.03" DOUBLE PRECISION, "loss_ul_0.03_0.05" DOUBLE PRECISION, "loss_ul_0.05_inf" DOUBLE PRECISION,
+  "retr_dl_0_0.01" DOUBLE PRECISION, "retr_dl_0.01_0.03" DOUBLE PRECISION, "retr_dl_0.03_0.05" DOUBLE PRECISION, "retr_dl_0.05_inf" DOUBLE PRECISION,
+  "retr_ul_0_0.01" DOUBLE PRECISION, "retr_ul_0.01_0.03" DOUBLE PRECISION, "retr_ul_0.03_0.05" DOUBLE PRECISION, "retr_ul_0.05_inf" DOUBLE PRECISION,
+  session_nbr BIGINT, session_wifi_nbr BIGINT, session_3g2g_nbr BIGINT, session_4g_nbr BIGINT, session_5g_nbr BIGINT,
+  session_dur_moy DOUBLE PRECISION, session_dcr DOUBLE PRECISION,
+  out_of_order_nbr BIGINT, out_of_order_rate DOUBLE PRECISION,
+  wind_full_nbr BIGINT, wind_full_rate DOUBLE PRECISION,
+  "fallback_5G_to_4G_rate" DOUBLE PRECISION, "fallback_4G_to_3G2G_rate" DOUBLE PRECISION,
+  instability_rate DOUBLE PRECISION,
+  time_rat_5g_pct DOUBLE PRECISION, time_rat_4g_pct DOUBLE PRECISION, time_rat_3g2g_pct BIGINT, time_rat_wifi_pct BIGINT,
+  "Mauvaise_Session_nbr" BIGINT, "Mauvaise_Session_Rate" DOUBLE PRECISION,
+  qoe_index DOUBLE PRECISION, "5G_capable_rate" DOUBLE PRECISION, "5gue_attached_4G_rate" DOUBLE PRECISION,
+  -- deltas, scores, z-scores, percentiles (abbreviated — all DOUBLE PRECISION or TEXT)
+  debit_dl_delta7j_pct DOUBLE PRECISION, "debit_dl_J-7" DOUBLE PRECISION,
+  debit_ul_delta7j_pct DOUBLE PRECISION, "debit_ul_J-7" DOUBLE PRECISION,
+  rtt_setup_avg_delta7j_pct DOUBLE PRECISION, "rtt_setup_avg_J-7" DOUBLE PRECISION,
+  rtt_data_avg_delta7j_pct DOUBLE PRECISION, "rtt_data_avg_J-7" DOUBLE PRECISION,
+  loss_dl_rate_delta7j_pct DOUBLE PRECISION, "loss_dl_rate_J-7" DOUBLE PRECISION,
+  loss_ul_rate_delta7j_pct DOUBLE PRECISION, "loss_ul_rate_J-7" DOUBLE PRECISION,
+  tcp_retr_rate_dl_delta7j_pct DOUBLE PRECISION, "tcp_retr_rate_dl_J-7" DOUBLE PRECISION,
+  tcp_retr_rate_ul_delta7j_pct DOUBLE PRECISION, "tcp_retr_rate_ul_J-7" DOUBLE PRECISION,
+  session_nbr_delta7j_pct DOUBLE PRECISION, "session_nbr_J-7" BIGINT,
+  session_dcr_delta7j_pct DOUBLE PRECISION, "session_dcr_J-7" DOUBLE PRECISION,
+  qoe_index_delta7j_pct DOUBLE PRECISION, "qoe_index_J-7" DOUBLE PRECISION,
+  "Mauvaise_Session_Rate_delta7j_pct" DOUBLE PRECISION, "Mauvaise_Session_Rate_J-7" DOUBLE PRECISION,
+  dms_debit_dl_3_delta7j_pct DOUBLE PRECISION, "dms_debit_dl_3_J-7" DOUBLE PRECISION,
+  dms_debit_dl_8_delta7j_pct DOUBLE PRECISION, "dms_debit_dl_8_J-7" DOUBLE PRECISION,
+  dms_debit_dl_30_delta7j_pct DOUBLE PRECISION, "dms_debit_dl_30_J-7" DOUBLE PRECISION,
+  dms_debit_ul_1_delta7j_pct DOUBLE PRECISION, "dms_debit_ul_1_J-7" DOUBLE PRECISION,
+  dms_debit_ul_3_delta7j_pct DOUBLE PRECISION, "dms_debit_ul_3_J-7" DOUBLE PRECISION,
+  dms_debit_ul_5_delta7j_pct DOUBLE PRECISION, "dms_debit_ul_5_J-7" DOUBLE PRECISION,
+  out_of_order_rate_delta7j_pct DOUBLE PRECISION, "out_of_order_rate_J-7" DOUBLE PRECISION,
+  wind_full_rate_delta7j_pct DOUBLE PRECISION, "wind_full_rate_J-7" DOUBLE PRECISION,
+  "fallback_5G_to_4G_rate_delta7j_pct" DOUBLE PRECISION, "fallback_5G_to_4G_rate_J-7" DOUBLE PRECISION,
+  instability_rate_delta7j_pct DOUBLE PRECISION, "instability_rate_J-7" DOUBLE PRECISION,
+  time_rat_5g_pct_delta7j_pct DOUBLE PRECISION, "time_rat_5g_pct_J-7" DOUBLE PRECISION,
+  time_rat_4g_pct_delta7j_pct DOUBLE PRECISION, "time_rat_4g_pct_J-7" DOUBLE PRECISION,
+  volume_totale_dl_delta7j_pct DOUBLE PRECISION, "volume_totale_dl_J-7" DOUBLE PRECISION,
+  volume_totale_ul_delta7j_pct DOUBLE PRECISION, "volume_totale_ul_J-7" DOUBLE PRECISION,
+  session_dur_moy_delta7j_pct DOUBLE PRECISION, "session_dur_moy_J-7" DOUBLE PRECISION,
+  debit_dl_delta14j_pct DOUBLE PRECISION, "debit_dl_J-14" DOUBLE PRECISION,
+  debit_ul_delta14j_pct DOUBLE PRECISION, "debit_ul_J-14" DOUBLE PRECISION,
+  rtt_setup_avg_delta14j_pct DOUBLE PRECISION, "rtt_setup_avg_J-14" DOUBLE PRECISION,
+  rtt_data_avg_delta14j_pct DOUBLE PRECISION, "rtt_data_avg_J-14" DOUBLE PRECISION,
+  loss_dl_rate_delta14j_pct DOUBLE PRECISION, "loss_dl_rate_J-14" DOUBLE PRECISION,
+  loss_ul_rate_delta14j_pct DOUBLE PRECISION, "loss_ul_rate_J-14" DOUBLE PRECISION,
+  tcp_retr_rate_dl_delta14j_pct DOUBLE PRECISION, "tcp_retr_rate_dl_J-14" DOUBLE PRECISION,
+  tcp_retr_rate_ul_delta14j_pct DOUBLE PRECISION, "tcp_retr_rate_ul_J-14" DOUBLE PRECISION,
+  session_nbr_delta14j_pct DOUBLE PRECISION, "session_nbr_J-14" BIGINT,
+  session_dcr_delta14j_pct DOUBLE PRECISION, "session_dcr_J-14" DOUBLE PRECISION,
+  qoe_index_delta14j_pct DOUBLE PRECISION, "qoe_index_J-14" DOUBLE PRECISION,
+  "Mauvaise_Session_Rate_delta14j_pct" DOUBLE PRECISION, "Mauvaise_Session_Rate_J-14" DOUBLE PRECISION,
+  dms_debit_dl_3_delta14j_pct DOUBLE PRECISION, "dms_debit_dl_3_J-14" DOUBLE PRECISION,
+  dms_debit_dl_8_delta14j_pct DOUBLE PRECISION, "dms_debit_dl_8_J-14" DOUBLE PRECISION,
+  dms_debit_dl_30_delta14j_pct DOUBLE PRECISION, "dms_debit_dl_30_J-14" DOUBLE PRECISION,
+  dms_debit_ul_1_delta14j_pct DOUBLE PRECISION, "dms_debit_ul_1_J-14" DOUBLE PRECISION,
+  dms_debit_ul_3_delta14j_pct DOUBLE PRECISION, "dms_debit_ul_3_J-14" DOUBLE PRECISION,
+  dms_debit_ul_5_delta14j_pct DOUBLE PRECISION, "dms_debit_ul_5_J-14" DOUBLE PRECISION,
+  out_of_order_rate_delta14j_pct DOUBLE PRECISION, "out_of_order_rate_J-14" DOUBLE PRECISION,
+  wind_full_rate_delta14j_pct DOUBLE PRECISION, "wind_full_rate_J-14" DOUBLE PRECISION,
+  "fallback_5G_to_4G_rate_delta14j_pct" DOUBLE PRECISION, "fallback_5G_to_4G_rate_J-14" DOUBLE PRECISION,
+  instability_rate_delta14j_pct DOUBLE PRECISION, "instability_rate_J-14" DOUBLE PRECISION,
+  time_rat_5g_pct_delta14j_pct DOUBLE PRECISION, "time_rat_5g_pct_J-14" DOUBLE PRECISION,
+  time_rat_4g_pct_delta14j_pct DOUBLE PRECISION, "time_rat_4g_pct_J-14" DOUBLE PRECISION,
+  volume_totale_dl_delta14j_pct DOUBLE PRECISION, "volume_totale_dl_J-14" DOUBLE PRECISION,
+  volume_totale_ul_delta14j_pct DOUBLE PRECISION, "volume_totale_ul_J-14" DOUBLE PRECISION,
+  session_dur_moy_delta14j_pct DOUBLE PRECISION, "session_dur_moy_J-14" DOUBLE PRECISION,
+  score_debit DOUBLE PRECISION, score_latence DOUBLE PRECISION, score_loss DOUBLE PRECISION,
+  score_retr DOUBLE PRECISION, score_stabilite DOUBLE PRECISION, score_drop DOUBLE PRECISION, score_dms DOUBLE PRECISION,
+  qoe_composite DOUBLE PRECISION,
+  trend_debit_dl TEXT, trend_rtt TEXT, trend_qoe TEXT,
+  z_debit_dl DOUBLE PRECISION, pct_debit_dl DOUBLE PRECISION,
+  z_debit_ul DOUBLE PRECISION, pct_debit_ul DOUBLE PRECISION,
+  z_rtt_setup_avg DOUBLE PRECISION, pct_rtt_setup_avg DOUBLE PRECISION,
+  z_rtt_data_avg DOUBLE PRECISION, pct_rtt_data_avg DOUBLE PRECISION,
+  z_loss_dl_rate DOUBLE PRECISION, pct_loss_dl_rate DOUBLE PRECISION,
+  z_loss_ul_rate DOUBLE PRECISION, pct_loss_ul_rate DOUBLE PRECISION,
+  z_tcp_retr_rate_dl DOUBLE PRECISION, pct_tcp_retr_rate_dl DOUBLE PRECISION,
+  z_tcp_retr_rate_ul DOUBLE PRECISION, pct_tcp_retr_rate_ul DOUBLE PRECISION,
+  z_session_nbr DOUBLE PRECISION, pct_session_nbr DOUBLE PRECISION,
+  z_session_dcr DOUBLE PRECISION, pct_session_dcr DOUBLE PRECISION,
+  z_qoe_index DOUBLE PRECISION, pct_qoe_index DOUBLE PRECISION,
+  "z_Mauvaise_Session_Rate" DOUBLE PRECISION, "pct_Mauvaise_Session_Rate" DOUBLE PRECISION,
+  z_dms_debit_dl_3 DOUBLE PRECISION, pct_dms_debit_dl_3 DOUBLE PRECISION,
+  z_dms_debit_dl_8 DOUBLE PRECISION, pct_dms_debit_dl_8 DOUBLE PRECISION,
+  z_dms_debit_dl_30 DOUBLE PRECISION, pct_dms_debit_dl_30 DOUBLE PRECISION,
+  z_dms_debit_ul_1 DOUBLE PRECISION, pct_dms_debit_ul_1 DOUBLE PRECISION,
+  z_dms_debit_ul_3 DOUBLE PRECISION, pct_dms_debit_ul_3 DOUBLE PRECISION,
+  z_dms_debit_ul_5 DOUBLE PRECISION, pct_dms_debit_ul_5 DOUBLE PRECISION,
+  z_out_of_order_rate DOUBLE PRECISION, pct_out_of_order_rate DOUBLE PRECISION,
+  z_wind_full_rate DOUBLE PRECISION, pct_wind_full_rate DOUBLE PRECISION,
+  z_instability_rate DOUBLE PRECISION, pct_instability_rate DOUBLE PRECISION,
+  z_time_rat_5g_pct DOUBLE PRECISION, pct_time_rat_5g_pct DOUBLE PRECISION,
+  z_time_rat_4g_pct DOUBLE PRECISION, pct_time_rat_4g_pct DOUBLE PRECISION,
+  z_volume_totale_dl DOUBLE PRECISION, pct_volume_totale_dl DOUBLE PRECISION,
+  z_volume_totale_ul DOUBLE PRECISION, pct_volume_totale_ul DOUBLE PRECISION,
+  z_session_dur_moy DOUBLE PRECISION, pct_session_dur_moy DOUBLE PRECISION,
+  "z_fallback_5G_to_4G_rate" DOUBLE PRECISION, "pct_fallback_5G_to_4G_rate" DOUBLE PRECISION,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(date_part, dimension_1, dimension_2)
+);
+CREATE INDEX IF NOT EXISTS idx_ml_feat_date ON ml_features(date_part);
+CREATE INDEX IF NOT EXISTS idx_ml_feat_dim1 ON ml_features(dimension_1);
 `;
 }
 
@@ -345,7 +509,8 @@ app.post('/api/backend-admin', async (req, res) => {
       const countRes = await pool.query(
         `SELECT COUNT(*)::int as cnt FROM information_schema.tables
          WHERE table_schema = $1 AND table_type = 'BASE TABLE'
-         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'parameter_dump')`, [schema]
+         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'parameter_dump', 'kpi_qoe_aggregated', 'ml_features')`, [schema]
+      );
       );
       const tablesCreated = countRes.rows[0]?.cnt || 0;
 
@@ -357,8 +522,9 @@ app.post('/api/backend-admin', async (req, res) => {
       const tables = await pool.query(
         `SELECT table_name FROM information_schema.tables
          WHERE table_schema = $1 AND table_type = 'BASE TABLE'
-         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'parameter_dump')
+         AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'parameter_dump', 'kpi_qoe_aggregated', 'ml_features')
          ORDER BY table_name`, [schema]
+      );
       );
 
       const result = [];
@@ -1236,6 +1402,108 @@ app.post('/api/simulate', async (req, res) => {
   }
 });
 
+// ─── /api/kpi-qoe-aggregated (READ — paginated, filterable) ───
+app.get('/api/kpi-qoe-aggregated', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 1000, 1), 100000);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const where = [];
+    const params = [];
+    let pi = 1;
+    if (req.query.date_part) { where.push(`date_part = $${pi++}`); params.push(req.query.date_part); }
+    if (req.query.dimension_1) { where.push(`dimension_1 = $${pi++}`); params.push(req.query.dimension_1); }
+    if (req.query.dimension_2) { where.push(`dimension_2 = $${pi++}`); params.push(req.query.dimension_2); }
+    const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const countRes = await sharedPool.query(`SELECT COUNT(*) AS total FROM kpi_qoe_aggregated ${whereSQL}`, params);
+    const total = parseInt(countRes.rows[0]?.total || '0');
+    const dataRes = await sharedPool.query(
+      `SELECT * FROM kpi_qoe_aggregated ${whereSQL} ORDER BY date_part DESC, dimension_1, dimension_2 LIMIT $${pi++} OFFSET $${pi++}`,
+      [...params, limit, offset]
+    );
+    console.log(`[/api/kpi-qoe-aggregated] ${dataRes.rows.length}/${total} rows`);
+    res.json({ rows: dataRes.rows, total });
+  } catch (e) {
+    console.error('[/api/kpi-qoe-aggregated]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/kpi-qoe-aggregated (BULK INSERT) ───
+app.post('/api/kpi-qoe-aggregated', async (req, res) => {
+  const { rows, clear_before } = req.body;
+  try {
+    if (clear_before) await sharedPool.query('DELETE FROM kpi_qoe_aggregated');
+    if (!rows || !rows.length) return res.json({ success: true, inserted: 0 });
+    const cols = Object.keys(rows[0]);
+    const quotedCols = cols.map(c => `"${c}"`);
+    let inserted = 0;
+    for (const row of rows) {
+      const vals = cols.map(c => row[c] ?? null);
+      const placeholders = vals.map((_, i) => `$${i + 1}`);
+      await sharedPool.query(
+        `INSERT INTO kpi_qoe_aggregated (${quotedCols.join(',')}) VALUES (${placeholders.join(',')}) ON CONFLICT (date_part, dimension_1, dimension_2) DO UPDATE SET ${quotedCols.map((c, i) => `${c}=$${i + 1}`).join(',')}`,
+        vals
+      );
+      inserted++;
+    }
+    res.json({ success: true, inserted });
+  } catch (e) {
+    console.error('[POST /api/kpi-qoe-aggregated]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/ml-features (READ — paginated, filterable) ───
+app.get('/api/ml-features', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 1000, 1), 100000);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const where = [];
+    const params = [];
+    let pi = 1;
+    if (req.query.date_part) { where.push(`date_part = $${pi++}`); params.push(req.query.date_part); }
+    if (req.query.dimension_1) { where.push(`dimension_1 = $${pi++}`); params.push(req.query.dimension_1); }
+    if (req.query.dimension_2) { where.push(`dimension_2 = $${pi++}`); params.push(req.query.dimension_2); }
+    const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const countRes = await sharedPool.query(`SELECT COUNT(*) AS total FROM ml_features ${whereSQL}`, params);
+    const total = parseInt(countRes.rows[0]?.total || '0');
+    const dataRes = await sharedPool.query(
+      `SELECT * FROM ml_features ${whereSQL} ORDER BY date_part DESC, dimension_1, dimension_2 LIMIT $${pi++} OFFSET $${pi++}`,
+      [...params, limit, offset]
+    );
+    console.log(`[/api/ml-features] ${dataRes.rows.length}/${total} rows`);
+    res.json({ rows: dataRes.rows, total });
+  } catch (e) {
+    console.error('[/api/ml-features]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/ml-features (BULK INSERT) ───
+app.post('/api/ml-features', async (req, res) => {
+  const { rows, clear_before } = req.body;
+  try {
+    if (clear_before) await sharedPool.query('DELETE FROM ml_features');
+    if (!rows || !rows.length) return res.json({ success: true, inserted: 0 });
+    const cols = Object.keys(rows[0]);
+    const quotedCols = cols.map(c => `"${c}"`);
+    let inserted = 0;
+    for (const row of rows) {
+      const vals = cols.map(c => row[c] ?? null);
+      const placeholders = vals.map((_, i) => `$${i + 1}`);
+      await sharedPool.query(
+        `INSERT INTO ml_features (${quotedCols.join(',')}) VALUES (${placeholders.join(',')}) ON CONFLICT (date_part, dimension_1, dimension_2) DO UPDATE SET ${quotedCols.map((c, i) => `${c}=$${i + 1}`).join(',')}`,
+        vals
+      );
+      inserted++;
+    }
+    res.json({ success: true, inserted });
+  } catch (e) {
+    console.error('[POST /api/ml-features]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🚀 QOEBIT Local Server running on http://localhost:${PORT}`);
@@ -1248,5 +1516,9 @@ app.listen(PORT, () => {
   console.log(`   POST /api/rag-embed`);
   console.log(`   POST /api/qoe-assistant`);
   console.log(`   GET  /api/dump-parameter`);
+  console.log(`   GET  /api/kpi-qoe-aggregated`);
+  console.log(`   POST /api/kpi-qoe-aggregated`);
+  console.log(`   GET  /api/ml-features`);
+  console.log(`   POST /api/ml-features`);
   console.log(`   GET  /api/health\n`);
 });
