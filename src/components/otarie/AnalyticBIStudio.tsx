@@ -454,23 +454,33 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
               </DropdownMenu>
               <CSVUploadButton />
               <div className="w-px h-5 bg-border mx-1" />
-              {/* Layout mode toggle */}
-              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
+              {/* Layout mode toggle — hidden when in free layout */}
+              {layoutMode === 'grid' && (
+                <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
+                  <button
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground shadow-sm"
+                    title="Grid Layout"
+                  >
+                    <Grid3X3 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={toggleLayoutMode}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium hover:bg-card text-muted-foreground transition-all"
+                    title="Free Layout"
+                  >
+                    <Move className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+              {layoutMode === 'free' && (
                 <button
-                  onClick={() => layoutMode !== 'grid' && toggleLayoutMode()}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${layoutMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-card text-muted-foreground'}`}
-                  title="Grid Layout"
+                  onClick={toggleLayoutMode}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-border bg-muted/50 hover:bg-card text-muted-foreground transition-all"
+                  title="Back to Grid Layout"
                 >
                   <Grid3X3 className="w-3.5 h-3.5" />
                 </button>
-                <button
-                  onClick={() => layoutMode !== 'free' && toggleLayoutMode()}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${layoutMode === 'free' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-card text-muted-foreground'}`}
-                  title="Free Layout"
-                >
-                  <Move className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              )}
             </div>
           </div>
         </div>
