@@ -45,14 +45,14 @@ const MODULE_TABLE_MAP = [
   {
     module: 'Analytic BI Studio',
     icon: '📊',
-    tables: ['kpi_qoe_aggregated', 'dashboards'],
-    description: 'Dashboards BI, KPIs QoE agrégés',
+    tables: ['qoe_metric', 'dashboards'],
+    description: 'Dashboards BI, KPIs QoE (table qoe_metric)',
     apiEndpoints: ['/api/bi-query', '/api/bi-distinct', '/api/dashboards'],
   },
   {
     module: 'KPI Monitor',
     icon: '📈',
-    tables: ['kpi_qoe_aggregated', 'kpi_catalog'],
+    tables: ['qoe_metric', 'kpi_catalog'],
     description: 'Supervision temps réel des KPIs réseau',
     apiEndpoints: ['/api/bi-query', '/api/bi-date-range'],
   },
@@ -73,7 +73,7 @@ const MODULE_TABLE_MAP = [
   {
     module: 'QOEBIT Assistant',
     icon: '🤖',
-    tables: ['rag_documents', 'kpi_qoe_aggregated'],
+    tables: ['rag_documents', 'qoe_metric'],
     description: 'Assistant IA RAG + contexte QoE',
     apiEndpoints: ['/api/qoe-assistant', '/api/rag-embed'],
   },
