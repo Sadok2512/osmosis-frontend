@@ -1289,7 +1289,7 @@ app.get('/api/dump-parameter', async (req, res) => {
     if (dor) { params.push(dor); q += ` AND dor = $${params.length}`; }
     if (plaque) { params.push(plaque); q += ` AND plaque = $${params.length}`; }
     if (vendor) { params.push(vendor); q += ` AND vendor = $${params.length}`; }
-    const limitVal = Math.min(Math.max(parseInt(lim) || 5000, 1), 50000);
+    const limitVal = Math.min(Math.max(parseInt(lim) || 100000, 1), 200000);
     q += ` ORDER BY ${order || 'site_name'} LIMIT ${limitVal}`;
 
     const activeFilters = Object.entries({ parameter, site_name, cell_name, dor, plaque, vendor })
