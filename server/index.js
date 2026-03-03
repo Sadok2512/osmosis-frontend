@@ -1351,7 +1351,8 @@ app.get('/api/dump-parameter/aggregate', async (req, res) => {
       : `${groupCol}, value, COUNT(*) AS cnt`;
 
     const sql = `SELECT ${selectCols} FROM parameter_dump ${where} GROUP BY ${groupCols} ORDER BY ${groupCol}, cnt DESC`;
-    console.log(`   🔍 Aggregate SQL: group_by=${groupCol}, color_by=${color_by}, multi=${multiParam}, filters=${params.length}`);
+    console.log(`   🔍 Aggregate SQL: group_by=${groupCol}, color_by=${color_by}, multi=${multiParam}, params=[${params.join(', ')}]`);
+    console.log(`   📝 SQL: ${sql}`);
     const result = await sharedPool.query(sql, params);
     console.log(`   ✅ ${result.rows.length} grouped rows (${Date.now() - reqStart}ms)`);
     res.json(result.rows);
