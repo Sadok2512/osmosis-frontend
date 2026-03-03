@@ -1185,7 +1185,7 @@ app.get('/api/dump-parameter', async (req, res) => {
 
     // Special mode: get distinct values for a column
     if (distinct_col) {
-      const allowedCols = ['site_name', 'cell_name', 'parameter', 'dor', 'plaque', 'vendor', 'ur', 'dr', 'bande', 'omc'];
+      const allowedCols = ['site_name', 'cell_name', 'parameter', 'dor', 'plaque', 'vendor', 'ur', 'dr', 'bande', 'omc', 'zone_arcep', 'netact'];
       if (!allowedCols.includes(distinct_col)) {
         console.log(`   ⚠️ Colonne non autorisée: ${distinct_col}`);
         return res.json([]);
