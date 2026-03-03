@@ -511,7 +511,6 @@ app.post('/api/backend-admin', async (req, res) => {
          WHERE table_schema = $1 AND table_type = 'BASE TABLE'
          AND table_name IN ('topo', 'dashboards', 'rag_documents', 'qoe_metrics', 'parameter_dump', 'kpi_qoe_aggregated', 'ml_features')`, [schema]
       );
-      );
       const tablesCreated = countRes.rows[0]?.cnt || 0;
 
       return res.json({ success: true, tables_created: tablesCreated, pgvector: hasVector });
