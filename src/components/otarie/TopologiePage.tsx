@@ -293,7 +293,7 @@ const TopologiePage: React.FC = () => {
     if (pdPendingDor.length > 0) filters.dor = pdPendingDor;
     if (pdPendingPlaque.length > 0) filters.plaque = pdPendingPlaque;
 
-    const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor, dn');
+    const rows = await fetchRows(filters, 'site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor, dn');
     setPdData(rows || []); setPdLoading(false);
   }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingAggregator, pdPendingColorBy, fetchRows]);
 
@@ -322,7 +322,7 @@ const TopologiePage: React.FC = () => {
     if (rawPendingSite.length > 0) filters.site_name = rawPendingSite;
     if (rawPendingCell.length > 0) filters.cell_name = rawPendingCell;
 
-    const rows = await fetchRows(filters, 'id, site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor, dn');
+    const rows = await fetchRows(filters, 'site_name, cell_name, parameter, value, plaque, ur, vendor, bande, dr, dor, dn');
     setRawData(rows || []); setRawLoading(false);
   }, [rawPendingParams, rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingSite, rawPendingCell, fetchRows]);
 
