@@ -1789,7 +1789,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesPlaque = filters.plaque === 'ALL' || s.plaque === filters.plaque;
       const matchesVendor = filters.vendor === 'ALL' || s.vendor === filters.vendor;
       const matchesDep = filters.department === 'ALL' || s.department === filters.department;
-      const matchesRat = filters.rat === 'ALL' || s.cells.some(c => c.techno === filters.rat);
+      // When cells are empty (bbox-loaded), bypass RAT filter
+      const matchesRat = filters.rat === 'ALL' || s.cells.length === 0 || s.cells.some(c => c.techno === filters.rat);
       const matchesLocalVendor = localVendor === 'ALL' || s.vendor === localVendor;
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
@@ -1835,15 +1836,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const mapFilteredSites = useMemo(() => {
     if (mapTechnoFilter === 'OFF') return [];
     if (mapTechnoFilter === 'ALL') {
-      // In ALL mode, filter out sites that have no cells matching enabled technos
       if (enabledTechnos.size === 0) return [];
       if (enabledTechnos.size === 2) return filteredSites;
-      return filteredSites.filter(s => s.cells.some(c => {
+      // When cells are empty (bbox-loaded), keep the site visible
+      return filteredSites.filter(s => s.cells.length === 0 || s.cells.some(c => {
         const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
         return enabledTechnos.has(tech);
       }));
     }
-    return filteredSites.filter(s => s.cells.some(c => c.techno === mapTechnoFilter));
+    return filteredSites.filter(s => s.cells.length === 0 || s.cells.some(c => c.techno === mapTechnoFilter));
   }, [filteredSites, mapTechnoFilter, enabledTechnos]);
 
   // Dynamic filter options based on actual data
@@ -1882,7 +1883,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const heatmapPoints = useMemo((): [number, number, number][] => {
     if (mapDisplayMode !== 'heatmap') return [];
     return visibleSites.map(s => {
-      const val = getCellKpiValue(s.cells[0] || {});
+      const val = s.cells.length > 0 ? getCellKpiValue(s.cells[0]) : (s.qoe_score_avg ?? 0);
       return [s.coordinates[0], s.coordinates[1], val / 100] as [number, number, number];
     });
   }, [mapFilteredSites, mapDisplayMode, mapKpi]);
@@ -2214,8 +2215,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Sites mode — Circle markers when sectors not visible */}
         {!paramMode && mapDisplayMode === 'sites' && !showSectors && visibleSites.map(site => {
-          const kpiColor = getKpiColor(getCellKpiValue(site.cells[0] || {}));
-          const has5G = site.cells.some(c => (c.techno || '').toUpperCase().includes('5G'));
+          const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
+          const has5G = site.cells.length > 0 ? site.cells.some(c => (c.techno || '').toUpperCase().includes('5G')) : site.site_name.toUpperCase().includes('5G');
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
           const color = sectorColorMode === 'topo' ? topoColor : kpiColor;
           const isHovered = hoveredSiteId === site.site_id;
