@@ -374,109 +374,110 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-background">
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Tab bar */}
-        <DashboardTabBar
-          tabs={dm.tabs}
-          activeId={dm.activeTabId}
-          onSelect={dm.setActiveTabId}
-          onClose={dm.closeTab}
-          onRename={dm.renameTab}
-          onCreate={handleCreateNew}
-          onSetColor={dm.setTabColor}
-        />
+    <div className="flex-1 flex flex-col overflow-hidden bg-background">
+      {/* Tab bar */}
+      <DashboardTabBar
+        tabs={dm.tabs}
+        activeId={dm.activeTabId}
+        onSelect={dm.setActiveTabId}
+        onClose={dm.closeTab}
+        onRename={dm.renameTab}
+        onCreate={handleCreateNew}
+        onSetColor={dm.setTabColor}
+      />
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/50">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <LayoutGrid className="w-4 h-4 text-primary" />
-              <span className="text-base font-bold text-foreground truncate max-w-[300px]">{dm.activeTab?.name}</span>
-            </div>
-            {/* Description inline edit */}
-            <input
-              type="text"
-              placeholder="Ajouter une description..."
-              value={dm.activeTab?.description || ''}
-              onChange={e => dm.activeTab && dm.updateDescription(dm.activeTab.id, e.target.value)}
-              className="text-[11px] text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none px-1 py-0.5 w-[200px] transition-colors"
-            />
-            {/* Shared/Private toggle */}
-            <button
-              onClick={() => dm.activeTab && dm.toggleShared(dm.activeTab.id)}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors hover:bg-muted"
-              title={dm.activeTab?.isShared ? 'Cliquez pour rendre privé' : 'Cliquez pour rendre public'}
-            >
-              {dm.activeTab?.isShared ? (
-                <><Globe className="w-3 h-3 text-green-600" /><span className="text-green-600">Public</span></>
-              ) : (
-                <><Lock className="w-3 h-3 text-orange-600" /><span className="text-orange-600">Privé</span></>
-              )}
-            </button>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/50">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <LayoutGrid className="w-4 h-4 text-primary" />
+            <span className="text-base font-bold text-foreground truncate max-w-[300px]">{dm.activeTab?.name}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
-              {layoutMode === 'grid' && (<>
-              <button onClick={addChart} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Plus className="w-3.5 h-3.5" /> Chart
-              </button>
-              <button onClick={addMap} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <MapIcon className="w-3.5 h-3.5" /> Map
-              </button>
-              <button onClick={addText} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Type className="w-3.5 h-3.5" /> Text
-              </button>
-              <button onClick={addImage} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <ImageIcon className="w-3.5 h-3.5" /> Image
-              </button>
-              <button onClick={addTable} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Table2 className="w-3.5 h-3.5" /> Table
-              </button>
-              <div className="w-px h-5 bg-border mx-1" />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                    <MoreHorizontal className="w-3.5 h-3.5" /> Actions
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onClick={handleSave}><Save className="w-3.5 h-3.5 mr-2" /> Save</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowSettings(true)}><Settings className="w-3.5 h-3.5 mr-2" /> Settings</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { dm.duplicateDashboard(dm.activeTabId); toast({ title: 'Dashboard dupliqué', description: 'Une copie a été créée.' }); }}><Copy className="w-3.5 h-3.5 mr-2" /> Duplicate</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => dm.setShowList(!dm.showList)}><FolderOpen className="w-3.5 h-3.5 mr-2" /> Load</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowPrintPreview(true)}><Eye className="w-3.5 h-3.5 mr-2" /> Preview</DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExportDashboardPDF}><FileDown className="w-3.5 h-3.5 mr-2" /> Export PDF</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => { setShowAI(!showAI); setEditingId(null); }}><Sparkles className="w-3.5 h-3.5 mr-2" /> AI Assistant</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { setShowCSVPanel(!showCSVPanel); }}><FileSpreadsheet className="w-3.5 h-3.5 mr-2" /> Data {datasets.length > 0 && `(${datasets.length})`}</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <CSVUploadButton />
-              <div className="w-px h-5 bg-border mx-1" />
-              </>)}
-              {/* Layout mode toggle — always visible */}
-              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
-                <button
-                  onClick={() => layoutMode !== 'grid' && toggleLayoutMode()}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${layoutMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-card text-muted-foreground'}`}
-                  title="Grid Layout"
-                >
-                  <Grid3X3 className="w-3.5 h-3.5" />
+          {/* Description inline edit */}
+          <input
+            type="text"
+            placeholder="Ajouter une description..."
+            value={dm.activeTab?.description || ''}
+            onChange={e => dm.activeTab && dm.updateDescription(dm.activeTab.id, e.target.value)}
+            className="text-[11px] text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none px-1 py-0.5 w-[200px] transition-colors"
+          />
+          {/* Shared/Private toggle */}
+          <button
+            onClick={() => dm.activeTab && dm.toggleShared(dm.activeTab.id)}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors hover:bg-muted"
+            title={dm.activeTab?.isShared ? 'Cliquez pour rendre privé' : 'Cliquez pour rendre public'}
+          >
+            {dm.activeTab?.isShared ? (
+              <><Globe className="w-3 h-3 text-green-600" /><span className="text-green-600">Public</span></>
+            ) : (
+              <><Lock className="w-3 h-3 text-orange-600" /><span className="text-orange-600">Privé</span></>
+            )}
+          </button>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
+            {layoutMode === 'grid' && (<>
+            <button onClick={addChart} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Chart
+            </button>
+            <button onClick={addMap} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+              <MapIcon className="w-3.5 h-3.5" /> Map
+            </button>
+            <button onClick={addText} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+              <Type className="w-3.5 h-3.5" /> Text
+            </button>
+            <button onClick={addImage} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+              <ImageIcon className="w-3.5 h-3.5" /> Image
+            </button>
+            <button onClick={addTable} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+              <Table2 className="w-3.5 h-3.5" /> Table
+            </button>
+            <div className="w-px h-5 bg-border mx-1" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                  <MoreHorizontal className="w-3.5 h-3.5" /> Actions
                 </button>
-                <button
-                  onClick={() => layoutMode !== 'free' && toggleLayoutMode()}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${layoutMode === 'free' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-card text-muted-foreground'}`}
-                  title="Free Layout"
-                >
-                  <Move className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={handleSave}><Save className="w-3.5 h-3.5 mr-2" /> Save</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowSettings(true)}><Settings className="w-3.5 h-3.5 mr-2" /> Settings</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { dm.duplicateDashboard(dm.activeTabId); toast({ title: 'Dashboard dupliqué', description: 'Une copie a été créée.' }); }}><Copy className="w-3.5 h-3.5 mr-2" /> Duplicate</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => dm.setShowList(!dm.showList)}><FolderOpen className="w-3.5 h-3.5 mr-2" /> Load</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowPrintPreview(true)}><Eye className="w-3.5 h-3.5 mr-2" /> Preview</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportDashboardPDF}><FileDown className="w-3.5 h-3.5 mr-2" /> Export PDF</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => { setShowAI(!showAI); setEditingId(null); }}><Sparkles className="w-3.5 h-3.5 mr-2" /> AI Assistant</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setShowCSVPanel(!showCSVPanel); }}><FileSpreadsheet className="w-3.5 h-3.5 mr-2" /> Data {datasets.length > 0 && `(${datasets.length})`}</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <CSVUploadButton />
+            <div className="w-px h-5 bg-border mx-1" />
+            </>)}
+            {/* Layout mode toggle — always visible */}
+            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
+              <button
+                onClick={() => layoutMode !== 'grid' && toggleLayoutMode()}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${layoutMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-card text-muted-foreground'}`}
+                title="Grid Layout"
+              >
+                <Grid3X3 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => layoutMode !== 'free' && toggleLayoutMode()}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${layoutMode === 'free' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-card text-muted-foreground'}`}
+                title="Free Layout"
+              >
+                <Move className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
+      {/* Content area: canvas + side panels */}
+      <div className="flex-1 flex overflow-hidden">
         {/* Dashboard canvas */}
         <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4" style={dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor ? { backgroundColor: dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor } : undefined}>
           {widgets.length === 0 ? (
@@ -519,40 +520,41 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             </FreeLayoutCanvas>
           )}
         </div>
+
+        {/* Side panels */}
+        {editingChart && editingChart.kind === 'chart' && (
+          <ChartConfigPanel
+            config={editingChart.config as ChartConfig}
+            onChange={cfg => updateChartConfig(getId(editingChart), cfg)}
+            onClose={() => setEditingId(null)}
+          />
+        )}
+        {showAI && (
+          <AIAssistantPanel
+            charts={widgets.filter(w => w.kind === 'chart').map(w => w.config as ChartConfig)}
+            onClose={() => setShowAI(false)}
+            onApplySuggestion={() => {}}
+          />
+        )}
+        {dm.showList && (
+          <DashboardListPanel
+            dashboards={dm.savedDashboards}
+            openIds={dm.tabs.map(t => t.id)}
+            onOpen={dm.openDashboard}
+            onDelete={dm.deleteDashboard}
+            onDuplicate={dm.duplicateDashboard}
+            onCreate={handleCreateNew}
+            onClose={() => dm.setShowList(false)}
+            onExport={dm.exportDashboard}
+            onExportAll={dm.exportAll}
+            onImport={dm.importDashboards}
+          />
+        )}
+        {showCSVPanel && (
+          <CSVDataPanel onClose={() => setShowCSVPanel(false)} />
+        )}
       </div>
 
-      {/* Side panels */}
-      {editingChart && editingChart.kind === 'chart' && (
-        <ChartConfigPanel
-          config={editingChart.config as ChartConfig}
-          onChange={cfg => updateChartConfig(getId(editingChart), cfg)}
-          onClose={() => setEditingId(null)}
-        />
-      )}
-      {showAI && (
-        <AIAssistantPanel
-          charts={widgets.filter(w => w.kind === 'chart').map(w => w.config as ChartConfig)}
-          onClose={() => setShowAI(false)}
-          onApplySuggestion={() => {}}
-        />
-      )}
-      {dm.showList && (
-        <DashboardListPanel
-          dashboards={dm.savedDashboards}
-          openIds={dm.tabs.map(t => t.id)}
-          onOpen={dm.openDashboard}
-          onDelete={dm.deleteDashboard}
-          onDuplicate={dm.duplicateDashboard}
-          onCreate={handleCreateNew}
-          onClose={() => dm.setShowList(false)}
-          onExport={dm.exportDashboard}
-          onExportAll={dm.exportAll}
-          onImport={dm.importDashboards}
-        />
-      )}
-      {showCSVPanel && (
-        <CSVDataPanel onClose={() => setShowCSVPanel(false)} />
-      )}
       {/* Name dialog */}
       {showNameDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
