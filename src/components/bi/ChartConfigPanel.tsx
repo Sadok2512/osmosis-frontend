@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -14,6 +14,7 @@ import {
 } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
+import { biQueryApi } from '@/lib/localDb';
 
 interface Props {
   config: ChartConfig;
@@ -55,6 +56,44 @@ const DATE_PRESETS = [
   { label: '30D', days: 30 },
   { label: '90D', days: 90 },
 ];
+
+/* ─── FilterValuePicker: loads live DISTINCT values from local DB, falls back to mock ─── */
+const FilterValuePicker: React.FC<{
+  dimension: string;
+  selected: string[];
+  onChange: (vals: string[]) => void;
+}> = ({ dimension, selected, onChange }) => {
+  const [values, setValues] = useState<string[]>(getDimensionValues(dimension));
+
+  useEffect(() => {
+    let cancelled = false;
+    biQueryApi.distinct(dimension).then(res => {
+      if (!cancelled && Array.isArray(res) && res.length > 0) setValues(res);
+    }).catch(() => { /* keep mock fallback */ });
+    return () => { cancelled = true; };
+  }, [dimension]);
+
+  return (
+    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+      {values.map(val => (
+        <button
+          key={val}
+          onClick={() => {
+            const vals = selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val];
+            onChange(vals);
+          }}
+          className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-all duration-150 ${
+            selected.includes(val)
+              ? 'bg-primary/10 text-primary border-primary/30'
+              : 'bg-background text-muted-foreground border-border/50 hover:border-primary/30'
+          }`}
+        >
+          {val}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 /* ─── Reusable Components ─── */
 
@@ -587,24 +626,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                  {getDimensionValues(f.dimension).map(val => (
-                    <button
-                      key={val}
-                      onClick={() => {
-                        const vals = f.values.includes(val) ? f.values.filter(v => v !== val) : [...f.values, val];
-                        updateFilter(i, { values: vals });
-                      }}
-                      className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-all duration-150 ${
-                        f.values.includes(val)
-                          ? 'bg-primary/10 text-primary border-primary/30'
-                          : 'bg-background text-muted-foreground border-border/50 hover:border-primary/30'
-                      }`}
-                    >
-                      {val}
-                    </button>
-                  ))}
-                </div>
+                <FilterValuePicker dimension={f.dimension} selected={f.values} onChange={vals => updateFilter(i, { values: vals })} />
               </div>
             ))}
           </div>

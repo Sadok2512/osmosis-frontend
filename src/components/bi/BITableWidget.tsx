@@ -26,7 +26,7 @@ export function createDefaultTableWidget(id: string): TableWidgetConfig {
     id,
     type: 'table',
     title: 'KPI Table',
-    kpis: ['qoe_index', 'debit_dl', 'debit_ul', 'dms_dl_3', 'dms_dl_8'],
+    kpis: ['qoe_index', 'debit_dl', 'debit_ul', 'dms_debit_dl_3', 'dms_debit_dl_8'],
     dimension: 'Vendor',
     fontSize: 11,
     showHeader: true,

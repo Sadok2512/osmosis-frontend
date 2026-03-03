@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { ChartConfig, CHART_COLORS, KPI_UNITS } from './biTypes';
 import { generateChartData, getKPIBase } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
+import { biQueryApi } from '@/lib/localDb';
 
 /* Convert any CSS color to hex, then create rgba with alpha */
 const _hexCache = new Map<string, string>();
@@ -112,7 +113,50 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
   const csvDataset = config.dataSource?.type === 'csv' && config.dataSource.csvDatasetId
     ? getDataset(config.dataSource.csvDatasetId) : null;
 
+  // Live data from local qoe_metric
+  const [liveData, setLiveData] = useState<any[] | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
+
+  const isLocal = config.dataSource?.type === 'local';
+
+  useEffect(() => {
+    if (!isLocal) { setLiveData(null); return; }
+    let cancelled = false;
+    setLiveLoading(true);
+    biQueryApi.query({
+      kpis: config.yMetrics.map(m => m.kpi),
+      aggregation: config.yMetrics[0]?.aggregation || 'AVG',
+      dateStart: config.xAxis.dateStart,
+      dateEnd: config.xAxis.dateEnd,
+      granularity: config.xAxis.granularity,
+      groupBy: config.groupBy.length > 0 ? [...config.groupBy] : undefined,
+      filters: config.filters.filter(f => f.values.length > 0).map(f => ({
+        dimension: f.dimension,
+        values: [...f.values],
+      })),
+    }).then(res => {
+      if (!cancelled) setLiveData(res.rows || []);
+    }).catch(err => {
+      console.warn('[BI] Live query failed, falling back to mock:', err.message);
+      if (!cancelled) setLiveData(null);
+    }).finally(() => {
+      if (!cancelled) setLiveLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [
+    isLocal,
+    JSON.stringify(config.yMetrics.map(m => m.kpi)),
+    config.yMetrics[0]?.aggregation,
+    config.xAxis.dateStart, config.xAxis.dateEnd, config.xAxis.granularity,
+    JSON.stringify(config.groupBy),
+    JSON.stringify(config.filters),
+  ]);
+
   const rawData = useMemo(() => {
+    // Priority: live data > CSV > mock
+    if (isLocal && liveData && liveData.length > 0) {
+      return liveData;
+    }
     if (csvDataset && config.dataSource?.xColumn) {
       return csvDataset.rows.map(row => ({
         x: row[config.dataSource!.xColumn!],
@@ -122,7 +166,7 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
       }));
     }
     return generateChartData(config);
-  }, [config, csvDataset]);
+  }, [config, csvDataset, liveData, isLocal]);
 
   const effectiveYMetrics = useMemo(() => {
     if (csvDataset && config.dataSource?.yColumns?.length) {
