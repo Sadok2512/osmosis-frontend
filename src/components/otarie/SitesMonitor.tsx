@@ -1652,21 +1652,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'Score QoE Global';
 
+  // Single effect: invalidate cache on mount, then load sites whenever filters change
+  const mountedRef = useRef(false);
   useEffect(() => {
+    // Always invalidate cache on first mount (e.g. after import)
+    if (!mountedRef.current) {
+      invalidateSitesCache();
+      mountedRef.current = true;
+    }
+    let cancelled = false;
     const loadSites = async () => {
       setLoading(true);
       const data = await fetchSites(filters);
-      setSites(data || []);
-      setLoading(false);
+      if (!cancelled) {
+        setSites(data || []);
+        setLoading(false);
+      }
     };
     loadSites();
+    return () => { cancelled = true; };
   }, [filters]);
-
-  // Force reload when component mounts (e.g. switching from Settings after import)
-  useEffect(() => {
-    invalidateSitesCache();
-    fetchSites(filters).then(data => setSites(data || []));
-  }, []);
 
   useEffect(() => {
     if (selectedSiteId) {
