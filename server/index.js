@@ -2042,6 +2042,80 @@ app.get('/api/bi-date-range', async (_req, res) => {
   }
 });
 
+// ─── /api/qoe-map (QoE scores per site for map coloring) ───
+app.get('/api/qoe-map', async (req, res) => {
+  try {
+    const { dimension, date } = req.query;
+    // dimension defaults to 'Site' — the Dimension_1 value that groups by site code
+    const dim1 = dimension || 'Site';
+
+    // If no date given, use the latest available date for this dimension
+    let targetDate = date;
+    if (!targetDate) {
+      const latest = await sharedPool.query(
+        `SELECT MAX(date_part)::text AS max_date FROM qoe_metric WHERE "Dimension_1" = $1`,
+        [dim1]
+      );
+      targetDate = latest.rows[0]?.max_date;
+      if (!targetDate) return res.json({ sites: {}, date: null, dimension: dim1 });
+    }
+
+    // Fetch all KPIs for all sites on that date
+    const result = await sharedPool.query(
+      `SELECT "Dimension_2" AS site_code,
+              AVG(qoe_index) AS qoe_index,
+              AVG(debit_dl) AS debit_dl,
+              AVG(debit_ul) AS debit_ul,
+              AVG(rtt_data_avg) AS rtt_data_avg,
+              AVG(rtt_setup_avg) AS rtt_setup_avg,
+              AVG(dms_debit_dl_3) AS dms_dl_3,
+              AVG(dms_debit_dl_8) AS dms_dl_8,
+              AVG(dms_debit_dl_30) AS dms_dl_30,
+              AVG(dms_debit_ul_3) AS dms_ul_3,
+              AVG(session_nbr) AS sessions,
+              AVG(tcp_retr_rate_dl) AS tcp_retr_rate_dl,
+              AVG(loss_dl_rate) AS loss_dl_rate,
+              AVG(session_dcr) AS session_dcr,
+              AVG(wind_full_rate) AS wind_full_rate,
+              AVG(volume_totale_dl) AS volume_dl,
+              AVG(volume_totale_ul) AS volume_ul
+       FROM qoe_metric
+       WHERE "Dimension_1" = $1 AND date_part = $2::date
+       GROUP BY "Dimension_2"`,
+      [dim1, targetDate]
+    );
+
+    // Build a map: site_code -> KPIs
+    const sites = {};
+    for (const row of result.rows) {
+      sites[row.site_code] = {
+        qoe_index: row.qoe_index != null ? Number(row.qoe_index) : null,
+        debit_dl: row.debit_dl != null ? Number(row.debit_dl) : null,
+        debit_ul: row.debit_ul != null ? Number(row.debit_ul) : null,
+        rtt_data_avg: row.rtt_data_avg != null ? Number(row.rtt_data_avg) : null,
+        rtt_setup_avg: row.rtt_setup_avg != null ? Number(row.rtt_setup_avg) : null,
+        dms_dl_3: row.dms_dl_3 != null ? Number(row.dms_dl_3) : null,
+        dms_dl_8: row.dms_dl_8 != null ? Number(row.dms_dl_8) : null,
+        dms_dl_30: row.dms_dl_30 != null ? Number(row.dms_dl_30) : null,
+        dms_ul_3: row.dms_ul_3 != null ? Number(row.dms_ul_3) : null,
+        sessions: row.sessions != null ? Number(row.sessions) : null,
+        tcp_retr_rate_dl: row.tcp_retr_rate_dl != null ? Number(row.tcp_retr_rate_dl) : null,
+        loss_dl_rate: row.loss_dl_rate != null ? Number(row.loss_dl_rate) : null,
+        session_dcr: row.session_dcr != null ? Number(row.session_dcr) : null,
+        wind_full_rate: row.wind_full_rate != null ? Number(row.wind_full_rate) : null,
+        volume_dl: row.volume_dl != null ? Number(row.volume_dl) : null,
+        volume_ul: row.volume_ul != null ? Number(row.volume_ul) : null,
+      };
+    }
+
+    console.log(`[qoe-map] dim=${dim1} date=${targetDate} => ${Object.keys(sites).length} sites`);
+    res.json({ sites, date: targetDate, dimension: dim1 });
+  } catch (e) {
+    console.error('[qoe-map]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🚀 QOEBIT Local Server running on http://localhost:${PORT}`);
@@ -2061,5 +2135,6 @@ app.listen(PORT, () => {
   console.log(`   POST /api/bi-query`);
   console.log(`   GET  /api/bi-distinct`);
   console.log(`   GET  /api/bi-date-range`);
+  console.log(`   GET  /api/qoe-map`);
   console.log(`   GET  /api/health\n`);
 });

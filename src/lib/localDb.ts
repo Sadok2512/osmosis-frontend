@@ -219,6 +219,41 @@ export const biQueryApi = {
     get<{ min_date: string | null; max_date: string | null }>('bi-date-range'),
 };
 
+// ─── QoE Map (site-level QoE scores for map coloring) ───
+export interface QoeMapSiteData {
+  qoe_index: number | null;
+  debit_dl: number | null;
+  debit_ul: number | null;
+  rtt_data_avg: number | null;
+  rtt_setup_avg: number | null;
+  dms_dl_3: number | null;
+  dms_dl_8: number | null;
+  dms_dl_30: number | null;
+  dms_ul_3: number | null;
+  sessions: number | null;
+  tcp_retr_rate_dl: number | null;
+  loss_dl_rate: number | null;
+  session_dcr: number | null;
+  wind_full_rate: number | null;
+  volume_dl: number | null;
+  volume_ul: number | null;
+}
+
+export interface QoeMapResponse {
+  sites: Record<string, QoeMapSiteData>;
+  date: string | null;
+  dimension: string;
+}
+
+export const qoeMapApi = {
+  fetch: (dimension?: string, date?: string) => {
+    const qs = new URLSearchParams();
+    if (dimension) qs.set('dimension', dimension);
+    if (date) qs.set('date', date);
+    return get<QoeMapResponse>(`qoe-map?${qs}`);
+  },
+};
+
 // ─── Streaming (qoe-assistant) ───
 export function streamAssistant(body: any): Promise<Response> {
   return fetch(url('qoe-assistant'), {
