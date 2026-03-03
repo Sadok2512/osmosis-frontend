@@ -118,6 +118,16 @@ const BIChartRenderer: React.FC<Props> = ({ config }) => {
     );
   }
 
+  if (rawData.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+        <span className="text-2xl">📊</span>
+        <span className="text-xs font-medium">Aucune donnée</span>
+        <span className="text-[10px] opacity-70">Connectez une source de données</span>
+      </div>
+    );
+  }
+
   // ── KPI Card ──
   if (firstMetric.chartType === 'kpi_card') {
     const unit = KPI_UNITS[firstMetric.kpi] || '';
