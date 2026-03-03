@@ -367,25 +367,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
       });
 
       // Call API (local or cloud)
-      let result: any;
-      if (isLocalMode()) {
-        const res = await fetch(getApiUrl('import-topo'), {
-          method: 'POST',
-          headers: getApiHeaders(),
-          body: JSON.stringify({ rows, clear_before: true }),
-        });
-        result = await res.json();
-        if (!result.success) throw new Error(result.error);
-      } else {
-        // In local-only mode, always use local API
-        const res = await fetch(getApiUrl('import-topo'), {
-          method: 'POST',
-          headers: getApiHeaders(),
-          body: JSON.stringify({ rows, clear_before: true }),
-        });
-        result = await res.json();
-        if (!result.success) throw new Error(result.error);
-      }
+      const res = await fetch(getApiUrl('import-topo'), {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify({ rows, clear_before: true }),
+      });
+      const result = await res.json();
+      if (result.error && !result.inserted) throw new Error(result.error);
+      if (result.errors?.length) console.warn('[import-topo] Batch errors:', result.errors);
 
       setTopoCount(result.inserted);
       invalidateSitesCache();
