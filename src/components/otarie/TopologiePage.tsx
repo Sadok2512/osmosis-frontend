@@ -5,8 +5,9 @@ import { getApiUrl, getPreferredDataSource, setPreferredDataSource } from '@/lib
 import {
   Search, Filter, Download, Loader2, ChevronDown, Wifi, WifiOff, Database,
   Layers, FileSpreadsheet, Check, X, AlertCircle, ChevronLeft, ChevronRight, RotateCcw,
-  BarChart3, AlignStartVertical, ArrowUpDown, Eye, EyeOff, List
+  BarChart3, AlignStartVertical, ArrowUpDown, Eye, EyeOff, List, Bot, PanelRightClose
 } from 'lucide-react';
+import AIAssistantPage from './AIAssistantPage';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -137,6 +138,7 @@ const SegmentedControl: React.FC<{
 );
 
 const TopologiePage: React.FC = () => {
+  const [showAI, setShowAI] = useState(false);
   const [mainTab, setMainTab] = useState('param_distribution');
   const [cnxStatus, setCnxStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
   const [cnxMessage, setCnxMessage] = useState('');
@@ -668,6 +670,10 @@ const TopologiePage: React.FC = () => {
             </Tabs>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setShowAI(v => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${showAI ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>
+              <Bot className="w-3.5 h-3.5" /> AI Assistant
+            </button>
             <Badge variant="outline" className="text-[10px] h-6 gap-1 px-2"><Database className="w-3 h-3" />{backendLabel}</Badge>
             <div className="inline-flex rounded-md border border-input overflow-hidden">
               <button onClick={() => switchDataSource('local')} className={`px-2.5 py-1 text-[11px] font-medium ${dataSource === 'local' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent'}`}>Local</button>
@@ -688,6 +694,10 @@ const TopologiePage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ─── MAIN CONTENT + AI PANEL ─── */}
+      <div className="flex flex-1 overflow-hidden">
+        <div className={`flex flex-col flex-1 overflow-hidden transition-all ${showAI ? 'w-[60%]' : 'w-full'}`}>
 
       {/* ─── FILTER BAR ─── */}
       {mainTab === 'param_distribution' && (
@@ -1219,6 +1229,26 @@ const TopologiePage: React.FC = () => {
                 )}
               </div>
             )}
+          </div>
+        )}
+      </div>
+        </div>
+
+        {/* ─── AI ASSISTANT PANEL ─── */}
+        {showAI && (
+          <div className="w-[40%] min-w-[340px] max-w-[500px] border-l border-border flex flex-col bg-background relative">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-primary" />
+                <span className="text-xs font-semibold text-foreground">QOEBIT Assistant</span>
+              </div>
+              <button onClick={() => setShowAI(false)} className="p-1 rounded hover:bg-muted transition-colors">
+                <PanelRightClose className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <AIAssistantPage />
+            </div>
           </div>
         )}
       </div>
