@@ -1185,7 +1185,7 @@ app.get('/api/dump-parameter', async (req, res) => {
 
     // Special mode: get distinct values for a column
     if (distinct_col) {
-      const allowedCols = ['site_name', 'cell_name', 'parameter', 'dor', 'plaque', 'vendor', 'ur', 'dr', 'bande', 'omc', 'zone_arcep', 'netact'];
+      const allowedCols = ['site_name', 'cell_name', 'parameter', 'dor', 'plaque', 'vendor', 'ur', 'dr', 'bande', 'omc', 'zone_arcep', 'netact', 'value'];
       if (!allowedCols.includes(distinct_col)) {
         console.log(`   ⚠️ Colonne non autorisée: ${distinct_col}`);
         return res.json([]);
@@ -1193,7 +1193,7 @@ app.get('/api/dump-parameter', async (req, res) => {
 
       // 1) Wait for cache if still loading, then check in-memory cache
       await waitForCache();
-      const hasFilter = !!(site_name || cell_name || dor || plaque || vendor);
+      const hasFilter = !!(site_name || cell_name || dor || plaque || vendor || parameter);
       if (!hasFilter && distinctCache[distinct_col] && distinctCache[distinct_col].length > 0) {
         console.log(`   ⚡ Cache mémoire: ${distinctCache[distinct_col].length} valeurs pour ${distinct_col} (${Date.now() - reqStart}ms)`);
         return res.json(distinctCache[distinct_col].map(v => ({ [distinct_col]: v })));
@@ -1246,8 +1246,17 @@ app.get('/api/dump-parameter', async (req, res) => {
       const params = [];
       if (site_name) { params.push(site_name); q += ` AND site_name = $${params.length}`; }
       if (cell_name) { params.push(cell_name); q += ` AND cell_name = $${params.length}`; }
+      if (parameter) {
+        const paramList = parameter.split(',').map(p => p.trim()).filter(Boolean);
+        if (paramList.length === 1) {
+          params.push(paramList[0]); q += ` AND parameter = $${params.length}`;
+        } else if (paramList.length > 1) {
+          const ph = paramList.map(p => { params.push(p); return `$${params.length}`; });
+          q += ` AND parameter IN (${ph.join(',')})`;
+        }
+      }
       q += ` ORDER BY ${distinct_col} LIMIT 5000`;
-      console.log(`   🔍 DISTINCT query: col=${distinct_col}${site_name ? `, site=${site_name}` : ''}`);
+      console.log(`   🔍 DISTINCT query: col=${distinct_col}${parameter ? `, parameter=${parameter}` : ''}${site_name ? `, site=${site_name}` : ''}`);
       const result = await sharedPool.query(q, params);
       console.log(`   ✅ ${result.rows.length} valeurs distinctes (${Date.now() - reqStart}ms)`);
       return res.json(result.rows);
@@ -1341,6 +1350,7 @@ app.get('/api/dump-parameter/aggregate', async (req, res) => {
     addInFilter('netact', netact);
     addInFilter('bande', bande);
     addInFilter('zone_arcep', zone_arcep);
+    addInFilter('value', req.query.value);
 
     // Multi-param: include parameter in GROUP BY
     const paramList = parameter ? parameter.split(',').filter(Boolean) : [];

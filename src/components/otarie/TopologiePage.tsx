@@ -162,6 +162,8 @@ const TopologiePage: React.FC = () => {
   const [availableNetacts, setAvailableNetacts] = useState<string[]>([]);
   const [availableBandes, setAvailableBandes] = useState<string[]>([]);
   const [availableZoneArceps, setAvailableZoneArceps] = useState<string[]>([]);
+  const [availableValues, setAvailableValues] = useState<string[]>([]);
+  const [valuesLoading, setValuesLoading] = useState(false);
   const [filtersLoading, setFiltersLoading] = useState(false);
   const [syncingDims, setSyncingDims] = useState(false);
 
@@ -173,6 +175,7 @@ const TopologiePage: React.FC = () => {
   const [pdPendingNetact, setPdPendingNetact] = useState<string[]>([]);
   const [pdPendingBande, setPdPendingBande] = useState<string[]>([]);
   const [pdPendingZoneArcep, setPdPendingZoneArcep] = useState<string[]>([]);
+  const [pdPendingValue, setPdPendingValue] = useState<string[]>([]);
   const [pdPendingAggregator, setPdPendingAggregator] = useState<AggregatorKey>('vendor');
   const [pdPendingColorBy, setPdPendingColorBy] = useState<ColorByKey>('value');
 
@@ -183,6 +186,7 @@ const TopologiePage: React.FC = () => {
   const [pdAppliedNetact, setPdAppliedNetact] = useState<string[]>([]);
   const [pdAppliedBande, setPdAppliedBande] = useState<string[]>([]);
   const [pdAppliedZoneArcep, setPdAppliedZoneArcep] = useState<string[]>([]);
+  const [pdAppliedValue, setPdAppliedValue] = useState<string[]>([]);
   const [pdAppliedAggregator, setPdAppliedAggregator] = useState<AggregatorKey>('vendor');
   const [pdAppliedColorBy, setPdAppliedColorBy] = useState<ColorByKey>('value');
   const [pdData, setPdData] = useState<DumpRow[]>([]);
@@ -226,9 +230,9 @@ const TopologiePage: React.FC = () => {
 
   // ─── Dirty detection ───
   const pdDirty = useMemo(() => {
-    return JSON.stringify({ p: pdPendingParams, v: pdPendingVendor, d: pdPendingDor, pl: pdPendingPlaque, n: pdPendingNetact, b: pdPendingBande, z: pdPendingZoneArcep, a: pdPendingAggregator, c: pdPendingColorBy }) !==
-      JSON.stringify({ p: pdAppliedParams, v: pdAppliedVendor, d: pdAppliedDor, pl: pdAppliedPlaque, n: pdAppliedNetact, b: pdAppliedBande, z: pdAppliedZoneArcep, a: pdAppliedAggregator, c: pdAppliedColorBy });
-  }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingNetact, pdPendingBande, pdPendingZoneArcep, pdPendingAggregator, pdPendingColorBy, pdAppliedParams, pdAppliedVendor, pdAppliedDor, pdAppliedPlaque, pdAppliedNetact, pdAppliedBande, pdAppliedZoneArcep, pdAppliedAggregator, pdAppliedColorBy]);
+    return JSON.stringify({ p: pdPendingParams, v: pdPendingVendor, d: pdPendingDor, pl: pdPendingPlaque, n: pdPendingNetact, b: pdPendingBande, z: pdPendingZoneArcep, val: pdPendingValue, a: pdPendingAggregator, c: pdPendingColorBy }) !==
+      JSON.stringify({ p: pdAppliedParams, v: pdAppliedVendor, d: pdAppliedDor, pl: pdAppliedPlaque, n: pdAppliedNetact, b: pdAppliedBande, z: pdAppliedZoneArcep, val: pdAppliedValue, a: pdAppliedAggregator, c: pdAppliedColorBy });
+  }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingNetact, pdPendingBande, pdPendingZoneArcep, pdPendingValue, pdPendingAggregator, pdPendingColorBy, pdAppliedParams, pdAppliedVendor, pdAppliedDor, pdAppliedPlaque, pdAppliedNetact, pdAppliedBande, pdAppliedZoneArcep, pdAppliedValue, pdAppliedAggregator, pdAppliedColorBy]);
 
   const rawDirty = useMemo(() => {
     return JSON.stringify({ p: rawPendingParams, v: rawPendingVendor, d: rawPendingDor, pl: rawPendingPlaque, n: rawPendingNetact, b: rawPendingBande, z: rawPendingZoneArcep, s: rawPendingSite, c: rawPendingCell }) !==
@@ -238,9 +242,14 @@ const TopologiePage: React.FC = () => {
   const switchDataSource = (next: 'local' | 'cloud') => { setDataSource(next); setPreferredDataSource(next); };
 
   // ─── Data helpers ───
-  const fetchDistinctCloud = async (col: string): Promise<string[]> => {
+  const fetchDistinctCloud = async (col: string, extra?: Record<string, string>): Promise<string[]> => {
     try {
-      const { data: rows, error } = await (supabase as any).from('parameter_dump').select(col).limit(10000);
+      let query = (supabase as any).from('parameter_dump').select(col).limit(10000);
+      if (extra) Object.entries(extra).forEach(([k, v]) => {
+        const vals = v.split(',').map(s => s.trim()).filter(Boolean);
+        if (vals.length > 0) query = query.in(k, vals);
+      });
+      const { data: rows, error } = await query;
       if (error) throw error;
       return [...new Set((rows || []).map((r: any) => r[col]).filter(Boolean))].sort() as string[];
     } catch { return []; }
@@ -259,9 +268,9 @@ const TopologiePage: React.FC = () => {
     } catch { return []; }
   };
 
-  const fetchDistinctLocal = async (col: string) => {
+  const fetchDistinctLocal = async (col: string, extra?: Record<string, string>) => {
     try {
-      const rows = await dumpParameterApi.distinct(col);
+      const rows = await dumpParameterApi.distinct(col, extra);
       return [...new Set((rows || []).map((r: any) => r[col]).filter(Boolean))].sort() as string[];
     } catch { return []; }
   };
@@ -301,13 +310,30 @@ const TopologiePage: React.FC = () => {
     load();
   }, [backendReachable, dataSource]);
 
+  // ─── Dynamic value options based on selected params ───
+  useEffect(() => {
+    if (pdPendingParams.length === 0) { setAvailableValues([]); return; }
+    let cancelled = false;
+    const load = async () => {
+      setValuesLoading(true);
+      try {
+        const extra: Record<string, string> = { parameter: pdPendingParams.join(',') };
+        const vals = await fetchDistinct('value', extra);
+        if (!cancelled) setAvailableValues(vals);
+      } catch { if (!cancelled) setAvailableValues([]); }
+      if (!cancelled) setValuesLoading(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [pdPendingParams, fetchDistinct]);
+
   // ─── PD Confirm (server-side aggregation) ───
   const pdConfirm = useCallback(async () => {
     if (pdPendingParams.length === 0) return;
     setPdAppliedParams([...pdPendingParams]); setPdAppliedVendor([...pdPendingVendor]);
     setPdAppliedDor([...pdPendingDor]); setPdAppliedPlaque([...pdPendingPlaque]);
     setPdAppliedNetact([...pdPendingNetact]); setPdAppliedBande([...pdPendingBande]);
-    setPdAppliedZoneArcep([...pdPendingZoneArcep]);
+    setPdAppliedZoneArcep([...pdPendingZoneArcep]); setPdAppliedValue([...pdPendingValue]);
     setPdAppliedAggregator(pdPendingAggregator); setPdAppliedColorBy(pdPendingColorBy);
     setPdLoading(true); setPdConfirmed(true);
 
@@ -319,6 +345,7 @@ const TopologiePage: React.FC = () => {
     if (pdPendingNetact.length > 0) filters.netact = pdPendingNetact.join(',');
     if (pdPendingBande.length > 0) filters.bande = pdPendingBande.join(',');
     if (pdPendingZoneArcep.length > 0) filters.zone_arcep = pdPendingZoneArcep.join(',');
+    if (pdPendingValue.length > 0) filters.value = pdPendingValue.join(',');
 
     try {
       if (shouldUseLocal) {
@@ -350,6 +377,7 @@ const TopologiePage: React.FC = () => {
         if (pdPendingNetact.length > 0) cloudFilters.netact = pdPendingNetact;
         if (pdPendingBande.length > 0) cloudFilters.bande = pdPendingBande;
         if (pdPendingZoneArcep.length > 0) cloudFilters.zone_arcep = pdPendingZoneArcep;
+        if (pdPendingValue.length > 0) cloudFilters.value = pdPendingValue;
         const rows = await fetchRowsCloud(cloudFilters, 'site_name, cell_name, parameter, value, plaque, netact, vendor, bande, dor, zone_arcep, dn');
         setPdData(rows || []);
       }
@@ -358,14 +386,14 @@ const TopologiePage: React.FC = () => {
       setPdData([]);
     }
     setPdLoading(false);
-  }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingNetact, pdPendingBande, pdPendingZoneArcep, pdPendingAggregator, pdPendingColorBy, shouldUseLocal]);
+  }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingNetact, pdPendingBande, pdPendingZoneArcep, pdPendingValue, pdPendingAggregator, pdPendingColorBy, shouldUseLocal]);
 
   const pdReset = () => {
     setPdPendingParams([]); setPdPendingVendor([]); setPdPendingDor([]); setPdPendingPlaque([]);
-    setPdPendingNetact([]); setPdPendingBande([]); setPdPendingZoneArcep([]);
+    setPdPendingNetact([]); setPdPendingBande([]); setPdPendingZoneArcep([]); setPdPendingValue([]);
     setPdPendingAggregator('vendor'); setPdPendingColorBy('value');
     setPdAppliedParams([]); setPdAppliedVendor([]); setPdAppliedDor([]); setPdAppliedPlaque([]);
-    setPdAppliedNetact([]); setPdAppliedBande([]); setPdAppliedZoneArcep([]);
+    setPdAppliedNetact([]); setPdAppliedBande([]); setPdAppliedZoneArcep([]); setPdAppliedValue([]);
     setPdAppliedAggregator('vendor'); setPdAppliedColorBy('value');
     setPdData([]); setPdConfirmed(false);
   };
@@ -928,6 +956,23 @@ Fournis:
                   </button>
                 </div>
               </div>
+              {/* Row 1.5: Value filter (dependent on selected params) */}
+              {pdPendingParams.length > 0 && (
+                <div className="flex items-end gap-3">
+                  <div className="flex-1">
+                    <MultiSelectFilter
+                      label={`Valeur${valuesLoading ? ' ⏳' : ''} (${availableValues.length})`}
+                      selected={pdPendingValue}
+                      options={availableValues}
+                      onChange={setPdPendingValue}
+                      maxChips={5}
+                    />
+                  </div>
+                  {pdPendingValue.length > 0 && (
+                    <button onClick={() => setPdPendingValue([])} className="text-xs text-muted-foreground hover:text-foreground pb-1">✕ Clear</button>
+                  )}
+                </div>
+              )}
               {/* Row 2: Controls */}
               <div className="flex items-center gap-4 flex-wrap">
                 <SegmentedControl label="Agrégation" value={pdPendingAggregator}
