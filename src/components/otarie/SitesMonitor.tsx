@@ -2184,11 +2184,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const rad = ((cell.azimut || idx * 120) - 90) * (Math.PI / 180);
                 const cellLat = site.coordinates[0] + offsetDist * Math.cos(rad);
                 const cellLng = site.coordinates[1] + offsetDist * Math.sin(rad);
+                const cellIs5G = (cell.techno || '').toUpperCase().includes('5G');
                 return (
                   <CircleMarker
                     key={cell.cell_id}
                     center={[cellLat, cellLng]}
                     radius={isHovered ? 9 : showCellLabels ? 7 : 5}
+                    pane={cellIs5G ? 'pane5G' : 'pane4G'}
                     pathOptions={{
                       color: isHovered ? '#fff' : 'transparent',
                       fillColor: color,
@@ -2279,6 +2281,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               key={site.site_id}
               center={site.coordinates}
               radius={radius}
+              pane={has5G ? 'pane5G' : 'pane4G'}
               pathOptions={{
                 color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
                 fillColor: isFocusFaded ? FADED_COLOR : color,
@@ -2356,11 +2359,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (!site.cells || site.cells.length === 0) {
             const fallbackColor = getKpiColor(site.qoe_score_avg ?? 0);
             const radius = isHovered || isSelectedSite ? 7 : 5;
+            const fallbackHas5G = site.cells?.some(c => (c.techno || '').toUpperCase().includes('5G')) || false;
             return (
               <CircleMarker
                 key={site.site_id}
                 center={site.coordinates}
                 radius={radius}
+                pane={fallbackHas5G ? 'pane5G' : 'pane4G'}
                 fillColor={fallbackColor}
                 fillOpacity={0.85}
                 weight={isSelectedSite ? 3 : 1.5}
