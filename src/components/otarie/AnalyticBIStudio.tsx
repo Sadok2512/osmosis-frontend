@@ -454,7 +454,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
               </DropdownMenu>
               <CSVUploadButton />
               <div className="w-px h-5 bg-border mx-1" />
-              {/* Layout mode toggle — hidden when in free layout */}
+              {/* Layout mode toggle — only visible in grid mode */}
               {layoutMode === 'grid' && (
                 <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
                   <button
@@ -471,15 +471,6 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
                     <Move className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              )}
-              {layoutMode === 'free' && (
-                <button
-                  onClick={toggleLayoutMode}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-border bg-muted/50 hover:bg-card text-muted-foreground transition-all"
-                  title="Back to Grid Layout"
-                >
-                  <Grid3X3 className="w-3.5 h-3.5" />
-                </button>
               )}
             </div>
           </div>
