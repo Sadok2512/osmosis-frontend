@@ -95,7 +95,7 @@ const ParametersPage: React.FC = () => {
     try {
       const { data, error } = await (supabase as any)
         .from('parameter_dump')
-        .select('id, cell_name, site_name, latitude, longitude, parameter, value, bande, vendor, dn')
+        .select('cell_name, site_name, latitude, longitude, parameter, value, bande, vendor, dn')
         .eq('parameter', selectedParam)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null)
