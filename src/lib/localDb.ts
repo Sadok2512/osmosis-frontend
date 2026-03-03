@@ -182,6 +182,26 @@ export const dumpParameterApi = {
   },
 };
 
+// ─── BI Studio (qoe_metric) ───
+export const biQueryApi = {
+  query: (params: {
+    kpis: string[];
+    aggregation?: string;
+    dateStart?: string;
+    dateEnd?: string;
+    granularity?: string;
+    groupBy?: string[];
+    filters?: { dimension: string; values: string[] }[];
+    topN?: number;
+  }) => post<{ rows: any[]; total: number }>('bi-query', params),
+
+  distinct: (dimension: string) =>
+    get<string[]>(`bi-distinct?dimension=${encodeURIComponent(dimension)}`),
+
+  dateRange: () =>
+    get<{ min_date: string | null; max_date: string | null }>('bi-date-range'),
+};
+
 // ─── Streaming (qoe-assistant) ───
 export function streamAssistant(body: any): Promise<Response> {
   return fetch(url('qoe-assistant'), {

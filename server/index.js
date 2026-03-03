@@ -1696,6 +1696,113 @@ app.post('/api/ml-features', async (req, res) => {
   }
 });
 
+// ─── /api/bi-query (BI Studio — query qoe_metric) ───
+app.post('/api/bi-query', async (req, res) => {
+  try {
+    const { kpis, aggregation, dateStart, dateEnd, granularity, groupBy, filters, topN } = req.body;
+    if (!kpis || !kpis.length) return res.status(400).json({ error: 'kpis required' });
+
+    const agg = (aggregation || 'AVG').toUpperCase();
+    const validAggs = ['AVG', 'SUM', 'MAX', 'MIN'];
+    const aggFn = validAggs.includes(agg) ? agg : 'AVG';
+
+    // Build SELECT
+    const selectKpis = kpis.map(k => `${aggFn}("${k}") AS "${k}"`).join(', ');
+
+    // Date grouping
+    let dateExpr = `date_part::text`;
+    if (granularity === 'week') dateExpr = `date_trunc('week', date_part)::date::text`;
+    else if (granularity === 'month') dateExpr = `date_trunc('month', date_part)::date::text`;
+
+    // Group by dimension
+    let groupSelect = '';
+    let groupByClause = `GROUP BY ${dateExpr}`;
+    let orderBy = `ORDER BY ${dateExpr}`;
+    if (groupBy && groupBy.length > 0) {
+      // groupBy is a dimension name — we filter Dimension_1 = dimName and group by Dimension_2
+      groupSelect = `, "Dimension_2" AS "group"`;
+      groupByClause = `GROUP BY ${dateExpr}, "Dimension_2"`;
+      orderBy = `ORDER BY ${dateExpr}, "Dimension_2"`;
+    }
+
+    // WHERE
+    const where = [];
+    const params = [];
+    let pi = 1;
+
+    if (dateStart) { where.push(`date_part >= $${pi++}::date`); params.push(dateStart); }
+    if (dateEnd) { where.push(`date_part <= $${pi++}::date`); params.push(dateEnd); }
+
+    // Dimension filters: { dimension: "Vendor", values: ["Nokia", "Ericsson"] }
+    if (filters && filters.length > 0) {
+      for (const f of filters) {
+        if (!f.values || f.values.length === 0) continue;
+        // Check both Dimension_1 and Dimension_2 for the filter values
+        const placeholders = f.values.map((_, j) => `$${pi + j}`);
+        where.push(`(
+          ("Dimension_1" = $${pi + f.values.length} AND "Dimension_2" IN (${placeholders.join(',')}))
+          OR
+          ("Dimension_2" = $${pi + f.values.length} AND "Dimension_1" IN (${placeholders.join(',')}))
+        )`);
+        params.push(...f.values, f.dimension);
+        pi += f.values.length + 1;
+      }
+    }
+
+    // If groupBy dimension, filter Dimension_1 = that dimension
+    if (groupBy && groupBy.length > 0) {
+      where.push(`"Dimension_1" = $${pi++}`);
+      params.push(groupBy[0]);
+    }
+
+    const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+    const sql = `SELECT ${dateExpr} AS x${groupSelect}, ${selectKpis}
+                 FROM qoe_metric ${whereSQL} ${groupByClause} ${orderBy}`;
+
+    console.log(`[bi-query] SQL: ${sql.substring(0, 200)}... params=${JSON.stringify(params).substring(0, 100)}`);
+    const result = await sharedPool.query(sql, params);
+    console.log(`[bi-query] ${result.rows.length} rows`);
+
+    res.json({ rows: result.rows, total: result.rows.length });
+  } catch (e) {
+    console.error('[bi-query]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/bi-distinct (BI Studio — get distinct dimension values) ───
+app.get('/api/bi-distinct', async (req, res) => {
+  try {
+    const dim = req.query.dimension;
+    if (!dim) return res.status(400).json({ error: 'dimension required' });
+    // Look for values in both Dimension_1 and Dimension_2
+    const sql = `
+      SELECT DISTINCT val FROM (
+        SELECT "Dimension_2" AS val FROM qoe_metric WHERE "Dimension_1" = $1
+        UNION
+        SELECT "Dimension_1" AS val FROM qoe_metric WHERE "Dimension_2" = $1
+      ) sub WHERE val IS NOT NULL AND val != $1 ORDER BY val LIMIT 500
+    `;
+    const result = await sharedPool.query(sql, [dim]);
+    res.json(result.rows.map(r => r.val));
+  } catch (e) {
+    console.error('[bi-distinct]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/bi-date-range (BI Studio — get available date range) ───
+app.get('/api/bi-date-range', async (_req, res) => {
+  try {
+    const result = await sharedPool.query(`SELECT MIN(date_part)::text AS min_date, MAX(date_part)::text AS max_date FROM qoe_metric`);
+    res.json(result.rows[0] || { min_date: null, max_date: null });
+  } catch (e) {
+    console.error('[bi-date-range]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🚀 QOEBIT Local Server running on http://localhost:${PORT}`);
@@ -1712,5 +1819,8 @@ app.listen(PORT, () => {
   console.log(`   POST /api/kpi-qoe-aggregated`);
   console.log(`   GET  /api/ml-features`);
   console.log(`   POST /api/ml-features`);
+  console.log(`   POST /api/bi-query`);
+  console.log(`   GET  /api/bi-distinct`);
+  console.log(`   GET  /api/bi-date-range`);
   console.log(`   GET  /api/health\n`);
 });

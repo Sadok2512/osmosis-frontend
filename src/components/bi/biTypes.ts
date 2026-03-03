@@ -1,23 +1,28 @@
 import { Layout } from 'react-grid-layout';
 
-// ── Dimensions ──
+// ── Dimensions (match qoe_metric Dimension_1 / Dimension_2 values) ──
 export const BI_DIMENSIONS = [
-  'ORF_NETWORK', 'Vendor', 'DOR', 'Plaque', 'Site', 'Cellule', 'bande',
-  '5G_capability', 'device_brand', 'os', 'client', 'RAT', 'ARCEP',
-  'Application', 'Service_Provider', 'POP'
+  'RAT', 'AS', 'Application', 'OS', 'Device_brand', 'TAC', 'POP',
+  'ORF', 'Vendor', 'Bande', 'ARCEP', 'DOR', 'Plaque', 'Site', 'Cellule',
 ] as const;
 
 export type BIDimension = typeof BI_DIMENSIONS[number];
 
-// ── KPIs ──
+// ── KPIs (match qoe_metric numeric columns) ──
 export const BI_KPIS = [
-  'volume_totale', 'debit_dl', 'debit_ul', 'dl_ul_ratio',
-  'debit_dl_max', 'debit_ul_max', 'rtt_setup_avg', 'rtt_data_avg',
+  'volume_totale_dl', 'volume_totale_ul', 'volume_totale_totale',
+  'debit_dl', 'debit_ul', 'debit_dl_max', 'debit_ul_max',
+  'rtt_setup_avg', 'rtt_data_avg',
+  'dms_debit_dl_3', 'dms_debit_dl_8', 'dms_debit_dl_30',
+  'dms_debit_ul_1', 'dms_debit_ul_3', 'dms_debit_ul_5',
   'loss_dl_rate', 'loss_ul_rate',
-  'tcp_retr_rate_1', 'tcp_retr_rate_3', 'tcp_retr_rate_5', 'tcp_retr_rate_10',
-  'dms_dl_3', 'dms_dl_8', 'dms_dl_30', 'dms_ul_1', 'dms_ul_3', 'dms_ul_5',
-  'session_nbr', 'session_dcr', 'fallback_5G_to_4G_rate', 'instability_rate',
-  'time_rat_5g_%', 'bad_session_rate', 'qoe_index'
+  'tcp_retr_rate_dl', 'tcp_retr_rate_ul',
+  'session_nbr', 'session_dcr', 'session_dur_moy',
+  'out_of_order_rate', 'wind_full_rate',
+  'fallback_5G_to_4G_rate', 'instability_rate',
+  'time_rat_5g_pct', 'time_rat_4g_pct',
+  'Mauvaise_Session_Rate', 'qoe_index',
+  '5G_capable_rate', '5gue_attached_4G_rate',
 ] as const;
 
 export type BIKPI = typeof BI_KPIS[number];
@@ -75,7 +80,7 @@ export interface ChartConfig {
   colorBy?: BIDimension;
   sizeBy?: BIKPI;
   dataSource?: {
-    type: 'mock' | 'csv';
+    type: 'mock' | 'csv' | 'local';
     csvDatasetId?: string;
     xColumn?: string;
     yColumns?: string[];
@@ -113,16 +118,19 @@ export const CHART_COLORS = [
 ];
 
 export const KPI_UNITS: Record<string, string> = {
-  volume_totale: 'GB', debit_dl: 'Mbps', debit_ul: 'Mbps',
-  dl_ul_ratio: '%', debit_dl_max: 'Mbps', debit_ul_max: 'Mbps',
+  volume_totale_dl: 'GB', volume_totale_ul: 'GB', volume_totale_totale: 'GB',
+  debit_dl: 'Mbps', debit_ul: 'Mbps', debit_dl_max: 'Mbps', debit_ul_max: 'Mbps',
   rtt_setup_avg: 'ms', rtt_data_avg: 'ms',
+  dms_debit_dl_3: '%', dms_debit_dl_8: '%', dms_debit_dl_30: '%',
+  dms_debit_ul_1: '%', dms_debit_ul_3: '%', dms_debit_ul_5: '%',
   loss_dl_rate: '%', loss_ul_rate: '%',
-  tcp_retr_rate_1: '%', tcp_retr_rate_3: '%', tcp_retr_rate_5: '%', tcp_retr_rate_10: '%',
-  dms_dl_3: '%', dms_dl_8: '%', dms_dl_30: '%',
-  dms_ul_1: '%', dms_ul_3: '%', dms_ul_5: '%',
-  session_nbr: '', session_dcr: '%',
+  tcp_retr_rate_dl: '%', tcp_retr_rate_ul: '%',
+  session_nbr: '', session_dcr: '%', session_dur_moy: 's',
+  out_of_order_rate: '%', wind_full_rate: '%',
   fallback_5G_to_4G_rate: '%', instability_rate: '%',
-  'time_rat_5g_%': '%', bad_session_rate: '%', qoe_index: ''
+  time_rat_5g_pct: '%', time_rat_4g_pct: '%',
+  Mauvaise_Session_Rate: '%', qoe_index: '',
+  '5G_capable_rate': '%', '5gue_attached_4G_rate': '%',
 };
 
 export function createDefaultChart(id: string): ChartConfig {
@@ -147,6 +155,7 @@ export function createDefaultChart(id: string): ChartConfig {
     }],
     filters: [],
     groupBy: [],
+    dataSource: { type: 'local' },
     advanced: {
       thresholds: [],
       milestones: [],
