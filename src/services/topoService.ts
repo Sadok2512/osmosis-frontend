@@ -1,9 +1,51 @@
 import { SiteSummary, SiteDetail, CellProperties } from '../types';
-import { topoApi, BboxFilters, BboxSiteDTO } from '@/lib/localDb';
+import { topoApi, BboxFilters, BboxSiteDTO, qoeMapApi, QoeMapSiteData } from '@/lib/localDb';
 import { supabase } from '@/integrations/supabase/client';
 import topoRaw from '../data/topoData';
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
+
+// ── QoE Map cache ──
+let qoeMapCache: { data: Record<string, QoeMapSiteData>; date: string | null; ts: number } | null = null;
+const QOE_MAP_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getQoeMapData(): Promise<Record<string, QoeMapSiteData>> {
+  if (qoeMapCache && (Date.now() - qoeMapCache.ts) < QOE_MAP_CACHE_TTL) {
+    return qoeMapCache.data;
+  }
+  try {
+    const resp = await qoeMapApi.fetch('Site');
+    const data = resp.sites || {};
+    qoeMapCache = { data, date: resp.date, ts: Date.now() };
+    console.log(`[TopoService] QoE map: ${Object.keys(data).length} sites, date=${resp.date}`);
+    return data;
+  } catch (err) {
+    console.warn('[TopoService] QoE map fetch failed, using fallback', err);
+    return {};
+  }
+}
+
+export function invalidateQoeMapCache() {
+  qoeMapCache = null;
+}
+
+/** Apply real QoE data to a site summary if available */
+function applyQoeData(site: SiteSummary, qoeData: Record<string, QoeMapSiteData>): SiteSummary {
+  // Try matching by site_name (most common in qoe_metric Dimension_2)
+  const qoe = qoeData[site.site_name] || qoeData[site.site_id];
+  if (!qoe) return site;
+
+  return {
+    ...site,
+    qoe_score_avg: qoe.qoe_index ?? site.qoe_score_avg,
+    p50_thr_dn_mbps: qoe.debit_dl ?? site.p50_thr_dn_mbps,
+    p50_thr_up_mbps: qoe.debit_ul ?? site.p50_thr_up_mbps,
+    dms_dl_3: qoe.dms_dl_3 ?? site.dms_dl_3,
+    dms_dl_8: qoe.dms_dl_8 ?? site.dms_dl_8,
+    dms_dl_30: qoe.dms_dl_30 ?? site.dms_dl_30,
+    dms_ul_3: qoe.dms_ul_3 ?? site.dms_ul_3,
+  };
+}
 
 // Seeded random for stable KPI values per cell
 function seededRand(seed: string, min: number, max: number): number {
@@ -210,6 +252,8 @@ let cachedLocalSites: SiteSummary[] | null = null;
 export async function fetchTopoSites(): Promise<SiteSummary[]> {
   if (cachedLocalSites) return cachedLocalSites;
 
+  let baseSites: SiteSummary[] | null = null;
+
   // 1) Try local Express server
   try {
     const json = await topoApi.list(100000);
@@ -217,29 +261,45 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
     const total: number = json.total ?? rows.length;
     console.log(`[TopoService] LOCAL: received ${rows.length}/${total} cells`);
     if (rows.length > 0) {
-      cachedLocalSites = buildSitesFromRows(rows);
-      console.log(`[TopoService] LOCAL: Built ${cachedLocalSites.length} sites`);
-      return cachedLocalSites;
+      baseSites = buildSitesFromRows(rows);
+      console.log(`[TopoService] LOCAL: Built ${baseSites.length} sites`);
     }
   } catch (err) {
     console.warn('[TopoService] LOCAL fetch failed, trying Cloud...', err);
   }
 
   // 2) Try Cloud (Supabase) topo table
-  try {
-    const cloudRows = await fetchFromCloud();
-    if (cloudRows.length > 0) {
-      cachedLocalSites = buildSitesFromRows(cloudRows);
-      console.log(`[TopoService] CLOUD: Built ${cachedLocalSites.length} sites from ${cloudRows.length} cells`);
-      return cachedLocalSites;
+  if (!baseSites) {
+    try {
+      const cloudRows = await fetchFromCloud();
+      if (cloudRows.length > 0) {
+        baseSites = buildSitesFromRows(cloudRows);
+        console.log(`[TopoService] CLOUD: Built ${baseSites.length} sites from ${cloudRows.length} cells`);
+      }
+    } catch (err) {
+      console.warn('[TopoService] CLOUD fetch failed, falling back to embedded data', err);
     }
-  } catch (err) {
-    console.warn('[TopoService] CLOUD fetch failed, falling back to embedded data', err);
   }
 
   // 3) Fallback to embedded static data
-  cachedLocalSites = buildSitesFromLocalTopo();
-  console.log(`[TopoService] FALLBACK: Built ${cachedLocalSites.length} sites from embedded data`);
+  if (!baseSites) {
+    baseSites = buildSitesFromLocalTopo();
+    console.log(`[TopoService] FALLBACK: Built ${baseSites.length} sites from embedded data`);
+  }
+
+  // 4) Merge live QoE data
+  try {
+    const qoeData = await getQoeMapData();
+    if (Object.keys(qoeData).length > 0) {
+      baseSites = baseSites.map(s => applyQoeData(s, qoeData));
+      const withQoe = baseSites.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
+      console.log(`[TopoService] Merged live QoE for ${withQoe}/${baseSites.length} sites`);
+    }
+  } catch (err) {
+    console.warn('[TopoService] QoE merge failed', err);
+  }
+
+  cachedLocalSites = baseSites;
   return cachedLocalSites;
 }
 
@@ -306,15 +366,21 @@ export async function fetchSitesByBbox(
   }
 
   try {
-    const resp = await topoApi.listSitesByBbox(bbox, filters, 8000, signal);
-    const sites = (resp.sites || []).map(dtoToSiteSummary);
+    const [resp, qoeData] = await Promise.all([
+      topoApi.listSitesByBbox(bbox, filters, 8000, signal),
+      getQoeMapData(),
+    ]);
+    const sites = (resp.sites || []).map(dto => {
+      const site = dtoToSiteSummary(dto);
+      return applyQoeData(site, qoeData);
+    });
     bboxCache = { key, sites, total: resp.total };
-    console.log(`[TopoService] BBOX: ${sites.length}/${resp.total} sites`);
+    const withQoe = sites.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
+    console.log(`[TopoService] BBOX: ${sites.length}/${resp.total} sites (${withQoe} with live QoE)`);
     return { sites, total: resp.total };
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
     console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
-    // Fallback to legacy full load
     const allSites = await fetchTopoSites();
     return { sites: allSites, total: allSites.length };
   }
@@ -330,9 +396,13 @@ export async function fetchCellsByBbox(
   signal?: AbortSignal,
 ): Promise<SiteSummary[]> {
   try {
-    const resp = await topoApi.listCellsByBbox(bbox, filters, 8000, signal);
+    const [resp, qoeData] = await Promise.all([
+      topoApi.listCellsByBbox(bbox, filters, 8000, signal),
+      getQoeMapData(),
+    ]);
     const rows = (resp.cells || []) as TopoRow[];
-    return buildSitesFromRows(rows);
+    const sites = buildSitesFromRows(rows);
+    return sites.map(s => applyQoeData(s, qoeData));
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
     console.warn('[TopoService] BBOX cells fetch failed', err);
