@@ -5,7 +5,7 @@ import { getApiUrl, getApiHeaders, getPreferredDataSource, setPreferredDataSourc
 import {
   Search, Filter, Download, Loader2, ChevronDown, Wifi, WifiOff, Database,
   Layers, FileSpreadsheet, Check, X, AlertCircle, ChevronLeft, ChevronRight, RotateCcw,
-  BarChart3, AlignStartVertical, ArrowUpDown, Eye, EyeOff, List, Sparkles
+  BarChart3, AlignStartVertical, ArrowUpDown, Eye, EyeOff, List, Sparkles, RefreshCw
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -163,6 +163,7 @@ const TopologiePage: React.FC = () => {
   const [availableBandes, setAvailableBandes] = useState<string[]>([]);
   const [availableZoneArceps, setAvailableZoneArceps] = useState<string[]>([]);
   const [filtersLoading, setFiltersLoading] = useState(false);
+  const [syncingDims, setSyncingDims] = useState(false);
 
   // ─── PD pending vs applied ───
   const [pdPendingParams, setPdPendingParams] = useState<string[]>([]);
@@ -789,6 +790,37 @@ Fournis:
             </Tabs>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                setSyncingDims(true);
+                try {
+                  const resp = await fetch(`${import.meta.env.VITE_LOCAL_API || 'http://localhost:3001'}/api/refresh-dims`, { method: 'POST' });
+                  const json = await resp.json();
+                  if (json.success) {
+                    const { toast } = await import('@/hooks/use-toast');
+                    toast({ title: '✅ Sync DB terminé', description: `Dimensions rafraîchies en ${json.elapsed_ms}ms` });
+                    const [p, v, d, pl, s, c, n, b, z] = await Promise.all([
+                      fetchDistinct('parameter'), fetchDistinct('vendor'), fetchDistinct('dor'),
+                      fetchDistinct('plaque'), fetchDistinct('site_name'), fetchDistinct('cell_name'),
+                      fetchDistinct('netact'), fetchDistinct('bande'), fetchDistinct('zone_arcep'),
+                    ]);
+                    setAvailableParams(p); setAvailableVendors(v); setAvailableDors(d); setAvailablePlaques(pl);
+                    setAvailableSites(s); setAvailableCells(c); setAvailableNetacts(n); setAvailableBandes(b); setAvailableZoneArceps(z);
+                  } else {
+                    const { toast: t2 } = await import('@/hooks/use-toast');
+                    t2({ title: '❌ Sync échoué', description: json.error, variant: 'destructive' });
+                  }
+                } catch (err: any) {
+                  const { toast: t3 } = await import('@/hooks/use-toast');
+                  t3({ title: '❌ Sync échoué', description: err.message, variant: 'destructive' });
+                } finally { setSyncingDims(false); }
+              }}
+              disabled={syncingDims || dataSource !== 'local'}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-accent text-accent-foreground hover:bg-primary hover:text-primary-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Rafraîchir les tables de dimensions (refresh_all_dims)"
+            >
+              {syncingDims ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Sync DB
+            </button>
             <button onClick={launchAIAnalysis} disabled={aiLoading || (!pdConfirmed && !rawConfirmed)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${aiLoading ? 'bg-primary text-primary-foreground animate-pulse' : showAI ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'} disabled:opacity-40 disabled:cursor-not-allowed`}>
               {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Analyse AI
