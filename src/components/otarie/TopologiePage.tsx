@@ -338,14 +338,6 @@ const TopologiePage: React.FC = () => {
     if (rawPendingParams.length === 0) return;
     setRawAppliedParams([...rawPendingParams]);
     setRawAppliedVendor([...rawPendingVendor]); setRawAppliedDor([...rawPendingDor]);
-    setRawAppliedPlaque([...rawPendingPlaque]); setRawAppliedSite([...rawPendingSite]);
-    setRawAppliedCell([...rawPendingCell]);
-    setRawLoading(true); setRawConfirmed(true); setRawPage(1);
-
-  const rawConfirm = useCallback(async () => {
-    if (rawPendingParams.length === 0) return;
-    setRawAppliedParams([...rawPendingParams]);
-    setRawAppliedVendor([...rawPendingVendor]); setRawAppliedDor([...rawPendingDor]);
     setRawAppliedPlaque([...rawPendingPlaque]); setRawAppliedNetact([...rawPendingNetact]);
     setRawAppliedBande([...rawPendingBande]); setRawAppliedZoneArcep([...rawPendingZoneArcep]);
     setRawAppliedSite([...rawPendingSite]); setRawAppliedCell([...rawPendingCell]);
@@ -1401,3 +1393,4 @@ Fournis:
 };
 
 export default TopologiePage;
+
