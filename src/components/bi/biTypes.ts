@@ -134,14 +134,18 @@ export const KPI_UNITS: Record<string, string> = {
 };
 
 export function createDefaultChart(id: string): ChartConfig {
+  // Use last 30 days by default (will be auto-adjusted by ChartConfigPanel if data range is known)
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 30);
   return {
     id,
     title: 'New Chart',
     xAxis: {
       type: 'date',
       value: 'date',
-      dateStart: '2026-02-01',
-      dateEnd: '2026-02-15',
+      dateStart: start.toISOString().split('T')[0],
+      dateEnd: end.toISOString().split('T')[0],
       granularity: 'day',
     },
     yMetrics: [{

@@ -13,7 +13,7 @@ import 'react-resizable/css/styles.css';
 import { Filters } from '../../types';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
 import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode } from '../bi/dashboardTypes';
-import BIChartCard from '../bi/BIChartCard';
+import BIChartCard from '../bi/BIChartCardECharts';
 import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/BITextWidget';
 import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../bi/BIImageWidget';
 import BIMapWidget from '../bi/BIMapWidget';
