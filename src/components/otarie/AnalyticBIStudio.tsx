@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal, Globe, Lock, Grid3X3, Move, Settings } from 'lucide-react';
+import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal, Globe, Lock, Grid3X3, Move, Settings, Zap } from 'lucide-react';
+import { biQueryApi } from '@/lib/localDb';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
@@ -454,6 +455,30 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
                 </DropdownMenuContent>
               </DropdownMenu>
               <CSVUploadButton />
+              <button
+                onClick={async () => {
+                  try {
+                    toast({ title: '🔍 Testing BI connection...', description: 'Querying local backend...' });
+                    const [dateRange, distinctSite, distinctVendor] = await Promise.all([
+                      biQueryApi.dateRange(),
+                      biQueryApi.distinct('Site'),
+                      biQueryApi.distinct('Vendor'),
+                    ]);
+                    const siteCount = Array.isArray(distinctSite) ? distinctSite.length : 0;
+                    const vendorList = Array.isArray(distinctVendor) ? distinctVendor.slice(0, 10).join(', ') : '—';
+                    toast({
+                      title: '✅ BI Connected',
+                      description: `Dates: ${dateRange.min_date || '?'} → ${dateRange.max_date || '?'} | Sites: ${siteCount} | Vendors: ${vendorList}`,
+                    });
+                  } catch (err: any) {
+                    toast({ title: '❌ BI Connection Failed', description: err.message, variant: 'destructive' });
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-accent text-accent-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                title="Test BI connection to local DB"
+              >
+                <Zap className="w-3.5 h-3.5" /> Test DB
+              </button>
               <div className="w-px h-5 bg-border mx-1" />
               </>)}
               {/* Layout mode toggle — always visible */}
