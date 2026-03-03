@@ -180,6 +180,10 @@ export const dumpParameterApi = {
     if (cols) qs.set('select', cols);
     return get<any[]>(`dump-parameter?${qs}`);
   },
+  aggregate: (filters: Record<string, string>, groupBy: string, colorBy: string) => {
+    const qs = new URLSearchParams({ group_by: groupBy, color_by: colorBy, ...filters });
+    return get<any[]>(`dump-parameter/aggregate?${qs}`);
+  },
 };
 
 // ─── Parameter Changes ───

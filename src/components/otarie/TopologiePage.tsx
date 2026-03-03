@@ -301,7 +301,7 @@ const TopologiePage: React.FC = () => {
     load();
   }, [backendReachable, dataSource]);
 
-  // ─── PD Confirm ───
+  // ─── PD Confirm (server-side aggregation) ───
   const pdConfirm = useCallback(async () => {
     if (pdPendingParams.length === 0) return;
     setPdAppliedParams([...pdPendingParams]); setPdAppliedVendor([...pdPendingVendor]);
@@ -311,18 +311,54 @@ const TopologiePage: React.FC = () => {
     setPdAppliedAggregator(pdPendingAggregator); setPdAppliedColorBy(pdPendingColorBy);
     setPdLoading(true); setPdConfirmed(true);
 
-    const filters: Record<string, string | string[]> = {};
-    if (pdPendingParams.length > 0) filters.parameter = pdPendingParams;
-    if (pdPendingVendor.length > 0) filters.vendor = pdPendingVendor;
-    if (pdPendingDor.length > 0) filters.dor = pdPendingDor;
-    if (pdPendingPlaque.length > 0) filters.plaque = pdPendingPlaque;
-    if (pdPendingNetact.length > 0) filters.netact = pdPendingNetact;
-    if (pdPendingBande.length > 0) filters.bande = pdPendingBande;
-    if (pdPendingZoneArcep.length > 0) filters.zone_arcep = pdPendingZoneArcep;
+    const filters: Record<string, string> = {};
+    if (pdPendingParams.length > 0) filters.parameter = pdPendingParams.join(',');
+    if (pdPendingVendor.length > 0) filters.vendor = pdPendingVendor.join(',');
+    if (pdPendingDor.length > 0) filters.dor = pdPendingDor.join(',');
+    if (pdPendingPlaque.length > 0) filters.plaque = pdPendingPlaque.join(',');
+    if (pdPendingNetact.length > 0) filters.netact = pdPendingNetact.join(',');
+    if (pdPendingBande.length > 0) filters.bande = pdPendingBande.join(',');
+    if (pdPendingZoneArcep.length > 0) filters.zone_arcep = pdPendingZoneArcep.join(',');
 
-    const rows = await fetchRows(filters, 'site_name, cell_name, parameter, value, plaque, netact, vendor, bande, dor, zone_arcep, dn');
-    setPdData(rows || []); setPdLoading(false);
-  }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingNetact, pdPendingBande, pdPendingZoneArcep, pdPendingAggregator, pdPendingColorBy, fetchRows]);
+    try {
+      if (shouldUseLocal) {
+        // Use server-side aggregation
+        const aggRows = await dumpParameterApi.aggregate(filters, pdPendingAggregator, pdPendingColorBy === 'ne_aggregation' ? 'ne_aggregation' : 'value');
+        // Convert aggregated rows back into DumpRow-like format for existing chart logic
+        const expanded: DumpRow[] = [];
+        (aggRows || []).forEach((r: any) => {
+          const count = parseInt(r.cnt) || 1;
+          for (let i = 0; i < count; i++) {
+            expanded.push({
+              site_name: null, cell_name: null, dn: null,
+              parameter: r.parameter || pdPendingParams[0] || '',
+              value: r.value || null,
+              vendor: r.vendor || null, dor: r.dor || null,
+              plaque: r.plaque || null, netact: r.netact || null,
+              bande: r.bande || null, zone_arcep: r.zone_arcep || null,
+            });
+          }
+        });
+        setPdData(expanded);
+      } else {
+        // Cloud fallback: fetch raw rows
+        const cloudFilters: Record<string, string | string[]> = {};
+        if (pdPendingParams.length > 0) cloudFilters.parameter = pdPendingParams;
+        if (pdPendingVendor.length > 0) cloudFilters.vendor = pdPendingVendor;
+        if (pdPendingDor.length > 0) cloudFilters.dor = pdPendingDor;
+        if (pdPendingPlaque.length > 0) cloudFilters.plaque = pdPendingPlaque;
+        if (pdPendingNetact.length > 0) cloudFilters.netact = pdPendingNetact;
+        if (pdPendingBande.length > 0) cloudFilters.bande = pdPendingBande;
+        if (pdPendingZoneArcep.length > 0) cloudFilters.zone_arcep = pdPendingZoneArcep;
+        const rows = await fetchRowsCloud(cloudFilters, 'site_name, cell_name, parameter, value, plaque, netact, vendor, bande, dor, zone_arcep, dn');
+        setPdData(rows || []);
+      }
+    } catch (e) {
+      console.error('Aggregate error:', e);
+      setPdData([]);
+    }
+    setPdLoading(false);
+  }, [pdPendingParams, pdPendingVendor, pdPendingDor, pdPendingPlaque, pdPendingNetact, pdPendingBande, pdPendingZoneArcep, pdPendingAggregator, pdPendingColorBy, shouldUseLocal]);
 
   const pdReset = () => {
     setPdPendingParams([]); setPdPendingVendor([]); setPdPendingDor([]); setPdPendingPlaque([]);

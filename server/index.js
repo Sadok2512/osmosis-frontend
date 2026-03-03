@@ -1305,6 +1305,62 @@ app.get('/api/dump-parameter', async (req, res) => {
   }
 });
 
+// ─── /api/dump-parameter/aggregate ───
+// Server-side GROUP BY to avoid fetching millions of raw rows
+app.get('/api/dump-parameter/aggregate', async (req, res) => {
+  const reqStart = Date.now();
+  console.log(`📊 [/api/dump-parameter/aggregate] ${new Date().toISOString()}`);
+  try {
+    const { parameter, vendor, dor, plaque, netact, bande, zone_arcep, group_by, color_by } = req.query;
+    const VALID_COLS = ['vendor', 'dor', 'plaque', 'netact', 'bande', 'zone_arcep', 'value', 'site_name'];
+    const groupCol = VALID_COLS.includes(group_by) ? group_by : 'vendor';
+
+    const params = [];
+    let where = 'WHERE 1=1';
+
+    // Support multiple parameters (comma-separated)
+    if (parameter) {
+      const paramList = parameter.split(',').map(p => p.trim()).filter(Boolean);
+      if (paramList.length === 1) {
+        params.push(paramList[0]);
+        where += ` AND parameter = $${params.length}`;
+      } else if (paramList.length > 1) {
+        const placeholders = paramList.map((p) => { params.push(p); return `$${params.length}`; });
+        where += ` AND parameter IN (${placeholders.join(',')})`;
+      }
+    }
+    const addInFilter = (col, val) => {
+      if (!val) return;
+      const vs = val.split(',');
+      const ph = vs.map(v => { params.push(v); return `$${params.length}`; });
+      where += ` AND ${col} IN (${ph.join(',')})`;
+    };
+    addInFilter('vendor', vendor);
+    addInFilter('dor', dor);
+    addInFilter('plaque', plaque);
+    addInFilter('netact', netact);
+    addInFilter('bande', bande);
+    addInFilter('zone_arcep', zone_arcep);
+
+    // Multi-param: include parameter in GROUP BY
+    const paramList = parameter ? parameter.split(',').filter(Boolean) : [];
+    const multiParam = paramList.length > 1;
+    const groupCols = multiParam ? `parameter, ${groupCol}, value` : `${groupCol}, value`;
+    const selectCols = multiParam
+      ? `parameter, ${groupCol}, value, COUNT(*) AS cnt`
+      : `${groupCol}, value, COUNT(*) AS cnt`;
+
+    const sql = `SELECT ${selectCols} FROM parameter_dump ${where} GROUP BY ${groupCols} ORDER BY ${groupCol}, cnt DESC`;
+    console.log(`   🔍 Aggregate SQL: group_by=${groupCol}, color_by=${color_by}, multi=${multiParam}, filters=${params.length}`);
+    const result = await sharedPool.query(sql, params);
+    console.log(`   ✅ ${result.rows.length} grouped rows (${Date.now() - reqStart}ms)`);
+    res.json(result.rows);
+  } catch (e) {
+    console.error(`   ❌ [/api/dump-parameter/aggregate] ERREUR (${Date.now() - reqStart}ms):`, e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── /api/parameter-changes (CRUD for parameter_changes) ───
 app.get('/api/parameter-changes', async (req, res) => {
   try {
