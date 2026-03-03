@@ -1089,8 +1089,13 @@ app.get('/api/dump-parameter', async (req, res) => {
 
     let cols;
     if (select) {
-      const requestedCols = select.split(',').map(c => c.trim()).filter(c => realCols.has(c));
-      cols = requestedCols.length > 0 ? requestedCols.join(', ') : 'site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
+      const requestedCols = select.split(',').map(c => c.trim());
+      const validCols = requestedCols.filter(c => realCols.has(c));
+      const invalidCols = requestedCols.filter(c => !realCols.has(c));
+      if (invalidCols.length > 0) {
+        console.log(`   ⚠️ Colonnes ignorées (inexistantes): ${invalidCols.join(', ')}`);
+      }
+      cols = validCols.length > 0 ? validCols.join(', ') : 'site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
     } else {
       cols = 'site_name, cell_name, parameter, value, plaque, dor, vendor, bande, dr, ur';
     }
