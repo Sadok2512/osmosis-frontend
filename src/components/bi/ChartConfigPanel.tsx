@@ -523,6 +523,17 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           toggle={() => toggle('y')}
           badge={`${draft.yMetrics.length}`}
         >
+          {/* Multi-select KPI button */}
+          <button
+            onClick={() => { setKpiModalTarget({ type: 'metric', index: -1 }); setKpiModalOpen(true); }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border/60
+              text-[12px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40
+              transition-all duration-200 hover:bg-primary/5"
+          >
+            <Plus className="w-4 h-4" />
+            Sélectionner des KPIs
+          </button>
+
           <div className="space-y-2.5">
             {draft.yMetrics.map((m, i) => (
               <div
@@ -533,20 +544,11 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 <div className="flex items-stretch">
                   <div className="w-1 rounded-l-xl" style={{ background: m.color }} />
                   <div className="flex-1 p-3 space-y-3">
-                    {/* Top row: KPI selector + aggregation + delete */}
+                    {/* Top row: KPI name + delete */}
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => { setKpiModalTarget({ type: 'metric', index: i }); setKpiModalOpen(true); }}
-                        className="flex-1 text-left bg-background border border-border/70 rounded-lg px-3 py-2 text-[12px] font-semibold text-foreground hover:border-primary/40 transition-all truncate"
-                      >
+                      <span className="flex-1 text-[12px] font-semibold text-foreground truncate">
                         {getKpiDisplayName(m.kpi)}
-                      </button>
-                      <StyledSelect
-                        value={m.aggregation}
-                        options={AGGREGATIONS}
-                        onChange={v => updateMetric(i, { aggregation: v as Aggregation })}
-                        className="!w-20 !text-[11px]"
-                      />
+                      </span>
                       <button
                         onClick={() => removeMetric(i)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center
@@ -626,16 +628,6 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
               </div>
             ))}
           </div>
-
-          <button
-            onClick={addMetric}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border/60
-              text-[12px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40
-              transition-all duration-200 hover:bg-primary/5"
-          >
-            <Plus className="w-4 h-4" />
-            Ajouter une métrique
-          </button>
         </SectionCard>
 
         {/* ── FILTERS ── */}
@@ -943,23 +935,37 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         onClose={() => { setKpiModalOpen(false); setKpiModalTarget(null); }}
         selectedKeys={
           kpiModalTarget?.type === 'metric'
-            ? [draft.yMetrics[kpiModalTarget.index]?.kpi].filter(Boolean)
+            ? draft.yMetrics.map(m => m.kpi)
             : kpiModalTarget?.type === 'xAxis'
               ? [draft.xAxis.value].filter(Boolean)
               : kpiModalTarget?.type === 'sizeBy'
                 ? [draft.sizeBy].filter((v): v is string => !!v)
                 : []
         }
-        single
+        single={kpiModalTarget?.type !== 'metric'}
         onConfirm={(keys) => {
-          const key = keys[0];
-          if (!key || !kpiModalTarget) return;
+          if (!kpiModalTarget) return;
           if (kpiModalTarget.type === 'metric') {
-            updateMetric(kpiModalTarget.index, { kpi: key as BIKPI });
+            // Sync yMetrics with selected keys: keep existing configs, add new ones, remove deselected
+            const existingMap = new Map(draft.yMetrics.map(m => [m.kpi, m]));
+            const newMetrics: YMetricConfig[] = keys.map((key, idx) => {
+              const existing = existingMap.get(key as BIKPI);
+              if (existing) return existing;
+              return {
+                kpi: key as BIKPI,
+                aggregation: 'AVG' as Aggregation,
+                axis: 'left' as AxisSide,
+                chartType: 'line' as ChartType,
+                color: CHART_COLORS[idx % CHART_COLORS.length],
+                showMovingAvg: false,
+                smoothCurve: true,
+              };
+            });
+            update({ yMetrics: newMetrics });
           } else if (kpiModalTarget.type === 'xAxis') {
-            updateX({ value: key });
+            updateX({ value: keys[0] });
           } else if (kpiModalTarget.type === 'sizeBy') {
-            update({ sizeBy: key as BIKPI });
+            update({ sizeBy: keys[0] as BIKPI });
           }
         }}
       />
