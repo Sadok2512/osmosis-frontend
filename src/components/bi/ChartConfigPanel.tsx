@@ -198,7 +198,7 @@ const SegmentedControl: React.FC<{
 
 const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   const [sections, setSections] = useState({
-    source: true, x: true, y: true, filters: false, group: false, advanced: false
+    source: false, x: false, y: false, filters: false, group: false, advanced: false
   });
   const toggle = (s: keyof typeof sections) => setSections(p => ({ ...p, [s]: !p[s] }));
   const { datasets } = useCSVData();
