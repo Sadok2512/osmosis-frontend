@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Settings, Copy, Trash2, Maximize2, Minimize2, BarChart3, Image, FileDown } from 'lucide-react';
+import { Settings, Copy, Trash2, Maximize2, Minimize2, BarChart3, Image, FileDown, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ChartConfig, KPI_UNITS } from './biTypes';
 import BIChartRenderer from './BIChartRenderer';
 import { exportElementToPNG, exportElementToPDF } from '@/lib/exportUtils';
@@ -78,23 +79,22 @@ const BIChartCard: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete })
           title={isFs ? 'Exit fullscreen' : 'Fullscreen'}>
           {isFs ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-3.5 h-3.5" />}
         </button>
-        <div className={`flex items-center gap-0.5 ${isFs ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
-          <button onClick={() => handleExportPNG(isFs)} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Export PNG">
-            <Image className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-          </button>
-          <button onClick={() => handleExportPDF(isFs)} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Export PDF">
-            <FileDown className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-          </button>
-          <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit">
-            <Settings className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-          </button>
-          <button onClick={onDuplicate} className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Duplicate">
-            <Copy className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-          </button>
-          <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
-            <Trash2 className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-          </button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className={`p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors ${isFs ? '' : 'opacity-0 group-hover:opacity-100'}`}>
+              <MoreVertical className={`${isFs ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={onEdit}><Settings className="w-3.5 h-3.5 mr-2" /> Configure</DropdownMenuItem>
+            <DropdownMenuItem onClick={onDuplicate}><Copy className="w-3.5 h-3.5 mr-2" /> Duplicate</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleExportPNG(isFs)}><Image className="w-3.5 h-3.5 mr-2" /> Export PNG</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportPDF(isFs)}><FileDown className="w-3.5 h-3.5 mr-2" /> Export PDF</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive"><Trash2 className="w-3.5 h-3.5 mr-2" /> Delete</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
