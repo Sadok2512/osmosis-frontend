@@ -298,6 +298,28 @@ CREATE TABLE IF NOT EXISTS parameter_dump (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS parameter_changes (
+  id BIGSERIAL PRIMARY KEY,
+  change_date TIMESTAMPTZ NOT NULL,
+  param_name TEXT NOT NULL,
+  change_type TEXT NOT NULL DEFAULT 'parameter_tuning',
+  change_scope TEXT NOT NULL DEFAULT 'radio',
+  old_value TEXT,
+  new_value TEXT,
+  site_name TEXT,
+  cell_name TEXT,
+  description TEXT,
+  techno TEXT,
+  vendor TEXT,
+  dor TEXT,
+  dr TEXT,
+  plaque TEXT,
+  zone_arcep TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_param_changes_date ON parameter_changes(change_date);
+CREATE INDEX IF NOT EXISTS idx_param_changes_param ON parameter_changes(param_name);
+
 CREATE INDEX IF NOT EXISTS idx_qoe_cell_dt ON qoe_metrics(cell_id, dt);
 CREATE INDEX IF NOT EXISTS idx_qoe_dt ON qoe_metrics(dt);
 CREATE INDEX IF NOT EXISTS idx_qoe_service ON qoe_metrics(service);
@@ -1279,6 +1301,38 @@ app.get('/api/dump-parameter', async (req, res) => {
     res.json(result.rows);
   } catch (e) {
     console.error(`   ❌ [/api/dump-parameter] ERREUR (${Date.now() - reqStart}ms):`, e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── /api/parameter-changes (CRUD for parameter_changes) ───
+app.get('/api/parameter-changes', async (req, res) => {
+  try {
+    const { site_name, param_name, change_type, limit = '500' } = req.query;
+    const where = [];
+    const params = [];
+    if (site_name) { params.push(site_name); where.push(`site_name = $${params.length}`); }
+    if (param_name) { params.push(param_name); where.push(`param_name = $${params.length}`); }
+    if (change_type) { params.push(change_type); where.push(`change_type = $${params.length}`); }
+    const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const sql = `SELECT * FROM parameter_changes ${whereSQL} ORDER BY change_date DESC LIMIT ${Math.min(parseInt(limit), 5000)}`;
+    const result = await sharedPool.query(sql, params);
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/parameter-changes', async (req, res) => {
+  try {
+    const { change_date, param_name, change_type, change_scope, old_value, new_value, site_name, cell_name, description, techno, vendor, dor, dr, plaque, zone_arcep } = req.body;
+    const result = await sharedPool.query(
+      `INSERT INTO parameter_changes (change_date, param_name, change_type, change_scope, old_value, new_value, site_name, cell_name, description, techno, vendor, dor, dr, plaque, zone_arcep)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+      [change_date, param_name, change_type || 'parameter_tuning', change_scope || 'radio', old_value, new_value, site_name, cell_name, description, techno, vendor, dor, dr, plaque, zone_arcep]
+    );
+    res.json(result.rows[0]);
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });

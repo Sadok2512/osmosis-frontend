@@ -182,7 +182,18 @@ export const dumpParameterApi = {
   },
 };
 
-// ─── BI Studio (qoe_metric) ───
+// ─── Parameter Changes ───
+export const parameterChangesApi = {
+  list: (filters?: { site_name?: string; param_name?: string; change_type?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (filters?.site_name) qs.set('site_name', filters.site_name);
+    if (filters?.param_name) qs.set('param_name', filters.param_name);
+    if (filters?.change_type) qs.set('change_type', filters.change_type);
+    if (filters?.limit) qs.set('limit', String(filters.limit));
+    return get<any[]>(`parameter-changes?${qs}`);
+  },
+  create: (change: Record<string, any>) => post<any>('parameter-changes', change),
+};
 export const biQueryApi = {
   query: (params: {
     kpis: string[];
