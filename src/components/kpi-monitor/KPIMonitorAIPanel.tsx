@@ -3,7 +3,7 @@ import { X, Send, Bot, User, Loader2, Sparkles, Trash2, Copy, Check, FileDown, B
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from '@/hooks/use-toast';
-import { getApiUrl } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 import { useGlobalFilterStore } from '@/stores/globalFilterStore';
 import { useKpiMonitorStore } from '@/stores/kpiMonitorStore';
 import { parseVisualizationBlocks } from '../otarie/chat-visualizations/parseVisualizationBlocks';
@@ -78,25 +78,27 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
       model: llmModel,
     });
 
-    const localUrl = getApiUrl('qoe-assistant');
-    const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
+    const url = getApiUrl('qoe-assistant');
+    const headers = getApiHeaders();
 
     let resp: Response;
     try {
-      resp = await fetch(localUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload,
-      });
+      resp = await fetch(url, { method: 'POST', headers, body: payload });
     } catch {
-      resp = await fetch(cloudUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: payload,
-      });
+      // If local mode failed, fallback to cloud
+      if (isLocalMode()) {
+        const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
+        resp = await fetch(cloudUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: payload,
+        });
+      } else {
+        throw new Error('Failed to connect to AI service');
+      }
     }
 
     if (!resp.ok) {
