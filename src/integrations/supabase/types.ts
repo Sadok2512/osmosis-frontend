@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_feedback: {
+        Row: {
+          agent: string
+          assistant_response: string
+          created_at: string
+          id: string
+          intent: string | null
+          message_index: number
+          rating: number
+          scope_level: string | null
+          session_id: string
+          user_question: string
+        }
+        Insert: {
+          agent: string
+          assistant_response: string
+          created_at?: string
+          id?: string
+          intent?: string | null
+          message_index: number
+          rating: number
+          scope_level?: string | null
+          session_id: string
+          user_question: string
+        }
+        Update: {
+          agent?: string
+          assistant_response?: string
+          created_at?: string
+          id?: string
+          intent?: string | null
+          message_index?: number
+          rating?: number
+          scope_level?: string | null
+          session_id?: string
+          user_question?: string
+        }
+        Relationships: []
+      }
+      agent_memory: {
+        Row: {
+          agent: string | null
+          created_at: string
+          id: string
+          key: string
+          memory_type: string
+          relevance_score: number | null
+          source_session_id: string | null
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          agent?: string | null
+          created_at?: string
+          id?: string
+          key: string
+          memory_type: string
+          relevance_score?: number | null
+          source_session_id?: string | null
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          agent?: string | null
+          created_at?: string
+          id?: string
+          key?: string
+          memory_type?: string
+          relevance_score?: number | null
+          source_session_id?: string | null
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       dashboards: {
         Row: {
           created_at: string
