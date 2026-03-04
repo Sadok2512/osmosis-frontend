@@ -60,7 +60,7 @@ const TiltOverlay: React.FC<TiltOverlayProps> = ({ site, visible }) => {
 
     return site.cells.map((cell) => {
       const az = cell.azimut ?? 0;
-      const tilt = (cell as any).remote_electrical_tilt ?? (cell as any).tilt ?? 0;
+      const tilt = (cell as any).tilt ?? 0;
       const hba = cell.hba;
       const beamwidth = (cell as any).vertical_beamwidth ?? DEFAULT_BEAMWIDTH;
       const rayLen = tiltRayLength(hba, tilt);

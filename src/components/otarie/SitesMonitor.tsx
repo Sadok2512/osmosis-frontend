@@ -1493,7 +1493,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         bande: c.bande,
         azimut: c.azimut,
         hba: c.hba,
-        remote_electrical_tilt: (c as any).remote_electrical_tilt,
+        tilt: (c as any).tilt,
       })),
     });
     setShowCoverageSim(true);
@@ -2555,7 +2555,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{cell.techno}</span></div>
                           <div className="flex justify-between"><span className="opacity-50">Band</span><span className="font-bold">{cell.bande}</span></div>
                           <div className="flex justify-between"><span className="opacity-50">Azimut</span><span className="font-bold">{cell.azimut}°</span></div>
-                          <div className="flex justify-between"><span className="opacity-50">Tilt</span><span className="font-bold">{(cell as any).remote_electrical_tilt ?? '—'}°</span></div>
+                          <div className="flex justify-between"><span className="opacity-50">Tilt</span><span className="font-bold">{(cell as any).tilt ?? '—'}°</span></div>
                           <div className="flex justify-between"><span className="opacity-50">HBA</span><span className="font-bold">{cell.hba ?? '—'} m</span></div>
                         </div>
                       </div>
@@ -4676,7 +4676,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
                       // 4. Per-sector tilt delta
                       sortedSectors.forEach(([sNum, cells]) => {
-                        const tilts = cells.map(c => (c as any).remote_electrical_tilt as number | null).filter((t): t is number => t != null);
+                        const tilts = cells.map(c => (c as any).tilt as number | null).filter((t): t is number => t != null);
                         if (tilts.length >= 2) {
                           const delta = Math.max(...tilts) - Math.min(...tilts);
                           checks.push({
@@ -4709,8 +4709,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         // Check if 5G tilt < 4G tilt on same sector
                         let coLocOk = true;
                         sortedSectors.forEach(([, cells]) => {
-                          const t5g = cells.filter(c => (c.techno || '').includes('5G')).map(c => (c as any).remote_electrical_tilt as number | null).filter((t): t is number => t != null);
-                          const t4g = cells.filter(c => !(c.techno || '').includes('5G')).map(c => (c as any).remote_electrical_tilt as number | null).filter((t): t is number => t != null);
+                          const t5g = cells.filter(c => (c.techno || '').includes('5G')).map(c => (c as any).tilt as number | null).filter((t): t is number => t != null);
+                          const t4g = cells.filter(c => !(c.techno || '').includes('5G')).map(c => (c as any).tilt as number | null).filter((t): t is number => t != null);
                           if (t5g.length > 0 && t4g.length > 0) {
                             const avg5 = t5g.reduce((a, b) => a + b, 0) / t5g.length;
                             const avg4 = t4g.reduce((a, b) => a + b, 0) / t4g.length;
@@ -4967,7 +4967,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         { label: 'Cell ID', value: cell.cell_id, highlight: true },
                         { label: 'Azimut', value: cell.azimut != null ? `${cell.azimut}°` : '—', highlight: true },
                         { label: 'HBA', value: cell.hba != null ? `${cell.hba} m` : '—', highlight: true },
-                        { label: 'E-Tilt', value: (cell as any).remote_electrical_tilt != null ? `${(cell as any).remote_electrical_tilt}°` : '—' },
+                        { label: 'E-Tilt', value: (cell as any).tilt != null ? `${(cell as any).tilt}°` : '—' },
                         { label: 'PCI', value: (cell as any).pci ?? '—' },
                         { label: 'TAC', value: (cell as any).tac ?? '—' },
                         { label: 'ECI', value: (cell as any).eci ?? '—' },
@@ -5060,7 +5060,7 @@ const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverageSimula
     antennaGain: params.antennaGain ?? defaults.antennaGain ?? 18,
     azimuth: params.azimuth ?? activeCell.azimut ?? defaults.azimuth ?? 0,
     beamwidth: params.beamwidth ?? defaults.beamwidth ?? 65,
-    tilt: params.tilt ?? (activeCell as any).remote_electrical_tilt ?? defaults.tilt ?? 4,
+    tilt: params.tilt ?? (activeCell as any).tilt ?? defaults.tilt ?? 4,
     mechanicalTilt: params.mechanicalTilt ?? defaults.mechanicalTilt ?? 0,
     rxHeight: params.rxHeight ?? defaults.rxHeight ?? 1.5,
     radius: params.radius ?? defaults.radius ?? 5,

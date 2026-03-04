@@ -24,7 +24,7 @@ interface CoverageSimPanelProps {
       bande: string;
       azimut: number;
       hba?: number;
-      remote_electrical_tilt?: number;
+      tilt?: number;
     }>;
   } | null;
   onSimulate: (grid: CoverageGrid) => void;
@@ -62,7 +62,7 @@ const CoverageSimPanel: React.FC<CoverageSimPanelProps> = ({
     antennaGain: params.antennaGain ?? defaults.antennaGain ?? 18,
     azimuth: params.azimuth ?? cell?.azimut ?? defaults.azimuth ?? 0,
     beamwidth: params.beamwidth ?? defaults.beamwidth ?? 65,
-    tilt: params.tilt ?? cell?.remote_electrical_tilt ?? defaults.tilt ?? 4,
+    tilt: params.tilt ?? cell?.tilt ?? defaults.tilt ?? 4,
     rxHeight: params.rxHeight ?? defaults.rxHeight ?? 1.5,
     radius: params.radius ?? defaults.radius ?? 5,
     gridSize: params.gridSize ?? defaults.gridSize ?? 80,
