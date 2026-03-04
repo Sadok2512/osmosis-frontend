@@ -813,8 +813,11 @@ function isSentinelQuery(query: string): boolean {
 
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
-  // Dimension queries always go to PULSE
+  // Topo metric distribution queries go to TOPO
+  const met = detectMetric(query);
   const { isDim } = isDimensionQuery(query);
+  if (isDim && TOPO_METRICS.has(met)) return "TOPO";
+  // Other dimension queries go to PULSE
   if (isDim) return "PULSE";
   const isCompare = ["compare", "comparer", "comparaison", "vs", "versus", "benchmark"].some(h => n.includes(h));
   if (isCompare) return "PULSE";
