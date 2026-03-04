@@ -218,7 +218,7 @@ CREATE TABLE IF NOT EXISTS topo (
   etat_cellule TEXT,
   zone_arcep TEXT,
   essentiel TEXT,
-  tilt INTEGER,
+  tilt DOUBLE PRECISION,
   date_mes DATE,
   date_fn8 DATE,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -651,7 +651,7 @@ app.get('/api/topo', async (req, res) => {
               etat_cellule, zone_arcep, essentiel, tilt`
       : `code_nidt, nom_site, region, longitude, latitude, nom_cellule,
               techno, bande, constructeur, azimut, plaque, hba, tac,
-              date_mes, date_fn8`;
+              date_mes, date_fn8, tilt`;
 
     const result = await sharedPool.query(
       `SELECT ${cols} FROM topo ORDER BY id LIMIT $1 OFFSET $2`,
