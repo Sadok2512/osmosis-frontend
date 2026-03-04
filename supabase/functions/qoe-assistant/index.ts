@@ -11,7 +11,7 @@ const corsHeaders = {
 //  TYPES (Context-on-Demand)
 // ═══════════════════════════════════════════════════════════════
 
-type AgentId = "PULSE" | "TRACE" | "SENTINEL" | "ARCHITECT";
+type AgentId = "PULSE" | "TRACE" | "SENTINEL" | "TOPO";
 
 type Intent =
   | "global_summary"
@@ -744,7 +744,7 @@ function classifyAgent(query: string): AgentId {
   if (isDim) return "PULSE";
   const isCompare = ["compare", "comparer", "comparaison", "vs", "versus", "benchmark"].some(h => n.includes(h));
   if (isCompare) return "PULSE";
-  if (isSiteDesignQuery(query)) return "ARCHITECT";
+  if (isSiteDesignQuery(query)) return "TOPO";
   if (isChangeHistoryQuery(query)) return "TRACE";
   if (isSentinelQuery(query)) return "SENTINEL";
   if (isParameterFocusedQuery(query)) return "TRACE";
@@ -871,7 +871,7 @@ function buildContextPlan(
         if (scope.level === "site") needs.push("topology");
         break;
 
-      case "ARCHITECT":
+      case "TOPO":
         needs.push("documents_rag", "topology");
         if (scope.level === "site") {
           needs.push("kpi_snapshot");
@@ -1050,7 +1050,7 @@ Structure RCA : 1) Classe cause racine 2) Résumé 3) Preuves KPI 4) Actions rec
 Seuils : QoE<50% → 🔴, DMS3<90% → 🟠, RTT>100ms → 🟠, TCP Loss>2% → 🔴.
 ${SHARED_RULES}`;
 
-const ARCHITECT_PROMPT = `Tu es **ARCHITECT** 🗼, agent spécialisé en design de sites radio et topologie.
+const TOPO_PROMPT = `Tu es **TOPO** 🗼, agent spécialisé en design de sites radio et topologie.
 Diagnostic 8 critères : Nb secteurs, espacement azimuthal, cohérence az intra-secteur, Delta Tilt (<3°), HBA, co-loc 5G/4G, diversité bandes, état cellules.
 Verdict : ✅ OK / ⚠️ REVIEW / ❌ ISSUES.
 ${SHARED_RULES}`;
@@ -1060,7 +1060,7 @@ function getAgentPrompt(agent: AgentId): string {
     case "PULSE": return PULSE_PROMPT;
     case "TRACE": return TRACE_PROMPT;
     case "SENTINEL": return SENTINEL_PROMPT;
-    case "ARCHITECT": return ARCHITECT_PROMPT;
+    case "TOPO": return TOPO_PROMPT;
     default: return PULSE_PROMPT;
   }
 }

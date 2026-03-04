@@ -77,7 +77,7 @@ export type DataNeed =
 // ── Context Plan (output of the planner) ──
 
 export interface ContextPlan {
-  agent: 'PULSE' | 'TRACE' | 'SENTINEL' | 'ARCHITECT';
+  agent: 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO';
   intent: Intent;
   scope: Scope;
   needs: DataNeed[];
