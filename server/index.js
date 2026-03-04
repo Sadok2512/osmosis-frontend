@@ -1003,7 +1003,7 @@ function detectTopoGroup(query) {
   return null;
 }
 
-
+function extractParameterName(query) {
   // Match "SIB.t300", "NRCELL.t300", "LNCEL.T300", "CATMPR.t300ModeACatM" etc.
   const matchFull = query.match(/\b((?:LNCEL|LNBTS|LNCELL|MRBTS|GNBTS|SIB|NRCELL|CATMPR|NOKLTE|NRBTS|GNBCUCP|GNBCUUP|GNBDU|LNHOIF|LNRELIF|IRFIM)[.\s_]?\w+)\b/i);
   if (matchFull) return matchFull[1].replace(/\s/g, '.');
