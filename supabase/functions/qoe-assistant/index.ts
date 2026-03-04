@@ -1114,6 +1114,9 @@ async function buildContextFromPlan(
       plan.resultLimit || 200
     );
   }
+  if (plan.needs.includes("topo_inventory")) {
+    promises.topoInv = fetchTopoInventory(filters);
+  }
 
   const keys = Object.keys(promises);
   const results = await Promise.all(Object.values(promises));
@@ -1122,6 +1125,7 @@ async function buildContextFromPlan(
 
   console.log(`📦 Context fetched: ${keys.filter(k => resolved[k]).join(", ") || "none"}`);
 
+  if (resolved.topoInv) sections.push(`🗼 INVENTAIRE TOPO:\n${resolved.topoInv}`);
   if (resolved.topoAgg) sections.push(`📡 DISTRIBUTION TOPO:\n${resolved.topoAgg}`);
   if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
   if (resolved.dimValues) sections.push(`📋 VALEURS DIMENSION:\n${resolved.dimValues}`);
