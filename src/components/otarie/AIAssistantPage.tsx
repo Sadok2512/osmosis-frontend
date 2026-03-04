@@ -612,7 +612,16 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                           Voir sur la carte ({msg.mapCellIds.length})
                         </button>
                       )}
-                      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      {/* Feedback + actions bar */}
+                      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/30">
+                        <FeedbackButtons
+                          sessionId={activeSessionId || ''}
+                          messageIndex={i}
+                          agent={msg.agent || 'PULSE'}
+                          userQuestion={i > 0 ? messages[i - 1]?.content || '' : ''}
+                          assistantResponse={msg.content}
+                        />
+                        <div className="flex-1" />
                         <ExportPDFButton msgRef={msg.content} index={i} />
                         <CopyButton text={msg.content} />
                       </div>
