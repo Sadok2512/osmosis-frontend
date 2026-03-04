@@ -118,7 +118,16 @@ const PulseReportPage: React.FC = () => {
         .eq('dimension_1', dimension)
         .order('date_part', { ascending: false })
         .limit(1);
-      if (!fallbackRows?.[0]) throw new Error('Aucune donnée disponible');
+      if (!fallbackRows?.[0]) {
+        // No data at all — show empty state, not an error loop
+        setLatestDate('');
+        setSummaries(CORE_KPIS.map(k => ({ label: k.label, key: k.key, value: null, unit: k.unit, delta7j: null, orientation: k.orientation })));
+        setTopWorst([]);
+        setTopBest([]);
+        setTimeSeries([]);
+        setError('Aucune donnée dans les tables Cloud. Lancez l\'application en local (localhost:5173) avec le backend Express pour accéder aux données PostgreSQL.');
+        return;
+      }
       await fetchFromCloudAggregated(fallbackRows[0].date_part);
       return;
     }
@@ -270,9 +279,9 @@ const PulseReportPage: React.FC = () => {
       });
       setTimeSeries((tsRes.rows || []).map(r => ({ date: r.date_part || r.date, ...r })));
     } catch (err: any) {
-      // Fallback to cloud
-      console.warn('Local fetch failed, falling back to cloud:', err.message);
-      await fetchFromCloud();
+      // Don't fallback to cloud from local — just report the error
+      console.warn('Local fetch failed:', err.message);
+      throw new Error('Backend local indisponible. Vérifiez que le serveur Express tourne sur localhost:3001.');
     }
   };
 
