@@ -288,7 +288,15 @@ const TopologiePage: React.FC = () => {
       try {
         const resp = await fetch(`${import.meta.env.VITE_LOCAL_API || 'http://localhost:3001'}/api/health`, { signal: AbortSignal.timeout(3000) });
         setBackendReachable(resp.ok);
-      } catch { setBackendReachable(false); }
+        if (!resp.ok) {
+          // Auto-fallback to cloud when local is unreachable
+          switchDataSource('cloud');
+        }
+      } catch {
+        setBackendReachable(false);
+        // Auto-fallback to cloud when local is unreachable
+        switchDataSource('cloud');
+      }
     };
     probe();
   }, [shouldUseLocal]);
