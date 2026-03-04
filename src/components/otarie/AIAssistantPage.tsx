@@ -186,7 +186,21 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       }
     } catch { /* ignore */ }
 
-    const payload = JSON.stringify({ messages: allMessages, cellContext, openrouter_key: openrouterKey, model: llmModel });
+    // ── Truncate old messages to avoid sending 1M+ tokens ──
+    // Keep last 6 messages, truncate older assistant messages to 500 chars
+    const MAX_RECENT = 6;
+    const MAX_OLD_ASSISTANT_CHARS = 500;
+    const trimmedMessages = allMessages.map((m, i) => {
+      const isRecent = i >= allMessages.length - MAX_RECENT;
+      if (isRecent || m.role === 'user') return { role: m.role, content: m.content };
+      // Truncate old assistant messages
+      if (m.content.length > MAX_OLD_ASSISTANT_CHARS) {
+        return { role: m.role, content: m.content.slice(0, MAX_OLD_ASSISTANT_CHARS) + '\n[... réponse tronquée pour optimisation ...]' };
+      }
+      return { role: m.role, content: m.content };
+    });
+
+    const payload = JSON.stringify({ messages: trimmedMessages, cellContext, openrouter_key: openrouterKey, model: llmModel });
     
     const url = getApiUrl('qoe-assistant');
     const headers = getApiHeaders();
