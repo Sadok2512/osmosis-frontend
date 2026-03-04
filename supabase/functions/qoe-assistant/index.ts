@@ -907,7 +907,11 @@ function buildContextPlan(
     const met = detectMetric(query);
     groupBy = { dimension1: dim1 };
     metric = met;
-    needs.push("dimension_agg", "documents_rag");
+    if (TOPO_METRICS.has(met)) {
+      needs.push("topo_metric_agg", "documents_rag");
+    } else {
+      needs.push("dimension_agg", "documents_rag");
+    }
   } else if (intent === "list_dimension_values") {
     const dim1 = detectDimension1Type(query);
     groupBy = { dimension1: dim1 };
