@@ -180,20 +180,31 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     } catch { /* ignore */ }
 
     const payload = JSON.stringify({ messages: allMessages, cellContext, openrouter_key: openrouterKey, model: llmModel });
-    const localUrl = getApiUrl('qoe-assistant');
     const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
 
-    // Try local first, fallback to Cloud edge function
+    // Try local first (only if in local mode), fallback to Cloud edge function
     let resp: Response;
-    try {
-      resp = await fetch(localUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload,
-      });
-    } catch {
-      // Local server unreachable — fallback to Cloud
-      console.log('Local API unreachable, falling back to Cloud edge function');
+    if (isLocalMode()) {
+      const localUrl = `${import.meta.env.VITE_LOCAL_API || 'http://localhost:3001'}/api/qoe-assistant`;
+      try {
+        resp = await fetch(localUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+        });
+      } catch {
+        // Local server unreachable — fallback to Cloud
+        console.log('Local API unreachable, falling back to Cloud edge function');
+        resp = await fetch(cloudUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: payload,
+        });
+      }
+    } else {
       resp = await fetch(cloudUrl, {
         method: 'POST',
         headers: {
