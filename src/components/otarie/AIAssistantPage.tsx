@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check, FileDown, MapPin } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check, FileDown, MapPin, Plus, X, PanelLeftClose, PanelLeftOpen, Pencil } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -9,10 +9,11 @@ import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizati
 import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
 import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
+import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
 type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'ARCHITECT' | 'QOEBIT';
-type Msg = { role: 'user' | 'assistant'; content: string; mapCellIds?: string[]; mapDescription?: string; agent?: AgentId };
+type Msg = ChatMessage;
 
 const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
   PULSE: { emoji: '📡', label: 'PULSE', color: 'hsl(200, 80%, 50%)' },
@@ -47,17 +48,24 @@ interface AIAssistantPageProps {
 }
 
 const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWorstCells, initialPrompt, onPromptConsumed }) => {
-  const [messages, setMessages] = useState<Msg[]>(() => {
-    try {
-      const saved = localStorage.getItem('qoebit_chat_history');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [];
-  });
+  const sessionStore = useChatSessionStore();
+  const { sessions, activeSessionId } = sessionStore;
+  const activeSession = sessions.find(s => s.id === activeSessionId) || null;
+  const messages = activeSession?.messages || [];
+
+  const setMessages = useCallback((updater: Msg[] | ((prev: Msg[]) => Msg[])) => {
+    if (!activeSessionId) return;
+    const newMsgs = typeof updater === 'function' ? updater(messages) : updater;
+    sessionStore.setMessages(activeSessionId, newMsgs);
+  }, [activeSessionId, messages, sessionStore]);
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -66,12 +74,14 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     setDebugLogs(prev => [...prev.slice(-50), `[${ts}] ${msg}`]);
   };
 
-  // Persist messages to localStorage
+  // Create initial session if none exist
   useEffect(() => {
-    try {
-      localStorage.setItem('qoebit_chat_history', JSON.stringify(messages));
-    } catch {}
-  }, [messages]);
+    if (sessions.length === 0) {
+      sessionStore.createSession();
+    } else if (!activeSessionId) {
+      sessionStore.setActiveSession(sessions[0].id);
+    }
+  }, [sessions.length, activeSessionId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -423,61 +433,143 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   };
 
   const clearChat = () => {
-    setMessages([]);
+    if (activeSessionId) {
+      sessionStore.setMessages(activeSessionId, []);
+    }
     setInput('');
-    localStorage.removeItem('qoebit_chat_history');
+  };
+
+  const handleNewSession = () => {
+    sessionStore.createSession();
+  };
+
+  const handleDeleteSession = (id: string) => {
+    sessionStore.deleteSession(id);
+  };
+
+  const handleRenameSession = (id: string) => {
+    if (editTitle.trim()) {
+      sessionStore.renameSession(id, editTitle.trim());
+    }
+    setEditingSessionId(null);
+    setEditTitle('');
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/50">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-foreground">QOEBIT</h1>
-            <p className="text-[10px] text-muted-foreground">Assistant IA réseau • Analyse QoE intelligente</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setShowDebug(d => !d)} className={`px-2 py-1 rounded text-[10px] font-mono transition-colors ${showDebug ? 'bg-destructive/20 text-destructive' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
-            🐛 Debug
+    <div className="flex-1 flex h-full bg-background overflow-hidden">
+      {/* ── Sessions Sidebar ── */}
+      <div className={`${showSidebar ? 'w-56' : 'w-0'} shrink-0 transition-all duration-200 overflow-hidden border-r border-border bg-card/50 flex flex-col`}>
+        <div className="flex items-center justify-between px-3 py-3 border-b border-border/50">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sessions</span>
+          <button onClick={handleNewSession} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Nouvelle session">
+            <Plus className="w-3.5 h-3.5" />
           </button>
-          {messages.length > 0 && (
-            <button onClick={clearChat} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted transition-colors">
-              <Trash2 className="w-3.5 h-3.5" /> Effacer
-            </button>
-          )}
+        </div>
+        <div className="flex-1 overflow-y-auto py-1">
+          {sessions.map(s => (
+            <div
+              key={s.id}
+              className={`group flex items-center gap-1.5 px-3 py-2 mx-1 my-0.5 rounded-lg cursor-pointer transition-all text-left ${
+                s.id === activeSessionId
+                  ? 'bg-primary/10 border border-primary/20'
+                  : 'hover:bg-muted/60 border border-transparent'
+              }`}
+              onClick={() => { if (!isLoading) sessionStore.setActiveSession(s.id); }}
+            >
+              <MessageSquare className={`w-3 h-3 shrink-0 ${s.id === activeSessionId ? 'text-primary' : 'text-muted-foreground'}`} />
+              {editingSessionId === s.id ? (
+                <input
+                  autoFocus
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  onBlur={() => handleRenameSession(s.id)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleRenameSession(s.id); if (e.key === 'Escape') setEditingSessionId(null); }}
+                  className="flex-1 text-[11px] bg-transparent border-b border-primary outline-none text-foreground min-w-0"
+                  onClick={e => e.stopPropagation()}
+                />
+              ) : (
+                <span className={`flex-1 text-[11px] truncate ${s.id === activeSessionId ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                  {s.title}
+                </span>
+              )}
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={e => { e.stopPropagation(); setEditingSessionId(s.id); setEditTitle(s.title); }}
+                  className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                  title="Renommer"
+                >
+                  <Pencil className="w-2.5 h-2.5" />
+                </button>
+                {sessions.length > 1 && (
+                  <button
+                    onClick={e => { e.stopPropagation(); handleDeleteSession(s.id); }}
+                    className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                    title="Supprimer"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-border/50 px-3 py-2">
+          <span className="text-[9px] text-muted-foreground">{sessions.length} session{sessions.length > 1 ? 's' : ''}</span>
         </div>
       </div>
 
-      {/* Debug Panel */}
-      {showDebug && (
-        <div className="border-b border-border bg-muted/50 px-4 py-3 max-h-48 overflow-y-auto">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-foreground font-mono">🐛 DEBUG PANEL</span>
-            <div className="flex gap-2">
-              <button onClick={() => setDebugLogs([])} className="text-[10px] text-muted-foreground hover:text-foreground font-mono">Clear</button>
+      {/* ── Main Chat Area ── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/50">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowSidebar(s => !s)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              {showSidebar ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+            </button>
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-foreground">QOEBIT</h1>
+              <p className="text-[10px] text-muted-foreground">{activeSession?.title || 'Assistant IA réseau'}</p>
             </div>
           </div>
-          <div className="space-y-0.5 text-[10px] font-mono">
-            <div className="text-primary">Mode: <strong>{isLocalMode() ? 'LOCAL' : 'CLOUD'}</strong></div>
-            <div className="text-muted-foreground">SUPABASE_URL: {import.meta.env.VITE_SUPABASE_URL ? '✅ SET' : '❌ MISSING'}</div>
-            <div className="text-muted-foreground">PUBLISHABLE_KEY: {import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ? '✅ SET' : '❌ MISSING'}</div>
-            <div className="text-muted-foreground">Resolved URL: {getApiUrl('qoe-assistant')}</div>
-            <div className="text-muted-foreground">Sites loaded: {sites.length}</div>
-            <div className="text-muted-foreground">Context size: {(cellContext?.length || 0)} chars</div>
-            <hr className="border-border my-1" />
-            {debugLogs.length === 0 ? (
-              <div className="text-muted-foreground italic">No logs yet. Send a message to see request details.</div>
-            ) : debugLogs.map((log, i) => (
-              <div key={i} className={`${log.includes('error') || log.includes('Error') ? 'text-destructive' : log.includes('✅') || log.includes('started') ? 'text-primary' : 'text-foreground/70'}`}>{log}</div>
-            ))}
+          <div className="flex items-center gap-1.5">
+            <button onClick={handleNewSession} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs text-primary bg-primary/10 hover:bg-primary/20 transition-colors font-medium">
+              <Plus className="w-3 h-3" /> Nouveau
+            </button>
+            <button onClick={() => setShowDebug(d => !d)} className={`px-2 py-1 rounded text-[10px] font-mono transition-colors ${showDebug ? 'bg-destructive/20 text-destructive' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+              🐛
+            </button>
+            {messages.length > 0 && (
+              <button onClick={clearChat} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Effacer la session">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Debug Panel */}
+        {showDebug && (
+          <div className="border-b border-border bg-muted/50 px-4 py-3 max-h-48 overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold text-foreground font-mono">🐛 DEBUG PANEL</span>
+              <button onClick={() => setDebugLogs([])} className="text-[10px] text-muted-foreground hover:text-foreground font-mono">Clear</button>
+            </div>
+            <div className="space-y-0.5 text-[10px] font-mono">
+              <div className="text-primary">Mode: <strong>{isLocalMode() ? 'LOCAL' : 'CLOUD'}</strong></div>
+              <div className="text-muted-foreground">Session: {activeSessionId} | Messages: {messages.length}</div>
+              <div className="text-muted-foreground">Resolved URL: {getApiUrl('qoe-assistant')}</div>
+              <div className="text-muted-foreground">Sites: {sites.length} | Context: {(cellContext?.length || 0)} chars</div>
+              <hr className="border-border my-1" />
+              {debugLogs.length === 0 ? (
+                <div className="text-muted-foreground italic">No logs yet.</div>
+              ) : debugLogs.map((log, i) => (
+                <div key={i} className={`${log.includes('error') || log.includes('Error') ? 'text-destructive' : log.includes('✅') || log.includes('started') ? 'text-primary' : 'text-foreground/70'}`}>{log}</div>
+              ))}
+            </div>
+          </div>
+        )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
@@ -630,6 +722,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
           QOEBIT • Les données sont simulées à des fins de démonstration
         </p>
       </div>
+      </div>{/* end main chat area */}
     </div>
   );
 };
