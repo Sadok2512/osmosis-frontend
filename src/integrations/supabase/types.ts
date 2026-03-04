@@ -1437,7 +1437,6 @@ export type Database = {
           plaque: string | null
           region: string | null
           relative_id: string | null
-          remote_electrical_tilt: number | null
           tac: number | null
           techno: string | null
           tilt: number | null
@@ -1470,7 +1469,6 @@ export type Database = {
           plaque?: string | null
           region?: string | null
           relative_id?: string | null
-          remote_electrical_tilt?: number | null
           tac?: number | null
           techno?: string | null
           tilt?: number | null
@@ -1503,7 +1501,6 @@ export type Database = {
           plaque?: string | null
           region?: string | null
           relative_id?: string | null
-          remote_electrical_tilt?: number | null
           tac?: number | null
           techno?: string | null
           tilt?: number | null

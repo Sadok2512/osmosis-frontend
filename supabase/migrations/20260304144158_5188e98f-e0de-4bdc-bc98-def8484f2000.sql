@@ -1,0 +1,1 @@
+ALTER TABLE topo DROP COLUMN IF EXISTS remote_electrical_tilt;
