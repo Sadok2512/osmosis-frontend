@@ -1459,17 +1459,26 @@ async function fetchWorstSitesLocal(filters, maxSites) {
 
     const seen = new Set();
     const unique = rows.filter(r => { const k = r.dimension_2; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, maxSites);
-    const header = '# | Site | Date | ' + wantedKpis.filter(c => availCols.has(c)).join(' | ');
+    const activeCols = wantedKpis.filter(c => availCols.has(c));
+    const header = '| # | Site | Date | ' + activeCols.join(' | ') + ' |';
+    const sep = '|' + activeCols.map(() => '---').concat(['---','---','---']).join('|') + '|';
+    const fmtDate = (d) => { if (!d) return '-'; const s = String(d); const m = s.match(/^(\d{4})-?(\d{2})-?(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`; try { return new Date(s).toISOString().slice(0,10); } catch(e) { return s.slice(0,10); } };
+    // Detect if rate columns are already in percent (>1 means already %)
+    const rateKeys = activeCols.filter(k => k.includes('rate') || k.includes('loss') || k.includes('retr'));
+    const needsMultiply = rateKeys.length > 0 && unique.some(r => { const v = r[rateKeys[0]]; return v != null && +v > 0 && +v <= 1; });
     const lines = unique.map((r,i) => {
-      const vals = wantedKpis.filter(c => availCols.has(c)).map(k => {
+      const vals = activeCols.map(k => {
         const v = r[k];
         if (v == null) return '-';
-        if (k.includes('rate') || k.includes('loss') || k.includes('retr')) return (+v * 100).toFixed(2) + '%';
+        if (k.includes('rate') || k.includes('loss') || k.includes('retr')) {
+          const pct = needsMultiply ? (+v * 100) : +v;
+          return pct.toFixed(2) + '%';
+        }
         return (+v).toFixed(1);
       });
-      return `${i+1} | ${r.dimension_2} | ${r.date_part} | ${vals.join(' | ')}`;
+      return `| ${i+1} | ${r.dimension_2} | ${fmtDate(r.date_part)} | ${vals.join(' | ')} |`;
     });
-    return `TOP ${unique.length} WORST SITES (tri par ${usedLabel}, source: ${src.table}):\n${header}\n${lines.join('\n')}`;
+    return `TOP ${unique.length} WORST SITES (tri par ${usedLabel}, source: ${src.table}):\n\n${header}\n${sep}\n${lines.join('\n')}`;
   } catch (e) { console.error('[fetchWorstSitesLocal] ❌ ERROR:', e.message); return ''; }
 }
 
@@ -1553,7 +1562,11 @@ async function fetchWorstSitesByGroupLocal(topoGroupInfo, metric, maxSites) {
       groups.get(g).push(r);
     }
 
-    const header = `# | ${label} | Site | ${selectKpis.join(' | ')}`;
+    const header = `| # | ${label} | Site | ${selectKpis.join(' | ')} |`;
+    const sep = '|' + ['---','---','---', ...selectKpis.map(() => '---')].join('|') + '|';
+    // Detect if rate columns already in percent
+    const rateKeys2 = selectKpis.filter(k => k.includes('rate') || k.includes('loss') || k.includes('retr') || k.includes('dcr'));
+    const needsMultiply2 = rateKeys2.length > 0 && unique.some(r => { const v = r[rateKeys2[0]]; return v != null && +v > 0 && +v <= 1; });
     const lines = [];
     let idx = 1;
     for (const [g, sites] of groups) {
@@ -1561,10 +1574,13 @@ async function fetchWorstSitesByGroupLocal(topoGroupInfo, metric, maxSites) {
         const vals = selectKpis.map(k => {
           const v = r[k];
           if (v == null) return '-';
-          if (k.includes('rate') || k.includes('loss') || k.includes('retr') || k.includes('dcr')) return (+v * 100).toFixed(2) + '%';
+          if (k.includes('rate') || k.includes('loss') || k.includes('retr') || k.includes('dcr')) {
+            const pct = needsMultiply2 ? (+v * 100) : +v;
+            return pct.toFixed(2) + '%';
+          }
           return (+v).toFixed(1);
         });
-        lines.push(`${idx++} | ${g} | ${r.site_name} | ${vals.join(' | ')}`);
+        lines.push(`| ${idx++} | ${g} | ${r.site_name} | ${vals.join(' | ')} |`);
       }
     }
 
@@ -1575,7 +1591,7 @@ async function fetchWorstSitesByGroupLocal(topoGroupInfo, metric, maxSites) {
     });
     const chartJson = JSON.stringify({ type: 'bar', title: `Top dégradés: ${metricCol} par ${label}`, xKey: 'label', yKeys: ['value'], data: chartData });
 
-    return `TOP ${unique.length} SITES DÉGRADÉS par ${label} (métrique: ${metricCol}, tri: ${sortDir === 'ASC' ? 'plus bas' : 'plus haut'}):\n${header}\n${lines.join('\n')}\n\nRÉSUMÉ par ${label}:\n${chartData.map(d => `${d.label}: avg ${metricCol}=${d.value} (${d.sites} sites)`).join('\n')}\n\nINSTRUCTION: Présente ces résultats en tableau et inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+    return `TOP ${unique.length} SITES DÉGRADÉS par ${label} (métrique: ${metricCol}, tri: ${sortDir === 'ASC' ? 'plus bas' : 'plus haut'}):\n\n${header}\n${sep}\n${lines.join('\n')}\n\nRÉSUMÉ par ${label}:\n${chartData.map(d => `${d.label}: avg ${metricCol}=${d.value} (${d.sites} sites)`).join('\n')}\n\nINSTRUCTION: Présente ces résultats en tableau markdown bien formaté et inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
   } catch (e) { console.error('[fetchWorstSitesByGroupLocal] ❌', e.message); return ''; }
 }
 
