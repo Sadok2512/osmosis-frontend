@@ -1141,8 +1141,9 @@ function resolveScope(query, uiScope, filters) {
     // If multiple vendors mentioned → compare intent, return first but scope is vendor
     return { level: 'vendor', vendor: vendorMatch[1] };
   }
-  const plaqueFromText = extractPlaqueName(query);
-  if (plaqueFromText) return { level: 'plaque', plaque: plaqueFromText };
+  // Simple plaque extraction from known patterns (e.g. "plaque IDF", "plaque Nord")
+  const plaqueMatch = query.match(/\bplaque\s+(\w+)/i);
+  if (plaqueMatch) return { level: 'plaque', plaque: plaqueMatch[1] };
   return { level: 'global' };
 }
 
