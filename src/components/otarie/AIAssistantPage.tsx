@@ -847,6 +847,7 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
         const text = String(children ?? '');
         const baseCls = "px-3 py-2.5 text-xs border-b border-border/30";
         
+        // Emoji-based status
         if (text.includes('🔴') || /critique|critical/i.test(text)) {
           return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(0, 80%, 50%)' }}>{children}</td>;
         }
@@ -859,11 +860,34 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
         if (text.includes('🟢') || /excellent|good|bon/i.test(text)) {
           return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(142, 70%, 40%)' }}>{children}</td>;
         }
+
+        // Delta / Écart values: "+8%", "-34%", "+4.3 pts", "-4 ms"
+        const deltaMatch = text.match(/^([+-])(\d+\.?\d*)\s*(%|pts?|ms|Mbps)?$/);
+        if (deltaMatch) {
+          const sign = deltaMatch[1];
+          const val = parseFloat(deltaMatch[2]);
+          const unit = (deltaMatch[3] || '').toLowerCase();
+          // For RTT/latency (ms) → negative is good; for others → positive is good
+          const isLatencyMetric = unit === 'ms';
+          const isGood = isLatencyMetric ? sign === '-' : sign === '+';
+          const severity = unit === 'ms' ? (val > 10 ? 'high' : val > 5 ? 'mid' : 'low') :
+                           unit === '%' || unit === 'pts' || unit === 'pt' ? (val > 15 ? 'high' : val > 5 ? 'mid' : 'low') :
+                           (val > 5 ? 'high' : val > 2 ? 'mid' : 'low');
+          let color: string;
+          if (isGood) {
+            color = severity === 'high' ? 'hsl(142, 70%, 35%)' : severity === 'mid' ? 'hsl(142, 60%, 42%)' : 'hsl(142, 50%, 48%)';
+          } else {
+            color = severity === 'high' ? 'hsl(0, 80%, 48%)' : severity === 'mid' ? 'hsl(25, 90%, 50%)' : 'hsl(45, 85%, 45%)';
+          }
+          return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
+        }
         
+        // Percentage values (QoE, rates, etc.)
         const pctMatch = text.match(/(\d+\.?\d*)%/);
         if (pctMatch) {
           const val = parseFloat(pctMatch[1]);
-          const isBadWhenHigh = val < 10;
+          // Detect "bad when high" metrics: loss, retransmission, DCR (small % values)
+          const isBadWhenHigh = /loss|retr|dcr|perte/i.test(text) || val < 10;
           let color: string;
           if (isBadWhenHigh) {
             if (val > 3) color = 'hsl(0, 80%, 50%)';
@@ -880,24 +904,32 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
           return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
         }
         
-        const msMatch = text.match(/(\d+)\s*ms/i);
+        // Latency (ms)
+        const msMatch = text.match(/(\d[\d\s]*)\s*ms/i);
         if (msMatch) {
-          const val = parseInt(msMatch[1]);
+          const val = parseInt(msMatch[1].replace(/\s/g, ''));
           let color = 'hsl(142, 70%, 40%)';
-          if (val > 150) color = 'hsl(0, 80%, 50%)';
-          else if (val > 100) color = 'hsl(25, 90%, 50%)';
-          else if (val > 60) color = 'hsl(45, 90%, 45%)';
+          if (val > 100000) color = 'hsl(0, 80%, 50%)';
+          else if (val > 60000) color = 'hsl(25, 90%, 50%)';
+          else if (val > 40000) color = 'hsl(45, 90%, 45%)';
           return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
         }
         
+        // Throughput (Mbps)
         const mbpsMatch = text.match(/(\d+\.?\d*)\s*Mbps/i);
         if (mbpsMatch) {
           const val = parseFloat(mbpsMatch[1]);
           let color = 'hsl(142, 70%, 40%)';
           if (val < 10) color = 'hsl(0, 80%, 50%)';
           else if (val < 25) color = 'hsl(25, 90%, 50%)';
-          else if (val < 50) color = 'hsl(45, 90%, 45%)';
+          else if (val < 40) color = 'hsl(45, 90%, 45%)';
           return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
+        }
+
+        // Plain numbers (sessions, counts) — format with subtle styling
+        const numMatch = text.match(/^[\d\s]+$/);
+        if (numMatch) {
+          return <td className={`${baseCls} font-medium text-foreground`}>{children}</td>;
         }
         
         return <td className={`${baseCls} text-foreground/85`}>{children}</td>;
