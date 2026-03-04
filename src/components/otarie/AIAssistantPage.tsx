@@ -178,6 +178,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     }, 120000);
 
     let resp: Response;
+    let usedCloud = false;
     try {
       resp = await fetch(url, {
         method: 'POST',
@@ -194,6 +195,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       // If local mode failed, try cloud fallback
       if (isLocalMode()) {
         addDebugLog('Falling back to Cloud...');
+        usedCloud = true;
         const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
         const cloudHeaders = {
           'Content-Type': 'application/json',
@@ -217,6 +219,10 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       if (resp.status === 402) {
         toast({ title: 'Crédits insuffisants', description: 'Ajoutez des crédits à votre workspace.', variant: 'destructive' });
         throw new Error('Payment required');
+      }
+      // Mark that cloud was used so error message is accurate
+      if (usedCloud) {
+        throw new Error(`Cloud fallback error (${resp.status}): ${errBody.slice(0, 100)}`);
       }
       throw new Error('Failed to start stream');
     }
@@ -340,7 +346,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       console.error('QOEBIT stream error:', e);
       addDebugLog(`❌ Stream error: ${e?.message || String(e)}`);
       const errorDetail = e?.message || String(e);
-      const isLocal = isLocalMode();
+      const isCloudFallbackError = errorDetail.includes('Cloud fallback');
+      const isLocal = isLocalMode() && !isCloudFallbackError;
       const errorMsg = isLocal
         ? `⚠️ **Erreur de connexion au backend local**\n\nImpossible de joindre \`localhost:3001/api/qoe-assistant\`.\n\n**Vérifiez que :**\n1. Le serveur Express est démarré : \`cd server && node index.js\`\n2. Votre clé OpenRouter est configurée dans \`server/.env\` ou dans le panel Configuration LLM\n3. Le modèle sélectionné est valide\n\n\`Détail : ${errorDetail}\``
         : `⚠️ **Erreur** : ${errorDetail}`;
