@@ -1113,6 +1113,8 @@ function classifyIntent(query, scopeLevel) {
   const n = query.toLowerCase();
   if (isDistributionQuery(query)) return 'distribution';
   if (isChangeHistoryQuery(query)) return 'trace_change';
+  // Topology / site count queries
+  if (['nombre de sites','nombre des sites','combien de sites','nb sites','sites par','répartition des sites','count sites'].some(h => n.includes(h))) return 'topo_stats';
   if (scopeLevel === 'cell') return 'cell_analysis';
   if (scopeLevel === 'site') return 'site_analysis';
   if (['compare','comparer','comparaison','vs','versus'].some(h => n.includes(h))) return 'compare';
@@ -1157,7 +1159,8 @@ function buildContextPlan(query, uiScope, filters) {
   switch (agent) {
     case 'PULSE':
       needs.push('documents_rag');
-      if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
+      if (intent === 'topo_stats') { needs.push('topo_stats'); }
+      else if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
       else if (intent === 'top_degradations') { needs.push('worst_sites'); limits.maxSites = 20; }
       else if (intent === 'site_analysis') { needs.push('kpi_snapshot','worst_cells'); limits.maxCells = 30; }
       else if (intent === 'cell_analysis') { needs.push('kpi_snapshot'); limits.maxCells = 1; }
@@ -1415,6 +1418,34 @@ async function searchParameterChangesLocal(query) {
   } catch (e) { console.error('[searchParameterChangesLocal]', e.message); return ''; }
 }
 
+async function fetchTopoStatsLocal(query) {
+  try {
+    const n = query.toLowerCase();
+    let groupCol = 'dor', groupLabel = 'DOR';
+    if (n.includes('plaque')) { groupCol = 'plaque'; groupLabel = 'Plaque'; }
+    else if (n.includes('vendor') || n.includes('constructeur') || n.includes('équipementier')) { groupCol = 'constructeur'; groupLabel = 'Constructeur'; }
+    else if (n.includes('techno') || n.includes('technologie')) { groupCol = 'techno'; groupLabel = 'Technologie'; }
+    else if (n.includes('region') || n.includes('région')) { groupCol = 'region'; groupLabel = 'Région'; }
+    else if (n.includes('bande') || n.includes('fréquence')) { groupCol = 'bande'; groupLabel = 'Bande'; }
+    else if (n.includes('zone_arcep') || n.includes('zone arcep')) { groupCol = 'zone_arcep'; groupLabel = 'Zone ARCEP'; }
+    else if (n.includes('dor') || n.includes('direction')) { groupCol = 'dor'; groupLabel = 'DOR'; }
+
+    const { rows } = await sharedPool.query(
+      `SELECT COALESCE(${groupCol}, 'Non renseigné') AS grp,
+              COUNT(DISTINCT code_nidt) AS nb_sites,
+              COUNT(*) AS nb_cells
+       FROM topo
+       GROUP BY grp ORDER BY nb_sites DESC`
+    );
+    if (!rows.length) return '';
+    const totalSites = rows.reduce((s, r) => s + parseInt(r.nb_sites), 0);
+    const totalCells = rows.reduce((s, r) => s + parseInt(r.nb_cells), 0);
+    const header = `${groupLabel} | Nb Sites | Nb Cellules`;
+    const lines = rows.map(r => `${r.grp} | ${r.nb_sites} | ${r.nb_cells}`);
+    return `RÉPARTITION DES SITES PAR ${groupLabel.toUpperCase()} (table topo):\nTotal : ${totalSites} sites, ${totalCells} cellules\n${header}\n${lines.join('\n')}`;
+  } catch (e) { console.error('[fetchTopoStatsLocal]', e.message); return ''; }
+}
+
 // --- Agent prompts ---
 const SHARED_RULES = `
 ⚠️ RÈGLE ABSOLUE — ZÉRO HALLUCINATION — DONNÉES RÉELLES UNIQUEMENT
@@ -1459,6 +1490,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   if (plan.needs.includes('agg_stats')) promises.agg = fetchAggStatsLocal(effectiveFilters, plan.limits.maxDays);
   if (plan.needs.includes('worst_sites')) promises.worst = fetchWorstSitesLocal(effectiveFilters, plan.limits.maxSites);
   if (plan.needs.includes('kpi_snapshot') && plan.scope.level === 'site') promises.snapshot = fetchSiteSnapshotLocal(plan.scope.siteName);
+  if (plan.needs.includes('topo_stats')) promises.topoStats = fetchTopoStatsLocal(query);
   if (plan.needs.includes('topology')) {
     const siteName = plan.scope.siteName || (plan.scope.level === 'cell' ? plan.scope.siteName : null);
     if (siteName) promises.topo = searchTopoLocal(siteName);
@@ -1477,6 +1509,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   if (resolved.worst) sections.push(`📉 WORST:\n${resolved.worst}`);
   if (resolved.snapshot) sections.push(`📋 SITE SNAPSHOT:\n${resolved.snapshot}`);
   if (resolved.topo) sections.push(`📡 TOPOLOGIE:\n${resolved.topo}`);
+  if (resolved.topoStats) sections.push(`📊 STATS TOPOLOGIE:\n${resolved.topoStats}`);
   if (resolved.params) sections.push(`⚙️ PARAMÈTRES:\n${resolved.params}`);
   if (resolved.changes) sections.push(`🔧 HISTORIQUE CHANGEMENTS:\n${resolved.changes}`);
   if (resolved.rag) sections.push(`📚 DOCUMENTS RAG:\n${resolved.rag}`);
