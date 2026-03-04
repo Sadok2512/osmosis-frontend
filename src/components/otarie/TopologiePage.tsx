@@ -778,8 +778,12 @@ Fournis:
     setAiLoading(true);
 
     try {
-      const url = getApiUrl('qoe-assistant');
-      const headers = getApiHeaders();
+      // Always use Cloud edge function for AI analysis (works on preview & local)
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      };
 
       const resp = await fetch(url, {
         method: 'POST',
