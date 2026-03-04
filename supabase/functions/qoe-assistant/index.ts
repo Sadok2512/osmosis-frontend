@@ -537,9 +537,15 @@ function isSentinelQuery(query: string): boolean {
 }
 
 function classifyAgent(query: string): AgentId {
+  const n = query.toLowerCase();
+  // Comparison queries should go to PULSE even if they mention vendor names
+  const isCompare = ["compare", "comparer", "comparaison", "vs", "versus", "benchmark"].some(h => n.includes(h));
+  if (isCompare) return "PULSE";
   if (isSiteDesignQuery(query)) return "ARCHITECT";
-  if (isChangeHistoryQuery(query) || isParameterFocusedQuery(query)) return "TRACE";
+  if (isChangeHistoryQuery(query)) return "TRACE";
   if (isSentinelQuery(query)) return "SENTINEL";
+  // Parameter-focused but not a compare → TRACE
+  if (isParameterFocusedQuery(query)) return "TRACE";
   return "PULSE";
 }
 
