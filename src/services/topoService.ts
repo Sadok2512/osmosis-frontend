@@ -82,7 +82,7 @@ interface TopoRow {
   plaque: string | null;
   hba: number | null;
   tac: number | null;
-  remote_electrical_tilt?: number | null;
+  tilt?: number | null;
   pci?: number | null;
   eci?: number | null;
   nci?: number | null;
@@ -93,6 +93,9 @@ interface TopoRow {
   date_mes?: string | null;
   date_fn8?: string | null;
   dor?: string | null;
+  lac?: number | null;
+  hebergeur_leader?: string | null;
+  relative_id?: number | string | null;
 }
 
 function buildCellProperties(cellName: string, techno: string, bande: string, azimut: number, hba: number, extra?: Partial<TopoRow>): CellProperties {
@@ -122,12 +125,13 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
   };
   if (extra) {
     const ext = base as any;
-    if (extra.remote_electrical_tilt != null) ext.remote_electrical_tilt = extra.remote_electrical_tilt;
+    if (extra.tilt != null) ext.tilt = extra.tilt;
     if (extra.pci != null) ext.pci = extra.pci;
     if (extra.eci != null) ext.eci = extra.eci;
     if (extra.nci != null) ext.nci = extra.nci;
     if (extra.cid != null) ext.cid = extra.cid;
     if (extra.tac != null) ext.tac = extra.tac;
+    if (extra.lac != null) ext.lac = extra.lac;
     if (extra.etat_cellule) ext.etat_cellule = extra.etat_cellule;
     if (extra.zone_arcep) ext.zone_arcep = extra.zone_arcep;
     if (extra.essentiel) ext.essentiel = extra.essentiel;
@@ -137,6 +141,8 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     if (extra.plaque) ext.plaque = extra.plaque;
     if (extra.latitude != null) ext.latitude = extra.latitude;
     if (extra.longitude != null) ext.longitude = extra.longitude;
+    if (extra.hebergeur_leader) ext.hebergeur_leader = extra.hebergeur_leader;
+    if (extra.relative_id != null) ext.relative_id = extra.relative_id;
   }
   return base;
 }
@@ -230,7 +236,7 @@ async function fetchFromCloud(): Promise<TopoRow[]> {
   while (hasMore) {
     const { data, error } = await supabase
       .from('topo')
-      .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac, remote_electrical_tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes, date_fn8, dor')
+      .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac, tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes, date_fn8, dor, lac, hebergeur_leader, relative_id')
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (error) throw error;

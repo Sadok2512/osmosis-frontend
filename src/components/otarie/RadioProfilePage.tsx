@@ -114,7 +114,7 @@ const RadioProfilePage: React.FC = () => {
             lng: row.longitude,
             azimuth: row.azimut ?? 0,
             hba: row.hba ?? 30,
-            tilt: row.remote_electrical_tilt ?? 0,
+            tilt: row.tilt ?? 0,
             techno: row.techno ?? 'LTE',
             bande: row.bande ?? '1800',
             vendor: row.constructeur ?? 'Unknown',
