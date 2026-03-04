@@ -210,7 +210,13 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       return { role: m.role, content: m.content };
     });
 
-    const payload = JSON.stringify({ messages: trimmedMessages, cellContext, openrouter_key: openrouterKey, model: llmModel });
+    // ── Cap cellContext to avoid 128K token limit (approx 4 chars/token) ──
+    const MAX_CONTEXT_CHARS = 80000; // ~20K tokens for context, leaves room for system prompt + messages
+    const trimmedContext = cellContext.length > MAX_CONTEXT_CHARS
+      ? cellContext.slice(0, MAX_CONTEXT_CHARS) + '\n[... contexte tronqué pour optimisation ...]'
+      : cellContext;
+
+    const payload = JSON.stringify({ messages: trimmedMessages, cellContext: trimmedContext, openrouter_key: openrouterKey, model: llmModel });
     
     const url = getApiUrl('qoe-assistant');
     const headers = getApiHeaders();
