@@ -841,6 +841,7 @@ const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
 
 // ─── KPI Color Map: header patterns → colors from kpi_catalog conventions ───
 const KPI_HEADER_COLOR_MAP: { pattern: RegExp; color: string }[] = [
+  // ── QoE / Performance ──
   { pattern: /qoe|qos|qualit/i, color: '#22c55e' },         // green
   { pattern: /rtt|latence|latency/i, color: '#f97316' },     // orange
   { pattern: /d[ée]bit\s*dl|throughput\s*dl|dl.*mbps/i, color: '#3b82f6' }, // blue
@@ -855,6 +856,17 @@ const KPI_HEADER_COLOR_MAP: { pattern: RegExp; color: string }[] = [
   { pattern: /instabil/i, color: '#e11d48' },                 // rose
   { pattern: /rat|techno/i, color: '#0ea5e9' },               // sky
   { pattern: /5g.*cap|attach/i, color: '#7c3aed' },           // violet dark
+  // ── TOPO metrics ──
+  { pattern: /tilt|inclinaison|e-tilt/i, color: '#0d9488' },  // teal-600
+  { pattern: /azimut|azimuth/i, color: '#2563eb' },            // blue-600
+  { pattern: /hba|hauteur/i, color: '#9333ea' },               // purple-600
+  { pattern: /nb\s*site|nombre.*site|count.*site|sites/i, color: '#16a34a' }, // green-600
+  { pattern: /nb\s*cell|nombre.*cell|count.*cell|cellule/i, color: '#059669' }, // emerald-600
+  { pattern: /zone\s*arcep/i, color: '#ca8a04' },              // yellow-600
+  { pattern: /bande|band|fr[ée]q/i, color: '#ea580c' },       // orange-600
+  { pattern: /dor|direction/i, color: '#4f46e5' },             // indigo-600
+  { pattern: /plaque|r[ée]gion/i, color: '#0891b2' },         // cyan-600
+  { pattern: /construct|vendor|fournisseur/i, color: '#be185d' }, // pink-700
 ];
 
 function getKpiColorForHeader(header: string): string | null {
