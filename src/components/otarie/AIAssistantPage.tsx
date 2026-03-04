@@ -861,16 +861,17 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
           return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(142, 70%, 40%)' }}>{children}</td>;
         }
 
-        // Delta / Écart values: "+8%", "-34%", "+4.3 pts", "-4 ms"
-        const deltaMatch = text.match(/^([+-])(\d+\.?\d*)\s*(%|pts?|ms|Mbps)?$/);
+        // Delta / Écart values: "+8%", "-34%", "+4.3 pts", "-4 ms", "-3.9s", "+3.6"
+        const deltaMatch = text.match(/^([+-])\s*(\d+\.?\d*)\s*(%|pts?|ms|s|Mbps)?$/);
         if (deltaMatch) {
           const sign = deltaMatch[1];
           const val = parseFloat(deltaMatch[2]);
           const unit = (deltaMatch[3] || '').toLowerCase();
-          // For RTT/latency (ms) → negative is good; for others → positive is good
-          const isLatencyMetric = unit === 'ms';
+          // For RTT/latency (ms, s) → negative is good; for others → positive is good
+          const isLatencyMetric = unit === 'ms' || unit === 's';
           const isGood = isLatencyMetric ? sign === '-' : sign === '+';
           const severity = unit === 'ms' ? (val > 10 ? 'high' : val > 5 ? 'mid' : 'low') :
+                           unit === 's' ? (val > 5 ? 'high' : val > 2 ? 'mid' : 'low') :
                            unit === '%' || unit === 'pts' || unit === 'pt' ? (val > 15 ? 'high' : val > 5 ? 'mid' : 'low') :
                            (val > 5 ? 'high' : val > 2 ? 'mid' : 'low');
           let color: string;
@@ -880,6 +881,17 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
             color = severity === 'high' ? 'hsl(0, 80%, 48%)' : severity === 'mid' ? 'hsl(25, 90%, 50%)' : 'hsl(45, 85%, 45%)';
           }
           return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
+        }
+
+        // Generic signed numbers anywhere in cell: e.g. "+4.3", "-0.4", "-0.68"
+        const signedNumMatch = text.match(/([+-])(\d+\.?\d*)/);
+        if (signedNumMatch && !text.includes('🟢') && !text.includes('🟡') && !text.includes('🟠') && !text.includes('🔴')) {
+          const sign = signedNumMatch[1];
+          const val = parseFloat(signedNumMatch[2]);
+          if (val > 0) {
+            const color = sign === '+' ? 'hsl(142, 70%, 40%)' : 'hsl(0, 80%, 48%)';
+            return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
+          }
         }
         
         // Percentage values (QoE, rates, etc.)
