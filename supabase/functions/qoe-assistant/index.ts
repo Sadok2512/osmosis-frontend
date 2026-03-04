@@ -49,7 +49,8 @@ type DataNeed =
   | "documents_rag"
   | "dimension_agg"
   | "dimension_values"
-  | "topo_metric_agg";
+  | "topo_metric_agg"
+  | "topo_inventory";
 
 type Dimension1Type =
   | "Cellule" | "Site" | "Vendor" | "Bande" | "ARCEP" | "Application"
@@ -533,6 +534,67 @@ async function searchTopoForSite(siteName: string): Promise<string> {
   }
 }
 
+async function fetchTopoInventory(filters?: AssistantFilters): Promise<string> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Total cells
+    let q = supabase.from("topo").select("id", { count: "exact", head: true });
+    if (filters?.vendor) q = q.ilike("constructeur", `%${filters.vendor}%`);
+    if (filters?.techno) {
+      const technoMap: Record<string, string> = { "5G": "5G", "4G": "4G", "3G": "3G", "2G": "2G" };
+      const mapped = technoMap[filters.techno.toUpperCase()] || filters.techno;
+      q = q.ilike("techno", `%${mapped}%`);
+    }
+    if (filters?.plaque) q = q.ilike("plaque", `%${filters.plaque}%`);
+    if (filters?.dor) q = q.ilike("dor", `%${filters.dor}%`);
+    const { count: totalCells } = await q;
+
+    // Distinct sites
+    const { data: sitesData } = await supabase.from("topo").select("nom_site");
+    const uniqueSites = new Set((sitesData || []).map((r: any) => r.nom_site));
+
+    // By techno
+    const { data: technoData } = await supabase.from("topo").select("techno");
+    const technoCount: Record<string, number> = {};
+    for (const r of (technoData || [])) {
+      const t = r.techno || "Inconnu";
+      technoCount[t] = (technoCount[t] || 0) + 1;
+    }
+
+    // By bande
+    const { data: bandeData } = await supabase.from("topo").select("bande");
+    const bandeCount: Record<string, number> = {};
+    for (const r of (bandeData || [])) {
+      const b = r.bande || "Inconnu";
+      bandeCount[b] = (bandeCount[b] || 0) + 1;
+    }
+
+    // By constructeur
+    const { data: vendorData } = await supabase.from("topo").select("constructeur");
+    const vendorCount: Record<string, number> = {};
+    for (const r of (vendorData || [])) {
+      const v = r.constructeur || "Inconnu";
+      vendorCount[v] = (vendorCount[v] || 0) + 1;
+    }
+
+    let result = `INVENTAIRE TOPOLOGIQUE\n`;
+    result += `Total cellules: ${totalCells ?? "?"}\n`;
+    result += `Total sites distincts: ${uniqueSites.size}\n`;
+    result += `Moyenne cellules/site: ${totalCells && uniqueSites.size ? (totalCells / uniqueSites.size).toFixed(1) : "?"}\n\n`;
+    result += `Par Technologie:\n${Object.entries(technoCount).sort(([,a],[,b]) => b - a).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+    result += `Par Bande:\n${Object.entries(bandeCount).sort(([,a],[,b]) => b - a).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+    result += `Par Constructeur:\n${Object.entries(vendorCount).sort(([,a],[,b]) => b - a).map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
+
+    return result;
+  } catch (e) {
+    console.error("Topo inventory failed:", e);
+    return "";
+  }
+}
+
 async function searchDumpParameters(query: string): Promise<string> {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -795,11 +857,20 @@ function isChangeHistoryQuery(query: string): boolean {
   ].some(h => n.includes(h));
 }
 
+function isTopoInventoryQuery(query: string): boolean {
+  const n = query.toLowerCase();
+  const countHints = ["nombre", "combien", "count", "inventaire", "inventory", "nb site", "nb cellule", "nb cell", "total site", "total cell", "statistique topo", "stats topo"];
+  const topoTargets = ["cellule", "cell", "site", "antenne", "antenna", "secteur", "sector"];
+  return countHints.some(h => n.includes(h)) && topoTargets.some(t => n.includes(t));
+}
+
 function isSiteDesignQuery(query: string): boolean {
   const n = query.toLowerCase();
   return ["design", "tilt", "azimut", "azimuth", "hba", "topologie", "topology",
     "secteur", "sector", "couverture", "coverage", "analyse site", "site design",
-    "antenne", "antenna", "delta tilt", "profil site", "profile"
+    "antenne", "antenna", "delta tilt", "profil site", "profile",
+    "nombre de cellule", "nombre de site", "nombre des cellule", "nombre des site",
+    "combien de cellule", "combien de site", "inventaire", "nb cellule", "nb site"
   ].some(h => n.includes(h));
 }
 
@@ -814,6 +885,8 @@ function isSentinelQuery(query: string): boolean {
 
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
+  // Topo inventory queries (nombre de cellules, combien de sites) → TOPO
+  if (isTopoInventoryQuery(query)) return "TOPO";
   // Topo metric distribution queries go to TOPO
   const met = detectMetric(query);
   const { isDim } = isDimensionQuery(query);
@@ -954,10 +1027,15 @@ function buildContextPlan(
         break;
 
       case "TOPO":
-        needs.push("documents_rag", "topology");
-        if (scope.level === "site") {
-          needs.push("kpi_snapshot");
-          limits.maxCells = 30;
+        needs.push("documents_rag");
+        if (isTopoInventoryQuery(query)) {
+          needs.push("topo_inventory");
+        } else {
+          needs.push("topology");
+          if (scope.level === "site") {
+            needs.push("kpi_snapshot");
+            limits.maxCells = 30;
+          }
         }
         break;
     }
@@ -1037,6 +1115,9 @@ async function buildContextFromPlan(
       plan.resultLimit || 200
     );
   }
+  if (plan.needs.includes("topo_inventory")) {
+    promises.topoInv = fetchTopoInventory(filters);
+  }
 
   const keys = Object.keys(promises);
   const results = await Promise.all(Object.values(promises));
@@ -1045,6 +1126,7 @@ async function buildContextFromPlan(
 
   console.log(`📦 Context fetched: ${keys.filter(k => resolved[k]).join(", ") || "none"}`);
 
+  if (resolved.topoInv) sections.push(`🗼 INVENTAIRE TOPO:\n${resolved.topoInv}`);
   if (resolved.topoAgg) sections.push(`📡 DISTRIBUTION TOPO:\n${resolved.topoAgg}`);
   if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
   if (resolved.dimValues) sections.push(`📋 VALEURS DIMENSION:\n${resolved.dimValues}`);
