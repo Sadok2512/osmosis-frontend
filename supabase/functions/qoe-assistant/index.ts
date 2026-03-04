@@ -1110,6 +1110,41 @@ serve(async (req) => {
 
     const context = await buildContextFromPlan(plan, lastUserMessage, filters, legacyCellContext);
 
+    // ── Agent Learning: fetch few-shots + user memory ──
+    let learningContext = '';
+    try {
+      // Few-shot examples from positively-rated responses
+      const { data: fewShots } = await supaClient
+        .from('agent_feedback')
+        .select('user_question, assistant_response')
+        .eq('agent', plan.agent)
+        .eq('rating', 1)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (fewShots && fewShots.length > 0) {
+        const examples = fewShots.map((d: any, i: number) =>
+          `--- Exemple ${i + 1} ---\nQ: ${d.user_question}\nR: ${(d.assistant_response || '').slice(0, 800)}`
+        ).join('\n\n');
+        learningContext += `\n\n🎓 EXEMPLES DE BONNES RÉPONSES (few-shot learning - réponses validées par l'utilisateur):\n${examples}`;
+      }
+
+      // User preferences/memory
+      const { data: memories } = await supaClient
+        .from('agent_memory')
+        .select('key, value')
+        .eq('memory_type', 'preference')
+        .order('updated_at', { ascending: false })
+        .limit(10);
+
+      if (memories && memories.length > 0) {
+        const prefs = memories.map((d: any) => `- ${d.key}: ${JSON.stringify(d.value?.data || d.value)}`).join('\n');
+        learningContext += `\n\n🧠 MÉMOIRE UTILISATEUR (préférences apprises):\n${prefs}\nAdapte ton style et tes réponses selon ces préférences.`;
+      }
+    } catch (learningErr) {
+      console.warn('Learning context fetch failed:', learningErr);
+    }
+
     let systemContent = `[AGENT:${plan.agent}]\n\n` + getAgentPrompt(plan.agent);
 
     if (kpiMonitorContext) {
@@ -1118,6 +1153,10 @@ serve(async (req) => {
 
     if (context) {
       systemContent += `\n\n${context}`;
+    }
+
+    if (learningContext) {
+      systemContent += learningContext;
     }
 
     const budgeted = enforceBudgets(systemContent, "", messages);
