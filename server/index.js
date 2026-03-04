@@ -2145,6 +2145,45 @@ app.post('/api/qoe-assistant', async (req, res) => {
     let systemContent = `[AGENT:${plan.agent}]\n\n` + (AGENT_PROMPTS[plan.agent] || AGENT_PROMPTS.PULSE);
     if (context) systemContent += `\n\n${context}`;
 
+    // 3b. Agent Learning Context (few-shot examples + user memory from Supabase Cloud)
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseKey) {
+        const headers = { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}`, 'Content-Type': 'application/json' };
+        
+        // Few-shot examples from positively-rated responses
+        const fewShotResp = await fetch(
+          `${supabaseUrl}/rest/v1/agent_feedback?agent=eq.${plan.agent}&rating=eq.1&order=created_at.desc&limit=3&select=user_question,assistant_response`,
+          { headers }
+        );
+        if (fewShotResp.ok) {
+          const fewShots = await fewShotResp.json();
+          if (fewShots && fewShots.length > 0) {
+            const examples = fewShots.map((d, i) =>
+              `--- Exemple ${i + 1} ---\nQ: ${d.user_question}\nR: ${(d.assistant_response || '').slice(0, 800)}`
+            ).join('\n\n');
+            systemContent += `\n\n🎓 EXEMPLES DE BONNES RÉPONSES (few-shot learning - réponses validées par l'utilisateur):\n${examples}`;
+          }
+        }
+
+        // User preferences/memory
+        const memResp = await fetch(
+          `${supabaseUrl}/rest/v1/agent_memory?memory_type=eq.preference&order=updated_at.desc&limit=10&select=key,value`,
+          { headers }
+        );
+        if (memResp.ok) {
+          const memories = await memResp.json();
+          if (memories && memories.length > 0) {
+            const prefs = memories.map(d => `- ${d.key}: ${JSON.stringify(d.value?.data || d.value)}`).join('\n');
+            systemContent += `\n\n🧠 MÉMOIRE UTILISATEUR (préférences apprises):\n${prefs}\nAdapte ton style et tes réponses selon ces préférences.`;
+          }
+        }
+      }
+    } catch (learningErr) {
+      console.warn('[qoe-assistant] Learning context fetch failed:', learningErr.message);
+    }
+
     // 4. Budget enforcement
     const MAX_CONTEXT = 100000;
     if (systemContent.length > MAX_CONTEXT) {
