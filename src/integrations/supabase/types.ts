@@ -1527,6 +1527,7 @@ export type Database = {
           similarity: number
         }[]
       }
+      topo_inventory_stats: { Args: never; Returns: Json }
     }
     Enums: {
       [_ in never]: never
