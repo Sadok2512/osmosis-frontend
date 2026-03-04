@@ -53,11 +53,19 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   const activeSession = sessions.find(s => s.id === activeSessionId) || null;
   const messages = activeSession?.messages || [];
 
+  // Use a ref to always have fresh messages in streaming callbacks
+  const messagesRef = useRef<Msg[]>(messages);
+  messagesRef.current = messages;
+  const activeSessionIdRef = useRef(activeSessionId);
+  activeSessionIdRef.current = activeSessionId;
+
   const setMessages = useCallback((updater: Msg[] | ((prev: Msg[]) => Msg[])) => {
-    if (!activeSessionId) return;
-    const newMsgs = typeof updater === 'function' ? updater(messages) : updater;
-    sessionStore.setMessages(activeSessionId, newMsgs);
-  }, [activeSessionId, messages, sessionStore]);
+    const sid = activeSessionIdRef.current;
+    if (!sid) return;
+    const currentMsgs = messagesRef.current;
+    const newMsgs = typeof updater === 'function' ? updater(currentMsgs) : updater;
+    sessionStore.setMessages(sid, newMsgs);
+  }, [sessionStore]);
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
