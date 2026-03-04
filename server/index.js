@@ -1169,31 +1169,46 @@ function buildContextPlan(query, uiScope, filters) {
 }
 
 // --- Local PostgreSQL data providers ---
+async function detectKpiTable() {
+  // Returns the table with actual data, preferring qoe_metric
+  for (const t of ['qoe_metric', 'kpi_qoe_aggregated']) {
+    try {
+      const res = await sharedPool.query(`SELECT COUNT(*) AS cnt FROM ${t}`);
+      const cnt = parseInt(res.rows[0].cnt);
+      if (cnt > 0) {
+        console.log(`[detectKpiTable] Using ${t} (${cnt} rows)`);
+        return { table: t, isQoeMetric: t === 'qoe_metric', count: cnt };
+      }
+    } catch (e) { /* table doesn't exist */ }
+  }
+  return null;
+}
+
+// qoe_metric uses "Dimension_1"/"Dimension_2" (quoted uppercase), kpi_qoe_aggregated uses dimension_1/dimension_2 (lowercase)
+function dimCols(isQoeMetric) {
+  return isQoeMetric
+    ? { dim1: '"Dimension_1"', dim2: '"Dimension_2"' }
+    : { dim1: 'dimension_1', dim2: 'dimension_2' };
+}
+
 async function fetchAggStatsLocal(filters, maxDays) {
   try {
-    // Try qoe_metric first (BI table with data), fallback to kpi_qoe_aggregated
-    const tables = [
-      { name: 'qoe_metric', dim1: '"Dimension_1"', dim2: '"Dimension_2"' },
-      { name: 'kpi_qoe_aggregated', dim1: 'dimension_1', dim2: 'dimension_2' },
-    ];
-    let rows = [];
-    let usedTable = '';
-    for (const t of tables) {
-      try {
-        const res = await sharedPool.query(
-          `SELECT ${t.dim1} AS dimension_1, ${t.dim2} AS dimension_2, date_part, qoe_index, debit_dl, debit_ul, rtt_data_avg,
-                  dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, tcp_retr_rate_dl, loss_dl_rate, session_dcr, session_nbr, wind_full_rate
-           FROM ${t.name} ORDER BY date_part DESC LIMIT 500`
-        );
-        if (res.rows.length > 0) { rows = res.rows; usedTable = t.name; break; }
-      } catch (e) { console.log(`[fetchAggStatsLocal] Table ${t.name} not available: ${e.message}`); }
-    }
-    console.log(`[fetchAggStatsLocal] Got ${rows.length} rows from ${usedTable || 'none'}`);
+    const src = await detectKpiTable();
+    if (!src) return '';
+    const { dim1, dim2 } = dimCols(src.isQoeMetric);
+
+    // For qoe_metric pivot model, aggregate by Dimension_1 type
+    const { rows } = await sharedPool.query(
+      `SELECT ${dim1} AS dimension_1, ${dim2} AS dimension_2, date_part, qoe_index, debit_dl, debit_ul, rtt_data_avg,
+              dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, tcp_retr_rate_dl, loss_dl_rate, session_dcr, session_nbr, wind_full_rate
+       FROM ${src.table} ORDER BY date_part DESC LIMIT 500`
+    );
+    console.log(`[fetchAggStatsLocal] Got ${rows.length} rows from ${src.table}`);
     if (!rows.length) return '';
 
     const groups = new Map();
     for (const r of rows) {
-      const key = r.dimension_2 || 'Global';
+      const key = r.dimension_1 || 'Global';
       if (!groups.has(key)) groups.set(key, { qoe:[], dl:[], ul:[], rtt:[], dms3:[], dms8:[], dms30:[], loss:[], retr:[], sess:0, count:0 });
       const g = groups.get(key);
       if (r.qoe_index != null) g.qoe.push(+r.qoe_index);
@@ -1213,113 +1228,92 @@ async function fetchAggStatsLocal(filters, maxDays) {
     const lines = Array.from(groups.entries()).map(([k,g]) =>
       `${k} | ${g.count} | ${avg(g.qoe).toFixed(1)} | ${avg(g.dl).toFixed(1)} | ${avg(g.ul).toFixed(1)} | ${avg(g.rtt).toFixed(0)} | ${avg(g.dms3).toFixed(1)} | ${avg(g.dms8).toFixed(1)} | ${avg(g.dms30).toFixed(1)} | ${(avg(g.loss)*100).toFixed(2)} | ${(avg(g.retr)*100).toFixed(2)} | ${g.sess}`
     );
-    return `STATS AGRÉGÉES (${rows.length} points, ${groups.size} dimensions):\n${header}\n${lines.join('\n')}`;
+    return `STATS AGRÉGÉES (${rows.length} points, ${groups.size} dimensions, source: ${src.table}):\n${header}\n${lines.join('\n')}`;
   } catch (e) { console.error('[fetchAggStatsLocal]', e.message); return ''; }
 }
 
 async function fetchWorstSitesLocal(filters, maxSites) {
   try {
-    // Try qoe_metric first (BI table with actual data), fallback to kpi_qoe_aggregated
-    const tables = [
-      { name: 'qoe_metric', dim1: '"Dimension_1"', dim2: '"Dimension_2"' },
-      { name: 'kpi_qoe_aggregated', dim1: 'dimension_1', dim2: 'dimension_2' },
+    const src = await detectKpiTable();
+    if (!src) return '';
+    const { dim1, dim2 } = dimCols(src.isQoeMetric);
+
+    // For qoe_metric, filter to Dimension_1='Site' to get site-level data
+    const siteFilter = src.isQoeMetric ? `AND ${dim1} = 'Site'` : '';
+
+    const strategies = [
+      { col: 'qoe_index', dir: 'ASC', label: 'QoE' },
+      { col: 'debit_dl', dir: 'ASC', label: 'Débit DL' },
+      { col: 'rtt_data_avg', dir: 'DESC', label: 'RTT' },
     ];
 
     let rows = [];
     let usedLabel = 'QoE';
-    let usedTable = '';
 
-    for (const t of tables) {
+    for (const strat of strategies) {
       try {
-        const countRes = await sharedPool.query(`SELECT COUNT(*) AS cnt FROM ${t.name}`);
-        const total = parseInt(countRes.rows[0].cnt);
-        console.log(`[fetchWorstSitesLocal] ${t.name} has ${total} rows`);
-        if (total === 0) continue;
-
-        const strategies = [
-          { col: 'qoe_index', dir: 'ASC', label: 'QoE' },
-          { col: 'debit_dl', dir: 'ASC', label: 'Débit DL' },
-          { col: 'rtt_data_avg', dir: 'DESC', label: 'RTT' },
-        ];
-
-        for (const strat of strategies) {
-          try {
-            const res = await sharedPool.query(
-              `SELECT ${t.dim1} AS dimension_1, ${t.dim2} AS dimension_2, date_part, qoe_index, debit_dl, debit_ul, rtt_data_avg,
-                      dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, session_nbr, loss_dl_rate, tcp_retr_rate_dl
-               FROM ${t.name} WHERE ${strat.col} IS NOT NULL
-               ORDER BY ${strat.col} ${strat.dir} LIMIT $1`, [maxSites * 3]
-            );
-            if (res.rows.length > 0) {
-              rows = res.rows;
-              usedLabel = strat.label;
-              usedTable = t.name;
-              console.log(`[fetchWorstSitesLocal] ✅ ${t.name} strategy ${strat.col} ${strat.dir} → ${res.rows.length} rows`);
-              break;
-            }
-          } catch (colErr) {
-            console.log(`[fetchWorstSitesLocal] Column ${strat.col} not in ${t.name}: ${colErr.message}`);
-          }
+        const res = await sharedPool.query(
+          `SELECT ${dim1} AS dimension_1, ${dim2} AS dimension_2, date_part, qoe_index, debit_dl, debit_ul, rtt_data_avg,
+                  dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, session_nbr, loss_dl_rate, tcp_retr_rate_dl
+           FROM ${src.table} WHERE ${strat.col} IS NOT NULL ${siteFilter}
+           ORDER BY ${strat.col} ${strat.dir} LIMIT $1`, [maxSites * 3]
+        );
+        if (res.rows.length > 0) {
+          rows = res.rows;
+          usedLabel = strat.label;
+          console.log(`[fetchWorstSitesLocal] ✅ ${src.table} strategy ${strat.col} ${strat.dir} → ${res.rows.length} rows`);
+          break;
         }
+      } catch (colErr) {
+        console.log(`[fetchWorstSitesLocal] Column ${strat.col} error: ${colErr.message}`);
+      }
+    }
 
-        if (!rows.length) {
-          // Last resort for this table: any rows by date
-          const fallback = await sharedPool.query(
-            `SELECT ${t.dim1} AS dimension_1, ${t.dim2} AS dimension_2, date_part, qoe_index, debit_dl, debit_ul, rtt_data_avg,
-                    dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, session_nbr, loss_dl_rate, tcp_retr_rate_dl
-             FROM ${t.name} ORDER BY date_part DESC LIMIT $1`, [maxSites * 3]
-          );
-          if (fallback.rows.length > 0) {
-            rows = fallback.rows;
-            usedLabel = 'date récente';
-            usedTable = t.name;
-          }
-        }
-
-        if (rows.length) break;
-      } catch (tableErr) {
-        console.log(`[fetchWorstSitesLocal] Table ${t.name} not available: ${tableErr.message}`);
+    if (!rows.length) {
+      // Last resort: any site rows by date
+      const fallback = await sharedPool.query(
+        `SELECT ${dim1} AS dimension_1, ${dim2} AS dimension_2, date_part, qoe_index, debit_dl, debit_ul, rtt_data_avg,
+                dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, session_nbr, loss_dl_rate, tcp_retr_rate_dl
+         FROM ${src.table} WHERE 1=1 ${siteFilter} ORDER BY date_part DESC LIMIT $1`, [maxSites * 3]
+      );
+      if (fallback.rows.length > 0) {
+        rows = fallback.rows;
+        usedLabel = 'date récente';
       }
     }
 
     if (!rows.length) return '';
 
     const seen = new Set();
-    const unique = rows.filter(r => { const k = `${r.dimension_1}::${r.dimension_2}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, maxSites);
-    const header = '# | Dim1 | Dim2 | Date | QoE | DL_Mbps | UL_Mbps | RTT_ms | DMS3 | DMS8 | DMS30 | Loss% | Retr% | Sessions';
+    const unique = rows.filter(r => { const k = r.dimension_2; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, maxSites);
+    const header = '# | Site | Date | QoE | DL_Mbps | UL_Mbps | RTT_ms | DMS3 | DMS8 | DMS30 | Loss% | Retr% | Sessions';
     const lines = unique.map((r,i) =>
-      `${i+1} | ${r.dimension_1} | ${r.dimension_2} | ${r.date_part} | ${r.qoe_index != null ? (+r.qoe_index).toFixed(1) : '-'} | ${r.debit_dl != null ? (+r.debit_dl).toFixed(1) : '-'} | ${r.debit_ul != null ? (+r.debit_ul).toFixed(1) : '-'} | ${r.rtt_data_avg != null ? (+r.rtt_data_avg).toFixed(0) : '-'} | ${r.dms_debit_dl_3 != null ? (+r.dms_debit_dl_3).toFixed(1) : '-'} | ${r.dms_debit_dl_8 != null ? (+r.dms_debit_dl_8).toFixed(1) : '-'} | ${r.dms_debit_dl_30 != null ? (+r.dms_debit_dl_30).toFixed(1) : '-'} | ${r.loss_dl_rate != null ? (+r.loss_dl_rate*100).toFixed(2) : '-'} | ${r.tcp_retr_rate_dl != null ? (+r.tcp_retr_rate_dl*100).toFixed(2) : '-'} | ${r.session_nbr ?? '-'}`
+      `${i+1} | ${r.dimension_2} | ${r.date_part} | ${r.qoe_index != null ? (+r.qoe_index).toFixed(1) : '-'} | ${r.debit_dl != null ? (+r.debit_dl).toFixed(1) : '-'} | ${r.debit_ul != null ? (+r.debit_ul).toFixed(1) : '-'} | ${r.rtt_data_avg != null ? (+r.rtt_data_avg).toFixed(0) : '-'} | ${r.dms_debit_dl_3 != null ? (+r.dms_debit_dl_3).toFixed(1) : '-'} | ${r.dms_debit_dl_8 != null ? (+r.dms_debit_dl_8).toFixed(1) : '-'} | ${r.dms_debit_dl_30 != null ? (+r.dms_debit_dl_30).toFixed(1) : '-'} | ${r.loss_dl_rate != null ? (+r.loss_dl_rate*100).toFixed(2) : '-'} | ${r.tcp_retr_rate_dl != null ? (+r.tcp_retr_rate_dl*100).toFixed(2) : '-'} | ${r.session_nbr ?? '-'}`
     );
-    return `TOP ${unique.length} WORST (tri par ${usedLabel}, source: ${usedTable}):\n${header}\n${lines.join('\n')}`;
+    return `TOP ${unique.length} WORST SITES (tri par ${usedLabel}, source: ${src.table}):\n${header}\n${lines.join('\n')}`;
   } catch (e) { console.error('[fetchWorstSitesLocal]', e.message); return ''; }
 }
 
 async function fetchSiteSnapshotLocal(siteName) {
   try {
+    const src = await detectKpiTable();
+    if (!src) return '';
+    const { dim1, dim2 } = dimCols(src.isQoeMetric);
+
+    // For qoe_metric, search in Dimension_2 when Dimension_1='Site', plus any row matching
     const { rows } = await sharedPool.query(
-    // Try qoe_metric first, then kpi_qoe_aggregated
-    const tables = [
-      { name: 'qoe_metric', dim1: '"Dimension_1"', dim2: '"Dimension_2"' },
-      { name: 'kpi_qoe_aggregated', dim1: 'dimension_1', dim2: 'dimension_2' },
-    ];
-    let rows = [];
-    for (const t of tables) {
-      try {
-        const res = await sharedPool.query(
-          `SELECT *, ${t.dim1} AS dim1_val, ${t.dim2} AS dim2_val FROM ${t.name}
-           WHERE ${t.dim1} ILIKE $1 OR ${t.dim2} ILIKE $1
-           ORDER BY date_part DESC LIMIT 30`, [`%${siteName}%`]
-        );
-        if (res.rows.length > 0) { rows = res.rows; console.log(`[fetchSiteSnapshotLocal] Found ${rows.length} rows in ${t.name}`); break; }
-      } catch (e) { console.log(`[fetchSiteSnapshotLocal] ${t.name}: ${e.message}`); }
-    }
+      `SELECT *, ${dim1} AS dim1_val, ${dim2} AS dim2_val FROM ${src.table}
+       WHERE ${dim2} ILIKE $1
+       ORDER BY date_part DESC LIMIT 30`, [`%${siteName}%`]
+    );
+    console.log(`[fetchSiteSnapshotLocal] Found ${rows.length} rows in ${src.table} for "${siteName}"`);
     if (!rows.length) return '';
     const kpis = ['qoe_index','debit_dl','debit_ul','rtt_data_avg','rtt_setup_avg','dms_debit_dl_3','dms_debit_dl_8','dms_debit_dl_30','loss_dl_rate','tcp_retr_rate_dl','session_dcr','session_nbr','wind_full_rate'];
     const lines = rows.slice(0,10).map(r => {
       const vals = kpis.map(k => r[k] != null ? (+r[k]).toFixed(2) : '-');
       return `${r.date_part} | ${r.dim1_val} | ${r.dim2_val} | ${vals.join(' | ')}`;
     });
-    return `SITE SNAPSHOT "${siteName}" (${rows.length} pts):\nDate | Dim1 | Dim2 | ${kpis.join(' | ')}\n${lines.join('\n')}`;
+    return `SITE SNAPSHOT "${siteName}" (${rows.length} pts, source: ${src.table}):\nDate | Dim1 | Dim2 | ${kpis.join(' | ')}\n${lines.join('\n')}`;
   } catch (e) { console.error('[fetchSiteSnapshotLocal]', e.message); return ''; }
 }
 
