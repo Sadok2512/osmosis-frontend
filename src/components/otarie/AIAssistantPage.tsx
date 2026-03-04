@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check, FileDown, MapPin, Plus, X, PanelLeftClose, PanelLeftOpen, Pencil } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check, FileDown, MapPin, Plus, X, PanelLeftClose, PanelLeftOpen, Pencil, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -10,6 +10,7 @@ import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
 import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore';
+import { useAgentLearningStore } from '@/stores/agentLearningStore';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
 type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'QOEBIT';
