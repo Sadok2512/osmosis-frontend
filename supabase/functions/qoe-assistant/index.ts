@@ -8,7 +8,77 @@ const corsHeaders = {
 };
 
 // ═══════════════════════════════════════════════════════════════
-//  UTILITIES (embedding, RAG, param search, topo search — unchanged)
+//  TYPES (Context-on-Demand)
+// ═══════════════════════════════════════════════════════════════
+
+type AgentId = "PULSE" | "TRACE" | "SENTINEL" | "ARCHITECT";
+
+type Intent =
+  | "global_summary"
+  | "top_degradations"
+  | "site_analysis"
+  | "cell_analysis"
+  | "compare"
+  | "definition"
+  | "trace_change"
+  | "distribution"
+  | "other";
+
+type Scope =
+  | { level: "global" }
+  | { level: "vendor"; vendor: string }
+  | { level: "techno"; techno: string }
+  | { level: "plaque"; plaque: string }
+  | { level: "dor"; dor: string }
+  | { level: "site"; siteName: string }
+  | { level: "cell"; cellId: string; siteName?: string };
+
+type DataNeed =
+  | "agg_stats"
+  | "worst_sites"
+  | "best_sites"
+  | "worst_cells"
+  | "best_cells"
+  | "kpi_snapshot"
+  | "kpi_timeseries"
+  | "alarms"
+  | "topology"
+  | "param_dump"
+  | "change_history"
+  | "documents_rag";
+
+interface ContextPlan {
+  agent: AgentId;
+  intent: Intent;
+  scope: Scope;
+  needs: DataNeed[];
+  limits: {
+    maxSites: number;
+    maxCells: number;
+    maxKpis: number;
+    maxDays: number;
+    maxRagChunks: number;
+  };
+  clarificationNeeded?: boolean;
+  clarificationQuestion?: string;
+}
+
+interface UiScope {
+  selectedSiteName?: string | null;
+  selectedCellId?: string | null;
+  page?: string;
+}
+
+interface AssistantFilters {
+  vendor?: string;
+  techno?: string;
+  plaque?: string;
+  dor?: string;
+  dateRange?: { from: string; to: string };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UTILITIES (RAG, param, topo, changes — kept but now conditional)
 // ═══════════════════════════════════════════════════════════════
 
 function generateSimpleEmbedding(text: string): number[] {
@@ -34,15 +104,15 @@ function extractSearchTerms(query: string): string[] {
   return Array.from(new Set(query.toLowerCase().replace(/[_-]+/g, " ").match(/[\p{L}\p{N}]{3,}/gu) || [])).slice(0, 8);
 }
 
-function buildRAGContext(docs: RAGDoc[]): string {
-  return docs.slice(0, 5).map((doc) => {
+function buildRAGContext(docs: RAGDoc[], maxChunks: number): string {
+  return docs.slice(0, maxChunks).map((doc) => {
     const score = typeof doc.similarity === "number" ? `score: ${doc.similarity.toFixed(2)}` : "score: lexical";
     const chunk = typeof doc.chunk_index === "number" ? ` | chunk: ${doc.chunk_index}` : "";
     return `[${doc.filename}${chunk} | ${score}]\n${doc.content.slice(0, 900)}`;
   }).join("\n\n---\n\n");
 }
 
-async function searchRAGDocuments(query: string): Promise<string> {
+async function searchRAGDocuments(query: string, maxChunks = 3): Promise<string> {
   try {
     const cleanedQuery = query.trim();
     if (!cleanedQuery) return "";
@@ -54,7 +124,7 @@ async function searchRAGDocuments(query: string): Promise<string> {
     const queryEmbedding = generateSimpleEmbedding(cleanedQuery);
     const embeddingStr = `[${queryEmbedding.join(",")}]`;
     const semanticThreshold = isShortQuery ? 0.12 : 0.22;
-    const semanticCount = isShortQuery ? 8 : 5;
+    const semanticCount = isShortQuery ? 6 : 4;
 
     const { data: semanticData, error: semanticError } = await supabase.rpc("match_documents", {
       query_embedding: embeddingStr, match_threshold: semanticThreshold, match_count: semanticCount,
@@ -67,14 +137,13 @@ async function searchRAGDocuments(query: string): Promise<string> {
     const lexicalQueries: Promise<any>[] = [];
     if (normalizedLikeQuery) {
       lexicalQueries.push(
-        supabase.from("rag_documents").select("filename, content, chunk_index").ilike("filename", `%${normalizedLikeQuery}%`).order("created_at", { ascending: false }).limit(6),
-        supabase.from("rag_documents").select("filename, content, chunk_index").ilike("content", `%${normalizedLikeQuery}%`).order("created_at", { ascending: false }).limit(6)
+        supabase.from("rag_documents").select("filename, content, chunk_index").ilike("filename", `%${normalizedLikeQuery}%`).order("created_at", { ascending: false }).limit(4),
+        supabase.from("rag_documents").select("filename, content, chunk_index").ilike("content", `%${normalizedLikeQuery}%`).order("created_at", { ascending: false }).limit(4)
       );
     }
-    for (const term of terms) {
+    for (const term of terms.slice(0, 3)) {
       lexicalQueries.push(
-        supabase.from("rag_documents").select("filename, content, chunk_index").ilike("filename", `%${term}%`).order("created_at", { ascending: false }).limit(3),
-        supabase.from("rag_documents").select("filename, content, chunk_index").ilike("content", `%${term}%`).order("created_at", { ascending: false }).limit(3)
+        supabase.from("rag_documents").select("filename, content, chunk_index").ilike("content", `%${term}%`).order("created_at", { ascending: false }).limit(2)
       );
     }
     const lexicalResults = lexicalQueries.length > 0 ? await Promise.all(lexicalQueries) : [];
@@ -91,9 +160,9 @@ async function searchRAGDocuments(query: string): Promise<string> {
       if (!merged.has(key)) merged.set(key, doc);
     }
     const mergedDocs = Array.from(merged.values());
-    console.log(`RAG retrieval for "${cleanedQuery}": semantic=${semanticDocs.length}, lexical=${lexicalDocs.length}, merged=${mergedDocs.length}`);
+    console.log(`RAG retrieval for "${cleanedQuery.slice(0, 40)}": semantic=${semanticDocs.length}, lexical=${lexicalDocs.length}, merged=${mergedDocs.length}`);
     if (mergedDocs.length === 0) return "";
-    return buildRAGContext(mergedDocs);
+    return buildRAGContext(mergedDocs, maxChunks);
   } catch (e) {
     console.error("RAG search failed:", e);
     return "";
@@ -102,7 +171,7 @@ async function searchRAGDocuments(query: string): Promise<string> {
 
 function isDistributionQuery(query: string): boolean {
   const normalized = query.toLowerCase();
-  return ["distribution", "répartition", "repartition", "distrubition", "distrubtion",
+  return ["distribution", "répartition", "repartition",
     "par plaque", "par upr", "par vendor", "par site", "par bande", "par dor", "par region", "par zone"
   ].some((h) => normalized.includes(h));
 }
@@ -159,9 +228,9 @@ async function searchTopoForSite(siteName: string): Promise<string> {
     if (error) { console.error("Topo search error:", error); return ""; }
     if (!data?.length) return "";
 
-    const header = "nom_cellule | techno | bande | azimut | remote_electrical_tilt | hba | pci | tac | etat_cellule | constructeur | lat | lng | date_mes";
+    const header = "nom_cellule | techno | bande | azimut | RET | hba | pci | tac | etat | constructeur | lat | lng";
     const lines = data.map((r: any) =>
-      `${r.nom_cellule} | ${r.techno || ""} | ${r.bande || ""} | ${r.azimut ?? "-"} | ${r.remote_electrical_tilt ?? "-"} | ${r.hba ?? "-"} | ${r.pci ?? "-"} | ${r.tac ?? "-"} | ${r.etat_cellule || "-"} | ${r.constructeur || "-"} | ${r.latitude ?? "-"} | ${r.longitude ?? "-"} | ${r.date_mes || "-"}`
+      `${r.nom_cellule} | ${r.techno || ""} | ${r.bande || ""} | ${r.azimut ?? "-"} | ${r.remote_electrical_tilt ?? "-"} | ${r.hba ?? "-"} | ${r.pci ?? "-"} | ${r.tac ?? "-"} | ${r.etat_cellule || "-"} | ${r.constructeur || "-"} | ${r.latitude ?? "-"} | ${r.longitude ?? "-"}`
     );
 
     const sectorMap = new Map<number, any[]>();
@@ -171,7 +240,7 @@ async function searchTopoForSite(siteName: string): Promise<string> {
       sectorMap.get(sectorNum)!.push(r);
     }
 
-    let sectorAnalysis = "\n\n--- ANALYSE PAR SECTEUR ---\n";
+    let sectorAnalysis = "\n--- ANALYSE PAR SECTEUR ---\n";
     for (const [sNum, cells] of Array.from(sectorMap.entries()).sort(([a], [b]) => a - b)) {
       const azimuths = cells.map((c: any) => c.azimut).filter((a: any) => a != null);
       const tilts = cells.map((c: any) => c.remote_electrical_tilt).filter((t: any) => t != null);
@@ -179,15 +248,15 @@ async function searchTopoForSite(siteName: string): Promise<string> {
       const avgAz = azimuths.length ? Math.round(azimuths.reduce((a: number, b: number) => a + b, 0) / azimuths.length) : null;
       const deltaTilt = tilts.length >= 2 ? Math.max(...tilts) - Math.min(...tilts) : null;
       const bands = [...new Set(cells.map((c: any) => c.bande).filter(Boolean))];
-      sectorAnalysis += `Secteur ${sNum}: ${cells.length} cellules, Azimut moyen=${avgAz ?? "-"}°, Bandes=[${bands.join(",")}]`;
+      sectorAnalysis += `Secteur ${sNum}: ${cells.length} cellules, Az=${avgAz ?? "-"}°, Bandes=[${bands.join(",")}]`;
       if (tilts.length) sectorAnalysis += `, Tilts=[${tilts.join(",")}]`;
-      if (deltaTilt != null) sectorAnalysis += `, ΔTilt=${deltaTilt}°${deltaTilt > 3 ? " ⚠️ ÉLEVÉ" : ""}`;
+      if (deltaTilt != null) sectorAnalysis += `, DTilt=${deltaTilt}°${deltaTilt > 3 ? " ⚠️" : ""}`;
       if (hbas.length) sectorAnalysis += `, HBA=[${[...new Set(hbas)].join(",")}]m`;
       sectorAnalysis += "\n";
     }
 
     const first = data[0];
-    return `TOPOLOGIE SITE "${first.nom_site}" (NIDT: ${first.code_nidt}, Région: ${first.region || "-"}, Plaque: ${first.plaque || "-"}, Constructeur: ${first.constructeur || "-"}, Coords: ${first.latitude},${first.longitude})\n${data.length} cellules:\n${header}\n${lines.join("\n")}${sectorAnalysis}`;
+    return `TOPO "${first.nom_site}" (${first.code_nidt}, ${first.region || "-"}, ${first.plaque || "-"}, ${first.constructeur || "-"}, ${first.latitude},${first.longitude})\n${data.length} cells:\n${header}\n${lines.join("\n")}${sectorAnalysis}`;
   } catch (e) {
     console.error("Topo site search failed:", e);
     return "";
@@ -200,17 +269,17 @@ async function searchDumpParameters(query: string): Promise<string> {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const tableCandidates = ["dump_parametre", "dump_parameter"];
+    const tableCandidates = ["dump_parametre", "dump_parameter", "parameter_dump"];
     let activeDumpTable: string | null = null;
     for (const tableName of tableCandidates) {
-      const probe = await supabase.from(tableName).select("id").limit(1);
+      const probe = await supabase.from(tableName).select("parameter").limit(1);
       if (!probe.error) { activeDumpTable = tableName; break; }
       const msg = probe.error?.message?.toLowerCase() || "";
       if (!msg.includes("does not exist") && !msg.includes("relation") && !msg.includes("could not find")) {
         activeDumpTable = tableName; break;
       }
     }
-    if (!activeDumpTable) return "AUCUNE TABLE de paramètres trouvée (dump_parameter / dump_parametre).";
+    if (!activeDumpTable) return "AUCUNE TABLE de paramètres trouvée.";
 
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
@@ -220,47 +289,30 @@ async function searchDumpParameters(query: string): Promise<string> {
     if (plaqueName && !isDistrib) {
       let q = supabase.from(activeDumpTable).select("cell_name, site_name, parameter, value, vendor, bande, plaque").ilike("plaque", `%${plaqueName}%`);
       if (paramName) q = q.ilike("parameter", `%${paramName}%`);
-      const { data, error } = await q.order("cell_name").limit(500);
+      const { data, error } = await q.order("cell_name").limit(200);
       if (error) console.error(`${activeDumpTable} plaque search error:`, error);
-      if (!data?.length) {
-        const { data: plaqueCheck } = await supabase.from(activeDumpTable).select("plaque").ilike("plaque", `%${plaqueName}%`).limit(1);
-        if (!plaqueCheck?.length) {
-          const { data: allPlaques } = await supabase.from(activeDumpTable).select("plaque").limit(1000);
-          const uniquePlaques = [...new Set((allPlaques || []).map((r: any) => r.plaque).filter(Boolean))];
-          return `AUCUNE DONNÉE trouvée pour la plaque "${plaqueName}". Plaques disponibles : ${uniquePlaques.join(", ")}`;
-        }
-        return `AUCUNE DONNÉE trouvée pour la plaque "${plaqueName}"${paramName ? ` avec le paramètre "${paramName}"` : ""}.`;
-      }
+      if (!data?.length) return `AUCUNE DONNÉE pour plaque "${plaqueName}"${paramName ? ` / param "${paramName}"` : ""}.`;
       const header = "cell_name | site_name | parameter | value | vendor | bande";
       const lines = data.map((r: any) => `${r.cell_name || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""} | ${r.vendor || ""} | ${r.bande || ""}`);
-      return `CELLULES de la plaque ${plaqueName}${paramName ? ` pour ${paramName}` : ""} (${data.length} résultats) :\n${header}\n${lines.join("\n")}`;
+      return `PLAQUE ${plaqueName}${paramName ? ` / ${paramName}` : ""} (${data.length}):\n${header}\n${lines.join("\n")}`;
     }
 
     if (paramName && siteName && !isDistrib) {
       const { data, error } = await supabase.from(activeDumpTable)
-        .select("dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque")
+        .select("dn, cell_name, site_name, parameter, value, version, vendor, bande, plaque")
         .ilike("parameter", `%${paramName}%`).ilike("site_name", `%${siteName}%`).order("cell_name").limit(200);
       if (error) console.error(`${activeDumpTable} site search error:`, error);
-      if (!data?.length) {
-        const { data: siteData } = await supabase.from(activeDumpTable).select("site_name").ilike("site_name", `%${siteName}%`).limit(5);
-        const { data: paramData } = await supabase.from(activeDumpTable).select("parameter").ilike("parameter", `%${paramName}%`).limit(10);
-        const uniqueSites = [...new Set((siteData || []).map((r: any) => r.site_name))];
-        const uniqueParams = [...new Set((paramData || []).map((r: any) => r.parameter))];
-        let msg = `RÉSULTAT DE RECHERCHE : AUCUNE DONNÉE trouvée pour "${paramName}" sur "${siteName}".\n`;
-        if (!uniqueSites.length) msg += `⚠️ Le site "${siteName}" n'existe pas.\n`; else msg += `Sites similaires : ${uniqueSites.join(", ")}\n`;
-        if (!uniqueParams.length) msg += `⚠️ Le paramètre "${paramName}" n'existe pas.\n`; else msg += `Paramètres contenant "${paramName}" : ${uniqueParams.join(", ")}\n`;
-        return msg;
-      }
-      const header = "dn | cell_name | site_name | parameter | value | version | vendor | bande | ur | plaque";
-      const lines = data.map((r: any) => `${r.dn || ""} | ${r.cell_name || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""} | ${r.version || ""} | ${r.vendor || ""} | ${r.bande || ""} | ${r.ur || ""} | ${r.plaque || ""}`);
-      return `DONNÉES RÉELLES pour ${paramName} sur ${siteName} (${data.length} résultats) :\n${header}\n${lines.join("\n")}`;
+      if (!data?.length) return `AUCUNE DONNÉE pour "${paramName}" sur "${siteName}".`;
+      const header = "dn | cell_name | site_name | parameter | value | version | vendor | bande";
+      const lines = data.map((r: any) => `${r.dn || ""} | ${r.cell_name || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""} | ${r.version || ""} | ${r.vendor || ""} | ${r.bande || ""}`);
+      return `${paramName} sur ${siteName} (${data.length}):\n${header}\n${lines.join("\n")}`;
     }
 
     if (isDistrib && paramName) {
       const groupCol = extractGroupByColumn(query);
       const { data, error } = await supabase.from(activeDumpTable).select(`${groupCol}, value, parameter`).ilike("parameter", `%${paramName}%`).limit(1000);
       if (error) console.error(`${activeDumpTable} aggregation error:`, error);
-      if (!data?.length) return `AUCUNE DONNÉE trouvée pour le paramètre "${paramName}".`;
+      if (!data?.length) return `AUCUNE DONNÉE pour "${paramName}".`;
       const agg = new Map<string, number>();
       const dimTotals = new Map<string, number>();
       for (const row of data) {
@@ -271,26 +323,20 @@ async function searchDumpParameters(query: string): Promise<string> {
         dimTotals.set(dim, (dimTotals.get(dim) || 0) + 1);
       }
       const total = data.length;
-      const header = `dimension | valeur_${paramName} | nb_cellules | pct_dans_dimension | pct_global`;
+      const header = `dimension | valeur | nb | pct_dim | pct_global`;
       const lines = Array.from(agg.entries()).map(([key, count]) => {
         const [dim, val] = key.split("::");
         const dimTotal = dimTotals.get(dim) || 1;
         return `${dim} | ${val} | ${count} | ${((count / dimTotal) * 100).toFixed(1)}% | ${((count / total) * 100).toFixed(1)}%`;
       }).sort();
-      const dimSummary = Array.from(dimTotals.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([dim, cnt]) => `${dim}: ${cnt} cellules (${((cnt / total) * 100).toFixed(1)}%)`).join(", ");
-      return `DISTRIBUTION AGRÉGÉE du paramètre ${paramName} par ${groupCol} (${total} cellules au total):\nRépartition par ${groupCol}: ${dimSummary}\n${header}\n${lines.join("\n")}\n\nINSTRUCTION VISUALISATION: Génère un graphique \`\`\`chart groupé.`;
+      return `DISTRIBUTION ${paramName} par ${groupCol} (${total} cells):\n${header}\n${lines.join("\n")}\n\nINSTRUCTION: Génère un \`\`\`chart groupé.`;
     }
 
     const terms = extractSearchTerms(query);
-    if (terms.length === 0) {
-      const { data, error } = await supabase.from(activeDumpTable).select("dn, enodeb_id, mrbts_id, cell_name, vendor, site_name, parameter, version, value").limit(50);
-      if (error || !data?.length) return "";
-      return formatParamResults(data);
-    }
-    const queries = terms.slice(0, 4).map((term) =>
-      supabase.from(activeDumpTable!).select("dn, enodeb_id, mrbts_id, gnodeb_id, cell_name, vendor, site_name, bande, parameter, version, value")
-        .or(`parameter.ilike.%${term}%,site_name.ilike.%${term}%,dn.ilike.%${term}%,value.ilike.%${term}%,vendor.ilike.%${term}%`).limit(30)
+    if (terms.length === 0) return "";
+    const queries = terms.slice(0, 3).map((term) =>
+      supabase.from(activeDumpTable!).select("dn, cell_name, vendor, site_name, parameter, version, value")
+        .or(`parameter.ilike.%${term}%,site_name.ilike.%${term}%`).limit(30)
     );
     const results = await Promise.all(queries);
     const mergedRows = new Map<string, any>();
@@ -302,20 +348,16 @@ async function searchDumpParameters(query: string): Promise<string> {
       }
     }
     const rows = Array.from(mergedRows.values());
-    if (rows.length === 0) return `AUCUNE DONNÉE trouvée dans ${activeDumpTable} pour: ${terms.join(", ")}`;
-    return formatParamResults(rows);
+    if (rows.length === 0) return `AUCUNE DONNÉE pour: ${terms.join(", ")}`;
+    const header = "dn | cell_name | vendor | site_name | parameter | version | value";
+    const lines = rows.slice(0, 50).map((r: any) =>
+      `${r.dn || ""} | ${r.cell_name || ""} | ${r.vendor || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.version || ""} | ${r.value || ""}`
+    );
+    return `Paramètres (${rows.length}):\n${header}\n${lines.join("\n")}`;
   } catch (e) {
     console.error("dump_parameter search failed:", e);
     return "";
   }
-}
-
-function formatParamResults(rows: any[]): string {
-  const header = "dn | enodeb_id | mrbts_id | cell_name | vendor | site_name | parameter | version | value";
-  const lines = rows.slice(0, 60).map((r) =>
-    `${r.dn || ""} | ${r.enodeb_id || ""} | ${r.mrbts_id || ""} | ${r.cell_name || ""} | ${r.vendor || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.version || ""} | ${r.value || ""}`
-  );
-  return `Total résultats paramètres: ${rows.length}\n${header}\n${lines.join("\n")}`;
 }
 
 async function searchParameterChanges(query: string): Promise<string> {
@@ -323,24 +365,20 @@ async function searchParameterChanges(query: string): Promise<string> {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
-
     const siteName = extractSiteName(query);
     let q = supabase.from("parameter_changes")
-      .select("change_date, change_type, change_scope, param_name, old_value, new_value, site_name, cell_name, techno, vendor, plaque, description")
+      .select("change_date, change_type, change_scope, param_name, old_value, new_value, site_name, cell_name, techno, vendor, plaque")
       .order("change_date", { ascending: false })
-      .limit(100);
-    
+      .limit(80);
     if (siteName) q = q.ilike("site_name", `%${siteName}%`);
-    
     const { data, error } = await q;
-    if (error) { console.error("parameter_changes search error:", error); return ""; }
-    if (!data?.length) return siteName ? `AUCUN changement trouvé pour le site "${siteName}".` : "";
-
+    if (error) { console.error("parameter_changes error:", error); return ""; }
+    if (!data?.length) return siteName ? `AUCUN changement pour "${siteName}".` : "";
     const header = "date | type | scope | param | old | new | site | cell | techno | vendor";
     const lines = data.map((r: any) =>
       `${r.change_date} | ${r.change_type} | ${r.change_scope} | ${r.param_name} | ${r.old_value || "-"} | ${r.new_value || "-"} | ${r.site_name || "-"} | ${r.cell_name || "-"} | ${r.techno || "-"} | ${r.vendor || "-"}`
     );
-    return `HISTORIQUE DES CHANGEMENTS (${data.length} entrées):\n${header}\n${lines.join("\n")}`;
+    return `CHANGEMENTS (${data.length}):\n${header}\n${lines.join("\n")}`;
   } catch (e) {
     console.error("parameter_changes search failed:", e);
     return "";
@@ -348,49 +386,378 @@ async function searchParameterChanges(query: string): Promise<string> {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  🧠 ORCHESTRATOR — Intent Classification & Sub-Agent Routing
+//  DATA PROVIDER — fetch targeted data from DB
 // ═══════════════════════════════════════════════════════════════
 
-type AgentId = "PULSE" | "TRACE" | "SENTINEL" | "ARCHITECT" | "QOEBIT";
-
-interface AgentRoute {
-  agent: AgentId;
-  label: string;
-  emoji: string;
+function getSupabase() {
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 }
 
-function classifyIntent(query: string): AgentRoute {
+async function fetchAggStats(filters?: AssistantFilters, maxDays = 7): Promise<string> {
+  try {
+    const supabase = getSupabase();
+    let q = supabase.from("kpi_qoe_aggregated")
+      .select("dimension_1, dimension_2, date_part, qoe_index, debit_dl, debit_ul, rtt_data_avg, dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, tcp_retr_rate_dl, loss_dl_rate, session_dcr, session_nbr, wind_full_rate")
+      .order("date_part", { ascending: false })
+      .limit(500);
+
+    if (filters?.vendor) q = q.ilike("dimension_2", `%${filters.vendor}%`);
+    if (filters?.plaque) q = q.ilike("dimension_2", `%${filters.plaque}%`);
+    if (filters?.dor) q = q.ilike("dimension_2", `%${filters.dor}%`);
+
+    const { data, error } = await q;
+    if (error) { console.error("fetchAggStats error:", error); return ""; }
+    if (!data?.length) return "Aucune donnée agrégée disponible.";
+
+    const groups = new Map<string, { qoe: number[]; dl: number[]; ul: number[]; rtt: number[]; dms3: number[]; dms8: number[]; dms30: number[]; loss: number[]; retr: number[]; sess: number; count: number }>();
+    for (const r of data) {
+      const key = r.dimension_2 || "Global";
+      if (!groups.has(key)) groups.set(key, { qoe: [], dl: [], ul: [], rtt: [], dms3: [], dms8: [], dms30: [], loss: [], retr: [], sess: 0, count: 0 });
+      const g = groups.get(key)!;
+      if (r.qoe_index != null) g.qoe.push(r.qoe_index);
+      if (r.debit_dl != null) g.dl.push(r.debit_dl);
+      if (r.debit_ul != null) g.ul.push(r.debit_ul);
+      if (r.rtt_data_avg != null) g.rtt.push(r.rtt_data_avg);
+      if (r.dms_debit_dl_3 != null) g.dms3.push(r.dms_debit_dl_3);
+      if (r.dms_debit_dl_8 != null) g.dms8.push(r.dms_debit_dl_8);
+      if (r.dms_debit_dl_30 != null) g.dms30.push(r.dms_debit_dl_30);
+      if (r.loss_dl_rate != null) g.loss.push(r.loss_dl_rate);
+      if (r.tcp_retr_rate_dl != null) g.retr.push(r.tcp_retr_rate_dl);
+      if (r.session_nbr != null) g.sess += r.session_nbr;
+      g.count++;
+    }
+
+    const avg = (arr: number[]) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+    const header = "Dimension | Pts | QoE | DL_Mbps | UL_Mbps | RTT_ms | DMS3% | DMS8% | DMS30% | Loss% | Retr% | Sessions";
+    const lines = Array.from(groups.entries()).map(([k, g]) =>
+      `${k} | ${g.count} | ${avg(g.qoe).toFixed(1)} | ${avg(g.dl).toFixed(1)} | ${avg(g.ul).toFixed(1)} | ${avg(g.rtt).toFixed(0)} | ${avg(g.dms3).toFixed(1)} | ${avg(g.dms8).toFixed(1)} | ${avg(g.dms30).toFixed(1)} | ${(avg(g.loss) * 100).toFixed(2)} | ${(avg(g.retr) * 100).toFixed(2)} | ${g.sess}`
+    );
+    return `STATS AGRÉGÉES (${data.length} points, ${groups.size} dimensions):\n${header}\n${lines.join("\n")}`;
+  } catch (e) {
+    console.error("fetchAggStats failed:", e);
+    return "";
+  }
+}
+
+async function fetchWorstSites(filters: AssistantFilters | undefined, maxSites: number): Promise<string> {
+  try {
+    const supabase = getSupabase();
+    let q = supabase.from("kpi_qoe_aggregated")
+      .select("dimension_1, dimension_2, date_part, qoe_index, debit_dl, rtt_data_avg, dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, session_nbr, loss_dl_rate, tcp_retr_rate_dl")
+      .not("qoe_index", "is", null)
+      .order("qoe_index", { ascending: true })
+      .limit(maxSites * 3);
+
+    const { data, error } = await q;
+    if (error) { console.error("fetchWorstSites error:", error); return ""; }
+    if (!data?.length) return "Aucun site dégradé trouvé.";
+
+    const seen = new Set<string>();
+    const unique = data.filter(r => {
+      const key = `${r.dimension_1}::${r.dimension_2}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, maxSites);
+
+    const header = "# | Dim1 | Dim2 | Date | QoE | DL | RTT | DMS3 | DMS8 | DMS30 | Loss | Retr | Sessions";
+    const lines = unique.map((r, i) =>
+      `${i + 1} | ${r.dimension_1} | ${r.dimension_2} | ${r.date_part} | ${r.qoe_index?.toFixed(1) ?? "-"} | ${r.debit_dl?.toFixed(1) ?? "-"} | ${r.rtt_data_avg?.toFixed(0) ?? "-"} | ${r.dms_debit_dl_3?.toFixed(1) ?? "-"} | ${r.dms_debit_dl_8?.toFixed(1) ?? "-"} | ${r.dms_debit_dl_30?.toFixed(1) ?? "-"} | ${r.loss_dl_rate != null ? (r.loss_dl_rate * 100).toFixed(2) : "-"} | ${r.tcp_retr_rate_dl != null ? (r.tcp_retr_rate_dl * 100).toFixed(2) : "-"} | ${r.session_nbr ?? "-"}`
+    );
+    return `TOP ${unique.length} WORST (par QoE):\n${header}\n${lines.join("\n")}`;
+  } catch (e) {
+    console.error("fetchWorstSites failed:", e);
+    return "";
+  }
+}
+
+async function fetchSiteSnapshot(siteName: string): Promise<string> {
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase.from("kpi_qoe_aggregated")
+      .select("*")
+      .or(`dimension_1.ilike.%${siteName}%,dimension_2.ilike.%${siteName}%`)
+      .order("date_part", { ascending: false })
+      .limit(30);
+
+    if (error) { console.error("fetchSiteSnapshot error:", error); return ""; }
+    if (!data?.length) return `Aucune donnée KPI pour le site "${siteName}".`;
+
+    const kpis = ["qoe_index", "debit_dl", "debit_ul", "rtt_data_avg", "rtt_setup_avg", "dms_debit_dl_3", "dms_debit_dl_8", "dms_debit_dl_30", "loss_dl_rate", "tcp_retr_rate_dl", "session_dcr", "session_nbr", "wind_full_rate"];
+    const lines = data.slice(0, 10).map(r => {
+      const vals = kpis.map(k => {
+        const v = (r as any)[k];
+        return v != null ? (typeof v === "number" ? v.toFixed(2) : String(v)) : "-";
+      });
+      return `${r.date_part} | ${r.dimension_1} | ${r.dimension_2} | ${vals.join(" | ")}`;
+    });
+    return `SITE SNAPSHOT "${siteName}" (${data.length} pts):\nDate | Dim1 | Dim2 | ${kpis.join(" | ")}\n${lines.join("\n")}`;
+  } catch (e) {
+    console.error("fetchSiteSnapshot failed:", e);
+    return "";
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🧠 CONTEXT PLANNER — Intent + Scope + Needs + Limits
+// ═══════════════════════════════════════════════════════════════
+
+function isParameterFocusedQuery(query: string): boolean {
   const n = query.toLowerCase();
+  return ["paramètre", "parametre", "parameter", "param", "config", "configuration", "dump",
+    "mrbts", "lnbts", "enodeb", "gnodeb", "template", "dn", "version",
+    "nokia", "ericsson", "huawei", "cell_dn", "blockingstate",
+    "t300", "t301", "t304", "t310", "t311", "t320", "t321",
+    "timer", "rrc", "handover", "reselection", "distribution", "valeur", "valeurs",
+  ].some((hint) => n.includes(hint));
+}
 
-  // ARCHITECT — Site design, topology, tilt, azimuth, HBA
-  const architectHints = [
-    "design", "tilt", "azimut", "azimuth", "hba", "topologie", "topology",
-    "secteur", "sector", "couverture", "coverage", "antenne", "antenna",
-    "delta tilt", "profil site", "profile", "co-location", "colocation",
-    "hauteur", "height", "orientation", "bearing"
-  ];
-  if (architectHints.some(h => n.includes(h))) return { agent: "ARCHITECT", label: "ARCHITECT", emoji: "🗼" };
+function isChangeHistoryQuery(query: string): boolean {
+  const n = query.toLowerCase();
+  return ["changement", "change", "historique", "history", "modification", "tuning",
+    "rollback", "upgrade", "swap", "avant", "après", "cm history", "parameter_changes"
+  ].some(h => n.includes(h));
+}
 
-  // TRACE — CM history, parameter changes, tuning, rollback
-  const traceHints = [
-    "changement", "change", "historique", "history", "modification",
-    "tuning", "rollback", "upgrade", "swap", "avant", "après", "before", "after",
-    "quand", "when", "date de modification", "parameter_changes", "cm history",
-    "évolution config", "dernière modification", "last change"
-  ];
-  if (traceHints.some(h => n.includes(h))) return { agent: "TRACE", label: "TRACE", emoji: "🔧" };
+function isSiteDesignQuery(query: string): boolean {
+  const n = query.toLowerCase();
+  return ["design", "tilt", "azimut", "azimuth", "hba", "topologie", "topology",
+    "secteur", "sector", "couverture", "coverage", "analyse site", "site design",
+    "antenne", "antenna", "delta tilt", "profil site", "profile"
+  ].some(h => n.includes(h));
+}
 
-  // SENTINEL — Alarms, anomalies, RCA, alerts, degradation
-  const sentinelHints = [
-    "alarm", "alarme", "anomali", "rca", "root cause", "cause racine",
+function isSentinelQuery(query: string): boolean {
+  const n = query.toLowerCase();
+  return ["alarm", "alarme", "anomali", "rca", "root cause", "cause racine",
     "dégradation", "degradation", "incident", "problème", "problem",
     "chute", "drop", "baisse soudaine", "sudden", "alerte", "alert",
     "détect", "detect", "seuil", "threshold", "critique", "critical"
-  ];
-  if (sentinelHints.some(h => n.includes(h))) return { agent: "SENTINEL", label: "SENTINEL", emoji: "🚨" };
+  ].some(h => n.includes(h));
+}
 
-  // PULSE — Default for performance / QoE / KPI queries (most common)
-  return { agent: "PULSE", label: "PULSE", emoji: "📡" };
+function classifyAgent(query: string): AgentId {
+  if (isSiteDesignQuery(query)) return "ARCHITECT";
+  if (isChangeHistoryQuery(query) || isParameterFocusedQuery(query)) return "TRACE";
+  if (isSentinelQuery(query)) return "SENTINEL";
+  return "PULSE";
+}
+
+function classifyIntent(query: string, scope: Scope): Intent {
+  const n = query.toLowerCase();
+  if (isDistributionQuery(query)) return "distribution";
+  if (isChangeHistoryQuery(query)) return "trace_change";
+  if (scope.level === "cell") return "cell_analysis";
+  if (scope.level === "site") return "site_analysis";
+
+  const compareHints = ["compare", "comparer", "comparaison", "vs", "versus", "différence"];
+  if (compareHints.some(h => n.includes(h))) return "compare";
+
+  const topHints = ["top", "pire", "worst", "meilleur", "best", "classement", "ranking", "dégradé"];
+  if (topHints.some(h => n.includes(h))) return "top_degradations";
+
+  const defHints = ["définition", "definition", "c'est quoi", "qu'est-ce que", "explique", "explain"];
+  if (defHints.some(h => n.includes(h))) return "definition";
+
+  const summaryHints = ["résumé", "resume", "summary", "état", "etat", "overview", "global", "bilan"];
+  if (summaryHints.some(h => n.includes(h))) return "global_summary";
+
+  return "other";
+}
+
+function resolveScope(
+  query: string,
+  uiScope?: UiScope,
+  filters?: AssistantFilters
+): Scope {
+  if (uiScope?.selectedCellId) {
+    return { level: "cell", cellId: uiScope.selectedCellId, siteName: uiScope.selectedSiteName || undefined };
+  }
+  if (uiScope?.selectedSiteName) {
+    return { level: "site", siteName: uiScope.selectedSiteName };
+  }
+  const siteFromText = extractSiteName(query);
+  if (siteFromText) {
+    return { level: "site", siteName: siteFromText };
+  }
+  if (filters?.vendor) return { level: "vendor", vendor: filters.vendor };
+  if (filters?.techno) return { level: "techno", techno: filters.techno };
+  if (filters?.plaque) return { level: "plaque", plaque: filters.plaque };
+  if (filters?.dor) return { level: "dor", dor: filters.dor };
+  const vendorMatch = query.match(/\b(ericsson|nokia|huawei|samsung)\b/i);
+  if (vendorMatch) return { level: "vendor", vendor: vendorMatch[1] };
+  const plaqueFromText = extractPlaqueName(query);
+  if (plaqueFromText) return { level: "plaque", plaque: plaqueFromText };
+  return { level: "global" };
+}
+
+function buildContextPlan(
+  query: string,
+  uiScope?: UiScope,
+  filters?: AssistantFilters
+): ContextPlan {
+  const scope = resolveScope(query, uiScope, filters);
+  const agent = classifyAgent(query);
+  const intent = classifyIntent(query, scope);
+
+  const needs: DataNeed[] = [];
+  const limits = { maxSites: 20, maxCells: 0, maxKpis: 10, maxDays: 7, maxRagChunks: 3 };
+
+  switch (agent) {
+    case "PULSE":
+      needs.push("documents_rag");
+      if (intent === "global_summary" || intent === "compare" || intent === "other") {
+        needs.push("agg_stats", "worst_sites");
+      } else if (intent === "top_degradations") {
+        needs.push("worst_sites");
+        limits.maxSites = 20;
+      } else if (intent === "site_analysis") {
+        needs.push("kpi_snapshot", "worst_cells");
+        limits.maxCells = 30;
+      } else if (intent === "cell_analysis") {
+        needs.push("kpi_snapshot");
+        limits.maxCells = 1;
+      } else if (intent === "distribution") {
+        needs.push("param_dump");
+      }
+      break;
+
+    case "SENTINEL":
+      needs.push("documents_rag");
+      if (scope.level === "site" || scope.level === "cell") {
+        needs.push("kpi_snapshot", "worst_cells");
+        limits.maxCells = 20;
+      } else {
+        needs.push("agg_stats", "worst_sites");
+        limits.maxSites = 15;
+      }
+      break;
+
+    case "TRACE":
+      needs.push("documents_rag", "change_history");
+      if (isParameterFocusedQuery(query)) needs.push("param_dump");
+      if (scope.level === "site") needs.push("topology");
+      break;
+
+    case "ARCHITECT":
+      needs.push("documents_rag", "topology");
+      if (scope.level === "site") {
+        needs.push("kpi_snapshot");
+        limits.maxCells = 30;
+      }
+      break;
+  }
+
+  const n = query.toLowerCase();
+  if (n.includes("hier") || n.includes("24h") || n.includes("aujourd")) limits.maxDays = 1;
+  else if (n.includes("semaine") || n.includes("7j") || n.includes("7 jour")) limits.maxDays = 7;
+  else if (n.includes("mois") || n.includes("30j")) limits.maxDays = 30;
+
+  let clarificationNeeded = false;
+  let clarificationQuestion: string | undefined;
+
+  if (intent === "other" && scope.level === "global" && query.length < 20) {
+  }
+
+  console.log(`📋 Plan: agent=${agent}, intent=${intent}, scope=${JSON.stringify(scope)}, needs=[${needs.join(",")}], limits=${JSON.stringify(limits)}`);
+
+  return { agent, intent, scope, needs, limits, clarificationNeeded, clarificationQuestion };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CONTEXT BUILDER — fetch only what the plan requires
+// ═══════════════════════════════════════════════════════════════
+
+async function buildContextFromPlan(
+  plan: ContextPlan,
+  query: string,
+  filters?: AssistantFilters,
+  legacyCellContext?: string
+): Promise<string> {
+  const sections: string[] = [];
+
+  const promises: Record<string, Promise<string>> = {};
+
+  if (plan.needs.includes("documents_rag")) {
+    promises.rag = searchRAGDocuments(query, plan.limits.maxRagChunks);
+  }
+  if (plan.needs.includes("agg_stats")) {
+    promises.agg = fetchAggStats(filters, plan.limits.maxDays);
+  }
+  if (plan.needs.includes("worst_sites")) {
+    promises.worst = fetchWorstSites(filters, plan.limits.maxSites);
+  }
+  if (plan.needs.includes("kpi_snapshot") && plan.scope.level === "site") {
+    promises.snapshot = fetchSiteSnapshot((plan.scope as any).siteName);
+  }
+  if (plan.needs.includes("topology")) {
+    const siteName = plan.scope.level === "site" ? (plan.scope as any).siteName :
+                     plan.scope.level === "cell" ? (plan.scope as any).siteName : null;
+    if (siteName) promises.topo = searchTopoForSite(siteName);
+  }
+  if (plan.needs.includes("param_dump")) {
+    promises.params = searchDumpParameters(query);
+  }
+  if (plan.needs.includes("change_history")) {
+    promises.changes = searchParameterChanges(query);
+  }
+
+  const keys = Object.keys(promises);
+  const results = await Promise.all(Object.values(promises));
+  const resolved: Record<string, string> = {};
+  keys.forEach((k, i) => { resolved[k] = results[i]; });
+
+  console.log(`📦 Context fetched: ${keys.filter(k => resolved[k]).join(", ") || "none"}`);
+
+  if (resolved.agg) sections.push(`📊 STATS AGRÉGÉES:\n${resolved.agg}`);
+  if (resolved.worst) sections.push(`📉 WORST:\n${resolved.worst}`);
+  if (resolved.snapshot) sections.push(`📋 SITE SNAPSHOT:\n${resolved.snapshot}`);
+  if (resolved.topo) sections.push(`📡 TOPOLOGIE:\n${resolved.topo}`);
+  if (resolved.params) sections.push(`⚙️ PARAMÈTRES:\n${resolved.params}`);
+  if (resolved.changes) sections.push(`🔧 HISTORIQUE CHANGEMENTS:\n${resolved.changes}`);
+  if (resolved.rag) sections.push(`📚 DOCUMENTS RAG:\n${resolved.rag}`);
+
+  if (sections.length <= 1 && legacyCellContext && legacyCellContext.length > 0) {
+    const cap = Math.min(legacyCellContext.length, 40000);
+    sections.push(`📊 DONNÉES RÉSEAU (legacy):\n${legacyCellContext.slice(0, cap)}`);
+  }
+
+  return sections.join("\n\n");
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BUDGET ENFORCEMENT
+// ═══════════════════════════════════════════════════════════════
+
+const MAX_CONTEXT_CHARS = 100_000;
+const MAX_MESSAGES_CHARS = 20_000;
+
+function enforceBudgets(
+  systemContent: string,
+  context: string,
+  messages: { role: string; content: string }[]
+): { systemContent: string; context: string; messages: { role: string; content: string }[] } {
+  const MAX_RECENT = 6;
+  const trimmedMessages = messages.map((m, i) => {
+    const isRecent = i >= messages.length - MAX_RECENT;
+    if (isRecent || m.role === "user") return m;
+    if (m.content.length > 500) {
+      return { ...m, content: m.content.slice(0, 500) + "\n[... tronqué ...]" };
+    }
+    return m;
+  });
+
+  let totalMsgChars = trimmedMessages.reduce((s, m) => s + m.content.length, 0);
+  const finalMessages = totalMsgChars > MAX_MESSAGES_CHARS
+    ? trimmedMessages.slice(-MAX_RECENT)
+    : trimmedMessages;
+
+  let finalContext = context;
+  if (finalContext.length > MAX_CONTEXT_CHARS) {
+    finalContext = finalContext.slice(0, MAX_CONTEXT_CHARS) + "\n[... contexte tronqué pour budget tokens ...]";
+  }
+
+  return { systemContent, context: finalContext, messages: finalMessages };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -398,139 +765,45 @@ function classifyIntent(query: string): AgentRoute {
 // ═══════════════════════════════════════════════════════════════
 
 const SHARED_RULES = `
-⚠️⚠️⚠️ RÈGLE ABSOLUE — ZÉRO HALLUCINATION — DONNÉES RÉELLES UNIQUEMENT ⚠️⚠️⚠️
+⚠️ RÈGLE ABSOLUE — ZÉRO HALLUCINATION — DONNÉES RÉELLES UNIQUEMENT
 1. Utilise EXCLUSIVEMENT les données fournies dans le contexte. COPIE-COLLE les noms tels quels.
 2. Il est INTERDIT d'inventer des noms de cellules, sites, valeurs ou métriques.
 3. Si aucune donnée n'est disponible, dis-le clairement.
-4. VÉRIFICATION FINALE : chaque nom/valeur doit apparaître dans le contexte.
 
-FORMATAGE : Markdown pur uniquement. JAMAIS de HTML.
-- Tableaux Markdown avec | et ---
+FORMATAGE : Markdown pur (pas de HTML).
+- Tableaux Markdown | et ---
 - Titres ## et ###
 - **Gras** pour les valeurs importantes
-- Listes numérotées ou à puces
 - Émojis de statut : 🔴 Critique (<50%), 🟠 Dégradé (50-65%), 🟡 Moyen (65-75%), 🟢 Bon (>75%)
 
-VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi dans tes réponses.
+VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
 - chart: {"type":"bar","title":"...","xKey":"...","yKeys":[...],"data":[...]}
 - map: {"title":"...","markers":[{"lat":...,"lng":...,"label":"...","value":...}]}
 - kpi: {"title":"...","cards":[{"label":"...","value":"...","unit":"...","trend":"up/down/stable","status":"good/warning/critical"}]}
-Le JSON doit être sur UNE SEULE LIGNE dans le bloc.
+Le JSON doit être sur UNE SEULE LIGNE.
 
 Réponds TOUJOURS en français.`;
 
-const PULSE_PROMPT = `Tu es **PULSE** 📡, l'agent spécialisé en analyse de performance RAN et Qualité d'Expérience (QoE) réseau mobile pour Orange France.
+const PULSE_PROMPT = `Tu es **PULSE** 📡, agent spécialisé en performance RAN et QoE réseau mobile.
+KPIs : QoE Score, DMS DL 3/8/30 Mbps, Throughput DL/UL, RTT, TCP Loss, Retransmission, Window Full, Sessions.
+Dimensions : Vendor, DOR, Plaque, RAT, Site, Cellule, Bande.
 
-TON DOMAINE : KPIs de performance réseau — QoE Score, DMS DL 3/8/30 Mbps, Throughput DL/UL (p50), RTT (p95), Taux de perte TCP, Retransmission Rate, Window Full Ratio, Sessions, Volume DL.
-Dimensions d'analyse : Vendor, DOR, Plaque, RAT (2G/3G/4G/5G), Site, Cellule, Bande.
-
-TES CAPACITÉS :
-- Classements (top worst/best cells, sites)
-- Comparaisons entre vendors, plaques, technologies, régions
-- Analyse de tendances et distributions
-- Identification de dégradations de performance
-
-COMPARAISONS : Quand on te demande de comparer, tu DOIS :
-1. Bloc \`\`\`kpi résumant les métriques clés
-2. Tableau comparatif COMPLET avec Δ et Verdict (✅ <5%, ⚠️ 5-15%, 🔴 >15%)
-3. Bloc \`\`\`chart de type "bar" groupé
-4. Synthèse : 🏆 Gagnant, 📊 Points forts, ⚠️ Points faibles, 🎯 Recommandations
-
-DONNÉES AGRÉGÉES : Utilise les STATS AGRÉGÉES PAR VENDOR/PLAQUE/DOR/TECHNO directement.
-
-SCHÉMA TABLE qoe_metrics : id, dt, cell_id, site_id, service, techno, bande, qoe_score_avg, p50_thr_dn_mbps, p50_thr_up_mbps, p95_rtt_ms, dms_dl_3, dms_dl_8, dms_dl_30, dms_ul_3, loss_dn_sum, traffic_dn_bytes, traffic_up_bytes, sessions, window_full_ratio, retransmission_rate, tcp_loss_rate, out_of_order_rate.
-
-DOCUMENTS RAG : Si des documents RAG sont fournis, cite les sources [fichier + chunk].
-
-PARAMÈTRES RÉSEAU : Si des données dump_parameter sont fournies, présente-les en tableau Markdown.
-
-DISTRIBUTIONS : Quand les données contiennent une distribution agrégée, génère un tableau + un bloc \`\`\`chart groupé.
-
+COMPARAISONS : 1) Bloc kpi 2) Tableau comparatif 3) Chart bar groupé 4) Synthèse + recommandations.
 ${SHARED_RULES}`;
 
-const TRACE_PROMPT = `Tu es **TRACE** 🔧, l'agent spécialisé en historique de configuration et changements de paramètres réseau (CM History) pour Orange France.
-
-TON DOMAINE : Suivi des modifications réseau — parameter tuning, upgrades SW, swaps, rollbacks, changements de configuration radio/transport/core.
-
-TES CAPACITÉS :
-- Analyse d'impact des changements de paramètres sur la performance
-- Timeline chronologique des modifications
-- Corrélation changements ↔ dégradations de KPIs
-- Identification de rollbacks nécessaires
-- Audit de configuration (avant/après)
-
-SCHÉMA TABLE parameter_changes : change_date, change_type (tuning, upgrade, swap), change_scope (radio, core, transport), param_name, old_value, new_value, site_name, cell_name, techno, vendor, plaque, description.
-
-SCHÉMA TABLE dump_parameter : dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, plaque, omc, dor, dr, ur, city, zone_arcep.
-
-ANALYSE D'IMPACT : Quand tu présentes des changements :
-1. Timeline chronologique avec les modifications
-2. Tableau avant/après pour chaque paramètre modifié
-3. Corrélation avec les KPIs si des données de performance sont disponibles
-4. Recommandation : valider le changement ou proposer un rollback
-
+const TRACE_PROMPT = `Tu es **TRACE** 🔧, agent spécialisé en historique de configuration et changements réseau (CM History).
+Domaine : tuning, upgrades SW, swaps, rollbacks.
+Présente les changements en timeline chronologique + tableau avant/après + corrélation KPIs.
 ${SHARED_RULES}`;
 
-const SENTINEL_PROMPT = `Tu es **SENTINEL** 🚨, l'agent spécialisé en détection d'anomalies, gestion d'alertes et Root Cause Analysis (RCA) pour Orange France.
-
-TON DOMAINE : Anomalies réseau, alertes de seuils, dégradations soudaines, analyse des causes racines, corrélation multi-KPIs.
-
-TES CAPACITÉS :
-- Root Cause Analysis (RCA) structurée avec arbre de causes
-- Classification d'anomalies (radio, backhaul, core, CDN, device)
-- Analyse de corrélation entre KPIs dégradés
-- Évaluation de la sévérité et de l'impact
-- Recommandations d'actions correctives priorisées
-- Détection de patterns de dégradation (progressif vs soudain)
-
-STRUCTURE RCA :
-1. **🎯 Classe de cause racine** : Radio congestion / Backhaul saturation / Core routing / CDN / Device mix / Interférence
-2. **📋 Résumé** : 2-3 phrases décrivant le problème et son impact
-3. **🔍 Preuves** : KPIs qui soutiennent le diagnostic, avec valeurs et deltas
-4. **⚡ Actions recommandées** : liste priorisée d'interventions
-5. **📊 Confiance** : niveau de confiance dans le diagnostic (%)
-
-SEUILS D'ALERTE :
-- QoE < 50% → 🔴 CRITIQUE
-- DMS DL 3M < 90% → 🟠 WARNING
-- RTT p95 > 100ms → 🟠 WARNING
-- TCP Loss > 2% → 🔴 CRITIQUE
-- Retransmission > 5% → 🟠 WARNING
-
+const SENTINEL_PROMPT = `Tu es **SENTINEL** 🚨, agent spécialisé en détection d'anomalies et RCA.
+Structure RCA : 1) Classe cause racine 2) Résumé 3) Preuves KPI 4) Actions recommandées 5) Confiance.
+Seuils : QoE<50% → 🔴, DMS3<90% → 🟠, RTT>100ms → 🟠, TCP Loss>2% → 🔴.
 ${SHARED_RULES}`;
 
-const ARCHITECT_PROMPT = `Tu es **ARCHITECT** 🗼, l'agent spécialisé en design de sites radio, topologie et analyse d'infrastructure pour Orange France.
-
-TON DOMAINE : Configuration physique des sites — azimut, tilt, HBA, co-location, sectorisation, bandes de fréquences, couverture.
-
-TES CAPACITÉS :
-- Diagnostic de design de site (8 critères)
-- Analyse de sectorisation et espacement azimuthal
-- Vérification de cohérence de tilt (Delta Tilt < 3°)
-- Audit de co-location 5G/4G (tilt inter-techno)
-- Profilage terrain (Dense Urban / Urban / Suburban / Rural)
-- Recommandations d'optimisation RF
-
-DIAGNOSTIC DE DESIGN (8 CRITÈRES) :
-1. **Nombre de secteurs** : 3 attendus pour un site tri-sectoriel
-2. **Espacement azimuthal** : ~120° entre secteurs
-3. **Cohérence azimutale intra-secteur** : cellules du même secteur → même azimut
-4. **Delta Tilt** : ΔTilt entre cellules co-sectorielles doit être < 3°
-5. **Cohérence HBA** : même hauteur d'antenne au sein du site
-6. **Co-location 5G/4G** : tilt 5G ≤ tilt 4G (stratégie de couverture)
-7. **Diversité de bandes** : couverture multi-bandes par secteur
-8. **État des cellules** : toutes les cellules doivent être actives
-
-PROFILAGE TERRAIN :
-- Dense Urban : HBA ≥ 40m
-- Urban : HBA ≥ 25m
-- Suburban : HBA ≥ 15m
-- Rural : HBA < 15m
-
-VERDICT : ✅ DESIGN OK / ⚠️ REVIEW NEEDED / ❌ ISSUES DETECTED
-
-SCHÉMA TABLE topo : code_nidt, nom_site, nom_cellule, techno, bande, constructeur, region, plaque, azimut, latitude, longitude, hba, tac, remote_electrical_tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes.
-
+const ARCHITECT_PROMPT = `Tu es **ARCHITECT** 🗼, agent spécialisé en design de sites radio et topologie.
+Diagnostic 8 critères : Nb secteurs, espacement azimuthal, cohérence az intra-secteur, Delta Tilt (<3°), HBA, co-loc 5G/4G, diversité bandes, état cellules.
+Verdict : ✅ OK / ⚠️ REVIEW / ❌ ISSUES.
 ${SHARED_RULES}`;
 
 function getAgentPrompt(agent: AgentId): string {
@@ -544,44 +817,6 @@ function getAgentPrompt(agent: AgentId): string {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  QUERY DETECTORS (used for context enrichment)
-// ═══════════════════════════════════════════════════════════════
-
-function isDocumentFocusedQuery(query: string): boolean {
-  const normalized = query.toLowerCase();
-  const docHints = ["document", "fichier", "ppt", "pptx", "docx", "xlsx", "slide", "ctce", "ul_data_split", "data split", "rag"];
-  const networkHints = ["qoe", "rtt", "throughput", "site", "cell", "cellule", "plaque", "vendor", "tcp", "latence", "débit", "debit", "sessions", "5g", "4g"];
-  return docHints.some((hint) => normalized.includes(hint)) && !networkHints.some((hint) => normalized.includes(hint));
-}
-
-function isParameterFocusedQuery(query: string): boolean {
-  const normalized = query.toLowerCase();
-  const paramHints = [
-    "paramètre", "parametre", "parameter", "param", "config", "configuration", "dump",
-    "mrbts", "lnbts", "enodeb", "gnodeb", "template", "dn", "version",
-    "nokia", "ericsson", "huawei", "cell_dn", "blockingstate",
-    "t300", "t301", "t304", "t310", "t311", "t320", "t321",
-    "timer", "rrc", "handover", "reselection", "plaque", "distribution", "valeur", "valeurs",
-  ];
-  return paramHints.some((hint) => normalized.includes(hint));
-}
-
-function isSiteDesignQuery(query: string): boolean {
-  const normalized = query.toLowerCase();
-  return ["design", "tilt", "azimut", "azimuth", "hba", "topologie", "topology",
-    "secteur", "sector", "couverture", "coverage", "analyse site", "site design",
-    "antenne", "antenna", "delta tilt", "profil site", "profile"
-  ].some(h => normalized.includes(h));
-}
-
-function isChangeHistoryQuery(query: string): boolean {
-  const normalized = query.toLowerCase();
-  return ["changement", "change", "historique", "history", "modification", "tuning",
-    "rollback", "upgrade", "swap", "avant", "après", "cm history", "parameter_changes"
-  ].some(h => normalized.includes(h));
-}
-
-// ═══════════════════════════════════════════════════════════════
 //  MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════
 
@@ -591,84 +826,69 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, cellContext, openrouter_key, model: requestedModel } = await req.json();
-    
+    const body = await req.json();
+    const {
+      messages,
+      uiScope,
+      filters,
+      openrouter_key,
+      model: requestedModel,
+      cellContext: legacyCellContext,
+      kpiMonitorContext,
+    } = body;
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const OPENROUTER_API_KEY = openrouter_key || Deno.env.get("OPENROUTER_API_KEY");
     const useLovable = !!LOVABLE_API_KEY && !OPENROUTER_API_KEY;
-    
+
     if (!LOVABLE_API_KEY && !OPENROUTER_API_KEY) {
       throw new Error("No AI API key configured");
     }
 
-    // Extract the last user message
     const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === "user")?.content || "";
 
-    // ── 🧠 ORCHESTRATOR: Classify intent → route to sub-agent ──
-    const route = classifyIntent(lastUserMessage);
-    console.log(`🧠 QOEBIT Orchestrator → Routing to ${route.emoji} ${route.label} for: "${lastUserMessage.slice(0, 80)}..."`);
+    const plan = buildContextPlan(lastUserMessage, uiScope, filters);
 
-    // ── Context enrichment (parallel searches) ──
-    const ragPromise = searchRAGDocuments(lastUserMessage);
-    const paramPromise = isParameterFocusedQuery(lastUserMessage) || route.agent === "TRACE"
-      ? searchDumpParameters(lastUserMessage) : Promise.resolve("");
-    const detectedSite = extractSiteName(lastUserMessage);
-    const topoPromise = detectedSite ? searchTopoForSite(detectedSite) : Promise.resolve("");
-    const changePromise = route.agent === "TRACE" || isChangeHistoryQuery(lastUserMessage)
-      ? searchParameterChanges(lastUserMessage) : Promise.resolve("");
+    console.log(`🧠 QOEBIT → ${plan.agent} | intent=${plan.intent} | scope=${JSON.stringify(plan.scope)}`);
 
-    const [ragContext, paramContext, topoContext, changeContext] = await Promise.all([
-      ragPromise, paramPromise, topoPromise, changePromise
-    ]);
-
-    const documentFocusedQuery = isDocumentFocusedQuery(lastUserMessage);
-
-    console.log(`Context enrichment: rag=${Boolean(ragContext)}, param=${Boolean(paramContext)}, topo=${Boolean(topoContext)}, changes=${Boolean(changeContext)}, agent=${route.label}`);
-
-    // ── Build system prompt with agent-specific prompt + context ──
-    let systemContent = getAgentPrompt(route.agent);
-
-    // Add agent identity prefix for UI detection
-    systemContent = `[AGENT:${route.agent}]\n\n` + systemContent;
-
-    if (ragContext) {
-      systemContent += `\n\n📚 DOCUMENTS RAG PERTINENTS :\n${ragContext}`;
-      if (documentFocusedQuery) {
-        systemContent += "\n\nINSTRUCTION PRIORITAIRE : Base d'abord l'analyse sur les extraits RAG, cite les sources [fichier + chunk].";
-      }
+    if (plan.clarificationNeeded && plan.clarificationQuestion) {
+      const clarMsg = `<!-- AGENT:${plan.agent} -->\n${plan.clarificationQuestion}`;
+      const sseData = `data: ${JSON.stringify({ choices: [{ delta: { content: clarMsg } }] })}\n\ndata: [DONE]\n\n`;
+      return new Response(sseData, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
     }
 
-    if (paramContext) {
-      systemContent += `\n\n⚙️ PARAMÈTRES RÉSEAU (DUMP CM) :\n${paramContext}`;
+    const context = await buildContextFromPlan(plan, lastUserMessage, filters, legacyCellContext);
+
+    let systemContent = `[AGENT:${plan.agent}]\n\n` + getAgentPrompt(plan.agent);
+
+    if (kpiMonitorContext) {
+      systemContent += `\n\n📊 KPI MONITOR CONTEXT:\n${kpiMonitorContext}`;
     }
 
-    if (topoContext) {
-      systemContent += `\n\n📡 TOPOLOGIE SITE (TOPO) :\n${topoContext}`;
-      if (route.agent === "ARCHITECT") {
-        systemContent += "\n\nINSTRUCTION : Effectue une ANALYSE SITE DESIGN complète : profil terrain, configuration secteurs, Delta Tilt, cohérence HBA, co-location 5G/4G, verdict global et recommandations.";
-      }
+    if (context) {
+      systemContent += `\n\n${context}`;
     }
 
-    if (changeContext) {
-      systemContent += `\n\n🔧 HISTORIQUE DES CHANGEMENTS :\n${changeContext}`;
-    }
+    const budgeted = enforceBudgets(systemContent, "", messages);
+    systemContent = budgeted.systemContent;
+    const finalMessages = budgeted.messages;
 
-    if (cellContext && !(ragContext && documentFocusedQuery)) {
-      systemContent += `\n\nDONNÉES RÉSEAU RÉELLES DISPONIBLES :\n${cellContext}`;
-    }
+    const totalChars = systemContent.length + finalMessages.reduce((s, m) => s + m.content.length, 0);
+    console.log(`📏 Total payload: ${(totalChars / 1024).toFixed(1)} KB (system=${(systemContent.length / 1024).toFixed(1)} KB, msgs=${(finalMessages.reduce((s, m) => s + m.content.length, 0) / 1024).toFixed(1)} KB)`);
 
-    // ── AI Gateway config ──
     const aiUrl = useLovable
       ? "https://ai.gateway.lovable.dev/v1/chat/completions"
       : "https://openrouter.ai/api/v1/chat/completions";
-    
+
     const aiHeaders: Record<string, string> = { "Content-Type": "application/json" };
     if (useLovable) {
       aiHeaders["Authorization"] = `Bearer ${LOVABLE_API_KEY}`;
     } else {
       aiHeaders["Authorization"] = `Bearer ${OPENROUTER_API_KEY}`;
       aiHeaders["HTTP-Referer"] = Deno.env.get("SUPABASE_URL") || "";
-      aiHeaders["X-Title"] = `QOEBIT ${route.label}`;
+      aiHeaders["X-Title"] = `QOEBIT ${plan.agent}`;
     }
 
     let aiModel = requestedModel || (useLovable ? "google/gemini-3-flash-preview" : "google/gemini-2.5-flash-preview-05-20");
@@ -692,7 +912,6 @@ serve(async (req) => {
       }
     }
 
-    // ── Stream the response with agent tag prefix ──
     const response = await fetch(aiUrl, {
       method: "POST",
       headers: aiHeaders,
@@ -700,7 +919,7 @@ serve(async (req) => {
         model: aiModel,
         messages: [
           { role: "system", content: systemContent },
-          ...messages,
+          ...finalMessages,
         ],
         stream: true,
       }),
@@ -718,12 +937,10 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "AI gateway error", status: response.status, details: t.slice(0, 800) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Prepend agent metadata as first SSE event
-    const agentMeta = `data: ${JSON.stringify({ choices: [{ delta: { content: `<!-- AGENT:${route.agent} -->\n` } }] })}\n\n`;
+    const agentMeta = `data: ${JSON.stringify({ choices: [{ delta: { content: `<!-- AGENT:${plan.agent} -->\n` } }] })}\n\n`;
     const encoder = new TextEncoder();
     const metaChunk = encoder.encode(agentMeta);
 
-    // Combine agent meta + AI stream
     const originalBody = response.body!;
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
