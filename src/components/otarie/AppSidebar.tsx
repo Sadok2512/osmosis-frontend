@@ -34,6 +34,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'rag', label: 'RAG Knowledge Base', icon: <Database className="w-5 h-5" /> },
   { id: 'docs', label: 'Documentation', icon: <BookOpen className="w-5 h-5" /> },
   { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },
+  { id: 'pulse_report', label: 'PULSE Report', icon: <Activity className="w-5 h-5" /> },
 ];
 
 const AppSidebar: React.FC<SidebarProps> = ({

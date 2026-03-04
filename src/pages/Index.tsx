@@ -18,6 +18,7 @@ import RadioProfilePage from '../components/otarie/RadioProfilePage';
 import BackendAdmin from '../components/otarie/BackendAdmin';
 import TopologiePage from '../components/otarie/TopologiePage';
 import ParametersPage from '../components/otarie/ParametersPage';
+import PulseReportPage from '../components/otarie/PulseReportPage';
 import KPIMonitorPage from '../components/kpi-monitor/KPIMonitorPage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
@@ -46,7 +47,7 @@ const Index: React.FC = () => {
     return {
       dashboard_overview: true, list: true, sites: true, traffic: true,
       alerts: true, detector: true, ai_assistant: true, radio_profile: true,
-      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, parameters: true,
+      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, parameters: true, pulse_report: true,
     };
   });
 
@@ -147,6 +148,8 @@ const Index: React.FC = () => {
         return <KPIMonitorPage />;
       case 'parameters':
         return <ParametersPage />;
+      case 'pulse_report':
+        return <PulseReportPage />;
       default:
         return null;
     }
