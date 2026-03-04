@@ -884,6 +884,8 @@ function isSentinelQuery(query: string): boolean {
 
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
+  // Topo inventory queries (nombre de cellules, combien de sites) → TOPO
+  if (isTopoInventoryQuery(query)) return "TOPO";
   // Topo metric distribution queries go to TOPO
   const met = detectMetric(query);
   const { isDim } = isDimensionQuery(query);
@@ -1024,10 +1026,15 @@ function buildContextPlan(
         break;
 
       case "TOPO":
-        needs.push("documents_rag", "topology");
-        if (scope.level === "site") {
-          needs.push("kpi_snapshot");
-          limits.maxCells = 30;
+        needs.push("documents_rag");
+        if (isTopoInventoryQuery(query)) {
+          needs.push("topo_inventory");
+        } else {
+          needs.push("topology");
+          if (scope.level === "site") {
+            needs.push("kpi_snapshot");
+            limits.maxCells = 30;
+          }
         }
         break;
     }
