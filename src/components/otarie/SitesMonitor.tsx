@@ -1493,7 +1493,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         bande: c.bande,
         azimut: c.azimut,
         hba: c.hba,
-        tilt: (c as any).tilt,
+        tilt: c.tilt,
       })),
     });
     setShowCoverageSim(true);
@@ -1577,7 +1577,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       lng: site.coordinates[1],
       azimuth: cell.azimut ?? 0,
       hba: cell.hba ?? 30,
-      tilt: 0,
+      tilt: cell.tilt ?? 0,
       techno: cell.techno ?? 'LTE',
       bande: cell.bande ?? '1800',
       name: site.site_name,
@@ -2555,7 +2555,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{cell.techno}</span></div>
                           <div className="flex justify-between"><span className="opacity-50">Band</span><span className="font-bold">{cell.bande}</span></div>
                           <div className="flex justify-between"><span className="opacity-50">Azimut</span><span className="font-bold">{cell.azimut}°</span></div>
-                          <div className="flex justify-between"><span className="opacity-50">Tilt</span><span className="font-bold">{(cell as any).tilt ?? '—'}°</span></div>
+                          <div className="flex justify-between"><span className="opacity-50">Tilt</span><span className="font-bold">{cell.tilt ?? '—'}°</span></div>
                           <div className="flex justify-between"><span className="opacity-50">HBA</span><span className="font-bold">{cell.hba ?? '—'} m</span></div>
                         </div>
                       </div>
@@ -4379,7 +4379,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           { label: 'Band', value: `${cell.bande} MHz` },
                           { label: 'Azimuth', value: `${cell.azimut}°` },
                           { label: 'HBA', value: `${cell.hba ?? '—'} m` },
-                          { label: 'E-Tilt', value: `${(cell as any).tilt ?? '—'}°` },
+                          { label: 'E-Tilt', value: `${cell.tilt ?? '—'}°` },
                           { label: 'PCI', value: `${(cell as any).pci ?? '—'}` },
                           { label: 'Status', value: (cell as any).etat_cellule ?? 'Active' },
                           { label: 'Sessions', value: cell.sessions?.toLocaleString() ?? '—' },
