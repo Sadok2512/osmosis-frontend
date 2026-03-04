@@ -197,16 +197,30 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     addDebugLog(`Payload size: ${(payload.length / 1024).toFixed(1)} KB`);
     addDebugLog(`Model: ${llmModel || '(default)'} | OpenRouter key: ${openrouterKey ? 'SET' : 'NONE'}`);
 
+    console.log('[QOEBIT] streamChat called', { url, mode: isLocalMode() ? 'LOCAL' : 'CLOUD', payloadKB: (payload.length / 1024).toFixed(1) });
+
+    // Timeout: 120s for the initial fetch
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      addDebugLog('⏱️ Request timeout after 120s');
+      console.error('[QOEBIT] Request timeout after 120s');
+      controller.abort();
+    }, 120000);
+
     let resp: Response;
     try {
       resp = await fetch(url, {
         method: 'POST',
         headers,
         body: payload,
+        signal: controller.signal,
       });
       addDebugLog(`Response status: ${resp.status} ${resp.statusText}`);
+      console.log('[QOEBIT] Response:', resp.status, resp.statusText);
     } catch (fetchErr: any) {
+      clearTimeout(timeoutId);
       addDebugLog(`Fetch error: ${fetchErr.message}`);
+      console.error('[QOEBIT] Fetch error:', fetchErr.message);
       // If local mode failed, try cloud fallback
       if (isLocalMode()) {
         addDebugLog('Falling back to Cloud...');
@@ -221,6 +235,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
         throw fetchErr;
       }
     }
+    clearTimeout(timeoutId);
 
     if (!resp.ok) {
       const errBody = await resp.text().catch(() => '');
@@ -236,8 +251,9 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       throw new Error('Failed to start stream');
     }
 
-    if (!resp.body) { addDebugLog('No response body!'); throw new Error('No body'); }
+    if (!resp.body) { addDebugLog('No response body!'); console.error('[QOEBIT] No response body'); throw new Error('No body'); }
     addDebugLog('Streaming started...');
+    console.log('[QOEBIT] Streaming started');
 
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -308,6 +324,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
         } catch { /* ignore */ }
       }
     }
+    addDebugLog(`✅ Stream complete. Response length: ${assistantSoFar.length}`);
+    console.log('[QOEBIT] Stream complete, length:', assistantSoFar.length);
     return assistantSoFar;
   };
 
