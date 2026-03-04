@@ -1078,7 +1078,10 @@ function isSiteDesignQuery(query) {
     'secteur','sector','couverture','coverage','analyse site','site design',
     'antenne','antenna','delta tilt','profil site','profile',
     'nombre de sites','nombre des sites','combien de sites','nb sites','sites par',
-    'répartition des sites','count sites','répartition site'
+    'répartition des sites','count sites','répartition site',
+    'toutes les plaque','toutes les dor','toutes les region',
+    'liste des plaque','liste des dor','liste des region',
+    'tous les plaque','tous les dor'
   ].some(h => n.includes(h));
 }
 function isSentinelQuery(query) {
@@ -1116,7 +1119,9 @@ function classifyIntent(query, scopeLevel) {
   if (isDistributionQuery(query)) return 'distribution';
   if (isChangeHistoryQuery(query)) return 'trace_change';
   // Topology / site count queries
-  if (['nombre de sites','nombre des sites','combien de sites','nb sites','sites par','répartition des sites','count sites'].some(h => n.includes(h))) return 'topo_stats';
+  if (['nombre de sites','nombre des sites','combien de sites','nb sites','sites par','répartition des sites','count sites',
+       'toutes les plaque','toutes les dor','toutes les region','liste des plaque','liste des dor','liste des region',
+       'tous les plaque','tous les dor'].some(h => n.includes(h))) return 'topo_stats';
   if (scopeLevel === 'cell') return 'cell_analysis';
   if (scopeLevel === 'site') return 'site_analysis';
   if (['compare','comparer','comparaison','vs','versus'].some(h => n.includes(h))) return 'compare';
@@ -1216,7 +1221,7 @@ function dimCols(isQoeMetric) {
     : { dim1: 'dimension_1', dim2: 'dimension_2' };
 }
 
-async function fetchAggStatsLocal(filters, maxDays) {
+async function fetchAggStatsLocal(filters, maxDays, query) {
   try {
     const src = await detectKpiTable();
     if (!src) return '';
@@ -1228,14 +1233,28 @@ async function fetchAggStatsLocal(filters, maxDays) {
       [src.table]
     );
     const availCols = new Set(colRes.rows.map(r => r.column_name));
-    const wantedKpis = ['qoe_index', 'debit_dl', 'debit_ul', 'rtt_data_avg', 'dms_debit_dl_3', 'dms_debit_dl_8', 'dms_debit_dl_30', 'tcp_retr_rate_dl', 'loss_dl_rate', 'session_dcr', 'session_nbr', 'wind_full_rate'];
+    const wantedKpis = ['qoe_index', 'debit_dl', 'debit_ul', 'rtt_data_avg', 'rtt_setup_avg', 'dms_debit_dl_3', 'dms_debit_dl_8', 'dms_debit_dl_30', 'tcp_retr_rate_dl', 'loss_dl_rate', 'session_dcr', 'session_nbr', 'wind_full_rate', 'volume_totale_dl', 'volume_totale_ul'];
     const selectKpis = wantedKpis.filter(c => availCols.has(c)).join(', ');
     if (!selectKpis) return '';
 
-    // Build WHERE clause based on filters
+    // Detect dimension from query text (e.g., "par dor", "par plaque", "par application")
+    const queryLower = (query || '').toLowerCase();
+    let queriedDim = null;
+    if (/\bpar\s+(dor|direction)\b/i.test(queryLower) || filters?.dor) queriedDim = 'DOR';
+    else if (/\bpar\s+(plaque)\b/i.test(queryLower) || filters?.plaque) queriedDim = 'Plaque';
+    else if (/\bpar\s+(vendor|constructeur|équipementier|fournisseur)\b/i.test(queryLower) || filters?.vendor) queriedDim = 'Vendor';
+    else if (/\bpar\s+(techno|technologie|rat)\b/i.test(queryLower) || filters?.techno) queriedDim = 'Techno';
+    else if (/\bpar\s+(region|région)\b/i.test(queryLower)) queriedDim = 'Region';
+    else if (/\bpar\s+(bande|fréquence|freq)\b/i.test(queryLower)) queriedDim = 'Bande';
+    else if (/\bpar\s+(site)\b/i.test(queryLower)) queriedDim = 'Site';
+    else if (/\bpar\s+(application|app)\b/i.test(queryLower)) queriedDim = 'Application';
+    else if (/\bpar\s+(cell|cellule)\b/i.test(queryLower)) queriedDim = 'Cell';
+
+    // Build WHERE clause
     const conditions = [];
-    const params = [];
-    if (filters?.vendor) {
+    if (queriedDim) {
+      conditions.push(`${dim1} = '${queriedDim}'`);
+    } else if (filters?.vendor) {
       conditions.push(`${dim1} = 'Vendor'`);
     } else if (filters?.techno) {
       conditions.push(`${dim1} = 'Techno'`);
@@ -1248,9 +1267,9 @@ async function fetchAggStatsLocal(filters, maxDays) {
 
     const { rows } = await sharedPool.query(
       `SELECT ${dim1} AS dimension_1, ${dim2} AS dimension_2, date_part, ${selectKpis}
-       FROM ${src.table} ${whereClause} ORDER BY date_part DESC LIMIT 500`
+       FROM ${src.table} ${whereClause} ORDER BY date_part DESC LIMIT 2000`
     );
-    console.log(`[fetchAggStatsLocal] Got ${rows.length} rows from ${src.table}`);
+    console.log(`[fetchAggStatsLocal] Got ${rows.length} rows from ${src.table} (dim=${queriedDim || 'auto'}, where=${whereClause || 'none'})`);
     if (!rows.length) return '';
 
     const groups = new Map();
@@ -1269,12 +1288,13 @@ async function fetchAggStatsLocal(filters, maxDays) {
     const lines = Array.from(groups.entries()).map(([k,g]) => {
       const vals = presentKpis.map(kpi => {
         const v = avg(g.vals[kpi]);
-        if (kpi.includes('rate') || kpi.includes('loss') || kpi.includes('retr')) return (v * 100).toFixed(2) + '%';
+        if (kpi.includes('rate') || kpi.includes('loss') || kpi.includes('retr') || kpi.includes('dcr')) return (v * 100).toFixed(2) + '%';
         return v.toFixed(1);
       });
       return `${k} | ${g.count} | ${vals.join(' | ')}`;
     });
-    return `STATS AGRÉGÉES (${rows.length} pts, ${groups.size} dims, source: ${src.table}):\n${header}\n${lines.join('\n')}`;
+    const dimLabel = queriedDim ? ` par ${queriedDim}` : '';
+    return `STATS AGRÉGÉES${dimLabel} (${rows.length} pts, ${groups.size} dims, source: ${src.table}):\n${header}\n${lines.join('\n')}`;
   } catch (e) { console.error('[fetchAggStatsLocal] ❌', e.message); return ''; }
 }
 
@@ -1489,7 +1509,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   if (plan.scope.level === 'dor' && !effectiveFilters.dor) effectiveFilters.dor = plan.scope.dor;
 
   if (plan.needs.includes('documents_rag')) promises.rag = searchRAGLocal(query);
-  if (plan.needs.includes('agg_stats')) promises.agg = fetchAggStatsLocal(effectiveFilters, plan.limits.maxDays);
+  if (plan.needs.includes('agg_stats')) promises.agg = fetchAggStatsLocal(effectiveFilters, plan.limits.maxDays, query);
   if (plan.needs.includes('worst_sites')) promises.worst = fetchWorstSitesLocal(effectiveFilters, plan.limits.maxSites);
   if (plan.needs.includes('kpi_snapshot') && plan.scope.level === 'site') promises.snapshot = fetchSiteSnapshotLocal(plan.scope.siteName);
   if (plan.needs.includes('topo_stats')) promises.topoStats = fetchTopoStatsLocal(query);
