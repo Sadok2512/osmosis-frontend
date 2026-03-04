@@ -5,3 +5,18 @@ verify_jwt = false
 
 [functions.import-dump]
 verify_jwt = false
+
+[functions.qoe-assistant]
+verify_jwt = false
+
+[functions.bi-assistant]
+verify_jwt = false
+
+[functions.qoe-map-extract]
+verify_jwt = false
+
+[functions.rag-embed]
+verify_jwt = false
+
+[functions.import-topo]
+verify_jwt = false
