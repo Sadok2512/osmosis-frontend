@@ -1223,78 +1223,88 @@ function dimCols(isQoeMetric) {
 
 async function fetchAggStatsLocal(filters, maxDays, query) {
   try {
-    const src = await detectKpiTable();
-    if (!src) return '';
-    const { dim1, dim2 } = dimCols(src.isQoeMetric);
+    // Try both tables, prefer qoe_metric but fallback to kpi_qoe_aggregated
+    const tables = [];
+    for (const t of ['qoe_metric', 'kpi_qoe_aggregated']) {
+      try {
+        const res = await sharedPool.query(`SELECT 1 FROM ${t} LIMIT 1`);
+        if (res.rows.length > 0) tables.push({ table: t, isQoeMetric: t === 'qoe_metric' });
+      } catch (_) {}
+    }
+    if (!tables.length) return '';
 
-    // Discover available columns
-    const colRes = await sharedPool.query(
-      `SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND table_schema = 'public'`,
-      [src.table]
-    );
-    const availCols = new Set(colRes.rows.map(r => r.column_name));
-    const wantedKpis = ['qoe_index', 'debit_dl', 'debit_ul', 'rtt_data_avg', 'rtt_setup_avg', 'dms_debit_dl_3', 'dms_debit_dl_8', 'dms_debit_dl_30', 'tcp_retr_rate_dl', 'loss_dl_rate', 'session_dcr', 'session_nbr', 'wind_full_rate', 'volume_totale_dl', 'volume_totale_ul'];
-    const selectKpis = wantedKpis.filter(c => availCols.has(c)).join(', ');
-    if (!selectKpis) return '';
-
-    // Detect dimension from query text (e.g., "par dor", "par plaque", "par application")
+    // Detect dimension from query text
     const queryLower = (query || '').toLowerCase();
     let queriedDim = null;
     if (/\bpar\s+(dor|direction)\b/i.test(queryLower) || filters?.dor) queriedDim = 'DOR';
     else if (/\bpar\s+(plaque)\b/i.test(queryLower) || filters?.plaque) queriedDim = 'Plaque';
     else if (/\bpar\s+(vendor|constructeur|équipementier|fournisseur)\b/i.test(queryLower) || filters?.vendor) queriedDim = 'Vendor';
-    else if (/\bpar\s+(techno|technologie|rat)\b/i.test(queryLower) || filters?.techno) queriedDim = 'Techno';
+    else if (/\b(par\s+techno|technologie|4g\s*(vs|et)\s*5g|5g\s*(vs|et)\s*4g)\b/i.test(queryLower) || filters?.techno) queriedDim = 'Techno';
     else if (/\bpar\s+(region|région)\b/i.test(queryLower)) queriedDim = 'Region';
     else if (/\bpar\s+(bande|fréquence|freq)\b/i.test(queryLower)) queriedDim = 'Bande';
     else if (/\bpar\s+(site)\b/i.test(queryLower)) queriedDim = 'Site';
     else if (/\bpar\s+(application|app)\b/i.test(queryLower)) queriedDim = 'Application';
     else if (/\bpar\s+(cell|cellule)\b/i.test(queryLower)) queriedDim = 'Cell';
 
-    // Build WHERE clause
-    const conditions = [];
-    if (queriedDim) {
-      conditions.push(`${dim1} = '${queriedDim}'`);
-    } else if (filters?.vendor) {
-      conditions.push(`${dim1} = 'Vendor'`);
-    } else if (filters?.techno) {
-      conditions.push(`${dim1} = 'Techno'`);
-    } else if (filters?.plaque) {
-      conditions.push(`${dim1} = 'Plaque'`);
-    } else if (filters?.dor) {
-      conditions.push(`${dim1} = 'DOR'`);
-    }
-    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    // Try each available table until we get data
+    for (const src of tables) {
+      const { dim1, dim2 } = dimCols(src.isQoeMetric);
+      const colRes = await sharedPool.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND table_schema = 'public'`,
+        [src.table]
+      );
+      const availCols = new Set(colRes.rows.map(r => r.column_name));
+      const wantedKpis = ['qoe_index', 'debit_dl', 'debit_ul', 'rtt_data_avg', 'rtt_setup_avg', 'dms_debit_dl_3', 'dms_debit_dl_8', 'dms_debit_dl_30', 'tcp_retr_rate_dl', 'loss_dl_rate', 'session_dcr', 'session_nbr', 'wind_full_rate', 'volume_totale_dl', 'volume_totale_ul'];
+      const selectKpis = wantedKpis.filter(c => availCols.has(c)).join(', ');
+      if (!selectKpis) continue;
 
-    const { rows } = await sharedPool.query(
-      `SELECT ${dim1} AS dimension_1, ${dim2} AS dimension_2, date_part, ${selectKpis}
-       FROM ${src.table} ${whereClause} ORDER BY date_part DESC LIMIT 2000`
-    );
-    console.log(`[fetchAggStatsLocal] Got ${rows.length} rows from ${src.table} (dim=${queriedDim || 'auto'}, where=${whereClause || 'none'})`);
-    if (!rows.length) return '';
-
-    const groups = new Map();
-    for (const r of rows) {
-      const key = r.dimension_2 || r.dimension_1 || 'Global';
-      if (!groups.has(key)) groups.set(key, { vals: {}, count: 0 });
-      const g = groups.get(key);
-      for (const k of wantedKpis.filter(c => availCols.has(c))) {
-        if (r[k] != null) { if (!g.vals[k]) g.vals[k] = []; g.vals[k].push(+r[k]); }
+      // Build WHERE
+      const conditions = [];
+      if (queriedDim) {
+        conditions.push(`${dim1} = '${queriedDim}'`);
+      } else if (filters?.vendor) {
+        conditions.push(`${dim1} = 'Vendor'`);
+      } else if (filters?.techno) {
+        conditions.push(`${dim1} = 'Techno'`);
+      } else if (filters?.plaque) {
+        conditions.push(`${dim1} = 'Plaque'`);
+      } else if (filters?.dor) {
+        conditions.push(`${dim1} = 'DOR'`);
       }
-      g.count++;
-    }
-    const avg = arr => arr && arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : 0;
-    const presentKpis = wantedKpis.filter(c => availCols.has(c));
-    const header = 'Dimension | Pts | ' + presentKpis.join(' | ');
-    const lines = Array.from(groups.entries()).map(([k,g]) => {
-      const vals = presentKpis.map(kpi => {
-        const v = avg(g.vals[kpi]);
-        if (kpi.includes('rate') || kpi.includes('loss') || kpi.includes('retr') || kpi.includes('dcr')) return (v * 100).toFixed(2) + '%';
-        return v.toFixed(1);
+      const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const { rows } = await sharedPool.query(
+        `SELECT ${dim1} AS dimension_1, ${dim2} AS dimension_2, date_part, ${selectKpis}
+         FROM ${src.table} ${whereClause} ORDER BY date_part DESC LIMIT 2000`
+      );
+      console.log(`[fetchAggStatsLocal] ${src.table}: ${rows.length} rows (dim=${queriedDim || 'auto'}, where=${whereClause || 'none'})`);
+      if (!rows.length) continue; // try next table
+
+      const groups = new Map();
+      for (const r of rows) {
+        const key = r.dimension_2 || r.dimension_1 || 'Global';
+        if (!groups.has(key)) groups.set(key, { vals: {}, count: 0 });
+        const g = groups.get(key);
+        for (const k of wantedKpis.filter(c => availCols.has(c))) {
+          if (r[k] != null) { if (!g.vals[k]) g.vals[k] = []; g.vals[k].push(+r[k]); }
+        }
+        g.count++;
+      }
+      const avg = arr => arr && arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : 0;
+      const presentKpis = wantedKpis.filter(c => availCols.has(c));
+      const header = 'Dimension | Pts | ' + presentKpis.join(' | ');
+      const lines = Array.from(groups.entries()).map(([k,g]) => {
+        const vals = presentKpis.map(kpi => {
+          const v = avg(g.vals[kpi]);
+          if (kpi.includes('rate') || kpi.includes('loss') || kpi.includes('retr') || kpi.includes('dcr')) return (v * 100).toFixed(2) + '%';
+          return v.toFixed(1);
+        });
+        return `${k} | ${g.count} | ${vals.join(' | ')}`;
       });
-      return `${k} | ${g.count} | ${vals.join(' | ')}`;
-    });
-    const dimLabel = queriedDim ? ` par ${queriedDim}` : '';
-    return `STATS AGRÉGÉES${dimLabel} (${rows.length} pts, ${groups.size} dims, source: ${src.table}):\n${header}\n${lines.join('\n')}`;
+      const dimLabel = queriedDim ? ` par ${queriedDim}` : '';
+      return `STATS AGRÉGÉES${dimLabel} (${rows.length} pts, ${groups.size} dims, source: ${src.table}):\n${header}\n${lines.join('\n')}`;
+    }
+    return ''; // no data in any table
   } catch (e) { console.error('[fetchAggStatsLocal] ❌', e.message); return ''; }
 }
 
