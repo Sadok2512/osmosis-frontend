@@ -295,17 +295,23 @@ const TopologiePage: React.FC = () => {
 
   useEffect(() => {
     if (shouldUseLocal && backendReachable === false) return;
+    if (shouldUseLocal && backendReachable === null) return; // wait for probe
     setFiltersLoading(true);
     const load = async () => {
-      const [p, v, d, pl, s, c, n, b, z] = await Promise.all([
-        fetchDistinct('parameter'), fetchDistinct('vendor'), fetchDistinct('dor'),
-        fetchDistinct('plaque'), fetchDistinct('site_name'), fetchDistinct('cell_name'),
-        fetchDistinct('netact'), fetchDistinct('bande'), fetchDistinct('zone_arcep'),
-      ]);
-      setAvailableParams(p); setAvailableVendors(v); setAvailableDors(d);
-      setAvailablePlaques(pl); setAvailableSites(s); setAvailableCells(c);
-      setAvailableNetacts(n); setAvailableBandes(b); setAvailableZoneArceps(z);
-      setFiltersLoading(false);
+      try {
+        const [p, v, d, pl, s, c, n, b, z] = await Promise.all([
+          fetchDistinct('parameter'), fetchDistinct('vendor'), fetchDistinct('dor'),
+          fetchDistinct('plaque'), fetchDistinct('site_name'), fetchDistinct('cell_name'),
+          fetchDistinct('netact'), fetchDistinct('bande'), fetchDistinct('zone_arcep'),
+        ]);
+        setAvailableParams(p); setAvailableVendors(v); setAvailableDors(d);
+        setAvailablePlaques(pl); setAvailableSites(s); setAvailableCells(c);
+        setAvailableNetacts(n); setAvailableBandes(b); setAvailableZoneArceps(z);
+      } catch (err) {
+        console.error('[TopologiePage] Failed to load filters:', err);
+      } finally {
+        setFiltersLoading(false);
+      }
     };
     load();
   }, [backendReachable, dataSource]);
