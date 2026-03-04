@@ -2217,7 +2217,7 @@ app.post('/api/qoe-assistant', async (req, res) => {
         'X-Title': `QOEBIT ${plan.agent}`,
       },
       body: JSON.stringify({
-        model: model || 'google/gemini-2.5-flash-preview-05-20',
+        model: model || 'google/gemini-2.5-flash',
         messages: enrichedMessages,
         stream: true,
       }),
