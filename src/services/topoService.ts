@@ -95,7 +95,7 @@ interface TopoRow {
   dor?: string | null;
   lac?: number | null;
   hebergeur_leader?: string | null;
-  relative_id?: number | null;
+  relative_id?: number | string | null;
 }
 
 function buildCellProperties(cellName: string, techno: string, bande: string, azimut: number, hba: number, extra?: Partial<TopoRow>): CellProperties {
