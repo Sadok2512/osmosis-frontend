@@ -230,6 +230,9 @@ function detectDimension1Type(message: string): Dimension1Type {
 function detectMetric(message: string): string {
   const n = message.toLowerCase();
   const map: [RegExp, string][] = [
+    [/\b(tilt|e[\s-]?tilt|inclinaison)\b/, "tilt"],
+    [/\b(azimut|azimuth|orientation)\b/, "azimut"],
+    [/\b(hba|hauteur\s*antenne|hauteur\s*bas)\b/, "hba"],
     [/\b(qos)\b/, "qos"],
     [/\b(qoe|qualit[eé])\b/, "qoe_index"],
     [/\b(debit\s*dl|throughput\s*dl|dl_throughput|débit\s*dl)\b/, "debit_dl"],
@@ -250,6 +253,8 @@ function detectMetric(message: string): string {
   }
   return "qoe_index"; // default
 }
+
+const TOPO_METRICS = new Set(["tilt", "azimut", "hba"]);
 
 // ── Data providers for dimension queries on kpi_qoe_aggregated ──
 
