@@ -279,8 +279,16 @@ const TopologiePage: React.FC = () => {
     try { return await dumpParameterApi.query(filters as any, cols, limit); } catch { return []; }
   };
 
-  const fetchDistinct = shouldUseLocal ? fetchDistinctLocal : fetchDistinctCloud;
-  const fetchRows = shouldUseLocal ? fetchRowsLocal : fetchRowsCloud;
+  const fetchDistinct = useCallback(
+    (col: string, extra?: Record<string, string>) =>
+      shouldUseLocal ? fetchDistinctLocal(col, extra) : fetchDistinctCloud(col, extra),
+    [shouldUseLocal]
+  );
+  const fetchRows = useCallback(
+    (filters: Record<string, string | string[]>, cols: string, limit?: number) =>
+      shouldUseLocal ? fetchRowsLocal(filters, cols, limit) : fetchRowsCloud(filters, cols, limit),
+    [shouldUseLocal]
+  );
 
   useEffect(() => {
     if (!shouldUseLocal) { setBackendReachable(null); return; }
