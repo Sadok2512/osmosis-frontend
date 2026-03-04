@@ -691,6 +691,68 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
 };
 
 /**
+ * FeedbackButtons: thumbs up/down for agent learning
+ */
+const FeedbackButtons: React.FC<{
+  sessionId: string;
+  messageIndex: number;
+  agent: string;
+  userQuestion: string;
+  assistantResponse: string;
+}> = ({ sessionId, messageIndex, agent, userQuestion, assistantResponse }) => {
+  const { submitFeedback, getFeedbackKey } = useAgentLearningStore();
+  const existing = getFeedbackKey(sessionId, messageIndex);
+
+  const handleRate = (rating: 1 | -1) => {
+    if (existing === rating) return; // already rated same
+    submitFeedback({
+      sessionId,
+      messageIndex,
+      userQuestion,
+      assistantResponse,
+      agent,
+      rating,
+    });
+    toast({
+      title: rating === 1 ? '👍 Merci !' : '👎 Noté',
+      description: rating === 1 ? 'Cette réponse sera utilisée comme exemple.' : 'Nous en tiendrons compte.',
+    });
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => handleRate(1)}
+        className={`p-1 rounded-md transition-all ${
+          existing === 1
+            ? 'bg-green-500/20 text-green-500'
+            : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/10'
+        }`}
+        title="Bonne réponse"
+      >
+        <ThumbsUp className="w-3.5 h-3.5" />
+      </button>
+      <button
+        onClick={() => handleRate(-1)}
+        className={`p-1 rounded-md transition-all ${
+          existing === -1
+            ? 'bg-red-500/20 text-red-500'
+            : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/10'
+        }`}
+        title="Mauvaise réponse"
+      >
+        <ThumbsDown className="w-3.5 h-3.5" />
+      </button>
+      {existing && (
+        <span className="text-[9px] text-muted-foreground ml-1 flex items-center gap-1">
+          <Brain className="w-3 h-3" /> Apprentissage
+        </span>
+      )}
+    </div>
+  );
+};
+
+/**
  * ExportPDFButton: exports a specific assistant message to PDF
  */
 const ExportPDFButton: React.FC<{ msgRef: string; index: number }> = ({ msgRef, index }) => {
