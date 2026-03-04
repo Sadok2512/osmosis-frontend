@@ -1381,17 +1381,24 @@ async function fetchAggStatsLocal(filters, maxDays, query) {
     }
     const avg = arr => arr && arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : 0;
     const presentKpis = wantedKpis.filter(c => availCols.has(c));
-    const header = 'Dimension | Pts | ' + presentKpis.join(' | ');
+    const header = '| Dimension | Pts | ' + presentKpis.join(' | ') + ' |';
+    const sep = '|' + ['---','---', ...presentKpis.map(() => '---')].join('|') + '|';
+    // Detect if rate columns already in percent
+    const rateKeysAgg = presentKpis.filter(k => k.includes('rate') || k.includes('loss') || k.includes('retr') || k.includes('dcr'));
+    const needsMultiplyAgg = rateKeysAgg.length > 0 && Array.from(groups.values()).some(g => { const v = avg(g.vals[rateKeysAgg[0]]); return v > 0 && v <= 1; });
     const lines = Array.from(groups.entries()).map(([k,g]) => {
       const vals = presentKpis.map(kpi => {
         const v = avg(g.vals[kpi]);
-        if (kpi.includes('rate') || kpi.includes('loss') || kpi.includes('retr') || kpi.includes('dcr')) return (v * 100).toFixed(2) + '%';
+        if (kpi.includes('rate') || kpi.includes('loss') || kpi.includes('retr') || kpi.includes('dcr')) {
+          const pct = needsMultiplyAgg ? (v * 100) : v;
+          return pct.toFixed(2) + '%';
+        }
         return v.toFixed(1);
       });
-      return `${k} | ${g.count} | ${vals.join(' | ')}`;
+      return `| ${k} | ${g.count} | ${vals.join(' | ')} |`;
     });
     const dimLabel = queriedDim ? ` par ${queriedDim}` : '';
-    return `STATS AGRÉGÉES${dimLabel} (${rows.length} pts, ${groups.size} dims, source: ${src.table}):\n${header}\n${lines.join('\n')}`;
+    return `STATS AGRÉGÉES${dimLabel} (${rows.length} pts, ${groups.size} dims, source: ${src.table}):\n\n${header}\n${sep}\n${lines.join('\n')}`;
   } catch (e) { console.error('[fetchAggStatsLocal] ❌', e.message); return ''; }
 }
 
@@ -1610,11 +1617,14 @@ async function fetchSiteSnapshotLocal(siteName) {
     console.log(`[fetchSiteSnapshotLocal] Found ${rows.length} rows in ${src.table} for "${siteName}"`);
     if (!rows.length) return '';
     const kpis = ['qoe_index','debit_dl','debit_ul','rtt_data_avg','rtt_setup_avg','dms_debit_dl_3','dms_debit_dl_8','dms_debit_dl_30','loss_dl_rate','tcp_retr_rate_dl','session_dcr','session_nbr','wind_full_rate'];
+    const fmtDate = (d) => { if (!d) return '-'; const s = String(d); const m = s.match(/^(\d{4})-?(\d{2})-?(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`; try { return new Date(s).toISOString().slice(0,10); } catch(e) { return s.slice(0,10); } };
     const lines = rows.slice(0,10).map(r => {
       const vals = kpis.map(k => r[k] != null ? (+r[k]).toFixed(2) : '-');
-      return `${r.date_part} | ${r.dim1_val} | ${r.dim2_val} | ${vals.join(' | ')}`;
+      return `| ${fmtDate(r.date_part)} | ${r.dim1_val} | ${r.dim2_val} | ${vals.join(' | ')} |`;
     });
-    return `SITE SNAPSHOT "${siteName}" (${rows.length} pts, source: ${src.table}):\nDate | Dim1 | Dim2 | ${kpis.join(' | ')}\n${lines.join('\n')}`;
+    const header = `| Date | Dim1 | Dim2 | ${kpis.join(' | ')} |`;
+    const sep = '|' + ['---','---','---', ...kpis.map(() => '---')].join('|') + '|';
+    return `SITE SNAPSHOT "${siteName}" (${rows.length} pts, source: ${src.table}):\n\n${header}\n${sep}\n${lines.join('\n')}`;
   } catch (e) { console.error('[fetchSiteSnapshotLocal]', e.message); return ''; }
 }
 
@@ -1627,12 +1637,13 @@ async function searchTopoLocal(siteName) {
        FROM topo WHERE nom_site ILIKE $1 ORDER BY nom_cellule LIMIT 100`, [`%${siteName}%`]
     );
     if (!rows.length) return '';
-    const header = 'nom_cellule | techno | bande | azimut | RET | hba | pci | tac | etat | constructeur | lat | lng';
+    const header = '| nom_cellule | techno | bande | azimut | RET | hba | pci | tac | etat | constructeur | lat | lng |';
+    const sep = '|---|---|---|---|---|---|---|---|---|---|---|---|';
     const lines = rows.map(r =>
-      `${r.nom_cellule} | ${r.techno||''} | ${r.bande||''} | ${r.azimut??'-'} | ${r.tilt??'-'} | ${r.hba??'-'} | ${r.pci??'-'} | ${r.tac??'-'} | ${r.etat_cellule||'-'} | ${r.constructeur||'-'} | ${r.latitude??'-'} | ${r.longitude??'-'}`
+      `| ${r.nom_cellule} | ${r.techno||''} | ${r.bande||''} | ${r.azimut??'-'} | ${r.tilt??'-'} | ${r.hba??'-'} | ${r.pci??'-'} | ${r.tac??'-'} | ${r.etat_cellule||'-'} | ${r.constructeur||'-'} | ${r.latitude??'-'} | ${r.longitude??'-'} |`
     );
     const first = rows[0];
-    return `TOPO "${first.nom_site}" (${first.code_nidt}, ${first.region||'-'}, ${first.plaque||'-'}, ${first.constructeur||'-'})\n${rows.length} cells:\n${header}\n${lines.join('\n')}`;
+    return `TOPO "${first.nom_site}" (${first.code_nidt}, ${first.region||'-'}, ${first.plaque||'-'}, ${first.constructeur||'-'})\n${rows.length} cells:\n\n${header}\n${sep}\n${lines.join('\n')}`;
   } catch (e) { console.error('[searchTopoLocal]', e.message); return ''; }
 }
 
@@ -1685,15 +1696,16 @@ async function fetchMetricDistributionLocal(dimension1Type, metric, filters, day
     const { rows } = await sharedPool.query(sql, params);
     if (!rows.length) return `Aucune donnée pour ${dim1}='${dimension1Type}' dans ${src.table}.`;
     const header = hasSessionNbr
-      ? `# | ${dimension1Type} | AVG(${metricCol}) | Sessions`
-      : `# | ${dimension1Type} | AVG(${metricCol})`;
+      ? `| # | ${dimension1Type} | AVG(${metricCol}) | Sessions |`
+      : `| # | ${dimension1Type} | AVG(${metricCol}) |`;
+    const sep = hasSessionNbr ? '|---|---|---|---|' : '|---|---|---|';
     const lines = rows.map((r, i) => {
-      const base = `${i+1} | ${r.label} | ${Number(r.value).toFixed(2)}`;
-      return hasSessionNbr ? `${base} | ${r.sessions || 0}` : base;
+      const base = `| ${i+1} | ${r.label} | ${Number(r.value).toFixed(2)}`;
+      return hasSessionNbr ? `${base} | ${r.sessions || 0} |` : `${base} |`;
     });
     const chartData = rows.slice(0, 15).map(r => ({ label: r.label, value: Math.round(Number(r.value) * 100) / 100 }));
     const chartJson = JSON.stringify({ type: 'bar', title: `${metricCol} par ${dimension1Type}`, xKey: 'label', yKeys: ['value'], data: chartData });
-    return `DISTRIBUTION ${metricCol} par ${dimension1Type} (${rows.length} valeurs, source: ${src.table}):\n${header}\n${lines.join('\n')}\n\nINSTRUCTION: Utilise ces données pour répondre. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+    return `DISTRIBUTION ${metricCol} par ${dimension1Type} (${rows.length} valeurs, source: ${src.table}):\n\n${header}\n${sep}\n${lines.join('\n')}\n\nINSTRUCTION: Utilise ces données pour répondre. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
   } catch (e) { console.error('[fetchMetricDistributionLocal]', e.message); return ''; }
 }
 
@@ -1735,9 +1747,13 @@ async function fetchTopoStatsLocal(query) {
     if (!rows.length) return '';
     const totalSites = rows.reduce((s, r) => s + parseInt(r.nb_sites), 0);
     const totalCells = rows.reduce((s, r) => s + parseInt(r.nb_cells), 0);
-    const header = `${groupLabel} | Nb Sites | Nb Cellules`;
-    const lines = rows.map(r => `${r.grp} | ${r.nb_sites} | ${r.nb_cells}`);
-    return `RÉPARTITION DES SITES PAR ${groupLabel.toUpperCase()} (table topo):\nTotal : ${totalSites} sites, ${totalCells} cellules\n${header}\n${lines.join('\n')}`;
+    const header = `| ${groupLabel} | Nb Sites | Nb Cellules |`;
+    const sep = '|---|---|---|';
+    const lines = rows.map(r => `| ${r.grp} | ${r.nb_sites} | ${r.nb_cells} |`);
+    // Add chart data
+    const chartData = rows.slice(0, 15).map(r => ({ label: r.grp, value: parseInt(r.nb_sites) }));
+    const chartJson = JSON.stringify({ type: 'bar', title: `Sites par ${groupLabel}`, xKey: 'label', yKeys: ['value'], data: chartData });
+    return `RÉPARTITION DES SITES PAR ${groupLabel.toUpperCase()} (table topo):\nTotal : ${totalSites} sites, ${totalCells} cellules\n\n${header}\n${sep}\n${lines.join('\n')}\n\nINSTRUCTION: Présente ces données en tableau et inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
   } catch (e) { console.error('[fetchTopoStatsLocal]', e.message); return ''; }
 }
 
@@ -1765,76 +1781,118 @@ Réponds TOUJOURS en français.`;
 const AGENT_PROMPTS = {
   PULSE: `Tu es **PULSE** 📡, agent spécialisé en performance RAN et QoE réseau mobile.
 
-## CATALOGUE DES 32 KPIs CORE (table qoe_metric)
+## 32 KPIs PRINCIPAUX (colonnes qoe_metric / kpi_qoe_aggregated)
+### QoE & Sessions
+- qoe_index (QoE Score, %, 🟢>75 🟡65-75 🟠50-65 🔴<50)
+- session_nbr (Nombre de sessions, count)
+- session_dcr (Drop Call Rate, %)
+- session_dur_moy (Durée moyenne session, s)
+- Mauvaise_Session_Rate (Taux mauvaises sessions, %)
+- Mauvaise_Session_nbr (Nombre mauvaises sessions, count)
 
-### 🟢 QoE & Qualité (couleur: #22c55e)
-1. **qoe_index** — Score QoE global (%) — orientation: ↑ higher=better
-2. **Mauvaise_Session_Rate** — Taux de mauvaises sessions (%) — orientation: ↓ lower=better
-3. **Mauvaise_Session_nbr** — Nombre de mauvaises sessions (#)
+### Débits
+- debit_dl (Débit DL moyen, Mbps, 🟢>50 🟡20-50 🟠10-20 🔴<10)
+- debit_ul (Débit UL moyen, Mbps)
+- debit_dl_max (Débit DL max, Mbps)
+- debit_ul_max (Débit UL max, Mbps)
+- volume_totale_dl (Volume DL, GB)
+- volume_totale_ul (Volume UL, GB)
+- volume_totale_totale (Volume Total, GB)
 
-### 🔵 Débit DL (couleur: #3b82f6)
-4. **debit_dl** — Débit moyen DL (Mbps)
-5. **debit_dl_max** — Débit max DL (Mbps)
-6. **debit_dl_vol5** — Débit DL Vol5 (Mbps)
-7. **debit_dl_vol10** — Débit DL Vol10 (Mbps)
+### DMS (Disponibilité Minimum de Service)
+- dms_debit_dl_3 (DMS DL > 3Mbps, %, 🟢>95 🟠<90)
+- dms_debit_dl_8 (DMS DL > 8Mbps, %, 🟢>85 🟠<75)
+- dms_debit_dl_30 (DMS DL > 30Mbps, %)
+- dms_debit_ul_1 (DMS UL > 1Mbps, %)
+- dms_debit_ul_3 (DMS UL > 3Mbps, %)
+- dms_debit_ul_5 (DMS UL > 5Mbps, %)
 
-### 🟣 Débit UL (couleur: #8b5cf6)
-8. **debit_ul** — Débit moyen UL (Mbps)
-9. **debit_ul_max** — Débit max UL (Mbps)
-10. **debit_ul_vol5** — Débit UL Vol5 (Mbps)
-11. **debit_ul_vol10** — Débit UL Vol10 (Mbps)
+### Latence (RTT)
+- rtt_setup_avg (RTT Setup, µs, 🟢<40000 🟠>80000 🔴>150000)
+- rtt_data_avg (RTT Data, µs, 🟢<40000 🟠>80000 🔴>150000)
 
-### 🟠 Latence RTT (couleur: #f97316)
-12. **rtt_setup_avg** — RTT Setup moyen (µs)
-13. **rtt_data_avg** — RTT Data moyen (µs)
+### TCP (Pertes & Retransmissions)
+- loss_dl_rate (Perte DL, %, 🟢<1 🟠1-3 🔴>3)
+- loss_ul_rate (Perte UL, %)
+- tcp_retr_rate_dl (Retransmission DL, %, 🟢<1 🟠1-3 🔴>5)
+- tcp_retr_rate_ul (Retransmission UL, %)
+- out_of_order_rate (Out of Order, %)
+- wind_full_rate (Window Full, %)
 
-### 🔴 Loss & Retransmission (couleur: #ef4444)
-14. **loss_dl_rate** — Taux de perte DL (%)
-15. **loss_ul_rate** — Taux de perte UL (%)
-16. **tcp_retr_rate_dl** — Taux retransmission TCP DL (%)
-17. **tcp_retr_rate_ul** — Taux retransmission TCP UL (%)
+### Mobilité & RAT
+- fallback_5G_to_4G_rate (Fallback 5G→4G, %)
+- fallback_4G_to_3G2G_rate (Fallback 4G→3G/2G, %)
+- instability_rate (Instabilité RAT, %)
+- time_rat_5g_pct (Temps en 5G, %)
+- time_rat_4g_pct (Temps en 4G, %)
 
-### 🩵 DMS - Débit Moyen par Session (couleur: #06b6d4)
-18. **dms_debit_dl_3** — DMS DL 3 Mbps (%)
-19. **dms_debit_dl_8** — DMS DL 8 Mbps (%)
-20. **dms_debit_dl_30** — DMS DL 30 Mbps (%)
-21. **dms_debit_ul_1** — DMS UL 1 Mbps (%)
-22. **dms_debit_ul_3** — DMS UL 3 Mbps (%)
-23. **dms_debit_ul_5** — DMS UL 5 Mbps (%)
+## 16 DIMENSIONS (Dimension_1 → valeurs Dimension_2)
+- Cellule → nom_cellule (identifiant logique antenne)
+- Site → nom_site (identifiant physique)
+- Vendor → Nokia, Ericsson, Samsung, Huawei
+- Bande → NR_3500, NR_700, NR_2100, LTE2100, LTE800, LTE2600, LTE1800, LTE700
+- ARCEP → Top15, TGV, AXE, Rural, Intermédiaire
+- Application → Streaming, WEB
+- RAT → 0(Réservé), 1(3G), 2(2G), 3(WiFi), 4(5G NSA), 6(4G LTE), 10(5G SA)
+- TAC → FWA (box), Mobile
+- AS → Google, Amazon, Microsoft, Meta, Other
+- POP → CNM (probe 5G), CNL (probe non-5G)
+- Device_brand → Samsung, iPhone, Other
+- OS → Android, iOS, Other
+- DOR → (toutes les DOR depuis topo.region)
+- Plaque → (toutes les plaques)
+- ORF → Chat, Cloud, Control, Download, Enterprise, Games, MMS, Mail, MailOrange, Others, P2P, Streaming, Unknown, VPN, VVM, VoIP, WEB
 
-### 📊 Sessions (couleur: #a855f7)
-24. **session_nbr** — Nombre total de sessions (#)
-25. **session_dcr** — Taux de coupures (%)
-26. **session_dur_moy** — Durée moyenne de session (s)
+## PRÉSENTATION DES RÉSULTATS
+Pour les requêtes "worst/pires/top dégradés", structure TOUJOURS ta réponse comme suit :
+1. **Titre** avec emoji et nombre de résultats (ex: "📊 TOP 10 WORST SITES (Ranking par QoE)")
+2. **Aperçu Critique** : Bloc \`\`\`kpi avec 3 KPIs résumés (pire QoE, RTT max, sessions totales)
+3. **Tableau Markdown** avec colonnes propres (# | Site | Date | QoE | Débit DL | RTT | Loss DL | Retr DL | Sessions | Status)
+4. **Colonne Status** : 🔴 si QoE<50%, 🟠 si 50-65%, 🟡 si 65-75%, 🟢 si >75%
+5. **Analyse de la performance** avec insights et recommandations
 
-### 📶 Stabilité & Mobilité (couleur: #14b8a6)
-27. **out_of_order_rate** — Taux out-of-order (%)
-28. **wind_full_rate** — Taux Window Full (%)
-29. **fallback_5G_to_4G_rate** — Taux fallback 5G→4G (%)
-30. **instability_rate** — Taux d'instabilité (%)
-
-### 📡 RAT Distribution (couleur: #64748b)
-31. **time_rat_5g_pct** — Temps en 5G (%)
-32. **time_rat_4g_pct** — Temps en 4G (%)
-
-### 📦 Volume (couleur: #0ea5e9)
-- **volume_totale_dl** — Volume DL total (Go)
-- **volume_totale_ul** — Volume UL total (Go)
-
-## SEUILS
-- QoE < 50% → 🔴 Critique | 50-65% → 🟠 Dégradé | 65-75% → 🟡 Moyen | > 75% → 🟢 Bon
-- DMS3 < 90% → 🟠 | RTT > 100ms → 🟠 | TCP Loss > 2% → 🔴
-
-## DIMENSIONS SUPPORTÉES
-Vendor, DOR, Plaque, RAT, Site, Cellule, Bande, Region, Zone ARCEP, Application, Techno, OS, Terminal, Débit, Unknown.
-
-## COMPARAISONS
-1) Bloc kpi 2) Tableau comparatif 3) Chart bar groupé 4) Synthèse + recommandations.
-
+COMPARAISONS : 1) Bloc kpi 2) Tableau comparatif 3) Chart bar groupé 4) Synthèse + recommandations.
 ${SHARED_RULES}`,
-  TRACE: `Tu es **TRACE** 🔧, agent spécialisé en historique de configuration et changements réseau (CM History).\nDomaine : tuning, upgrades SW, swaps, rollbacks.\nPrésente les changements en timeline chronologique + tableau avant/après + corrélation KPIs.\n${SHARED_RULES}`,
-  SENTINEL: `Tu es **SENTINEL** 🚨, agent spécialisé en détection d'anomalies et RCA.\nStructure RCA : 1) Classe cause racine 2) Résumé 3) Preuves KPI 4) Actions recommandées 5) Confiance.\nSeuils : QoE<50% → 🔴, DMS3<90% → 🟠, RTT>100ms → 🟠, TCP Loss>2% → 🔴.\n${SHARED_RULES}`,
-  TOPO: `Tu es **TOPO** 🗼, agent spécialisé en design de sites radio et topologie.\nDiagnostic 8 critères : Nb secteurs, espacement azimuthal, cohérence az intra-secteur, Delta Tilt (<3°), HBA, co-loc 5G/4G, diversité bandes, état cellules.\nVerdict : ✅ OK / ⚠️ REVIEW / ❌ ISSUES.\n${SHARED_RULES}`,
+  TRACE: `Tu es **TRACE** 🔧, agent spécialisé en historique de configuration et changements réseau (CM History).
+Domaine : tuning, upgrades SW, swaps, rollbacks.
+Présente les changements en timeline chronologique + tableau avant/après + corrélation KPIs.
+${SHARED_RULES}`,
+  SENTINEL: `Tu es **SENTINEL** 🚨, agent spécialisé en détection d'anomalies et RCA.
+Structure RCA : 1) Classe cause racine 2) Résumé 3) Preuves KPI 4) Actions recommandées 5) Confiance.
+Seuils : QoE<50% → 🔴, DMS3<90% → 🟠, RTT>100ms → 🟠, TCP Loss>2% → 🔴.
+${SHARED_RULES}`,
+  TOPO: `Tu es **TOPO** 🗼, agent spécialisé en topologie réseau, design de sites radio et inventaire infrastructure.
+
+## COMPÉTENCES
+1. **Inventaire** : Nombre exact de cellules, sites, répartition par bande/techno/constructeur/DOR
+2. **Design de site** : Diagnostic 8 critères (azimut, tilt, HBA, co-loc 5G/4G, diversité bandes, état cellules)
+3. **Métriques physiques** : Tilt, azimut, HBA — distribution et analyse par dimension
+
+## DONNÉES SOURCES
+- Table **topo** : colonnes code_nidt, nom_site, nom_cellule, techno, bande, constructeur, azimut, tilt, hba, pci, tac, eci, nci, etat_cellule, zone_arcep, plaque, dor, latitude, longitude
+- Les données te sont fournies dans le contexte ci-dessous. Utilise-les DIRECTEMENT.
+
+## COULEURS TEXTE (utilise du Markdown gras et émojis pour mettre en valeur)
+- Tilt : 🔷 (teal)
+- Azimut : 🔵 (bleu royal)
+- HBA : 🟣 (violet)
+- Nb sites : 🟩 (vert forêt)
+- Nb cells : ♻️ (émeraude)
+- DOR : 🔹 (indigo)
+- Bande : 🟧 (orange)
+- Constructeur : 🩷 (rose)
+- Zone ARCEP : 🟨 (jaune)
+
+## COULEURS CHARTS
+Quand tu génères un chart bar, utilise des couleurs distinctes par catégorie :
+- colors: ["#0d9488","#2563eb","#9333ea","#ea580c","#16a34a","#be185d","#ca8a04","#0891b2"]
+
+## RÈGLES DE RÉPONSE
+- Pour les inventaires : présente un tableau Markdown avec les totaux + un chart bar
+- Pour les analyses par dimension : tableau + chart + commentaire
+- Verdict site : ✅ OK / ⚠️ REVIEW / ❌ ISSUES
+- Si une métrique (ex: tilt) a toutes ses valeurs NULL, dis-le explicitement
+${SHARED_RULES}`,
 };
 
 // --- Context builder ---
