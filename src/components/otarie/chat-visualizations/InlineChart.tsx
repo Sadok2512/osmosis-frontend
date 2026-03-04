@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   LineChart, Line, BarChart, Bar, AreaChart, Area, ScatterChart, Scatter,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, LabelList
 } from 'recharts';
 
 export interface ChartBlock {
@@ -37,7 +37,9 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
             <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }} formatter={(value: number, name: string) => [`${value} cellules`, name]} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
             {yKeys.map((key, i) => (
-              <Bar key={key} dataKey={key} fill={palette[i % palette.length]} radius={[4, 4, 0, 0]} />
+              <Bar key={key} dataKey={key} fill={palette[i % palette.length]} radius={[4, 4, 0, 0]}>
+                <LabelList dataKey={key} position="right" style={{ fontSize: 10, fontWeight: 700, fill: palette[i % palette.length] }} formatter={(v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v} />
+              </Bar>
             ))}
           </BarChart>
         );
