@@ -378,19 +378,33 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
         };
       });
 
-      // Call API (local or cloud)
-      const res = await fetch(getApiUrl('import-topo'), {
-        method: 'POST',
-        headers: getApiHeaders(),
-        body: JSON.stringify({ rows, clear_before: true }),
-      });
-      const result = await res.json();
-      if (result.error && !result.inserted) throw new Error(result.error);
-      if (result.errors?.length) console.warn('[import-topo] Batch errors:', result.errors);
+      // Send in chunks to avoid edge function CPU limits
+      const CHUNK_SIZE = 10000;
+      let totalInserted = 0;
+      const allErrors: string[] = [];
 
-      setTopoCount(result.inserted);
+      for (let c = 0; c < rows.length; c += CHUNK_SIZE) {
+        const chunk = rows.slice(c, c + CHUNK_SIZE);
+        const isFirst = c === 0;
+        setTopoStatus({ message: `Import lot ${Math.floor(c / CHUNK_SIZE) + 1}/${Math.ceil(rows.length / CHUNK_SIZE)} (${c}/${rows.length})...`, type: 'info' });
+
+        const res = await fetch(getApiUrl('import-topo'), {
+          method: 'POST',
+          headers: getApiHeaders(),
+          body: JSON.stringify({ rows: chunk, clear_before: isFirst }),
+        });
+        const result = await res.json();
+        if (!res.ok || result.code || (result.error && !result.inserted)) {
+          throw new Error(result.message || result.error || `HTTP ${res.status}`);
+        }
+        if (result.errors?.length) allErrors.push(...result.errors);
+        totalInserted += (result.inserted || 0);
+      }
+
+      if (allErrors.length) console.warn('[import-topo] Batch errors:', allErrors);
+      setTopoCount(totalInserted);
       invalidateSitesCache();
-      setTopoStatus({ message: `✓ ${result.inserted} cellules importées avec succès. Rechargez la carte pour voir les nouvelles données.`, type: 'success' });
+      setTopoStatus({ message: `✓ ${totalInserted.toLocaleString()} cellules importées avec succès. Rechargez la carte pour voir les nouvelles données.`, type: 'success' });
     } catch (err: any) {
       setTopoStatus({ message: `Erreur: ${err.message}`, type: 'error' });
     } finally {
@@ -682,7 +696,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               {topoCount !== null && (
                 <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl">
                   <Database className="w-4 h-4 text-primary" />
-                  <span className="text-[11px] font-black text-primary">{topoCount.toLocaleString()} cellules</span>
+                  <span className="text-[11px] font-black text-primary">{(topoCount ?? 0).toLocaleString()} cellules</span>
                 </div>
               )}
             </div>
