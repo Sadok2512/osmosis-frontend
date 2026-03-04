@@ -547,22 +547,28 @@ async function fetchTopoInventory(filters?: AssistantFilters): Promise<string> {
     if (!data) return "";
 
     const stats = data as any;
-    let result = `INVENTAIRE TOPOLOGIQUE (données exactes)\n`;
+    let result = `INVENTAIRE TOPOLOGIQUE (données exactes de la table topo)\n`;
     result += `Total cellules: ${stats.total_cells}\n`;
     result += `Total sites distincts: ${stats.total_sites}\n`;
     result += `Moyenne cellules/site: ${stats.total_sites ? (stats.total_cells / stats.total_sites).toFixed(1) : "?"}\n\n`;
 
     if (stats.by_techno) {
-      result += `Par Technologie:\n${Object.entries(stats.by_techno).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+      const technoEntries = Object.entries(stats.by_techno).sort(([,a],[,b]) => (b as number) - (a as number));
+      result += `Par Technologie:\n${technoEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
     }
     if (stats.by_bande) {
-      result += `Par Bande:\n${Object.entries(stats.by_bande).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+      const bandeEntries = Object.entries(stats.by_bande).sort(([,a],[,b]) => (b as number) - (a as number));
+      result += `Par Bande:\n${bandeEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+      // Add chart instruction
+      const chartData = bandeEntries.slice(0, 15).map(([k, v]) => ({ label: k, value: v }));
+      result += `INSTRUCTION: Présente ces données dans un tableau Markdown ET inclus ce chart:\n\`\`\`chart\n${JSON.stringify({ type: "bar", title: "Cellules par Bande", xKey: "label", yKeys: ["value"], data: chartData })}\n\`\`\`\n\n`;
     }
     if (stats.by_constructeur) {
       result += `Par Constructeur:\n${Object.entries(stats.by_constructeur).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
     }
     if (stats.by_dor) {
-      result += `Par DOR:\n${Object.entries(stats.by_dor).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
+      const dorEntries = Object.entries(stats.by_dor).sort(([,a],[,b]) => (b as number) - (a as number));
+      result += `Par DOR:\n${dorEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
     }
 
     return result;
@@ -1268,9 +1274,22 @@ Structure RCA : 1) Classe cause racine 2) Résumé 3) Preuves KPI 4) Actions rec
 Seuils : QoE<50% → 🔴, DMS3<90% → 🟠, RTT>100ms → 🟠, TCP Loss>2% → 🔴.
 ${SHARED_RULES}`;
 
-const TOPO_PROMPT = `Tu es **TOPO** 🗼, agent spécialisé en design de sites radio et topologie.
-Diagnostic 8 critères : Nb secteurs, espacement azimuthal, cohérence az intra-secteur, Delta Tilt (<3°), HBA, co-loc 5G/4G, diversité bandes, état cellules.
-Verdict : ✅ OK / ⚠️ REVIEW / ❌ ISSUES.
+const TOPO_PROMPT = `Tu es **TOPO** 🗼, agent spécialisé en topologie réseau, design de sites radio et inventaire infrastructure.
+
+## COMPÉTENCES
+1. **Inventaire** : Nombre exact de cellules, sites, répartition par bande/techno/constructeur/DOR
+2. **Design de site** : Diagnostic 8 critères (azimut, tilt, HBA, co-loc 5G/4G, diversité bandes, état cellules)
+3. **Métriques physiques** : Tilt, azimut, HBA — distribution et analyse par dimension
+
+## DONNÉES SOURCES
+- Table **topo** : colonnes code_nidt, nom_site, nom_cellule, techno, bande, constructeur, azimut, tilt, hba, pci, tac, eci, nci, etat_cellule, zone_arcep, plaque, dor, latitude, longitude
+- Les données te sont fournies dans le contexte ci-dessous. Utilise-les DIRECTEMENT.
+
+## RÈGLES DE RÉPONSE
+- Pour les inventaires : présente un tableau Markdown avec les totaux + un chart bar
+- Pour les analyses par dimension : tableau + chart + commentaire
+- Verdict site : ✅ OK / ⚠️ REVIEW / ❌ ISSUES
+- Si une métrique (ex: tilt) a toutes ses valeurs NULL, dis-le explicitement : "Les valeurs de tilt ne sont pas renseignées dans la base de données."
 ${SHARED_RULES}`;
 
 function getAgentPrompt(agent: AgentId): string {
