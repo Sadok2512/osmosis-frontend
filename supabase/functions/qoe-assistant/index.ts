@@ -401,9 +401,15 @@ async function fetchAggStats(filters?: AssistantFilters, maxDays = 7): Promise<s
       .order("date_part", { ascending: false })
       .limit(500);
 
-    if (filters?.vendor) q = q.ilike("dimension_2", `%${filters.vendor}%`);
-    if (filters?.plaque) q = q.ilike("dimension_2", `%${filters.plaque}%`);
-    if (filters?.dor) q = q.ilike("dimension_2", `%${filters.dor}%`);
+    if (filters?.vendor) {
+      q = q.eq("dimension_1", "Vendor").ilike("dimension_2", `%${filters.vendor}%`);
+    } else if (filters?.techno) {
+      q = q.eq("dimension_1", "Techno");
+    } else if (filters?.plaque) {
+      q = q.eq("dimension_1", "Plaque").ilike("dimension_2", `%${filters.plaque}%`);
+    } else if (filters?.dor) {
+      q = q.eq("dimension_1", "DOR").ilike("dimension_2", `%${filters.dor}%`);
+    }
 
     const { data, error } = await q;
     if (error) { console.error("fetchAggStats error:", error); return ""; }
@@ -590,6 +596,12 @@ function resolveScope(
   if (filters?.techno) return { level: "techno", techno: filters.techno };
   if (filters?.plaque) return { level: "plaque", plaque: filters.plaque };
   if (filters?.dor) return { level: "dor", dor: filters.dor };
+  // Detect techno comparison (4G vs 5G) BEFORE vendor detection
+  const technoMatch = query.match(/\b(4G|5G|3G|2G|LTE|NR)\b/gi);
+  if (technoMatch && technoMatch.length >= 1) {
+    const isCompare = ["compare", "comparer", "comparaison", "vs", "versus", "benchmark", "qualité par technologie", "par technologie", "par techno"].some(h => query.toLowerCase().includes(h));
+    if (isCompare || technoMatch.length >= 2) return { level: "techno", techno: technoMatch.join(",") };
+  }
   const vendorMatch = query.match(/\b(ericsson|nokia|huawei|samsung)\b/i);
   if (vendorMatch) return { level: "vendor", vendor: vendorMatch[1] };
   const plaqueFromText = extractPlaqueName(query);
