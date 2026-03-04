@@ -1009,6 +1009,14 @@ function buildContextPlan(
         if (isTopoInventoryQuery(query)) {
           needs.push("topo_inventory");
         } else {
+          // For topo metric queries (tilt, azimut, hba) without specific site, fetch global distribution
+          const topoMet = detectMetric(query);
+          if (TOPO_METRICS.has(topoMet)) {
+            const dim1 = detectDimension1Type(query);
+            groupBy = { dimension1: dim1 };
+            metric = topoMet;
+            needs.push("topo_metric_agg");
+          }
           needs.push("topology");
           if (scope.level === "site") {
             needs.push("kpi_snapshot");
