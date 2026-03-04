@@ -20,6 +20,7 @@ interface SidebarProps {
 }
 
 const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
+  { id: 'ai_assistant', label: 'QOEBIT', icon: <Sparkles className="w-5 h-5" /> },
   { id: 'dashboard_overview', label: 'Dashboard Overview', icon: <Layout className="w-5 h-5" /> },
   { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
   { id: 'sites', label: 'Network Topology', icon: <Network className="w-5 h-5" /> },
@@ -27,7 +28,6 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'kpi_monitor', label: 'KPI Monitor', icon: <LineChart className="w-5 h-5" /> },
   { id: 'alerts', label: 'Alerts & RCA Monitor', icon: <Bell className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
-  { id: 'ai_assistant', label: 'QOEBIT', icon: <Sparkles className="w-5 h-5" /> },
   { id: 'radio_profile', label: 'Radio Profile', icon: <Radio className="w-5 h-5" /> },
   { id: 'topologie', label: 'Topologie Réseau', icon: <Sliders className="w-5 h-5" /> },
   { id: 'parameters', label: 'Parameters', icon: <MapPin className="w-5 h-5" /> },
