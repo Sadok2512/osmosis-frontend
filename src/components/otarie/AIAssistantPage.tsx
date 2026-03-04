@@ -767,6 +767,152 @@ const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
   );
 };
 
+// ─── KPI Color Map: header patterns → colors from kpi_catalog conventions ───
+const KPI_HEADER_COLOR_MAP: { pattern: RegExp; color: string }[] = [
+  { pattern: /qoe|qos|qualit/i, color: '#22c55e' },         // green
+  { pattern: /rtt|latence|latency/i, color: '#f97316' },     // orange
+  { pattern: /d[ée]bit\s*dl|throughput\s*dl|dl.*mbps/i, color: '#3b82f6' }, // blue
+  { pattern: /d[ée]bit\s*ul|throughput\s*ul|ul.*mbps/i, color: '#8b5cf6' }, // purple
+  { pattern: /loss|perte/i, color: '#ef4444' },               // red
+  { pattern: /retr|retrans/i, color: '#ec4899' },             // pink
+  { pattern: /session|dcr|drop|coupure/i, color: '#f59e0b' }, // amber
+  { pattern: /dms|streaming/i, color: '#06b6d4' },            // cyan
+  { pattern: /volume|traffic|trafic/i, color: '#14b8a6' },    // teal
+  { pattern: /wind|window/i, color: '#a855f7' },              // violet
+  { pattern: /fallback/i, color: '#d946ef' },                 // fuchsia
+  { pattern: /instabil/i, color: '#e11d48' },                 // rose
+  { pattern: /rat|techno/i, color: '#0ea5e9' },               // sky
+  { pattern: /5g.*cap|attach/i, color: '#7c3aed' },           // violet dark
+];
+
+function getKpiColorForHeader(header: string): string | null {
+  for (const { pattern, color } of KPI_HEADER_COLOR_MAP) {
+    if (pattern.test(header)) return color;
+  }
+  return null;
+}
+
+// Context for passing column headers to td cells
+const TableHeadersContext = React.createContext<string[]>([]);
+
+const KpiColorTable: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const headersRef = React.useRef<string[]>([]);
+  const [headers, setHeaders] = React.useState<string[]>([]);
+
+  // Extract headers from the table's thead
+  React.useEffect(() => {
+    // headers are set by KpiThead
+  }, []);
+
+  return (
+    <TableHeadersContext.Provider value={headers}>
+      <div className="my-4 rounded-xl border border-border overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-xs" ref={(el) => {
+            if (el) {
+              const ths = el.querySelectorAll('thead th');
+              const h = Array.from(ths).map(th => th.textContent || '');
+              if (h.length > 0 && h.join('|') !== headersRef.current.join('|')) {
+                headersRef.current = h;
+                setHeaders(h);
+              }
+            }
+          }}>{children}</table>
+        </div>
+      </div>
+    </TableHeadersContext.Provider>
+  );
+};
+
+const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => {
+  const headers = React.useContext(TableHeadersContext);
+  const text = String(children ?? '');
+  const baseCls = "px-3 py-2.5 text-xs border-b border-border/30";
+
+  // Try to determine column index from DOM position (using a ref)
+  const tdRef = React.useRef<HTMLTableCellElement>(null);
+  const [colIndex, setColIndex] = React.useState(-1);
+
+  React.useEffect(() => {
+    if (tdRef.current) {
+      const row = tdRef.current.parentElement;
+      if (row) {
+        const cells = Array.from(row.children);
+        setColIndex(cells.indexOf(tdRef.current));
+      }
+    }
+  }, []);
+
+  // Get KPI color from column header
+  const headerText = colIndex >= 0 && colIndex < headers.length ? headers[colIndex] : '';
+  const kpiColor = headerText ? getKpiColorForHeader(headerText) : null;
+
+  // First column (label/name) — no color
+  if (colIndex === 0) {
+    return <td ref={tdRef} className={`${baseCls} font-medium text-foreground`}>{children}</td>;
+  }
+
+  // If we have a KPI color and value is numeric, apply it
+  if (kpiColor) {
+    const isNumeric = /^\s*-?\d/.test(text) || /\d+\.?\d*\s*(%|Mbps|ms|s)?\s*$/.test(text);
+    if (isNumeric) {
+      return <td ref={tdRef} className={`${baseCls} font-bold`} style={{ color: kpiColor }}>{children}</td>;
+    }
+  }
+
+  // Fallback to existing conditional coloring logic
+  // Emoji-based status
+  if (text.includes('🔴') || /critique|critical/i.test(text)) {
+    return <td ref={tdRef} className={`${baseCls} font-semibold`} style={{ color: 'hsl(0, 80%, 50%)' }}>{children}</td>;
+  }
+  if (text.includes('🟠') || /dégradé|bad|mauvais/i.test(text)) {
+    return <td ref={tdRef} className={`${baseCls} font-semibold`} style={{ color: 'hsl(25, 90%, 50%)' }}>{children}</td>;
+  }
+  if (text.includes('🟡') || /moyen|warning|attention/i.test(text)) {
+    return <td ref={tdRef} className={`${baseCls} font-semibold`} style={{ color: 'hsl(45, 90%, 45%)' }}>{children}</td>;
+  }
+  if (text.includes('🟢') || /excellent|good|bon/i.test(text)) {
+    return <td ref={tdRef} className={`${baseCls} font-semibold`} style={{ color: 'hsl(142, 70%, 40%)' }}>{children}</td>;
+  }
+
+  // Delta values
+  const deltaMatch = text.match(/^([+-])\s*(\d+\.?\d*)\s*(%|pts?|ms|s|Mbps)?$/);
+  if (deltaMatch) {
+    const sign = deltaMatch[1];
+    const val = parseFloat(deltaMatch[2]);
+    const unit = (deltaMatch[3] || '').toLowerCase();
+    const isLatencyMetric = unit === 'ms' || unit === 's';
+    const isGood = isLatencyMetric ? sign === '-' : sign === '+';
+    const severity = val > 15 ? 'high' : val > 5 ? 'mid' : 'low';
+    let color: string;
+    if (isGood) {
+      color = severity === 'high' ? 'hsl(142, 70%, 35%)' : severity === 'mid' ? 'hsl(142, 60%, 42%)' : 'hsl(142, 50%, 48%)';
+    } else {
+      color = severity === 'high' ? 'hsl(0, 80%, 48%)' : severity === 'mid' ? 'hsl(25, 90%, 50%)' : 'hsl(45, 85%, 45%)';
+    }
+    return <td ref={tdRef} className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
+  }
+
+  // Signed numbers
+  const signedNumMatch = text.match(/([+-])(\d+\.?\d*)/);
+  if (signedNumMatch) {
+    const sign = signedNumMatch[1];
+    const val = parseFloat(signedNumMatch[2]);
+    if (val > 0) {
+      const color = sign === '+' ? 'hsl(142, 70%, 40%)' : 'hsl(0, 80%, 48%)';
+      return <td ref={tdRef} className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
+    }
+  }
+
+  // Plain numbers
+  const numMatch = text.match(/^[\d\s.]+$/);
+  if (numMatch) {
+    return <td ref={tdRef} className={`${baseCls} font-medium text-foreground`}>{children}</td>;
+  }
+
+  return <td ref={tdRef} className={`${baseCls} text-foreground/85`}>{children}</td>;
+};
+
 const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm]}
@@ -783,7 +929,6 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
       strong: ({ children }) => <strong className="font-bold text-primary">{children}</strong>,
       em: ({ children }) => <em className="text-foreground/60 italic">{children}</em>,
       pre: ({ children }) => {
-        // Try to detect viz JSON blocks rendered inside <pre> that the parser missed
         const raw = String(
           React.Children.toArray(
             React.isValidElement(children) ? (children.props as any).children : children
@@ -805,7 +950,6 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
       },
       code: ({ children, className }) => {
         const isBlock = className?.includes('language-');
-        // Intercept chart/map/kpi code blocks that the parser missed
         if (className?.includes('language-chart') || className?.includes('language-map') || className?.includes('language-kpi')) {
           const raw = String(children).trim();
           try {
@@ -841,118 +985,10 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
           </li>
         );
       },
-      table: ({ children }) => (
-        <div className="my-4 rounded-xl border border-border overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">{children}</table>
-          </div>
-        </div>
-      ),
+      table: ({ children }) => <KpiColorTable>{children}</KpiColorTable>,
       thead: ({ children }) => <thead className="bg-muted/80">{children}</thead>,
       th: ({ children }) => <th className="px-3 py-2.5 text-[11px] font-bold text-foreground text-left border-b-2 border-border tracking-wide">{children}</th>,
-      td: ({ children }) => {
-        const text = String(children ?? '');
-        const baseCls = "px-3 py-2.5 text-xs border-b border-border/30";
-        
-        // Emoji-based status
-        if (text.includes('🔴') || /critique|critical/i.test(text)) {
-          return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(0, 80%, 50%)' }}>{children}</td>;
-        }
-        if (text.includes('🟠') || /dégradé|bad|mauvais/i.test(text)) {
-          return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(25, 90%, 50%)' }}>{children}</td>;
-        }
-        if (text.includes('🟡') || /moyen|warning|attention/i.test(text)) {
-          return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(45, 90%, 45%)' }}>{children}</td>;
-        }
-        if (text.includes('🟢') || /excellent|good|bon/i.test(text)) {
-          return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(142, 70%, 40%)' }}>{children}</td>;
-        }
-
-        // Delta / Écart values: "+8%", "-34%", "+4.3 pts", "-4 ms", "-3.9s", "+3.6"
-        const deltaMatch = text.match(/^([+-])\s*(\d+\.?\d*)\s*(%|pts?|ms|s|Mbps)?$/);
-        if (deltaMatch) {
-          const sign = deltaMatch[1];
-          const val = parseFloat(deltaMatch[2]);
-          const unit = (deltaMatch[3] || '').toLowerCase();
-          // For RTT/latency (ms, s) → negative is good; for others → positive is good
-          const isLatencyMetric = unit === 'ms' || unit === 's';
-          const isGood = isLatencyMetric ? sign === '-' : sign === '+';
-          const severity = unit === 'ms' ? (val > 10 ? 'high' : val > 5 ? 'mid' : 'low') :
-                           unit === 's' ? (val > 5 ? 'high' : val > 2 ? 'mid' : 'low') :
-                           unit === '%' || unit === 'pts' || unit === 'pt' ? (val > 15 ? 'high' : val > 5 ? 'mid' : 'low') :
-                           (val > 5 ? 'high' : val > 2 ? 'mid' : 'low');
-          let color: string;
-          if (isGood) {
-            color = severity === 'high' ? 'hsl(142, 70%, 35%)' : severity === 'mid' ? 'hsl(142, 60%, 42%)' : 'hsl(142, 50%, 48%)';
-          } else {
-            color = severity === 'high' ? 'hsl(0, 80%, 48%)' : severity === 'mid' ? 'hsl(25, 90%, 50%)' : 'hsl(45, 85%, 45%)';
-          }
-          return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
-        }
-
-        // Generic signed numbers anywhere in cell: e.g. "+4.3", "-0.4", "-0.68"
-        const signedNumMatch = text.match(/([+-])(\d+\.?\d*)/);
-        if (signedNumMatch && !text.includes('🟢') && !text.includes('🟡') && !text.includes('🟠') && !text.includes('🔴')) {
-          const sign = signedNumMatch[1];
-          const val = parseFloat(signedNumMatch[2]);
-          if (val > 0) {
-            const color = sign === '+' ? 'hsl(142, 70%, 40%)' : 'hsl(0, 80%, 48%)';
-            return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
-          }
-        }
-        
-        // Percentage values (QoE, rates, etc.)
-        const pctMatch = text.match(/(\d+\.?\d*)%/);
-        if (pctMatch) {
-          const val = parseFloat(pctMatch[1]);
-          // Detect "bad when high" metrics: loss, retransmission, DCR (small % values)
-          const isBadWhenHigh = /loss|retr|dcr|perte/i.test(text) || val < 10;
-          let color: string;
-          if (isBadWhenHigh) {
-            if (val > 3) color = 'hsl(0, 80%, 50%)';
-            else if (val > 2) color = 'hsl(25, 90%, 50%)';
-            else if (val > 1) color = 'hsl(45, 90%, 45%)';
-            else color = 'hsl(142, 70%, 40%)';
-          } else {
-            if (val < 50) color = 'hsl(0, 80%, 50%)';
-            else if (val < 65) color = 'hsl(25, 90%, 50%)';
-            else if (val < 75) color = 'hsl(45, 90%, 45%)';
-            else if (val < 85) color = 'hsl(142, 50%, 45%)';
-            else color = 'hsl(142, 70%, 40%)';
-          }
-          return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
-        }
-        
-        // Latency (ms)
-        const msMatch = text.match(/(\d[\d\s]*)\s*ms/i);
-        if (msMatch) {
-          const val = parseInt(msMatch[1].replace(/\s/g, ''));
-          let color = 'hsl(142, 70%, 40%)';
-          if (val > 100000) color = 'hsl(0, 80%, 50%)';
-          else if (val > 60000) color = 'hsl(25, 90%, 50%)';
-          else if (val > 40000) color = 'hsl(45, 90%, 45%)';
-          return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
-        }
-        
-        // Throughput (Mbps)
-        const mbpsMatch = text.match(/(\d+\.?\d*)\s*Mbps/i);
-        if (mbpsMatch) {
-          const val = parseFloat(mbpsMatch[1]);
-          let color = 'hsl(142, 70%, 40%)';
-          if (val < 10) color = 'hsl(0, 80%, 50%)';
-          else if (val < 25) color = 'hsl(25, 90%, 50%)';
-          else if (val < 40) color = 'hsl(45, 90%, 45%)';
-          return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
-        }
-
-        // Plain numbers (sessions, counts) — format with subtle styling
-        const numMatch = text.match(/^[\d\s]+$/);
-        if (numMatch) {
-          return <td className={`${baseCls} font-medium text-foreground`}>{children}</td>;
-        }
-        
-        return <td className={`${baseCls} text-foreground/85`}>{children}</td>;
-      },
+      td: ({ children, style }) => <KpiTd style={style}>{children}</KpiTd>,
       tr: ({ children }) => <tr className="hover:bg-muted/30 transition-colors even:bg-muted/10">{children}</tr>,
       blockquote: ({ children }) => (
         <blockquote className="border-l-[3px] border-primary bg-primary/5 rounded-r-lg px-4 py-3 my-3 text-[13px] text-foreground/75 italic">
