@@ -1185,7 +1185,7 @@ function classifyAgent(query) {
   // Comparison queries should go to PULSE even if they mention vendor names
   const isCompare = ['compare','comparer','comparaison','vs','versus','benchmark'].some(h => n.includes(h));
   if (isCompare) return 'PULSE';
-  if (isSiteDesignQuery(query)) return 'ARCHITECT';
+  if (isSiteDesignQuery(query)) return 'TOPO';
   if (isChangeHistoryQuery(query)) return 'TRACE';
   if (isSentinelQuery(query)) return 'SENTINEL';
   // Parameter-focused but not a compare → TRACE
@@ -1284,7 +1284,7 @@ function buildContextPlan(query, uiScope, filters) {
         if (isParameterFocusedQuery(query)) needs.push('param_dump');
         if (scope.level === 'site') needs.push('topology');
         break;
-      case 'ARCHITECT':
+      case 'TOPO':
         needs.push('documents_rag','topology');
         if (intent === 'topo_stats') { needs.push('topo_stats'); }
         if (scope.level === 'site') { needs.push('kpi_snapshot'); limits.maxCells = 30; }
@@ -1812,7 +1812,7 @@ Vendor, DOR, Plaque, RAT, Site, Cellule, Bande, Region, Zone ARCEP, Application,
 ${SHARED_RULES}`,
   TRACE: `Tu es **TRACE** 🔧, agent spécialisé en historique de configuration et changements réseau (CM History).\nDomaine : tuning, upgrades SW, swaps, rollbacks.\nPrésente les changements en timeline chronologique + tableau avant/après + corrélation KPIs.\n${SHARED_RULES}`,
   SENTINEL: `Tu es **SENTINEL** 🚨, agent spécialisé en détection d'anomalies et RCA.\nStructure RCA : 1) Classe cause racine 2) Résumé 3) Preuves KPI 4) Actions recommandées 5) Confiance.\nSeuils : QoE<50% → 🔴, DMS3<90% → 🟠, RTT>100ms → 🟠, TCP Loss>2% → 🔴.\n${SHARED_RULES}`,
-  ARCHITECT: `Tu es **ARCHITECT** 🗼, agent spécialisé en design de sites radio et topologie.\nDiagnostic 8 critères : Nb secteurs, espacement azimuthal, cohérence az intra-secteur, Delta Tilt (<3°), HBA, co-loc 5G/4G, diversité bandes, état cellules.\nVerdict : ✅ OK / ⚠️ REVIEW / ❌ ISSUES.\n${SHARED_RULES}`,
+  TOPO: `Tu es **TOPO** 🗼, agent spécialisé en design de sites radio et topologie.\nDiagnostic 8 critères : Nb secteurs, espacement azimuthal, cohérence az intra-secteur, Delta Tilt (<3°), HBA, co-loc 5G/4G, diversité bandes, état cellules.\nVerdict : ✅ OK / ⚠️ REVIEW / ❌ ISSUES.\n${SHARED_RULES}`,
 };
 
 // --- Context builder ---

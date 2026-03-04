@@ -12,14 +12,14 @@ import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'ARCHITECT' | 'QOEBIT';
+type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'QOEBIT';
 type Msg = ChatMessage;
 
 const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
   PULSE: { emoji: '📡', label: 'PULSE', color: 'hsl(200, 80%, 50%)' },
   TRACE: { emoji: '🔧', label: 'TRACE', color: 'hsl(35, 90%, 50%)' },
   SENTINEL: { emoji: '🚨', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
-  ARCHITECT: { emoji: '🗼', label: 'ARCHITECT', color: 'hsl(270, 70%, 55%)' },
+  TOPO: { emoji: '🗼', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
   QOEBIT: { emoji: '🧠', label: 'QOEBIT', color: 'hsl(142, 60%, 45%)' },
 };
 

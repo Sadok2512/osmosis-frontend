@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'ARCHITECT' | 'QOEBIT';
+type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'QOEBIT';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
