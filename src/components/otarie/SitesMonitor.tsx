@@ -1577,7 +1577,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       lng: site.coordinates[1],
       azimuth: cell.azimut ?? 0,
       hba: cell.hba ?? 30,
-      tilt: 0,
+      tilt: cell.tilt ?? 0,
       techno: cell.techno ?? 'LTE',
       bande: cell.bande ?? '1800',
       name: site.site_name,

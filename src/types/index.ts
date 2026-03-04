@@ -217,6 +217,7 @@ export interface CellProperties {
   bande: string;
   azimut: number;
   hba: number;
+  tilt?: number | null;
   qoe_score_avg: number;
   p95_rtt_ms: number;
   traffic_up_bytes: number;
