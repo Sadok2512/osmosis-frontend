@@ -1076,7 +1076,9 @@ function isSiteDesignQuery(query) {
   const n = query.toLowerCase();
   return ['design','tilt','azimut','azimuth','hba','topologie','topology',
     'secteur','sector','couverture','coverage','analyse site','site design',
-    'antenne','antenna','delta tilt','profil site','profile'
+    'antenne','antenna','delta tilt','profil site','profile',
+    'nombre de sites','nombre des sites','combien de sites','nb sites','sites par',
+    'répartition des sites','count sites','répartition site'
   ].some(h => n.includes(h));
 }
 function isSentinelQuery(query) {
@@ -1159,8 +1161,7 @@ function buildContextPlan(query, uiScope, filters) {
   switch (agent) {
     case 'PULSE':
       needs.push('documents_rag');
-      if (intent === 'topo_stats') { needs.push('topo_stats'); }
-      else if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
+      if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
       else if (intent === 'top_degradations') { needs.push('worst_sites'); limits.maxSites = 20; }
       else if (intent === 'site_analysis') { needs.push('kpi_snapshot','worst_cells'); limits.maxCells = 30; }
       else if (intent === 'cell_analysis') { needs.push('kpi_snapshot'); limits.maxCells = 1; }
@@ -1178,6 +1179,7 @@ function buildContextPlan(query, uiScope, filters) {
       break;
     case 'ARCHITECT':
       needs.push('documents_rag','topology');
+      if (intent === 'topo_stats') { needs.push('topo_stats'); }
       if (scope.level === 'site') { needs.push('kpi_snapshot'); limits.maxCells = 30; }
       break;
   }
