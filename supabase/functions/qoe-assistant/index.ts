@@ -48,7 +48,8 @@ type DataNeed =
   | "change_history"
   | "documents_rag"
   | "dimension_agg"
-  | "dimension_values";
+  | "dimension_values"
+  | "topo_metric_agg";
 
 type Dimension1Type =
   | "Cellule" | "Site" | "Vendor" | "Bande" | "ARCEP" | "Application"
