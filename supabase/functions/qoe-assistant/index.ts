@@ -1021,6 +1021,13 @@ async function buildContextFromPlan(
       plan.resultLimit || 30
     );
   }
+  if (plan.needs.includes("topo_metric_agg") && plan.groupBy?.dimension1) {
+    promises.topoAgg = fetchTopoMetricByDimension(
+      plan.metric || "tilt",
+      plan.groupBy.dimension1,
+      plan.resultLimit || 30
+    );
+  }
   if (plan.needs.includes("dimension_values") && plan.groupBy?.dimension1) {
     promises.dimValues = fetchDimensionValues(
       plan.groupBy.dimension1,
@@ -1037,6 +1044,7 @@ async function buildContextFromPlan(
 
   console.log(`📦 Context fetched: ${keys.filter(k => resolved[k]).join(", ") || "none"}`);
 
+  if (resolved.topoAgg) sections.push(`📡 DISTRIBUTION TOPO:\n${resolved.topoAgg}`);
   if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
   if (resolved.dimValues) sections.push(`📋 VALEURS DIMENSION:\n${resolved.dimValues}`);
   if (resolved.agg) sections.push(`📊 STATS AGRÉGÉES:\n${resolved.agg}`);
