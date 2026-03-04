@@ -753,7 +753,10 @@ function classifyAgent(query: string): AgentId {
 
 function classifyIntent(query: string, scope: Scope): Intent {
   const n = query.toLowerCase();
-  // Dimension queries take priority
+  // Top/worst/best queries take HIGHEST priority (even if "par DOR" is present)
+  const topHints = ["top", "pire", "worst", "meilleur", "best", "classement", "ranking", "dégradé", "degradé", "degraded"];
+  if (topHints.some(h => n.includes(h))) return "top_degradations";
+  // Dimension queries
   const { isDim, isList } = isDimensionQuery(query);
   if (isList) return "list_dimension_values";
   if (isDim) return "distribution";
@@ -763,9 +766,6 @@ function classifyIntent(query: string, scope: Scope): Intent {
 
   const compareHints = ["compare", "comparer", "comparaison", "vs", "versus", "différence"];
   if (compareHints.some(h => n.includes(h))) return "compare";
-
-  const topHints = ["top", "pire", "worst", "meilleur", "best", "classement", "ranking", "dégradé"];
-  if (topHints.some(h => n.includes(h))) return "top_degradations";
 
   const defHints = ["définition", "definition", "c'est quoi", "qu'est-ce que", "explique", "explain"];
   if (defHints.some(h => n.includes(h))) return "definition";
