@@ -38,7 +38,7 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
             <Legend wrapperStyle={{ fontSize: 10 }} />
             {yKeys.map((key, i) => (
               <Bar key={key} dataKey={key} fill={palette[i % palette.length]} radius={[4, 4, 0, 0]}>
-                <LabelList dataKey={key} position="right" style={{ fontSize: 10, fontWeight: 700, fill: palette[i % palette.length] }} formatter={(v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v} />
+                <LabelList dataKey={key} position="top" offset={8} style={{ fontSize: 10, fontWeight: 700, fill: palette[i % palette.length] }} formatter={(v: number) => typeof v === 'number' ? (Math.abs(v) >= 1000 ? `${(v/1000).toFixed(1)}k` : Number.isInteger(v) ? v : v.toFixed(1)) : v} />
               </Bar>
             ))}
           </BarChart>
