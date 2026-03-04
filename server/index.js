@@ -1098,9 +1098,15 @@ function isParameterFocusedQuery(query) {
 }
 
 function classifyAgent(query) {
+  const n = query.toLowerCase();
+  // Comparison queries should go to PULSE even if they mention vendor names
+  const isCompare = ['compare','comparer','comparaison','vs','versus','benchmark'].some(h => n.includes(h));
+  if (isCompare) return 'PULSE';
   if (isSiteDesignQuery(query)) return 'ARCHITECT';
-  if (isChangeHistoryQuery(query) || isParameterFocusedQuery(query)) return 'TRACE';
+  if (isChangeHistoryQuery(query)) return 'TRACE';
   if (isSentinelQuery(query)) return 'SENTINEL';
+  // Parameter-focused but not a compare → TRACE
+  if (isParameterFocusedQuery(query)) return 'TRACE';
   return 'PULSE';
 }
 function classifyIntent(query, scopeLevel) {
@@ -1124,8 +1130,19 @@ function resolveScope(query, uiScope, filters) {
   if (filters?.techno) return { level: 'techno', techno: filters.techno };
   if (filters?.plaque) return { level: 'plaque', plaque: filters.plaque };
   if (filters?.dor) return { level: 'dor', dor: filters.dor };
+  // Detect techno comparison (4G vs 5G) BEFORE vendor detection
+  const technoMatch = query.match(/\b(4G|5G|3G|2G|LTE|NR)\b/gi);
+  if (technoMatch && technoMatch.length >= 1) {
+    const isCompare = ['compare','comparer','comparaison','vs','versus','benchmark','qualité par technologie','par technologie','par techno'].some(h => query.toLowerCase().includes(h));
+    if (isCompare || technoMatch.length >= 2) return { level: 'techno', techno: technoMatch.join(',') };
+  }
   const vendorMatch = query.match(/\b(ericsson|nokia|huawei|samsung)\b/i);
-  if (vendorMatch) return { level: 'vendor', vendor: vendorMatch[1] };
+  if (vendorMatch) {
+    // If multiple vendors mentioned → compare intent, return first but scope is vendor
+    return { level: 'vendor', vendor: vendorMatch[1] };
+  }
+  const plaqueFromText = extractPlaqueName(query);
+  if (plaqueFromText) return { level: 'plaque', plaque: plaqueFromText };
   return { level: 'global' };
 }
 
@@ -1209,16 +1226,30 @@ async function fetchAggStatsLocal(filters, maxDays) {
     const selectKpis = wantedKpis.filter(c => availCols.has(c)).join(', ');
     if (!selectKpis) return '';
 
+    // Build WHERE clause based on filters
+    const conditions = [];
+    const params = [];
+    if (filters?.vendor) {
+      conditions.push(`${dim1} = 'Vendor'`);
+    } else if (filters?.techno) {
+      conditions.push(`${dim1} = 'Techno'`);
+    } else if (filters?.plaque) {
+      conditions.push(`${dim1} = 'Plaque'`);
+    } else if (filters?.dor) {
+      conditions.push(`${dim1} = 'DOR'`);
+    }
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const { rows } = await sharedPool.query(
       `SELECT ${dim1} AS dimension_1, ${dim2} AS dimension_2, date_part, ${selectKpis}
-       FROM ${src.table} ORDER BY date_part DESC LIMIT 500`
+       FROM ${src.table} ${whereClause} ORDER BY date_part DESC LIMIT 500`
     );
     console.log(`[fetchAggStatsLocal] Got ${rows.length} rows from ${src.table}`);
     if (!rows.length) return '';
 
     const groups = new Map();
     for (const r of rows) {
-      const key = r.dimension_1 || 'Global';
+      const key = r.dimension_2 || r.dimension_1 || 'Global';
       if (!groups.has(key)) groups.set(key, { vals: {}, count: 0 });
       const g = groups.get(key);
       for (const k of wantedKpis.filter(c => availCols.has(c))) {
@@ -1416,9 +1447,16 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   const sections = [];
   const promises = {};
 
+  // Merge scope info into effective filters for data fetching
+  const effectiveFilters = { ...filters };
+  if (plan.scope.level === 'vendor' && !effectiveFilters.vendor) effectiveFilters.vendor = plan.scope.vendor;
+  if (plan.scope.level === 'techno' && !effectiveFilters.techno) effectiveFilters.techno = plan.scope.techno;
+  if (plan.scope.level === 'plaque' && !effectiveFilters.plaque) effectiveFilters.plaque = plan.scope.plaque;
+  if (plan.scope.level === 'dor' && !effectiveFilters.dor) effectiveFilters.dor = plan.scope.dor;
+
   if (plan.needs.includes('documents_rag')) promises.rag = searchRAGLocal(query);
-  if (plan.needs.includes('agg_stats')) promises.agg = fetchAggStatsLocal(filters, plan.limits.maxDays);
-  if (plan.needs.includes('worst_sites')) promises.worst = fetchWorstSitesLocal(filters, plan.limits.maxSites);
+  if (plan.needs.includes('agg_stats')) promises.agg = fetchAggStatsLocal(effectiveFilters, plan.limits.maxDays);
+  if (plan.needs.includes('worst_sites')) promises.worst = fetchWorstSitesLocal(effectiveFilters, plan.limits.maxSites);
   if (plan.needs.includes('kpi_snapshot') && plan.scope.level === 'site') promises.snapshot = fetchSiteSnapshotLocal(plan.scope.siteName);
   if (plan.needs.includes('topology')) {
     const siteName = plan.scope.siteName || (plan.scope.level === 'cell' ? plan.scope.siteName : null);
