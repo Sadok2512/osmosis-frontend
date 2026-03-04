@@ -919,10 +919,71 @@ app.post('/api/import-dump', async (req, res) => {
 // (dump-parameter handler is defined below — single instance using sharedPool)
 
 // ─── Helper: detect distribution/aggregation questions ───
+function isDimensionQueryLocal(query) {
+  const n = query.toLowerCase();
+  const dimKw = "(dors?|vendor|fournisseurs?|bandes?|rats?|techno|technologie|plaques?|regions?|applications?|sites?|cellules?|arcep|tac|os|devices?|pop|as|orf)";
+  const dimPatterns = [
+    new RegExp(`\\bpar\\s+${dimKw}`, 'i'),
+    new RegExp(`\\bliste?r?\\s+(des?\\s+|les?\\s+)?${dimKw}`, 'i'),
+    new RegExp(`\\btous?t?e?s?\\s+(les?\\s+)?${dimKw}`, 'i'),
+  ];
+  const isList = new RegExp(`\\b(liste?r?|tous?t?e?s?|toutes?|affiche|montre|donne)\\s+(les?\\s+|des?\\s+)?${dimKw}`, 'i').test(n);
+  const isDim = dimPatterns.some(p => p.test(n));
+  return { isDim: isDim || isList, isList };
+}
+
 function isDistributionQuery(query) {
   const normalized = query.toLowerCase();
-  return ['distribution', 'répartition', 'repartition', 'distrubition', 'distrubtion',
+  const { isDim } = isDimensionQueryLocal(query);
+  return isDim || ['distribution', 'répartition', 'repartition', 'distrubition', 'distrubtion',
     'par plaque', 'par upr', 'par vendor', 'par site', 'par bande', 'par dor', 'par region', 'par zone'].some(h => normalized.includes(h));
+}
+
+function detectDimension1TypeLocal(message) {
+  const n = message.toLowerCase();
+  const map = [
+    [/\b(dors?|direction)\b/, 'DOR'],
+    [/\b(vendors?|fournisseurs?|constructeurs?)\b/, 'Vendor'],
+    [/\b(bandes?|bands?|frequen)\b/, 'Bande'],
+    [/\b(rats?|techno|technologie|4g\s*(vs|et)\s*5g|5g\s*(vs|et)\s*4g)\b/, 'RAT'],
+    [/\b(plaques?|regions?)\b/, 'Plaque'],
+    [/\b(applications?|apps?|services?)\b/, 'Application'],
+    [/\b(sites?)\b/, 'Site'],
+    [/\b(cellules?|cells?)\b/, 'Cellule'],
+    [/\b(arcep|zone_arcep)\b/, 'ARCEP'],
+    [/\b(tac)\b/, 'TAC'],
+    [/\b(os)\b/, 'OS'],
+    [/\b(devices?|terminaux?)\b/, 'Device_brand'],
+    [/\b(pop)\b/, 'POP'],
+  ];
+  for (const [regex, dim] of map) {
+    if (regex.test(n)) return dim;
+  }
+  return 'Site';
+}
+
+function detectMetricLocal(message) {
+  const n = message.toLowerCase();
+  const map = [
+    [/\b(qos)\b/, 'qos'],
+    [/\b(qoe|qualit[eé])\b/, 'qoe_index'],
+    [/\b(debit\s*dl|throughput\s*dl|débit\s*dl)\b/, 'debit_dl'],
+    [/\b(debit\s*ul|throughput\s*ul|débit\s*ul)\b/, 'debit_ul'],
+    [/\b(rtt|latence|latency)\b/, 'rtt_data_avg'],
+    [/\b(traffic|volume|trafic)\b/, 'volume_totale_dl'],
+    [/\b(loss|perte)\b/, 'loss_dl_rate'],
+    [/\b(retrans|retr)\b/, 'tcp_retr_rate_dl'],
+    [/\b(dms\s*3|dms_3|dms3)\b/, 'dms_debit_dl_3'],
+    [/\b(dms\s*8|dms_8|dms8)\b/, 'dms_debit_dl_8'],
+    [/\b(dms\s*30|dms_30|dms30)\b/, 'dms_debit_dl_30'],
+    [/\b(session|sessions)\b/, 'session_nbr'],
+    [/\b(drop|dcr|coupure)\b/, 'session_dcr'],
+    [/\b(window\s*full|wind_full)\b/, 'wind_full_rate'],
+  ];
+  for (const [regex, metric] of map) {
+    if (regex.test(n)) return metric;
+  }
+  return 'qoe_index';
 }
 
 function extractParamName(query) {
@@ -1116,12 +1177,13 @@ function classifyAgent(query) {
 }
 function classifyIntent(query, scopeLevel) {
   const n = query.toLowerCase();
-  if (isDistributionQuery(query)) return 'distribution';
+  // Dimension-based queries take priority
+  const { isDim, isList } = isDimensionQueryLocal(query);
+  if (isList) return 'list_dimension_values';
+  if (isDim) return 'dimension_distribution';
   if (isChangeHistoryQuery(query)) return 'trace_change';
   // Topology / site count queries
-  if (['nombre de sites','nombre des sites','combien de sites','nb sites','sites par','répartition des sites','count sites',
-       'toutes les plaque','toutes les dor','toutes les region','liste des plaque','liste des dor','liste des region',
-       'tous les plaque','tous les dor'].some(h => n.includes(h))) return 'topo_stats';
+  if (['nombre de sites','nombre des sites','combien de sites','nb sites','répartition des sites','count sites'].some(h => n.includes(h))) return 'topo_stats';
   if (scopeLevel === 'cell') return 'cell_analysis';
   if (scopeLevel === 'site') return 'site_analysis';
   if (['compare','comparer','comparaison','vs','versus'].some(h => n.includes(h))) return 'compare';
@@ -1162,38 +1224,52 @@ function buildContextPlan(query, uiScope, filters) {
   const intent = classifyIntent(query, scope.level);
   const needs = [];
   const limits = { maxSites: 20, maxCells: 0, maxKpis: 10, maxDays: 7, maxRagChunks: 3 };
+  let groupBy = null;
+  let metric = null;
 
-  switch (agent) {
-    case 'PULSE':
-      needs.push('documents_rag');
-      if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
-      else if (intent === 'top_degradations') { needs.push('worst_sites'); limits.maxSites = 20; }
-      else if (intent === 'site_analysis') { needs.push('kpi_snapshot','worst_cells'); limits.maxCells = 30; }
-      else if (intent === 'cell_analysis') { needs.push('kpi_snapshot'); limits.maxCells = 1; }
-      else if (intent === 'distribution') { needs.push('param_dump'); }
-      break;
-    case 'SENTINEL':
-      needs.push('documents_rag');
-      if (scope.level === 'site' || scope.level === 'cell') { needs.push('kpi_snapshot','worst_cells'); limits.maxCells = 20; }
-      else { needs.push('agg_stats','worst_sites'); limits.maxSites = 15; }
-      break;
-    case 'TRACE':
-      needs.push('documents_rag','change_history');
-      if (isParameterFocusedQuery(query)) needs.push('param_dump');
-      if (scope.level === 'site') needs.push('topology');
-      break;
-    case 'ARCHITECT':
-      needs.push('documents_rag','topology');
-      if (intent === 'topo_stats') { needs.push('topo_stats'); }
-      if (scope.level === 'site') { needs.push('kpi_snapshot'); limits.maxCells = 30; }
-      break;
+  // Handle dimension-based intents FIRST (priority over agent routing)
+  if (intent === 'dimension_distribution') {
+    const dim1 = detectDimension1TypeLocal(query);
+    const met = detectMetricLocal(query);
+    groupBy = { dimension1: dim1 };
+    metric = met;
+    needs.push('dimension_agg', 'documents_rag');
+  } else if (intent === 'list_dimension_values') {
+    const dim1 = detectDimension1TypeLocal(query);
+    groupBy = { dimension1: dim1 };
+    needs.push('dimension_values', 'documents_rag');
+  } else {
+    switch (agent) {
+      case 'PULSE':
+        needs.push('documents_rag');
+        if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
+        else if (intent === 'top_degradations') { needs.push('worst_sites'); limits.maxSites = 20; }
+        else if (intent === 'site_analysis') { needs.push('kpi_snapshot','worst_cells'); limits.maxCells = 30; }
+        else if (intent === 'cell_analysis') { needs.push('kpi_snapshot'); limits.maxCells = 1; }
+        break;
+      case 'SENTINEL':
+        needs.push('documents_rag');
+        if (scope.level === 'site' || scope.level === 'cell') { needs.push('kpi_snapshot','worst_cells'); limits.maxCells = 20; }
+        else { needs.push('agg_stats','worst_sites'); limits.maxSites = 15; }
+        break;
+      case 'TRACE':
+        needs.push('documents_rag','change_history');
+        if (isParameterFocusedQuery(query)) needs.push('param_dump');
+        if (scope.level === 'site') needs.push('topology');
+        break;
+      case 'ARCHITECT':
+        needs.push('documents_rag','topology');
+        if (intent === 'topo_stats') { needs.push('topo_stats'); }
+        if (scope.level === 'site') { needs.push('kpi_snapshot'); limits.maxCells = 30; }
+        break;
+    }
   }
 
   const n = query.toLowerCase();
   if (n.includes('hier') || n.includes('24h') || n.includes("aujourd")) limits.maxDays = 1;
   else if (n.includes('mois') || n.includes('30j')) limits.maxDays = 30;
 
-  return { agent, intent, scope, needs, limits };
+  return { agent, intent, scope, needs, limits, groupBy, metric };
 }
 
 // --- Local PostgreSQL data providers ---
@@ -1428,6 +1504,60 @@ async function searchParameterChangesLocal(query) {
   } catch (e) { console.error('[searchParameterChangesLocal]', e.message); return ''; }
 }
 
+// ─── Dimension-based data providers on qoe_metric ───
+async function fetchMetricDistributionLocal(dimension1Type, metric, filters, days, limit) {
+  days = days || 7; limit = limit || 30;
+  try {
+    const src = await detectKpiTable();
+    if (!src) return '';
+    const { dim1, dim2 } = dimCols(src.isQoeMetric);
+    const colRes = await sharedPool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND table_schema = 'public'`, [src.table]
+    );
+    const availCols = new Set(colRes.rows.map(r => r.column_name));
+    const metricCol = availCols.has(metric) ? metric : 'qoe_index';
+    const hasSessionNbr = availCols.has('session_nbr');
+    let sql = `SELECT ${dim2} AS label, AVG(${metricCol}) AS value`;
+    if (hasSessionNbr) sql += `, SUM(session_nbr) AS sessions`;
+    sql += ` FROM ${src.table} WHERE ${dim1} = $1`;
+    const params = [dimension1Type];
+    let pi = 2;
+    if (filters?.vendor) { sql += ` AND vendor = $${pi++}`; params.push(filters.vendor); }
+    if (filters?.techno) { sql += ` AND techno = $${pi++}`; params.push(filters.techno); }
+    sql += ` GROUP BY ${dim2} ORDER BY value DESC LIMIT $${pi}`;
+    params.push(limit);
+    console.log(`[fetchMetricDistributionLocal] ${sql} params=${JSON.stringify(params)}`);
+    const { rows } = await sharedPool.query(sql, params);
+    if (!rows.length) return `Aucune donnée pour ${dim1}='${dimension1Type}' dans ${src.table}.`;
+    const header = hasSessionNbr
+      ? `# | ${dimension1Type} | AVG(${metricCol}) | Sessions`
+      : `# | ${dimension1Type} | AVG(${metricCol})`;
+    const lines = rows.map((r, i) => {
+      const base = `${i+1} | ${r.label} | ${Number(r.value).toFixed(2)}`;
+      return hasSessionNbr ? `${base} | ${r.sessions || 0}` : base;
+    });
+    const chartData = rows.slice(0, 15).map(r => ({ label: r.label, value: Math.round(Number(r.value) * 100) / 100 }));
+    const chartJson = JSON.stringify({ type: 'bar', title: `${metricCol} par ${dimension1Type}`, xKey: 'label', yKeys: ['value'], data: chartData });
+    return `DISTRIBUTION ${metricCol} par ${dimension1Type} (${rows.length} valeurs, source: ${src.table}):\n${header}\n${lines.join('\n')}\n\nINSTRUCTION: Utilise ces données pour répondre. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+  } catch (e) { console.error('[fetchMetricDistributionLocal]', e.message); return ''; }
+}
+
+async function fetchDimensionValuesLocal(dimension1Type, filters, limit) {
+  limit = limit || 200;
+  try {
+    const src = await detectKpiTable();
+    if (!src) return '';
+    const { dim1, dim2 } = dimCols(src.isQoeMetric);
+    let sql = `SELECT DISTINCT ${dim2} AS label FROM ${src.table} WHERE ${dim1} = $1 ORDER BY label LIMIT $2`;
+    const params = [dimension1Type, limit];
+    console.log(`[fetchDimensionValuesLocal] ${sql} params=${JSON.stringify(params)}`);
+    const { rows } = await sharedPool.query(sql, params);
+    if (!rows.length) return `Aucune valeur trouvée pour ${dim1}='${dimension1Type}' dans ${src.table}.`;
+    const values = rows.map(r => r.label).filter(Boolean);
+    return `VALEURS DISTINCTES pour ${dimension1Type} (${values.length}, source: ${src.table}):\n${values.join(', ')}\n\nINSTRUCTION: Liste ces valeurs à l'utilisateur dans un format lisible.`;
+  } catch (e) { console.error('[fetchDimensionValuesLocal]', e.message); return ''; }
+}
+
 async function fetchTopoStatsLocal(query) {
   try {
     const n = query.toLowerCase();
@@ -1507,6 +1637,12 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   }
   if (plan.needs.includes('param_dump')) promises.params = searchDumpParameterLocal(query);
   if (plan.needs.includes('change_history')) promises.changes = searchParameterChangesLocal(query);
+  if (plan.needs.includes('dimension_agg') && plan.groupBy?.dimension1) {
+    promises.dimAgg = fetchMetricDistributionLocal(plan.groupBy.dimension1, plan.metric || 'qoe_index', effectiveFilters, plan.limits.maxDays, 30);
+  }
+  if (plan.needs.includes('dimension_values') && plan.groupBy?.dimension1) {
+    promises.dimValues = fetchDimensionValuesLocal(plan.groupBy.dimension1, effectiveFilters, 200);
+  }
 
   const keys = Object.keys(promises);
   const results = await Promise.all(Object.values(promises));
@@ -1515,6 +1651,8 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
 
   console.log(`[qoe-assistant] 📦 Context fetched: ${keys.filter(k => resolved[k]).join(', ') || 'none'}`);
 
+  if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
+  if (resolved.dimValues) sections.push(`📋 VALEURS DIMENSION:\n${resolved.dimValues}`);
   if (resolved.agg) sections.push(`📊 STATS AGRÉGÉES:\n${resolved.agg}`);
   if (resolved.worst) sections.push(`📉 WORST:\n${resolved.worst}`);
   if (resolved.snapshot) sections.push(`📋 SITE SNAPSHOT:\n${resolved.snapshot}`);
