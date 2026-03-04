@@ -956,7 +956,24 @@ Fournis:
                   </button>
                 </div>
               </div>
-              {/* Row 1.5: Value filter (dependent on selected params) */}
+              {/* Row 1.5: Selected params chips with delete */}
+              {pdPendingParams.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1">Sélection :</span>
+                  {pdPendingParams.map(p => (
+                    <span key={p} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[11px] font-medium border border-primary/20">
+                      {p}
+                      <X className="w-3 h-3 cursor-pointer opacity-60 hover:opacity-100 hover:text-destructive transition-colors" onClick={() => setPdPendingParams(prev => prev.filter(x => x !== p))} />
+                    </span>
+                  ))}
+                  {pdPendingParams.length > 1 && (
+                    <button onClick={() => setPdPendingParams([])} className="text-[10px] text-destructive/70 hover:text-destructive font-medium ml-1 underline underline-offset-2">
+                      Tout supprimer
+                    </button>
+                  )}
+                </div>
+              )}
+              {/* Row 1.6: Value filter (dependent on selected params) */}
               {pdPendingParams.length > 0 && (
                 <div className="flex items-end gap-3">
                   <div className="flex-1">
@@ -1015,6 +1032,27 @@ Fournis:
               <MultiSelectFilter label="Zone ARCEP" selected={rawPendingZoneArcep} options={availableZoneArceps} onChange={setRawPendingZoneArcep} />
               <MultiSelectFilter label="Site" selected={rawPendingSite} options={availableSites} onChange={setRawPendingSite} />
               <MultiSelectFilter label="Cell" selected={rawPendingCell} options={availableCells} onChange={setRawPendingCell} />
+              <div className="flex items-center gap-2 ml-auto shrink-0 pb-0.5">
+              </div>
+            </div>
+            {/* Selected params chips for Raw tab */}
+            {rawPendingParams.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1">Sélection :</span>
+                {rawPendingParams.map(p => (
+                  <span key={p} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[11px] font-medium border border-primary/20">
+                    {p}
+                    <X className="w-3 h-3 cursor-pointer opacity-60 hover:opacity-100 hover:text-destructive transition-colors" onClick={() => setRawPendingParams(prev => prev.filter(x => x !== p))} />
+                  </span>
+                ))}
+                {rawPendingParams.length > 1 && (
+                  <button onClick={() => setRawPendingParams([])} className="text-[10px] text-destructive/70 hover:text-destructive font-medium ml-1 underline underline-offset-2">
+                    Tout supprimer
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="flex items-end gap-3 flex-wrap mt-2">
               <div className="flex items-center gap-2 ml-auto shrink-0 pb-0.5">
                 {rawDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
                 {rawPendingParams.length === 0 && <span className="text-xs text-destructive whitespace-nowrap">≥1 param</span>}
