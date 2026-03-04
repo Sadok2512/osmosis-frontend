@@ -363,6 +363,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
           plaque: r['cluster'] || r['Plaque'] || r['plaque'] || null,
           hba: r['hba'] != null ? parseFloat(r['hba']) : (r['HBA'] != null ? parseInt(r['HBA']) : null),
           tac: r['NrTAC'] != null ? parseInt(r['NrTAC']) : (r['TAC'] != null ? parseInt(r['TAC']) : null),
+          tilt: r['tilt'] != null ? parseFloat(r['tilt']) : (r['Tilt'] != null ? parseFloat(r['Tilt']) : (r['electrical_tilt'] != null ? parseFloat(r['electrical_tilt']) : (r['e_tilt'] != null ? parseFloat(r['e_tilt']) : null))),
+          lac: r['lac'] != null ? parseInt(r['lac']) : (r['LAC'] != null ? parseInt(r['LAC']) : null),
+          pci: r['pci'] != null ? parseInt(r['pci']) : (r['PCI'] != null ? parseInt(r['PCI']) : null),
+          cid: r['cid'] != null ? parseInt(r['cid']) : (r['CID'] != null ? parseInt(r['CID']) : null),
+          eci: r['eci'] != null ? parseInt(r['eci']) : (r['ECI'] != null ? parseInt(r['ECI']) : null),
+          nci: r['nci'] != null ? parseInt(r['nci']) : (r['NCI'] != null ? parseInt(r['NCI']) : null),
+          etat_cellule: r['etat_cellule'] || r['Etat Cellule'] || null,
+          zone_arcep: r['zone_arcep'] || r['Zone ARCEP'] || null,
+          essentiel: r['essentiel'] || r['Essentiel'] || null,
+          hebergeur_leader: r['hebergeur_leader'] || r['Hebergeur Leader'] || null,
+          relative_id: r['relative_id'] || r['Relative ID'] || null,
+          dor: r['dor'] || r['DOR'] || r['nom_dor'] || null,
         };
       });
 
