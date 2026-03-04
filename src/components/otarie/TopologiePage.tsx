@@ -1033,6 +1033,15 @@ Fournis:
               <MultiSelectFilter label="Site" selected={rawPendingSite} options={availableSites} onChange={setRawPendingSite} />
               <MultiSelectFilter label="Cell" selected={rawPendingCell} options={availableCells} onChange={setRawPendingCell} />
               <div className="flex items-center gap-2 ml-auto shrink-0 pb-0.5">
+                {rawDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
+                {rawPendingParams.length === 0 && <span className="text-xs text-destructive whitespace-nowrap">≥1 param</span>}
+                <button onClick={rawConfirm} disabled={rawPendingParams.length === 0}
+                  className="flex items-center gap-1.5 px-5 py-1.5 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
+                  <Check className="w-3.5 h-3.5" /> Confirm
+                </button>
+                <button onClick={rawReset} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-input text-muted-foreground hover:bg-muted/50 whitespace-nowrap">
+                  <RotateCcw className="w-3 h-3" /> Reset
+                </button>
               </div>
             </div>
             {/* Selected params chips for Raw tab */}
@@ -1052,20 +1061,6 @@ Fournis:
                 )}
               </div>
             )}
-            <div className="flex items-end gap-3 flex-wrap mt-2">
-              <div className="flex items-center gap-2 ml-auto shrink-0 pb-0.5">
-                {rawDirty && <span className="flex items-center gap-1 text-xs text-destructive font-medium animate-pulse"><AlertCircle className="w-3.5 h-3.5" />Non appliqué</span>}
-                {rawPendingParams.length === 0 && <span className="text-xs text-destructive whitespace-nowrap">≥1 param</span>}
-                <button onClick={rawConfirm} disabled={rawPendingParams.length === 0}
-                  className="flex items-center gap-1.5 px-5 py-1.5 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
-                  <Check className="w-3.5 h-3.5" /> Confirm
-                </button>
-                <button onClick={rawReset} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-input text-muted-foreground hover:bg-muted/50 whitespace-nowrap">
-                  <RotateCcw className="w-3 h-3" /> Reset
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
