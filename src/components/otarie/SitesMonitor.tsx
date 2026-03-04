@@ -1322,7 +1322,36 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
   const [expandedSectors, setExpandedSectors] = useState<Set<number>>(new Set());
-  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim'>('kpi');
+  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim' | 'config'>('kpi');
+
+  // LTE Cell Configuration from parameter_dump
+  const [lteConfig, setLteConfig] = useState<{
+    pmax: number | null;
+    dlChBw: string | null;
+    dlMimoMode: string | null;
+    dlRsBoost: number | null;
+    loading: boolean;
+    cellName: string | null;
+  }>({ pmax: null, dlChBw: null, dlMimoMode: null, dlRsBoost: null, loading: false, cellName: null });
+
+  // LTE mappings
+  const DL_CH_BW_TO_PRB: Record<string, number> = { '1.4': 6, '3': 15, '5': 25, '10': 50, '15': 75, '20': 100 };
+  const MIMO_MODE_MAP: Record<string, string> = {
+    '0': 'SingleTX', '10': 'TXDiv', '11': '4-way TXDiv',
+    '30': 'Dynamic Open Loop MIMO', '40': 'Closed Loop MIMO',
+    '41': 'Closed Loop MIMO (4x2)', '43': 'Closed Loop MIMO (4x4)',
+  };
+
+  const getLteConfigValues = () => {
+    const bwMhz = lteConfig.dlChBw;
+    const prb = bwMhz ? DL_CH_BW_TO_PRB[bwMhz] ?? null : null;
+    const mimoLabel = lteConfig.dlMimoMode ? (MIMO_MODE_MAP[lteConfig.dlMimoMode] ?? `Unknown (${lteConfig.dlMimoMode})`) : null;
+    let rsPower: number | null = null;
+    if (lteConfig.pmax != null && prb != null && lteConfig.dlRsBoost != null) {
+      rsPower = lteConfig.pmax - 10 * Math.log10(prb) + lteConfig.dlRsBoost;
+    }
+    return { prb, mimoLabel, rsPower, bwMhz: bwMhz ? `${bwMhz} MHz` : null };
+  };
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('sites');
   const [beamVisibility, setBeamVisibility] = useState<number>(() => {
     try { const v = localStorage.getItem('qoebit_beam_visibility'); return v ? Number(v) : 75; } catch { return 75; }
@@ -1796,7 +1825,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
   }, [selectedSiteId]);
 
-  // Filter sites by search/filters (without techno filter — that only affects map rendering)
+  // Fetch LTE config from parameter_dump when a cell is focused
+  useEffect(() => {
+    if (!focusCellId || !siteDetail) {
+      setLteConfig(prev => ({ ...prev, pmax: null, dlChBw: null, dlMimoMode: null, dlRsBoost: null, loading: false, cellName: null }));
+      return;
+    }
+    const cell = siteDetail.cells.find(c => c.cell_id === focusCellId);
+    if (!cell || !cell.cell_id) return;
+    // Only fetch for LTE (4G) cells
+    const techno = (cell as any).techno || '';
+    if (!techno.toLowerCase().includes('lte') && !techno.includes('4G') && !techno.includes('L')) {
+      setLteConfig({ pmax: null, dlChBw: null, dlMimoMode: null, dlRsBoost: null, loading: false, cellName: cell.cell_id });
+      return;
+    }
+    const cellName = cell.cell_id;
+    setLteConfig(prev => ({ ...prev, loading: true, cellName }));
+    const fetchParams = async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('parameter_dump')
+          .select('parameter, value')
+          .eq('cell_name', cellName)
+          .in('parameter', ['LNCEL.pMax', 'LNCEL_FDD.dlChBw', 'LNCEL_FDD.dlMimoMode', 'LNCEL_FDD.dlRsBoost']);
+        if (error) throw error;
+        let pmax: number | null = null, dlChBw: string | null = null, dlMimoMode: string | null = null, dlRsBoost: number | null = null;
+        for (const row of (data || [])) {
+          if (row.parameter === 'LNCEL.pMax') pmax = parseFloat(row.value);
+          if (row.parameter === 'LNCEL_FDD.dlChBw') dlChBw = row.value;
+          if (row.parameter === 'LNCEL_FDD.dlMimoMode') dlMimoMode = row.value;
+          if (row.parameter === 'LNCEL_FDD.dlRsBoost') dlRsBoost = parseFloat(row.value);
+        }
+        setLteConfig({ pmax, dlChBw, dlMimoMode, dlRsBoost, loading: false, cellName });
+      } catch (err) {
+        console.error('Failed to fetch LTE config:', err);
+        setLteConfig({ pmax: null, dlChBw: null, dlMimoMode: null, dlRsBoost: null, loading: false, cellName });
+      }
+    };
+    fetchParams();
+  }, [focusCellId, siteDetail]);
+
+
   const filteredSites = useMemo(() => {
     const filtered = sites.filter(s => {
       const matchesSearch = s.site_name.toLowerCase().includes(localSearch.toLowerCase()) || s.site_id.toLowerCase().includes(localSearch.toLowerCase());
@@ -4823,6 +4892,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   {[
                     { id: 'kpi' as const, label: 'KPIs', icon: <BarChart2 size={12} /> },
                     { id: 'topo' as const, label: 'Topologie', icon: <Radio size={12} /> },
+                    { id: 'config' as const, label: 'Config', icon: <Settings2 size={12} /> },
                     { id: 'sim' as const, label: 'Simulation', icon: <Signal size={12} /> },
                   ].map(tab => (
                     <button
@@ -4993,6 +5063,82 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                   </div>
                 )}
+
+                {/* ── Config Tab — LTE Cell Configuration ── */}
+                {cellDetailTab === 'config' && (() => {
+                  const isLte = (cell.techno || '').toLowerCase().includes('lte') || (cell.techno || '').includes('4G') || (cell.techno || '').startsWith('L');
+                  if (!isLte) {
+                    return (
+                      <div className="px-5 py-8 text-center">
+                        <Settings2 size={28} className="mx-auto text-muted-foreground/40 mb-3" />
+                        <p className="text-[12px] text-muted-foreground font-medium">Configuration disponible uniquement pour les cellules LTE (4G).</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">Le support 5G NR sera ajouté prochainement.</p>
+                      </div>
+                    );
+                  }
+                  if (lteConfig.loading) {
+                    return (
+                      <div className="px-5 py-8 flex flex-col items-center gap-3">
+                        <RefreshCw size={20} className="text-primary animate-spin" />
+                        <p className="text-[11px] text-muted-foreground">Chargement configuration...</p>
+                      </div>
+                    );
+                  }
+                  const { prb, mimoLabel, rsPower, bwMhz } = getLteConfigValues();
+                  const hasData = lteConfig.pmax != null || lteConfig.dlChBw != null;
+                  if (!hasData) {
+                    return (
+                      <div className="px-5 py-8 text-center">
+                        <Database size={28} className="mx-auto text-muted-foreground/40 mb-3" />
+                        <p className="text-[12px] text-muted-foreground font-medium">Aucun paramètre trouvé pour cette cellule.</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">Vérifiez que la cellule existe dans parameter_dump.</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="px-5 py-4">
+                      <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Settings2 size={13} className="text-primary" />
+                        Configuration LTE
+                      </h4>
+
+                      {/* RS Power highlight card */}
+                      {rsPower != null && (
+                        <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-4 text-center">
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">RS Power (calculé)</div>
+                          <div className="text-[28px] font-black text-primary leading-none">{rsPower.toFixed(1)} <span className="text-[13px] font-semibold">dBm</span></div>
+                          <div className="text-[9px] text-muted-foreground/60 mt-2 font-mono">
+                            = {lteConfig.pmax} − 10×log₁₀({prb}) + {lteConfig.dlRsBoost}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="rounded-xl border border-border overflow-hidden bg-card">
+                        {[
+                          { label: 'Cell Name', value: lteConfig.cellName ?? cell.cell_id, highlight: true },
+                          { label: 'Pmax', value: lteConfig.pmax != null ? `${lteConfig.pmax} dBm` : '—', highlight: true },
+                          { label: 'DL Channel Bandwidth', value: bwMhz ?? '—', highlight: true },
+                          { label: 'Nombre de PRB', value: prb != null ? `${prb} PRB` : '—', highlight: true },
+                          { label: 'MIMO Configuration', value: mimoLabel ?? '—', highlight: true },
+                          { label: 'DL RS Boost', value: lteConfig.dlRsBoost != null ? `${lteConfig.dlRsBoost} dB` : '—', highlight: true },
+                          { label: 'RS Power', value: rsPower != null ? `${rsPower.toFixed(1)} dBm` : '—', highlight: true },
+                        ].map((p, i) => (
+                          <div key={i} className={`flex items-center justify-between px-4 py-2.5 text-[12px] border-b border-border/40 last:border-0 ${i % 2 === 0 ? 'bg-muted/20' : ''}`}>
+                            <span className="text-muted-foreground font-medium">{p.label}</span>
+                            <span className={`font-mono text-[11px] font-semibold ${p.highlight && p.value !== '—' ? 'text-primary' : p.value === '—' ? 'text-muted-foreground/50' : 'text-foreground'}`}>
+                              {p.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 5G NR placeholder */}
+                      <div className="mt-4 rounded-xl border border-dashed border-border/50 px-4 py-3 text-center">
+                        <p className="text-[10px] text-muted-foreground/50 font-medium">🚧 5G NR Configuration — Coming Soon</p>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* ── Simulation Tab ── */}
                 {cellDetailTab === 'sim' && (() => {
