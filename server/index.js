@@ -1197,13 +1197,13 @@ function classifyIntent(query, scopeLevel) {
   // Top/worst/best queries take HIGHEST priority (even if "par DOR" is present)
   const isTopQuery = ['top','pire','worst','meilleur','best','classement','ranking','dégradé','degradé','degraded'].some(h => n.includes(h));
   if (isTopQuery) return 'top_degradations';
+  // Topology / site count queries — BEFORE dimension detection so "nombre de sites par dor" routes here
+  if (['nombre de sites','nombre des sites','combien de sites','nb sites','répartition des sites','count sites','nombre de cellules','nombre des cellules','nb cellules'].some(h => n.includes(h))) return 'topo_stats';
   // Dimension-based queries
   const { isDim, isList } = isDimensionQueryLocal(query);
   if (isList) return 'list_dimension_values';
   if (isDim) return 'dimension_distribution';
   if (isChangeHistoryQuery(query)) return 'trace_change';
-  // Topology / site count queries
-  if (['nombre de sites','nombre des sites','combien de sites','nb sites','répartition des sites','count sites'].some(h => n.includes(h))) return 'topo_stats';
   if (scopeLevel === 'cell') return 'cell_analysis';
   if (scopeLevel === 'site') return 'site_analysis';
   if (['compare','comparer','comparaison','vs','versus'].some(h => n.includes(h))) return 'compare';
