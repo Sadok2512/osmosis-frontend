@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check, FileDown, MapPin, Plus, X, PanelLeftClose, PanelLeftOpen, Pencil } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check, FileDown, MapPin, Plus, X, PanelLeftClose, PanelLeftOpen, Pencil, ThumbsUp, ThumbsDown, Brain } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -10,6 +10,7 @@ import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
 import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore';
+import { useAgentLearningStore } from '@/stores/agentLearningStore';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
 type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'QOEBIT';
@@ -611,7 +612,16 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                           Voir sur la carte ({msg.mapCellIds.length})
                         </button>
                       )}
-                      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      {/* Feedback + actions bar */}
+                      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/30">
+                        <FeedbackButtons
+                          sessionId={activeSessionId || ''}
+                          messageIndex={i}
+                          agent={msg.agent || 'PULSE'}
+                          userQuestion={i > 0 ? messages[i - 1]?.content || '' : ''}
+                          assistantResponse={msg.content}
+                        />
+                        <div className="flex-1" />
                         <ExportPDFButton msgRef={msg.content} index={i} />
                         <CopyButton text={msg.content} />
                       </div>
@@ -676,6 +686,68 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
         </p>
       </div>
       </div>{/* end main chat area */}
+    </div>
+  );
+};
+
+/**
+ * FeedbackButtons: thumbs up/down for agent learning
+ */
+const FeedbackButtons: React.FC<{
+  sessionId: string;
+  messageIndex: number;
+  agent: string;
+  userQuestion: string;
+  assistantResponse: string;
+}> = ({ sessionId, messageIndex, agent, userQuestion, assistantResponse }) => {
+  const { submitFeedback, getFeedbackKey } = useAgentLearningStore();
+  const existing = getFeedbackKey(sessionId, messageIndex);
+
+  const handleRate = (rating: 1 | -1) => {
+    if (existing === rating) return; // already rated same
+    submitFeedback({
+      sessionId,
+      messageIndex,
+      userQuestion,
+      assistantResponse,
+      agent,
+      rating,
+    });
+    toast({
+      title: rating === 1 ? '👍 Merci !' : '👎 Noté',
+      description: rating === 1 ? 'Cette réponse sera utilisée comme exemple.' : 'Nous en tiendrons compte.',
+    });
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => handleRate(1)}
+        className={`p-1 rounded-md transition-all ${
+          existing === 1
+            ? 'bg-green-500/20 text-green-500'
+            : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/10'
+        }`}
+        title="Bonne réponse"
+      >
+        <ThumbsUp className="w-3.5 h-3.5" />
+      </button>
+      <button
+        onClick={() => handleRate(-1)}
+        className={`p-1 rounded-md transition-all ${
+          existing === -1
+            ? 'bg-red-500/20 text-red-500'
+            : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/10'
+        }`}
+        title="Mauvaise réponse"
+      >
+        <ThumbsDown className="w-3.5 h-3.5" />
+      </button>
+      {existing && (
+        <span className="text-[9px] text-muted-foreground ml-1 flex items-center gap-1">
+          <Brain className="w-3 h-3" /> Apprentissage
+        </span>
+      )}
     </div>
   );
 };
