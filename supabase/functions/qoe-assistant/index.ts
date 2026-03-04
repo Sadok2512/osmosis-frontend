@@ -182,14 +182,16 @@ async function searchRAGDocuments(query: string, maxChunks = 3): Promise<string>
 
 function isDimensionQuery(query: string): { isDim: boolean; isList: boolean } {
   const n = query.toLowerCase();
+  // Use a shared dimension keyword pattern (with plural tolerance)
+  const dimKw = "(dors?|vendor|fournisseurs?|bandes?|rats?|techno|technologie|plaques?|regions?|applications?|sites?|cellules?|arcep|tac|os|devices?|pop|as|orf)";
   const dimPatterns = [
-    /\bpar\s+(dor|vendor|fournisseur|bande|rat|techno|technologie|plaque|application|site|cellule|arcep|tac|os|device|pop|as|orf)\b/i,
-    /\bliste?\s+(des?\s+)?(dor|vendor|fournisseur|bande|rat|techno|technologie|plaque|application|site|cellule|arcep|tac|os|device|pop|as|orf)/i,
-    /\btous?\s+(les?\s+)?(dor|vendor|fournisseur|bande|rat|techno|technologie|plaque|application|site|cellule)/i,
+    new RegExp(`\\bpar\\s+${dimKw}`, "i"),
+    new RegExp(`\\bliste?r?\\s+(des?\\s+|les?\\s+)?${dimKw}`, "i"),
+    new RegExp(`\\btous?t?e?s?\\s+(les?\\s+)?${dimKw}`, "i"),
   ];
-  const isList = /\b(liste?|tous|toutes|affiche|montre|donne)\s+(les?\s+|des?\s+)?(dor|vendor|fournisseur|bande|rat|techno|technologie|plaque|application|site|cellule|arcep)/i.test(n);
+  const isList = new RegExp(`\\b(liste?r?|tous?t?e?s?|toutes?|affiche|montre|donne)\\s+(les?\\s+|des?\\s+)?${dimKw}`, "i").test(n);
   const isDim = dimPatterns.some(p => p.test(n));
-  return { isDim, isList };
+  return { isDim: isDim || isList, isList };
 }
 
 function isDistributionQuery(query: string): boolean {
@@ -203,18 +205,18 @@ function isDistributionQuery(query: string): boolean {
 function detectDimension1Type(message: string): Dimension1Type {
   const n = message.toLowerCase();
   const map: [RegExp, Dimension1Type][] = [
-    [/\b(dor|direction)\b/, "DOR"],
-    [/\b(vendor|fournisseur|constructeur)\b/, "Vendor"],
-    [/\b(bande|band|frequen)\b/, "Bande"],
-    [/\b(rat|techno|technologie|4g\s*(vs|et)\s*5g|5g\s*(vs|et)\s*4g)\b/, "RAT"],
-    [/\b(plaque|region)\b/, "Plaque"],
-    [/\b(application|app|service)\b/, "Application"],
-    [/\b(site)\b/, "Site"],
-    [/\b(cellule|cell)\b/, "Cellule"],
+    [/\b(dors?|direction)\b/, "DOR"],
+    [/\b(vendors?|fournisseurs?|constructeurs?)\b/, "Vendor"],
+    [/\b(bandes?|bands?|frequen)\b/, "Bande"],
+    [/\b(rats?|techno|technologie|4g\s*(vs|et)\s*5g|5g\s*(vs|et)\s*4g)\b/, "RAT"],
+    [/\b(plaques?|regions?)\b/, "Plaque"],
+    [/\b(applications?|apps?|services?)\b/, "Application"],
+    [/\b(sites?)\b/, "Site"],
+    [/\b(cellules?|cells?)\b/, "Cellule"],
     [/\b(arcep|zone_arcep)\b/, "ARCEP"],
     [/\b(tac)\b/, "TAC"],
     [/\b(os)\b/, "OS"],
-    [/\b(device|terminal|handset)\b/, "Device_brand"],
+    [/\b(devices?|terminaux?|terminals?|handsets?)\b/, "Device_brand"],
     [/\b(pop)\b/, "POP"],
     [/\b(as)\b/, "AS"],
     [/\b(orf)\b/, "ORF"],
