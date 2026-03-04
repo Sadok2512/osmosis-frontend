@@ -412,6 +412,75 @@ function extractSiteName(query: string): string | null {
   return null;
 }
 
+async function fetchTopoMetricByDimension(
+  metric: string,
+  dimension: string,
+  limit = 30
+): Promise<string> {
+  try {
+    const supabase = getSupabase();
+    // Map dimension keywords to topo column names
+    const dimColMap: Record<string, string> = {
+      DOR: "dor", Vendor: "constructeur", Bande: "bande", Plaque: "plaque",
+      Site: "nom_site", ARCEP: "zone_arcep", Cellule: "nom_cellule",
+      RAT: "techno",
+    };
+    const groupCol = dimColMap[dimension] || "dor";
+
+    const { data, error } = await supabase
+      .from("topo")
+      .select(`${groupCol}, ${metric}`)
+      .not(metric, "is", null)
+      .limit(50000);
+
+    if (error) { console.error("fetchTopoMetricByDimension error:", error); return ""; }
+    if (!data?.length) return `Aucune donnée topo pour ${metric}.`;
+
+    // Aggregate
+    const groups = new Map<string, { values: number[]; count: number }>();
+    for (const r of data) {
+      const label = (r as any)[groupCol] || "N/A";
+      if (!groups.has(label)) groups.set(label, { values: [], count: 0 });
+      const g = groups.get(label)!;
+      const val = (r as any)[metric];
+      if (val != null) { g.values.push(Number(val)); g.count++; }
+    }
+
+    const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    const sorted = Array.from(groups.entries())
+      .map(([label, g]) => ({
+        label,
+        avg: avg(g.values),
+        min: Math.min(...g.values),
+        max: Math.max(...g.values),
+        count: g.count,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+
+    const header = `# | ${dimension} | AVG(${metric}) | MIN | MAX | Cells`;
+    const lines = sorted.map((r, i) =>
+      `${i + 1} | ${r.label} | ${r.avg.toFixed(1)} | ${r.min} | ${r.max} | ${r.count}`
+    );
+
+    const globalAvg = avg(data.map((r: any) => Number((r as any)[metric])).filter((v: number) => !isNaN(v)));
+
+    const chartData = sorted.slice(0, 15).map(r => ({ label: r.label, value: Math.round(r.avg * 10) / 10 }));
+    const chartJson = JSON.stringify({
+      type: "bar",
+      title: `${metric} moyen par ${dimension}`,
+      xKey: "label",
+      yKeys: ["value"],
+      data: chartData,
+    });
+
+    return `DISTRIBUTION TOPO ${metric} par ${dimension} (${data.length} cellules, ${groups.size} groupes, moyenne globale: ${globalAvg.toFixed(1)}):\n${header}\n${lines.join("\n")}\n\nINSTRUCTION: Présente ces données de la table TOPO. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+  } catch (e) {
+    console.error("fetchTopoMetricByDimension failed:", e);
+    return "";
+  }
+}
+
 async function searchTopoForSite(siteName: string): Promise<string> {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -420,7 +489,7 @@ async function searchTopoForSite(siteName: string): Promise<string> {
 
     const { data, error } = await supabase
       .from("topo")
-      .select("code_nidt, nom_site, nom_cellule, techno, bande, constructeur, region, plaque, azimut, latitude, longitude, hba, tac, remote_electrical_tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes, date_fn8")
+      .select("code_nidt, nom_site, nom_cellule, techno, bande, constructeur, region, plaque, azimut, latitude, longitude, hba, tac, tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes, date_fn8, dor")
       .ilike("nom_site", `%${siteName}%`)
       .order("nom_cellule")
       .limit(100);
@@ -428,9 +497,9 @@ async function searchTopoForSite(siteName: string): Promise<string> {
     if (error) { console.error("Topo search error:", error); return ""; }
     if (!data?.length) return "";
 
-    const header = "nom_cellule | techno | bande | azimut | RET | hba | pci | tac | etat | constructeur | lat | lng";
+    const header = "nom_cellule | techno | bande | azimut | tilt | hba | pci | tac | etat | constructeur | dor | lat | lng";
     const lines = data.map((r: any) =>
-      `${r.nom_cellule} | ${r.techno || ""} | ${r.bande || ""} | ${r.azimut ?? "-"} | ${r.remote_electrical_tilt ?? "-"} | ${r.hba ?? "-"} | ${r.pci ?? "-"} | ${r.tac ?? "-"} | ${r.etat_cellule || "-"} | ${r.constructeur || "-"} | ${r.latitude ?? "-"} | ${r.longitude ?? "-"}`
+      `${r.nom_cellule} | ${r.techno || ""} | ${r.bande || ""} | ${r.azimut ?? "-"} | ${r.tilt ?? "-"} | ${r.hba ?? "-"} | ${r.pci ?? "-"} | ${r.tac ?? "-"} | ${r.etat_cellule || "-"} | ${r.constructeur || "-"} | ${r.dor || "-"} | ${r.latitude ?? "-"} | ${r.longitude ?? "-"}`
     );
 
     const sectorMap = new Map<number, any[]>();
@@ -443,7 +512,7 @@ async function searchTopoForSite(siteName: string): Promise<string> {
     let sectorAnalysis = "\n--- ANALYSE PAR SECTEUR ---\n";
     for (const [sNum, cells] of Array.from(sectorMap.entries()).sort(([a], [b]) => a - b)) {
       const azimuths = cells.map((c: any) => c.azimut).filter((a: any) => a != null);
-      const tilts = cells.map((c: any) => c.remote_electrical_tilt).filter((t: any) => t != null);
+      const tilts = cells.map((c: any) => c.tilt).filter((t: any) => t != null);
       const hbas = cells.map((c: any) => c.hba).filter((h: any) => h != null);
       const avgAz = azimuths.length ? Math.round(azimuths.reduce((a: number, b: number) => a + b, 0) / azimuths.length) : null;
       const deltaTilt = tilts.length >= 2 ? Math.max(...tilts) - Math.min(...tilts) : null;
@@ -456,7 +525,7 @@ async function searchTopoForSite(siteName: string): Promise<string> {
     }
 
     const first = data[0];
-    return `TOPO "${first.nom_site}" (${first.code_nidt}, ${first.region || "-"}, ${first.plaque || "-"}, ${first.constructeur || "-"}, ${first.latitude},${first.longitude})\n${data.length} cells:\n${header}\n${lines.join("\n")}${sectorAnalysis}`;
+    return `TOPO "${first.nom_site}" (${first.code_nidt}, ${first.region || "-"}, ${first.plaque || "-"}, ${first.constructeur || "-"}, ${first.dor || "-"}, ${first.latitude},${first.longitude})\n${data.length} cells:\n${header}\n${lines.join("\n")}${sectorAnalysis}`;
   } catch (e) {
     console.error("Topo site search failed:", e);
     return "";
