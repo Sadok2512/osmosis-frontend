@@ -610,12 +610,16 @@ app.post('/api/import-topo', async (req, res) => {
     let inserted = 0;
     for (const row of rows) {
       await pool.query(
-        `INSERT INTO topo (code_nidt, nom_site, nom_cellule, latitude, longitude, azimut, hba, techno, bande, constructeur, plaque, region, tac, date_mes, date_fn8)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+        `INSERT INTO topo (code_nidt, nom_site, nom_cellule, latitude, longitude, azimut, hba, techno, bande, constructeur, plaque, region, tac, date_mes, date_fn8, dor, pci, cid, eci, nci, etat_cellule, zone_arcep, essentiel, remote_electrical_tilt, tilt, lcid, lac, hebergeur_leader, relative_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
          ON CONFLICT DO NOTHING`,
         [row.code_nidt, row.nom_site, row.nom_cellule, row.latitude, row.longitude,
          row.azimut, row.hba, row.techno, row.bande, row.constructeur,
-         row.plaque, row.region, row.tac, row.date_mes, row.date_fn8]
+         row.plaque, row.region, row.tac, row.date_mes, row.date_fn8,
+         row.dor || null, row.pci || null, row.cid || null, row.eci || null, row.nci || null,
+         row.etat_cellule || null, row.zone_arcep || null, row.essentiel || null,
+         row.remote_electrical_tilt || null, row.tilt || null, row.lcid || null, row.lac || null,
+         row.hebergeur_leader || null, row.relative_id || null]
       );
       inserted++;
     }

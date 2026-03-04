@@ -78,6 +78,20 @@ Deno.serve(async (req) => {
         plaque: r.plaque || null,
         hba: r.hba != null ? Math.round(parseFloat(String(r.hba))) : null,
         tac: r.tac != null ? parseInt(String(r.tac)) : null,
+        dor: r.dor || null,
+        pci: r.pci != null && r.pci !== '' ? parseInt(String(r.pci)) : null,
+        cid: r.cid != null && r.cid !== '' ? parseInt(String(r.cid)) : null,
+        eci: r.eci != null && r.eci !== '' ? parseInt(String(r.eci)) : null,
+        nci: r.nci != null && r.nci !== '' ? parseInt(String(r.nci)) : null,
+        etat_cellule: r.etat_cellule || null,
+        zone_arcep: r.zone_arcep || null,
+        essentiel: r.essentiel || null,
+        remote_electrical_tilt: r.remote_electrical_tilt != null && r.remote_electrical_tilt !== '' ? parseInt(String(r.remote_electrical_tilt)) : null,
+        tilt: r.tilt != null && r.tilt !== '' ? parseInt(String(r.tilt)) : null,
+        lcid: r.lcid != null && r.lcid !== '' ? parseInt(String(r.lcid)) : null,
+        lac: r.lac != null && r.lac !== '' ? parseInt(String(r.lac)) : null,
+        hebergeur_leader: r.hebergeur_leader || null,
+        relative_id: r.relative_id || null,
       }));
 
       if (i === 0) {
