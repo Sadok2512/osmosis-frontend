@@ -1111,6 +1111,7 @@ serve(async (req) => {
     const context = await buildContextFromPlan(plan, lastUserMessage, filters, legacyCellContext);
 
     // ── Agent Learning: fetch few-shots + user memory ──
+    const supaClient = getSupabase();
     let learningContext = '';
     try {
       // Few-shot examples from positively-rated responses
