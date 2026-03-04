@@ -4379,7 +4379,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           { label: 'Band', value: `${cell.bande} MHz` },
                           { label: 'Azimuth', value: `${cell.azimut}°` },
                           { label: 'HBA', value: `${cell.hba ?? '—'} m` },
-                          { label: 'E-Tilt', value: `${(cell as any).remote_electrical_tilt ?? '—'}°` },
+                          { label: 'E-Tilt', value: `${(cell as any).tilt ?? '—'}°` },
                           { label: 'PCI', value: `${(cell as any).pci ?? '—'}` },
                           { label: 'Status', value: (cell as any).etat_cellule ?? 'Active' },
                           { label: 'Sessions', value: cell.sessions?.toLocaleString() ?? '—' },
@@ -4515,7 +4515,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             </td>
                             <td className="px-2 py-1.5 text-center text-muted-foreground">{c.bande}</td>
                             <td className="px-2 py-1.5 text-center font-bold text-foreground">{c.azimut ?? '—'}°</td>
-                            <td className="px-2 py-1.5 text-center font-bold text-foreground">{(c as any).remote_electrical_tilt ?? '—'}°</td>
+                            <td className="px-2 py-1.5 text-center font-bold text-foreground">{(c as any).tilt ?? '—'}°</td>
                             <td className="px-2 py-1.5 text-center text-muted-foreground">{c.hba ?? '—'}m</td>
                             <td className="px-2 py-1.5 text-center font-bold text-primary">S{getSectorNumber(c.cell_id)}</td>
                           </tr>
@@ -4533,7 +4533,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <div className="space-y-3">
                     {sortedSectors.map(([sNum, cells]) => {
                       const avgAz = cells.length > 0 ? Math.round(cells.reduce((s, c) => s + (c.azimut ?? 0), 0) / cells.length) : 0;
-                      const tilts = cells.map(c => (c as any).remote_electrical_tilt as number | null).filter((t): t is number => t != null);
+                      const tilts = cells.map(c => (c as any).tilt as number | null).filter((t): t is number => t != null);
                       const maxTilt = tilts.length ? Math.max(...tilts) : null;
                       const minTilt = tilts.length ? Math.min(...tilts) : null;
                       const deltaTilt = maxTilt != null && minTilt != null ? maxTilt - minTilt : null;
@@ -4562,7 +4562,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           {/* Cells in this sector */}
                           <div className="divide-y divide-border/40">
                             {cells.map((c, ci) => {
-                              const eTilt = (c as any).remote_electrical_tilt as number | null;
+                              const eTilt = (c as any).tilt as number | null;
                               const refTilt = tilts.length > 0 ? tilts[0] : null;
                               const cellDelta = eTilt != null && refTilt != null && ci > 0 ? eTilt - refTilt : null;
                               return (
