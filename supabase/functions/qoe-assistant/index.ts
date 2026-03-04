@@ -547,22 +547,28 @@ async function fetchTopoInventory(filters?: AssistantFilters): Promise<string> {
     if (!data) return "";
 
     const stats = data as any;
-    let result = `INVENTAIRE TOPOLOGIQUE (données exactes)\n`;
+    let result = `INVENTAIRE TOPOLOGIQUE (données exactes de la table topo)\n`;
     result += `Total cellules: ${stats.total_cells}\n`;
     result += `Total sites distincts: ${stats.total_sites}\n`;
     result += `Moyenne cellules/site: ${stats.total_sites ? (stats.total_cells / stats.total_sites).toFixed(1) : "?"}\n\n`;
 
     if (stats.by_techno) {
-      result += `Par Technologie:\n${Object.entries(stats.by_techno).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+      const technoEntries = Object.entries(stats.by_techno).sort(([,a],[,b]) => (b as number) - (a as number));
+      result += `Par Technologie:\n${technoEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
     }
     if (stats.by_bande) {
-      result += `Par Bande:\n${Object.entries(stats.by_bande).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+      const bandeEntries = Object.entries(stats.by_bande).sort(([,a],[,b]) => (b as number) - (a as number));
+      result += `Par Bande:\n${bandeEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+      // Add chart instruction
+      const chartData = bandeEntries.slice(0, 15).map(([k, v]) => ({ label: k, value: v }));
+      result += `INSTRUCTION: Présente ces données dans un tableau Markdown ET inclus ce chart:\n\`\`\`chart\n${JSON.stringify({ type: "bar", title: "Cellules par Bande", xKey: "label", yKeys: ["value"], data: chartData })}\n\`\`\`\n\n`;
     }
     if (stats.by_constructeur) {
       result += `Par Constructeur:\n${Object.entries(stats.by_constructeur).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
     }
     if (stats.by_dor) {
-      result += `Par DOR:\n${Object.entries(stats.by_dor).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
+      const dorEntries = Object.entries(stats.by_dor).sort(([,a],[,b]) => (b as number) - (a as number));
+      result += `Par DOR:\n${dorEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
     }
 
     return result;
