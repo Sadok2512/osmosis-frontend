@@ -327,8 +327,14 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     try {
       const finalText = await streamChat(updatedMessages);
       extractCellsFromResponse(finalText);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error('QOEBIT stream error:', e);
+      const errorDetail = e?.message || String(e);
+      const isLocal = isLocalMode();
+      const errorMsg = isLocal
+        ? `⚠️ **Erreur de connexion au backend local**\n\nImpossible de joindre \`localhost:3001/api/qoe-assistant\`.\n\n**Vérifiez que :**\n1. Le serveur Express est démarré : \`cd server && node index.js\`\n2. Votre clé OpenRouter est configurée dans \`server/.env\` ou dans le panel Configuration LLM\n3. Le modèle sélectionné est valide\n\n\`Détail : ${errorDetail}\``
+        : `⚠️ **Erreur** : ${errorDetail}`;
+      setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
     } finally {
       setIsLoading(false);
     }
