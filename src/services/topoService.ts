@@ -401,6 +401,7 @@ export async function fetchCellsByBbox(
   filters?: BboxFilters,
   signal?: AbortSignal,
 ): Promise<SiteSummary[]> {
+  // 1) Try local Express server
   try {
     const [resp, qoeData] = await Promise.all([
       topoApi.listCellsByBbox(bbox, filters, 8000, signal),
@@ -411,8 +412,58 @@ export async function fetchCellsByBbox(
     return sites.map(s => applyQoeData(s, qoeData));
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
-    console.warn('[TopoService] BBOX cells fetch failed', err);
-    return [];
+    console.warn('[TopoService] BBOX cells fetch failed, falling back to Cloud', err);
+  }
+
+  // 2) Fallback: query Supabase topo table directly by bbox
+  try {
+    let query = supabase
+      .from('topo')
+      .select('code_nidt, nom_site, region, longitude, latitude, nom_cellule, techno, bande, constructeur, azimut, plaque, hba, tac, tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes, date_fn8, dor, lac, hebergeur_leader, relative_id')
+      .gte('longitude', bbox.minLng)
+      .lte('longitude', bbox.maxLng)
+      .gte('latitude', bbox.minLat)
+      .lte('latitude', bbox.maxLat);
+
+    if (filters?.vendor && filters.vendor !== 'ALL') query = query.eq('constructeur', filters.vendor);
+    if (filters?.techno && filters.techno !== 'ALL') query = query.eq('techno', filters.techno);
+    if (filters?.bande && filters.bande !== 'ALL') query = query.eq('bande', filters.bande);
+    if (filters?.dor && filters.dor !== 'ALL') query = query.eq('dor', filters.dor);
+    if (filters?.plaque && filters.plaque !== 'ALL') query = query.eq('plaque', filters.plaque);
+
+    // Paginate to get up to 80000 rows (cells)
+    const PAGE_SIZE = 1000;
+    const MAX_ROWS = 80000;
+    const allRows: TopoRow[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore && allRows.length < MAX_ROWS) {
+      const { data, error } = await query.range(offset, offset + PAGE_SIZE - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        hasMore = false;
+      } else {
+        allRows.push(...(data as TopoRow[]));
+        if (data.length < PAGE_SIZE) hasMore = false;
+        else offset += PAGE_SIZE;
+      }
+    }
+
+    console.log(`[TopoService] CLOUD BBOX cells: ${allRows.length} rows`);
+    const sites = buildSitesFromRows(allRows);
+    const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
+    return sites.map(s => applyQoeData(s, qoeData));
+  } catch (err: any) {
+    if (err.name === 'AbortError') throw err;
+    console.warn('[TopoService] Cloud BBOX cells fallback also failed', err);
+
+    // 3) Last resort: use cached full sites filtered by bbox
+    const allSites = await fetchTopoSites();
+    return allSites.filter(s =>
+      s.coordinates[1] >= bbox.minLng && s.coordinates[1] <= bbox.maxLng &&
+      s.coordinates[0] >= bbox.minLat && s.coordinates[0] <= bbox.maxLat
+    );
   }
 }
 
