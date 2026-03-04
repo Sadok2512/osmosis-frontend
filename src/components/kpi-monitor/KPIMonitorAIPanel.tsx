@@ -71,8 +71,20 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
       }
     } catch { /* ignore */ }
 
+    // ── Truncate old messages to avoid massive payloads ──
+    const MAX_RECENT = 6;
+    const MAX_OLD_CHARS = 500;
+    const trimmedMessages = allMessages.map((m, i) => {
+      const isRecent = i >= allMessages.length - MAX_RECENT;
+      if (isRecent || m.role === 'user') return { role: m.role, content: m.content };
+      if (m.content.length > MAX_OLD_CHARS) {
+        return { role: m.role, content: m.content.slice(0, MAX_OLD_CHARS) + '\n[... tronqué ...]' };
+      }
+      return { role: m.role, content: m.content };
+    });
+
     const payload = JSON.stringify({
-      messages: allMessages,
+      messages: trimmedMessages,
       cellContext: kpiContext,
       openrouter_key: openrouterKey,
       model: llmModel,
