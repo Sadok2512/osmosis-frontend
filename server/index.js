@@ -216,7 +216,7 @@ CREATE TABLE IF NOT EXISTS topo (
   etat_cellule TEXT,
   zone_arcep TEXT,
   essentiel TEXT,
-  remote_electrical_tilt INTEGER,
+  tilt INTEGER,
   date_mes DATE,
   date_fn8 DATE,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -646,7 +646,7 @@ app.get('/api/topo', async (req, res) => {
       ? `id, code_nidt, nom_site, region, longitude, latitude, nom_cellule,
               techno, bande, constructeur, azimut, plaque, hba, tac,
               date_mes, date_fn8, dor, pci, cid, eci, nci,
-              etat_cellule, zone_arcep, essentiel, remote_electrical_tilt`
+              etat_cellule, zone_arcep, essentiel, tilt`
       : `code_nidt, nom_site, region, longitude, latitude, nom_cellule,
               techno, bande, constructeur, azimut, plaque, hba, tac,
               date_mes, date_fn8`;
@@ -732,7 +732,7 @@ app.get('/api/topo/sites', async (req, res) => {
       const baseCellCols = ['code_nidt', 'nom_site', 'nom_cellule', 'latitude', 'longitude'];
       const optionalCellCols = ['azimut', 'hba', 'techno', 'bande', 'constructeur', 'plaque', 'dor', 'region',
         'tac', 'pci', 'cid', 'eci', 'nci', 'etat_cellule', 'zone_arcep', 'essentiel',
-        'remote_electrical_tilt', 'date_mes', 'date_fn8'];
+        'tilt', 'date_mes', 'date_fn8'];
       const selectCols = [...baseCellCols, ...optionalCellCols.filter(c => hasCol(c))];
 
       const sql = `
@@ -1604,14 +1604,14 @@ async function searchTopoLocal(siteName) {
   try {
     const { rows } = await sharedPool.query(
       `SELECT code_nidt, nom_site, nom_cellule, techno, bande, constructeur, region, plaque,
-              azimut, latitude, longitude, hba, tac, remote_electrical_tilt, pci, eci, nci, cid,
+              azimut, latitude, longitude, hba, tac, tilt, pci, eci, nci, cid,
               etat_cellule, zone_arcep, essentiel, date_mes, date_fn8
        FROM topo WHERE nom_site ILIKE $1 ORDER BY nom_cellule LIMIT 100`, [`%${siteName}%`]
     );
     if (!rows.length) return '';
     const header = 'nom_cellule | techno | bande | azimut | RET | hba | pci | tac | etat | constructeur | lat | lng';
     const lines = rows.map(r =>
-      `${r.nom_cellule} | ${r.techno||''} | ${r.bande||''} | ${r.azimut??'-'} | ${r.remote_electrical_tilt??'-'} | ${r.hba??'-'} | ${r.pci??'-'} | ${r.tac??'-'} | ${r.etat_cellule||'-'} | ${r.constructeur||'-'} | ${r.latitude??'-'} | ${r.longitude??'-'}`
+      `${r.nom_cellule} | ${r.techno||''} | ${r.bande||''} | ${r.azimut??'-'} | ${r.tilt??'-'} | ${r.hba??'-'} | ${r.pci??'-'} | ${r.tac??'-'} | ${r.etat_cellule||'-'} | ${r.constructeur||'-'} | ${r.latitude??'-'} | ${r.longitude??'-'}`
     );
     const first = rows[0];
     return `TOPO "${first.nom_site}" (${first.code_nidt}, ${first.region||'-'}, ${first.plaque||'-'}, ${first.constructeur||'-'})\n${rows.length} cells:\n${header}\n${lines.join('\n')}`;
