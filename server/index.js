@@ -985,8 +985,25 @@ function detectMetricLocal(message) {
   }
   return 'qoe_index';
 }
+// Detect topo grouping column from "par DOR", "par plaque", etc. for top_degradations
+function detectTopoGroup(query) {
+  const n = query.toLowerCase();
+  const map = [
+    [/\bpar\s+(dors?|direction)\b/, { topoCol: 'dor', label: 'DOR' }],
+    [/\bpar\s+(plaques?)\b/, { topoCol: 'plaque', label: 'Plaque' }],
+    [/\bpar\s+(vendors?|constructeurs?|fournisseurs?|équipementiers?)\b/, { topoCol: 'constructeur', label: 'Constructeur' }],
+    [/\bpar\s+(regions?|région)\b/, { topoCol: 'region', label: 'Région' }],
+    [/\bpar\s+(technos?|technologie)\b/, { topoCol: 'techno', label: 'Techno' }],
+    [/\bpar\s+(bandes?|fréquence)\b/, { topoCol: 'bande', label: 'Bande' }],
+    [/\bpar\s+(zone_?arcep|arcep)\b/, { topoCol: 'zone_arcep', label: 'Zone ARCEP' }],
+  ];
+  for (const [regex, result] of map) {
+    if (regex.test(n)) return result;
+  }
+  return null;
+}
 
-function extractParamName(query) {
+
   // Match "SIB.t300", "NRCELL.t300", "LNCEL.T300", "CATMPR.t300ModeACatM" etc.
   const matchFull = query.match(/\b((?:LNCEL|LNBTS|LNCELL|MRBTS|GNBTS|SIB|NRCELL|CATMPR|NOKLTE|NRBTS|GNBCUCP|GNBCUUP|GNBDU|LNHOIF|LNRELIF|IRFIM)[.\s_]?\w+)\b/i);
   if (matchFull) return matchFull[1].replace(/\s/g, '.');
@@ -1177,7 +1194,10 @@ function classifyAgent(query) {
 }
 function classifyIntent(query, scopeLevel) {
   const n = query.toLowerCase();
-  // Dimension-based queries take priority
+  // Top/worst/best queries take HIGHEST priority (even if "par DOR" is present)
+  const isTopQuery = ['top','pire','worst','meilleur','best','classement','ranking','dégradé','degradé','degraded'].some(h => n.includes(h));
+  if (isTopQuery) return 'top_degradations';
+  // Dimension-based queries
   const { isDim, isList } = isDimensionQueryLocal(query);
   if (isList) return 'list_dimension_values';
   if (isDim) return 'dimension_distribution';
@@ -1187,7 +1207,6 @@ function classifyIntent(query, scopeLevel) {
   if (scopeLevel === 'cell') return 'cell_analysis';
   if (scopeLevel === 'site') return 'site_analysis';
   if (['compare','comparer','comparaison','vs','versus'].some(h => n.includes(h))) return 'compare';
-  if (['top','pire','worst','meilleur','best','classement','ranking','dégradé'].some(h => n.includes(h))) return 'top_degradations';
   if (['définition','definition',"c'est quoi","qu'est-ce que",'explique','explain'].some(h => n.includes(h))) return 'definition';
   if (['résumé','resume','summary','état','etat','overview','global','bilan'].some(h => n.includes(h))) return 'global_summary';
   return 'other';
@@ -1243,7 +1262,15 @@ function buildContextPlan(query, uiScope, filters) {
       case 'PULSE':
         needs.push('documents_rag');
         if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
-        else if (intent === 'top_degradations') { needs.push('worst_sites'); limits.maxSites = 20; }
+        else if (intent === 'top_degradations') {
+          // Extract topN from query (e.g. "top3" → 3, "top 5" → 5)
+          const topNMatch = query.match(/\btop\s*(\d+)/i);
+          const topN = topNMatch ? parseInt(topNMatch[1]) : 20;
+          needs.push('worst_sites'); limits.maxSites = topN;
+          // Detect "par <topo_group>" to enrich with JOIN
+          const topoGroup = detectTopoGroup(query);
+          if (topoGroup) { groupBy = { topoGroup }; needs.push('worst_sites_by_group'); }
+        }
         else if (intent === 'site_analysis') { needs.push('kpi_snapshot','worst_cells'); limits.maxCells = 30; }
         else if (intent === 'cell_analysis') { needs.push('kpi_snapshot'); limits.maxCells = 1; }
         break;
@@ -1438,6 +1465,112 @@ async function fetchWorstSitesLocal(filters, maxSites) {
     });
     return `TOP ${unique.length} WORST SITES (tri par ${usedLabel}, source: ${src.table}):\n${header}\n${lines.join('\n')}`;
   } catch (e) { console.error('[fetchWorstSitesLocal] ❌ ERROR:', e.message); return ''; }
+}
+
+// ─── Worst sites enriched with topo grouping (JOIN kpi + topo) ───
+async function fetchWorstSitesByGroupLocal(topoGroupInfo, metric, maxSites) {
+  try {
+    const src = await detectKpiTable();
+    if (!src) return '';
+    const { dim1, dim2 } = dimCols(src.isQoeMetric);
+    const { topoCol, label } = topoGroupInfo;
+
+    // Check available KPI columns
+    const colRes = await sharedPool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND table_schema = 'public'`, [src.table]
+    );
+    const availCols = new Set(colRes.rows.map(r => r.column_name));
+    const metricCol = availCols.has(metric) ? metric : 'qoe_index';
+
+    // Check topo has the group column
+    const topoColRes = await sharedPool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'topo' AND table_schema = 'public'`
+    );
+    const topoCols = new Set(topoColRes.rows.map(r => r.column_name));
+    if (!topoCols.has(topoCol)) {
+      console.log(`[fetchWorstSitesByGroupLocal] topo doesn't have column '${topoCol}'`);
+      return '';
+    }
+
+    const wantedKpis = ['qoe_index', 'debit_dl', 'debit_ul', 'rtt_data_avg', 'session_nbr', 'loss_dl_rate', 'tcp_retr_rate_dl', 'session_dcr'];
+    const selectKpis = wantedKpis.filter(c => availCols.has(c));
+    if (!selectKpis.length) return '';
+
+    // Determine sort direction (lower = worse for qoe/debit, higher = worse for rtt/loss/retr)
+    const higherIsWorse = ['rtt_data_avg', 'rtt_setup_avg', 'loss_dl_rate', 'loss_ul_rate', 'tcp_retr_rate_dl', 'tcp_retr_rate_ul', 'session_dcr'];
+    const sortDir = higherIsWorse.includes(metricCol) ? 'DESC' : 'ASC';
+
+    // JOIN: kpi (dimension_1='Site') with topo (on dimension_2 = code_nidt) grouped by topo group column
+    // First get per-site aggregated KPIs with topo group
+    const sql = `
+      SELECT t.${topoCol} AS group_label, k.${dim2} AS site_name,
+             ${selectKpis.map(c => `AVG(k.${c}) AS ${c}`).join(', ')}
+      FROM ${src.table} k
+      JOIN (SELECT DISTINCT code_nidt, ${topoCol} FROM topo WHERE ${topoCol} IS NOT NULL) t
+        ON k.${dim2} = t.code_nidt
+      WHERE k.${dim1} = 'Site'
+      GROUP BY t.${topoCol}, k.${dim2}
+      ORDER BY AVG(k.${metricCol}) ${sortDir} NULLS LAST
+      LIMIT $1
+    `;
+    console.log(`[fetchWorstSitesByGroupLocal] SQL: ${sql.replace(/\s+/g,' ')}`);
+    const { rows } = await sharedPool.query(sql, [maxSites * 3]);
+
+    if (!rows.length) {
+      // Fallback: try joining on nom_site instead of code_nidt
+      const sql2 = `
+        SELECT t.${topoCol} AS group_label, k.${dim2} AS site_name,
+               ${selectKpis.map(c => `AVG(k.${c}) AS ${c}`).join(', ')}
+        FROM ${src.table} k
+        JOIN (SELECT DISTINCT nom_site, ${topoCol} FROM topo WHERE ${topoCol} IS NOT NULL) t
+          ON k.${dim2} = t.nom_site
+        WHERE k.${dim1} = 'Site'
+        GROUP BY t.${topoCol}, k.${dim2}
+        ORDER BY AVG(k.${metricCol}) ${sortDir} NULLS LAST
+        LIMIT $1
+      `;
+      console.log(`[fetchWorstSitesByGroupLocal] Fallback on nom_site`);
+      const res2 = await sharedPool.query(sql2, [maxSites * 3]);
+      if (!res2.rows.length) return `Aucun site trouvé avec jointure topo (${topoCol}).`;
+      rows.push(...res2.rows);
+    }
+
+    // Deduplicate by site
+    const seen = new Set();
+    const unique = rows.filter(r => { if (seen.has(r.site_name)) return false; seen.add(r.site_name); return true; }).slice(0, maxSites);
+
+    // Group by topo group for display
+    const groups = new Map();
+    for (const r of unique) {
+      const g = r.group_label || 'Inconnu';
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(r);
+    }
+
+    const header = `# | ${label} | Site | ${selectKpis.join(' | ')}`;
+    const lines = [];
+    let idx = 1;
+    for (const [g, sites] of groups) {
+      for (const r of sites) {
+        const vals = selectKpis.map(k => {
+          const v = r[k];
+          if (v == null) return '-';
+          if (k.includes('rate') || k.includes('loss') || k.includes('retr') || k.includes('dcr')) return (+v * 100).toFixed(2) + '%';
+          return (+v).toFixed(1);
+        });
+        lines.push(`${idx++} | ${g} | ${r.site_name} | ${vals.join(' | ')}`);
+      }
+    }
+
+    // Build chart data grouped by topo dimension
+    const chartData = Array.from(groups.entries()).map(([g, sites]) => {
+      const avg = sites.reduce((s, r) => s + (Number(r[metricCol]) || 0), 0) / sites.length;
+      return { label: g, value: Math.round(avg * 100) / 100, sites: sites.length };
+    });
+    const chartJson = JSON.stringify({ type: 'bar', title: `Top dégradés: ${metricCol} par ${label}`, xKey: 'label', yKeys: ['value'], data: chartData });
+
+    return `TOP ${unique.length} SITES DÉGRADÉS par ${label} (métrique: ${metricCol}, tri: ${sortDir === 'ASC' ? 'plus bas' : 'plus haut'}):\n${header}\n${lines.join('\n')}\n\nRÉSUMÉ par ${label}:\n${chartData.map(d => `${d.label}: avg ${metricCol}=${d.value} (${d.sites} sites)`).join('\n')}\n\nINSTRUCTION: Présente ces résultats en tableau et inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+  } catch (e) { console.error('[fetchWorstSitesByGroupLocal] ❌', e.message); return ''; }
 }
 
 async function fetchSiteSnapshotLocal(siteName) {
@@ -1643,6 +1776,10 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   if (plan.needs.includes('dimension_values') && plan.groupBy?.dimension1) {
     promises.dimValues = fetchDimensionValuesLocal(plan.groupBy.dimension1, effectiveFilters, 200);
   }
+  if (plan.needs.includes('worst_sites_by_group') && plan.groupBy?.topoGroup) {
+    const met = detectMetricLocal(query);
+    promises.worstByGroup = fetchWorstSitesByGroupLocal(plan.groupBy.topoGroup, met, plan.limits.maxSites);
+  }
 
   const keys = Object.keys(promises);
   const results = await Promise.all(Object.values(promises));
@@ -1655,6 +1792,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   if (resolved.dimValues) sections.push(`📋 VALEURS DIMENSION:\n${resolved.dimValues}`);
   if (resolved.agg) sections.push(`📊 STATS AGRÉGÉES:\n${resolved.agg}`);
   if (resolved.worst) sections.push(`📉 WORST:\n${resolved.worst}`);
+  if (resolved.worstByGroup) sections.push(`📉 TOP DÉGRADÉS PAR GROUPE:\n${resolved.worstByGroup}`);
   if (resolved.snapshot) sections.push(`📋 SITE SNAPSHOT:\n${resolved.snapshot}`);
   if (resolved.topo) sections.push(`📡 TOPOLOGIE:\n${resolved.topo}`);
   if (resolved.topoStats) sections.push(`📊 STATS TOPOLOGIE:\n${resolved.topoStats}`);
