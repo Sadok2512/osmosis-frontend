@@ -85,7 +85,9 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
 
     const payload = JSON.stringify({
       messages: trimmedMessages,
-      cellContext: kpiContext,
+      uiScope: { page: 'kpi_monitor' },
+      filters: {},
+      kpiMonitorContext: kpiContext,
       openrouter_key: openrouterKey,
       model: llmModel,
     });
