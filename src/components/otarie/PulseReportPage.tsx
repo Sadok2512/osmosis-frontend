@@ -101,39 +101,47 @@ const PulseReportPage: React.FC = () => {
   };
 
   const fetchFromCloud = async () => {
-    // 1. Get latest date from ml_features
-    const { data: latestRows } = await supabase
+    // 1. Try ml_features first, then kpi_qoe_aggregated
+    let maxDate: string | null = null;
+    let useMLFeatures = false;
+
+    const { data: mlRows } = await supabase
       .from('ml_features')
       .select('date_part')
-      .eq('dimension_1', dimension)
       .order('date_part', { ascending: false })
       .limit(1);
+    if (mlRows?.[0]?.date_part) {
+      maxDate = mlRows[0].date_part;
+      useMLFeatures = true;
+    }
 
-    const maxDate = latestRows?.[0]?.date_part;
     if (!maxDate) {
-      // Fallback to kpi_qoe_aggregated
-      const { data: fallbackRows } = await supabase
+      const { data: aggRows } = await supabase
         .from('kpi_qoe_aggregated')
         .select('date_part')
-        .eq('dimension_1', dimension)
         .order('date_part', { ascending: false })
         .limit(1);
-      if (!fallbackRows?.[0]) {
-        // No data at all — show empty state, not an error loop
-        setLatestDate('');
-        setSummaries(CORE_KPIS.map(k => ({ label: k.label, key: k.key, value: null, unit: k.unit, delta7j: null, orientation: k.orientation })));
-        setTopWorst([]);
-        setTopBest([]);
-        setTimeSeries([]);
-        setError('Aucune donnée dans les tables Cloud. Lancez l\'application en local (localhost:5173) avec le backend Express pour accéder aux données PostgreSQL.');
-        return;
-      }
-      await fetchFromCloudAggregated(fallbackRows[0].date_part);
+      maxDate = aggRows?.[0]?.date_part ?? null;
+    }
+
+    if (!maxDate) {
+      setLatestDate('');
+      setSummaries(CORE_KPIS.map(k => ({ label: k.label, key: k.key, value: null, unit: k.unit, delta7j: null, orientation: k.orientation })));
+      setTopWorst([]); setTopBest([]); setTimeSeries([]);
+      setError('Aucune donnée dans les tables Cloud. Lancez l\'application en local (localhost:5173) avec le backend Express.');
       return;
     }
+
+    if (useMLFeatures) {
+      await fetchFromCloudML(maxDate);
+    } else {
+      await fetchFromCloudAggregated(maxDate);
+    }
+  };
+
+  const fetchFromCloudML = async (maxDate: string) => {
     setLatestDate(maxDate);
 
-    // 2. Fetch global averages for latest date (all sites combined → dimension_1='Global' or aggregate)
     const { data: globalRow } = await supabase
       .from('ml_features')
       .select('*')
@@ -142,18 +150,14 @@ const PulseReportPage: React.FC = () => {
       .limit(1);
 
     const gRow = globalRow?.[0];
-
-    const sums: KpiSummary[] = CORE_KPIS.map(k => ({
-      label: k.label,
-      key: k.key,
+    setSummaries(CORE_KPIS.map(k => ({
+      label: k.label, key: k.key,
       value: gRow ? (gRow as any)[k.key] : null,
       unit: k.unit,
       delta7j: gRow && k.deltaKey ? (gRow as any)[k.deltaKey] : null,
       orientation: k.orientation,
-    }));
-    setSummaries(sums);
+    })));
 
-    // 3. Top worst / best by qoe_index
     const { data: worstRows } = await supabase
       .from('ml_features')
       .select('dimension_2, qoe_index, debit_dl, rtt_data_avg, session_nbr, loss_dl_rate, tcp_retr_rate_dl, qoe_index_delta7j_pct')
@@ -162,7 +166,6 @@ const PulseReportPage: React.FC = () => {
       .not('qoe_index', 'is', null)
       .order('qoe_index', { ascending: true })
       .limit(10);
-
     setTopWorst((worstRows || []).map(r => ({ ...r, delta7j: (r as any).qoe_index_delta7j_pct })));
 
     const { data: bestRows } = await supabase
@@ -173,17 +176,14 @@ const PulseReportPage: React.FC = () => {
       .not('qoe_index', 'is', null)
       .order('qoe_index', { ascending: false })
       .limit(10);
-
     setTopBest((bestRows || []).map(r => ({ ...r, delta7j: (r as any).qoe_index_delta7j_pct })));
 
-    // 4. Time series (last 30 days, Global level)
     const { data: tsRows } = await supabase
       .from('kpi_qoe_aggregated')
       .select('date_part, qoe_index, debit_dl, debit_ul, rtt_data_avg, session_nbr, loss_dl_rate')
       .eq('dimension_1', 'Global')
       .order('date_part', { ascending: true })
       .limit(60);
-
     setTimeSeries((tsRows || []).map(r => ({ date: r.date_part, ...r })));
   };
 
