@@ -9,6 +9,8 @@ const app = express();
 
 // ─── In-memory cache for DISTINCT values (populated at startup) ───
 const distinctCache = {}; // { column_name: [values] }
+const filteredDistinctCache = {}; // { "col|filter1=v1|filter2=v2": [values] }
+const inflightDistinct = {}; // dedup concurrent identical requests
 let distinctCacheReady = false;
 let distinctCachePromise = null; // resolves when cache is ready
 
@@ -1993,6 +1995,23 @@ app.get('/api/dump-parameter', async (req, res) => {
       // 1) Wait for cache if still loading, then check in-memory cache
       await waitForCache();
       const hasFilter = !!(site_name || cell_name || dor || plaque || vendor || parameter);
+      
+      // Build composite cache key for filtered queries
+      const filterParts = [];
+      if (site_name) filterParts.push(`site=${site_name}`);
+      if (cell_name) filterParts.push(`cell=${cell_name}`);
+      if (dor) filterParts.push(`dor=${dor}`);
+      if (plaque) filterParts.push(`plaque=${plaque}`);
+      if (vendor) filterParts.push(`vendor=${vendor}`);
+      if (parameter) filterParts.push(`param=${parameter}`);
+      const filteredCacheKey = `${distinct_col}|${filterParts.join('|')}`;
+      
+      // Check filtered cache first (covers both filtered and unfiltered)
+      if (hasFilter && filteredDistinctCache[filteredCacheKey]) {
+        console.log(`   ⚡ Cache filtré: ${filteredDistinctCache[filteredCacheKey].length} valeurs pour ${filteredCacheKey} (${Date.now() - reqStart}ms)`);
+        return res.json(filteredDistinctCache[filteredCacheKey].map(v => ({ [distinct_col]: v })));
+      }
+      
       if (!hasFilter && distinctCache[distinct_col] && distinctCache[distinct_col].length > 0) {
         console.log(`   ⚡ Cache mémoire: ${distinctCache[distinct_col].length} valeurs pour ${distinct_col} (${Date.now() - reqStart}ms)`);
         return res.json(distinctCache[distinct_col].map(v => ({ [distinct_col]: v })));
@@ -2058,9 +2077,31 @@ app.get('/api/dump-parameter', async (req, res) => {
       }
       q += ` ORDER BY ${distinct_col} LIMIT 5000`;
       console.log(`   🔍 DISTINCT query: col=${distinct_col}${parameter ? `, parameter=${parameter}` : ''}${site_name ? `, site=${site_name}` : ''}`);
-      const result = await sharedPool.query(q, params);
-      console.log(`   ✅ ${result.rows.length} valeurs distinctes (${Date.now() - reqStart}ms)`);
-      return res.json(result.rows);
+      
+      // Dedup concurrent identical requests
+      if (inflightDistinct[filteredCacheKey]) {
+        console.log(`   ⏳ Dedup: attente requête en cours pour ${filteredCacheKey}`);
+        const cached = await inflightDistinct[filteredCacheKey];
+        return res.json(cached.map(v => ({ [distinct_col]: v })));
+      }
+      
+      inflightDistinct[filteredCacheKey] = (async () => {
+        const result = await sharedPool.query(q, params);
+        const vals = result.rows.map(r => r[distinct_col]);
+        const elapsed = Date.now() - reqStart;
+        console.log(`   ✅ ${vals.length} valeurs distinctes (${elapsed}ms)`);
+        // Cache for future requests
+        if (hasFilter) {
+          filteredDistinctCache[filteredCacheKey] = vals;
+        } else {
+          distinctCache[distinct_col] = vals;
+        }
+        delete inflightDistinct[filteredCacheKey];
+        return vals;
+      })();
+      
+      const vals = await inflightDistinct[filteredCacheKey];
+      return res.json(vals.map(v => ({ [distinct_col]: v })));
     }
 
     // Normal query mode — validate select columns against known schema
