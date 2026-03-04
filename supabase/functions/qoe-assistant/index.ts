@@ -536,57 +536,34 @@ async function searchTopoForSite(siteName: string): Promise<string> {
 
 async function fetchTopoInventory(filters?: AssistantFilters): Promise<string> {
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabase();
 
-    // Total cells
-    let q = supabase.from("topo").select("id", { count: "exact", head: true });
-    if (filters?.vendor) q = q.ilike("constructeur", `%${filters.vendor}%`);
-    if (filters?.techno) {
-      const technoMap: Record<string, string> = { "5G": "5G", "4G": "4G", "3G": "3G", "2G": "2G" };
-      const mapped = technoMap[filters.techno.toUpperCase()] || filters.techno;
-      q = q.ilike("techno", `%${mapped}%`);
+    // Use the RPC function for accurate counts (no 1000-row limit)
+    const { data, error } = await supabase.rpc("topo_inventory_stats");
+    if (error) {
+      console.error("topo_inventory_stats RPC error:", error);
+      return "";
     }
-    if (filters?.plaque) q = q.ilike("plaque", `%${filters.plaque}%`);
-    if (filters?.dor) q = q.ilike("dor", `%${filters.dor}%`);
-    const { count: totalCells } = await q;
+    if (!data) return "";
 
-    // Distinct sites
-    const { data: sitesData } = await supabase.from("topo").select("nom_site");
-    const uniqueSites = new Set((sitesData || []).map((r: any) => r.nom_site));
+    const stats = data as any;
+    let result = `INVENTAIRE TOPOLOGIQUE (données exactes)\n`;
+    result += `Total cellules: ${stats.total_cells}\n`;
+    result += `Total sites distincts: ${stats.total_sites}\n`;
+    result += `Moyenne cellules/site: ${stats.total_sites ? (stats.total_cells / stats.total_sites).toFixed(1) : "?"}\n\n`;
 
-    // By techno
-    const { data: technoData } = await supabase.from("topo").select("techno");
-    const technoCount: Record<string, number> = {};
-    for (const r of (technoData || [])) {
-      const t = r.techno || "Inconnu";
-      technoCount[t] = (technoCount[t] || 0) + 1;
+    if (stats.by_techno) {
+      result += `Par Technologie:\n${Object.entries(stats.by_techno).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
     }
-
-    // By bande
-    const { data: bandeData } = await supabase.from("topo").select("bande");
-    const bandeCount: Record<string, number> = {};
-    for (const r of (bandeData || [])) {
-      const b = r.bande || "Inconnu";
-      bandeCount[b] = (bandeCount[b] || 0) + 1;
+    if (stats.by_bande) {
+      result += `Par Bande:\n${Object.entries(stats.by_bande).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
     }
-
-    // By constructeur
-    const { data: vendorData } = await supabase.from("topo").select("constructeur");
-    const vendorCount: Record<string, number> = {};
-    for (const r of (vendorData || [])) {
-      const v = r.constructeur || "Inconnu";
-      vendorCount[v] = (vendorCount[v] || 0) + 1;
+    if (stats.by_constructeur) {
+      result += `Par Constructeur:\n${Object.entries(stats.by_constructeur).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
     }
-
-    let result = `INVENTAIRE TOPOLOGIQUE\n`;
-    result += `Total cellules: ${totalCells ?? "?"}\n`;
-    result += `Total sites distincts: ${uniqueSites.size}\n`;
-    result += `Moyenne cellules/site: ${totalCells && uniqueSites.size ? (totalCells / uniqueSites.size).toFixed(1) : "?"}\n\n`;
-    result += `Par Technologie:\n${Object.entries(technoCount).sort(([,a],[,b]) => b - a).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
-    result += `Par Bande:\n${Object.entries(bandeCount).sort(([,a],[,b]) => b - a).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
-    result += `Par Constructeur:\n${Object.entries(vendorCount).sort(([,a],[,b]) => b - a).map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
+    if (stats.by_dor) {
+      result += `Par DOR:\n${Object.entries(stats.by_dor).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
+    }
 
     return result;
   } catch (e) {
@@ -859,8 +836,8 @@ function isChangeHistoryQuery(query: string): boolean {
 
 function isTopoInventoryQuery(query: string): boolean {
   const n = query.toLowerCase();
-  const countHints = ["nombre", "combien", "count", "inventaire", "inventory", "nb site", "nb cellule", "nb cell", "total site", "total cell", "statistique topo", "stats topo"];
-  const topoTargets = ["cellule", "cell", "site", "antenne", "antenna", "secteur", "sector"];
+  const countHints = ["nombre", "combien", "count", "inventaire", "inventory", "nb site", "nb cellule", "nb cell", "total site", "total cell", "statistique topo", "stats topo", "nombes", "nbre"];
+  const topoTargets = ["cellule", "cell", "site", "antenne", "antenna", "secteur", "sector", "bande", "techno"];
   return countHints.some(h => n.includes(h)) && topoTargets.some(t => n.includes(t));
 }
 
@@ -885,17 +862,18 @@ function isSentinelQuery(query: string): boolean {
 
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
-  // Topo inventory queries (nombre de cellules, combien de sites) → TOPO
+  // Topo inventory queries (nombre de cellules, combien de sites) → TOPO always first
   if (isTopoInventoryQuery(query)) return "TOPO";
-  // Topo metric distribution queries go to TOPO
+  // Pure topo metric queries (just "tilt", "azimut", "hba") → TOPO
   const met = detectMetric(query);
+  if (TOPO_METRICS.has(met)) return "TOPO";
+  // Site design queries → TOPO
+  if (isSiteDesignQuery(query)) return "TOPO";
+  // Dimension queries go to PULSE
   const { isDim } = isDimensionQuery(query);
-  if (isDim && TOPO_METRICS.has(met)) return "TOPO";
-  // Other dimension queries go to PULSE
   if (isDim) return "PULSE";
   const isCompare = ["compare", "comparer", "comparaison", "vs", "versus", "benchmark"].some(h => n.includes(h));
   if (isCompare) return "PULSE";
-  if (isSiteDesignQuery(query)) return "TOPO";
   if (isChangeHistoryQuery(query)) return "TRACE";
   if (isSentinelQuery(query)) return "SENTINEL";
   if (isParameterFocusedQuery(query)) return "TRACE";
