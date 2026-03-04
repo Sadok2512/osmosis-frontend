@@ -22,6 +22,7 @@ type Intent =
   | "definition"
   | "trace_change"
   | "distribution"
+  | "list_dimension_values"
   | "other";
 
 type Scope =
@@ -45,7 +46,14 @@ type DataNeed =
   | "topology"
   | "param_dump"
   | "change_history"
-  | "documents_rag";
+  | "documents_rag"
+  | "dimension_agg"
+  | "dimension_values";
+
+type Dimension1Type =
+  | "Cellule" | "Site" | "Vendor" | "Bande" | "ARCEP" | "Application"
+  | "RAT" | "TAC" | "AS" | "POP" | "Device_brand" | "OS" | "DOR"
+  | "Plaque" | "ORF" | "application";
 
 interface ContextPlan {
   agent: AgentId;
@@ -59,6 +67,9 @@ interface ContextPlan {
     maxDays: number;
     maxRagChunks: number;
   };
+  groupBy?: { dimension1: string };
+  metric?: string;
+  resultLimit?: number;
   clarificationNeeded?: boolean;
   clarificationQuestion?: string;
 }
@@ -169,11 +180,193 @@ async function searchRAGDocuments(query: string, maxChunks = 3): Promise<string>
   }
 }
 
+function isDimensionQuery(query: string): { isDim: boolean; isList: boolean } {
+  const n = query.toLowerCase();
+  const dimPatterns = [
+    /\bpar\s+(dor|vendor|fournisseur|bande|rat|techno|technologie|plaque|application|site|cellule|arcep|tac|os|device|pop|as|orf)\b/i,
+    /\bliste?\s+(des?\s+)?(dor|vendor|fournisseur|bande|rat|techno|technologie|plaque|application|site|cellule|arcep|tac|os|device|pop|as|orf)/i,
+    /\btous?\s+(les?\s+)?(dor|vendor|fournisseur|bande|rat|techno|technologie|plaque|application|site|cellule)/i,
+  ];
+  const isList = /\b(liste?|tous|toutes|affiche|montre|donne)\s+(les?\s+|des?\s+)?(dor|vendor|fournisseur|bande|rat|techno|technologie|plaque|application|site|cellule|arcep)/i.test(n);
+  const isDim = dimPatterns.some(p => p.test(n));
+  return { isDim, isList };
+}
+
 function isDistributionQuery(query: string): boolean {
   const normalized = query.toLowerCase();
-  return ["distribution", "répartition", "repartition",
+  const { isDim } = isDimensionQuery(query);
+  return isDim || ["distribution", "répartition", "repartition",
     "par plaque", "par upr", "par vendor", "par site", "par bande", "par dor", "par region", "par zone"
   ].some((h) => normalized.includes(h));
+}
+
+function detectDimension1Type(message: string): Dimension1Type {
+  const n = message.toLowerCase();
+  const map: [RegExp, Dimension1Type][] = [
+    [/\b(dor|direction)\b/, "DOR"],
+    [/\b(vendor|fournisseur|constructeur)\b/, "Vendor"],
+    [/\b(bande|band|frequen)\b/, "Bande"],
+    [/\b(rat|techno|technologie|4g\s*(vs|et)\s*5g|5g\s*(vs|et)\s*4g)\b/, "RAT"],
+    [/\b(plaque|region)\b/, "Plaque"],
+    [/\b(application|app|service)\b/, "Application"],
+    [/\b(site)\b/, "Site"],
+    [/\b(cellule|cell)\b/, "Cellule"],
+    [/\b(arcep|zone_arcep)\b/, "ARCEP"],
+    [/\b(tac)\b/, "TAC"],
+    [/\b(os)\b/, "OS"],
+    [/\b(device|terminal|handset)\b/, "Device_brand"],
+    [/\b(pop)\b/, "POP"],
+    [/\b(as)\b/, "AS"],
+    [/\b(orf)\b/, "ORF"],
+  ];
+  for (const [regex, dim] of map) {
+    if (regex.test(n)) return dim;
+  }
+  return "Site"; // default
+}
+
+function detectMetric(message: string): string {
+  const n = message.toLowerCase();
+  const map: [RegExp, string][] = [
+    [/\b(qos)\b/, "qos"],
+    [/\b(qoe|qualit[eé])\b/, "qoe_index"],
+    [/\b(debit\s*dl|throughput\s*dl|dl_throughput|débit\s*dl)\b/, "debit_dl"],
+    [/\b(debit\s*ul|throughput\s*ul|ul_throughput|débit\s*ul)\b/, "debit_ul"],
+    [/\b(rtt|latence|latency)\b/, "rtt_data_avg"],
+    [/\b(traffic|volume|trafic)\b/, "volume_totale_dl"],
+    [/\b(loss|perte)\b/, "loss_dl_rate"],
+    [/\b(retrans|retr)\b/, "tcp_retr_rate_dl"],
+    [/\b(dms\s*3|dms_3|dms3)\b/, "dms_debit_dl_3"],
+    [/\b(dms\s*8|dms_8|dms8)\b/, "dms_debit_dl_8"],
+    [/\b(dms\s*30|dms_30|dms30)\b/, "dms_debit_dl_30"],
+    [/\b(session|sessions)\b/, "session_nbr"],
+    [/\b(drop|dcr|coupure)\b/, "session_dcr"],
+    [/\b(window\s*full|wind_full)\b/, "wind_full_rate"],
+  ];
+  for (const [regex, metric] of map) {
+    if (regex.test(n)) return metric;
+  }
+  return "qoe_index"; // default
+}
+
+// ── Data providers for dimension queries on kpi_qoe_aggregated ──
+
+async function fetchMetricDistributionByDimension1(
+  dimension1Type: string,
+  metric: string,
+  filters?: AssistantFilters,
+  days = 7,
+  limit = 30
+): Promise<string> {
+  try {
+    const supabase = getSupabase();
+    
+    // First check which columns exist
+    const selectCols = `dimension_1, dimension_2, date_part, ${metric}, session_nbr`;
+    
+    let q = supabase.from("kpi_qoe_aggregated")
+      .select(selectCols)
+      .eq("dimension_1", dimension1Type)
+      .not(metric, "is", null)
+      .order("date_part", { ascending: false })
+      .limit(1000);
+
+    // Apply additional filters if present
+    if (filters?.vendor) q = q.ilike("dimension_2", `%${filters.vendor}%`);
+
+    const { data, error } = await q;
+    if (error) {
+      console.error("fetchMetricDistribution error:", error);
+      // Try without session_nbr if it fails
+      const q2 = supabase.from("kpi_qoe_aggregated")
+        .select(`dimension_1, dimension_2, date_part, ${metric}`)
+        .eq("dimension_1", dimension1Type)
+        .not(metric, "is", null)
+        .order("date_part", { ascending: false })
+        .limit(1000);
+      const { data: data2, error: error2 } = await q2;
+      if (error2) { console.error("fetchMetricDistribution retry error:", error2); return ""; }
+      if (!data2?.length) return `Aucune donnée pour dimension_1='${dimension1Type}'.`;
+      return aggregateDistributionData(data2, dimension1Type, metric, limit, false);
+    }
+    if (!data?.length) return `Aucune donnée pour dimension_1='${dimension1Type}'.`;
+
+    return aggregateDistributionData(data, dimension1Type, metric, limit, true);
+  } catch (e) {
+    console.error("fetchMetricDistribution failed:", e);
+    return "";
+  }
+}
+
+function aggregateDistributionData(
+  data: any[],
+  dimension1Type: string,
+  metric: string,
+  limit: number,
+  hasSessionNbr: boolean
+): string {
+  const groups = new Map<string, { values: number[]; sessions: number }>();
+  for (const r of data) {
+    const label = r.dimension_2 || "N/A";
+    if (!groups.has(label)) groups.set(label, { values: [], sessions: 0 });
+    const g = groups.get(label)!;
+    const val = r[metric];
+    if (val != null) g.values.push(Number(val));
+    if (hasSessionNbr && r.session_nbr != null) g.sessions += Number(r.session_nbr);
+  }
+
+  const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+  
+  const sorted = Array.from(groups.entries())
+    .map(([label, g]) => ({ label, avg: avg(g.values), count: g.values.length, sessions: g.sessions }))
+    .sort((a, b) => b.avg - a.avg)
+    .slice(0, limit);
+
+  const header = hasSessionNbr
+    ? `# | ${dimension1Type} | AVG(${metric}) | Points | Sessions`
+    : `# | ${dimension1Type} | AVG(${metric}) | Points`;
+  
+  const lines = sorted.map((r, i) => {
+    const base = `${i + 1} | ${r.label} | ${r.avg.toFixed(2)} | ${r.count}`;
+    return hasSessionNbr ? `${base} | ${r.sessions}` : base;
+  });
+
+  // Also build chart data for the LLM
+  const chartData = sorted.slice(0, 15).map(r => ({ label: r.label, value: Math.round(r.avg * 100) / 100 }));
+  const chartJson = JSON.stringify({
+    type: "bar",
+    title: `${metric} par ${dimension1Type}`,
+    xKey: "label",
+    yKeys: ["value"],
+    data: chartData,
+  });
+
+  return `DISTRIBUTION ${metric} par ${dimension1Type} (${data.length} points, ${groups.size} valeurs):\n${header}\n${lines.join("\n")}\n\nINSTRUCTION: Utilise ces données pour répondre. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+}
+
+async function fetchDimensionValues(
+  dimension1Type: string,
+  filters?: AssistantFilters,
+  days = 7,
+  limit = 200
+): Promise<string> {
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase.from("kpi_qoe_aggregated")
+      .select("dimension_2")
+      .eq("dimension_1", dimension1Type)
+      .order("dimension_2")
+      .limit(1000);
+
+    if (error) { console.error("fetchDimensionValues error:", error); return ""; }
+    if (!data?.length) return `Aucune valeur trouvée pour dimension_1='${dimension1Type}'.`;
+
+    const unique = [...new Set(data.map((r: any) => r.dimension_2).filter(Boolean))].sort().slice(0, limit);
+    return `VALEURS DISTINCTES pour ${dimension1Type} (${unique.length}):\n${unique.join(", ")}\n\nINSTRUCTION: Liste ces valeurs à l'utilisateur dans un format lisible.`;
+  } catch (e) {
+    console.error("fetchDimensionValues failed:", e);
+    return "";
+  }
 }
 
 function extractParamName(query: string): string | null {
@@ -544,20 +737,24 @@ function isSentinelQuery(query: string): boolean {
 
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
-  // Comparison queries should go to PULSE even if they mention vendor names
+  // Dimension queries always go to PULSE
+  const { isDim } = isDimensionQuery(query);
+  if (isDim) return "PULSE";
   const isCompare = ["compare", "comparer", "comparaison", "vs", "versus", "benchmark"].some(h => n.includes(h));
   if (isCompare) return "PULSE";
   if (isSiteDesignQuery(query)) return "ARCHITECT";
   if (isChangeHistoryQuery(query)) return "TRACE";
   if (isSentinelQuery(query)) return "SENTINEL";
-  // Parameter-focused but not a compare → TRACE
   if (isParameterFocusedQuery(query)) return "TRACE";
   return "PULSE";
 }
 
 function classifyIntent(query: string, scope: Scope): Intent {
   const n = query.toLowerCase();
-  if (isDistributionQuery(query)) return "distribution";
+  // Dimension queries take priority
+  const { isDim, isList } = isDimensionQuery(query);
+  if (isList) return "list_dimension_values";
+  if (isDim) return "distribution";
   if (isChangeHistoryQuery(query)) return "trace_change";
   if (scope.level === "cell") return "cell_analysis";
   if (scope.level === "site") return "site_analysis";
@@ -621,49 +818,65 @@ function buildContextPlan(
   const needs: DataNeed[] = [];
   const limits = { maxSites: 20, maxCells: 0, maxKpis: 10, maxDays: 7, maxRagChunks: 3 };
 
-  switch (agent) {
-    case "PULSE":
-      needs.push("documents_rag");
-      if (intent === "global_summary" || intent === "compare" || intent === "other") {
-        needs.push("agg_stats", "worst_sites");
-      } else if (intent === "top_degradations") {
-        needs.push("worst_sites");
-        limits.maxSites = 20;
-      } else if (intent === "site_analysis") {
-        needs.push("kpi_snapshot", "worst_cells");
-        limits.maxCells = 30;
-      } else if (intent === "cell_analysis") {
-        needs.push("kpi_snapshot");
-        limits.maxCells = 1;
-      } else if (intent === "distribution") {
-        needs.push("param_dump");
-      }
-      break;
+  let groupBy: { dimension1: string } | undefined;
+  let metric: string | undefined;
+  let resultLimit = 30;
 
-    case "SENTINEL":
-      needs.push("documents_rag");
-      if (scope.level === "site" || scope.level === "cell") {
-        needs.push("kpi_snapshot", "worst_cells");
-        limits.maxCells = 20;
-      } else {
-        needs.push("agg_stats", "worst_sites");
-        limits.maxSites = 15;
-      }
-      break;
+  // Handle dimension-based intents FIRST
+  if (intent === "distribution") {
+    const dim1 = detectDimension1Type(query);
+    const met = detectMetric(query);
+    groupBy = { dimension1: dim1 };
+    metric = met;
+    needs.push("dimension_agg", "documents_rag");
+  } else if (intent === "list_dimension_values") {
+    const dim1 = detectDimension1Type(query);
+    groupBy = { dimension1: dim1 };
+    needs.push("dimension_values", "documents_rag");
+  } else {
+    // Original agent-based logic
+    switch (agent) {
+      case "PULSE":
+        needs.push("documents_rag");
+        if (intent === "global_summary" || intent === "compare" || intent === "other") {
+          needs.push("agg_stats", "worst_sites");
+        } else if (intent === "top_degradations") {
+          needs.push("worst_sites");
+          limits.maxSites = 20;
+        } else if (intent === "site_analysis") {
+          needs.push("kpi_snapshot", "worst_cells");
+          limits.maxCells = 30;
+        } else if (intent === "cell_analysis") {
+          needs.push("kpi_snapshot");
+          limits.maxCells = 1;
+        }
+        break;
 
-    case "TRACE":
-      needs.push("documents_rag", "change_history");
-      if (isParameterFocusedQuery(query)) needs.push("param_dump");
-      if (scope.level === "site") needs.push("topology");
-      break;
+      case "SENTINEL":
+        needs.push("documents_rag");
+        if (scope.level === "site" || scope.level === "cell") {
+          needs.push("kpi_snapshot", "worst_cells");
+          limits.maxCells = 20;
+        } else {
+          needs.push("agg_stats", "worst_sites");
+          limits.maxSites = 15;
+        }
+        break;
 
-    case "ARCHITECT":
-      needs.push("documents_rag", "topology");
-      if (scope.level === "site") {
-        needs.push("kpi_snapshot");
-        limits.maxCells = 30;
-      }
-      break;
+      case "TRACE":
+        needs.push("documents_rag", "change_history");
+        if (isParameterFocusedQuery(query)) needs.push("param_dump");
+        if (scope.level === "site") needs.push("topology");
+        break;
+
+      case "ARCHITECT":
+        needs.push("documents_rag", "topology");
+        if (scope.level === "site") {
+          needs.push("kpi_snapshot");
+          limits.maxCells = 30;
+        }
+        break;
+    }
   }
 
   const n = query.toLowerCase();
@@ -674,12 +887,9 @@ function buildContextPlan(
   let clarificationNeeded = false;
   let clarificationQuestion: string | undefined;
 
-  if (intent === "other" && scope.level === "global" && query.length < 20) {
-  }
+  console.log(`📋 Plan: agent=${agent}, intent=${intent}, scope=${JSON.stringify(scope)}, needs=[${needs.join(",")}], groupBy=${JSON.stringify(groupBy)}, metric=${metric}`);
 
-  console.log(`📋 Plan: agent=${agent}, intent=${intent}, scope=${JSON.stringify(scope)}, needs=[${needs.join(",")}], limits=${JSON.stringify(limits)}`);
-
-  return { agent, intent, scope, needs, limits, clarificationNeeded, clarificationQuestion };
+  return { agent, intent, scope, needs, limits, groupBy, metric, resultLimit, clarificationNeeded, clarificationQuestion };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -719,6 +929,23 @@ async function buildContextFromPlan(
   if (plan.needs.includes("change_history")) {
     promises.changes = searchParameterChanges(query);
   }
+  if (plan.needs.includes("dimension_agg") && plan.groupBy?.dimension1) {
+    promises.dimAgg = fetchMetricDistributionByDimension1(
+      plan.groupBy.dimension1,
+      plan.metric || "qoe_index",
+      filters,
+      plan.limits.maxDays,
+      plan.resultLimit || 30
+    );
+  }
+  if (plan.needs.includes("dimension_values") && plan.groupBy?.dimension1) {
+    promises.dimValues = fetchDimensionValues(
+      plan.groupBy.dimension1,
+      filters,
+      plan.limits.maxDays,
+      plan.resultLimit || 200
+    );
+  }
 
   const keys = Object.keys(promises);
   const results = await Promise.all(Object.values(promises));
@@ -727,6 +954,8 @@ async function buildContextFromPlan(
 
   console.log(`📦 Context fetched: ${keys.filter(k => resolved[k]).join(", ") || "none"}`);
 
+  if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
+  if (resolved.dimValues) sections.push(`📋 VALEURS DIMENSION:\n${resolved.dimValues}`);
   if (resolved.agg) sections.push(`📊 STATS AGRÉGÉES:\n${resolved.agg}`);
   if (resolved.worst) sections.push(`📉 WORST:\n${resolved.worst}`);
   if (resolved.snapshot) sections.push(`📋 SITE SNAPSHOT:\n${resolved.snapshot}`);
