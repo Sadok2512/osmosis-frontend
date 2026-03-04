@@ -551,15 +551,41 @@ const CompactMarkdown: React.FC<{ content: string }> = ({ content }) => (
       td: ({ children }) => {
         const text = String(children ?? '');
         const baseCls = 'px-2 py-1.5 text-[10px] border-b border-border/20';
+        // Emoji/status
+        if (text.includes('🔴') || /critique|critical/i.test(text)) return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(0, 80%, 50%)' }}>{children}</td>;
+        if (text.includes('🟠') || /dégradé/i.test(text)) return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(25, 90%, 50%)' }}>{children}</td>;
+        if (text.includes('🟡')) return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(45, 90%, 45%)' }}>{children}</td>;
+        if (text.includes('🟢')) return <td className={`${baseCls} font-semibold`} style={{ color: 'hsl(142, 70%, 40%)' }}>{children}</td>;
+        // Delta values
+        const deltaMatch = text.match(/^([+-])(\d+\.?\d*)\s*(%|pts?|ms|Mbps)?$/);
+        if (deltaMatch) {
+          const sign = deltaMatch[1];
+          const val = parseFloat(deltaMatch[2]);
+          const unit = (deltaMatch[3] || '').toLowerCase();
+          const isLatency = unit === 'ms';
+          const isGood = isLatency ? sign === '-' : sign === '+';
+          const color = isGood ? 'hsl(142, 70%, 38%)' : val > 10 ? 'hsl(0, 80%, 48%)' : 'hsl(25, 90%, 50%)';
+          return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
+        }
+        // Percentage
         const pctMatch = text.match(/(\d+\.?\d*)%/);
         if (pctMatch) {
           const val = parseFloat(pctMatch[1]);
-          let color = 'hsl(142, 70%, 40%)';
-          if (val < 50) color = 'hsl(0, 80%, 50%)';
-          else if (val < 65) color = 'hsl(25, 90%, 50%)';
-          else if (val < 75) color = 'hsl(45, 90%, 45%)';
-          else if (val < 85) color = 'hsl(142, 50%, 45%)';
+          const isBadHigh = /loss|retr|dcr|perte/i.test(text) || val < 10;
+          let color: string;
+          if (isBadHigh) {
+            color = val > 3 ? 'hsl(0, 80%, 50%)' : val > 1 ? 'hsl(45, 90%, 45%)' : 'hsl(142, 70%, 40%)';
+          } else {
+            color = val < 50 ? 'hsl(0, 80%, 50%)' : val < 65 ? 'hsl(25, 90%, 50%)' : val < 75 ? 'hsl(45, 90%, 45%)' : 'hsl(142, 70%, 40%)';
+          }
           return <td className={`${baseCls} font-bold`} style={{ color }}>{children}</td>;
+        }
+        // Mbps
+        const mbps = text.match(/(\d+\.?\d*)\s*Mbps/i);
+        if (mbps) {
+          const v = parseFloat(mbps[1]);
+          const color = v < 10 ? 'hsl(0, 80%, 50%)' : v < 25 ? 'hsl(25, 90%, 50%)' : v < 40 ? 'hsl(45, 90%, 45%)' : 'hsl(142, 70%, 40%)';
+          return <td className={`${baseCls} font-semibold`} style={{ color }}>{children}</td>;
         }
         return <td className={`${baseCls} text-foreground/85`}>{children}</td>;
       },
