@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { X, Send, Bot, User, Loader2, Sparkles, Trash2, Copy, Check, FileDown, BarChart3, Zap, TrendingDown, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 import { useGlobalFilterStore } from '@/stores/globalFilterStore';
 import { useKpiMonitorStore } from '@/stores/kpiMonitorStore';
+import { useChatSessionStore } from '@/stores/chatSessionStore';
 import { parseVisualizationBlocks } from '../otarie/chat-visualizations/parseVisualizationBlocks';
 import InlineChart from '../otarie/chat-visualizations/InlineChart';
 import InlineKPICards from '../otarie/chat-visualizations/InlineKPICards';
@@ -27,20 +28,40 @@ interface KPIMonitorAIPanelProps {
 }
 
 const KPIMonitorAIPanel: React.FC<KPIMonitorAIPanelProps> = ({ onClose }) => {
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const sessionStore = useChatSessionStore();
+
+  // Ensure a session exists for KPI Monitor
+  const sessionId = useMemo(() => {
+    const existing = sessionStore.sessions.find(s => s.title.startsWith('[KPI]'));
+    if (existing) {
+      sessionStore.setActiveSession(existing.id);
+      return existing.id;
+    }
+    return sessionStore.createSession('[KPI] Nouvelle session');
+  }, []);
+
+  const activeSession = sessionStore.sessions.find(s => s.id === sessionId);
+  const messages: Msg[] = (activeSession?.messages || []).map(m => ({ role: m.role, content: m.content }));
+
+  const setMessages = useCallback((msgs: Msg[]) => {
+    sessionStore.setMessages(sessionId, msgs.map(m => ({ role: m.role, content: m.content })));
+  }, [sessionId, sessionStore]);
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [clarifyQuestions, setClarifyQuestions] = useState<ClarifyQuestion[] | null>(null);
   const [pendingPrompt, setPendingPrompt] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesRef = useRef<Msg[]>(messages);
+  messagesRef.current = messages;
 
   const globalFilter = useGlobalFilterStore();
   const kpiStore = useKpiMonitorStore();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages.length]);
 
   // Build KPI context for the AI
   const kpiContext = useMemo(() => {
@@ -154,13 +175,13 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (content) {
             assistantSoFar += content;
-            setMessages(prev => {
-              const last = prev[prev.length - 1];
-              if (last?.role === 'assistant') {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-              }
-              return [...prev, { role: 'assistant', content: assistantSoFar }];
-            });
+            const prev = messagesRef.current;
+            const last = prev[prev.length - 1];
+            if (last?.role === 'assistant') {
+              setMessages(prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+            } else {
+              setMessages([...prev, { role: 'assistant', content: assistantSoFar }]);
+            }
           }
         } catch {
           textBuffer = line + '\n' + textBuffer;
@@ -183,13 +204,13 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (content) {
             assistantSoFar += content;
-            setMessages(prev => {
-              const last = prev[prev.length - 1];
-              if (last?.role === 'assistant') {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-              }
-              return [...prev, { role: 'assistant', content: assistantSoFar }];
-            });
+            const prev2 = messagesRef.current;
+            const last2 = prev2[prev2.length - 1];
+            if (last2?.role === 'assistant') {
+              setMessages(prev2.map((m, i) => i === prev2.length - 1 ? { ...m, content: assistantSoFar } : m));
+            } else {
+              setMessages([...prev2, { role: 'assistant', content: assistantSoFar }]);
+            }
           }
         } catch { /* ignore */ }
       }
@@ -206,7 +227,7 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
       setPendingPrompt(msg);
       setClarifyQuestions(generateClarifyingQuestions());
       // Show user message immediately
-      setMessages(prev => [...prev, { role: 'user', content: msg }]);
+      setMessages([...messagesRef.current, { role: 'user', content: msg }]);
       setInput('');
       return;
     }
@@ -271,7 +292,7 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
     // Add system info and send to AI
     const systemMsg: Msg = { role: 'assistant', content: `✅ Configuration appliquée : périmètre **${scopeStr}**, types **${typeStr}**, affichage **${displayStr}**. Génération du dashboard en cours...` };
     const updated = [...messages, systemMsg, { role: 'user' as const, content: enrichedPrompt }];
-    setMessages(prev => [...prev, systemMsg]);
+    setMessages([...messagesRef.current, systemMsg]);
     setIsLoading(true);
     try {
       await streamChat(updated);
