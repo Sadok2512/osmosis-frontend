@@ -1061,12 +1061,298 @@ async function searchRAGLocal(query) {
   }
 }
 
-// ─── /api/qoe-assistant (proxy to OpenRouter with local context) ───
-app.post('/api/qoe-assistant', async (req, res) => {
-  const { messages, cellContext, openrouter_key, model } = req.body;
-  const apiKey = openrouter_key || process.env.OPENROUTER_API_KEY;
+// ═══════════════════════════════════════════════════════════════
+//  /api/qoe-assistant — Context-on-Demand (planner + builder + local PostgreSQL)
+// ═══════════════════════════════════════════════════════════════
 
-  console.log('[qoe-assistant] API key present:', !!apiKey, '| env key present:', !!process.env.OPENROUTER_API_KEY);
+// --- Intent/scope classification helpers ---
+function isChangeHistoryQuery(query) {
+  const n = query.toLowerCase();
+  return ['changement','change','historique','history','modification','tuning',
+    'rollback','upgrade','swap','avant','après','cm history','parameter_changes'
+  ].some(h => n.includes(h));
+}
+function isSiteDesignQuery(query) {
+  const n = query.toLowerCase();
+  return ['design','tilt','azimut','azimuth','hba','topologie','topology',
+    'secteur','sector','couverture','coverage','analyse site','site design',
+    'antenne','antenna','delta tilt','profil site','profile'
+  ].some(h => n.includes(h));
+}
+function isSentinelQuery(query) {
+  const n = query.toLowerCase();
+  return ['alarm','alarme','anomali','rca','root cause','cause racine',
+    'dégradation','degradation','incident','problème','problem',
+    'chute','drop','baisse soudaine','sudden','alerte','alert',
+    'détect','detect','seuil','threshold','critique','critical'
+  ].some(h => n.includes(h));
+}
+function isParameterFocusedQuery(query) {
+  const n = query.toLowerCase();
+  return ['paramètre','parametre','parameter','param','config','configuration','dump',
+    'mrbts','lnbts','enodeb','gnodeb','template','dn','version',
+    'nokia','ericsson','huawei','cell_dn','blockingstate',
+    't300','t301','t304','t310','t311','t320','t321',
+    'timer','rrc','handover','reselection','distribution','valeur','valeurs',
+  ].some(h => n.includes(h));
+}
+
+function classifyAgent(query) {
+  if (isSiteDesignQuery(query)) return 'ARCHITECT';
+  if (isChangeHistoryQuery(query) || isParameterFocusedQuery(query)) return 'TRACE';
+  if (isSentinelQuery(query)) return 'SENTINEL';
+  return 'PULSE';
+}
+function classifyIntent(query, scopeLevel) {
+  const n = query.toLowerCase();
+  if (isDistributionQuery(query)) return 'distribution';
+  if (isChangeHistoryQuery(query)) return 'trace_change';
+  if (scopeLevel === 'cell') return 'cell_analysis';
+  if (scopeLevel === 'site') return 'site_analysis';
+  if (['compare','comparer','comparaison','vs','versus'].some(h => n.includes(h))) return 'compare';
+  if (['top','pire','worst','meilleur','best','classement','ranking','dégradé'].some(h => n.includes(h))) return 'top_degradations';
+  if (['définition','definition',"c'est quoi","qu'est-ce que",'explique','explain'].some(h => n.includes(h))) return 'definition';
+  if (['résumé','resume','summary','état','etat','overview','global','bilan'].some(h => n.includes(h))) return 'global_summary';
+  return 'other';
+}
+function resolveScope(query, uiScope, filters) {
+  if (uiScope?.selectedCellId) return { level: 'cell', cellId: uiScope.selectedCellId, siteName: uiScope.selectedSiteName || undefined };
+  if (uiScope?.selectedSiteName) return { level: 'site', siteName: uiScope.selectedSiteName };
+  const siteFromText = extractSiteName(query);
+  if (siteFromText) return { level: 'site', siteName: siteFromText };
+  if (filters?.vendor) return { level: 'vendor', vendor: filters.vendor };
+  if (filters?.techno) return { level: 'techno', techno: filters.techno };
+  if (filters?.plaque) return { level: 'plaque', plaque: filters.plaque };
+  if (filters?.dor) return { level: 'dor', dor: filters.dor };
+  const vendorMatch = query.match(/\b(ericsson|nokia|huawei|samsung)\b/i);
+  if (vendorMatch) return { level: 'vendor', vendor: vendorMatch[1] };
+  return { level: 'global' };
+}
+
+function buildContextPlan(query, uiScope, filters) {
+  const scope = resolveScope(query, uiScope, filters);
+  const agent = classifyAgent(query);
+  const intent = classifyIntent(query, scope.level);
+  const needs = [];
+  const limits = { maxSites: 20, maxCells: 0, maxKpis: 10, maxDays: 7, maxRagChunks: 3 };
+
+  switch (agent) {
+    case 'PULSE':
+      needs.push('documents_rag');
+      if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
+      else if (intent === 'top_degradations') { needs.push('worst_sites'); limits.maxSites = 20; }
+      else if (intent === 'site_analysis') { needs.push('kpi_snapshot','worst_cells'); limits.maxCells = 30; }
+      else if (intent === 'cell_analysis') { needs.push('kpi_snapshot'); limits.maxCells = 1; }
+      else if (intent === 'distribution') { needs.push('param_dump'); }
+      break;
+    case 'SENTINEL':
+      needs.push('documents_rag');
+      if (scope.level === 'site' || scope.level === 'cell') { needs.push('kpi_snapshot','worst_cells'); limits.maxCells = 20; }
+      else { needs.push('agg_stats','worst_sites'); limits.maxSites = 15; }
+      break;
+    case 'TRACE':
+      needs.push('documents_rag','change_history');
+      if (isParameterFocusedQuery(query)) needs.push('param_dump');
+      if (scope.level === 'site') needs.push('topology');
+      break;
+    case 'ARCHITECT':
+      needs.push('documents_rag','topology');
+      if (scope.level === 'site') { needs.push('kpi_snapshot'); limits.maxCells = 30; }
+      break;
+  }
+
+  const n = query.toLowerCase();
+  if (n.includes('hier') || n.includes('24h') || n.includes("aujourd")) limits.maxDays = 1;
+  else if (n.includes('mois') || n.includes('30j')) limits.maxDays = 30;
+
+  return { agent, intent, scope, needs, limits };
+}
+
+// --- Local PostgreSQL data providers ---
+async function fetchAggStatsLocal(filters, maxDays) {
+  try {
+    let q = `SELECT dimension_1, dimension_2, date_part, qoe_index, debit_dl, debit_ul, rtt_data_avg,
+             dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, tcp_retr_rate_dl, loss_dl_rate, session_dcr, session_nbr, wind_full_rate
+             FROM kpi_qoe_aggregated ORDER BY date_part DESC LIMIT 500`;
+    const { rows } = await sharedPool.query(q);
+    if (!rows.length) return 'Aucune donnée agrégée disponible dans kpi_qoe_aggregated.';
+
+    const groups = new Map();
+    for (const r of rows) {
+      const key = r.dimension_2 || 'Global';
+      if (!groups.has(key)) groups.set(key, { qoe:[], dl:[], ul:[], rtt:[], dms3:[], dms8:[], dms30:[], loss:[], retr:[], sess:0, count:0 });
+      const g = groups.get(key);
+      if (r.qoe_index != null) g.qoe.push(+r.qoe_index);
+      if (r.debit_dl != null) g.dl.push(+r.debit_dl);
+      if (r.debit_ul != null) g.ul.push(+r.debit_ul);
+      if (r.rtt_data_avg != null) g.rtt.push(+r.rtt_data_avg);
+      if (r.dms_debit_dl_3 != null) g.dms3.push(+r.dms_debit_dl_3);
+      if (r.dms_debit_dl_8 != null) g.dms8.push(+r.dms_debit_dl_8);
+      if (r.dms_debit_dl_30 != null) g.dms30.push(+r.dms_debit_dl_30);
+      if (r.loss_dl_rate != null) g.loss.push(+r.loss_dl_rate);
+      if (r.tcp_retr_rate_dl != null) g.retr.push(+r.tcp_retr_rate_dl);
+      if (r.session_nbr != null) g.sess += +r.session_nbr;
+      g.count++;
+    }
+    const avg = arr => arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : 0;
+    const header = 'Dimension | Pts | QoE | DL_Mbps | UL_Mbps | RTT_ms | DMS3% | DMS8% | DMS30% | Loss% | Retr% | Sessions';
+    const lines = Array.from(groups.entries()).map(([k,g]) =>
+      `${k} | ${g.count} | ${avg(g.qoe).toFixed(1)} | ${avg(g.dl).toFixed(1)} | ${avg(g.ul).toFixed(1)} | ${avg(g.rtt).toFixed(0)} | ${avg(g.dms3).toFixed(1)} | ${avg(g.dms8).toFixed(1)} | ${avg(g.dms30).toFixed(1)} | ${(avg(g.loss)*100).toFixed(2)} | ${(avg(g.retr)*100).toFixed(2)} | ${g.sess}`
+    );
+    return `STATS AGRÉGÉES (${rows.length} points, ${groups.size} dimensions):\n${header}\n${lines.join('\n')}`;
+  } catch (e) { console.error('[fetchAggStatsLocal]', e.message); return ''; }
+}
+
+async function fetchWorstSitesLocal(filters, maxSites) {
+  try {
+    const { rows } = await sharedPool.query(
+      `SELECT dimension_1, dimension_2, date_part, qoe_index, debit_dl, rtt_data_avg,
+              dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, session_nbr, loss_dl_rate, tcp_retr_rate_dl
+       FROM kpi_qoe_aggregated WHERE qoe_index IS NOT NULL
+       ORDER BY qoe_index ASC LIMIT $1`, [maxSites * 3]
+    );
+    if (!rows.length) return 'Aucun site dégradé trouvé dans kpi_qoe_aggregated.';
+    const seen = new Set();
+    const unique = rows.filter(r => { const k = `${r.dimension_1}::${r.dimension_2}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, maxSites);
+    const header = '# | Dim1 | Dim2 | Date | QoE | DL | RTT | DMS3 | DMS8 | DMS30 | Loss | Retr | Sessions';
+    const lines = unique.map((r,i) =>
+      `${i+1} | ${r.dimension_1} | ${r.dimension_2} | ${r.date_part} | ${r.qoe_index != null ? (+r.qoe_index).toFixed(1) : '-'} | ${r.debit_dl != null ? (+r.debit_dl).toFixed(1) : '-'} | ${r.rtt_data_avg != null ? (+r.rtt_data_avg).toFixed(0) : '-'} | ${r.dms_debit_dl_3 != null ? (+r.dms_debit_dl_3).toFixed(1) : '-'} | ${r.dms_debit_dl_8 != null ? (+r.dms_debit_dl_8).toFixed(1) : '-'} | ${r.dms_debit_dl_30 != null ? (+r.dms_debit_dl_30).toFixed(1) : '-'} | ${r.loss_dl_rate != null ? (+r.loss_dl_rate*100).toFixed(2) : '-'} | ${r.tcp_retr_rate_dl != null ? (+r.tcp_retr_rate_dl*100).toFixed(2) : '-'} | ${r.session_nbr ?? '-'}`
+    );
+    return `TOP ${unique.length} WORST (par QoE):\n${header}\n${lines.join('\n')}`;
+  } catch (e) { console.error('[fetchWorstSitesLocal]', e.message); return ''; }
+}
+
+async function fetchSiteSnapshotLocal(siteName) {
+  try {
+    const { rows } = await sharedPool.query(
+      `SELECT * FROM kpi_qoe_aggregated
+       WHERE dimension_1 ILIKE $1 OR dimension_2 ILIKE $1
+       ORDER BY date_part DESC LIMIT 30`, [`%${siteName}%`]
+    );
+    if (!rows.length) return `Aucune donnée KPI pour le site "${siteName}".`;
+    const kpis = ['qoe_index','debit_dl','debit_ul','rtt_data_avg','rtt_setup_avg','dms_debit_dl_3','dms_debit_dl_8','dms_debit_dl_30','loss_dl_rate','tcp_retr_rate_dl','session_dcr','session_nbr','wind_full_rate'];
+    const lines = rows.slice(0,10).map(r => {
+      const vals = kpis.map(k => r[k] != null ? (+r[k]).toFixed(2) : '-');
+      return `${r.date_part} | ${r.dimension_1} | ${r.dimension_2} | ${vals.join(' | ')}`;
+    });
+    return `SITE SNAPSHOT "${siteName}" (${rows.length} pts):\nDate | Dim1 | Dim2 | ${kpis.join(' | ')}\n${lines.join('\n')}`;
+  } catch (e) { console.error('[fetchSiteSnapshotLocal]', e.message); return ''; }
+}
+
+async function searchTopoLocal(siteName) {
+  try {
+    const { rows } = await sharedPool.query(
+      `SELECT code_nidt, nom_site, nom_cellule, techno, bande, constructeur, region, plaque,
+              azimut, latitude, longitude, hba, tac, remote_electrical_tilt, pci, eci, nci, cid,
+              etat_cellule, zone_arcep, essentiel, date_mes, date_fn8
+       FROM topo WHERE nom_site ILIKE $1 ORDER BY nom_cellule LIMIT 100`, [`%${siteName}%`]
+    );
+    if (!rows.length) return '';
+    const header = 'nom_cellule | techno | bande | azimut | RET | hba | pci | tac | etat | constructeur | lat | lng';
+    const lines = rows.map(r =>
+      `${r.nom_cellule} | ${r.techno||''} | ${r.bande||''} | ${r.azimut??'-'} | ${r.remote_electrical_tilt??'-'} | ${r.hba??'-'} | ${r.pci??'-'} | ${r.tac??'-'} | ${r.etat_cellule||'-'} | ${r.constructeur||'-'} | ${r.latitude??'-'} | ${r.longitude??'-'}`
+    );
+    const first = rows[0];
+    return `TOPO "${first.nom_site}" (${first.code_nidt}, ${first.region||'-'}, ${first.plaque||'-'}, ${first.constructeur||'-'})\n${rows.length} cells:\n${header}\n${lines.join('\n')}`;
+  } catch (e) { console.error('[searchTopoLocal]', e.message); return ''; }
+}
+
+async function searchParameterChangesLocal(query) {
+  try {
+    const siteName = extractSiteName(query);
+    let q = `SELECT change_date, change_type, change_scope, param_name, old_value, new_value,
+             site_name, cell_name, techno, vendor, plaque
+             FROM parameter_changes ORDER BY change_date DESC LIMIT 80`;
+    const params = [];
+    if (siteName) {
+      q = `SELECT change_date, change_type, change_scope, param_name, old_value, new_value,
+           site_name, cell_name, techno, vendor, plaque
+           FROM parameter_changes WHERE site_name ILIKE $1 ORDER BY change_date DESC LIMIT 80`;
+      params.push(`%${siteName}%`);
+    }
+    const { rows } = await sharedPool.query(q, params);
+    if (!rows.length) return siteName ? `AUCUN changement pour "${siteName}".` : '';
+    const header = 'date | type | scope | param | old | new | site | cell | techno | vendor';
+    const lines = rows.map(r =>
+      `${r.change_date} | ${r.change_type} | ${r.change_scope} | ${r.param_name} | ${r.old_value||'-'} | ${r.new_value||'-'} | ${r.site_name||'-'} | ${r.cell_name||'-'} | ${r.techno||'-'} | ${r.vendor||'-'}`
+    );
+    return `CHANGEMENTS (${rows.length}):\n${header}\n${lines.join('\n')}`;
+  } catch (e) { console.error('[searchParameterChangesLocal]', e.message); return ''; }
+}
+
+// --- Agent prompts ---
+const SHARED_RULES = `
+⚠️ RÈGLE ABSOLUE — ZÉRO HALLUCINATION — DONNÉES RÉELLES UNIQUEMENT
+1. Utilise EXCLUSIVEMENT les données fournies dans le contexte. COPIE-COLLE les noms tels quels.
+2. Il est INTERDIT d'inventer des noms de cellules, sites, valeurs ou métriques.
+3. Si aucune donnée n'est disponible, dis-le clairement.
+
+FORMATAGE : Markdown pur (pas de HTML).
+- Tableaux Markdown | et ---
+- Titres ## et ###
+- **Gras** pour les valeurs importantes
+- Émojis de statut : 🔴 Critique (<50%), 🟠 Dégradé (50-65%), 🟡 Moyen (65-75%), 🟢 Bon (>75%)
+
+VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
+- chart: {"type":"bar","title":"...","xKey":"...","yKeys":[...],"data":[...]}
+- map: {"title":"...","markers":[{"lat":...,"lng":...,"label":"...","value":...}]}
+- kpi: {"title":"...","cards":[{"label":"...","value":"...","unit":"...","trend":"up/down/stable","status":"good/warning/critical"}]}
+Le JSON doit être sur UNE SEULE LIGNE.
+
+Réponds TOUJOURS en français.`;
+
+const AGENT_PROMPTS = {
+  PULSE: `Tu es **PULSE** 📡, agent spécialisé en performance RAN et QoE réseau mobile.\nKPIs : QoE Score, DMS DL 3/8/30 Mbps, Throughput DL/UL, RTT, TCP Loss, Retransmission, Window Full, Sessions.\nDimensions : Vendor, DOR, Plaque, RAT, Site, Cellule, Bande.\n\nCOMPARAISONS : 1) Bloc kpi 2) Tableau comparatif 3) Chart bar groupé 4) Synthèse + recommandations.\n${SHARED_RULES}`,
+  TRACE: `Tu es **TRACE** 🔧, agent spécialisé en historique de configuration et changements réseau (CM History).\nDomaine : tuning, upgrades SW, swaps, rollbacks.\nPrésente les changements en timeline chronologique + tableau avant/après + corrélation KPIs.\n${SHARED_RULES}`,
+  SENTINEL: `Tu es **SENTINEL** 🚨, agent spécialisé en détection d'anomalies et RCA.\nStructure RCA : 1) Classe cause racine 2) Résumé 3) Preuves KPI 4) Actions recommandées 5) Confiance.\nSeuils : QoE<50% → 🔴, DMS3<90% → 🟠, RTT>100ms → 🟠, TCP Loss>2% → 🔴.\n${SHARED_RULES}`,
+  ARCHITECT: `Tu es **ARCHITECT** 🗼, agent spécialisé en design de sites radio et topologie.\nDiagnostic 8 critères : Nb secteurs, espacement azimuthal, cohérence az intra-secteur, Delta Tilt (<3°), HBA, co-loc 5G/4G, diversité bandes, état cellules.\nVerdict : ✅ OK / ⚠️ REVIEW / ❌ ISSUES.\n${SHARED_RULES}`,
+};
+
+// --- Context builder ---
+async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext, kpiMonitorContext) {
+  const sections = [];
+  const promises = {};
+
+  if (plan.needs.includes('documents_rag')) promises.rag = searchRAGLocal(query);
+  if (plan.needs.includes('agg_stats')) promises.agg = fetchAggStatsLocal(filters, plan.limits.maxDays);
+  if (plan.needs.includes('worst_sites')) promises.worst = fetchWorstSitesLocal(filters, plan.limits.maxSites);
+  if (plan.needs.includes('kpi_snapshot') && plan.scope.level === 'site') promises.snapshot = fetchSiteSnapshotLocal(plan.scope.siteName);
+  if (plan.needs.includes('topology')) {
+    const siteName = plan.scope.siteName || (plan.scope.level === 'cell' ? plan.scope.siteName : null);
+    if (siteName) promises.topo = searchTopoLocal(siteName);
+  }
+  if (plan.needs.includes('param_dump')) promises.params = searchDumpParameterLocal(query);
+  if (plan.needs.includes('change_history')) promises.changes = searchParameterChangesLocal(query);
+
+  const keys = Object.keys(promises);
+  const results = await Promise.all(Object.values(promises));
+  const resolved = {};
+  keys.forEach((k,i) => { resolved[k] = results[i]; });
+
+  console.log(`[qoe-assistant] 📦 Context fetched: ${keys.filter(k => resolved[k]).join(', ') || 'none'}`);
+
+  if (resolved.agg) sections.push(`📊 STATS AGRÉGÉES:\n${resolved.agg}`);
+  if (resolved.worst) sections.push(`📉 WORST:\n${resolved.worst}`);
+  if (resolved.snapshot) sections.push(`📋 SITE SNAPSHOT:\n${resolved.snapshot}`);
+  if (resolved.topo) sections.push(`📡 TOPOLOGIE:\n${resolved.topo}`);
+  if (resolved.params) sections.push(`⚙️ PARAMÈTRES:\n${resolved.params}`);
+  if (resolved.changes) sections.push(`🔧 HISTORIQUE CHANGEMENTS:\n${resolved.changes}`);
+  if (resolved.rag) sections.push(`📚 DOCUMENTS RAG:\n${resolved.rag}`);
+
+  // Legacy fallback if no data from DB
+  if (sections.length <= 1 && legacyCellContext && legacyCellContext.length > 0) {
+    sections.push(`📊 DONNÉES RÉSEAU (legacy):\n${legacyCellContext.slice(0, 40000)}`);
+  }
+  if (kpiMonitorContext) {
+    sections.push(`📊 KPI MONITOR CONTEXT:\n${kpiMonitorContext}`);
+  }
+
+  return sections.join('\n\n');
+}
+
+app.post('/api/qoe-assistant', async (req, res) => {
+  const { messages, uiScope, filters, openrouter_key, model, cellContext: legacyCellContext, kpiMonitorContext } = req.body;
+  const apiKey = openrouter_key || process.env.OPENROUTER_API_KEY;
 
   if (!apiKey) {
     return res.status(400).json({ error: 'OPENROUTER_API_KEY manquante. Créez server/.env avec OPENROUTER_API_KEY=sk-or-v1-...' });
@@ -1074,70 +1360,40 @@ app.post('/api/qoe-assistant', async (req, res) => {
 
   try {
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content || '';
-    
-    const [paramContext, ragContext] = await Promise.all([
-      searchDumpParameterLocal(lastUserMsg),
-      searchRAGLocal(lastUserMsg),
-    ]);
 
-    console.log(`[qoe-assistant] Context: params=${paramContext ? paramContext.split('\\n').length + ' lines' : 'none'}, rag=${ragContext ? 'found' : 'none'}`);
+    // 1. Build context plan
+    const plan = buildContextPlan(lastUserMsg, uiScope, filters);
+    console.log(`[qoe-assistant] 🧠 Plan: agent=${plan.agent}, intent=${plan.intent}, scope=${JSON.stringify(plan.scope)}, needs=[${plan.needs.join(',')}]`);
 
-    let systemContent = `Tu es un assistant expert en analyse de Qualité d'Expérience (QoE) réseau mobile pour l'opérateur Orange France.
+    // 2. Build context from local DB
+    const context = await buildContextFromPlanLocal(plan, lastUserMsg, filters, legacyCellContext, kpiMonitorContext);
 
-KPIs disponibles : QoE Score, DMS DL 3/8/30 Mbps, Throughput DL/UL (p50), RTT (p95), Taux de perte TCP, Retransmission Rate, Window Full Ratio, Sessions, Volume DL.
-Dimensions : Vendor (Ericsson, Nokia), DOR, Plaque, RAT (2G/3G/4G/5G), Site, Cellule, Bande, Device, OS, Client, Application.
+    // 3. Build system prompt
+    let systemContent = `[AGENT:${plan.agent}]\n\n` + (AGENT_PROMPTS[plan.agent] || AGENT_PROMPTS.PULSE);
+    if (context) systemContent += `\n\n${context}`;
 
-SCHÉMA DES TABLES DE LA BASE DE DONNÉES :
-Si l'utilisateur demande la liste des champs, colonnes, structure ou schéma d'une table, réponds directement avec les informations ci-dessous sans chercher dans les données.
-
-Table **parameter_dump** : id (bigint PK), dn (text), cell_dn (text), cell_name (text), site_name (text), parameter (text NOT NULL), value (text), version (text), vendor (text), bande (text), plaque (text), omc (text), dor (text), dr (text), ur (text), city (text), zone_arcep (text), enodeb_id (integer), mrbts_id (integer), gnodeb_id (integer), freq_downlink (double), tgv (integer), latitude (double), longitude (double), created_at (timestamp).
-
-Table **topo** : id (bigint PK), code_nidt (text NOT NULL), nom_cellule (text NOT NULL), nom_site (text NOT NULL), techno (text), bande (text), constructeur (text), region (text), plaque (text), azimut (integer), latitude (double), longitude (double), tac (integer), hba (integer), date_mes (date), date_fn8 (date), created_at (timestamp).
-
-Table **qoe_metrics** : id (bigint PK), dt (date NOT NULL), cell_id (text NOT NULL), site_id (text), service (text), techno (text), bande (text), qoe_score_avg (double), p50_thr_dn_mbps (double), p50_thr_up_mbps (double), p95_rtt_ms (double), dms_dl_3 (double), dms_dl_8 (double), dms_dl_30 (double), dms_ul_3 (double), loss_dn_sum (double), traffic_dn_bytes (double), traffic_up_bytes (double), sessions (integer), window_full_ratio (double), retransmission_rate (double), tcp_loss_rate (double), out_of_order_rate (double), created_at (timestamp).
-
-Table **rag_documents** : id (uuid PK), filename (text NOT NULL), content (text NOT NULL), chunk_index (integer), embedding (vector), metadata (jsonb), created_at (timestamp).
-
-Table **dashboards** : id (text PK), name (text NOT NULL), description (text), widgets (jsonb), is_shared (boolean), created_at (timestamp), updated_at (timestamp).
-
-RÈGLE ABSOLUE — DONNÉES RÉELLES UNIQUEMENT :
-- Tu reçois dans le contexte des données RÉELLES extraites de la base locale (dump_parameter, topo, rag_documents).
-- Tu dois EXCLUSIVEMENT utiliser les noms de sites, cellules, plaques, vendors EXACTS qui apparaissent dans les données fournies.
-- Il est STRICTEMENT INTERDIT d'inventer ou halluciner des noms de sites, plaques, valeurs de paramètres ou données. Si une donnée n'est pas dans le contexte, dis-le EXPLICITEMENT : "Ce paramètre/site n'a pas été trouvé dans la base."
-- Ne JAMAIS inventer des plaques comme "LYON_TOP15" ou "MARSEILLE" si elles n'apparaissent pas dans les données.
-- Si le contexte contient "AUCUNE DONNÉE trouvée", tu DOIS le rapporter tel quel à l'utilisateur. NE JAMAIS inventer de valeurs pour compenser l'absence de données.
-
-RÈGLES DE FORMATAGE ABSOLUES :
-- JAMAIS de HTML. Utilise UNIQUEMENT du Markdown pur avec | et --- pour les tableaux.
-- Structure avec ## et ### pour les titres.
-- Mets en **gras** les valeurs importantes.
-
-PARAMÈTRES RÉSEAU (DUMP CM) :
-Si des données de paramètres réseau (dump_parameter) sont fournies dans le contexte, utilise-les EXACTEMENT telles quelles.
-Présente les paramètres sous forme de tableau Markdown avec les colonnes pertinentes (Plaque, Parameter, Value, Nb Cellules).
-Pour les distributions, agrège par plaque et par valeur en utilisant UNIQUEMENT les données fournies.
-
-VISUALISATIONS INTERACTIVES :
-Tu peux intégrer des graphiques dans ta réponse avec des blocs \\\`\\\`\\\`chart :
-\\\`\\\`\\\`chart
-{"type":"bar","title":"Distribution T300","xKey":"plaque","yKeys":["count"],"data":[{"plaque":"NANTES","count":1698}]}
-\\\`\\\`\\\`
-Types supportés : "line", "bar", "area", "scatter".
-
-Réponds TOUJOURS en français.`;
-    if (paramContext) {
-      systemContent += `\n\n⚙️ PARAMÈTRES RÉSEAU (DUMP CM LOCAL) :\n${paramContext}`;
-    }
-    if (ragContext) {
-      systemContent += `\n\n📚 DOCUMENTS RAG PERTINENTS :\n${ragContext}`;
-    }
-    if (cellContext) {
-      systemContent += `\n\nDONNÉES RÉSEAU RÉELLES DISPONIBLES :\n${cellContext}`;
+    // 4. Budget enforcement
+    const MAX_CONTEXT = 100000;
+    if (systemContent.length > MAX_CONTEXT) {
+      systemContent = systemContent.slice(0, MAX_CONTEXT) + '\n[... contexte tronqué pour budget tokens ...]';
     }
 
+    // Truncate messages
+    const MAX_RECENT = 6;
+    const trimmedMessages = messages.map((m, i) => {
+      const isRecent = i >= messages.length - MAX_RECENT;
+      if (isRecent || m.role === 'user') return m;
+      if (m.content.length > 500) return { ...m, content: m.content.slice(0, 500) + '\n[... tronqué ...]' };
+      return m;
+    });
+
+    const totalChars = systemContent.length + trimmedMessages.reduce((s, m) => s + m.content.length, 0);
+    console.log(`[qoe-assistant] 📏 Total: ${(totalChars/1024).toFixed(1)} KB (system=${(systemContent.length/1024).toFixed(1)} KB)`);
+
+    // 5. Prepend agent tag + stream
     const enrichedMessages = [
       { role: 'system', content: systemContent },
-      ...messages.filter(m => m.role !== 'system'),
+      ...trimmedMessages.filter(m => m.role !== 'system'),
     ];
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -1146,7 +1402,7 @@ Réponds TOUJOURS en français.`;
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'http://localhost:5173',
-        'X-Title': 'QOEBIT Local',
+        'X-Title': `QOEBIT ${plan.agent}`,
       },
       body: JSON.stringify({
         model: model || 'google/gemini-2.5-flash-preview-05-20',
@@ -1155,13 +1411,22 @@ Réponds TOUJOURS en français.`;
       }),
     });
 
+    if (!response.ok) {
+      const t = await response.text();
+      console.error('[qoe-assistant] AI error:', response.status, t.slice(0, 300));
+      return res.status(response.status).json({ error: `AI gateway error ${response.status}`, details: t.slice(0, 500) });
+    }
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
+    // Inject agent tag as first SSE event
+    const agentTag = `data: ${JSON.stringify({ choices: [{ delta: { content: `<!-- AGENT:${plan.agent} -->\n` } }] })}\n\n`;
+    res.write(agentTag);
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -1169,6 +1434,7 @@ Réponds TOUJOURS en français.`;
     }
     res.end();
   } catch (e) {
+    console.error('[qoe-assistant]', e.message);
     res.status(500).json({ error: e.message });
   }
 });
