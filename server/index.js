@@ -2008,6 +2008,8 @@ app.get('/api/dump-parameter', async (req, res) => {
           const dimRes = await sharedPool.query(`SELECT value AS "${distinct_col}" FROM ${dimTableMap[distinct_col]} ORDER BY value`);
           if (dimRes.rows.length > 0) {
             console.log(`   ⚡ dim table ${dimTableMap[distinct_col]}: ${dimRes.rows.length} valeurs (${Date.now() - reqStart}ms)`);
+            // Back-fill in-memory cache so next request is instant
+            distinctCache[distinct_col] = dimRes.rows.map(r => r[distinct_col]);
             return res.json(dimRes.rows);
           }
         } catch {
