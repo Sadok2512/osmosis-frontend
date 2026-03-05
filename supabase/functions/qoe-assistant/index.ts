@@ -416,7 +416,6 @@ async function fetchMetricDistributionByDimension1(
     const { data, error } = await q;
     if (error) {
       console.error("fetchMetricDistribution error:", error);
-      // Try without session_nbr if it fails
       const q2 = supabase.from("kpi_qoe_aggregated")
         .select(`dimension_1, dimension_2, date_part, ${metric}`)
         .eq("dimension_1", dimension1Type)
@@ -430,7 +429,16 @@ async function fetchMetricDistributionByDimension1(
     }
     if (!data?.length) return `Aucune donnée pour dimension_1='${dimension1Type}'.`;
 
-    return aggregateDistributionData(data, dimension1Type, metric, limit, true);
+    let result = aggregateDistributionData(data, dimension1Type, metric, limit, true);
+
+    // Run validation checks for eligible aggregation dimensions
+    if (CHECK_ELIGIBLE_DIMENSIONS.has(dimension1Type)) {
+      const checks = runValidationChecks(data, dimension1Type, metric);
+      const checkSection = formatCheckResults(checks, dimension1Type, metric);
+      if (checkSection) result += checkSection;
+    }
+
+    return result;
   } catch (e) {
     console.error("fetchMetricDistribution failed:", e);
     return "";
