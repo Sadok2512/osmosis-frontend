@@ -581,7 +581,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             </div>
           ) : (
             <div className="bg-card border border-border rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[1fr_80px_200px_160px_120px_100px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="grid grid-cols-[1fr_80px_200px_160px_120px_100px_120px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                 <span>Nom</span>
                 <span>Type</span>
                 <span>Description</span>
