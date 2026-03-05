@@ -271,7 +271,7 @@ const DashboardOverview: React.FC = () => {
             </h3>
             <p className="text-xs text-muted-foreground max-w-xs">
               {dashboards.length === 0
-                ? "Créez des dashboards dans l'Analytic BI Studio pour les retrouver ici en lecture seule."
+                ? "Créez des dashboards dans l'Analytic QOE pour les retrouver ici en lecture seule."
                 : 'Essayez un autre terme de recherche.'}
             </p>
           </div>
