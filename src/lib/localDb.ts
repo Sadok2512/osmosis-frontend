@@ -258,93 +258,9 @@ export const parameterChangesApi = {
   create: (change: Record<string, any>) => post<any>('parameter-changes', change),
 };
 
-// ─── BI Query (with Cloud fallback via kpi_qoe_aggregated) ───
-
-/** Cloud fallback: query kpi_qoe_aggregated table via Supabase */
-async function biQueryCloud(params: {
-  kpis: string[];
-  aggregation?: string;
-  dateStart?: string;
-  dateEnd?: string;
-  granularity?: string;
-  groupBy?: string[];
-  filters?: { dimension: string; values: string[] }[];
-  topN?: number;
-  xAxisType?: string;
-  xAxisDimension?: string;
-}): Promise<{ rows: any[]; total: number }> {
-  let query = supabase.from('kpi_qoe_aggregated').select('*');
-
-  if (params.dateStart) query = query.gte('date_part', params.dateStart);
-  if (params.dateEnd) query = query.lte('date_part', params.dateEnd);
-
-  // Apply dimension filters
-  if (params.filters && params.filters.length > 0) {
-    for (const f of params.filters) {
-      if (f.dimension === 'dimension_1' || f.dimension === 'Dimension_1') {
-        query = query.in('dimension_1', f.values);
-      } else if (f.dimension === 'dimension_2' || f.dimension === 'Dimension_2') {
-        query = query.in('dimension_2', f.values);
-      }
-    }
-  }
-
-  query = query.order('date_part', { ascending: true }).limit(1000);
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  // Map to expected format
-  const rows = (data || []).map((row: any) => {
-    const mapped: any = { x: row.date_part };
-    for (const kpi of params.kpis) {
-      mapped[kpi] = row[kpi] ?? null;
-    }
-    if (params.groupBy && params.groupBy.length > 0) {
-      mapped.group = row.dimension_2 || row.dimension_1;
-    }
-    return mapped;
-  });
-
-  return { rows, total: rows.length };
-}
-
-/** Cloud fallback: get distinct dimension values */
-async function biDistinctCloud(dimension: string): Promise<string[]> {
-  // Map BI dimensions to kpi_qoe_aggregated columns
-  const col = dimension === 'Site' || dimension === 'Cellule' ? 'dimension_2' : 'dimension_1';
-  
-  const { data, error } = await supabase
-    .from('kpi_qoe_aggregated')
-    .select(col)
-    .limit(1000);
-  if (error) throw error;
-  
-  const unique = [...new Set((data || []).map((r: any) => r[col]).filter(Boolean))];
-  return unique.sort();
-}
-
-/** Cloud fallback: get date range */
-async function biDateRangeCloud(): Promise<{ min_date: string | null; max_date: string | null }> {
-  const { data, error } = await supabase
-    .from('kpi_qoe_aggregated')
-    .select('date_part')
-    .order('date_part', { ascending: true })
-    .limit(1);
-  const { data: dataMax } = await supabase
-    .from('kpi_qoe_aggregated')
-    .select('date_part')
-    .order('date_part', { ascending: false })
-    .limit(1);
-  
-  return {
-    min_date: data?.[0]?.date_part || null,
-    max_date: dataMax?.[0]?.date_part || null,
-  };
-}
-
+// ─── BI Query (always local — uses qoe_metric on local PostgreSQL, no Cloud fallback) ───
 export const biQueryApi = {
-  query: async (params: {
+  query: (params: {
     kpis: string[];
     aggregation?: string;
     dateStart?: string;
@@ -356,24 +272,15 @@ export const biQueryApi = {
     xAxisType?: string;
     xAxisDimension?: string;
   }): Promise<{ rows: any[]; total: number }> => {
-    if (useLocal()) {
-      return post<{ rows: any[]; total: number }>('bi-query', params);
-    }
-    return biQueryCloud(params);
+    return post<{ rows: any[]; total: number }>('bi-query', params);
   },
 
-  distinct: async (dimension: string): Promise<string[]> => {
-    if (useLocal()) {
-      return get<string[]>(`bi-distinct?dimension=${encodeURIComponent(dimension)}`);
-    }
-    return biDistinctCloud(dimension);
+  distinct: (dimension: string): Promise<string[]> => {
+    return get<string[]>(`bi-distinct?dimension=${encodeURIComponent(dimension)}`);
   },
 
-  dateRange: async (): Promise<{ min_date: string | null; max_date: string | null }> => {
-    if (useLocal()) {
-      return get<{ min_date: string | null; max_date: string | null }>('bi-date-range');
-    }
-    return biDateRangeCloud();
+  dateRange: (): Promise<{ min_date: string | null; max_date: string | null }> => {
+    return get<{ min_date: string | null; max_date: string | null }>('bi-date-range');
   },
 };
 
