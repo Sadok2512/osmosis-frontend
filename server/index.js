@@ -1178,7 +1178,7 @@ async function searchDumpParameterLocal(query) {
          ORDER BY dimension, nb_cells DESC`;
       console.log(`\n🔍 [PARMY SQL] Distribution query:\n   param=${paramName}, groupBy=${groupCol}\n   SQL: ${sqlText}\n`);
 
-      let result = await pool.query(
+      let result = await sharedPool.query(
         `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
          FROM ${dumpTable} WHERE parameter = $1
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
@@ -1193,7 +1193,7 @@ async function searchDumpParameterLocal(query) {
          FROM ${dumpTable} WHERE parameter ILIKE '${paramName}'
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC`;
-        result = await pool.query(
+        result = await sharedPool.query(
           `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
            FROM ${dumpTable} WHERE parameter ILIKE $1
            GROUP BY COALESCE(${groupCol}, 'N/A'), value
@@ -1210,7 +1210,7 @@ async function searchDumpParameterLocal(query) {
          FROM ${dumpTable} WHERE parameter ILIKE '%${paramName}%'
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC LIMIT 500`;
-        result = await pool.query(
+        result = await sharedPool.query(
           `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
            FROM ${dumpTable} WHERE parameter ILIKE $1
            GROUP BY COALESCE(${groupCol}, 'N/A'), value
@@ -1222,7 +1222,7 @@ async function searchDumpParameterLocal(query) {
 
       if (!result.rows.length) {
         // Debug: check what parameters exist that are similar
-        const checkResult = await pool.query(
+        const checkResult = await sharedPool.query(
           `SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`,
           [`%${paramName.split('.').pop()}%`]
         );
