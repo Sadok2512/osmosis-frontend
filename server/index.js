@@ -1024,9 +1024,9 @@ function extractParameterName(query) {
 function extractGroupByColumn(query) {
   const normalized = query.toLowerCase();
   const mappings = {
-    'plaque': 'plaque', 'upr': 'ur', 'vendor': 'vendor', 'site': 'site_name',
-    'bande': 'bande', 'dor': 'dor', 'region': 'dr', 'zone': 'zone_arcep',
-    'omc': 'omc', 'city': 'city', 'ville': 'city',
+    'plaque': 'plaque', 'vendor': 'vendor', 'site': 'site_name',
+    'bande': 'bande', 'dor': 'dor', 'region': 'dor', 'zone': 'zone_arcep',
+    'netact': 'netact',
   };
   for (const [hint, col] of Object.entries(mappings)) {
     if (normalized.includes(hint)) return col;
@@ -1126,16 +1126,17 @@ async function searchDumpParameterLocal(query) {
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
     const siteName = extractSiteName(query);
+    console.log(`\n🔍 [PARMY] extractParamName="${paramName}", isDistrib=${isDistrib}, siteName=${siteName}, query="${query}"`);
 
     // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
     if (paramName && siteName && !isDistrib) {
-      const sql = `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque
+      const sql = `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
          FROM ${dumpTable}
          WHERE parameter ILIKE '%${paramName}%' AND site_name ILIKE '%${siteName}%'
          ORDER BY cell_name, parameter LIMIT 200`;
       console.log(`\n🔍 [PARMY SQL] Site+param search:\n   param=${paramName}, site=${siteName}\n   SQL: ${sql}\n`);
       const result = await pool.query(
-        `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque
+        `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
          FROM ${dumpTable}
          WHERE parameter ILIKE $1 AND site_name ILIKE $2
          ORDER BY cell_name, parameter LIMIT 200`,
@@ -1151,9 +1152,9 @@ async function searchDumpParameterLocal(query) {
         else msg += `Paramètres contenant "${paramName}" : ${paramCheck.rows.map(r => r.parameter).join(', ')}\n`;
         return msg;
       }
-      const header = 'dn | cell_name | site_name | parameter | value | version | vendor | bande | ur | plaque';
+      const header = 'dn | cell_name | site_name | parameter | value | version | vendor | bande | dor | plaque';
       const lines = result.rows.map(r =>
-        `${r.dn||''} | ${r.cell_name||''} | ${r.site_name||''} | ${r.parameter||''} | ${r.value||''} | ${r.version||''} | ${r.vendor||''} | ${r.bande||''} | ${r.ur||''} | ${r.plaque||''}`
+        `${r.dn||''} | ${r.cell_name||''} | ${r.site_name||''} | ${r.parameter||''} | ${r.value||''} | ${r.version||''} | ${r.vendor||''} | ${r.bande||''} | ${r.dor||''} | ${r.plaque||''}`
       );
       console.log(`   ✅ [PARMY] Résultat: ${result.rows.length} lignes retournées`);
       return `DONNÉES RÉELLES pour ${paramName} sur ${siteName} (${result.rows.length} résultats) :\n${header}\n${lines.join('\n')}`;
@@ -1201,8 +1202,8 @@ async function searchDumpParameterLocal(query) {
     );
     return `Total résultats paramètres: ${result.rows.length}\n${header}\n${lines.join('\n')}`;
   } catch (e) {
-    console.error('[dump_parameter search error]', e.message);
-    return '';
+    console.error('❌ [PARMY SQL ERROR]', e.message, '\n   Stack:', e.stack?.split('\n')[1]);
+    return `⚠️ Erreur SQL PARMY: ${e.message}`;
   } finally {
     await pool.end();
   }
