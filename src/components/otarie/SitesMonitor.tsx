@@ -2207,7 +2207,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesQoeFilters = activeViewFilters
         .filter(f => f.mode === 'qoe' && f.kpi && f.operator && f.threshold != null)
         .every(f => {
-          const val = (s as any)[f.kpi!];
+          // Try site-level value first, then compute average from cells
+          let val = (s as any)[f.kpi!];
+          if (val == null && s.cells.length > 0) {
+            const cellVals = s.cells.map((c: any) => c[f.kpi!]).filter((v: any) => v != null);
+            if (cellVals.length > 0) val = cellVals.reduce((a: number, b: number) => a + b, 0) / cellVals.length;
+          }
           if (val == null) return false;
           switch (f.operator) {
             case '>': return val > f.threshold!;
