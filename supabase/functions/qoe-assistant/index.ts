@@ -674,6 +674,7 @@ async function searchDumpParameters(query: string): Promise<string> {
   } catch (e) {
     console.error("dump_parameter search failed:", e);
     return "";
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -840,7 +841,6 @@ Generate the SQL now:`;
     console.error("PARMY SQL engine failed:", e);
     return "";
   }
-}
 }
 
 async function searchParameterChanges(query: string): Promise<string> {
