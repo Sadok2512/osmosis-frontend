@@ -712,6 +712,90 @@ IMPORTANT RULES:
 - Common patterns: COUNT, COUNT(DISTINCT ...), distribution with GROUP BY value, cross-tab with GROUP BY vendor/plaque/bande
 `;
 
+// ── Fuzzy matching for parameter names ──
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) => {
+    const row = new Array(n + 1).fill(0);
+    row[0] = i;
+    return row;
+  });
+  for (let j = 1; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function similarityScore(a: string, b: string): number {
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  return 1 - levenshtein(a, b) / maxLen;
+}
+
+async function resolveParameterName(
+  userParamName: string,
+  supabase: ReturnType<typeof createClient>
+): Promise<{ corrected: string; original: string; wasFixed: boolean }> {
+  const original = userParamName;
+  try {
+    // 1. Try exact match first (case-insensitive)
+    const { data: exactData } = await supabase.rpc("execute_parmy_sql", {
+      query_sql: `SELECT DISTINCT parameter FROM parameter_dump WHERE parameter ILIKE '${userParamName.replace(/'/g, "''")}' LIMIT 1`,
+    });
+    if (exactData && (exactData as any[]).length > 0) {
+      const exact = (exactData as any[])[0].parameter;
+      console.log(`✅ PARMY param exact match: "${userParamName}" → "${exact}"`);
+      return { corrected: exact, original, wasFixed: exact !== userParamName };
+    }
+
+    // 2. Try prefix-based search (e.g. "LNCEL.pmax" → find all "LNCEL.pMax%")
+    const prefix = userParamName.split(".")[0]; // e.g. "LNCEL"
+    const suffix = userParamName.split(".").slice(1).join("."); // e.g. "pmax"
+    const searchPattern = suffix
+      ? `${prefix}.%${suffix}%`
+      : `${prefix}%`;
+
+    const { data: candidates } = await supabase.rpc("execute_parmy_sql", {
+      query_sql: `SELECT DISTINCT parameter FROM parameter_dump WHERE parameter ILIKE '${searchPattern.replace(/'/g, "''")}' LIMIT 50`,
+    });
+
+    if (!candidates || (candidates as any[]).length === 0) {
+      console.warn(`⚠️ PARMY param: no candidates found for "${userParamName}"`);
+      return { corrected: userParamName, original, wasFixed: false };
+    }
+
+    // 3. Find best fuzzy match
+    const normalizedInput = userParamName.toLowerCase();
+    let bestMatch = (candidates as any[])[0].parameter;
+    let bestScore = 0;
+
+    for (const row of candidates as any[]) {
+      const candidate = row.parameter as string;
+      const score = similarityScore(normalizedInput, candidate.toLowerCase());
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = candidate;
+      }
+    }
+
+    if (bestScore >= 0.5) {
+      console.log(`🔧 PARMY param corrected: "${userParamName}" → "${bestMatch}" (score: ${bestScore.toFixed(2)})`);
+      return { corrected: bestMatch, original, wasFixed: bestMatch !== userParamName };
+    }
+
+    console.warn(`⚠️ PARMY param: best match "${bestMatch}" too low (${bestScore.toFixed(2)}) for "${userParamName}"`);
+    return { corrected: userParamName, original, wasFixed: false };
+  } catch (e) {
+    console.error("resolveParameterName error:", e);
+    return { corrected: userParamName, original, wasFixed: false };
+  }
+}
+
 async function generateAndExecuteParmySql(
   userQuery: string,
   filters?: AssistantFilters
@@ -725,6 +809,25 @@ async function generateAndExecuteParmySql(
       return "SQL engine unavailable: no AI API key configured.";
     }
 
+    const supabase = getSupabase();
+
+    // ── Step 0: Auto-correct parameter name via fuzzy search ──
+    const extractedParam = extractParamName(userQuery);
+    let paramCorrection = "";
+    let correctedQuery = userQuery;
+
+    if (extractedParam) {
+      const resolved = await resolveParameterName(extractedParam, supabase);
+      if (resolved.wasFixed) {
+        correctedQuery = userQuery.replace(
+          new RegExp(extractedParam.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+          resolved.corrected
+        );
+        paramCorrection = `\n⚠️ CORRECTION: Le paramètre "${resolved.original}" a été corrigé en "${resolved.corrected}" (correspondance trouvée dans la base).`;
+        console.log(`🔧 PARMY query corrected: "${userQuery}" → "${correctedQuery}"`);
+      }
+    }
+
     // Build filter context
     let filterContext = "";
     if (filters?.vendor) filterContext += `\nActive filter: vendor = '${filters.vendor}'`;
@@ -736,7 +839,7 @@ async function generateAndExecuteParmySql(
 ${PARMY_SQL_SCHEMA}
 ${filterContext}
 
-User question: "${userQuery}"
+User question: "${correctedQuery}"
 
 Rules:
 1. Output ONLY the SQL query, no explanation, no markdown code block
