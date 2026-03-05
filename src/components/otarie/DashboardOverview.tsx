@@ -388,6 +388,24 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
     setDashboards(refreshed);
   };
 
+  const updateMetadata = async (id: string, updates: { name: string; description: string; dashboard_type: DashboardType; visibility: Visibility; owner_username: string }) => {
+    await dashboardsApi.update(id, {
+      name: updates.name,
+      description: updates.description,
+      dashboard_type: updates.dashboard_type,
+      visibility: updates.visibility,
+      owner_username: updates.owner_username,
+      is_shared: updates.visibility === 'public',
+    });
+    const refreshed = await loadAllDashboardsFromDB();
+    setDashboards(refreshed);
+  };
+
+  const openInEditor = (id: string) => {
+    localStorage.setItem('qoebit_open_dashboard_id', id);
+    setActiveTab?.('traffic');
+  };
+
   const filtered = useMemo(() => {
     if (!search.trim()) return dashboards;
     const q = search.toLowerCase();
