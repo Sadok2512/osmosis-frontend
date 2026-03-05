@@ -1114,19 +1114,21 @@ async function searchDumpParameterLocal(query) {
   const pool = createPool(getLocalDbConfig());
   try {
     const dumpTable = 'parameter_dump';
-    await pool.query(ENSURE_PARAMETER_DUMP_SQL);
 
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
     const siteName = extractSiteName(query);
     console.log(`\n🔍 [PARMY] extractParamName="${paramName}", isDistrib=${isDistrib}, siteName=${siteName}, query="${query}"`);
 
-    // Check table has data at all
-    const countCheck = await pool.query(`SELECT COUNT(*) AS cnt FROM ${dumpTable}`);
-    const totalRows = parseInt(countCheck.rows[0].cnt);
-    console.log(`   📊 [PARMY] Table ${dumpTable} has ${totalRows} rows`);
-    if (totalRows === 0) {
-      return `⚠️ DEBUG: La table ${dumpTable} est VIDE (0 lignes). Importez des données via le module Topologie.`;
+    // Use cache to check if table has data (avoid COUNT(*) on 87M rows)
+    const cacheHasData = (distinctCache.parameter || []).length > 0;
+    if (!cacheHasData) {
+      const estResult = await pool.query(`SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = '${dumpTable}'`);
+      const estimate = parseInt(estResult.rows[0]?.estimate || '0');
+      console.log(`   📊 [PARMY] Table ${dumpTable} estimated ${estimate} rows (pg_class)`);
+      if (estimate === 0) {
+        return `⚠️ DEBUG: La table ${dumpTable} est VIDE (0 lignes). Importez des données via le module Topologie.`;
+      }
     }
 
     // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
