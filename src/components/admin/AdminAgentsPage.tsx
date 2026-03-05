@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Loader2, Bot, BarChart3, Settings, FileText, Database, Upload, Trash2, Eye, Blocks, Save, RotateCcw } from 'lucide-react';
+import { Plus, Loader2, Bot, BarChart3, Settings, FileText, Database, Upload, Trash2, Eye, Blocks, Save, RotateCcw, MessageSquareText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -239,6 +239,7 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
     <Tabs defaultValue="performance">
       <TabsList>
         <TabsTrigger value="performance" className="gap-1"><BarChart3 className="w-4 h-4" />Performance</TabsTrigger>
+        <TabsTrigger value="prompt" className="gap-1"><MessageSquareText className="w-4 h-4" />Prompt</TabsTrigger>
         <TabsTrigger value="settings" className="gap-1"><Settings className="w-4 h-4" />Settings</TabsTrigger>
         <TabsTrigger value="modules" className="gap-1"><Blocks className="w-4 h-4" />Modules</TabsTrigger>
         <TabsTrigger value="documents" className="gap-1"><FileText className="w-4 h-4" />Documents</TabsTrigger>
@@ -297,43 +298,10 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
         )}
       </TabsContent>
 
-      {/* Settings Tab */}
-      <TabsContent value="settings" className="mt-4 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-foreground">Active</span>
-            <Switch checked={agent.is_active} onCheckedChange={() => isAdmin && onToggle(agent)} disabled={!isAdmin} />
-          </div>
-          {isAdmin && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm"><Trash2 className="w-4 h-4 mr-2" />Delete Agent</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete "{agent.name}"?</AlertDialogTitle>
-                  <AlertDialogDescription>This will permanently delete this agent and all associated data. This action cannot be undone.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => onDelete(agent)}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
-
-        {isAdmin && (
+      {/* Prompt Tab */}
+      <TabsContent value="prompt" className="mt-4 space-y-6">
+        {isAdmin ? (
           <>
-            <div>
-              <label className="text-sm font-medium text-foreground">LLM Config</label>
-              <Select value={agent.model_config_id || ''} onValueChange={v => onChangeConfig(agent, v)}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select config" /></SelectTrigger>
-                <SelectContent>
-                  {configs.map(c => <SelectItem key={c.id} value={c.id}>{c.provider} / {c.model_name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -349,7 +317,7 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
               <Textarea
                 value={prompt}
                 onChange={e => { setPrompt(e.target.value); setPromptDirty(e.target.value !== agent.base_prompt); }}
-                rows={12}
+                rows={16}
                 className="font-mono text-xs"
               />
               <div className="flex items-center gap-2 mt-3">
@@ -385,6 +353,8 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
               </div>
             </div>
           </>
+        ) : (
+          <p className="text-muted-foreground text-center py-6">Admin access required to edit prompts.</p>
         )}
 
         {/* Prompt Preview Dialog */}
@@ -396,6 +366,26 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
             </pre>
           </DialogContent>
         </Dialog>
+      </TabsContent>
+
+      {/* Settings Tab */}
+      <TabsContent value="settings" className="mt-4 space-y-6">
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-medium text-foreground">Active</span>
+          <Switch checked={agent.is_active} onCheckedChange={() => isAdmin && onToggle(agent)} disabled={!isAdmin} />
+        </div>
+
+        {isAdmin && (
+          <div>
+            <label className="text-sm font-medium text-foreground">LLM Config</label>
+            <Select value={agent.model_config_id || ''} onValueChange={v => onChangeConfig(agent, v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Select config" /></SelectTrigger>
+              <SelectContent>
+                {configs.map(c => <SelectItem key={c.id} value={c.id}>{c.provider} / {c.model_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </TabsContent>
 
       {/* Modules Tab */}
