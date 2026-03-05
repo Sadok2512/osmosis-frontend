@@ -1333,6 +1333,14 @@ VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
 - kpi: {"title":"...","cards":[{"label":"...","value":"...","unit":"...","trend":"up/down/stable","status":"good/warning/critical"}]}
 Le JSON doit être sur UNE SEULE LIGNE.
 
+🔍 PARAMÈTRE CHECK (Validation Sub-Agent):
+- Si le contexte contient une section "VALIDATION CHECK", intègre-la dans ta réponse.
+- Affiche un tableau avec les colonnes : Dimension | Check | Raison
+- Utilise les icônes : ✅ PASS, ⚠️ WARNING, ❌ FAIL, ➖ NA
+- Ajoute un tooltip : "Calculé par le sous-agent de validation au niveau agrégé."
+- Le Check ne s'affiche QUE pour les niveaux d'agrégation : Vendor, DOR, Plaque, Bande, ZONE ARCEP.
+- Pour les vues site/cellule (données brutes), NE PAS afficher le Check.
+
 Réponds TOUJOURS en français.`;
 
 const PULSE_PROMPT = `Tu es **PULSE** 📡, agent spécialisé en performance RAN et QoE réseau mobile.
