@@ -124,14 +124,15 @@ const SharePopover: React.FC<{
   };
 
   return (
-    <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-xl p-4 z-50 w-[280px]"
-      onClick={e => e.stopPropagation()}>
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-          <Share2 className="w-3.5 h-3.5 text-primary" /> Partage
-        </h4>
-        <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground"><X className="w-3 h-3" /></button>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="bg-popover border border-border rounded-xl shadow-xl p-4 w-[280px]"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <Share2 className="w-3.5 h-3.5 text-primary" /> Partage
+          </h4>
+          <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground"><X className="w-3 h-3" /></button>
+        </div>
 
       <div className="flex gap-1 mb-3">
         {(['private', 'public', 'shared'] as Visibility[]).map(v => (
