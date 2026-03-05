@@ -1132,6 +1132,7 @@ async function searchDumpParameterLocal(query) {
       const header = `dimension | valeur_${paramName} | nb_cellules`;
       const lines = result.rows.map(r => `${r.dimension} | ${r.param_value} | ${r.nb_cells}`);
       const total = result.rows.reduce((s, r) => s + parseInt(r.nb_cells), 0);
+      console.log(`   ✅ [PARMY] Distribution: ${result.rows.length} groupes, ${total} cellules`);
       return `DISTRIBUTION AGRÉGÉE du paramètre ${paramName} par ${groupCol} (${total} cellules au total):\n${header}\n${lines.join('\n')}`;
     }
 
