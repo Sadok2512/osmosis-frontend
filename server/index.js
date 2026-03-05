@@ -2397,6 +2397,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
 
   if (resolved.topoInv) sections.push(`🗼 INVENTAIRE TOPO:\n${resolved.topoInv}`);
   if (resolved.topoAgg) sections.push(`📡 DISTRIBUTION TOPO:\n${resolved.topoAgg}`);
+  if (resolved.timeSeries) sections.push(`📈 TENDANCE TEMPORELLE:\n${resolved.timeSeries}`);
   if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
   if (resolved.dimValues) sections.push(`📋 VALEURS DIMENSION:\n${resolved.dimValues}`);
   if (resolved.agg) sections.push(`📊 STATS AGRÉGÉES:\n${resolved.agg}`);
