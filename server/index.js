@@ -1168,25 +1168,9 @@ async function searchDumpParameterLocal(query) {
          FROM ${dumpTable} WHERE parameter = '${paramName}'
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC`;
-      console.log(`\n🔍 [PARMY SQL] Distribution query:\n   param=${paramName}, groupBy=${groupCol}\n   SQL: ${sqlText}\n`);
+      console.log(`\n🔍 [PARMY SQL] Distribution query (single query, no pre-check):\n   param=${paramName}, groupBy=${groupCol}\n   SQL: ${sqlText}\n`);
 
-      // First check if parameter exists at all (use exact match for speed)
-      const paramCheck = await pool.query(
-        `SELECT COUNT(*) AS cnt FROM ${dumpTable} WHERE parameter = $1 LIMIT 1`,
-        [paramName]
-      );
-      const paramCount = parseInt(paramCheck.rows[0].cnt);
-      console.log(`   📊 [PARMY] Parameter "${paramName}" matches: ${paramCount} rows`);
-
-      if (paramCount === 0) {
-        // Show available parameters containing keyword
-        const suggestions = await pool.query(
-          `SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 20`,
-          [`%${paramName.split('.').pop()}%`]
-        );
-        return `🔍 DEBUG SQL: ${sqlText}\n\n⚠️ AUCUNE DONNÉE trouvée pour "${paramName}" (0 lignes).\nParamètres similaires: ${suggestions.rows.map(r => r.parameter).join(', ') || 'aucun'}`;
-      }
-
+      // Execute directly — resolveParamFromCache already validated parameter exists
       const result = await pool.query(
         `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
          FROM ${dumpTable} WHERE parameter = $1
@@ -1195,7 +1179,7 @@ async function searchDumpParameterLocal(query) {
         [paramName]
       );
       if (!result.rows.length) {
-        return `🔍 DEBUG SQL: ${sqlText}\n\nAUCUNE DONNÉE trouvée pour le paramètre "${paramName}" dans la base ${dumpTable}.`;
+        return `🔍 DEBUG SQL: ${sqlText}\n\n⚠️ AUCUNE DONNÉE trouvée pour "${paramName}" dans la base ${dumpTable}.`;
       }
       const header = `dimension | valeur_${paramName} | nb_cellules`;
       const lines = result.rows.map(r => `${r.dimension} | ${r.param_value} | ${r.nb_cells}`);
