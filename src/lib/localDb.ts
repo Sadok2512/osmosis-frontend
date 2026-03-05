@@ -70,20 +70,25 @@ export const dashboardsApi = {
     if (error) throw error;
     return data || [];
   },
-  upsert: async (dashboard: { id: string; name: string; description?: string; widgets: any; is_shared?: boolean }) => {
+  upsert: async (dashboard: { id: string; name: string; description?: string; widgets: any; is_shared?: boolean; dashboard_type?: string; visibility?: string; owner_username?: string; shared_with?: string[] }) => {
     if (useLocal()) {
       return post('dashboards', dashboard);
     }
+    const payload: Record<string, any> = {
+      id: dashboard.id,
+      name: dashboard.name,
+      description: dashboard.description || '',
+      widgets: dashboard.widgets,
+      is_shared: dashboard.is_shared ?? true,
+      updated_at: new Date().toISOString(),
+    };
+    if (dashboard.dashboard_type) payload.dashboard_type = dashboard.dashboard_type;
+    if (dashboard.visibility) payload.visibility = dashboard.visibility;
+    if (dashboard.owner_username) payload.owner_username = dashboard.owner_username;
+    if (dashboard.shared_with) payload.shared_with = dashboard.shared_with;
     const { data, error } = await supabase
       .from('dashboards')
-      .upsert({
-        id: dashboard.id,
-        name: dashboard.name,
-        description: dashboard.description || '',
-        widgets: dashboard.widgets,
-        is_shared: dashboard.is_shared ?? true,
-        updated_at: new Date().toISOString(),
-      })
+      .upsert(payload as any)
       .select()
       .single();
     if (error) throw error;
