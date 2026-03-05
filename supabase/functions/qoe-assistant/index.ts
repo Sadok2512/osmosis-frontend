@@ -840,16 +840,17 @@ ${PARMY_SQL_SCHEMA}
 ${filterContext}
 
 User question: "${correctedQuery}"
+${extractedParam ? `Resolved parameter name (exact): "${extractedParam}"` : ""}
 
 Rules:
 1. Output ONLY the SQL query, no explanation, no markdown code block
 2. ONLY SELECT from parameter_dump
 3. Always add LIMIT 500 at the end
-4. Use ILIKE for text pattern matching
-5. For value distributions, GROUP BY value and ORDER BY count DESC
-6. For cross-dimension analysis, use multiple GROUP BY columns
-7. Apply any active filters as WHERE conditions
-8. If the user asks about a specific parameter (e.g. LNCEL.pMax), filter on parameter ILIKE '%LNCEL.pMax%'
+4. IMPORTANT: When filtering on the parameter column, use exact match: parameter = 'ExactName' (NOT ILIKE with wildcards). The parameter name has already been resolved.
+5. For other text columns (site_name, vendor, etc.), use ILIKE for pattern matching
+6. For value distributions, GROUP BY value and ORDER BY count DESC
+7. For cross-dimension analysis, use multiple GROUP BY columns
+8. Apply any active filters as WHERE conditions
 9. For numeric comparisons on value column, use: CAST(NULLIF(value, '') AS numeric)
 10. Include useful aggregations: COUNT(*), COUNT(DISTINCT site_name), COUNT(DISTINCT cell_name)
 
