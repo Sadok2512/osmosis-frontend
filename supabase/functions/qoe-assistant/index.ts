@@ -1903,8 +1903,8 @@ serve(async (req) => {
 
       // Append SQL debug block AFTER the AI response for PARMY agent
       if (plan.agent === "PARMY" && parmySqlDebug) {
-        // Extract SQL from formats like "SQL QUERY (0 results):\nSELECT..." or "SQL: SELECT..."
-        const sqlMatch = parmySqlDebug.match(/SQL[^:]*:\s*\n?(SELECT[^]*?)(?:\n\n|$)/i);
+        // Extract SQL from formats: "SQL: SELECT...", "SQL QUERY (0 results):\nSELECT...", "Generated SQL: SELECT..."
+        const sqlMatch = parmySqlDebug.match(/(?:SQL[^:]*:|Generated SQL:)\s*\n?(SELECT[^]*?)(?:\n\n|\nRÉSULTATS|\nAucun|$)/i);
         const sqlQuery = sqlMatch ? sqlMatch[1].trim() : "";
         if (sqlQuery) {
           const debugBlock = "\n\n---\n\n**⚙️ Requête SQL exécutée :**\n\n```sql\n" + sqlQuery + "\n```\n\n";
