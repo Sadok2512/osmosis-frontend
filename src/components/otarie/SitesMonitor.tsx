@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { dashboardsApi, mapViewsApi, qoeMetricsApi } from '@/lib/localDb';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
@@ -203,7 +203,8 @@ const FlyToSite = ({ coords, onFlyStart, onFlyEnd, onDone }: { coords: [number, 
 // Create custom panes for 4G/5G layering
 const TechPanes: React.FC = () => {
   const map = useMap();
-  useEffect(() => {
+  // Use useLayoutEffect to create panes BEFORE first paint — ensures 5G is always on top from the start
+  useLayoutEffect(() => {
     if (!map.getPane('pane4G')) {
       const p4 = map.createPane('pane4G');
       p4.style.zIndex = '400';
