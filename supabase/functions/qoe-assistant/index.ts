@@ -1652,7 +1652,7 @@ serve(async (req) => {
       });
     }
 
-    const context = await buildContextFromPlan(plan, lastUserMessage, filters, legacyCellContext);
+    const { context, parmySqlDebug } = await buildContextFromPlan(plan, lastUserMessage, filters, legacyCellContext);
 
     // ── Agent Learning: fetch few-shots + user memory ──
     const supaClient = getSupabase();
