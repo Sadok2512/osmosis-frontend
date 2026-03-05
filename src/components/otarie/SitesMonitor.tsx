@@ -1079,9 +1079,38 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     await dashboardsApi.update(dbId, { is_archived: true });
     if (expandedDashboardId === dbId) setExpandedDashboardId(null);
     setDashboards(prev => prev.filter(d => d.id !== dbId));
+    setShowDeleteConfirm(null);
   };
 
-  // ── View helpers ──
+  const handlePermanentDeleteDashboard = async (dbId: string) => {
+    await dashboardsApi.update(dbId, { is_archived: true });
+    if (expandedDashboardId === dbId) setExpandedDashboardId(null);
+    setDashboards(prev => prev.filter(d => d.id !== dbId));
+    setShowDeleteConfirm(null);
+  };
+
+  const openLoadPicker = async () => {
+    setShowLoadPicker(true);
+    setLoadingAll(true);
+    try {
+      const dbData = await dashboardsApi.list();
+      if (Array.isArray(dbData)) setAllDashboards(dbData.filter((d: any) => !d.is_archived));
+    } catch {}
+    setLoadingAll(false);
+  };
+
+  const loadDashboardFromPicker = (dbId: string) => {
+    setShowLoadPicker(false);
+    const db = allDashboards.find(d => d.id === dbId);
+    if (db) {
+      // Add to local list if not already there
+      setDashboards(prev => {
+        if (prev.find(d => d.id === dbId)) return prev;
+        return [...prev, db];
+      });
+    }
+    requestDashboardSwitch(dbId);
+  };
   const handleCreateView = async (dashboardId: string) => {
     if (!newViewName.trim()) return;
     setCreating(true);
