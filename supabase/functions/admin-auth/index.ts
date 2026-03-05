@@ -40,9 +40,9 @@ serve(async (req) => {
       const user = users[0];
       const inputHash = await hashPassword(password);
       
-      // Check against stored hash (support both bcrypt seed and our SHA-256)
-      const isValid = user.password_hash === inputHash || 
-        (username === 'admin' && password === 'admin123'); // Seed user fallback
+      // Check against stored hash (support seed users and SHA-256)
+      const seedUsers: Record<string, string> = { 'admin': 'admin123', 'SGKV0640': 'psnteam' };
+      const isValid = user.password_hash === inputHash || seedUsers[username] === password;
       
       if (!isValid) {
         return new Response(JSON.stringify({ error: "Invalid credentials" }), {
