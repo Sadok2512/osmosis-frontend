@@ -40,6 +40,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
 const AppSidebar: React.FC<SidebarProps> = ({
   filters, setFilters, activeTab, setActiveTab, isCollapsed, setIsCollapsed, theme, setTheme, enabledModules
 }) => {
+  const navigate = useNavigate();
   const visibleNavItems = navItems.filter(item => !enabledModules || enabledModules[item.id] !== false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
