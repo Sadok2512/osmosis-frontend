@@ -2332,7 +2332,7 @@ app.post('/api/qoe-assistant', async (req, res) => {
     console.log(`[qoe-assistant] 🧠 Plan: agent=${plan.agent}, intent=${plan.intent}, scope=${JSON.stringify(plan.scope)}, needs=[${plan.needs.join(',')}]`);
 
     // 2. Build context from local DB
-    const context = await buildContextFromPlanLocal(plan, lastUserMsg, filters, legacyCellContext, kpiMonitorContext);
+    const { context, parmySqlDebug } = await buildContextFromPlanLocal(plan, lastUserMsg, filters, legacyCellContext, kpiMonitorContext);
 
     // 3. Build system prompt
     let systemContent = `[AGENT:${plan.agent}]\n\n` + (AGENT_PROMPTS[plan.agent] || AGENT_PROMPTS.PULSE);
