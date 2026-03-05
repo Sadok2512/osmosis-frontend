@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import {
   Sparkles, Activity, Network, ShieldCheck, AlertTriangle, Cpu,
   ArrowRight, ChevronDown, ChevronUp, Zap, Database, Search,
-  BarChart2, FileText, Target, Layers, GitBranch, Radio
+  BarChart2, FileText, Target, Layers, GitBranch, Radio, ArrowLeft
 } from 'lucide-react';
+import { AppTab } from '../../types';
 
 /* ── Agent definitions ── */
 interface SubAgent {
@@ -217,7 +218,7 @@ const AgentCard: React.FC<{ agent: SubAgent; isExpanded: boolean; onToggle: () =
 );
 
 /* ── Main Page ── */
-const AgentHubPage: React.FC = () => {
+const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavigate }) => {
   const [expandedId, setExpandedId] = useState<string | null>('PULSE');
 
   return (

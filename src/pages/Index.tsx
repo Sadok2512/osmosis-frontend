@@ -152,7 +152,7 @@ const Index: React.FC = () => {
       case 'pulse_report':
         return <PulseReportPage />;
       case 'agent_hub':
-        return <AgentHubPage />;
+        return <AgentHubPage onNavigate={setActiveTab} />;
       default:
         return null;
     }
