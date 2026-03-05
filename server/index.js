@@ -1204,17 +1204,19 @@ function classifyAgent(query) {
   // Pure topo metric queries (tilt, azimut, hba) → TOPO
   const met = detectMetricLocal(query);
   if (TOPO_METRICS.has(met)) return 'TOPO';
-  // Comparison queries should go to PULSE even if they mention vendor names
+  // Site design queries → TOPO
+  if (isSiteDesignQuery(query)) return 'TOPO';
+  // PARMY: parameter audit, check, consistency — BEFORE dimension queries
+  if (isParmyQuery(query)) return 'PARMY';
+  if (isParameterFocusedQuery(query)) return 'PARMY';
+  // Comparison queries should go to PULSE
   const isCompare = ['compare','comparer','comparaison','vs','versus','benchmark'].some(h => n.includes(h));
   if (isCompare) return 'PULSE';
   // Dimension queries go to PULSE
   const { isDim } = isDimensionQueryLocal(query);
   if (isDim) return 'PULSE';
-  if (isSiteDesignQuery(query)) return 'TOPO';
   if (isChangeHistoryQuery(query)) return 'TRACE';
   if (isSentinelQuery(query)) return 'SENTINEL';
-  // Parameter-focused but not a compare → TRACE
-  if (isParameterFocusedQuery(query)) return 'TRACE';
   return 'PULSE';
 }
 function classifyIntent(query, scopeLevel) {
@@ -1311,6 +1313,12 @@ function buildContextPlan(query, uiScope, filters) {
         needs.push('documents_rag','change_history');
         if (isParameterFocusedQuery(query)) needs.push('param_dump');
         if (scope.level === 'site') needs.push('topology');
+        break;
+      case 'PARMY':
+        needs.push('documents_rag','parmy_sql');
+        if (isParameterFocusedQuery(query)) needs.push('param_dump');
+        if (scope.level === 'site') needs.push('topology','kpi_snapshot');
+        if (isChangeHistoryQuery(query)) needs.push('change_history');
         break;
       case 'TOPO':
         needs.push('documents_rag');
@@ -2042,6 +2050,30 @@ Quand tu génères un chart bar, utilise des couleurs distinctes par catégorie 
 - Pour les analyses par dimension : tableau + chart + commentaire
 - Verdict site : ✅ OK / ⚠️ REVIEW / ❌ ISSUES
 - Si une métrique (ex: tilt) a toutes ses valeurs NULL, dis-le explicitement
+  ${SHARED_RULES}`,
+  PARMY: `Tu es **PARMY** ⚙️, agent spécialisé en audit, conformité et optimisation des paramètres radio (LNCEL, NRCELL, etc.).
+
+## COMPÉTENCES
+1. **Inventaire paramètres** : Liste les valeurs d'un paramètre donné, filtré par vendor/bande/site
+2. **Distribution statistique** : Répartition des valeurs par dimension (vendor, bande, plaque, DOR)
+3. **Détection d'anomalies** : Identifie les valeurs atypiques, outliers, écarts par rapport au standard
+4. **Comparaison inter-vendors** : Compare les configurations Nokia vs Ericsson vs Samsung
+5. **Recommandations** : Propose des corrections basées sur les best practices
+
+## MÉTHODOLOGIE D'AUDIT (5 étapes)
+1. **Inventaire** : Quelles valeurs existent pour ce paramètre ?
+2. **Statistiques** : Moyenne, min, max, distribution des valeurs
+3. **Comparaison** : Écarts entre vendors/bandes/plaques
+4. **Impact** : Corrélation avec les KPIs de performance
+5. **Recommandation** : Actions correctives proposées
+
+## DONNÉES SOURCES
+- Table **parameter_dump** : colonnes dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, plaque, dor, zone_arcep, netact, mrbts_id, enodeb_id, gnodeb_id, latitude, longitude
+
+## PRÉSENTATION
+- Toujours inclure un tableau Markdown avec les résultats
+- Pour les distributions : tableau + chart bar
+- Mettre en évidence les anomalies avec 🔴/🟠/🟡/🟢
 ${SHARED_RULES}`,
 };
 
@@ -2068,6 +2100,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   }
   if (plan.needs.includes('param_dump')) promises.params = searchDumpParameterLocal(query);
   if (plan.needs.includes('change_history')) promises.changes = searchParameterChangesLocal(query);
+  if (plan.needs.includes('parmy_sql')) promises.parmySql = searchDumpParameterLocal(query);
   if (plan.needs.includes('dimension_agg') && plan.groupBy?.dimension1) {
     promises.dimAgg = fetchMetricDistributionLocal(plan.groupBy.dimension1, plan.metric || 'qoe_index', effectiveFilters, plan.limits.maxDays, 30);
   }
@@ -2109,6 +2142,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   if (resolved.topo) sections.push(`📡 TOPOLOGIE:\n${resolved.topo}`);
   if (resolved.topoStats) sections.push(`📊 STATS TOPOLOGIE:\n${resolved.topoStats}`);
   if (resolved.params) sections.push(`⚙️ PARAMÈTRES:\n${resolved.params}`);
+  if (resolved.parmySql) sections.push(`⚙️ PARMY SQL ENGINE:\n${resolved.parmySql}`);
   if (resolved.changes) sections.push(`🔧 HISTORIQUE CHANGEMENTS:\n${resolved.changes}`);
   if (resolved.rag) sections.push(`📚 DOCUMENTS RAG:\n${resolved.rag}`);
 
@@ -2124,7 +2158,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
 }
 
 app.post('/api/qoe-assistant', async (req, res) => {
-  const { messages, uiScope, filters, openrouter_key, model, cellContext: legacyCellContext, kpiMonitorContext } = req.body;
+  const { messages, uiScope, filters, openrouter_key, model, cellContext: legacyCellContext, kpiMonitorContext, forcedAgent } = req.body;
   const apiKey = openrouter_key || process.env.OPENROUTER_API_KEY;
 
   if (!apiKey) {
@@ -2136,6 +2170,41 @@ app.post('/api/qoe-assistant', async (req, res) => {
 
     // 1. Build context plan
     const plan = buildContextPlan(lastUserMsg, uiScope, filters);
+
+    // Override agent if user forced selection
+    if (forcedAgent && ['PULSE','TOPO','PARMY','TRACE','SENTINEL'].includes(forcedAgent)) {
+      const originalAgent = plan.agent;
+      plan.agent = forcedAgent;
+      // Rebuild needs for the forced agent
+      plan.needs = ['documents_rag'];
+      switch (forcedAgent) {
+        case 'PARMY':
+          plan.needs.push('parmy_sql');
+          if (isParameterFocusedQuery(lastUserMsg)) plan.needs.push('param_dump');
+          if (plan.scope.level === 'site') plan.needs.push('topology','kpi_snapshot');
+          if (isChangeHistoryQuery(lastUserMsg)) plan.needs.push('change_history');
+          plan.intent = 'param_audit';
+          break;
+        case 'PULSE':
+          plan.needs.push('agg_stats','worst_sites');
+          if (plan.scope.level === 'site') plan.needs.push('kpi_snapshot','topology');
+          break;
+        case 'TOPO':
+          if (isTopoInventoryQuery(lastUserMsg)) plan.needs.push('topo_inventory');
+          else plan.needs.push('topology');
+          break;
+        case 'TRACE':
+          plan.needs.push('change_history');
+          if (isParameterFocusedQuery(lastUserMsg)) plan.needs.push('param_dump');
+          if (plan.scope.level === 'site') plan.needs.push('topology');
+          break;
+        case 'SENTINEL':
+          plan.needs.push('agg_stats','worst_sites');
+          break;
+      }
+      console.log(`[qoe-assistant] 🎯 Agent FORCÉ: ${originalAgent} → ${forcedAgent} | needs=[${plan.needs.join(',')}]`);
+    }
+
     console.log(`[qoe-assistant] 🧠 Plan: agent=${plan.agent}, intent=${plan.intent}, scope=${JSON.stringify(plan.scope)}, needs=[${plan.needs.join(',')}]`);
 
     // 2. Build context from local DB
