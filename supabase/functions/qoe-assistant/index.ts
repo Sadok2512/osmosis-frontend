@@ -1780,6 +1780,21 @@ serve(async (req) => {
 
     (async () => {
       await writer.write(metaChunk);
+
+      // Inject SQL debug block for PARMY agent
+      if (plan.agent === "PARMY" && parmySqlDebug) {
+        const sqlMatch = parmySqlDebug.match(/SQL: (.+?)(?:\n\n|$)/s);
+        const sqlQuery = sqlMatch ? sqlMatch[1].trim() : "";
+        const dataPreview = parmySqlDebug.slice(0, 2000);
+        let debugBlock = "\n\n---\n<details><summary>🔍 **DEBUG — SQL & Données brutes**</summary>\n\n";
+        if (sqlQuery) debugBlock += "```sql\n" + sqlQuery + "\n```\n\n";
+        debugBlock += "**Résultat brut (extrait) :**\n```\n" + dataPreview + "\n```\n\n</details>\n\n---\n\n";
+        const debugChunk = encoder.encode(
+          `data: ${JSON.stringify({ choices: [{ delta: { content: debugBlock } }] })}\n\n`
+        );
+        await writer.write(debugChunk);
+      }
+
       const reader = originalBody.getReader();
       while (true) {
         const { done, value } = await reader.read();
