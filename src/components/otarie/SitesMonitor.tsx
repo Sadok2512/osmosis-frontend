@@ -1205,6 +1205,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
           )}
         </div>
       </div>
+      {expandedDashboardId && (() => {
+        const activeName = dashboards.find(d => d.id === expandedDashboardId)?.name;
+        return activeName ? (
+          <div className="px-2 mb-2">
+            <span className="text-[11px] font-bold text-primary truncate block">{activeName}</span>
+          </div>
+        ) : null;
+      })()}
 
       {/* Create dashboard form */}
       {showCreateDash && (
