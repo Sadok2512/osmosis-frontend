@@ -210,6 +210,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       filters: assistantFilters,
       openrouter_key: openrouterKey,
       model: llmModel,
+      ...(forcedAgent ? { forcedAgent } : {}),
     });
 
     const url = getApiUrl('qoe-assistant');
