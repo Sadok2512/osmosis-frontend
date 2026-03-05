@@ -134,42 +134,43 @@ const SharePopover: React.FC<{
           <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground"><X className="w-3 h-3" /></button>
         </div>
 
-      <div className="flex gap-1 mb-3">
-        {(['private', 'public', 'shared'] as Visibility[]).map(v => (
-          <button key={v} onClick={() => setVis(v)}
-            className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-all ${vis === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
-            {v === 'private' ? 'Privé' : v === 'public' ? 'Public' : 'Partagé'}
-          </button>
-        ))}
-      </div>
-
-      {vis === 'shared' && (
-        <div className="space-y-2">
-          <div className="flex gap-1">
-            <input type="text" value={newUser} onChange={e => setNewUser(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addUser()}
-              placeholder="Username..."
-              className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
-            <button onClick={addUser}
-              className="px-2 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors">+</button>
-          </div>
-          {users.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {users.map(u => (
-                <span key={u} className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-full text-foreground font-medium">
-                  <User className="w-2.5 h-2.5" />{u}
-                  <button onClick={() => removeUser(u)} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
-                </span>
-              ))}
-            </div>
-          )}
+        <div className="flex gap-1 mb-3">
+          {(['private', 'public', 'shared'] as Visibility[]).map(v => (
+            <button key={v} onClick={() => setVis(v)}
+              className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-all ${vis === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+              {v === 'private' ? 'Privé' : v === 'public' ? 'Public' : 'Partagé'}
+            </button>
+          ))}
         </div>
-      )}
 
-      <button onClick={save}
-        className="w-full mt-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
-        Enregistrer
-      </button>
+        {vis === 'shared' && (
+          <div className="space-y-2">
+            <div className="flex gap-1">
+              <input type="text" value={newUser} onChange={e => setNewUser(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addUser()}
+                placeholder="Username..."
+                className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+              <button onClick={addUser}
+                className="px-2 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors">+</button>
+            </div>
+            {users.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {users.map(u => (
+                  <span key={u} className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-full text-foreground font-medium">
+                    <User className="w-2.5 h-2.5" />{u}
+                    <button onClick={() => removeUser(u)} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <button onClick={save}
+          className="w-full mt-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
+          Enregistrer
+        </button>
+      </div>
     </div>
   );
 };
