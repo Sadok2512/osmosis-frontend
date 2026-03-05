@@ -1248,7 +1248,7 @@ async function buildContextFromPlan(
   query: string,
   filters?: AssistantFilters,
   legacyCellContext?: string
-): Promise<string> {
+): Promise<{ context: string; parmySqlDebug: string }> {
   const sections: string[] = [];
 
   const promises: Record<string, Promise<string>> = {};
@@ -1332,7 +1332,7 @@ async function buildContextFromPlan(
     sections.push(`📊 DONNÉES RÉSEAU (legacy):\n${legacyCellContext.slice(0, cap)}`);
   }
 
-  return sections.join("\n\n");
+  return { context: sections.join("\n\n"), parmySqlDebug: resolved.parmySql || "" };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1534,12 +1534,18 @@ Tu disposes d'un **moteur SQL** qui génère et exécute automatiquement des req
 5. **Recommandation** : Proposer les actions correctives avec priorité
 
 ## FORMAT DE RÉPONSE AUDIT
+- 🔍 **SQL exécuté** : TOUJOURS afficher la requête SQL utilisée dans un bloc \`\`\`sql au début de ta réponse
 - 📋 **Périmètre** : Scope de l'audit (site, plaque, vendor, paramètre)
-- 📊 **Résultats** : Tableau des valeurs + distribution
+- 📊 **Résultats** : Tableau des valeurs + distribution — copie EXACTEMENT les données du PARMY SQL ENGINE
 - ⚠️ **Écarts détectés** : Liste des non-conformités avec sévérité (🔴 Critique, 🟠 Majeur, 🟡 Mineur)
 - 💡 **Recommandations** : Actions correctives ordonnées par priorité
 - ✅ **Conformes** : Paramètres validés
-- 🔍 **SQL exécuté** : Mentionne la requête SQL utilisée pour la transparence
+
+## ⛔ RÈGLE ABSOLUE ANTI-HALLUCINATION
+- Tu NE DOIS JAMAIS inventer, estimer ou deviner des données
+- SEULE SOURCE : les données fournies sous "⚙️ PARMY SQL ENGINE" dans ton contexte
+- Si le contexte SQL est vide ou dit "0 results", dis-le clairement : "Aucun résultat trouvé pour cette requête"
+- Chaque nombre dans ton tableau DOIT correspondre exactement aux données SQL fournies
 
 ## PARAMÈTRES CLÉS CONNUS
 ### LTE (4G) — Préfixe LNCEL/LNBTS
@@ -1652,7 +1658,7 @@ serve(async (req) => {
       });
     }
 
-    const context = await buildContextFromPlan(plan, lastUserMessage, filters, legacyCellContext);
+    const { context, parmySqlDebug } = await buildContextFromPlan(plan, lastUserMessage, filters, legacyCellContext);
 
     // ── Agent Learning: fetch few-shots + user memory ──
     const supaClient = getSupabase();
@@ -1780,6 +1786,21 @@ serve(async (req) => {
 
     (async () => {
       await writer.write(metaChunk);
+
+      // Inject SQL debug block for PARMY agent
+      if (plan.agent === "PARMY" && parmySqlDebug) {
+        const sqlMatch = parmySqlDebug.match(/SQL: (.+?)(?:\n\n|$)/s);
+        const sqlQuery = sqlMatch ? sqlMatch[1].trim() : "";
+        const dataPreview = parmySqlDebug.slice(0, 2000);
+        let debugBlock = "\n\n---\n<details><summary>🔍 **DEBUG — SQL & Données brutes**</summary>\n\n";
+        if (sqlQuery) debugBlock += "```sql\n" + sqlQuery + "\n```\n\n";
+        debugBlock += "**Résultat brut (extrait) :**\n```\n" + dataPreview + "\n```\n\n</details>\n\n---\n\n";
+        const debugChunk = encoder.encode(
+          `data: ${JSON.stringify({ choices: [{ delta: { content: debugBlock } }] })}\n\n`
+        );
+        await writer.write(debugChunk);
+      }
+
       const reader = originalBody.getReader();
       while (true) {
         const { done, value } = await reader.read();
