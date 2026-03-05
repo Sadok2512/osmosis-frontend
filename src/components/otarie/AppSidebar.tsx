@@ -154,13 +154,6 @@ const AppSidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
         <button
-          onClick={() => { clearSession(); navigate('/login'); }}
-          className="w-full flex items-center transition-all group gap-3 px-3 py-2 rounded-xl hover:bg-destructive/10 text-sidebar-foreground hover:text-destructive"
-          title="Logout"
-        >
-          <LogOut className="w-4 h-4" />
-          {!isCollapsed && <span className="text-xs font-semibold">Logout</span>}
-        </button>
           onClick={() => setActiveTab('settings')}
           className={`w-full flex items-center transition-all group ${isCollapsed ? 'justify-center' : 'gap-3 px-3 py-2.5 rounded-xl'} ${
             activeTab === 'settings' ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent'
@@ -173,6 +166,14 @@ const AppSidebar: React.FC<SidebarProps> = ({
               <span className={`text-[10px] font-normal ${activeTab === 'settings' ? 'text-sidebar-primary-foreground/70' : 'text-sidebar-foreground/60'}`}>Platform Config</span>
             </div>
           )}
+        </button>
+        <button
+          onClick={() => { clearSession(); navigate('/login'); }}
+          className={`w-full flex items-center transition-all group ${isCollapsed ? 'justify-center' : 'gap-3 px-3 py-2 rounded-xl'} hover:bg-destructive/10 text-sidebar-foreground hover:text-destructive`}
+          title="Logout"
+        >
+          <LogOut className="w-4 h-4" />
+          {!isCollapsed && <span className="text-xs font-semibold">Logout</span>}
         </button>
         {!isCollapsed && (
           <div className="flex items-center gap-2 mt-2 px-3 opacity-50">
