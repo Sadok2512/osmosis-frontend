@@ -1801,13 +1801,16 @@ serve(async (req) => {
 
       // Append SQL debug block AFTER the AI response for PARMY agent
       if (plan.agent === "PARMY" && parmySqlDebug) {
-        const sqlMatch = parmySqlDebug.match(/(?:SQL(?:\s*QUERY[^:]*)?:\s*)(.+?)(?:\n\n|$)/s);
+        // Extract SQL from formats like "SQL QUERY (0 results):\nSELECT..." or "SQL: SELECT..."
+        const sqlMatch = parmySqlDebug.match(/SQL[^:]*:\s*\n?(SELECT[^]*?)(?:\n\n|$)/i);
         const sqlQuery = sqlMatch ? sqlMatch[1].trim() : "";
-        let debugBlock = "\n\n---\n\n**⚙️ Requête SQL exécutée :**\n\n```sql\n" + (sqlQuery || "(aucune SQL générée)") + "\n```\n\n";
-        const debugChunk = encoder.encode(
-          `data: ${JSON.stringify({ choices: [{ delta: { content: debugBlock } }] })}\n\n`
-        );
-        await writer.write(debugChunk);
+        if (sqlQuery) {
+          const debugBlock = "\n\n---\n\n**⚙️ Requête SQL exécutée :**\n\n```sql\n" + sqlQuery + "\n```\n\n";
+          const debugChunk = encoder.encode(
+            `data: ${JSON.stringify({ choices: [{ delta: { content: debugBlock } }] })}\n\n`
+          );
+          await writer.write(debugChunk);
+        }
       }
 
       await writer.close();
