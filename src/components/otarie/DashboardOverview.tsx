@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { AppTab } from '../../types';
 import { SavedDashboard } from '../bi/DashboardManager';
+import { getStoredSession } from '@/services/adminAuth';
 import { WidgetItem } from '../bi/dashboardTypes';
 import { TableWidgetConfig } from '../bi/BITableWidget';
 import { KPI_UNITS } from '../bi/biTypes';
@@ -43,7 +44,7 @@ async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
       updatedAt: row.updated_at,
       dashboardType: (row.dashboard_type as DashboardType) || 'analytic_qoe',
       visibility: (row.visibility as Visibility) || 'public',
-      ownerUsername: row.owner_username || 'PSN TEAM',
+      ownerUsername: row.owner_username || getStoredSession()?.username || 'Inconnu',
       sharedWith: row.shared_with || [],
     }));
   } catch { return []; }
@@ -57,6 +58,7 @@ async function duplicateDashboardInDB(source: EnhancedDashboard, allDashboards: 
     while (existingNames.has(`${source.name} (copy ${counter})`.toLowerCase())) counter++;
     dupName = `${source.name} (copy ${counter})`;
   }
+  const currentUser = getStoredSession()?.username || source.ownerUsername;
   await dashboardsApi.upsert({
     id: `db_${Date.now()}`,
     name: dupName,
@@ -65,7 +67,7 @@ async function duplicateDashboardInDB(source: EnhancedDashboard, allDashboards: 
     widgets: JSON.parse(JSON.stringify(source.widgets)),
     dashboard_type: source.dashboardType,
     visibility: source.visibility,
-    owner_username: source.ownerUsername,
+    owner_username: currentUser,
     shared_with: source.sharedWith,
   });
 }
@@ -684,7 +686,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="w-3 h-3 text-primary" />
               </div>
-              <span className="text-xs font-medium text-foreground">PSN TEAM</span>
+              <span className="text-xs font-medium text-foreground">{getStoredSession()?.username || 'Utilisateur'}</span>
             </div>
           </div>
         </div>
