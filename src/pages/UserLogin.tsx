@@ -49,15 +49,12 @@ export default function UserLogin() {
             <ShieldCheck className="w-10 h-10 text-[hsl(170,70%,55%)]" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">
-            QOEBIT Admin
+            QOEBIT
           </h2>
-          <p className="text-white/50 text-sm max-w-xs mx-auto leading-relaxed">
-            Centralized management for users, agents, models, memory sessions and system health monitoring.
-          </p>
           <div className="mt-10 flex items-center justify-center gap-6 text-white/30 text-xs">
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-400/60" />Secure</span>
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-400/60" />Role-based</span>
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-purple-400/60" />Audited</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-400/60" />AI Powered</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-400/60" />QOE Monitoring</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-purple-400/60" />Analytics</span>
           </div>
         </div>
       </div>
