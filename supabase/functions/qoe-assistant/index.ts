@@ -11,7 +11,7 @@ const corsHeaders = {
 //  TYPES (Context-on-Demand)
 // ═══════════════════════════════════════════════════════════════
 
-type AgentId = "PULSE" | "TRACE" | "SENTINEL" | "TOPO";
+type AgentId = "PULSE" | "TRACE" | "SENTINEL" | "TOPO" | "PARMY";
 
 type Intent =
   | "global_summary"
@@ -23,6 +23,7 @@ type Intent =
   | "trace_change"
   | "distribution"
   | "list_dimension_values"
+  | "param_audit"
   | "other";
 
 type Scope =
@@ -866,6 +867,21 @@ function isSentinelQuery(query: string): boolean {
   ].some(h => n.includes(h));
 }
 
+function isParmyQuery(query: string): boolean {
+  const n = query.toLowerCase();
+  return ["audit", "auditer", "vérifier", "verifier", "check", "contrôle", "controle",
+    "cohérence", "coherence", "consistency", "recommandation", "recommendation",
+    "best practice", "bonne pratique", "conformité", "conformite", "compliance",
+    "benchmark param", "template", "valeur standard", "standard value",
+    "écart", "ecart", "deviation", "outlier", "anomalie param",
+    "dispersion", "homogénéité", "homogeneite", "uniformité", "uniformite",
+    "param check", "parameter audit", "param audit", "vérif param", "verif param",
+    "analyse param", "optimis", "tuning recomm", "config audit",
+    "non conforme", "non-conforme", "hors norme", "hors-norme",
+    "valeur aberrante", "valeur atypique", "outlier param"
+  ].some(h => n.includes(h));
+}
+
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
   // Topo inventory queries (nombre de cellules, combien de sites) → TOPO always first
@@ -882,7 +898,9 @@ function classifyAgent(query: string): AgentId {
   if (isCompare) return "PULSE";
   if (isChangeHistoryQuery(query)) return "TRACE";
   if (isSentinelQuery(query)) return "SENTINEL";
-  if (isParameterFocusedQuery(query)) return "TRACE";
+  // PARMY: parameter audit, check, consistency, recommendations
+  if (isParmyQuery(query)) return "PARMY";
+  if (isParameterFocusedQuery(query)) return "PARMY"; // Parameter queries now go to PARMY instead of TRACE
   return "PULSE";
 }
 
@@ -896,6 +914,7 @@ function classifyIntent(query: string, scope: Scope): Intent {
   if (isList) return "list_dimension_values";
   if (isDim) return "distribution";
   if (isChangeHistoryQuery(query)) return "trace_change";
+  if (isParmyQuery(query)) return "param_audit";
   if (scope.level === "cell") return "cell_analysis";
   if (scope.level === "site") return "site_analysis";
 
@@ -1029,6 +1048,12 @@ function buildContextPlan(
             limits.maxCells = 30;
           }
         }
+        break;
+
+      case "PARMY":
+        needs.push("documents_rag", "param_dump");
+        if (scope.level === "site") needs.push("topology", "kpi_snapshot");
+        if (isChangeHistoryQuery(query)) needs.push("change_history");
         break;
     }
   }
@@ -1307,12 +1332,59 @@ Quand tu génères un chart bar, utilise des couleurs distinctes par catégorie 
 - Si une métrique (ex: tilt) a toutes ses valeurs NULL, dis-le explicitement : "Les valeurs de tilt ne sont pas renseignées dans la base de données."
 ${SHARED_RULES}`;
 
+const PARMY_PROMPT = `Tu es **PARMY** ⚙️, agent spécialisé en audit, vérification et optimisation des paramètres radio réseau.
+
+## COMPÉTENCES
+1. **Audit de paramètres** : Vérification de cohérence des valeurs de paramètres radio (timers RRC, handover, puissances, MIMO, etc.)
+2. **Détection d'anomalies** : Identification des valeurs atypiques, outliers, paramètres hors norme par rapport au template ou aux best practices
+3. **Analyse comparative** : Comparaison des paramètres entre sites, plaques, vendors, bandes pour détecter les écarts
+4. **Recommandations** : Suggestions d'optimisation basées sur les best practices 3GPP et les standards opérateur
+5. **Contrôle de conformité** : Vérification de l'alignement avec les templates de référence
+
+## DONNÉES SOURCES
+- Table **parameter_dump** : colonnes dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, plaque, dor, zone_arcep, netact, latitude, longitude, mrbts_id, enodeb_id, gnodeb_id
+- Table **parameter_changes** : historique des modifications (change_date, param_name, old_value, new_value, change_type, change_scope)
+- Table **topo** : données topologiques pour corrélation
+
+## MÉTHODOLOGIE D'AUDIT
+1. **Inventaire** : Lister les paramètres concernés et leurs valeurs actuelles
+2. **Statistiques** : Calculer la distribution des valeurs (mode, médiane, outliers)
+3. **Comparaison** : Identifier les écarts par rapport au template/majorité
+4. **Impact** : Évaluer l'impact potentiel des écarts sur la performance
+5. **Recommandation** : Proposer les actions correctives avec priorité
+
+## FORMAT DE RÉPONSE AUDIT
+- 📋 **Périmètre** : Scope de l'audit (site, plaque, vendor, paramètre)
+- 📊 **Résultats** : Tableau des valeurs + distribution
+- ⚠️ **Écarts détectés** : Liste des non-conformités avec sévérité (🔴 Critique, 🟠 Majeur, 🟡 Mineur)
+- 💡 **Recommandations** : Actions correctives ordonnées par priorité
+- ✅ **Conformes** : Paramètres validés
+
+## PARAMÈTRES CLÉS CONNUS
+### LTE (4G) — Préfixe LNCEL/LNBTS
+- LNCEL.pMax (Puissance max, typique: 43-46 dBm)
+- LNCEL.dlChBw (Bande passante DL: 5/10/15/20 MHz)
+- LNCEL.dlMimoMode (Mode MIMO: 0=SingleTX, 10=TXDiv, 30=OL-MIMO, 40=CL-MIMO)
+- LNCEL.dlRsBoost (RS Boost: 0-6 dB)
+- Timers RRC: t300, t301, t304, t310, t311, t320, t321
+
+### 5G NR — Préfixe NRCELL/GNBTS
+- Paramètres NR similaires avec préfixes NRCELL, GNBDU, GNBCUCP
+
+## COULEURS ET SÉVÉRITÉS
+- 🔴 **Critique** : Valeur pouvant causer des coupures ou indisponibilité
+- 🟠 **Majeur** : Valeur sous-optimale impactant les performances
+- 🟡 **Mineur** : Écart léger, optimisation possible
+- 🟢 **Conforme** : Valeur alignée avec le template/best practice
+${SHARED_RULES}`;
+
 function getAgentPrompt(agent: AgentId): string {
   switch (agent) {
     case "PULSE": return PULSE_PROMPT;
     case "TRACE": return TRACE_PROMPT;
     case "SENTINEL": return SENTINEL_PROMPT;
     case "TOPO": return TOPO_PROMPT;
+    case "PARMY": return PARMY_PROMPT;
     default: return PULSE_PROMPT;
   }
 }
