@@ -368,17 +368,23 @@ async function fetchMetricTimeSeriesByDimension(
   dimension1Type: string,
   metric: string,
   filters?: AssistantFilters,
-  days = 14,
+  days = 7,
   limit = 10
 ): Promise<string> {
   try {
     const supabase = getSupabase();
     const selectCols = `dimension_1, dimension_2, date_part, ${metric}`;
 
+    // Apply date filter based on days parameter
+    const dateTo = new Date();
+    const dateFrom = new Date(dateTo.getTime() - days * 86400000);
+    const dateFromStr = dateFrom.toISOString().slice(0, 10);
+
     let q = supabase.from("kpi_qoe_aggregated")
       .select(selectCols)
       .eq("dimension_1", dimension1Type)
       .not(metric, "is", null)
+      .gte("date_part", dateFromStr)
       .order("date_part", { ascending: true })
       .limit(5000);
 
