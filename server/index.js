@@ -1246,7 +1246,7 @@ async function searchDumpParameterLocal(query) {
     const sqlStd = `SELECT dn, enodeb_id, mrbts_id, gnodeb_id, cell_name, vendor, site_name, bande, plaque, parameter, version, value
        FROM ${dumpTable} WHERE ${conditions} LIMIT 80`;
     console.log(`\n🔍 [PARMY SQL] Standard search:\n   terms=${terms.join(', ')}\n   SQL: ${sqlStd}\n`);
-    const result = await pool.query(sqlStd, params);
+    const result = await sharedPool.query(sqlStd, params);
     if (!result.rows.length) return `🔍 DEBUG SQL: ${sqlStd}\n\nAUCUNE DONNÉE trouvée dans ${dumpTable} pour: ${terms.join(', ')}`;
     const header = 'dn | enodeb_id | mrbts_id | cell_name | vendor | site_name | bande | plaque | parameter | version | value';
     const lines = result.rows.map(r =>
@@ -1256,8 +1256,6 @@ async function searchDumpParameterLocal(query) {
   } catch (e) {
     console.error('❌ [PARMY SQL ERROR]', e.message, '\n   Stack:', e.stack?.split('\n')[1]);
     return `⚠️ Erreur SQL PARMY: ${e.message}\n\nStack: ${e.stack?.split('\n').slice(0,3).join('\n')}`;
-  } finally {
-    await pool.end();
   }
 }
 
