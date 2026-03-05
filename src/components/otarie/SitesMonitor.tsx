@@ -4343,10 +4343,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <span className="font-semibold text-primary">{primaryTech} {primaryBand}MHZ</span>
                     </div>
                   </div>
-                  {/* Warning indicator */}
-                  <div className="shrink-0">
-                    <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-b-[18px] border-l-transparent border-r-transparent border-b-amber-400" />
-                  </div>
+                  {/* Close button */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleBackToGlobal(); }}
+                    className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    title="Fermer"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
               </div>
 
