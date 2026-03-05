@@ -1175,9 +1175,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3">
-      <div className="flex items-center gap-2 px-1 mb-2">
+      <div className="flex items-center gap-2 px-1 mb-1">
         <LayoutGrid size={13} className="text-primary" />
-        <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboards</h3>
+        <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboard</h3>
         <span className="text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
         <div className="ml-auto relative">
           <button
