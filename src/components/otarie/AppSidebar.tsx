@@ -3,7 +3,7 @@ import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
   Database, Activity, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
-  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin, Cpu
+  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin
 } from 'lucide-react';
 import { Filters, AppTab } from '../../types';
 
@@ -132,27 +132,6 @@ const AppSidebar: React.FC<SidebarProps> = ({
           <ChevronLeft size={16} className="-rotate-90" />
         </button>
       )}
-
-      {/* AGENT HUB BUTTON */}
-      <div className={`px-3 pb-2 ${isCollapsed ? 'px-2' : ''}`}>
-        <button
-          onClick={() => setActiveTab('agent_hub')}
-          className={`w-full flex items-center rounded-xl transition-all group ${isCollapsed ? 'justify-center p-3 h-14' : 'gap-3 px-3 py-3 h-14'} ${
-            activeTab === 'agent_hub'
-              ? 'bg-gradient-to-r from-sidebar-primary to-sidebar-primary/80 text-sidebar-primary-foreground shadow-lg'
-              : 'bg-sidebar-accent/40 text-sidebar-foreground hover:bg-sidebar-accent border border-sidebar-border/50'
-          }`}
-          title={isCollapsed ? 'QOEBIT Agents' : undefined}
-        >
-          <Cpu className={`w-5 h-5 ${activeTab === 'agent_hub' ? 'text-sidebar-primary-foreground' : 'text-sidebar-primary'}`} />
-          {!isCollapsed && (
-            <div className="text-left overflow-hidden">
-              <span className="text-[12px] font-bold block leading-tight">QOEBIT Agents</span>
-              <span className={`text-[9px] font-medium ${activeTab === 'agent_hub' ? 'text-sidebar-primary-foreground/70' : 'text-sidebar-foreground/50'}`}>Hub & Architecture</span>
-            </div>
-          )}
-        </button>
-      </div>
 
       {/* FOOTER */}
       <div className="p-4 border-t border-sidebar-border space-y-3">
