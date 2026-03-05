@@ -2073,6 +2073,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLocalDor(settings.localDor);
     setLocalPlaque(settings.localPlaque);
     setLocalSite(settings.localSite);
+    if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
+    if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
     // Fly to saved center/zoom
     setFlyTarget(settings.center);
     if ((settings as any).beamVisibility != null) {
