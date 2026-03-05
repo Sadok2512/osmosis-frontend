@@ -358,12 +358,13 @@ const ReadOnlyWidget: React.FC<{ widget: WidgetItem }> = ({ widget }) => {
   }
 };
 
-const DashboardOverview: React.FC = () => {
+const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({ setActiveTab }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [dashboards, setDashboards] = useState<EnhancedDashboard[]>([]);
   const [sharePopoverId, setSharePopoverId] = useState<string | null>(null);
+  const [editModalId, setEditModalId] = useState<string | null>(null);
 
   useEffect(() => {
     loadAllDashboardsFromDB().then(setDashboards);
