@@ -1146,13 +1146,31 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         <LayoutGrid size={13} className="text-primary" />
         <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboards</h3>
         <span className="text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
-        <button
-          onClick={() => setShowCreateDash(!showCreateDash)}
-          className="ml-auto p-1 rounded-lg text-primary hover:bg-primary/10 transition-colors"
-          title="Nouveau dashboard"
-        >
-          <Plus size={14} />
-        </button>
+        <div className="ml-auto relative">
+          <button
+            onClick={() => setShowDashMenu(!showDashMenu)}
+            className="p-1 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+            title="Nouveau / Charger"
+          >
+            <Plus size={14} />
+          </button>
+          {showDashMenu && (
+            <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[140px]">
+              <button
+                onClick={() => { setShowDashMenu(false); setShowCreateDash(!showCreateDash); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-semibold text-foreground hover:bg-muted transition-colors"
+              >
+                <Plus size={12} className="text-primary" /> Créer nouveau
+              </button>
+              <button
+                onClick={() => { setShowDashMenu(false); if (onLoadDashboard) onLoadDashboard(''); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-semibold text-foreground hover:bg-muted transition-colors"
+              >
+                <FolderOpen size={12} className="text-primary" /> Charger
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Create dashboard form */}
@@ -1258,7 +1276,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 {/* Save/Load/Close + Nested views tree */}
                 {isExpanded && (
                   <div className="px-3 pt-1.5">
-                    <div className="grid grid-cols-3 gap-1.5 mb-2">
+                    <div className="grid grid-cols-2 gap-1.5 mb-2">
                       <button
                         onClick={() => { if (onSaveDashboard) onSaveDashboard(db.id); }}
                         disabled={isSaving}
@@ -1266,13 +1284,6 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       >
                         {isSaving ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
                         <span className="uppercase tracking-wider">Save</span>
-                      </button>
-                      <button
-                        onClick={() => { if (onLoadDashboard) onLoadDashboard(db.id); }}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted"
-                      >
-                        <FolderOpen size={12} />
-                        <span className="uppercase tracking-wider">Load</span>
                       </button>
                       <button
                         onClick={() => requestDashboardSwitch(null)}
