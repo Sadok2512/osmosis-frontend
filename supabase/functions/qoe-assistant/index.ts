@@ -1323,6 +1323,7 @@ async function buildContextFromPlan(
   if (resolved.snapshot) sections.push(`📋 SITE SNAPSHOT:\n${resolved.snapshot}`);
   if (resolved.topo) sections.push(`📡 TOPOLOGIE:\n${resolved.topo}`);
   if (resolved.params) sections.push(`⚙️ PARAMÈTRES:\n${resolved.params}`);
+  if (resolved.parmySql) sections.push(`⚙️ PARMY SQL ENGINE:\n${resolved.parmySql}`);
   if (resolved.changes) sections.push(`🔧 HISTORIQUE CHANGEMENTS:\n${resolved.changes}`);
   if (resolved.rag) sections.push(`📚 DOCUMENTS RAG:\n${resolved.rag}`);
 
