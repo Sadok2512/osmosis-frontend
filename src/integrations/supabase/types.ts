@@ -1514,6 +1514,7 @@ export type Database = {
     }
     Functions: {
       dump_parameter_distinct_filters: { Args: never; Returns: Json }
+      execute_parmy_sql: { Args: { query_sql: string }; Returns: Json }
       match_documents: {
         Args: {
           match_count?: number
