@@ -176,6 +176,85 @@ const SharePopover: React.FC<{
   );
 };
 
+// ─── Edit metadata modal ───
+const EditMetadataModal: React.FC<{
+  db: EnhancedDashboard;
+  onSave: (id: string, updates: { name: string; description: string; dashboard_type: DashboardType; visibility: Visibility; owner_username: string }) => void;
+  onClose: () => void;
+}> = ({ db, onSave, onClose }) => {
+  const [name, setName] = useState(db.name);
+  const [description, setDescription] = useState(db.description);
+  const [type, setType] = useState<DashboardType>(db.dashboardType);
+  const [vis, setVis] = useState<Visibility>(db.visibility);
+  const [owner, setOwner] = useState(db.ownerUsername);
+
+  const save = () => {
+    onSave(db.id, { name, description, dashboard_type: type, visibility: vis, owner_username: owner });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="bg-popover border border-border rounded-xl shadow-xl p-5 w-[360px] space-y-3"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <Pencil className="w-3.5 h-3.5 text-primary" /> Modifier le dashboard
+          </h4>
+          <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground"><X className="w-3 h-3" /></button>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Nom</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
+          <input type="text" value={description} onChange={e => setDescription(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Type</label>
+          <div className="flex gap-1">
+            {([['map', 'Map'], ['analytic_qoe', 'Analytic QOE']] as [DashboardType, string][]).map(([k, l]) => (
+              <button key={k} onClick={() => setType(k)}
+                className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-all ${type === k ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Visibilité</label>
+          <div className="flex gap-1">
+            {(['private', 'public', 'shared'] as Visibility[]).map(v => (
+              <button key={v} onClick={() => setVis(v)}
+                className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-all ${vis === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+                {v === 'private' ? 'Privé' : v === 'public' ? 'Public' : 'Partagé'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Propriétaire</label>
+          <input type="text" value={owner} onChange={e => setOwner(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+        </div>
+
+        <button onClick={save}
+          className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5">
+          <Save className="w-3.5 h-3.5" /> Enregistrer
+        </button>
+      </div>
+    </div>
+  );
+};
+
 /** Read-only renderer for a single text widget */
 const ReadOnlyText: React.FC<{ config: any }> = ({ config }) => (
   <div
