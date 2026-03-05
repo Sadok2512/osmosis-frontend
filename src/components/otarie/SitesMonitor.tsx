@@ -1248,6 +1248,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localDor, setLocalDor] = useState('ALL');
   const [localPlaque, setLocalPlaque] = useState('ALL');
   const [localSite, setLocalSite] = useState('ALL');
+  const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
+  const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
   const [mapKpi, setMapKpi] = useState('qoe_score_avg');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
@@ -1489,6 +1491,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (settings.localDor) setLocalDor(settings.localDor);
       if (settings.localPlaque) setLocalPlaque(settings.localPlaque);
       if (settings.localSite) setLocalSite(settings.localSite);
+      if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
+      if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
       if (settings.bandColors) {
         setBandColors(settings.bandColors);
         localStorage.setItem('qoebit_band_colors', JSON.stringify(settings.bandColors));
@@ -1879,7 +1883,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
       const matchesLocalSite = localSite === 'ALL' || s.site_name === localSite;
-      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite;
+      const matchesLocalZoneArcep = localZoneArcep === 'ALL' || s.cells.some(c => (c as any).zone_arcep === localZoneArcep);
+      const matchesLocalTechno = localTechno === 'ALL' || s.cells.length === 0 || s.cells.some(c => c.techno === localTechno);
+      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite && matchesLocalZoneArcep && matchesLocalTechno;
     });
     if (inventorySortOrder === 'none') return filtered;
     return [...filtered].sort((a, b) => {
@@ -1887,7 +1893,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
       return inventorySortOrder === 'asc' ? va - vb : vb - va;
     });
-  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite, inventorySortOrder, mapKpi]);
+  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite, localZoneArcep, localTechno, inventorySortOrder, mapKpi]);
 
   // Check if a cell's band passes the band filter
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
@@ -1935,6 +1941,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const uniqueVendors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.vendor).filter(Boolean))].sort(), [sites]);
   const uniqueDors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.dor).filter(Boolean))].sort(), [sites]);
   const uniquePlaques = useMemo(() => ['ALL', ...new Set(sites.map(s => s.plaque).filter(Boolean))].sort(), [sites]);
+  const uniqueZoneArceps = useMemo(() => {
+    const zones = new Set<string>();
+    sites.forEach(s => s.cells.forEach(c => { const z = (c as any).zone_arcep; if (z) zones.add(z); }));
+    return ['ALL', ...Array.from(zones).sort()];
+  }, [sites]);
   const uniqueSiteNames = useMemo(() => {
     const names = [...new Set(sites.map(s => s.site_name))].sort();
     return ['ALL', ...names];
@@ -2043,9 +2054,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       localDor,
       localPlaque,
       localSite,
+      localZoneArcep,
+      localTechno,
       beamVisibility,
     };
-  }, [viewport, mapLayer, mapKpi, mapTechnoFilter, enabledBands, sectorColorMode, mapDisplayMode, showBandPanel, showLegend, showRightPanel, panelCollapsed, localVendor, localDor, localPlaque, localSite, beamVisibility]);
+  }, [viewport, mapLayer, mapKpi, mapTechnoFilter, enabledBands, sectorColorMode, mapDisplayMode, showBandPanel, showLegend, showRightPanel, panelCollapsed, localVendor, localDor, localPlaque, localSite, localZoneArcep, localTechno, beamVisibility]);
 
   const handleLoadView = useCallback((settings: MapViewSettings) => {
     setMapLayer(settings.mapLayer);
@@ -2062,6 +2075,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLocalDor(settings.localDor);
     setLocalPlaque(settings.localPlaque);
     setLocalSite(settings.localSite);
+    if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
+    if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
     // Fly to saved center/zoom
     setFlyTarget(settings.center);
     if ((settings as any).beamVisibility != null) {
@@ -3698,6 +3713,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <select value={localSite} onChange={(e) => setLocalSite(e.target.value)}
                       className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
                       {uniqueSiteNames.slice(0, 500).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Zone ARCEP</span>
+                    <select value={localZoneArcep} onChange={(e) => setLocalZoneArcep(e.target.value)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      {uniqueZoneArceps.map(z => <option key={z} value={z}>{z}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Tech</span>
+                    <select value={localTechno} onChange={(e) => setLocalTechno(e.target.value as any)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      <option value="ALL">ALL</option>
+                      <option value="4G">4G</option>
+                      <option value="5G">5G</option>
                     </select>
                   </div>
                 </div>
