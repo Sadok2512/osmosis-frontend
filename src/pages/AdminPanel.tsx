@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Routes, Route, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { getStoredSession, clearSession, AdminUser } from '@/services/adminAuth';
-import { 
-  Users, Bot, Blocks, Settings2, Activity, LogOut, 
-  ChevronLeft, ChevronRight, ShieldCheck, Database 
+import {
+  Users, Bot, Blocks, Settings2, Activity, LogOut,
+  ChevronLeft, ChevronRight, ShieldCheck, Database, ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AdminUsersPage from '@/components/admin/AdminUsersPage';
@@ -46,7 +46,7 @@ export default function AdminPanel() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'users': return user.role === 'admin' ? <AdminUsersPage /> : <Navigate to="/admin" />;
+      case 'users': return user.role === 'admin' ? <AdminUsersPage /> : null;
       case 'agents': return <AdminAgentsPage currentUser={user} />;
       case 'modules': return user.role === 'admin' ? <AdminModulesPage /> : null;
       case 'llm': return user.role === 'admin' ? <AdminLLMPage /> : null;
@@ -81,6 +81,14 @@ export default function AdminPanel() {
           ))}
         </nav>
         <div className="p-2 border-t border-[hsl(var(--sidebar-border))] space-y-1">
+          {/* Back to App */}
+          <button
+            onClick={() => navigate('/')}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-foreground))]"
+          >
+            <ArrowLeft className="w-5 h-5 shrink-0" />
+            {!collapsed && <span>Back to App</span>}
+          </button>
           {!collapsed && (
             <div className="px-3 py-2 text-xs text-[hsl(var(--sidebar-foreground))] opacity-60">
               {user.username} ({user.role})
