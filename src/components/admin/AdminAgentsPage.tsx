@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Loader2, Bot, BarChart3, Settings, FileText, Database, Upload, Trash2, Eye, Blocks } from 'lucide-react';
+import { Plus, Loader2, Bot, BarChart3, Settings, FileText, Database, Upload, Trash2, Eye, Blocks, Save, RotateCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -148,6 +148,8 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
   onDelete: (a: Agent) => void; onReload: () => void;
 }) {
   const [prompt, setPrompt] = useState(agent.base_prompt);
+  const [promptDirty, setPromptDirty] = useState(false);
+  const [savingPrompt, setSavingPrompt] = useState(false);
   const [runs, setRuns] = useState<any[]>([]);
   const [docs, setDocs] = useState<any[]>([]);
   const [agentModules, setAgentModules] = useState<string[]>([]);
@@ -157,6 +159,7 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
 
   useEffect(() => {
     setPrompt(agent.base_prompt);
+    setPromptDirty(false);
     Promise.all([
       supabase.from('agent_runs').select('*').eq('agent_id', agent.id).order('started_at', { ascending: false }).limit(50),
       supabase.from('admin_documents').select('*').eq('agent_id', agent.id).order('created_at', { ascending: false }),
@@ -332,14 +335,54 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
               </Select>
             </div>
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium text-foreground">Base Prompt</label>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-foreground">Base Prompt</label>
+                  {promptDirty && (
+                    <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-500">Modified</Badge>
+                  )}
+                </div>
                 <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
                   <Eye className="w-4 h-4 mr-1" />Preview Composed
                 </Button>
               </div>
-              <Textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={10} className="font-mono text-xs" />
-              <Button onClick={() => onSavePrompt(agent, prompt)} className="mt-2" size="sm">Save Prompt</Button>
+              <Textarea
+                value={prompt}
+                onChange={e => { setPrompt(e.target.value); setPromptDirty(e.target.value !== agent.base_prompt); }}
+                rows={12}
+                className="font-mono text-xs"
+              />
+              <div className="flex items-center gap-2 mt-3">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" disabled={!promptDirty || savingPrompt}>
+                      {savingPrompt ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+                      Confirm &amp; Save Prompt
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Save prompt for "{agent.name}"?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will update the agent's base prompt immediately. The new prompt will be used for all future agent runs.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={async () => {
+                        setSavingPrompt(true);
+                        await onSavePrompt(agent, prompt);
+                        setPromptDirty(false);
+                        setSavingPrompt(false);
+                        onReload();
+                      }}>Confirm &amp; Apply</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                <Button variant="ghost" size="sm" disabled={!promptDirty} onClick={() => { setPrompt(agent.base_prompt); setPromptDirty(false); }}>
+                  <RotateCcw className="w-4 h-4 mr-1" />Reset
+                </Button>
+              </div>
             </div>
           </>
         )}
