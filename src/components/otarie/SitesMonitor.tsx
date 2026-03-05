@@ -456,19 +456,25 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
   const [thresholdInput, setThresholdInput] = useState('');
 
   const commitFilter = (val?: string) => {
+    let newFilters = localFilters;
     if (filterDraft.mode === 'topo' && filterDraft.tech && filterDraft.attribute) {
-      setLocalFilters(prev => [...prev, { mode: 'topo', tech: filterDraft.tech!, attribute: filterDraft.attribute!, value: val || '' }]);
-      setDirty(true);
+      newFilters = [...localFilters, { mode: 'topo', tech: filterDraft.tech!, attribute: filterDraft.attribute!, value: val || '' }];
     } else if (filterDraft.mode === 'qoe' && filterDraft.kpi && filterDraft.operator && thresholdInput.trim()) {
-      setLocalFilters(prev => [...prev, { mode: 'qoe', kpi: filterDraft.kpi!, operator: filterDraft.operator!, threshold: parseFloat(thresholdInput) }]);
-      setDirty(true);
+      newFilters = [...localFilters, { mode: 'qoe', kpi: filterDraft.kpi!, operator: filterDraft.operator!, threshold: parseFloat(thresholdInput) }];
     }
+    setLocalFilters(newFilters);
+    setDirty(true);
+    // Apply immediately
+    onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: newFilters });
     resetFilterWizard();
   };
 
   const removeFilterAt = (idx: number) => {
-    setLocalFilters(prev => prev.filter((_, i) => i !== idx));
+    const newFilters = localFilters.filter((_, i) => i !== idx);
+    setLocalFilters(newFilters);
     setDirty(true);
+    // Apply immediately
+    onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: newFilters });
   };
 
   const resetFilterWizard = () => { setFilterStep('idle'); setFilterDraft({}); setFreeTextValue(''); setKpiSearch(''); setThresholdInput(''); };
