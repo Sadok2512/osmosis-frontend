@@ -2431,9 +2431,9 @@ app.post('/api/qoe-assistant', async (req, res) => {
     res.write(agentTag);
 
     // Inject PARMY debug SQL block directly into stream so user ALWAYS sees it
-    if (plan.agent === 'PARMY' && resolved.parmySql) {
-      const debugMatch = resolved.parmySql.match(/🔍 DEBUG SQL: (.+?)(?:\n\n|$)/s);
-      const dataPreview = resolved.parmySql.replace(/🔍 DEBUG SQL: .+?\n\n/s, '').slice(0, 2000);
+    if (plan.agent === 'PARMY' && parmySqlDebug) {
+      const debugMatch = parmySqlDebug.match(/🔍 DEBUG SQL: (.+?)(?:\n\n|$)/s);
+      const dataPreview = parmySqlDebug.replace(/🔍 DEBUG SQL: .+?\n\n/s, '').slice(0, 2000);
       let debugBlock = '\n\n<details><summary>🔍 **DEBUG MODE — SQL & Données**</summary>\n\n';
       if (debugMatch) {
         debugBlock += '```sql\n' + debugMatch[1].trim() + '\n```\n\n';
