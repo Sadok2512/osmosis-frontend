@@ -112,7 +112,7 @@ const Index: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard_overview':
-        return <DashboardOverview />;
+        return <DashboardOverview setActiveTab={setActiveTab} />;
       case 'analytics':
         return <GlobalDashboard filters={filters} onFilterChange={setFilters} />;
       case 'bi':

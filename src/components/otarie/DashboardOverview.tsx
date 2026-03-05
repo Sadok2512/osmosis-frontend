@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List, Copy, Globe, Lock, Users, Share2, X } from 'lucide-react';
+import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List, Copy, Globe, Lock, Users, Share2, X, Pencil, ExternalLink, Save } from 'lucide-react';
+import { AppTab } from '../../types';
 import { SavedDashboard } from '../bi/DashboardManager';
 import { WidgetItem } from '../bi/dashboardTypes';
 import { TableWidgetConfig } from '../bi/BITableWidget';
@@ -175,6 +176,85 @@ const SharePopover: React.FC<{
   );
 };
 
+// ─── Edit metadata modal ───
+const EditMetadataModal: React.FC<{
+  db: EnhancedDashboard;
+  onSave: (id: string, updates: { name: string; description: string; dashboard_type: DashboardType; visibility: Visibility; owner_username: string }) => void;
+  onClose: () => void;
+}> = ({ db, onSave, onClose }) => {
+  const [name, setName] = useState(db.name);
+  const [description, setDescription] = useState(db.description);
+  const [type, setType] = useState<DashboardType>(db.dashboardType);
+  const [vis, setVis] = useState<Visibility>(db.visibility);
+  const [owner, setOwner] = useState(db.ownerUsername);
+
+  const save = () => {
+    onSave(db.id, { name, description, dashboard_type: type, visibility: vis, owner_username: owner });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="bg-popover border border-border rounded-xl shadow-xl p-5 w-[360px] space-y-3"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <Pencil className="w-3.5 h-3.5 text-primary" /> Modifier le dashboard
+          </h4>
+          <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground"><X className="w-3 h-3" /></button>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Nom</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Description</label>
+          <input type="text" value={description} onChange={e => setDescription(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Type</label>
+          <div className="flex gap-1">
+            {([['map', 'Map'], ['analytic_qoe', 'Analytic QOE']] as [DashboardType, string][]).map(([k, l]) => (
+              <button key={k} onClick={() => setType(k)}
+                className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-all ${type === k ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Visibilité</label>
+          <div className="flex gap-1">
+            {(['private', 'public', 'shared'] as Visibility[]).map(v => (
+              <button key={v} onClick={() => setVis(v)}
+                className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-all ${vis === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+                {v === 'private' ? 'Privé' : v === 'public' ? 'Public' : 'Partagé'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Propriétaire</label>
+          <input type="text" value={owner} onChange={e => setOwner(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+        </div>
+
+        <button onClick={save}
+          className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5">
+          <Save className="w-3.5 h-3.5" /> Enregistrer
+        </button>
+      </div>
+    </div>
+  );
+};
+
 /** Read-only renderer for a single text widget */
 const ReadOnlyText: React.FC<{ config: any }> = ({ config }) => (
   <div
@@ -278,12 +358,13 @@ const ReadOnlyWidget: React.FC<{ widget: WidgetItem }> = ({ widget }) => {
   }
 };
 
-const DashboardOverview: React.FC = () => {
+const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({ setActiveTab }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [dashboards, setDashboards] = useState<EnhancedDashboard[]>([]);
   const [sharePopoverId, setSharePopoverId] = useState<string | null>(null);
+  const [editModalId, setEditModalId] = useState<string | null>(null);
 
   useEffect(() => {
     loadAllDashboardsFromDB().then(setDashboards);
@@ -305,6 +386,24 @@ const DashboardOverview: React.FC = () => {
     });
     const refreshed = await loadAllDashboardsFromDB();
     setDashboards(refreshed);
+  };
+
+  const updateMetadata = async (id: string, updates: { name: string; description: string; dashboard_type: DashboardType; visibility: Visibility; owner_username: string }) => {
+    await dashboardsApi.update(id, {
+      name: updates.name,
+      description: updates.description,
+      dashboard_type: updates.dashboard_type,
+      visibility: updates.visibility,
+      owner_username: updates.owner_username,
+      is_shared: updates.visibility === 'public',
+    });
+    const refreshed = await loadAllDashboardsFromDB();
+    setDashboards(refreshed);
+  };
+
+  const openInEditor = (id: string) => {
+    localStorage.setItem('qoebit_open_dashboard_id', id);
+    setActiveTab?.('traffic');
   };
 
   const filtered = useMemo(() => {
@@ -341,9 +440,19 @@ const DashboardOverview: React.FC = () => {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <User className="w-3.5 h-3.5" />
-            <span className="font-semibold text-foreground">{selected.ownerUsername}</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => openInEditor(selected.id)}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1">
+              <ExternalLink className="w-3 h-3" /> Ouvrir en édition
+            </button>
+            <button onClick={() => setEditModalId(selected.id)}
+              className="px-3 py-1.5 rounded-lg bg-muted text-foreground text-[10px] font-semibold hover:bg-muted/80 transition-colors flex items-center gap-1">
+              <Pencil className="w-3 h-3" /> Modifier
+            </button>
+            <div className="flex items-center gap-1 ml-2 text-xs text-muted-foreground">
+              <User className="w-3.5 h-3.5" />
+              <span className="font-semibold text-foreground">{selected.ownerUsername}</span>
+            </div>
           </div>
         </div>
 
@@ -442,6 +551,18 @@ const DashboardOverview: React.FC = () => {
                       <User className="w-3 h-3" /> {db.ownerUsername}
                     </p>
                     <div className="flex items-center gap-0.5">
+                      <span onClick={(e) => { e.stopPropagation(); setSelectedId(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Voir">
+                        <Eye className="w-3.5 h-3.5" />
+                      </span>
+                      <span onClick={(e) => { e.stopPropagation(); setEditModalId(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Modifier les infos">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </span>
+                      <span onClick={(e) => { e.stopPropagation(); openInEditor(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Ouvrir en édition">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </span>
                       <span onClick={(e) => { e.stopPropagation(); setSharePopoverId(sharePopoverId === db.id ? null : db.id); }}
                         className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Partager">
                         <Share2 className="w-3.5 h-3.5" />
@@ -450,7 +571,6 @@ const DashboardOverview: React.FC = () => {
                         className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Dupliquer">
                         <Copy className="w-3.5 h-3.5" />
                       </span>
-                      <Eye className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
                   {sharePopoverId === db.id && (
@@ -461,7 +581,7 @@ const DashboardOverview: React.FC = () => {
             </div>
           ) : (
             <div className="bg-card border border-border rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[1fr_80px_200px_160px_120px_100px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="grid grid-cols-[1fr_80px_200px_160px_120px_100px_120px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                 <span>Nom</span>
                 <span>Type</span>
                 <span>Description</span>
@@ -473,7 +593,7 @@ const DashboardOverview: React.FC = () => {
               {filtered.map(db => (
                 <div key={db.id} className="relative">
                   <button onClick={() => setSelectedId(db.id)}
-                    className="w-full grid grid-cols-[1fr_80px_200px_160px_120px_100px_80px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left">
+                    className="w-full grid grid-cols-[1fr_80px_200px_160px_120px_100px_120px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         {db.dashboardType === 'map' ? <MapIcon className="w-3.5 h-3.5 text-primary" /> : <BarChart2 className="w-3.5 h-3.5 text-primary" />}
@@ -491,6 +611,18 @@ const DashboardOverview: React.FC = () => {
                     </span>
                     <span><VisibilityBadge visibility={db.visibility} sharedWith={db.sharedWith} /></span>
                     <div className="flex justify-center gap-0.5">
+                      <span onClick={(e) => { e.stopPropagation(); setSelectedId(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Voir">
+                        <Eye className="w-3.5 h-3.5" />
+                      </span>
+                      <span onClick={(e) => { e.stopPropagation(); setEditModalId(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Modifier">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </span>
+                      <span onClick={(e) => { e.stopPropagation(); openInEditor(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Ouvrir en édition">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </span>
                       <span onClick={(e) => { e.stopPropagation(); setSharePopoverId(sharePopoverId === db.id ? null : db.id); }}
                         className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Partager">
                         <Share2 className="w-3.5 h-3.5" />
@@ -510,6 +642,18 @@ const DashboardOverview: React.FC = () => {
           )
         )}
       </div>
+
+      {/* Edit metadata modal */}
+      {editModalId && (() => {
+        const dbToEdit = dashboards.find(d => d.id === editModalId);
+        return dbToEdit ? (
+          <EditMetadataModal
+            db={dbToEdit}
+            onSave={updateMetadata}
+            onClose={() => setEditModalId(null)}
+          />
+        ) : null;
+      })()}
     </div>
   );
 };
