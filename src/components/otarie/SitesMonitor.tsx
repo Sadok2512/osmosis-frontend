@@ -1881,7 +1881,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
       const matchesLocalSite = localSite === 'ALL' || s.site_name === localSite;
-      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite;
+      const matchesLocalZoneArcep = localZoneArcep === 'ALL' || s.cells.some(c => (c as any).zone_arcep === localZoneArcep);
+      const matchesLocalTechno = localTechno === 'ALL' || s.cells.length === 0 || s.cells.some(c => c.techno === localTechno);
+      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite && matchesLocalZoneArcep && matchesLocalTechno;
     });
     if (inventorySortOrder === 'none') return filtered;
     return [...filtered].sort((a, b) => {
@@ -1937,6 +1939,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const uniqueVendors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.vendor).filter(Boolean))].sort(), [sites]);
   const uniqueDors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.dor).filter(Boolean))].sort(), [sites]);
   const uniquePlaques = useMemo(() => ['ALL', ...new Set(sites.map(s => s.plaque).filter(Boolean))].sort(), [sites]);
+  const uniqueZoneArceps = useMemo(() => {
+    const zones = new Set<string>();
+    sites.forEach(s => s.cells.forEach(c => { const z = (c as any).zone_arcep; if (z) zones.add(z); }));
+    return ['ALL', ...Array.from(zones).sort()];
+  }, [sites]);
   const uniqueSiteNames = useMemo(() => {
     const names = [...new Set(sites.map(s => s.site_name))].sort();
     return ['ALL', ...names];
