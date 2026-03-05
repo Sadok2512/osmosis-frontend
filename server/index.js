@@ -1452,7 +1452,8 @@ function buildContextPlan(query, uiScope, filters) {
   let metric = null;
 
   // Handle dimension-based intents FIRST (priority over agent routing)
-  if (intent === 'dimension_distribution') {
+  // EXCEPT for PARMY: parameter distribution goes through parmy_sql fast path
+  if (intent === 'dimension_distribution' && agent !== 'PARMY') {
     const dim1 = detectDimension1TypeLocal(query);
     const met = detectMetricLocal(query);
     groupBy = { dimension1: dim1 };
