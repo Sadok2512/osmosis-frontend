@@ -1255,7 +1255,35 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   />
                 )}
 
-                {/* Nested views tree */}
+                {/* Save/Load/Close + Nested views tree */}
+                {isExpanded && (
+                  <div className="px-3 pt-1.5">
+                    <div className="grid grid-cols-3 gap-1.5 mb-2">
+                      <button
+                        onClick={() => { if (onSaveDashboard) onSaveDashboard(db.id); }}
+                        disabled={isSaving}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary"
+                      >
+                        {isSaving ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
+                        <span className="uppercase tracking-wider">Save</span>
+                      </button>
+                      <button
+                        onClick={() => { if (onLoadDashboard) onLoadDashboard(db.id); }}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted"
+                      >
+                        <FolderOpen size={12} />
+                        <span className="uppercase tracking-wider">Load</span>
+                      </button>
+                      <button
+                        onClick={() => requestDashboardSwitch(null)}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
+                      >
+                        <X size={12} />
+                        <span className="uppercase tracking-wider">Close</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {isExpanded && (
                   <div className="ml-5 pl-3 border-l-2 border-border/60 space-y-1 py-1.5">
                     {/* Create new view */}
