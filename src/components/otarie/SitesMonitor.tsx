@@ -978,16 +978,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const requestDashboardSwitch = (newId: string | null) => {
-    // If there's a current dashboard selected and we're switching away, ask to save
-    if (expandedDashboardId && newId !== expandedDashboardId) {
-      setPendingSwitchId(newId);
-      setShowSwitchConfirm(true);
-    } else {
-      setExpandedDashboardId(newId);
-      if (newId && onApplyView) {
-        const db = dashboards.find(d => d.id === newId);
-        if (db) onApplyView(getDashboardSettings(db));
-      }
+    setExpandedDashboardId(newId);
+    if (newId && onApplyView) {
+      const db = dashboards.find(d => d.id === newId);
+      if (db) onApplyView(getDashboardSettings(db));
     }
   };
 
