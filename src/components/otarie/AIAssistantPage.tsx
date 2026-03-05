@@ -875,6 +875,8 @@ const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
 
 // ─── KPI Color Map ───
 const KPI_HEADER_COLOR_MAP: { pattern: RegExp; color: string }[] = [
+  { pattern: /check|validation|contrôle|statut/i, color: '#059669' },
+  { pattern: /raison|reason|motif/i, color: '#6b7280' },
   { pattern: /qoe|qos|qualit/i, color: '#22c55e' },
   { pattern: /rtt|latence|latency/i, color: '#f97316' },
   { pattern: /d[ée]bit\s*dl|throughput\s*dl|dl.*mbps/i, color: '#3b82f6' },
