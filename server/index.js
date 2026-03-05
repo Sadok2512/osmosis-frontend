@@ -1202,8 +1202,8 @@ async function searchDumpParameterLocal(query) {
     );
     return `Total résultats paramètres: ${result.rows.length}\n${header}\n${lines.join('\n')}`;
   } catch (e) {
-    console.error('[dump_parameter search error]', e.message);
-    return '';
+    console.error('❌ [PARMY SQL ERROR]', e.message, '\n   Stack:', e.stack?.split('\n')[1]);
+    return `⚠️ Erreur SQL PARMY: ${e.message}`;
   } finally {
     await pool.end();
   }
