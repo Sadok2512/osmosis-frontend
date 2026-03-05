@@ -1411,6 +1411,9 @@ function classifyIntent(query, scopeLevel) {
   // Top/worst/best queries take HIGHEST priority (even if "par DOR" is present)
   const isTopQuery = ['top','pire','worst','meilleur','best','classement','ranking','dégradé','degradé','degraded'].some(h => n.includes(h));
   if (isTopQuery) return 'top_degradations';
+  // Trend / time-series queries — "plot", "tracer", "courbe", "évolution", "tendance", "trend"
+  const isTrendQuery = ['plot','tracer','courbe','évolution','evolution','tendance','trend','time series','timeseries','historique'].some(h => n.includes(h));
+  if (isTrendQuery) return 'kpi_trend';
   // Topology / site count queries — BEFORE dimension detection so "nombre de sites par dor" routes here
   if (['nombre de sites','nombre des sites','combien de sites','nb sites','répartition des sites','count sites','nombre de cellules','nombre des cellules','nb cellules'].some(h => n.includes(h))) return 'topo_stats';
   // Dimension-based queries
@@ -1481,7 +1484,11 @@ function buildContextPlan(query, uiScope, filters) {
     switch (agent) {
       case 'PULSE':
         needs.push('documents_rag');
-        if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
+        if (intent === 'kpi_trend') {
+          metric = detectMetricLocal(query) || 'qoe_index';
+          needs.push('kpi_time_series');
+        }
+        else if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
         else if (intent === 'top_degradations') {
           const topNMatch = query.match(/\btop\s*(\d+)/i);
           const topN = topNMatch ? parseInt(topNMatch[1]) : 20;
@@ -1530,7 +1537,11 @@ function buildContextPlan(query, uiScope, filters) {
   }
 
   const n = query.toLowerCase();
-  if (n.includes('hier') || n.includes('24h') || n.includes("aujourd")) limits.maxDays = 1;
+  // Detect time range: j-15, j-14, 2 semaines → 15 days; j-30, mois → 30 days; default 7
+  const jMatch = n.match(/j[- ]?(\d+)/);
+  if (jMatch) { limits.maxDays = parseInt(jMatch[1]); }
+  else if (n.includes('2 semaines') || n.includes('two weeks') || n.includes('15 jours') || n.includes('15j')) { limits.maxDays = 15; }
+  else if (n.includes('hier') || n.includes('24h') || n.includes("aujourd")) limits.maxDays = 1;
   else if (n.includes('mois') || n.includes('30j')) limits.maxDays = 30;
 
   return { agent, intent, scope, needs, limits, groupBy, metric };
