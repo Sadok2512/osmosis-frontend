@@ -203,7 +203,8 @@ const FlyToSite = ({ coords, onFlyStart, onFlyEnd, onDone }: { coords: [number, 
 // Create custom panes for 4G/5G layering
 const TechPanes: React.FC = () => {
   const map = useMap();
-  useEffect(() => {
+  // Use useLayoutEffect to create panes BEFORE first paint — ensures 5G is always on top from the start
+  useLayoutEffect(() => {
     if (!map.getPane('pane4G')) {
       const p4 = map.createPane('pane4G');
       p4.style.zIndex = '400';
