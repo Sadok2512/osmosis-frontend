@@ -2190,6 +2190,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   const filteredSites = useMemo(() => {
+    // Debug: log active QOE filters
+    const qoeFilters = activeViewFilters.filter(f => f.mode === 'qoe' && f.kpi && f.operator && f.threshold != null);
+    if (qoeFilters.length > 0) {
+      console.log('[QOE Filter] Active filters:', JSON.stringify(qoeFilters));
+      console.log('[QOE Filter] Total sites before filter:', sites.length);
+    }
     const filtered = sites.filter(s => {
       const matchesSearch = s.site_name.toLowerCase().includes(localSearch.toLowerCase()) || s.site_id.toLowerCase().includes(localSearch.toLowerCase());
       const matchesDor = filters.dor === 'ALL' || s.dor === filters.dor;
@@ -2228,6 +2234,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       
       return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno && matchesQoeFilters;
     });
+    if (qoeFilters.length > 0) {
+      console.log('[QOE Filter] Sites after filter:', filtered.length);
+    }
     if (inventorySortOrder === 'none') return filtered;
     return [...filtered].sort((a, b) => {
       const va = (a as any)[mapKpi] ?? a.qoe_score_avg ?? 0;
@@ -4296,7 +4305,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setFlyTarget(settings.center as [number, number]);
                     }
                     // Apply view filters (topo + qoe)
+                    console.log('[onApplyView] settings.viewFilters:', JSON.stringify(settings.viewFilters));
                     if (Array.isArray(settings.viewFilters)) {
+                      console.log('[onApplyView] Setting activeViewFilters:', settings.viewFilters.length, 'filters');
                       setActiveViewFilters(settings.viewFilters);
                       // Apply topo filters to local state
                       for (const f of settings.viewFilters) {
