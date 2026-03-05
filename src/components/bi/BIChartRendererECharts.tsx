@@ -117,19 +117,45 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
   const [liveData, setLiveData] = useState<any[] | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
+  const [effectiveDates, setEffectiveDates] = useState<{ start: string; end: string } | null>(null);
 
   const isLocal = config.dataSource?.type === 'local' || !config.dataSource?.type;
 
+  // Auto-detect actual data date range and adjust if config dates are out of range
   useEffect(() => {
-    if (!isLocal) { setLiveData(null); setLiveError(null); return; }
+    if (!isLocal) return;
+    biQueryApi.dateRange().then(range => {
+      if (range.min_date && range.max_date) {
+        const cfgStart = config.xAxis.dateStart || '';
+        const cfgEnd = config.xAxis.dateEnd || '';
+        // If config dates are outside data range, auto-adjust to last 14 days of available data
+        if (!cfgStart || !cfgEnd || cfgStart > range.max_date || cfgEnd < range.min_date) {
+          const end = new Date(range.max_date);
+          const start = new Date(end);
+          start.setDate(start.getDate() - 14);
+          const autoStart = start.toISOString().split('T')[0] < range.min_date ? range.min_date : start.toISOString().split('T')[0];
+          setEffectiveDates({ start: autoStart, end: range.max_date });
+        } else {
+          setEffectiveDates({ start: cfgStart, end: cfgEnd });
+        }
+      } else {
+        setEffectiveDates({ start: config.xAxis.dateStart || '', end: config.xAxis.dateEnd || '' });
+      }
+    }).catch(() => {
+      setEffectiveDates({ start: config.xAxis.dateStart || '', end: config.xAxis.dateEnd || '' });
+    });
+  }, [isLocal, config.xAxis.dateStart, config.xAxis.dateEnd]);
+
+  useEffect(() => {
+    if (!isLocal || !effectiveDates) { setLiveData(null); setLiveError(null); return; }
     let cancelled = false;
     setLiveLoading(true);
     setLiveError(null);
     biQueryApi.query({
       kpis: config.yMetrics.map(m => m.kpi),
       aggregation: config.yMetrics[0]?.aggregation || 'AVG',
-      dateStart: config.xAxis.dateStart,
-      dateEnd: config.xAxis.dateEnd,
+      dateStart: effectiveDates.start,
+      dateEnd: effectiveDates.end,
       granularity: config.xAxis.granularity,
       groupBy: config.groupBy.length > 0 ? [...config.groupBy] : undefined,
       filters: config.filters.filter(f => f.values.length > 0).map(f => ({
@@ -153,10 +179,11 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     return () => { cancelled = true; };
   }, [
     isLocal,
+    effectiveDates?.start, effectiveDates?.end,
     JSON.stringify(config.yMetrics.map(m => m.kpi)),
     config.yMetrics[0]?.aggregation,
     config.xAxis.type, config.xAxis.value,
-    config.xAxis.dateStart, config.xAxis.dateEnd, config.xAxis.granularity,
+    config.xAxis.granularity,
     JSON.stringify(config.groupBy),
     JSON.stringify(config.filters),
     config.advanced.topN,
