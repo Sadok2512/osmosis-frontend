@@ -1891,7 +1891,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
       return inventorySortOrder === 'asc' ? va - vb : vb - va;
     });
-  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite, inventorySortOrder, mapKpi]);
+  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite, localZoneArcep, localTechno, inventorySortOrder, mapKpi]);
 
   // Check if a cell's band passes the band filter
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
