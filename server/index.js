@@ -2411,21 +2411,23 @@ app.post('/api/qoe-assistant', async (req, res) => {
       let formattedResponse = `<!-- AGENT:PARMY -->\n`;
       
       if (parmyResult && !parmyResult.startsWith('⚠️')) {
-        // We have actual data — format it nicely
-        // Extract the SQL debug part
+        // Extract SQL debug block
         const sqlMatch = parmyResult.match(/🔍 DEBUG SQL: (.+?)(?:\n\n|$)/s);
         const dataSection = parmyResult.replace(/🔍 DEBUG SQL: .+?\n\n/s, '').trim();
         
-        // Parse table data for markdown formatting
-        const lines = dataSection.split('\n');
-        const titleLine = lines[0] || '';
-        const headerLine = lines[1] || '';
-        const dataLines = lines.slice(2);
+        // Split into lines and find the first pipe-separated line (header)
+        const allLines = dataSection.split('\n');
+        const headerIdx = allLines.findIndex(l => l.includes('|'));
         
-        formattedResponse += `## ⚙️ ${titleLine}\n\n`;
+        // Everything before the header is the title/description
+        const titleParts = allLines.slice(0, headerIdx >= 0 ? headerIdx : allLines.length);
+        const titleText = titleParts.join(' ').trim();
         
-        if (headerLine.includes('|')) {
-          // Convert pipe-separated to markdown table
+        formattedResponse += `## ⚙️ PARMY\n\n${titleText}\n\n`;
+        
+        if (headerIdx >= 0) {
+          const headerLine = allLines[headerIdx];
+          const dataLines = allLines.slice(headerIdx + 1);
           const headers = headerLine.split('|').map(h => h.trim());
           formattedResponse += '| ' + headers.join(' | ') + ' |\n';
           formattedResponse += '| ' + headers.map(() => '---').join(' | ') + ' |\n';
@@ -2440,10 +2442,9 @@ app.post('/api/qoe-assistant', async (req, res) => {
         }
         
         if (sqlMatch) {
-          formattedResponse += `\n\n<details><summary>🔍 SQL exécuté</summary>\n\n\`\`\`sql\n${sqlMatch[1].trim()}\n\`\`\`\n</details>\n`;
+          formattedResponse += `\n---\n🔍 **SQL:** \`${sqlMatch[1].trim()}\`\n`;
         }
       } else {
-        // Error or no data — return the raw message
         formattedResponse += (parmyResult || '⚠️ Aucun résultat trouvé.');
       }
       
