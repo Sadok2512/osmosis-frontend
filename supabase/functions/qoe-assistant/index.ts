@@ -1248,7 +1248,7 @@ async function buildContextFromPlan(
   query: string,
   filters?: AssistantFilters,
   legacyCellContext?: string
-): Promise<string> {
+): Promise<{ context: string; parmySqlDebug: string }> {
   const sections: string[] = [];
 
   const promises: Record<string, Promise<string>> = {};
@@ -1332,7 +1332,7 @@ async function buildContextFromPlan(
     sections.push(`📊 DONNÉES RÉSEAU (legacy):\n${legacyCellContext.slice(0, cap)}`);
   }
 
-  return sections.join("\n\n");
+  return { context: sections.join("\n\n"), parmySqlDebug: resolved.parmySql || "" };
 }
 
 // ═══════════════════════════════════════════════════════════════
