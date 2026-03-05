@@ -962,10 +962,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [editingViewId, setEditingViewId] = useState<string | null>(null);
   const [showDashMenu, setShowDashMenu] = useState(false);
   const [showCreateDash, setShowCreateDash] = useState(false);
+  const [showLoadPicker, setShowLoadPicker] = useState(false);
+  const [allDashboards, setAllDashboards] = useState<any[]>([]);
+  const [loadingAll, setLoadingAll] = useState(false);
   const [newDashName, setNewDashName] = useState('');
   const [creatingDash, setCreatingDash] = useState(false);
   const [pendingSwitchId, setPendingSwitchId] = useState<string | null>(null);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const requestDashboardSwitch = (newId: string | null) => {
     // If there's a current dashboard selected and we're switching away, ask to save
@@ -1075,9 +1079,38 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     await dashboardsApi.update(dbId, { is_archived: true });
     if (expandedDashboardId === dbId) setExpandedDashboardId(null);
     setDashboards(prev => prev.filter(d => d.id !== dbId));
+    setShowDeleteConfirm(null);
   };
 
-  // ── View helpers ──
+  const handlePermanentDeleteDashboard = async (dbId: string) => {
+    await dashboardsApi.update(dbId, { is_archived: true });
+    if (expandedDashboardId === dbId) setExpandedDashboardId(null);
+    setDashboards(prev => prev.filter(d => d.id !== dbId));
+    setShowDeleteConfirm(null);
+  };
+
+  const openLoadPicker = async () => {
+    setShowLoadPicker(true);
+    setLoadingAll(true);
+    try {
+      const dbData = await dashboardsApi.list();
+      if (Array.isArray(dbData)) setAllDashboards(dbData.filter((d: any) => !d.is_archived));
+    } catch {}
+    setLoadingAll(false);
+  };
+
+  const loadDashboardFromPicker = (dbId: string) => {
+    setShowLoadPicker(false);
+    const db = allDashboards.find(d => d.id === dbId);
+    if (db) {
+      // Add to local list if not already there
+      setDashboards(prev => {
+        if (prev.find(d => d.id === dbId)) return prev;
+        return [...prev, db];
+      });
+    }
+    requestDashboardSwitch(dbId);
+  };
   const handleCreateView = async (dashboardId: string) => {
     if (!newViewName.trim()) return;
     setCreating(true);
@@ -1163,7 +1196,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 <Plus size={12} className="text-primary" /> Créer nouveau
               </button>
               <button
-                onClick={() => { setShowDashMenu(false); if (onLoadDashboard) onLoadDashboard(''); }}
+                onClick={() => { setShowDashMenu(false); openLoadPicker(); }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-semibold text-foreground hover:bg-muted transition-colors"
               >
                 <FolderOpen size={12} className="text-primary" /> Charger
@@ -1195,6 +1228,65 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       )}
 
+      {/* Load dashboard picker */}
+      {showLoadPicker && (
+        <div className="mb-2 px-1">
+          <div className="border border-border rounded-xl bg-card p-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">Charger un dashboard</span>
+              <button onClick={() => setShowLoadPicker(false)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                <X size={12} />
+              </button>
+            </div>
+            {loadingAll ? (
+              <div className="flex items-center justify-center py-4"><RefreshCw size={14} className="text-primary animate-spin" /></div>
+            ) : allDashboards.length === 0 ? (
+              <div className="text-center text-[10px] text-muted-foreground/60 py-3">Aucun dashboard disponible</div>
+            ) : (
+              <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                {allDashboards.map(db => (
+                  <button
+                    key={db.id}
+                    onClick={() => loadDashboardFromPicker(db.id)}
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/20"
+                  >
+                    <LayoutGrid size={12} className="text-primary/60 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[11px] font-semibold text-foreground block truncate">{db.name}</span>
+                      <span className="text-[8px] text-muted-foreground">{new Date(db.updated_at).toLocaleDateString()}</span>
+                    </div>
+                    <ArrowRight size={11} className="text-muted-foreground shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {showDeleteConfirm && (
+        <div className="mb-2 px-1">
+          <div className="border border-destructive/30 rounded-xl bg-destructive/5 p-3">
+            <p className="text-[11px] font-bold text-foreground mb-2">Supprimer ce dashboard ?</p>
+            <p className="text-[9px] text-muted-foreground mb-3">Cette action est irréversible.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handlePermanentDeleteDashboard(showDeleteConfirm)}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+              >
+                <Trash2 size={11} /> Supprimer
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 px-3 py-2 rounded-lg text-[10px] font-bold border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {dashboards.length === 0 ? (
@@ -1276,7 +1368,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 {/* Save/Load/Close + Nested views tree */}
                 {isExpanded && (
                   <div className="px-3 pt-1.5">
-                    <div className="grid grid-cols-2 gap-1.5 mb-2">
+                    <div className="grid grid-cols-3 gap-1.5 mb-2">
                       <button
                         onClick={() => { if (onSaveDashboard) onSaveDashboard(db.id); }}
                         disabled={isSaving}
@@ -1286,8 +1378,15 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         <span className="uppercase tracking-wider">Save</span>
                       </button>
                       <button
+                        onClick={() => setShowDeleteConfirm(db.id)}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-destructive/30 text-destructive/70 hover:text-destructive hover:border-destructive hover:bg-destructive/5"
+                      >
+                        <Trash2 size={12} />
+                        <span className="uppercase tracking-wider">Delete</span>
+                      </button>
+                      <button
                         onClick={() => requestDashboardSwitch(null)}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted"
                       >
                         <X size={12} />
                         <span className="uppercase tracking-wider">Close</span>
