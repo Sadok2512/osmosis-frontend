@@ -2442,8 +2442,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <CustomZoomControl />
         <TileLayer
           key={mapLayer}
-          url={TILE_URLS[mapLayer].url}
-          attribution={TILE_URLS[mapLayer].attribution}
+          url={(TILE_URLS[mapLayer] || TILE_URLS.light).url}
+          attribution={(TILE_URLS[mapLayer] || TILE_URLS.light).attribution}
         />
         <FlyToSite coords={flyTarget} onFlyStart={() => setIsFlying(true)} onFlyEnd={() => setIsFlying(false)} onDone={() => setFlyTarget(null)} />
         <TechPanes />
