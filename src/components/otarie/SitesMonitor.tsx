@@ -2132,6 +2132,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
 
   const handleSiteClick = (site: SiteSummary) => {
+    // Toggle: clicking the already-selected site deselects it
+    if (selectedSiteId === site.site_id) {
+      handleBackToGlobal();
+      return;
+    }
     setFlyTarget(site.coordinates);
     setSelectedSiteId(site.site_id);
     setFocusMode('site');
