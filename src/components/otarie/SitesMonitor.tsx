@@ -2097,7 +2097,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesLocalBande = localBande === 'ALL' || s.cells.some(c => c.bande === localBande);
       const matchesLocalZoneArcep = localZoneArcep === 'ALL' || s.cells.some(c => (c as any).zone_arcep === localZoneArcep);
       const matchesLocalTechno = localTechno === 'ALL' || s.cells.length === 0 || s.cells.some(c => c.techno === localTechno);
-      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno;
+      
+      // Apply QOE view filters
+      const matchesQoeFilters = activeViewFilters
+        .filter(f => f.mode === 'qoe' && f.kpi && f.operator && f.threshold != null)
+        .every(f => {
+          const val = (s as any)[f.kpi!];
+          if (val == null) return false;
+          switch (f.operator) {
+            case '>': return val > f.threshold!;
+            case '>=': return val >= f.threshold!;
+            case '<': return val < f.threshold!;
+            case '<=': return val <= f.threshold!;
+            case '=': return Math.abs(val - f.threshold!) < 0.01;
+            default: return true;
+          }
+        });
+      
+      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno && matchesQoeFilters;
     });
     if (inventorySortOrder === 'none') return filtered;
     return [...filtered].sort((a, b) => {
@@ -2105,7 +2122,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
       return inventorySortOrder === 'asc' ? va - vb : vb - va;
     });
-  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi]);
+  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters]);
 
   // Check if a cell's band passes the band filter
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
