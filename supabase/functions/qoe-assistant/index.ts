@@ -1058,6 +1058,9 @@ function classifyAgent(query: string): AgentId {
   if (TOPO_METRICS.has(met)) return "TOPO";
   // Site design queries → TOPO
   if (isSiteDesignQuery(query)) return "TOPO";
+  // PARMY: parameter audit, check, consistency, recommendations — BEFORE dimension queries
+  if (isParmyQuery(query)) return "PARMY";
+  if (isParameterFocusedQuery(query)) return "PARMY";
   // Dimension queries go to PULSE
   const { isDim } = isDimensionQuery(query);
   if (isDim) return "PULSE";
@@ -1065,9 +1068,6 @@ function classifyAgent(query: string): AgentId {
   if (isCompare) return "PULSE";
   if (isChangeHistoryQuery(query)) return "TRACE";
   if (isSentinelQuery(query)) return "SENTINEL";
-  // PARMY: parameter audit, check, consistency, recommendations
-  if (isParmyQuery(query)) return "PARMY";
-  if (isParameterFocusedQuery(query)) return "PARMY"; // Parameter queries now go to PARMY instead of TRACE
   return "PULSE";
 }
 
