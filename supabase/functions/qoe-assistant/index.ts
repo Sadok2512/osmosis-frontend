@@ -1273,6 +1273,9 @@ async function buildContextFromPlan(
   if (plan.needs.includes("param_dump")) {
     promises.params = searchDumpParameters(query);
   }
+  if (plan.needs.includes("parmy_sql")) {
+    promises.parmySql = generateAndExecuteParmySql(query, filters);
+  }
   if (plan.needs.includes("change_history")) {
     promises.changes = searchParameterChanges(query);
   }
