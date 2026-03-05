@@ -962,10 +962,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [editingViewId, setEditingViewId] = useState<string | null>(null);
   const [showDashMenu, setShowDashMenu] = useState(false);
   const [showCreateDash, setShowCreateDash] = useState(false);
+  const [showLoadPicker, setShowLoadPicker] = useState(false);
+  const [allDashboards, setAllDashboards] = useState<any[]>([]);
+  const [loadingAll, setLoadingAll] = useState(false);
   const [newDashName, setNewDashName] = useState('');
   const [creatingDash, setCreatingDash] = useState(false);
   const [pendingSwitchId, setPendingSwitchId] = useState<string | null>(null);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const requestDashboardSwitch = (newId: string | null) => {
     // If there's a current dashboard selected and we're switching away, ask to save
