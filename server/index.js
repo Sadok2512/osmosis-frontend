@@ -1144,15 +1144,15 @@ async function searchDumpParameterLocal(query) {
          WHERE parameter ILIKE '${paramName}' AND site_name ILIKE '%${siteName}%'
          ORDER BY cell_name, parameter LIMIT 200`;
       console.log(`\n🔍 [PARMY SQL] Site+param search:\n   param=${paramName}, site=${siteName}\n   SQL: ${sqlText}\n`);
-      const result = await pool.query(
+      const result = await sharedPool.query(
         `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
          FROM ${dumpTable} WHERE parameter ILIKE $1 AND site_name ILIKE $2
          ORDER BY cell_name, parameter LIMIT 200`,
         [paramName, `%${siteName}%`]
       );
       if (!result.rows.length) {
-        const siteCheck = await pool.query(`SELECT DISTINCT site_name FROM ${dumpTable} WHERE site_name ILIKE $1 LIMIT 5`, [`%${siteName}%`]);
-        const paramCheck = await pool.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`, [paramName]);
+        const siteCheck = await sharedPool.query(`SELECT DISTINCT site_name FROM ${dumpTable} WHERE site_name ILIKE $1 LIMIT 5`, [`%${siteName}%`]);
+        const paramCheck = await sharedPool.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`, [paramName]);
         let msg = `🔍 DEBUG SQL: ${sqlText}\n\nRÉSULTAT DE RECHERCHE : AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" sur le site "${siteName}".\n`;
         if (!siteCheck.rows.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base ${dumpTable}.\n`;
         else msg += `Sites similaires : ${siteCheck.rows.map(r => r.site_name).join(', ')}\n`;
