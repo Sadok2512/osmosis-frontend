@@ -379,6 +379,42 @@ const SETTINGS_ATTR_VALUES: Record<string, string[]> = {
   essentiel: ['Oui', 'Non'],
 };
 
+const QOE_FILTER_KPIS = [
+  { key: 'qoe_score_avg', label: 'Score QoE', unit: '%', icon: '🎯' },
+  { key: 'p50_thr_dn_mbps', label: 'Débit DL', unit: 'Mbps', icon: '⬇️' },
+  { key: 'p50_thr_up_mbps', label: 'Débit UL', unit: 'Mbps', icon: '⬆️' },
+  { key: 'dms_dl_3', label: 'DMS DL ≥ 3M', unit: '%', icon: '📊' },
+  { key: 'dms_dl_8', label: 'DMS DL ≥ 8M', unit: '%', icon: '📊' },
+  { key: 'dms_dl_30', label: 'DMS DL ≥ 30M', unit: '%', icon: '📊' },
+  { key: 'dms_ul_3', label: 'DMS UL ≥ 3M', unit: '%', icon: '📊' },
+  { key: 'p95_rtt_ms', label: 'Latence RTT', unit: 'ms', icon: '⏱️' },
+  { key: 'sessions', label: 'Sessions', unit: '', icon: '📱' },
+  { key: 'window_full_ratio', label: 'Window Full', unit: '%', icon: '🪟' },
+  { key: 'retransmission_rate', label: 'Retransmission', unit: '%', icon: '🔄' },
+  { key: 'tcp_loss_rate', label: 'TCP Loss', unit: '%', icon: '⚠️' },
+];
+
+const QOE_OPERATORS = [
+  { key: '>', label: '>', desc: 'Supérieur à' },
+  { key: '>=', label: '≥', desc: 'Supérieur ou égal' },
+  { key: '<', label: '<', desc: 'Inférieur à' },
+  { key: '<=', label: '≤', desc: 'Inférieur ou égal' },
+  { key: '=', label: '=', desc: 'Égal à' },
+];
+
+type FilterMode = 'topo' | 'qoe';
+type FilterStepType = 'idle' | 'pick_mode' | 'pick_tech' | 'pick_attr' | 'pick_value' | 'pick_kpi' | 'pick_operator' | 'pick_threshold';
+
+interface ViewFilter {
+  mode: FilterMode;
+  tech?: string;
+  attribute?: string;
+  value?: string;
+  kpi?: string;
+  operator?: string;
+  threshold?: number;
+}
+
 interface DashboardSettingsPanelProps {
   settings: any;
   onUpdate: (u: Record<string, any>) => void;
@@ -407,19 +443,27 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
     return ['qoe_score_avg'];
   });
   const [localDataSource, setLocalDataSource] = useState<'qoe' | 'parameters'>(settings.dataSource || 'qoe');
-  const [localFilters, setLocalFilters] = useState<{ tech: string; attribute: string; value: string }[]>(settings.viewFilters || []);
-  const [filterStep, setFilterStep] = useState<'idle' | 'pick_tech' | 'pick_attr' | 'pick_value'>('idle');
-  const [filterDraft, setFilterDraft] = useState<{ tech?: string; attribute?: string }>({});
+  const [localFilters, setLocalFilters] = useState<ViewFilter[]>(() => {
+    // Migrate old format filters
+    const raw = settings.viewFilters || [];
+    return raw.map((f: any) => f.mode ? f : { mode: 'topo' as FilterMode, tech: f.tech, attribute: f.attribute, value: f.value });
+  });
+  const [filterStep, setFilterStep] = useState<FilterStepType>('idle');
+  const [filterDraft, setFilterDraft] = useState<Partial<ViewFilter>>({});
   const [dirty, setDirty] = useState(false);
   const [freeTextValue, setFreeTextValue] = useState('');
+  const [kpiSearch, setKpiSearch] = useState('');
+  const [thresholdInput, setThresholdInput] = useState('');
 
-  const commitFilter = (val: string) => {
-    if (filterDraft.tech && filterDraft.attribute) {
-      setLocalFilters(prev => [...prev, { tech: filterDraft.tech!, attribute: filterDraft.attribute!, value: val }]);
+  const commitFilter = (val?: string) => {
+    if (filterDraft.mode === 'topo' && filterDraft.tech && filterDraft.attribute) {
+      setLocalFilters(prev => [...prev, { mode: 'topo', tech: filterDraft.tech!, attribute: filterDraft.attribute!, value: val || '' }]);
+      setDirty(true);
+    } else if (filterDraft.mode === 'qoe' && filterDraft.kpi && filterDraft.operator && thresholdInput.trim()) {
+      setLocalFilters(prev => [...prev, { mode: 'qoe', kpi: filterDraft.kpi!, operator: filterDraft.operator!, threshold: parseFloat(thresholdInput) }]);
       setDirty(true);
     }
-    setFilterStep('idle');
-    setFilterDraft({});
+    resetFilterWizard();
   };
 
   const removeFilterAt = (idx: number) => {
@@ -427,7 +471,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
     setDirty(true);
   };
 
-  const resetFilterWizard = () => { setFilterStep('idle'); setFilterDraft({}); setFreeTextValue(''); };
+  const resetFilterWizard = () => { setFilterStep('idle'); setFilterDraft({}); setFreeTextValue(''); setKpiSearch(''); setThresholdInput(''); };
 
   const toggleKpi = (val: string) => {
     setLocalKpis(prev => {
