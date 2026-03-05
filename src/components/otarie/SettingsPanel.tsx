@@ -154,7 +154,7 @@ const MODULE_DEFS: { id: string; label: string; description: string; icon: React
   { id: 'dashboard_overview', label: 'Dashboard Overview', description: 'Vue d\'ensemble des KPIs globaux', icon: <BarChart3 className="w-5 h-5" /> },
   { id: 'list', label: 'Live Monitor Map', description: 'Carte temps-réel des sites & cellules', icon: <Globe className="w-5 h-5" /> },
   { id: 'sites', label: 'Network Topology', description: 'Topologie réseau et inventaire sites', icon: <Server className="w-5 h-5" /> },
-  { id: 'traffic', label: 'Analytic BI Studio', description: 'Tableaux de bord analytiques personnalisés', icon: <BarChart3 className="w-5 h-5" /> },
+  { id: 'traffic', label: 'Analytic QOE', description: 'Tableaux de bord analytiques personnalisés', icon: <BarChart3 className="w-5 h-5" /> },
   { id: 'alerts', label: 'Alerts & RCA Monitor', description: 'Détection d\'anomalies et analyse causale', icon: <Bell className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', description: 'Console de détection ML avancée', icon: <Shield className="w-5 h-5" /> },
   { id: 'ai_assistant', label: 'QOEBIT AI', description: 'Assistant IA pour l\'analyse QoE', icon: <Zap className="w-5 h-5" /> },

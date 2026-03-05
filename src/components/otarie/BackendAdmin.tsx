@@ -43,7 +43,7 @@ const MODULE_TABLE_MAP = [
     apiEndpoints: ['/api/topo/sites', '/api/topo'],
   },
   {
-    module: 'Analytic BI Studio',
+    module: 'Analytic QOE',
     icon: '📊',
     tables: ['qoe_metric', 'dashboards'],
     description: 'Dashboards BI, KPIs QoE (table qoe_metric)',

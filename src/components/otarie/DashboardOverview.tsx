@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List, Copy, Globe, Lock } from 'lucide-react';
+import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List, Copy, Globe, Lock, Users, Share2, X } from 'lucide-react';
 import { SavedDashboard } from '../bi/DashboardManager';
 import { WidgetItem } from '../bi/dashboardTypes';
 import { TableWidgetConfig } from '../bi/BITableWidget';
@@ -8,7 +8,17 @@ import { getDimensionValues } from '../bi/mockBIData';
 import BIChartRenderer from '../bi/BIChartRenderer';
 import { dashboardsApi } from '@/lib/localDb';
 
-async function loadAllDashboardsFromDB(): Promise<SavedDashboard[]> {
+type DashboardType = 'map' | 'analytic_qoe';
+type Visibility = 'private' | 'public' | 'shared';
+
+interface EnhancedDashboard extends SavedDashboard {
+  dashboardType: DashboardType;
+  visibility: Visibility;
+  ownerUsername: string;
+  sharedWith: string[];
+}
+
+async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
   try {
     const data = await dashboardsApi.list();
     if (!data || !Array.isArray(data)) return [];
@@ -19,11 +29,15 @@ async function loadAllDashboardsFromDB(): Promise<SavedDashboard[]> {
       isShared: row.is_shared ?? true,
       widgets: row.widgets as WidgetItem[],
       updatedAt: row.updated_at,
+      dashboardType: (row.dashboard_type as DashboardType) || 'analytic_qoe',
+      visibility: (row.visibility as Visibility) || 'public',
+      ownerUsername: row.owner_username || 'PSN TEAM',
+      sharedWith: row.shared_with || [],
     }));
   } catch { return []; }
 }
 
-async function duplicateDashboardInDB(source: SavedDashboard, allDashboards: SavedDashboard[]): Promise<void> {
+async function duplicateDashboardInDB(source: EnhancedDashboard, allDashboards: EnhancedDashboard[]): Promise<void> {
   const existingNames = new Set(allDashboards.map(d => d.name.toLowerCase()));
   let dupName = `${source.name} (copy)`;
   if (existingNames.has(dupName.toLowerCase())) {
@@ -37,8 +51,127 @@ async function duplicateDashboardInDB(source: SavedDashboard, allDashboards: Sav
     description: source.description,
     is_shared: source.isShared,
     widgets: JSON.parse(JSON.stringify(source.widgets)),
+    dashboard_type: source.dashboardType,
+    visibility: source.visibility,
+    owner_username: source.ownerUsername,
+    shared_with: source.sharedWith,
   });
 }
+
+// ─── Type badge ───
+const TypeBadge: React.FC<{ type: DashboardType }> = ({ type }) => {
+  if (type === 'map') {
+    return (
+      <span className="text-[9px] bg-blue-500/15 text-blue-500 px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5">
+        <MapIcon className="w-2.5 h-2.5" /> Map
+      </span>
+    );
+  }
+  return (
+    <span className="text-[9px] bg-purple-500/15 text-purple-500 px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5">
+      <BarChart2 className="w-2.5 h-2.5" /> QOE
+    </span>
+  );
+};
+
+// ─── Visibility badge ───
+const VisibilityBadge: React.FC<{ visibility: Visibility; sharedWith?: string[] }> = ({ visibility, sharedWith }) => {
+  switch (visibility) {
+    case 'public':
+      return (
+        <span className="text-[9px] bg-green-500/15 text-green-600 px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5">
+          <Globe className="w-2.5 h-2.5" /> Public
+        </span>
+      );
+    case 'shared':
+      return (
+        <span className="text-[9px] bg-sky-500/15 text-sky-600 px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5" title={sharedWith?.join(', ')}>
+          <Users className="w-2.5 h-2.5" /> Partagé ({sharedWith?.length || 0})
+        </span>
+      );
+    default:
+      return (
+        <span className="text-[9px] bg-orange-500/15 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5">
+          <Lock className="w-2.5 h-2.5" /> Privé
+        </span>
+      );
+  }
+};
+
+// ─── Share popover ───
+const SharePopover: React.FC<{
+  db: EnhancedDashboard;
+  onUpdate: (id: string, visibility: Visibility, sharedWith: string[]) => void;
+  onClose: () => void;
+}> = ({ db, onUpdate, onClose }) => {
+  const [vis, setVis] = useState<Visibility>(db.visibility);
+  const [users, setUsers] = useState<string[]>(db.sharedWith);
+  const [newUser, setNewUser] = useState('');
+
+  const addUser = () => {
+    const u = newUser.trim();
+    if (u && !users.includes(u)) {
+      setUsers([...users, u]);
+      setNewUser('');
+    }
+  };
+
+  const removeUser = (u: string) => setUsers(users.filter(x => x !== u));
+
+  const save = () => {
+    onUpdate(db.id, vis, users);
+    onClose();
+  };
+
+  return (
+    <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-xl p-4 z-50 w-[280px]"
+      onClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+          <Share2 className="w-3.5 h-3.5 text-primary" /> Partage
+        </h4>
+        <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground"><X className="w-3 h-3" /></button>
+      </div>
+
+      <div className="flex gap-1 mb-3">
+        {(['private', 'public', 'shared'] as Visibility[]).map(v => (
+          <button key={v} onClick={() => setVis(v)}
+            className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-all ${vis === v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
+            {v === 'private' ? 'Privé' : v === 'public' ? 'Public' : 'Partagé'}
+          </button>
+        ))}
+      </div>
+
+      {vis === 'shared' && (
+        <div className="space-y-2">
+          <div className="flex gap-1">
+            <input type="text" value={newUser} onChange={e => setNewUser(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addUser()}
+              placeholder="Username..."
+              className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+            <button onClick={addUser}
+              className="px-2 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors">+</button>
+          </div>
+          {users.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {users.map(u => (
+                <span key={u} className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-full text-foreground font-medium">
+                  <User className="w-2.5 h-2.5" />{u}
+                  <button onClick={() => removeUser(u)} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <button onClick={save}
+        className="w-full mt-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
+        Enregistrer
+      </button>
+    </div>
+  );
+};
 
 /** Read-only renderer for a single text widget */
 const ReadOnlyText: React.FC<{ config: any }> = ({ config }) => (
@@ -147,7 +280,8 @@ const DashboardOverview: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const [dashboards, setDashboards] = useState<SavedDashboard[]>([]);
+  const [dashboards, setDashboards] = useState<EnhancedDashboard[]>([]);
+  const [sharePopoverId, setSharePopoverId] = useState<string | null>(null);
 
   useEffect(() => {
     loadAllDashboardsFromDB().then(setDashboards);
@@ -157,6 +291,16 @@ const DashboardOverview: React.FC = () => {
     const source = dashboards.find(d => d.id === id);
     if (!source) return;
     await duplicateDashboardInDB(source, dashboards);
+    const refreshed = await loadAllDashboardsFromDB();
+    setDashboards(refreshed);
+  };
+
+  const updateSharing = async (id: string, visibility: Visibility, sharedWith: string[]) => {
+    await dashboardsApi.update(id, {
+      visibility,
+      shared_with: sharedWith,
+      is_shared: visibility === 'public',
+    });
     const refreshed = await loadAllDashboardsFromDB();
     setDashboards(refreshed);
   };
@@ -182,15 +326,8 @@ const DashboardOverview: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold text-foreground">{selected.name}</h2>
-                {selected.isShared ? (
-                  <span className="text-[9px] bg-green-500/15 text-green-600 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
-                    <Globe className="w-2.5 h-2.5" /> Public
-                  </span>
-                ) : (
-                  <span className="text-[9px] bg-orange-500/15 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
-                    <Lock className="w-2.5 h-2.5" /> Privé
-                  </span>
-                )}
+                <TypeBadge type={selected.dashboardType} />
+                <VisibilityBadge visibility={selected.visibility} sharedWith={selected.sharedWith} />
               </div>
               {selected.description && (
                 <p className="text-[10px] text-muted-foreground mt-0.5">{selected.description}</p>
@@ -204,7 +341,7 @@ const DashboardOverview: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <User className="w-3.5 h-3.5" />
-            <span className="font-semibold text-foreground">PSN TEAM</span>
+            <span className="font-semibold text-foreground">{selected.ownerUsername}</span>
           </div>
         </div>
 
@@ -271,7 +408,7 @@ const DashboardOverview: React.FC = () => {
             </h3>
             <p className="text-xs text-muted-foreground max-w-xs">
               {dashboards.length === 0
-                ? "Créez des dashboards dans l'Analytic BI Studio pour les retrouver ici en lecture seule."
+                ? "Créez des dashboards dans l'Analytic QOE pour les retrouver ici en lecture seule."
                 : 'Essayez un autre terme de recherche.'}
             </p>
           </div>
@@ -283,18 +420,11 @@ const DashboardOverview: React.FC = () => {
                   className="group text-left bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-lg transition-all">
                   <div className="flex items-start justify-between mb-2">
                     <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <LayoutDashboard className="w-4 h-4 text-primary" />
+                      {db.dashboardType === 'map' ? <MapIcon className="w-4 h-4 text-primary" /> : <BarChart2 className="w-4 h-4 text-primary" />}
                     </div>
                     <div className="flex items-center gap-1">
-                      {db.isShared ? (
-                        <span className="text-[9px] bg-green-500/15 text-green-600 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
-                          <Globe className="w-2.5 h-2.5" /> Public
-                        </span>
-                      ) : (
-                        <span className="text-[9px] bg-orange-500/15 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
-                          <Lock className="w-2.5 h-2.5" /> Privé
-                        </span>
-                      )}
+                      <TypeBadge type={db.dashboardType} />
+                      <VisibilityBadge visibility={db.visibility} sharedWith={db.sharedWith} />
                     </div>
                   </div>
                   <h3 className="text-sm font-semibold text-foreground mb-0.5 truncate">{db.name}</h3>
@@ -307,9 +437,13 @@ const DashboardOverview: React.FC = () => {
                   </p>
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <User className="w-3 h-3" /> PSN TEAM
+                      <User className="w-3 h-3" /> {db.ownerUsername}
                     </p>
                     <div className="flex items-center gap-0.5">
+                      <span onClick={(e) => { e.stopPropagation(); setSharePopoverId(sharePopoverId === db.id ? null : db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Partager">
+                        <Share2 className="w-3.5 h-3.5" />
+                      </span>
                       <span onClick={(e) => { e.stopPropagation(); duplicateDashboard(db.id); }}
                         className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Dupliquer">
                         <Copy className="w-3.5 h-3.5" />
@@ -317,51 +451,58 @@ const DashboardOverview: React.FC = () => {
                       <Eye className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
+                  {sharePopoverId === db.id && (
+                    <SharePopover db={db} onUpdate={updateSharing} onClose={() => setSharePopoverId(null)} />
+                  )}
                 </button>
               ))}
             </div>
           ) : (
             <div className="bg-card border border-border rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[1fr_200px_160px_120px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="grid grid-cols-[1fr_80px_200px_160px_120px_100px_80px] gap-2 px-4 py-2.5 bg-muted/40 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                 <span>Nom</span>
+                <span>Type</span>
                 <span>Description</span>
                 <span>Dernière modification</span>
+                <span>Propriétaire</span>
                 <span>Visibilité</span>
                 <span className="text-center">Actions</span>
               </div>
               {filtered.map(db => (
-                <button key={db.id} onClick={() => setSelectedId(db.id)}
-                  className="w-full grid grid-cols-[1fr_200px_160px_120px_80px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
+                <div key={db.id} className="relative">
+                  <button onClick={() => setSelectedId(db.id)}
+                    className="w-full grid grid-cols-[1fr_80px_200px_160px_120px_100px_80px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        {db.dashboardType === 'map' ? <MapIcon className="w-3.5 h-3.5 text-primary" /> : <BarChart2 className="w-3.5 h-3.5 text-primary" />}
+                      </div>
+                      <span className="text-xs font-semibold text-foreground truncate">{db.name}</span>
                     </div>
-                    <span className="text-xs font-semibold text-foreground truncate">{db.name}</span>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground truncate">{db.description || '—'}</span>
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                    <Clock className="w-3 h-3 shrink-0" />
-                    {new Date(db.updatedAt).toLocaleString('fr-FR')}
-                  </span>
-                  <span>
-                    {db.isShared ? (
-                      <span className="text-[9px] bg-green-500/15 text-green-600 px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5">
-                        <Globe className="w-2.5 h-2.5" /> Public
-                      </span>
-                    ) : (
-                      <span className="text-[9px] bg-orange-500/15 text-orange-600 px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5">
-                        <Lock className="w-2.5 h-2.5" /> Privé
-                      </span>
-                    )}
-                  </span>
-                  <div className="flex justify-center gap-0.5">
-                    <span onClick={(e) => { e.stopPropagation(); duplicateDashboard(db.id); }}
-                      className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Dupliquer">
-                      <Copy className="w-3.5 h-3.5" />
+                    <span><TypeBadge type={db.dashboardType} /></span>
+                    <span className="text-[10px] text-muted-foreground truncate">{db.description || '—'}</span>
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-3 h-3 shrink-0" />
+                      {new Date(db.updatedAt).toLocaleString('fr-FR')}
                     </span>
-                    <Eye className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                </button>
+                    <span className="text-[10px] text-foreground font-medium flex items-center gap-1 truncate">
+                      <User className="w-3 h-3 shrink-0 text-muted-foreground" /> {db.ownerUsername}
+                    </span>
+                    <span><VisibilityBadge visibility={db.visibility} sharedWith={db.sharedWith} /></span>
+                    <div className="flex justify-center gap-0.5">
+                      <span onClick={(e) => { e.stopPropagation(); setSharePopoverId(sharePopoverId === db.id ? null : db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Partager">
+                        <Share2 className="w-3.5 h-3.5" />
+                      </span>
+                      <span onClick={(e) => { e.stopPropagation(); duplicateDashboard(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Dupliquer">
+                        <Copy className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </button>
+                  {sharePopoverId === db.id && (
+                    <SharePopover db={db} onUpdate={updateSharing} onClose={() => setSharePopoverId(null)} />
+                  )}
+                </div>
               ))}
             </div>
           )
