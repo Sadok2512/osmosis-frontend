@@ -1247,7 +1247,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localVendor, setLocalVendor] = useState('ALL');
   const [localDor, setLocalDor] = useState('ALL');
   const [localPlaque, setLocalPlaque] = useState('ALL');
-  const [localSite, setLocalSite] = useState('ALL');
+  const [localBande, setLocalBande] = useState('ALL');
   const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
   const [mapKpi, setMapKpi] = useState('qoe_score_avg');
@@ -1490,7 +1490,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (settings.localVendor) setLocalVendor(settings.localVendor);
       if (settings.localDor) setLocalDor(settings.localDor);
       if (settings.localPlaque) setLocalPlaque(settings.localPlaque);
-      if (settings.localSite) setLocalSite(settings.localSite);
+      if (settings.localSite) setLocalBande(settings.localSite);
       if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
       if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
       if (settings.bandColors) {
@@ -1882,10 +1882,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesLocalVendor = localVendor === 'ALL' || s.vendor === localVendor;
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
-      const matchesLocalSite = localSite === 'ALL' || s.site_name === localSite;
+      const matchesLocalBande = localBande === 'ALL' || s.cells.some(c => c.bande === localBande);
       const matchesLocalZoneArcep = localZoneArcep === 'ALL' || s.cells.some(c => (c as any).zone_arcep === localZoneArcep);
       const matchesLocalTechno = localTechno === 'ALL' || s.cells.length === 0 || s.cells.some(c => c.techno === localTechno);
-      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalSite && matchesLocalZoneArcep && matchesLocalTechno;
+      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno;
     });
     if (inventorySortOrder === 'none') return filtered;
     return [...filtered].sort((a, b) => {
@@ -1893,7 +1893,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
       return inventorySortOrder === 'asc' ? va - vb : vb - va;
     });
-  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localSite, localZoneArcep, localTechno, inventorySortOrder, mapKpi]);
+  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi]);
 
   // Check if a cell's band passes the band filter
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
@@ -1946,9 +1946,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     sites.forEach(s => s.cells.forEach(c => { const z = (c as any).zone_arcep; if (z) zones.add(z); }));
     return ['ALL', ...Array.from(zones).sort()];
   }, [sites]);
-  const uniqueSiteNames = useMemo(() => {
-    const names = [...new Set(sites.map(s => s.site_name))].sort();
-    return ['ALL', ...names];
+  const uniqueBandes = useMemo(() => {
+    const bandes = new Set<string>();
+    sites.forEach(s => s.cells.forEach(c => { if (c.bande) bandes.add(c.bande); }));
+    return ['ALL', ...Array.from(bandes).sort()];
   }, [sites]);
 
   // Sites visible in current viewport (for map rendering) — with cap to prevent hangs
@@ -2053,12 +2054,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       localVendor,
       localDor,
       localPlaque,
-      localSite,
+      localSite: localBande,
       localZoneArcep,
       localTechno,
       beamVisibility,
     };
-  }, [viewport, mapLayer, mapKpi, mapTechnoFilter, enabledBands, sectorColorMode, mapDisplayMode, showBandPanel, showLegend, showRightPanel, panelCollapsed, localVendor, localDor, localPlaque, localSite, localZoneArcep, localTechno, beamVisibility]);
+  }, [viewport, mapLayer, mapKpi, mapTechnoFilter, enabledBands, sectorColorMode, mapDisplayMode, showBandPanel, showLegend, showRightPanel, panelCollapsed, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, beamVisibility]);
 
   const handleLoadView = useCallback((settings: MapViewSettings) => {
     setMapLayer(settings.mapLayer);
@@ -2074,7 +2075,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLocalVendor(settings.localVendor);
     setLocalDor(settings.localDor);
     setLocalPlaque(settings.localPlaque);
-    setLocalSite(settings.localSite);
+    setLocalBande(settings.localSite);
     if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
     if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
     // Fly to saved center/zoom
@@ -3709,10 +3710,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Site</span>
-                    <select value={localSite} onChange={(e) => setLocalSite(e.target.value)}
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Bande</span>
+                    <select value={localBande} onChange={(e) => setLocalBande(e.target.value)}
                       className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
-                      {uniqueSiteNames.slice(0, 500).map(s => <option key={s} value={s}>{s}</option>)}
+                      {uniqueBandes.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
