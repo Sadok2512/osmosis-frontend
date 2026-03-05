@@ -1493,6 +1493,15 @@ async function buildContextFromPlan(
       plan.resultLimit || 30
     );
   }
+  if (plan.needs.includes("dimension_timeseries") && plan.groupBy?.dimension1) {
+    promises.dimTimeSeries = fetchMetricTimeSeriesByDimension(
+      plan.groupBy.dimension1,
+      plan.metric || "qoe_index",
+      filters,
+      plan.limits.maxDays,
+      plan.resultLimit || 10
+    );
+  }
   if (plan.needs.includes("topo_metric_agg") && plan.groupBy?.dimension1) {
     promises.topoAgg = fetchTopoMetricByDimension(
       plan.metric || "tilt",
