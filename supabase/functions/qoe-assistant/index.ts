@@ -1604,10 +1604,42 @@ serve(async (req) => {
 
     const plan = buildContextPlan(lastUserMessage, uiScope, filters);
 
-    // Override agent if user forced selection
+    // Override agent if user forced selection — rebuild plan with forced agent
     if (forcedAgent && ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"].includes(forcedAgent)) {
+      const originalAgent = plan.agent;
       plan.agent = forcedAgent as AgentId;
-      console.log(`🎯 Agent FORCÉ par l'utilisateur: ${forcedAgent}`);
+      // Rebuild needs for the forced agent
+      plan.needs = ["documents_rag"];
+      const q = lastUserMessage.toLowerCase();
+      switch (forcedAgent) {
+        case "PARMY":
+          plan.needs.push("parmy_sql");
+          if (isParameterFocusedQuery(lastUserMessage)) plan.needs.push("param_dump");
+          if (plan.scope.level === "site") plan.needs.push("topology", "kpi_snapshot");
+          if (isChangeHistoryQuery(lastUserMessage)) plan.needs.push("change_history");
+          plan.intent = "param_audit";
+          break;
+        case "PULSE":
+          plan.needs.push("agg_stats", "worst_sites");
+          if (plan.scope.level === "site") plan.needs.push("kpi_snapshot", "topology");
+          break;
+        case "TOPO":
+          if (isTopoInventoryQuery(lastUserMessage)) {
+            plan.needs.push("topo_inventory");
+          } else {
+            plan.needs.push("topology");
+          }
+          break;
+        case "TRACE":
+          plan.needs.push("change_history");
+          if (isParameterFocusedQuery(lastUserMessage)) plan.needs.push("param_dump");
+          if (plan.scope.level === "site") plan.needs.push("topology");
+          break;
+        case "SENTINEL":
+          plan.needs.push("agg_stats", "worst_sites");
+          break;
+      }
+      console.log(`🎯 Agent FORCÉ: ${originalAgent} → ${forcedAgent} | needs=[${plan.needs.join(",")}]`);
     }
 
     console.log(`🧠 QOEBIT → ${plan.agent} | intent=${plan.intent} | scope=${JSON.stringify(plan.scope)}`);
