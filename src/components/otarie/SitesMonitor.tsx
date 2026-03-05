@@ -1464,6 +1464,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [mapKpi, setMapKpi] = useState('qoe_score_avg');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
+  const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
   const [mapRendering, setMapRendering] = useState(false);
@@ -2096,7 +2097,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesLocalBande = localBande === 'ALL' || s.cells.some(c => c.bande === localBande);
       const matchesLocalZoneArcep = localZoneArcep === 'ALL' || s.cells.some(c => (c as any).zone_arcep === localZoneArcep);
       const matchesLocalTechno = localTechno === 'ALL' || s.cells.length === 0 || s.cells.some(c => c.techno === localTechno);
-      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno;
+      
+      // Apply QOE view filters
+      const matchesQoeFilters = activeViewFilters
+        .filter(f => f.mode === 'qoe' && f.kpi && f.operator && f.threshold != null)
+        .every(f => {
+          const val = (s as any)[f.kpi!];
+          if (val == null) return false;
+          switch (f.operator) {
+            case '>': return val > f.threshold!;
+            case '>=': return val >= f.threshold!;
+            case '<': return val < f.threshold!;
+            case '<=': return val <= f.threshold!;
+            case '=': return Math.abs(val - f.threshold!) < 0.01;
+            default: return true;
+          }
+        });
+      
+      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno && matchesQoeFilters;
     });
     if (inventorySortOrder === 'none') return filtered;
     return [...filtered].sort((a, b) => {
@@ -2104,7 +2122,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
       return inventorySortOrder === 'asc' ? va - vb : vb - va;
     });
-  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi]);
+  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters]);
 
   // Check if a cell's band passes the band filter
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
@@ -4166,8 +4184,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (settings.center && Array.isArray(settings.center)) {
                       setFlyTarget(settings.center as [number, number]);
                     }
-                    if (settings.mapTechnoFilter) {
-                      // Apply tech filter if present
+                    // Apply view filters (topo + qoe)
+                    if (Array.isArray(settings.viewFilters)) {
+                      setActiveViewFilters(settings.viewFilters);
+                      // Apply topo filters to local state
+                      for (const f of settings.viewFilters) {
+                        if (f.mode === 'topo') {
+                          if (f.tech) {
+                            const t = f.tech === '4G' ? '4G' : f.tech === '5G' ? '5G' : 'ALL';
+                            setLocalTechno(t as any);
+                          }
+                          if (f.attribute === 'constructeur' && f.value) setLocalVendor(f.value);
+                          if (f.attribute === 'bande' && f.value) setLocalBande(f.value);
+                          if (f.attribute === 'zone_arcep' && f.value) setLocalZoneArcep(f.value);
+                        }
+                      }
+                    } else {
+                      setActiveViewFilters([]);
                     }
                   }}
                   beamVisibility={beamVisibility}
