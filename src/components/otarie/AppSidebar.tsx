@@ -3,8 +3,10 @@ import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
   Database, Activity, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
-  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin
+  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin, LogOut
 } from 'lucide-react';
+import { clearSession } from '@/services/adminAuth';
+import { useNavigate } from 'react-router-dom';
 import { Filters, AppTab } from '../../types';
 
 interface SidebarProps {
