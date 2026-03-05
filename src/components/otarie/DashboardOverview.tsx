@@ -440,9 +440,19 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <User className="w-3.5 h-3.5" />
-            <span className="font-semibold text-foreground">{selected.ownerUsername}</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => openInEditor(selected.id)}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1">
+              <ExternalLink className="w-3 h-3" /> Ouvrir en édition
+            </button>
+            <button onClick={() => setEditModalId(selected.id)}
+              className="px-3 py-1.5 rounded-lg bg-muted text-foreground text-[10px] font-semibold hover:bg-muted/80 transition-colors flex items-center gap-1">
+              <Pencil className="w-3 h-3" /> Modifier
+            </button>
+            <div className="flex items-center gap-1 ml-2 text-xs text-muted-foreground">
+              <User className="w-3.5 h-3.5" />
+              <span className="font-semibold text-foreground">{selected.ownerUsername}</span>
+            </div>
           </div>
         </div>
 
