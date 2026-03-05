@@ -2076,6 +2076,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   }
   if (plan.needs.includes('param_dump')) promises.params = searchDumpParameterLocal(query);
   if (plan.needs.includes('change_history')) promises.changes = searchParameterChangesLocal(query);
+  if (plan.needs.includes('parmy_sql')) promises.parmySql = searchDumpParameterLocal(query);
   if (plan.needs.includes('dimension_agg') && plan.groupBy?.dimension1) {
     promises.dimAgg = fetchMetricDistributionLocal(plan.groupBy.dimension1, plan.metric || 'qoe_index', effectiveFilters, plan.limits.maxDays, 30);
   }
