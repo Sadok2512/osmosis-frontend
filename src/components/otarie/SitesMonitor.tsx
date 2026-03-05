@@ -1368,7 +1368,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 {/* Save/Load/Close + Nested views tree */}
                 {isExpanded && (
                   <div className="px-3 pt-1.5">
-                    <div className="grid grid-cols-2 gap-1.5 mb-2">
+                    <div className="grid grid-cols-3 gap-1.5 mb-2">
                       <button
                         onClick={() => { if (onSaveDashboard) onSaveDashboard(db.id); }}
                         disabled={isSaving}
@@ -1378,8 +1378,15 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         <span className="uppercase tracking-wider">Save</span>
                       </button>
                       <button
+                        onClick={() => setShowDeleteConfirm(db.id)}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-destructive/30 text-destructive/70 hover:text-destructive hover:border-destructive hover:bg-destructive/5"
+                      >
+                        <Trash2 size={12} />
+                        <span className="uppercase tracking-wider">Delete</span>
+                      </button>
+                      <button
                         onClick={() => requestDashboardSwitch(null)}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted"
                       >
                         <X size={12} />
                         <span className="uppercase tracking-wider">Close</span>
