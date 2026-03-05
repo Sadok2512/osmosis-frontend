@@ -19,6 +19,7 @@ import BackendAdmin from '../components/otarie/BackendAdmin';
 import TopologiePage from '../components/otarie/TopologiePage';
 import ParametersPage from '../components/otarie/ParametersPage';
 import PulseReportPage from '../components/otarie/PulseReportPage';
+import AgentHubPage from '../components/otarie/AgentHubPage';
 import KPIMonitorPage from '../components/kpi-monitor/KPIMonitorPage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
@@ -150,6 +151,8 @@ const Index: React.FC = () => {
         return <ParametersPage />;
       case 'pulse_report':
         return <PulseReportPage />;
+      case 'agent_hub':
+        return <AgentHubPage />;
       default:
         return null;
     }
