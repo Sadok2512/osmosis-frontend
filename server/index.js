@@ -1126,6 +1126,7 @@ async function searchDumpParameterLocal(query) {
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
     const siteName = extractSiteName(query);
+    console.log(`\n🔍 [PARMY] extractParamName="${paramName}", isDistrib=${isDistrib}, siteName=${siteName}, query="${query}"`);
 
     // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
     if (paramName && siteName && !isDistrib) {
