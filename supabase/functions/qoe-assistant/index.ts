@@ -1532,6 +1532,7 @@ async function buildContextFromPlan(
   if (resolved.topoAgg) sections.push(`📡 DISTRIBUTION TOPO:\n${resolved.topoAgg}`);
   if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
   if (resolved.dimValues) sections.push(`📋 VALEURS DIMENSION:\n${resolved.dimValues}`);
+  if (resolved.dimTimeSeries) sections.push(`📈 TIME SERIES PAR DIMENSION:\n${resolved.dimTimeSeries}`);
   if (resolved.agg) sections.push(`📊 STATS AGRÉGÉES:\n${resolved.agg}`);
   if (resolved.worst) sections.push(`📉 WORST:\n${resolved.worst}`);
   if (resolved.snapshot) sections.push(`📋 SITE SNAPSHOT:\n${resolved.snapshot}`);
