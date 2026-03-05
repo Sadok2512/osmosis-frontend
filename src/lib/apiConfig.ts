@@ -53,7 +53,7 @@ export const setPreferredDataSource = (source: DataSource): void => {
   window.localStorage.setItem(DATA_SOURCE_KEY, source);
 };
 
-export const isLocalMode = (): boolean => getPreferredDataSource() === 'local';
+export const isLocalMode = (): boolean => true; // Force local only — no cloud fallback
 
 /**
  * Get the base URL for an edge function / API endpoint.

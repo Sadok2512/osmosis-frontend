@@ -119,21 +119,8 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
     let resp: Response;
     try {
       resp = await fetch(url, { method: 'POST', headers, body: payload });
-    } catch {
-      // If local mode failed, fallback to cloud
-      if (isLocalMode()) {
-        const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
-        resp = await fetch(cloudUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: payload,
-        });
-      } else {
-        throw new Error('Failed to connect to AI service');
-      }
+    } catch (fetchErr: any) {
+      throw new Error(`Impossible de contacter le serveur local: ${fetchErr.message}`);
     }
 
     if (!resp.ok) {
