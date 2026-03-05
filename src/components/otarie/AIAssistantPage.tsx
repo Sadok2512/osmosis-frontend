@@ -17,7 +17,7 @@ import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore
 import { useAgentLearningStore } from '@/stores/agentLearningStore';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'QOEBIT';
+type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'QOEBIT';
 type Msg = ChatMessage;
 
 const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
@@ -25,6 +25,7 @@ const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string 
   TRACE: { emoji: '🔧', label: 'TRACE', color: 'hsl(35, 90%, 50%)' },
   SENTINEL: { emoji: '🚨', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
   TOPO: { emoji: '🗼', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
+  PARMY: { emoji: '⚙️', label: 'PARMY', color: 'hsl(160, 70%, 40%)' },
   QOEBIT: { emoji: '🧠', label: 'QOEBIT', color: 'hsl(142, 60%, 45%)' },
 };
 

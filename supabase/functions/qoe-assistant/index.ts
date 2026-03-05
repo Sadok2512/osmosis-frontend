@@ -23,6 +23,7 @@ type Intent =
   | "trace_change"
   | "distribution"
   | "list_dimension_values"
+  | "param_audit"
   | "other";
 
 type Scope =
