@@ -1082,7 +1082,11 @@ async function searchDumpParameterLocal(query) {
 
     // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
     if (paramName && siteName && !isDistrib) {
-      console.log(`[${dumpTable}] Site+param search: param=${paramName}, site=${siteName}`);
+      const sql = `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque
+         FROM ${dumpTable}
+         WHERE parameter ILIKE '%${paramName}%' AND site_name ILIKE '%${siteName}%'
+         ORDER BY cell_name, parameter LIMIT 200`;
+      console.log(`\n🔍 [PARMY SQL] Site+param search:\n   param=${paramName}, site=${siteName}\n   SQL: ${sql}\n`);
       const result = await pool.query(
         `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque
          FROM ${dumpTable}
@@ -1104,12 +1108,17 @@ async function searchDumpParameterLocal(query) {
       const lines = result.rows.map(r =>
         `${r.dn||''} | ${r.cell_name||''} | ${r.site_name||''} | ${r.parameter||''} | ${r.value||''} | ${r.version||''} | ${r.vendor||''} | ${r.bande||''} | ${r.ur||''} | ${r.plaque||''}`
       );
+      console.log(`   ✅ [PARMY] Résultat: ${result.rows.length} lignes retournées`);
       return `DONNÉES RÉELLES pour ${paramName} sur ${siteName} (${result.rows.length} résultats) :\n${header}\n${lines.join('\n')}`;
     }
 
     if (isDistrib && paramName) {
       const groupCol = extractGroupByColumn(query);
-      console.log(`[${dumpTable}] Aggregation: param=${paramName}, groupBy=${groupCol}`);
+      const sql = `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
+         FROM ${dumpTable} WHERE parameter ILIKE '%${paramName}%'
+         GROUP BY COALESCE(${groupCol}, 'N/A'), value
+         ORDER BY dimension, nb_cells DESC`;
+      console.log(`\n🔍 [PARMY SQL] Distribution query:\n   param=${paramName}, groupBy=${groupCol}\n   SQL: ${sql}\n`);
       const result = await pool.query(
         `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
          FROM ${dumpTable} WHERE parameter ILIKE $1
@@ -1123,6 +1132,7 @@ async function searchDumpParameterLocal(query) {
       const header = `dimension | valeur_${paramName} | nb_cellules`;
       const lines = result.rows.map(r => `${r.dimension} | ${r.param_value} | ${r.nb_cells}`);
       const total = result.rows.reduce((s, r) => s + parseInt(r.nb_cells), 0);
+      console.log(`   ✅ [PARMY] Distribution: ${result.rows.length} groupes, ${total} cellules`);
       return `DISTRIBUTION AGRÉGÉE du paramètre ${paramName} par ${groupCol} (${total} cellules au total):\n${header}\n${lines.join('\n')}`;
     }
 
@@ -1133,11 +1143,10 @@ async function searchDumpParameterLocal(query) {
       `parameter ILIKE $${i+1} OR site_name ILIKE $${i+1} OR value ILIKE $${i+1} OR dn ILIKE $${i+1}`
     ).join(' OR ');
     const params = terms.map(t => `%${t}%`);
-    const result = await pool.query(
-      `SELECT dn, enodeb_id, mrbts_id, gnodeb_id, cell_name, vendor, site_name, bande, plaque, parameter, version, value
-       FROM ${dumpTable} WHERE ${conditions} LIMIT 80`,
-      params
-    );
+    const sqlStd = `SELECT dn, enodeb_id, mrbts_id, gnodeb_id, cell_name, vendor, site_name, bande, plaque, parameter, version, value
+       FROM ${dumpTable} WHERE ${conditions} LIMIT 80`;
+    console.log(`\n🔍 [PARMY SQL] Standard search:\n   terms=${terms.join(', ')}\n   SQL: ${sqlStd}\n`);
+    const result = await pool.query(sqlStd, params);
     if (!result.rows.length) return `AUCUNE DONNÉE trouvée dans ${dumpTable} pour: ${terms.join(', ')}`;
     const header = 'dn | enodeb_id | mrbts_id | cell_name | vendor | site_name | bande | plaque | parameter | version | value';
     const lines = result.rows.map(r =>
