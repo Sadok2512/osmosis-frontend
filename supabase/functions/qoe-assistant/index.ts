@@ -1051,6 +1051,8 @@ function isParmyQuery(query: string): boolean {
 
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
+  // Parameter-focused queries with known prefixes → PARMY FIRST (before anything else)
+  if (extractParamName(query)) return "PARMY";
   // Topo inventory queries (nombre de cellules, combien de sites) → TOPO always first
   if (isTopoInventoryQuery(query)) return "TOPO";
   // Pure topo metric queries (just "tilt", "azimut", "hba") → TOPO
@@ -1073,6 +1075,8 @@ function classifyAgent(query: string): AgentId {
 
 function classifyIntent(query: string, scope: Scope): Intent {
   const n = query.toLowerCase();
+  // Parameter name detected → always param_audit
+  if (extractParamName(query)) return "param_audit";
   // Top/worst/best queries take HIGHEST priority (even if "par DOR" is present)
   const topHints = ["top", "pire", "worst", "meilleur", "best", "classement", "ranking", "dégradé", "degradé", "degraded"];
   if (topHints.some(h => n.includes(h))) return "top_degradations";
