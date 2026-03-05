@@ -118,12 +118,53 @@ export const dashboardsApi = {
 
 // ─── Map Views ───
 export const mapViewsApi = {
-  list: () => get<any[]>('map-views'),
-  create: (view: { name: string; settings: any; description?: string }) =>
-    post('map-views', view),
-  update: (id: string, updates: Record<string, any>) =>
-    put(`map-views/${id}`, updates),
-  remove: (id: string) => del(`map-views/${id}`),
+  list: async () => {
+    if (useLocal()) {
+      return get<any[]>('map-views');
+    }
+    const { data, error } = await supabase
+      .from('map_views')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data;
+  },
+  create: async (view: { name: string; settings: any; description?: string }) => {
+    if (useLocal()) {
+      return post('map-views', view);
+    }
+    const { data, error } = await supabase
+      .from('map_views')
+      .insert(view)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+  update: async (id: string, updates: Record<string, any>) => {
+    if (useLocal()) {
+      return put(`map-views/${id}`, updates);
+    }
+    const { data, error } = await supabase
+      .from('map_views')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+  remove: async (id: string) => {
+    if (useLocal()) {
+      return del(`map-views/${id}`);
+    }
+    const { error } = await supabase
+      .from('map_views')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return { ok: true };
+  },
 };
 
 // ─── Topo ───
