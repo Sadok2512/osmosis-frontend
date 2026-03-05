@@ -1146,6 +1146,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     const newSettings = { ...currentSettings, ...updates };
     await mapViewsApi.update(viewId, { settings: newSettings });
     setMapViews(prev => prev.map(v => v.id === viewId ? { ...v, settings: newSettings } : v));
+    // Also apply filters immediately
+    if (onApplyView) onApplyView(newSettings);
   };
 
   const handleRenameView = async (viewId: string, newName: string) => {
