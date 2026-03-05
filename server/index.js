@@ -2432,11 +2432,52 @@ app.post('/api/qoe-assistant', async (req, res) => {
           const headers = headerLine.split('|').map(h => h.trim());
           formattedResponse += '| ' + headers.join(' | ') + ' |\n';
           formattedResponse += '| ' + headers.map(() => '---').join(' | ') + ' |\n';
+          
+          // Parse rows for table + chart data
+          const chartData = [];
           for (const line of dataLines) {
             if (line.trim()) {
               const cells = line.split('|').map(c => c.trim());
               formattedResponse += '| ' + cells.join(' | ') + ' |\n';
+              // Build chart data: first col = dimension, last col = count
+              if (cells.length >= 2) {
+                const label = cells[0] || 'N/A';
+                const numericCol = cells[cells.length - 1];
+                const value = parseFloat(numericCol);
+                if (!isNaN(value)) {
+                  chartData.push({ dimension: label, count: value });
+                }
+              }
             }
+          }
+          
+          // Add inline bar chart if we have data
+          if (chartData.length > 0) {
+            // Aggregate by dimension (merge rows with same dimension)
+            const aggMap = {};
+            for (const d of chartData) {
+              aggMap[d.dimension] = (aggMap[d.dimension] || 0) + d.count;
+            }
+            const aggData = Object.entries(aggMap)
+              .map(([dim, cnt]) => ({ dimension: dim, count: cnt }))
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 20); // Top 20 for readability
+            
+            const PARMY_COLORS = [
+              '#6366f1', '#8b5cf6', '#a855f7', '#c084fc',
+              '#818cf8', '#7c3aed', '#6d28d9', '#5b21b6',
+              '#4f46e5', '#4338ca', '#3730a3', '#312e81'
+            ];
+            
+            const chartBlock = {
+              type: 'bar',
+              title: titleText.replace(/^DISTRIBUTION[^:]*:/i, '').trim().slice(0, 80) || 'Distribution',
+              xKey: 'dimension',
+              yKeys: ['count'],
+              data: aggData,
+              colors: PARMY_COLORS
+            };
+            formattedResponse += '\n```chart\n' + JSON.stringify(chartBlock) + '\n```\n';
           }
         } else {
           formattedResponse += '```\n' + dataSection + '\n```\n';
