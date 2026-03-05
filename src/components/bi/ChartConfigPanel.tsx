@@ -572,9 +572,13 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   <div className="flex-1 p-4 space-y-4">
                     {/* Top row: KPI name + delete */}
                     <div className="flex items-center gap-2">
-                      <span className="flex-1 text-[13px] font-bold text-foreground truncate">
+                      <button
+                        onClick={() => { setKpiModalTarget({ type: 'metric', index: i }); setKpiModalOpen(true); }}
+                        className="flex-1 text-left text-[13px] font-bold text-foreground truncate
+                          hover:text-primary transition-colors duration-150 cursor-pointer"
+                      >
                         {getKpiDisplayName(m.kpi)}
-                      </span>
+                      </button>
                       <button
                         onClick={() => removeMetric(i)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center
