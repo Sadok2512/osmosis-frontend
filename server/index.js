@@ -2430,6 +2430,19 @@ app.post('/api/qoe-assistant', async (req, res) => {
     const agentTag = `data: ${JSON.stringify({ choices: [{ delta: { content: `<!-- AGENT:${plan.agent} -->\n` } }] })}\n\n`;
     res.write(agentTag);
 
+    // Inject PARMY debug SQL block directly into stream so user ALWAYS sees it
+    if (plan.agent === 'PARMY' && resolved.parmySql) {
+      const debugMatch = resolved.parmySql.match(/🔍 DEBUG SQL: (.+?)(?:\n\n|$)/s);
+      const dataPreview = resolved.parmySql.replace(/🔍 DEBUG SQL: .+?\n\n/s, '').slice(0, 2000);
+      let debugBlock = '\n\n<details><summary>🔍 **DEBUG MODE — SQL & Données**</summary>\n\n';
+      if (debugMatch) {
+        debugBlock += '```sql\n' + debugMatch[1].trim() + '\n```\n\n';
+      }
+      debugBlock += '**Résultat brut (extrait) :**\n```\n' + dataPreview + '\n```\n\n</details>\n\n';
+      const debugSSE = `data: ${JSON.stringify({ choices: [{ delta: { content: debugBlock } }] })}\n\n`;
+      res.write(debugSSE);
+    }
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     while (true) {
