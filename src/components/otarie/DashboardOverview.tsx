@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List, Copy, Globe, Lock, Users, Share2, X } from 'lucide-react';
+import { LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User, BarChart2, Type, ImageIcon, Map as MapIcon, LayoutGrid, List, Copy, Globe, Lock, Users, Share2, X, Pencil, ExternalLink, Save } from 'lucide-react';
+import { AppTab } from '../../types';
 import { SavedDashboard } from '../bi/DashboardManager';
 import { WidgetItem } from '../bi/dashboardTypes';
 import { TableWidgetConfig } from '../bi/BITableWidget';
