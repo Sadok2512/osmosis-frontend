@@ -1024,9 +1024,9 @@ function extractParameterName(query) {
 function extractGroupByColumn(query) {
   const normalized = query.toLowerCase();
   const mappings = {
-    'plaque': 'plaque', 'upr': 'ur', 'vendor': 'vendor', 'site': 'site_name',
-    'bande': 'bande', 'dor': 'dor', 'region': 'dr', 'zone': 'zone_arcep',
-    'omc': 'omc', 'city': 'city', 'ville': 'city',
+    'plaque': 'plaque', 'vendor': 'vendor', 'site': 'site_name',
+    'bande': 'bande', 'dor': 'dor', 'region': 'dor', 'zone': 'zone_arcep',
+    'netact': 'netact',
   };
   for (const [hint, col] of Object.entries(mappings)) {
     if (normalized.includes(hint)) return col;
