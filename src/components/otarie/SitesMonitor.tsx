@@ -4167,8 +4167,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (settings.center && Array.isArray(settings.center)) {
                       setFlyTarget(settings.center as [number, number]);
                     }
-                    if (settings.mapTechnoFilter) {
-                      // Apply tech filter if present
+                    // Apply view filters (topo + qoe)
+                    if (Array.isArray(settings.viewFilters)) {
+                      setActiveViewFilters(settings.viewFilters);
+                      // Apply topo filters to local state
+                      for (const f of settings.viewFilters) {
+                        if (f.mode === 'topo') {
+                          if (f.tech) {
+                            const t = f.tech === '4G' ? '4G' : f.tech === '5G' ? '5G' : 'ALL';
+                            setLocalTechno(t as any);
+                          }
+                          if (f.attribute === 'constructeur' && f.value) setLocalVendor(f.value);
+                          if (f.attribute === 'bande' && f.value) setLocalBande(f.value);
+                          if (f.attribute === 'zone_arcep' && f.value) setLocalZoneArcep(f.value);
+                        }
+                      }
+                    } else {
+                      setActiveViewFilters([]);
                     }
                   }}
                   beamVisibility={beamVisibility}
