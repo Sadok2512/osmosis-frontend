@@ -1791,31 +1791,25 @@ serve(async (req) => {
     (async () => {
       await writer.write(metaChunk);
 
-      // Inject SQL debug block for PARMY agent (plain markdown, not <details> which ReactMarkdown strips)
-      if (plan.agent === "PARMY" && parmySqlDebug) {
-        // Match both "SQL: ..." and "SQL QUERY (N results):\n..."
-        const sqlMatch = parmySqlDebug.match(/(?:SQL(?:\s*QUERY[^:]*)?:\s*)(.+?)(?:\n\n|$)/s);
-        const sqlQuery = sqlMatch ? sqlMatch[1].trim() : "";
-        const dataPreview = parmySqlDebug.slice(0, 2000);
-        let debugBlock = "\n\n---\n\n🔍 **DEBUG — SQL & Données brutes**\n\n";
-        if (sqlQuery) {
-          debugBlock += "```sql\n" + sqlQuery + "\n```\n\n";
-        } else {
-          debugBlock += "*(Aucune requête SQL générée)*\n\n";
-        }
-        debugBlock += "**Résultat brut (extrait) :**\n```\n" + dataPreview + "\n```\n\n---\n\n";
-        const debugChunk = encoder.encode(
-          `data: ${JSON.stringify({ choices: [{ delta: { content: debugBlock } }] })}\n\n`
-        );
-        await writer.write(debugChunk);
-      }
-
+      // Stream the AI response first
       const reader = originalBody.getReader();
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         await writer.write(value);
       }
+
+      // Append SQL debug block AFTER the AI response for PARMY agent
+      if (plan.agent === "PARMY" && parmySqlDebug) {
+        const sqlMatch = parmySqlDebug.match(/(?:SQL(?:\s*QUERY[^:]*)?:\s*)(.+?)(?:\n\n|$)/s);
+        const sqlQuery = sqlMatch ? sqlMatch[1].trim() : "";
+        let debugBlock = "\n\n---\n\n**⚙️ Requête SQL exécutée :**\n\n```sql\n" + (sqlQuery || "(aucune SQL générée)") + "\n```\n\n";
+        const debugChunk = encoder.encode(
+          `data: ${JSON.stringify({ choices: [{ delta: { content: debugBlock } }] })}\n\n`
+        );
+        await writer.write(debugChunk);
+      }
+
       await writer.close();
     })();
 
