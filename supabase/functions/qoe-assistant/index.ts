@@ -1075,6 +1075,8 @@ function classifyAgent(query: string): AgentId {
 
 function classifyIntent(query: string, scope: Scope): Intent {
   const n = query.toLowerCase();
+  // Parameter name detected → always param_audit
+  if (extractParamName(query)) return "param_audit";
   // Top/worst/best queries take HIGHEST priority (even if "par DOR" is present)
   const topHints = ["top", "pire", "worst", "meilleur", "best", "classement", "ranking", "dégradé", "degradé", "degraded"];
   if (topHints.some(h => n.includes(h))) return "top_degradations";
