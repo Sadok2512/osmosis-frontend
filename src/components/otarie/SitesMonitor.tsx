@@ -671,36 +671,87 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                   <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{localFilters.length}</span>
                 )}
               </div>
+              {/* Existing filters display */}
               {localFilters.length > 0 && (
                 <div className="space-y-1.5 mb-3">
                   {localFilters.map((f, i) => (
                     <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-card">
                       <div className="flex items-center gap-2 text-[11px]">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${f.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{f.tech}</span>
-                        <span className="font-medium text-muted-foreground">{SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === f.attribute)?.label}</span>
-                        <span className="text-muted-foreground/50">→</span>
-                        <span className="font-semibold text-foreground">{f.value}</span>
+                        {f.mode === 'topo' ? (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-accent/20 text-accent-foreground">TOPO</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${f.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{f.tech}</span>
+                            <span className="font-medium text-muted-foreground">{SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === f.attribute)?.label}</span>
+                            <span className="text-muted-foreground/50">→</span>
+                            <span className="font-semibold text-foreground">{f.value}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-500/15 text-amber-600">QOE</span>
+                            <span className="font-medium text-muted-foreground">{QOE_FILTER_KPIS.find(k => k.key === f.kpi)?.label}</span>
+                            <span className="font-bold text-foreground">{QOE_OPERATORS.find(o => o.key === f.operator)?.label}</span>
+                            <span className="font-semibold text-primary">{f.threshold}{QOE_FILTER_KPIS.find(k => k.key === f.kpi)?.unit}</span>
+                          </>
+                        )}
                       </div>
                       <button onClick={() => removeFilterAt(i)} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X size={12} /></button>
                     </div>
                   ))}
                 </div>
               )}
+
+              {/* Step: idle — Add filter button */}
               {filterStep === 'idle' && (
-                <button onClick={() => setFilterStep('pick_tech')}
+                <button onClick={() => setFilterStep('pick_mode')}
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[11px] font-bold text-primary border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all w-full justify-center">
                   <Plus size={14} /><span>Ajouter un filtre</span>
                 </button>
               )}
+
+              {/* Step 1: Choose TOPO or QOE */}
+              {filterStep === 'pick_mode' && (
+                <div className="border border-border rounded-xl bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Étape 1 — Type de filtre</span>
+                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => { setFilterDraft({ mode: 'topo' }); setFilterStep('pick_tech'); }}
+                      className="group flex flex-col items-center gap-2 px-4 py-5 rounded-xl border-2 border-border hover:border-primary/50 hover:bg-primary/5 transition-all">
+                      <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                        <Network size={20} className="text-accent-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                      <span className="text-[12px] font-black uppercase tracking-wider text-muted-foreground group-hover:text-foreground">TOPO</span>
+                      <span className="text-[9px] text-muted-foreground/70 text-center leading-tight">Filtrer par attribut réseau</span>
+                    </button>
+                    <button onClick={() => { setFilterDraft({ mode: 'qoe' }); setFilterStep('pick_kpi'); }}
+                      className="group flex flex-col items-center gap-2 px-4 py-5 rounded-xl border-2 border-border hover:border-amber-400/50 hover:bg-amber-500/5 transition-all">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/15 transition-colors">
+                        <Activity size={20} className="text-amber-600 group-hover:text-amber-500 transition-colors" />
+                      </div>
+                      <span className="text-[12px] font-black uppercase tracking-wider text-muted-foreground group-hover:text-foreground">QOE</span>
+                      <span className="text-[9px] text-muted-foreground/70 text-center leading-tight">Filtrer par performance KPI</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TOPO Branch — Step 2: Pick tech */}
               {filterStep === 'pick_tech' && (
                 <div className="border border-border rounded-xl bg-card p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Étape 1 — Choisir la technologie</span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setFilterStep('pick_mode')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 bg-accent/20 text-accent-foreground">TOPO</span>
+                        Étape 2 — Technologie
+                      </span>
+                    </div>
                     <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {['4G', '5G'].map(t => (
-                      <button key={t} onClick={() => { setFilterDraft({ tech: t }); setFilterStep('pick_attr'); }}
+                      <button key={t} onClick={() => { setFilterDraft(prev => ({ ...prev, tech: t })); setFilterStep('pick_attr'); }}
                         className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[12px] font-bold border-2 border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all">
                         <span>{t === '5G' ? '🚀' : '📶'}</span><span>{t}</span>
                       </button>
@@ -708,6 +759,8 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                   </div>
                 </div>
               )}
+
+              {/* TOPO Branch — Step 3: Pick attribute */}
               {filterStep === 'pick_attr' && (
                 <div className="border border-border rounded-xl bg-card p-3 space-y-1">
                   <div className="flex items-center justify-between mb-1">
@@ -715,7 +768,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                       <button onClick={() => setFilterStep('pick_tech')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
-                        Étape 2 — Choisir l'attribut
+                        Étape 3 — Attribut
                       </span>
                     </div>
                     <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
@@ -729,6 +782,8 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                   ))}
                 </div>
               )}
+
+              {/* TOPO Branch — Step 4: Pick value */}
               {filterStep === 'pick_value' && filterDraft.attribute && (
                 <div className="border border-border rounded-xl bg-card p-3 space-y-1">
                   <div className="flex items-center justify-between mb-1">
@@ -736,7 +791,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                       <button onClick={() => setFilterStep('pick_attr')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
-                        {SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label} — Choisir la valeur
+                        {SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label} — Valeur
                       </span>
                     </div>
                     <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
@@ -744,10 +799,10 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                   {SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.freeText ? (
                     <div className="flex gap-2">
                       <input type="text" value={freeTextValue} onChange={e => setFreeTextValue(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter' && freeTextValue.trim()) { commitFilter(freeTextValue.trim()); setFreeTextValue(''); } }}
+                        onKeyDown={e => { if (e.key === 'Enter' && freeTextValue.trim()) { commitFilter(freeTextValue.trim()); } }}
                         placeholder={`Entrer ${SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label}...`}
                         className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" autoFocus />
-                      <button onClick={() => { if (freeTextValue.trim()) { commitFilter(freeTextValue.trim()); setFreeTextValue(''); } }}
+                      <button onClick={() => { if (freeTextValue.trim()) commitFilter(freeTextValue.trim()); }}
                         disabled={!freeTextValue.trim()} className="px-3 py-2 rounded-lg text-[11px] font-bold bg-primary text-primary-foreground disabled:opacity-40 hover:bg-primary/90 transition-all">OK</button>
                     </div>
                   ) : (
@@ -760,6 +815,115 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* QOE Branch — Step 2: Pick KPI */}
+              {filterStep === 'pick_kpi' && (
+                <div className="border border-border rounded-xl bg-card p-3 space-y-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setFilterStep('pick_mode')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 bg-amber-500/15 text-amber-600">QOE</span>
+                        Étape 2 — Indicateur KPI
+                      </span>
+                    </div>
+                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                  </div>
+                  <input
+                    type="text"
+                    value={kpiSearch}
+                    onChange={e => setKpiSearch(e.target.value)}
+                    placeholder="Rechercher un KPI..."
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    autoFocus
+                  />
+                  <div className="max-h-48 overflow-y-auto space-y-0.5">
+                    {QOE_FILTER_KPIS
+                      .filter(k => !kpiSearch || k.label.toLowerCase().includes(kpiSearch.toLowerCase()) || k.key.toLowerCase().includes(kpiSearch.toLowerCase()))
+                      .map(kpi => (
+                      <button key={kpi.key} onClick={() => { setFilterDraft(prev => ({ ...prev, kpi: kpi.key })); setFilterStep('pick_operator'); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-amber-500/5 transition-all group">
+                        <span className="text-base">{kpi.icon}</span>
+                        <span className="flex-1 text-left">{kpi.label}</span>
+                        <span className="text-[9px] font-mono text-muted-foreground/50 group-hover:text-muted-foreground">{kpi.unit}</span>
+                        <ChevronRight size={10} className="text-muted-foreground/30 group-hover:text-muted-foreground" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* QOE Branch — Step 3: Pick operator */}
+              {filterStep === 'pick_operator' && (
+                <div className="border border-border rounded-xl bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setFilterStep('pick_kpi')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 bg-amber-500/15 text-amber-600">QOE</span>
+                        {QOE_FILTER_KPIS.find(k => k.key === filterDraft.kpi)?.label} — Opérateur
+                      </span>
+                    </div>
+                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                  </div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {QOE_OPERATORS.map(op => (
+                      <button key={op.key} onClick={() => { setFilterDraft(prev => ({ ...prev, operator: op.key })); setFilterStep('pick_threshold'); }}
+                        className="flex flex-col items-center gap-1 px-2 py-3 rounded-xl border-2 border-border hover:border-amber-400/50 hover:bg-amber-500/5 transition-all group">
+                        <span className="text-[18px] font-black text-foreground group-hover:text-amber-600">{op.label}</span>
+                        <span className="text-[8px] text-muted-foreground/60 group-hover:text-muted-foreground">{op.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* QOE Branch — Step 4: Enter threshold value */}
+              {filterStep === 'pick_threshold' && (
+                <div className="border border-border rounded-xl bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setFilterStep('pick_operator')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 bg-amber-500/15 text-amber-600">QOE</span>
+                        Seuil
+                      </span>
+                    </div>
+                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
+                  </div>
+                  {/* Summary of what's being filtered */}
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/50">
+                    <span className="text-[10px] font-bold text-foreground">{QOE_FILTER_KPIS.find(k => k.key === filterDraft.kpi)?.label}</span>
+                    <span className="text-[14px] font-black text-amber-600">{QOE_OPERATORS.find(o => o.key === filterDraft.operator)?.label}</span>
+                    <span className="text-[10px] text-muted-foreground">?</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="number"
+                        value={thresholdInput}
+                        onChange={e => setThresholdInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && thresholdInput.trim()) commitFilter(); }}
+                        placeholder="Entrer la valeur..."
+                        className="w-full px-3 py-3 rounded-xl border-2 border-border bg-background text-[14px] font-bold text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                        autoFocus
+                      />
+                      {QOE_FILTER_KPIS.find(k => k.key === filterDraft.kpi)?.unit && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-muted-foreground">
+                          {QOE_FILTER_KPIS.find(k => k.key === filterDraft.kpi)?.unit}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => commitFilter()}
+                    disabled={!thresholdInput.trim() || isNaN(parseFloat(thresholdInput))}
+                    className="w-full py-3 rounded-xl text-[12px] font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20"
+                  >
+                    ✓ Confirmer le filtre
+                  </button>
                 </div>
               )}
             </div>
