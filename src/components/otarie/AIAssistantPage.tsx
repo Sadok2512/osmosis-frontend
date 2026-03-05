@@ -240,8 +240,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       addDebugLog(`Error: ${errBody.slice(0, 200)}`);
       if (resp.status === 429) { toast({ title: 'Limite atteinte', description: 'Réessayez dans un instant.', variant: 'destructive' }); throw new Error('Rate limited'); }
       if (resp.status === 402) { toast({ title: 'Crédits insuffisants', variant: 'destructive' }); throw new Error('Payment required'); }
-      if (usedCloud) throw new Error(`Cloud error (${resp.status}): ${errBody.slice(0, 100)}`);
-      throw new Error('Failed to start stream');
+      throw new Error(`Server error (${resp.status}): ${errBody.slice(0, 100)}`);
     }
 
     if (!resp.body) throw new Error('No body');
