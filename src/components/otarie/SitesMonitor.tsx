@@ -1177,33 +1177,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       )}
 
-      {/* Save/Load actions */}
-      {expandedDashboardId && (
-        <div className="mb-3 grid grid-cols-3 gap-1.5">
-          <button
-            onClick={() => { if (onSaveDashboard) onSaveDashboard(expandedDashboardId); }}
-            disabled={isSaving}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary"
-          >
-            {isSaving ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
-            <span className="uppercase tracking-wider">Save</span>
-          </button>
-          <button
-            onClick={() => { if (onLoadDashboard) onLoadDashboard(expandedDashboardId); }}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted"
-          >
-            <FolderOpen size={12} />
-            <span className="uppercase tracking-wider">Load</span>
-          </button>
-          <button
-            onClick={() => requestDashboardSwitch(null)}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
-          >
-            <X size={12} />
-            <span className="uppercase tracking-wider">Close</span>
-          </button>
-        </div>
-      )}
+
 
       {dashboards.length === 0 ? (
         <div className="px-3 py-3 text-center text-[10px] text-muted-foreground/60">Aucun dashboard</div>
