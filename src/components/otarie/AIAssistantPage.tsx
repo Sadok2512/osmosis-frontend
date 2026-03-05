@@ -769,31 +769,68 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
 
         {/* ══════════ BOTTOM CHAT INPUT ══════════ */}
         <div className="border-t border-border bg-card/80 backdrop-blur-sm px-5 py-3.5">
-          <div className="max-w-4xl mx-auto flex items-end gap-3">
-            <div className="flex-1 relative">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask a question about network QoE..."
-                rows={1}
-                className="w-full resize-none bg-background border border-border rounded-xl px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all max-h-32 overflow-y-auto shadow-sm"
-                style={{ minHeight: 48 }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(target.scrollHeight, 128) + 'px';
-                }}
-              />
+          <div className="max-w-4xl mx-auto">
+            {/* Agent force selector */}
+            <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
+              <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider mr-1">Agent :</span>
+              <button
+                onClick={() => setForcedAgent(null)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${
+                  !forcedAgent
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted border border-border/50'
+                }`}
+              >
+                Auto
+              </button>
+              {(['PULSE', 'PARMY', 'TOPO', 'TRACE', 'SENTINEL'] as AgentId[]).map(agent => {
+                const meta = AGENT_META[agent];
+                const isActive = forcedAgent === agent;
+                return (
+                  <button
+                    key={agent}
+                    onClick={() => setForcedAgent(isActive ? null : agent)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all flex items-center gap-1 ${
+                      isActive
+                        ? 'text-primary-foreground shadow-sm'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted border border-border/50'
+                    }`}
+                    style={isActive ? { backgroundColor: meta.color } : undefined}
+                    title={`Forcer l'agent ${agent}`}
+                  >
+                    <span>{meta.emoji}</span>
+                    {agent}
+                  </button>
+                );
+              })}
             </div>
-            <button
-              onClick={() => send()}
-              disabled={!input.trim() || isLoading}
-              className="w-11 h-11 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0 shadow-sm"
-            >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </button>
+
+            <div className="flex items-end gap-3">
+              <div className="flex-1 relative">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={forcedAgent ? `Ask ${forcedAgent}...` : "Ask a question about network QoE..."}
+                  rows={1}
+                  className="w-full resize-none bg-background border border-border rounded-xl px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all max-h-32 overflow-y-auto shadow-sm"
+                  style={{ minHeight: 48 }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+                  }}
+                />
+              </div>
+              <button
+                onClick={() => send()}
+                disabled={!input.trim() || isLoading}
+                className="w-11 h-11 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0 shadow-sm"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           <p className="text-[10px] text-muted-foreground/50 text-center mt-2">
             QOEBIT • AI-powered network analytics
