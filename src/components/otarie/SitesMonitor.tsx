@@ -1358,7 +1358,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 {isEditingDb && (
                   <DashboardSettingsPanel
                     settings={dbSettings}
-                    onUpdate={(u) => updateDashboardSettings(db.id, u)}
+                    onUpdate={(u) => { updateDashboardSettings(db.id, u); if (onApplyView) onApplyView(u); }}
                     onRename={(name) => renameDashboard(db.id, name)}
                     currentName={db.name}
                     dashboardId={db.id}
