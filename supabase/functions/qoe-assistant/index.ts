@@ -674,7 +674,173 @@ async function searchDumpParameters(query: string): Promise<string> {
   } catch (e) {
     console.error("dump_parameter search failed:", e);
     return "";
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PARMY SQL ENGINE — AI-powered SQL generation for parameter_dump
+// ═══════════════════════════════════════════════════════════════
+
+const PARMY_SQL_SCHEMA = `
+Table: parameter_dump
+Columns:
+  - site_name (text) — site identifier
+  - cell_name (text) — cell identifier  
+  - cell_dn (text) — cell distinguished name
+  - dn (text) — distinguished name (MO path)
+  - parameter (text) — parameter name (e.g. LNCEL.pMax, NRCELL.dlMimoMode)
+  - value (text) — parameter value (as text, cast to numeric if needed)
+  - version (text) — software version
+  - vendor (text) — equipment vendor (Nokia, Ericsson, etc.)
+  - bande (text) — frequency band (NR_3500, LTE2100, etc.)
+  - plaque (text) — regional plaque
+  - dor (text) — DOR region
+  - zone_arcep (text) — ARCEP zone classification
+  - netact (text) — network management system
+  - mrbts_id (integer) — MRBTS identifier
+  - enodeb_id (integer) — eNodeB identifier
+  - gnodeb_id (integer) — gNodeB identifier
+  - latitude (double precision)
+  - longitude (double precision)
+
+IMPORTANT RULES:
+- ONLY generate SELECT queries on parameter_dump
+- Always include LIMIT (max 500)
+- Use ILIKE for text matching
+- For numeric analysis, CAST value to numeric: CAST(value AS numeric)
+- Use GROUP BY for aggregations
+- Common patterns: COUNT, COUNT(DISTINCT ...), distribution with GROUP BY value, cross-tab with GROUP BY vendor/plaque/bande
+`;
+
+async function generateAndExecuteParmySql(
+  userQuery: string,
+  filters?: AssistantFilters
+): Promise<string> {
+  try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    const useLovable = !!LOVABLE_API_KEY && !OPENROUTER_API_KEY;
+
+    if (!LOVABLE_API_KEY && !OPENROUTER_API_KEY) {
+      return "SQL engine unavailable: no AI API key configured.";
+    }
+
+    // Build filter context
+    let filterContext = "";
+    if (filters?.vendor) filterContext += `\nActive filter: vendor = '${filters.vendor}'`;
+    if (filters?.plaque) filterContext += `\nActive filter: plaque = '${filters.plaque}'`;
+    if (filters?.dor) filterContext += `\nActive filter: dor = '${filters.dor}'`;
+
+    const sqlPrompt = `You are a SQL expert. Generate a PostgreSQL SELECT query for the parameter_dump table based on the user's question.
+
+${PARMY_SQL_SCHEMA}
+${filterContext}
+
+User question: "${userQuery}"
+
+Rules:
+1. Output ONLY the SQL query, no explanation, no markdown code block
+2. ONLY SELECT from parameter_dump
+3. Always add LIMIT 500 at the end
+4. Use ILIKE for text pattern matching
+5. For value distributions, GROUP BY value and ORDER BY count DESC
+6. For cross-dimension analysis, use multiple GROUP BY columns
+7. Apply any active filters as WHERE conditions
+8. If the user asks about a specific parameter (e.g. LNCEL.pMax), filter on parameter ILIKE '%LNCEL.pMax%'
+9. For numeric comparisons on value column, use: CAST(NULLIF(value, '') AS numeric)
+10. Include useful aggregations: COUNT(*), COUNT(DISTINCT site_name), COUNT(DISTINCT cell_name)
+
+Generate the SQL now:`;
+
+    const aiUrl = useLovable
+      ? "https://ai.gateway.lovable.dev/v1/chat/completions"
+      : "https://openrouter.ai/api/v1/chat/completions";
+
+    const aiHeaders: Record<string, string> = { "Content-Type": "application/json" };
+    if (useLovable) {
+      aiHeaders["Authorization"] = `Bearer ${LOVABLE_API_KEY}`;
+    } else {
+      aiHeaders["Authorization"] = `Bearer ${OPENROUTER_API_KEY}`;
+    }
+
+    const model = useLovable ? "google/gemini-2.5-flash-lite" : "google/gemini-2.5-flash-preview-05-20";
+
+    const aiResponse = await fetch(aiUrl, {
+      method: "POST",
+      headers: aiHeaders,
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: sqlPrompt }],
+        stream: false,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      console.error("PARMY SQL gen AI error:", aiResponse.status);
+      return "";
+    }
+
+    const aiData = await aiResponse.json();
+    let generatedSql = aiData.choices?.[0]?.message?.content?.trim() || "";
+    
+    // Clean up: remove markdown code blocks if present
+    generatedSql = generatedSql.replace(/^```(?:sql)?\n?/i, "").replace(/\n?```$/i, "").trim();
+    
+    if (!generatedSql || !generatedSql.toLowerCase().startsWith("select")) {
+      console.error("PARMY SQL gen: invalid SQL output:", generatedSql);
+      return "";
+    }
+
+    console.log(`⚙️ PARMY SQL generated: ${generatedSql.slice(0, 200)}`);
+
+    // Execute via RPC
+    const supabase = getSupabase();
+    const { data, error } = await supabase.rpc("execute_parmy_sql", { query_sql: generatedSql });
+
+    if (error) {
+      console.error("PARMY SQL execution error:", error);
+      return `⚠️ SQL EXECUTION ERROR: ${error.message}\nGenerated SQL: ${generatedSql}`;
+    }
+
+    const rows = data as any[];
+    if (!rows || rows.length === 0) {
+      return `SQL QUERY (0 results):\n${generatedSql}\n\nAucun résultat trouvé.`;
+    }
+
+    // Format results as a table
+    const columns = Object.keys(rows[0]);
+    const header = columns.join(" | ");
+    const separator = columns.map(() => "---").join(" | ");
+    const lines = rows.slice(0, 100).map((r: any) =>
+      columns.map(c => {
+        const v = r[c];
+        return v != null ? String(v) : "-";
+      }).join(" | ")
+    );
+
+    // Build chart data if aggregation detected
+    let chartBlock = "";
+    if (generatedSql.toLowerCase().includes("group by") && columns.length >= 2) {
+      const labelCol = columns[0];
+      const valueCol = columns.find(c => c === "count" || c === "nb" || c === "total" || c === "avg_value" || c === "nb_cells" || c === "nb_sites") || columns[columns.length - 1];
+      const chartData = rows.slice(0, 20).map((r: any) => ({
+        label: String(r[labelCol] || "N/A").slice(0, 30),
+        value: Number(r[valueCol]) || 0,
+      }));
+      chartBlock = `\n\nINSTRUCTION: Inclus ce chart:\n\`\`\`chart\n${JSON.stringify({
+        type: "bar",
+        title: `Résultat PARMY SQL`,
+        xKey: "label",
+        yKeys: ["value"],
+        data: chartData,
+      })}\n\`\`\``;
+    }
+
+    return `⚙️ PARMY SQL ENGINE — Requête exécutée avec succès\nSQL: ${generatedSql}\n\nRÉSULTATS (${rows.length} lignes):\n${header}\n${separator}\n${lines.join("\n")}${chartBlock}\n\nINSTRUCTION: Présente ces résultats de manière structurée avec analyse et recommandations.`;
+  } catch (e) {
+    console.error("PARMY SQL engine failed:", e);
+    return "";
   }
+}
 }
 
 async function searchParameterChanges(query: string): Promise<string> {
@@ -1052,7 +1218,8 @@ function buildContextPlan(
         break;
 
       case "PARMY":
-        needs.push("documents_rag", "param_dump");
+        needs.push("documents_rag", "parmy_sql");
+        if (isParameterFocusedQuery(query)) needs.push("param_dump");
         if (scope.level === "site") needs.push("topology", "kpi_snapshot");
         if (isChangeHistoryQuery(query)) needs.push("change_history");
         break;
