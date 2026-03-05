@@ -1589,6 +1589,7 @@ serve(async (req) => {
       model: requestedModel,
       cellContext: legacyCellContext,
       kpiMonitorContext,
+      forcedAgent,
     } = body;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -1602,6 +1603,12 @@ serve(async (req) => {
     const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === "user")?.content || "";
 
     const plan = buildContextPlan(lastUserMessage, uiScope, filters);
+
+    // Override agent if user forced selection
+    if (forcedAgent && ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"].includes(forcedAgent)) {
+      plan.agent = forcedAgent as AgentId;
+      console.log(`🎯 Agent FORCÉ par l'utilisateur: ${forcedAgent}`);
+    }
 
     console.log(`🧠 QOEBIT → ${plan.agent} | intent=${plan.intent} | scope=${JSON.stringify(plan.scope)}`);
 

@@ -111,6 +111,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   }, [sessionStore]);
 
   const [input, setInput] = useState('');
+  const [forcedAgent, setForcedAgent] = useState<AgentId | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
