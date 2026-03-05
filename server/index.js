@@ -1912,7 +1912,56 @@ async function searchParameterChangesLocal(query) {
   } catch (e) { console.error('[searchParameterChangesLocal]', e.message); return ''; }
 }
 
-// ─── Dimension-based data providers on qoe_metric ───
+// ─── Time-series data provider on qoe_metric ───
+async function fetchKpiTimeSeriesLocal(metric, filters, days) {
+  days = days || 7;
+  try {
+    const src = await detectKpiTable();
+    if (!src) return '';
+    const { dim1, dim2 } = dimCols(src.isQoeMetric);
+    const colRes = await sharedPool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND table_schema = 'public'`, [src.table]
+    );
+    const availCols = new Set(colRes.rows.map(r => r.column_name));
+    const metricCol = availCols.has(metric) ? metric : 'qoe_index';
+    const hasDatePart = availCols.has('date_part');
+    if (!hasDatePart) return `Table ${src.table} does not have date_part column for time-series.`;
+
+    let sql = `SELECT date_part, AVG(${metricCol}) AS value`;
+    if (availCols.has('session_nbr')) sql += `, SUM(session_nbr) AS sessions`;
+    sql += ` FROM ${src.table} WHERE date_part >= (CURRENT_DATE - INTERVAL '${days} days')::text`;
+    const params = [];
+    let pi = 1;
+    if (filters?.vendor) { sql += ` AND ${availCols.has('constructeur') ? 'constructeur' : 'vendor'} ILIKE $${pi++}`; params.push(`%${filters.vendor}%`); }
+    if (filters?.techno) { sql += ` AND techno = $${pi++}`; params.push(filters.techno); }
+    if (filters?.plaque) { sql += ` AND plaque = $${pi++}`; params.push(filters.plaque); }
+    if (filters?.dor) { sql += ` AND dor = $${pi++}`; params.push(filters.dor); }
+    sql += ` GROUP BY date_part ORDER BY date_part ASC`;
+    console.log(`[fetchKpiTimeSeriesLocal] ${sql} params=${JSON.stringify(params)}`);
+    const { rows } = await sharedPool.query(sql, params);
+    if (!rows.length) return `Aucune donnée temporelle pour ${metricCol} sur les ${days} derniers jours.`;
+
+    // Build markdown table
+    const header = `| Date | ${metricCol} |`;
+    const sep = '|---|---|';
+    const lines = rows.map(r => `| ${r.date_part} | ${Number(r.value).toFixed(2)} |`);
+
+    // Build line chart
+    const chartData = rows.map(r => ({ date: r.date_part?.slice(5) || r.date_part, [metricCol]: Math.round(Number(r.value) * 100) / 100 }));
+    const chartJson = JSON.stringify({
+      type: 'line',
+      title: `${metricCol} — ${days} derniers jours`,
+      xKey: 'date',
+      yKeys: [metricCol],
+      data: chartData,
+      colors: ['#3b82f6']
+    });
+
+    const filterDesc = [filters?.vendor, filters?.techno, filters?.plaque, filters?.dor].filter(Boolean).join(', ');
+    return `TENDANCE ${metricCol} sur ${days} jours${filterDesc ? ` (${filterDesc})` : ''} (${rows.length} points, source: ${src.table}):\n\n${header}\n${sep}\n${lines.join('\n')}\n\nINSTRUCTION: Affiche ces données en tendance temporelle. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+  } catch (e) { console.error('[fetchKpiTimeSeriesLocal]', e.message); return ''; }
+}
+
 async function fetchMetricDistributionLocal(dimension1Type, metric, filters, days, limit) {
   days = days || 7; limit = limit || 30;
   try {
