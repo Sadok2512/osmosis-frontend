@@ -551,6 +551,18 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                       <User className="w-3 h-3" /> {db.ownerUsername}
                     </p>
                     <div className="flex items-center gap-0.5">
+                      <span onClick={(e) => { e.stopPropagation(); setSelectedId(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Voir">
+                        <Eye className="w-3.5 h-3.5" />
+                      </span>
+                      <span onClick={(e) => { e.stopPropagation(); setEditModalId(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Modifier les infos">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </span>
+                      <span onClick={(e) => { e.stopPropagation(); openInEditor(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Ouvrir en édition">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </span>
                       <span onClick={(e) => { e.stopPropagation(); setSharePopoverId(sharePopoverId === db.id ? null : db.id); }}
                         className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Partager">
                         <Share2 className="w-3.5 h-3.5" />
@@ -559,7 +571,6 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                         className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Dupliquer">
                         <Copy className="w-3.5 h-3.5" />
                       </span>
-                      <Eye className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
                   {sharePopoverId === db.id && (
