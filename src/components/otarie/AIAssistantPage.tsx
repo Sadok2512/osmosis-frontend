@@ -222,7 +222,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     addDebugLog(`Model: ${llmModel || '(default)'}`);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => { addDebugLog('⏱️ Timeout 120s'); controller.abort(); }, 120000);
+    const timeoutMs = 300000; // 5 min for PARMY fuzzy + SQL
+    const timeoutId = setTimeout(() => { addDebugLog(`⏱️ Timeout ${timeoutMs / 1000}s`); controller.abort(); }, timeoutMs);
 
     let resp: Response;
     try {
