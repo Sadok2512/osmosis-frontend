@@ -1135,18 +1135,18 @@ async function searchDumpParameterLocal(query) {
     if (paramName && siteName && !isDistrib) {
       const sqlText = `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
          FROM ${dumpTable}
-         WHERE parameter = '${paramName}' AND site_name ILIKE '%${siteName}%'
+         WHERE parameter ILIKE '${paramName}' AND site_name ILIKE '%${siteName}%'
          ORDER BY cell_name, parameter LIMIT 200`;
       console.log(`\n🔍 [PARMY SQL] Site+param search:\n   param=${paramName}, site=${siteName}\n   SQL: ${sqlText}\n`);
       const result = await pool.query(
         `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
-         FROM ${dumpTable} WHERE parameter = $1 AND site_name ILIKE $2
+         FROM ${dumpTable} WHERE parameter ILIKE $1 AND site_name ILIKE $2
          ORDER BY cell_name, parameter LIMIT 200`,
         [paramName, `%${siteName}%`]
       );
       if (!result.rows.length) {
         const siteCheck = await pool.query(`SELECT DISTINCT site_name FROM ${dumpTable} WHERE site_name ILIKE $1 LIMIT 5`, [`%${siteName}%`]);
-        const paramCheck = await pool.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter = $1 LIMIT 10`, [paramName]);
+        const paramCheck = await pool.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`, [paramName]);
         let msg = `🔍 DEBUG SQL: ${sqlText}\n\nRÉSULTAT DE RECHERCHE : AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" sur le site "${siteName}".\n`;
         if (!siteCheck.rows.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base ${dumpTable}.\n`;
         else msg += `Sites similaires : ${siteCheck.rows.map(r => r.site_name).join(', ')}\n`;
@@ -1164,22 +1164,64 @@ async function searchDumpParameterLocal(query) {
 
     if (isDistrib && paramName) {
       const groupCol = extractGroupByColumn(query);
-      const sqlText = `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
+      
+      // Try exact match first, then ILIKE fallback (handles case differences)
+      let sqlText = `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
          FROM ${dumpTable} WHERE parameter = '${paramName}'
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC`;
-      console.log(`\n🔍 [PARMY SQL] Distribution query (single query, no pre-check):\n   param=${paramName}, groupBy=${groupCol}\n   SQL: ${sqlText}\n`);
+      console.log(`\n🔍 [PARMY SQL] Distribution query:\n   param=${paramName}, groupBy=${groupCol}\n   SQL: ${sqlText}\n`);
 
-      // Execute directly — resolveParamFromCache already validated parameter exists
-      const result = await pool.query(
+      let result = await pool.query(
         `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
          FROM ${dumpTable} WHERE parameter = $1
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC`,
         [paramName]
       );
+
+      // Fallback: try ILIKE if exact match returned 0 rows (case mismatch)
       if (!result.rows.length) {
-        return `🔍 DEBUG SQL: ${sqlText}\n\n⚠️ AUCUNE DONNÉE trouvée pour "${paramName}" dans la base ${dumpTable}.`;
+        console.log(`   ⚠️ [PARMY] Exact match returned 0 rows, trying ILIKE fallback...`);
+        sqlText = `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
+         FROM ${dumpTable} WHERE parameter ILIKE '${paramName}'
+         GROUP BY COALESCE(${groupCol}, 'N/A'), value
+         ORDER BY dimension, nb_cells DESC`;
+        result = await pool.query(
+          `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
+           FROM ${dumpTable} WHERE parameter ILIKE $1
+           GROUP BY COALESCE(${groupCol}, 'N/A'), value
+           ORDER BY dimension, nb_cells DESC`,
+          [paramName]
+        );
+        if (result.rows.length) console.log(`   ✅ [PARMY] ILIKE fallback found ${result.rows.length} groups`);
+      }
+
+      // Final fallback: try partial match (contains)
+      if (!result.rows.length) {
+        console.log(`   ⚠️ [PARMY] ILIKE exact also returned 0, trying partial match...`);
+        sqlText = `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
+         FROM ${dumpTable} WHERE parameter ILIKE '%${paramName}%'
+         GROUP BY COALESCE(${groupCol}, 'N/A'), value
+         ORDER BY dimension, nb_cells DESC LIMIT 500`;
+        result = await pool.query(
+          `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
+           FROM ${dumpTable} WHERE parameter ILIKE $1
+           GROUP BY COALESCE(${groupCol}, 'N/A'), value
+           ORDER BY dimension, nb_cells DESC LIMIT 500`,
+          [`%${paramName}%`]
+        );
+        if (result.rows.length) console.log(`   ✅ [PARMY] Partial match found ${result.rows.length} groups`);
+      }
+
+      if (!result.rows.length) {
+        // Debug: check what parameters exist that are similar
+        const checkResult = await pool.query(
+          `SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`,
+          [`%${paramName.split('.').pop()}%`]
+        );
+        const suggestions = checkResult.rows.map(r => r.parameter).join(', ') || 'aucun';
+        return `🔍 DEBUG SQL: ${sqlText}\n\n⚠️ AUCUNE DONNÉE trouvée pour "${paramName}" dans la base ${dumpTable}.\nParamètres similaires trouvés: ${suggestions}`;
       }
       const header = `dimension | valeur_${paramName} | nb_cellules`;
       const lines = result.rows.map(r => `${r.dimension} | ${r.param_value} | ${r.nb_cells}`);
