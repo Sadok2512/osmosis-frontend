@@ -4305,7 +4305,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setFlyTarget(settings.center as [number, number]);
                     }
                     // Apply view filters (topo + qoe)
+                    console.log('[onApplyView] settings.viewFilters:', JSON.stringify(settings.viewFilters));
                     if (Array.isArray(settings.viewFilters)) {
+                      console.log('[onApplyView] Setting activeViewFilters:', settings.viewFilters.length, 'filters');
                       setActiveViewFilters(settings.viewFilters);
                       // Apply topo filters to local state
                       for (const f of settings.viewFilters) {
