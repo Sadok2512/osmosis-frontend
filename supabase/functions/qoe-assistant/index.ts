@@ -898,7 +898,9 @@ function classifyAgent(query: string): AgentId {
   if (isCompare) return "PULSE";
   if (isChangeHistoryQuery(query)) return "TRACE";
   if (isSentinelQuery(query)) return "SENTINEL";
-  if (isParameterFocusedQuery(query)) return "TRACE";
+  // PARMY: parameter audit, check, consistency, recommendations
+  if (isParmyQuery(query)) return "PARMY";
+  if (isParameterFocusedQuery(query)) return "PARMY"; // Parameter queries now go to PARMY instead of TRACE
   return "PULSE";
 }
 
