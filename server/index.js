@@ -2398,6 +2398,72 @@ app.post('/api/qoe-assistant', async (req, res) => {
 
     console.log(`[qoe-assistant] 🧠 Plan: agent=${plan.agent}, intent=${plan.intent}, scope=${JSON.stringify(plan.scope)}, needs=[${plan.needs.join(',')}]`);
 
+    // ═══ PARMY FAST PATH: bypass LLM for distribution/site queries ═══
+    // The LLM keeps hallucinating "no results" even when data exists.
+    // For PARMY, run the SQL directly and return raw results without LLM.
+    if (plan.agent === 'PARMY' && (plan.needs.includes('parmy_sql') || plan.needs.includes('param_dump'))) {
+      console.log(`[qoe-assistant] ⚡ PARMY FAST PATH — bypassing LLM, direct SQL execution`);
+      const parmyResult = await searchDumpParameterLocal(lastUserMsg);
+      console.log(`[qoe-assistant] ⚡ PARMY result length: ${parmyResult ? parmyResult.length : 0}`);
+      console.log(`[qoe-assistant] ⚡ PARMY result preview: ${parmyResult ? parmyResult.slice(0, 500) : 'NULL'}`);
+      
+      // Format the result as a proper markdown response
+      let formattedResponse = `<!-- AGENT:PARMY -->\n`;
+      
+      if (parmyResult && !parmyResult.startsWith('⚠️')) {
+        // We have actual data — format it nicely
+        // Extract the SQL debug part
+        const sqlMatch = parmyResult.match(/🔍 DEBUG SQL: (.+?)(?:\n\n|$)/s);
+        const dataSection = parmyResult.replace(/🔍 DEBUG SQL: .+?\n\n/s, '').trim();
+        
+        // Parse table data for markdown formatting
+        const lines = dataSection.split('\n');
+        const titleLine = lines[0] || '';
+        const headerLine = lines[1] || '';
+        const dataLines = lines.slice(2);
+        
+        formattedResponse += `## ⚙️ ${titleLine}\n\n`;
+        
+        if (headerLine.includes('|')) {
+          // Convert pipe-separated to markdown table
+          const headers = headerLine.split('|').map(h => h.trim());
+          formattedResponse += '| ' + headers.join(' | ') + ' |\n';
+          formattedResponse += '| ' + headers.map(() => '---').join(' | ') + ' |\n';
+          for (const line of dataLines) {
+            if (line.trim()) {
+              const cells = line.split('|').map(c => c.trim());
+              formattedResponse += '| ' + cells.join(' | ') + ' |\n';
+            }
+          }
+        } else {
+          formattedResponse += '```\n' + dataSection + '\n```\n';
+        }
+        
+        if (sqlMatch) {
+          formattedResponse += `\n\n<details><summary>🔍 SQL exécuté</summary>\n\n\`\`\`sql\n${sqlMatch[1].trim()}\n\`\`\`\n</details>\n`;
+        }
+      } else {
+        // Error or no data — return the raw message
+        formattedResponse += (parmyResult || '⚠️ Aucun résultat trouvé.');
+      }
+      
+      // Stream the formatted response directly (no LLM)
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      // Send as SSE chunks
+      const chunkSize = 100;
+      for (let i = 0; i < formattedResponse.length; i += chunkSize) {
+        const chunk = formattedResponse.slice(i, i + chunkSize);
+        const sse = `data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`;
+        res.write(sse);
+      }
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
+
     // 2. Build context from local DB
     const { context, parmySqlDebug } = await buildContextFromPlanLocal(plan, lastUserMsg, filters, legacyCellContext, kpiMonitorContext);
 
