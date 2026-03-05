@@ -1049,6 +1049,12 @@ function buildContextPlan(
           }
         }
         break;
+
+      case "PARMY":
+        needs.push("documents_rag", "param_dump");
+        if (scope.level === "site") needs.push("topology", "kpi_snapshot");
+        if (isChangeHistoryQuery(query)) needs.push("change_history");
+        break;
     }
   }
 
