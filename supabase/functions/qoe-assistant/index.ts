@@ -258,6 +258,136 @@ function detectMetric(message: string): string {
 
 const TOPO_METRICS = new Set(["tilt", "azimut", "hba"]);
 
+// ── Validation Sub-Agent (Check parameter) ──
+
+const CHECK_ELIGIBLE_DIMENSIONS = new Set(["Vendor", "DOR", "Plaque", "Bande", "ARCEP"]);
+
+interface CheckResult {
+  dimension_value: string;
+  check_status: "PASS" | "WARNING" | "FAIL" | "NA";
+  check_reason: string;
+  checked_at: string;
+  checked_by: string;
+}
+
+function runValidationChecks(
+  data: any[],
+  dimension1Type: string,
+  metric: string
+): CheckResult[] {
+  if (!CHECK_ELIGIBLE_DIMENSIONS.has(dimension1Type)) return [];
+
+  // Aggregate by dimension_2
+  const groups = new Map<string, { values: number[]; sessions: number; dates: Set<string> }>();
+  for (const r of data) {
+    const label = r.dimension_2 || "N/A";
+    if (!groups.has(label)) groups.set(label, { values: [], sessions: 0, dates: new Set() });
+    const g = groups.get(label)!;
+    const val = r[metric];
+    if (val != null) g.values.push(Number(val));
+    if (r.session_nbr != null) g.sessions += Number(r.session_nbr);
+    if (r.date_part) g.dates.add(r.date_part);
+  }
+
+  const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+  // Metric-specific thresholds
+  const thresholds: Record<string, { warn: number; crit: number; higher_is_better: boolean }> = {
+    qoe_index: { warn: 65, crit: 50, higher_is_better: true },
+    debit_dl: { warn: 20, crit: 10, higher_is_better: true },
+    debit_ul: { warn: 5, crit: 2, higher_is_better: true },
+    rtt_data_avg: { warn: 80000, crit: 150000, higher_is_better: false },
+    rtt_setup_avg: { warn: 80000, crit: 150000, higher_is_better: false },
+    dms_debit_dl_3: { warn: 90, crit: 80, higher_is_better: true },
+    dms_debit_dl_8: { warn: 75, crit: 60, higher_is_better: true },
+    dms_debit_dl_30: { warn: 40, crit: 20, higher_is_better: true },
+    loss_dl_rate: { warn: 0.01, crit: 0.03, higher_is_better: false },
+    tcp_retr_rate_dl: { warn: 0.01, crit: 0.05, higher_is_better: false },
+    session_dcr: { warn: 0.02, crit: 0.05, higher_is_better: false },
+    wind_full_rate: { warn: 0.05, crit: 0.10, higher_is_better: false },
+  };
+
+  const th = thresholds[metric];
+  const now = new Date().toISOString();
+  const results: CheckResult[] = [];
+
+  for (const [label, g] of groups.entries()) {
+    const reasons: string[] = [];
+    let status: CheckResult["check_status"] = "PASS";
+
+    // Rule 1: Completeness — need at least 3 data points
+    if (g.values.length < 3) {
+      status = "NA";
+      reasons.push(`Données insuffisantes (${g.values.length} points)`);
+    }
+
+    // Rule 2: Session volume — need meaningful traffic
+    if (status !== "NA" && g.sessions < 100) {
+      status = "WARNING";
+      reasons.push(`Volume faible (${g.sessions} sessions)`);
+    }
+
+    // Rule 3: Threshold check
+    if (status !== "NA" && th) {
+      const avgVal = avg(g.values);
+      if (th.higher_is_better) {
+        if (avgVal < th.crit) { status = "FAIL"; reasons.push(`${metric}=${avgVal.toFixed(2)} < seuil critique ${th.crit}`); }
+        else if (avgVal < th.warn) { if (status !== "FAIL") status = "WARNING"; reasons.push(`${metric}=${avgVal.toFixed(2)} < seuil warning ${th.warn}`); }
+      } else {
+        if (avgVal > th.crit) { status = "FAIL"; reasons.push(`${metric}=${avgVal.toFixed(2)} > seuil critique ${th.crit}`); }
+        else if (avgVal > th.warn) { if (status !== "FAIL") status = "WARNING"; reasons.push(`${metric}=${avgVal.toFixed(2)} > seuil warning ${th.warn}`); }
+      }
+    }
+
+    // Rule 4: Consistency — check coefficient of variation
+    if (status !== "NA" && g.values.length >= 3) {
+      const mean = avg(g.values);
+      if (mean > 0) {
+        const variance = g.values.reduce((s, v) => s + (v - mean) ** 2, 0) / g.values.length;
+        const cv = Math.sqrt(variance) / mean;
+        if (cv > 0.5) {
+          if (status === "PASS") status = "WARNING";
+          reasons.push(`Forte variabilité (CV=${(cv * 100).toFixed(0)}%)`);
+        }
+      }
+    }
+
+    if (reasons.length === 0) reasons.push("Tous les contrôles passés");
+
+    results.push({
+      dimension_value: label,
+      check_status: status,
+      check_reason: reasons.join("; "),
+      checked_at: now,
+      checked_by: "validation_subagent",
+    });
+  }
+
+  return results;
+}
+
+function formatCheckResults(checks: CheckResult[], dimension1Type: string, metric: string): string {
+  if (checks.length === 0) return "";
+
+  const statusIcon: Record<string, string> = {
+    PASS: "✅", WARNING: "⚠️", FAIL: "❌", NA: "➖",
+  };
+
+  const header = `# | ${dimension1Type} | Check | Raison`;
+  const lines = checks.map((c, i) =>
+    `${i + 1} | ${c.dimension_value} | ${statusIcon[c.check_status]} ${c.check_status} | ${c.check_reason}`
+  );
+
+  const summary = {
+    pass: checks.filter(c => c.check_status === "PASS").length,
+    warn: checks.filter(c => c.check_status === "WARNING").length,
+    fail: checks.filter(c => c.check_status === "FAIL").length,
+    na: checks.filter(c => c.check_status === "NA").length,
+  };
+
+  return `\n\n🔍 VALIDATION CHECK (par validation_subagent)\nMétrique: ${metric} | Dimension: ${dimension1Type}\nRésumé: ✅ ${summary.pass} PASS | ⚠️ ${summary.warn} WARNING | ❌ ${summary.fail} FAIL | ➖ ${summary.na} NA\n${header}\n${lines.join("\n")}\n\nINSTRUCTION: Inclus cette section "Check" dans ta réponse avec les icônes de statut. Ne l'affiche QUE si la dimension est dans [Vendor, DOR, Plaque, Bande, ARCEP]. Pour les vues site/cellule, n'affiche PAS le check.`;
+}
+
 // ── Data providers for dimension queries on kpi_qoe_aggregated ──
 
 async function fetchMetricDistributionByDimension1(
