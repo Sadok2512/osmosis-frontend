@@ -13,6 +13,15 @@ const corsHeaders = {
 
 type AgentId = "PULSE" | "TRACE" | "SENTINEL" | "TOPO" | "PARMY";
 
+function isTimeSeriesQuery(query: string): boolean {
+  const n = query.toLowerCase();
+  return ["x=date", "x = date", "par date", "par jour", "évolution", "evolution",
+    "tendance", "trend", "plot", "courbe", "time series", "timeseries",
+    "au fil du temps", "historique", "j-7", "j-14", "j-15", "j-30",
+    "daily", "journalier", "sur le temps", "dans le temps"
+  ].some(h => n.includes(h));
+}
+
 type Intent =
   | "global_summary"
   | "top_degradations"
@@ -353,6 +362,94 @@ function aggregateDistributionData(
   });
 
   return `DISTRIBUTION ${metric} par ${dimension1Type} (${data.length} points, ${groups.size} valeurs):\n${header}\n${lines.join("\n")}\n\nINSTRUCTION: Utilise ces données pour répondre. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+}
+
+async function fetchMetricTimeSeriesByDimension(
+  dimension1Type: string,
+  metric: string,
+  filters?: AssistantFilters,
+  days = 14,
+  limit = 10
+): Promise<string> {
+  try {
+    const supabase = getSupabase();
+    const selectCols = `dimension_1, dimension_2, date_part, ${metric}`;
+
+    let q = supabase.from("kpi_qoe_aggregated")
+      .select(selectCols)
+      .eq("dimension_1", dimension1Type)
+      .not(metric, "is", null)
+      .order("date_part", { ascending: true })
+      .limit(5000);
+
+    if (filters?.vendor) q = q.ilike("dimension_2", `%${filters.vendor}%`);
+    if (filters?.plaque) q = q.ilike("dimension_2", `%${filters.plaque}%`);
+    if (filters?.dor) q = q.ilike("dimension_2", `%${filters.dor}%`);
+
+    const { data, error } = await q;
+    if (error) { console.error("fetchMetricTimeSeries error:", error); return ""; }
+    if (!data?.length) return `Aucune donnée temporelle pour ${metric} par ${dimension1Type}.`;
+
+    // Group by dimension_2, then by date
+    const series = new Map<string, Map<string, number[]>>();
+    for (const r of data) {
+      const dim2 = r.dimension_2 || "N/A";
+      if (!series.has(dim2)) series.set(dim2, new Map());
+      const dateMap = series.get(dim2)!;
+      const date = r.date_part;
+      if (!dateMap.has(date)) dateMap.set(date, []);
+      const val = (r as any)[metric];
+      if (val != null) dateMap.get(date)!.push(Number(val));
+    }
+
+    // Get all unique dates sorted
+    const allDates = [...new Set(data.map((r: any) => r.date_part))].sort();
+
+    // Keep only top N dimensions by average value
+    const dimAvgs = Array.from(series.entries()).map(([dim2, dateMap]) => {
+      const allVals: number[] = [];
+      for (const vals of dateMap.values()) allVals.push(...vals);
+      const avg = allVals.length ? allVals.reduce((a, b) => a + b, 0) / allVals.length : 0;
+      return { dim2, avg, dateMap };
+    }).sort((a, b) => b.avg - a.avg).slice(0, limit);
+
+    // Build table
+    const header = `Date | ${dimAvgs.map(d => d.dim2).join(" | ")}`;
+    const lines = allDates.map(date => {
+      const vals = dimAvgs.map(d => {
+        const dayVals = d.dateMap.get(date);
+        if (!dayVals?.length) return "-";
+        const avg = dayVals.reduce((a, b) => a + b, 0) / dayVals.length;
+        return avg.toFixed(2);
+      });
+      return `${date} | ${vals.join(" | ")}`;
+    });
+
+    // Build multi-series chart data
+    const chartData = allDates.map(date => {
+      const point: Record<string, any> = { date };
+      for (const d of dimAvgs) {
+        const dayVals = d.dateMap.get(date);
+        point[d.dim2] = dayVals?.length
+          ? Math.round((dayVals.reduce((a, b) => a + b, 0) / dayVals.length) * 100) / 100
+          : null;
+      }
+      return point;
+    });
+
+    const chartJson = JSON.stringify({
+      type: "line",
+      title: `${metric} par ${dimension1Type} (évolution)`,
+      xKey: "date",
+      yKeys: dimAvgs.map(d => d.dim2),
+      data: chartData,
+    });
+
+    return `TIME SERIES ${metric} par ${dimension1Type} (${allDates.length} dates, ${dimAvgs.length} séries):\n${header}\n${lines.join("\n")}\n\nINSTRUCTION: Présente un graphique en ligne montrant l'évolution temporelle. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+  } catch (e) {
+    console.error("fetchMetricTimeSeriesByDimension failed:", e);
+    return "";
+  }
 }
 
 async function fetchDimensionValues(
@@ -1259,6 +1356,8 @@ function buildContextPlan(
     metric = met;
     if (TOPO_METRICS.has(met)) {
       needs.push("topo_metric_agg", "documents_rag");
+    } else if (isTimeSeriesQuery(query)) {
+      needs.push("dimension_timeseries", "documents_rag");
     } else {
       needs.push("dimension_agg", "documents_rag");
     }
@@ -1394,6 +1493,15 @@ async function buildContextFromPlan(
       plan.resultLimit || 30
     );
   }
+  if (plan.needs.includes("dimension_timeseries") && plan.groupBy?.dimension1) {
+    promises.dimTimeSeries = fetchMetricTimeSeriesByDimension(
+      plan.groupBy.dimension1,
+      plan.metric || "qoe_index",
+      filters,
+      plan.limits.maxDays,
+      plan.resultLimit || 10
+    );
+  }
   if (plan.needs.includes("topo_metric_agg") && plan.groupBy?.dimension1) {
     promises.topoAgg = fetchTopoMetricByDimension(
       plan.metric || "tilt",
@@ -1424,6 +1532,7 @@ async function buildContextFromPlan(
   if (resolved.topoAgg) sections.push(`📡 DISTRIBUTION TOPO:\n${resolved.topoAgg}`);
   if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
   if (resolved.dimValues) sections.push(`📋 VALEURS DIMENSION:\n${resolved.dimValues}`);
+  if (resolved.dimTimeSeries) sections.push(`📈 TIME SERIES PAR DIMENSION:\n${resolved.dimTimeSeries}`);
   if (resolved.agg) sections.push(`📊 STATS AGRÉGÉES:\n${resolved.agg}`);
   if (resolved.worst) sections.push(`📉 WORST:\n${resolved.worst}`);
   if (resolved.snapshot) sections.push(`📋 SITE SNAPSHOT:\n${resolved.snapshot}`);
