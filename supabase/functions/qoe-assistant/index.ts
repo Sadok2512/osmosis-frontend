@@ -914,6 +914,7 @@ function classifyIntent(query: string, scope: Scope): Intent {
   if (isList) return "list_dimension_values";
   if (isDim) return "distribution";
   if (isChangeHistoryQuery(query)) return "trace_change";
+  if (isParmyQuery(query)) return "param_audit";
   if (scope.level === "cell") return "cell_analysis";
   if (scope.level === "site") return "site_analysis";
 
