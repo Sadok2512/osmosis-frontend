@@ -494,31 +494,24 @@ CREATE INDEX IF NOT EXISTS idx_ml_feat_dim1 ON ml_features(dimension_1);
 
 const ENSURE_PARAMETER_DUMP_SQL = `
 CREATE TABLE IF NOT EXISTS parameter_dump (
-  id BIGSERIAL PRIMARY KEY,
   dn TEXT,
-  enodeb_id INTEGER,
-  mrbts_id INTEGER,
-  gnodeb_id INTEGER,
   cell_dn TEXT,
   cell_name TEXT,
-  vendor TEXT,
-  dor TEXT,
-  omc TEXT,
-  plaque TEXT,
-  longitude DOUBLE PRECISION,
-  latitude DOUBLE PRECISION,
   site_name TEXT,
-  freq_downlink DOUBLE PRECISION,
-  bande TEXT,
-  ur TEXT,
-  dr TEXT,
-  zone_arcep TEXT,
-  tgv INTEGER,
-  city TEXT,
   parameter TEXT NOT NULL,
-  version TEXT,
   value TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  version TEXT,
+  vendor TEXT,
+  netact TEXT,
+  mrbts_id INTEGER,
+  enodeb_id INTEGER,
+  gnodeb_id INTEGER,
+  bande TEXT,
+  dor TEXT,
+  plaque TEXT,
+  zone_arcep TEXT,
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION
 );
 `;
 
