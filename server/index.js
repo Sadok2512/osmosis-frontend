@@ -1108,6 +1108,7 @@ async function searchDumpParameterLocal(query) {
       const lines = result.rows.map(r =>
         `${r.dn||''} | ${r.cell_name||''} | ${r.site_name||''} | ${r.parameter||''} | ${r.value||''} | ${r.version||''} | ${r.vendor||''} | ${r.bande||''} | ${r.ur||''} | ${r.plaque||''}`
       );
+      console.log(`   ✅ [PARMY] Résultat: ${result.rows.length} lignes retournées`);
       return `DONNÉES RÉELLES pour ${paramName} sur ${siteName} (${result.rows.length} résultats) :\n${header}\n${lines.join('\n')}`;
     }
 
