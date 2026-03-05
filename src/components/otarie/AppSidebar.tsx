@@ -154,6 +154,13 @@ const AppSidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
         <button
+          onClick={() => { clearSession(); navigate('/login'); }}
+          className="w-full flex items-center transition-all group gap-3 px-3 py-2 rounded-xl hover:bg-destructive/10 text-sidebar-foreground hover:text-destructive"
+          title="Logout"
+        >
+          <LogOut className="w-4 h-4" />
+          {!isCollapsed && <span className="text-xs font-semibold">Logout</span>}
+        </button>
           onClick={() => setActiveTab('settings')}
           className={`w-full flex items-center transition-all group ${isCollapsed ? 'justify-center' : 'gap-3 px-3 py-2.5 rounded-xl'} ${
             activeTab === 'settings' ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg' : 'hover:bg-sidebar-accent'
