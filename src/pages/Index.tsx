@@ -136,7 +136,7 @@ const Index: React.FC = () => {
       case 'docs':
         return <DocumentationPage />;
       case 'ai_assistant':
-        return <AIAssistantPage sites={sites} onShowWorstCells={(cellIds) => { setHighlightedCellIds(cellIds); setActiveTab('sites'); }} initialPrompt={aiInitialPrompt} onPromptConsumed={() => setAiInitialPrompt(undefined)} />;
+        return <AIAssistantPage sites={sites} onShowWorstCells={(cellIds) => { setHighlightedCellIds(cellIds); setActiveTab('sites'); }} initialPrompt={aiInitialPrompt} onPromptConsumed={() => setAiInitialPrompt(undefined)} onNavigate={(tab) => setActiveTab(tab as AppTab)} />;
       case 'radio_profile':
         return <RadioProfilePage />;
       case 'rag':
