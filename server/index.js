@@ -1043,6 +1043,31 @@ function extractSiteName(query) {
   }
   return null;
 }
+function extractParamName(query) {
+  const n = query.toLowerCase();
+  // Known parameter name patterns
+  const knownParams = [
+    't300','t301','t304','t310','t311','t320','t321',
+    'lncel','lnbts','nrcell','nrbts','gnbdu','gnbcucp','gnbcuup',
+    'mrbts','blockingstate','pmax','prach','sib','catmpr',
+    'irfim','lnhoif','lnrelif','noklte','gnbts',
+    'rrcconnreconfigcompltimer','rrcsetuptimer','s1setuptimer',
+    'x2setuptimer','inactivitytimer','drxinactivitytimer',
+  ];
+  for (const p of knownParams) {
+    if (n.includes(p)) return p;
+  }
+  // Try to extract PARAM.subparam pattern (e.g., LNCEL.pMax)
+  const dotMatch = query.match(/\b([A-Z]\w+\.\w+)\b/);
+  if (dotMatch) return dotMatch[1];
+  // Try to extract uppercase parameter names
+  const upperMatch = query.match(/\b([A-Z][A-Z0-9_]{2,})\b/);
+  if (upperMatch) {
+    const paramPrefixes = /^(PER|PAR|FOR|THE|AND|NOT|ALL|TOP|DOR|LES|DES|SUR|QUE|AVEC|POUR|DANS|VENDOR|NOKIA|ERICSSON|HUAWEI|SAMSUNG)$/i;
+    if (!paramPrefixes.test(upperMatch[1])) return upperMatch[1];
+  }
+  return null;
+}
 
 // ─── Helper: search parameter_dump locally ───
 async function searchDumpParameterLocal(query) {
