@@ -6,7 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/hooks/use-toast';
 import { Plus, Search, Trash2, UserCheck, UserX, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -29,7 +31,7 @@ export default function AdminUsersPage() {
     setCreating(true);
     try {
       await createUser(newUser.username, newUser.password, newUser.role);
-      toast({ title: 'User created' });
+      toast({ title: 'User created', description: `${newUser.username} added successfully` });
       setNewUser({ username: '', password: '', role: 'user' });
       setDialogOpen(false);
       load();
@@ -44,7 +46,6 @@ export default function AdminUsersPage() {
   };
 
   const handleDelete = async (u: AdminUser) => {
-    if (!confirm(`Delete user "${u.username}"?`)) return;
     try { await deleteUser(u.id); toast({ title: 'User deleted' }); load(); }
     catch (e: any) { toast({ title: 'Error', description: e.message, variant: 'destructive' }); }
   };
@@ -54,7 +55,10 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Users Management</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Users Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">{users.length} registered users</p>
+        </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="w-4 h-4 mr-2" />Add User</Button>
@@ -62,17 +66,26 @@ export default function AdminUsersPage() {
           <DialogContent>
             <DialogHeader><DialogTitle>Create New User</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
-              <Input placeholder="Username" value={newUser.username} onChange={e => setNewUser(p => ({ ...p, username: e.target.value }))} />
-              <Input type="password" placeholder="Password" value={newUser.password} onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))} />
-              <Select value={newUser.role} onValueChange={v => setNewUser(p => ({ ...p, role: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
-                </SelectContent>
-              </Select>
+              <div>
+                <label className="text-sm font-medium text-foreground">Username</label>
+                <Input placeholder="Enter username" value={newUser.username} onChange={e => setNewUser(p => ({ ...p, username: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Password</label>
+                <Input type="password" placeholder="Enter password" value={newUser.password} onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Role</label>
+                <Select value={newUser.role} onValueChange={v => setNewUser(p => ({ ...p, role: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={handleCreate} disabled={creating} className="w-full">
-                {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Create
+                {creating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Create User
               </Button>
             </div>
           </DialogContent>
@@ -105,14 +118,12 @@ export default function AdminUsersPage() {
               <TableRow key={u.id}>
                 <TableCell className="font-medium">{u.username}</TableCell>
                 <TableCell>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-primary/10 text-primary' : 'bg-secondary text-secondary-foreground'}`}>
-                    {u.role}
-                  </span>
+                  <Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>{u.role}</Badge>
                 </TableCell>
                 <TableCell>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.status === 'active' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-500'}`}>
+                  <Badge variant={u.status === 'active' ? 'default' : 'destructive'} className={u.status === 'active' ? 'bg-green-500/10 text-green-600 border-green-500/20' : ''}>
                     {u.status}
-                  </span>
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{u.last_login ? new Date(u.last_login).toLocaleString() : '—'}</TableCell>
@@ -120,9 +131,21 @@ export default function AdminUsersPage() {
                   <Button variant="ghost" size="icon" onClick={() => handleToggle(u)} title={u.status === 'active' ? 'Deactivate' : 'Activate'}>
                     {u.status === 'active' ? <UserX className="w-4 h-4 text-orange-500" /> : <UserCheck className="w-4 h-4 text-green-500" />}
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(u)} title="Delete">
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" title="Delete"><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete "{u.username}"?</AlertDialogTitle>
+                        <AlertDialogDescription>This will permanently remove this user account. This action cannot be undone.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(u)}>Delete</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </TableCell>
               </TableRow>
             ))}
