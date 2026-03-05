@@ -1491,6 +1491,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (settings.localDor) setLocalDor(settings.localDor);
       if (settings.localPlaque) setLocalPlaque(settings.localPlaque);
       if (settings.localSite) setLocalSite(settings.localSite);
+      if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
+      if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
       if (settings.bandColors) {
         setBandColors(settings.bandColors);
         localStorage.setItem('qoebit_band_colors', JSON.stringify(settings.bandColors));
