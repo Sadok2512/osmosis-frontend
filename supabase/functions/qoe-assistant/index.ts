@@ -1356,6 +1356,8 @@ function buildContextPlan(
     metric = met;
     if (TOPO_METRICS.has(met)) {
       needs.push("topo_metric_agg", "documents_rag");
+    } else if (isTimeSeriesQuery(query)) {
+      needs.push("dimension_timeseries", "documents_rag");
     } else {
       needs.push("dimension_agg", "documents_rag");
     }
