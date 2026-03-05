@@ -674,6 +674,7 @@ async function searchDumpParameters(query: string): Promise<string> {
   } catch (e) {
     console.error("dump_parameter search failed:", e);
     return "";
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
