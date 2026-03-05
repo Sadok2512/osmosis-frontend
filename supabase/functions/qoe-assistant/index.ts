@@ -867,6 +867,21 @@ function isSentinelQuery(query: string): boolean {
   ].some(h => n.includes(h));
 }
 
+function isParmyQuery(query: string): boolean {
+  const n = query.toLowerCase();
+  return ["audit", "auditer", "vérifier", "verifier", "check", "contrôle", "controle",
+    "cohérence", "coherence", "consistency", "recommandation", "recommendation",
+    "best practice", "bonne pratique", "conformité", "conformite", "compliance",
+    "benchmark param", "template", "valeur standard", "standard value",
+    "écart", "ecart", "deviation", "outlier", "anomalie param",
+    "dispersion", "homogénéité", "homogeneite", "uniformité", "uniformite",
+    "param check", "parameter audit", "param audit", "vérif param", "verif param",
+    "analyse param", "optimis", "tuning recomm", "config audit",
+    "non conforme", "non-conforme", "hors norme", "hors-norme",
+    "valeur aberrante", "valeur atypique", "outlier param"
+  ].some(h => n.includes(h));
+}
+
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
   // Topo inventory queries (nombre de cellules, combien de sites) → TOPO always first
