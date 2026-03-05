@@ -46,6 +46,7 @@ type DataNeed =
   | "alarms"
   | "topology"
   | "param_dump"
+  | "parmy_sql"
   | "change_history"
   | "documents_rag"
   | "dimension_agg"
