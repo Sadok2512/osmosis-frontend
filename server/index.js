@@ -1144,127 +1144,125 @@ function extractParamName(query) {
 async function searchDumpParameterLocal(query) {
   try {
     const dumpTable = 'parameter_dump';
-
-    const paramName = extractParamName(query);
+    const groupCol = extractGroupByColumn(query);
     const isDistrib = isDistributionQuery(query);
     const siteName = extractSiteName(query);
-    console.log(`\n🔍 [PARMY] extractParamName="${paramName}", isDistrib=${isDistrib}, siteName=${siteName}, query="${query}"`);
 
-    // Quick sanity check: does the parameter exist at all?
-    if (paramName) {
-      const sanity = await sharedPool.query(
-        `SELECT parameter, COUNT(*) AS cnt FROM ${dumpTable} WHERE parameter ILIKE $1 GROUP BY parameter LIMIT 5`,
-        [paramName]
+    // ── STEP 1: Extract raw parameter keywords from the query ──
+    // Extract dotted param like "LNCEL.pMax"
+    const dotMatch = query.match(/\b([A-Za-z]\w+\.\w+)\b/);
+    // Extract known prefixed param like "LNCEL_pMax" or just "pMax"
+    const prefixedMatch = query.match(/\b((?:LNCEL|LNBTS|MRBTS|GNBTS|SIB|NRCELL|CATMPR|NOKLTE|NRBTS|GNBCUCP|GNBCUUP|GNBDU|LNHOIF|LNRELIF|IRFIM)[.\s_]?\w+)\b/i);
+    
+    let rawParam = dotMatch?.[1] || prefixedMatch?.[1] || null;
+    if (!rawParam) {
+      // Try single known param names
+      const singleMatch = query.match(/\b(t\d{3,4}|pMax|pmax|blockingState|blockingstate|prach\w*|catmpr\w*|irfim\w*)\b/i);
+      rawParam = singleMatch?.[1] || null;
+    }
+
+    console.log(`\n🔍 [PARMY-SIMPLE] rawParam="${rawParam}", isDistrib=${isDistrib}, groupCol=${groupCol}, siteName=${siteName}, query="${query}"`);
+
+    if (!rawParam) {
+      return '⚠️ Aucun paramètre détecté dans la requête. Essayez par exemple: "pMax par dor" ou "T300 par plaque".';
+    }
+
+    // ── STEP 2: Find the REAL parameter name in DB via direct SQL ──
+    // Build search terms: full name, sub-part after dot, each word
+    const parts = rawParam.split('.');
+    const searchTerms = [rawParam, ...parts].filter(Boolean);
+    const uniqueTerms = [...new Set(searchTerms.map(t => t.toLowerCase()))];
+
+    console.log(`   🔎 [PARMY-SIMPLE] Search terms: ${uniqueTerms.join(', ')}`);
+
+    // Try to find matching parameters in DB directly
+    let realParamName = null;
+    
+    // Try 1: Exact match (case-insensitive)
+    for (const term of uniqueTerms) {
+      const res = await sharedPool.query(
+        `SELECT DISTINCT parameter FROM ${dumpTable} WHERE lower(parameter) = lower($1) LIMIT 1`,
+        [term]
       );
-      if (sanity.rows.length) {
-        console.log(`   ✅ [PARMY] Sanity check: parameter "${paramName}" exists — ${sanity.rows.map(r => `${r.parameter}(${r.cnt})`).join(', ')}`);
-      } else {
-        // Try partial
-        const partial = await sharedPool.query(
-          `SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`,
-          [`%${paramName.split('.').pop() || paramName}%`]
-        );
-        console.log(`   ❌ [PARMY] Sanity check: "${paramName}" NOT FOUND. Similar: ${partial.rows.map(r => r.parameter).join(', ') || 'none'}`);
+      if (res.rows.length) {
+        realParamName = res.rows[0].parameter;
+        console.log(`   ✅ [PARMY-SIMPLE] Exact DB match: "${term}" → "${realParamName}"`);
+        break;
       }
     }
 
-    // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
-    if (paramName && siteName && !isDistrib) {
+    // Try 2: Contains match (most specific term first = longest)
+    if (!realParamName) {
+      const sortedTerms = [...uniqueTerms].sort((a, b) => b.length - a.length);
+      for (const term of sortedTerms) {
+        const res = await sharedPool.query(
+          `SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 5`,
+          [`%${term}%`]
+        );
+        if (res.rows.length) {
+          // Pick best match: shortest name containing the term (most specific)
+          res.rows.sort((a, b) => a.parameter.length - b.parameter.length);
+          realParamName = res.rows[0].parameter;
+          console.log(`   ✅ [PARMY-SIMPLE] Contains DB match: "%${term}%" → "${realParamName}" (${res.rows.length} candidates: ${res.rows.map(r=>r.parameter).join(', ')})`);
+          break;
+        }
+      }
+    }
+
+    if (!realParamName) {
+      // Show what exists
+      const sample = await sharedPool.query(
+        `SELECT DISTINCT parameter FROM ${dumpTable} ORDER BY parameter LIMIT 20`
+      );
+      return `⚠️ Paramètre "${rawParam}" introuvable dans la base.\n\nExemples de paramètres existants:\n${sample.rows.map(r => r.parameter).join('\n')}`;
+    }
+
+    // ── STEP 3: Execute the actual query ──
+    
+    // Site-specific query
+    if (siteName && !isDistrib) {
       const sqlText = `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
-         FROM ${dumpTable}
-         WHERE parameter ILIKE '${paramName}' AND site_name ILIKE '%${siteName}%'
-         ORDER BY cell_name, parameter LIMIT 200`;
-      console.log(`\n🔍 [PARMY SQL] Site+param search:\n   param=${paramName}, site=${siteName}\n   SQL: ${sqlText}\n`);
+         FROM ${dumpTable} WHERE parameter = '${realParamName}' AND site_name ILIKE '%${siteName}%'
+         ORDER BY cell_name LIMIT 200`;
+      console.log(`   📊 [PARMY-SIMPLE] Site query SQL: ${sqlText}`);
       const result = await sharedPool.query(
         `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
-         FROM ${dumpTable} WHERE parameter ILIKE $1 AND site_name ILIKE $2
-         ORDER BY cell_name, parameter LIMIT 200`,
-        [paramName, `%${siteName}%`]
+         FROM ${dumpTable} WHERE parameter = $1 AND site_name ILIKE $2
+         ORDER BY cell_name LIMIT 200`,
+        [realParamName, `%${siteName}%`]
       );
       if (!result.rows.length) {
-        const siteCheck = await sharedPool.query(`SELECT DISTINCT site_name FROM ${dumpTable} WHERE site_name ILIKE $1 LIMIT 5`, [`%${siteName}%`]);
-        const paramCheck = await sharedPool.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`, [paramName]);
-        let msg = `🔍 DEBUG SQL: ${sqlText}\n\nRÉSULTAT DE RECHERCHE : AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" sur le site "${siteName}".\n`;
-        if (!siteCheck.rows.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base ${dumpTable}.\n`;
-        else msg += `Sites similaires : ${siteCheck.rows.map(r => r.site_name).join(', ')}\n`;
-        if (!paramCheck.rows.length) msg += `⚠️ Le paramètre "${paramName}" n'existe pas dans la base.\n`;
-        else msg += `Paramètres contenant "${paramName}" : ${paramCheck.rows.map(r => r.parameter).join(', ')}\n`;
-        return msg;
+        return `🔍 DEBUG SQL: ${sqlText}\n\n⚠️ Paramètre "${realParamName}" trouvé dans la base mais aucun résultat pour le site "${siteName}".`;
       }
       const header = 'dn | cell_name | site_name | parameter | value | version | vendor | bande | dor | plaque';
       const lines = result.rows.map(r =>
         `${r.dn||''} | ${r.cell_name||''} | ${r.site_name||''} | ${r.parameter||''} | ${r.value||''} | ${r.version||''} | ${r.vendor||''} | ${r.bande||''} | ${r.dor||''} | ${r.plaque||''}`
       );
-      console.log(`   ✅ [PARMY] Résultat: ${result.rows.length} lignes retournées`);
-      return `🔍 DEBUG SQL: ${sqlText}\n\nDONNÉES RÉELLES pour ${paramName} sur ${siteName} (${result.rows.length} résultats) :\n${header}\n${lines.join('\n')}`;
+      return `🔍 DEBUG SQL: ${sqlText}\n\nDONNÉES RÉELLES pour ${realParamName} sur ${siteName} (${result.rows.length} résultats) :\n${header}\n${lines.join('\n')}`;
     }
 
-    if (isDistrib && paramName) {
-      const groupCol = extractGroupByColumn(query);
-      
-      // Try exact match first, then ILIKE fallback (handles case differences)
-      let sqlText = `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
-         FROM ${dumpTable} WHERE parameter = '${paramName}'
+    // Distribution query
+    if (isDistrib) {
+      const sqlText = `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
+         FROM ${dumpTable} WHERE parameter = '${realParamName}'
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC`;
-      console.log(`\n🔍 [PARMY SQL] Distribution query:\n   param=${paramName}, groupBy=${groupCol}\n   SQL: ${sqlText}\n`);
-
-      let result = await sharedPool.query(
+      console.log(`   📊 [PARMY-SIMPLE] Distribution SQL: ${sqlText}`);
+      const result = await sharedPool.query(
         `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
          FROM ${dumpTable} WHERE parameter = $1
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC`,
-        [paramName]
+        [realParamName]
       );
-
-      // Fallback: try ILIKE if exact match returned 0 rows (case mismatch)
       if (!result.rows.length) {
-        console.log(`   ⚠️ [PARMY] Exact match returned 0 rows, trying ILIKE fallback...`);
-        sqlText = `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
-         FROM ${dumpTable} WHERE parameter ILIKE '${paramName}'
-         GROUP BY COALESCE(${groupCol}, 'N/A'), value
-         ORDER BY dimension, nb_cells DESC`;
-        result = await sharedPool.query(
-          `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
-           FROM ${dumpTable} WHERE parameter ILIKE $1
-           GROUP BY COALESCE(${groupCol}, 'N/A'), value
-           ORDER BY dimension, nb_cells DESC`,
-          [paramName]
-        );
-        if (result.rows.length) console.log(`   ✅ [PARMY] ILIKE fallback found ${result.rows.length} groups`);
+        return `🔍 DEBUG SQL: ${sqlText}\n\n⚠️ Paramètre "${realParamName}" existe dans la base mais la requête de distribution par ${groupCol} n'a retourné aucun résultat.`;
       }
-
-      // Final fallback: try partial match (contains)
-      if (!result.rows.length) {
-        console.log(`   ⚠️ [PARMY] ILIKE exact also returned 0, trying partial match...`);
-        sqlText = `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
-         FROM ${dumpTable} WHERE parameter ILIKE '%${paramName}%'
-         GROUP BY COALESCE(${groupCol}, 'N/A'), value
-         ORDER BY dimension, nb_cells DESC LIMIT 500`;
-        result = await sharedPool.query(
-          `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
-           FROM ${dumpTable} WHERE parameter ILIKE $1
-           GROUP BY COALESCE(${groupCol}, 'N/A'), value
-           ORDER BY dimension, nb_cells DESC LIMIT 500`,
-          [`%${paramName}%`]
-        );
-        if (result.rows.length) console.log(`   ✅ [PARMY] Partial match found ${result.rows.length} groups`);
-      }
-
-      if (!result.rows.length) {
-        // Debug: check what parameters exist that are similar
-        const checkResult = await sharedPool.query(
-          `SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`,
-          [`%${paramName.split('.').pop()}%`]
-        );
-        const suggestions = checkResult.rows.map(r => r.parameter).join(', ') || 'aucun';
-        return `🔍 DEBUG SQL: ${sqlText}\n\n⚠️ AUCUNE DONNÉE trouvée pour "${paramName}" dans la base ${dumpTable}.\nParamètres similaires trouvés: ${suggestions}`;
-      }
-      const header = `dimension | valeur_${paramName} | nb_cellules`;
+      const header = `dimension | valeur_${realParamName} | nb_cellules`;
       const lines = result.rows.map(r => `${r.dimension} | ${r.param_value} | ${r.nb_cells}`);
       const total = result.rows.reduce((s, r) => s + parseInt(r.nb_cells), 0);
-      console.log(`   ✅ [PARMY] Distribution: ${result.rows.length} groupes, ${total} cellules`);
-      return `🔍 DEBUG SQL: ${sqlText}\n\nDISTRIBUTION AGRÉGÉE du paramètre ${paramName} par ${groupCol} (${total} cellules au total):\n${header}\n${lines.join('\n')}`;
+      console.log(`   ✅ [PARMY-SIMPLE] Distribution: ${result.rows.length} groupes, ${total} cellules`);
+      return `🔍 DEBUG SQL: ${sqlText}\n\nDISTRIBUTION AGRÉGÉE du paramètre ${realParamName} par ${groupCol} (${total} cellules au total):\n${header}\n${lines.join('\n')}`;
     }
 
     // Standard search
