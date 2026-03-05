@@ -1183,7 +1183,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         <div className="px-3 py-3 text-center text-[10px] text-muted-foreground/60">Aucun dashboard</div>
       ) : (
         <div className="space-y-1.5">
-          {dashboards.map(db => {
+          {(expandedDashboardId ? dashboards.filter(db => db.id === expandedDashboardId) : dashboards).map(db => {
             const isExpanded = expandedDashboardId === db.id;
             const dbSettings = getDashboardSettings(db);
             const dbColor = dbSettings.color || '';
