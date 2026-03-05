@@ -61,10 +61,7 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
 
   /* ── Three-dot menu ── */
   const actionsMenu = (isFs: boolean) => (
-    <div className={cn(
-      'flex items-center gap-1 transition-opacity duration-150',
-      isFs ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-    )} onMouseDown={stopDrag}>
+    <div className="flex items-center gap-1" onMouseDown={stopDrag}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors">
