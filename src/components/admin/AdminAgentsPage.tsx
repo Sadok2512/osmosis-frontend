@@ -148,6 +148,8 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
   onDelete: (a: Agent) => void; onReload: () => void;
 }) {
   const [prompt, setPrompt] = useState(agent.base_prompt);
+  const [promptDirty, setPromptDirty] = useState(false);
+  const [savingPrompt, setSavingPrompt] = useState(false);
   const [runs, setRuns] = useState<any[]>([]);
   const [docs, setDocs] = useState<any[]>([]);
   const [agentModules, setAgentModules] = useState<string[]>([]);
