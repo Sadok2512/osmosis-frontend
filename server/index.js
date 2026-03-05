@@ -1045,27 +1045,58 @@ function resolveParamFromCache(rawParam) {
     return rawParam;
   }
   const lower = rawParam.toLowerCase();
-  // 1) Exact match (case-insensitive)
+  // For dotted params like "LNCEL.pMax", also try resolving the sub-part "pMax"
+  const dotParts = rawParam.split('.');
+  const subPart = dotParts.length > 1 ? dotParts.slice(1).join('.') : null;
+  const subLower = subPart ? subPart.toLowerCase() : null;
+
+  // 1) Exact match (case-insensitive) — try full name first, then sub-part
   const exact = paramList.find(p => p.toLowerCase() === lower);
   if (exact) { console.log(`   🎯 [PARMY] Exact match: "${rawParam}" → "${exact}"`); return exact; }
-  // 2) Contains match — find params that contain user input or vice versa
-  const contains = paramList.filter(p => p.toLowerCase().includes(lower) || lower.includes(p.toLowerCase()));
-  if (contains.length === 1) { console.log(`   🎯 [PARMY] Contains match: "${rawParam}" → "${contains[0]}"`); return contains[0]; }
-  if (contains.length > 1) {
-    // Prefer shortest match (most specific)
-    contains.sort((a, b) => a.length - b.length);
-    console.log(`   🎯 [PARMY] Best contains match: "${rawParam}" → "${contains[0]}" (${contains.length} candidates: ${contains.slice(0,5).join(', ')})`);
-    return contains[0];
+  if (subLower) {
+    const subExact = paramList.find(p => p.toLowerCase() === subLower);
+    if (subExact) { console.log(`   🎯 [PARMY] Exact sub-match: "${rawParam}" → "${subExact}" (via sub-part "${subPart}")`); return subExact; }
   }
-  // 3) Levenshtein-like: find closest by character overlap
+
+  // 2) Dotted format match — look for params containing the full dotted name (e.g., "LNCEL.pMax" in DB)
+  const dottedContains = paramList.filter(p => p.toLowerCase().includes(lower));
+  if (dottedContains.length === 1) { console.log(`   🎯 [PARMY] Dotted contains match: "${rawParam}" → "${dottedContains[0]}"`); return dottedContains[0]; }
+  if (dottedContains.length > 1) {
+    dottedContains.sort((a, b) => a.length - b.length);
+    console.log(`   🎯 [PARMY] Best dotted contains: "${rawParam}" → "${dottedContains[0]}" (${dottedContains.length} candidates)`);
+    return dottedContains[0];
+  }
+
+  // 3) Sub-part contains — for "LNCEL.pMax", search for params containing "pmax"
+  if (subLower && subLower.length >= 3) {
+    const subContains = paramList.filter(p => p.toLowerCase().includes(subLower) || subLower.includes(p.toLowerCase()));
+    // Prefer params that are closest in length to the sub-part (not the shortest, which could be a random 3-char match)
+    if (subContains.length >= 1) {
+      subContains.sort((a, b) => Math.abs(a.length - subPart.length) - Math.abs(b.length - subPart.length));
+      console.log(`   🎯 [PARMY] Sub-part match: "${rawParam}" → "${subContains[0]}" (via "${subPart}", ${subContains.length} candidates: ${subContains.slice(0,5).join(', ')})`);
+      return subContains[0];
+    }
+  }
+
+  // 4) Reverse contains — input contains param name (careful: only accept params >= 4 chars to avoid false positives)
+  const reverseContains = paramList.filter(p => p.length >= 4 && lower.includes(p.toLowerCase()));
+  if (reverseContains.length >= 1) {
+    // Prefer longest match (most specific)
+    reverseContains.sort((a, b) => b.length - a.length);
+    console.log(`   🎯 [PARMY] Reverse contains: "${rawParam}" → "${reverseContains[0]}" (${reverseContains.length} candidates)`);
+    return reverseContains[0];
+  }
+
+  // 5) Levenshtein-like: find closest by character overlap
   let bestScore = 0, bestMatch = null;
+  const targetLower = subLower || lower;
   for (const p of paramList) {
     const pl = p.toLowerCase();
     let score = 0;
-    for (let i = 0; i < lower.length; i++) {
-      if (pl.includes(lower[i])) score++;
+    for (let i = 0; i < targetLower.length; i++) {
+      if (pl.includes(targetLower[i])) score++;
     }
-    score = score / Math.max(lower.length, pl.length);
+    score = score / Math.max(targetLower.length, pl.length);
     if (score > bestScore && score > 0.5) { bestScore = score; bestMatch = p; }
   }
   if (bestMatch) {
