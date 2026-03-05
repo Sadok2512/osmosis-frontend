@@ -1,12 +1,20 @@
 /**
- * Local database client — replaces all Supabase SDK calls with fetch to local Express.
+ * Local database client — tries local Express first, falls back to Supabase Cloud.
  * Every component should import from here instead of supabase client.
  */
+
+import { supabase } from '@/integrations/supabase/client';
+import { getPreferredDataSource } from './apiConfig';
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
 function url(path: string) {
   return `${LOCAL_API}/api/${path.replace(/^\/?(api\/)?/, '')}`;
+}
+
+/** Detect if we should use local or cloud */
+function useLocal(): boolean {
+  return getPreferredDataSource() === 'local';
 }
 
 async function get<T = any>(path: string): Promise<T> {
@@ -47,14 +55,65 @@ async function put<T = any>(path: string, body: any): Promise<T> {
   return resp.json();
 }
 
-// ─── Dashboards ───
+// ─── Dashboards (with Cloud fallback) ───
 export const dashboardsApi = {
-  list: () => get<any[]>('dashboards'),
-  upsert: (dashboard: { id: string; name: string; description?: string; widgets: any; is_shared?: boolean }) =>
-    post('dashboards', dashboard),
-  update: (id: string, updates: Record<string, any>) =>
-    put(`dashboards/${id}`, updates),
-  remove: (id: string) => del(`dashboards/${id}`),
+  list: async (): Promise<any[]> => {
+    if (useLocal()) {
+      return get<any[]>('dashboards');
+    }
+    // Cloud fallback: use Supabase dashboards table
+    const { data, error } = await supabase
+      .from('dashboards')
+      .select('*')
+      .eq('is_archived', false)
+      .order('updated_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+  upsert: async (dashboard: { id: string; name: string; description?: string; widgets: any; is_shared?: boolean }) => {
+    if (useLocal()) {
+      return post('dashboards', dashboard);
+    }
+    const { data, error } = await supabase
+      .from('dashboards')
+      .upsert({
+        id: dashboard.id,
+        name: dashboard.name,
+        description: dashboard.description || '',
+        widgets: dashboard.widgets,
+        is_shared: dashboard.is_shared ?? true,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+  update: async (id: string, updates: Record<string, any>) => {
+    if (useLocal()) {
+      return put(`dashboards/${id}`, updates);
+    }
+    const { data, error } = await supabase
+      .from('dashboards')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+  remove: async (id: string) => {
+    if (useLocal()) {
+      return del(`dashboards/${id}`);
+    }
+    // Soft delete
+    const { error } = await supabase
+      .from('dashboards')
+      .update({ is_archived: true })
+      .eq('id', id);
+    if (error) throw error;
+    return { ok: true };
+  },
 };
 
 // ─── Map Views ───
@@ -198,8 +257,94 @@ export const parameterChangesApi = {
   },
   create: (change: Record<string, any>) => post<any>('parameter-changes', change),
 };
+
+// ─── BI Query (with Cloud fallback via kpi_qoe_aggregated) ───
+
+/** Cloud fallback: query kpi_qoe_aggregated table via Supabase */
+async function biQueryCloud(params: {
+  kpis: string[];
+  aggregation?: string;
+  dateStart?: string;
+  dateEnd?: string;
+  granularity?: string;
+  groupBy?: string[];
+  filters?: { dimension: string; values: string[] }[];
+  topN?: number;
+  xAxisType?: string;
+  xAxisDimension?: string;
+}): Promise<{ rows: any[]; total: number }> {
+  let query = supabase.from('kpi_qoe_aggregated').select('*');
+
+  if (params.dateStart) query = query.gte('date_part', params.dateStart);
+  if (params.dateEnd) query = query.lte('date_part', params.dateEnd);
+
+  // Apply dimension filters
+  if (params.filters && params.filters.length > 0) {
+    for (const f of params.filters) {
+      if (f.dimension === 'dimension_1' || f.dimension === 'Dimension_1') {
+        query = query.in('dimension_1', f.values);
+      } else if (f.dimension === 'dimension_2' || f.dimension === 'Dimension_2') {
+        query = query.in('dimension_2', f.values);
+      }
+    }
+  }
+
+  query = query.order('date_part', { ascending: true }).limit(1000);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  // Map to expected format
+  const rows = (data || []).map((row: any) => {
+    const mapped: any = { x: row.date_part };
+    for (const kpi of params.kpis) {
+      mapped[kpi] = row[kpi] ?? null;
+    }
+    if (params.groupBy && params.groupBy.length > 0) {
+      mapped.group = row.dimension_2 || row.dimension_1;
+    }
+    return mapped;
+  });
+
+  return { rows, total: rows.length };
+}
+
+/** Cloud fallback: get distinct dimension values */
+async function biDistinctCloud(dimension: string): Promise<string[]> {
+  // Map BI dimensions to kpi_qoe_aggregated columns
+  const col = dimension === 'Site' || dimension === 'Cellule' ? 'dimension_2' : 'dimension_1';
+  
+  const { data, error } = await supabase
+    .from('kpi_qoe_aggregated')
+    .select(col)
+    .limit(1000);
+  if (error) throw error;
+  
+  const unique = [...new Set((data || []).map((r: any) => r[col]).filter(Boolean))];
+  return unique.sort();
+}
+
+/** Cloud fallback: get date range */
+async function biDateRangeCloud(): Promise<{ min_date: string | null; max_date: string | null }> {
+  const { data, error } = await supabase
+    .from('kpi_qoe_aggregated')
+    .select('date_part')
+    .order('date_part', { ascending: true })
+    .limit(1);
+  const { data: dataMax } = await supabase
+    .from('kpi_qoe_aggregated')
+    .select('date_part')
+    .order('date_part', { ascending: false })
+    .limit(1);
+  
+  return {
+    min_date: data?.[0]?.date_part || null,
+    max_date: dataMax?.[0]?.date_part || null,
+  };
+}
+
 export const biQueryApi = {
-  query: (params: {
+  query: async (params: {
     kpis: string[];
     aggregation?: string;
     dateStart?: string;
@@ -210,13 +355,26 @@ export const biQueryApi = {
     topN?: number;
     xAxisType?: string;
     xAxisDimension?: string;
-  }) => post<{ rows: any[]; total: number }>('bi-query', params),
+  }): Promise<{ rows: any[]; total: number }> => {
+    if (useLocal()) {
+      return post<{ rows: any[]; total: number }>('bi-query', params);
+    }
+    return biQueryCloud(params);
+  },
 
-  distinct: (dimension: string) =>
-    get<string[]>(`bi-distinct?dimension=${encodeURIComponent(dimension)}`),
+  distinct: async (dimension: string): Promise<string[]> => {
+    if (useLocal()) {
+      return get<string[]>(`bi-distinct?dimension=${encodeURIComponent(dimension)}`);
+    }
+    return biDistinctCloud(dimension);
+  },
 
-  dateRange: () =>
-    get<{ min_date: string | null; max_date: string | null }>('bi-date-range'),
+  dateRange: async (): Promise<{ min_date: string | null; max_date: string | null }> => {
+    if (useLocal()) {
+      return get<{ min_date: string | null; max_date: string | null }>('bi-date-range');
+    }
+    return biDateRangeCloud();
+  },
 };
 
 // ─── QoE Map (site-level QoE scores for map coloring) ───
