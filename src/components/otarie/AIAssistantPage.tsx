@@ -225,21 +225,13 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     const timeoutId = setTimeout(() => { addDebugLog('⏱️ Timeout 120s'); controller.abort(); }, 120000);
 
     let resp: Response;
-    let usedCloud = false;
     try {
       resp = await fetch(url, { method: 'POST', headers, body: payload, signal: controller.signal });
       addDebugLog(`Response: ${resp.status} ${resp.statusText}`);
     } catch (fetchErr: any) {
       clearTimeout(timeoutId);
       addDebugLog(`Fetch error: ${fetchErr.message}`);
-      if (isLocalMode()) {
-        addDebugLog('Falling back to Cloud...');
-        usedCloud = true;
-        const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
-        const cloudHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` };
-        resp = await fetch(cloudUrl, { method: 'POST', headers: cloudHeaders, body: payload });
-        addDebugLog(`Cloud fallback: ${resp.status}`);
-      } else { throw fetchErr; }
+      throw new Error(`Impossible de contacter le serveur local: ${fetchErr.message}`);
     }
     clearTimeout(timeoutId);
 
