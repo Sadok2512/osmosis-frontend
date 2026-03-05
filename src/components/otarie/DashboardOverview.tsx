@@ -642,6 +642,18 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
           )
         )}
       </div>
+
+      {/* Edit metadata modal */}
+      {editModalId && (() => {
+        const dbToEdit = dashboards.find(d => d.id === editModalId);
+        return dbToEdit ? (
+          <EditMetadataModal
+            db={dbToEdit}
+            onSave={updateMetadata}
+            onClose={() => setEditModalId(null)}
+          />
+        ) : null;
+      })()}
     </div>
   );
 };
