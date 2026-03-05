@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspens
 import {
   Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check,
   FileDown, MapPin, Plus, X, PanelLeftClose, PanelLeftOpen, Pencil,
-  ThumbsUp, ThumbsDown, Brain, Search, MoreHorizontal, Clock, ChevronRight
+  ThumbsUp, ThumbsDown, Brain, Search, MoreHorizontal, Clock, ChevronRight,
+  Cpu
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
@@ -87,9 +88,10 @@ interface AIAssistantPageProps {
   onShowWorstCells?: (cellIds: string[]) => void;
   initialPrompt?: string;
   onPromptConsumed?: () => void;
+  onNavigate?: (tab: string) => void;
 }
 
-const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWorstCells, initialPrompt, onPromptConsumed }) => {
+const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWorstCells, initialPrompt, onPromptConsumed, onNavigate }) => {
   const sessionStore = useChatSessionStore();
   const { sessions, activeSessionId } = sessionStore;
   const activeSession = sessions.find(s => s.id === activeSessionId) || null;
@@ -522,6 +524,23 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                 <div className="text-center py-8 text-muted-foreground/50 text-xs">Aucune session trouvée</div>
               )}
             </div>
+
+            {/* Agent Hub Button */}
+            {onNavigate && (
+              <div className="border-t border-border/50 px-3 py-2">
+                <button
+                  onClick={() => onNavigate('agent_hub')}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/15 text-primary transition-all group"
+                >
+                  <Cpu className="w-4 h-4" />
+                  <div className="text-left">
+                    <span className="text-[11px] font-bold block leading-tight">QOEBIT Agents</span>
+                    <span className="text-[9px] text-primary/60">Hub & Architecture</span>
+                  </div>
+                  <ChevronRight className="w-3 h-3 ml-auto opacity-50 group-hover:opacity-100 transition-opacity" />
+                </button>
+              </div>
+            )}
 
             {/* Sidebar Footer */}
             <div className="border-t border-border/50 px-3 py-2.5 flex items-center justify-between">
