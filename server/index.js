@@ -1111,7 +1111,6 @@ function extractParamName(query) {
 
 // ─── Helper: search parameter_dump locally ───
 async function searchDumpParameterLocal(query) {
-  const pool = createPool(getLocalDbConfig());
   try {
     const dumpTable = 'parameter_dump';
 
@@ -1120,14 +1119,21 @@ async function searchDumpParameterLocal(query) {
     const siteName = extractSiteName(query);
     console.log(`\n🔍 [PARMY] extractParamName="${paramName}", isDistrib=${isDistrib}, siteName=${siteName}, query="${query}"`);
 
-    // Use cache to check if table has data (avoid COUNT(*) on 87M rows)
-    const cacheHasData = (distinctCache.parameter || []).length > 0;
-    if (!cacheHasData) {
-      const estResult = await pool.query(`SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = '${dumpTable}'`);
-      const estimate = parseInt(estResult.rows[0]?.estimate || '0');
-      console.log(`   📊 [PARMY] Table ${dumpTable} estimated ${estimate} rows (pg_class)`);
-      if (estimate === 0) {
-        return `⚠️ DEBUG: La table ${dumpTable} est VIDE (0 lignes). Importez des données via le module Topologie.`;
+    // Quick sanity check: does the parameter exist at all?
+    if (paramName) {
+      const sanity = await sharedPool.query(
+        `SELECT parameter, COUNT(*) AS cnt FROM ${dumpTable} WHERE parameter ILIKE $1 GROUP BY parameter LIMIT 5`,
+        [paramName]
+      );
+      if (sanity.rows.length) {
+        console.log(`   ✅ [PARMY] Sanity check: parameter "${paramName}" exists — ${sanity.rows.map(r => `${r.parameter}(${r.cnt})`).join(', ')}`);
+      } else {
+        // Try partial
+        const partial = await sharedPool.query(
+          `SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`,
+          [`%${paramName.split('.').pop() || paramName}%`]
+        );
+        console.log(`   ❌ [PARMY] Sanity check: "${paramName}" NOT FOUND. Similar: ${partial.rows.map(r => r.parameter).join(', ') || 'none'}`);
       }
     }
 
@@ -1138,15 +1144,15 @@ async function searchDumpParameterLocal(query) {
          WHERE parameter ILIKE '${paramName}' AND site_name ILIKE '%${siteName}%'
          ORDER BY cell_name, parameter LIMIT 200`;
       console.log(`\n🔍 [PARMY SQL] Site+param search:\n   param=${paramName}, site=${siteName}\n   SQL: ${sqlText}\n`);
-      const result = await pool.query(
+      const result = await sharedPool.query(
         `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
          FROM ${dumpTable} WHERE parameter ILIKE $1 AND site_name ILIKE $2
          ORDER BY cell_name, parameter LIMIT 200`,
         [paramName, `%${siteName}%`]
       );
       if (!result.rows.length) {
-        const siteCheck = await pool.query(`SELECT DISTINCT site_name FROM ${dumpTable} WHERE site_name ILIKE $1 LIMIT 5`, [`%${siteName}%`]);
-        const paramCheck = await pool.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`, [paramName]);
+        const siteCheck = await sharedPool.query(`SELECT DISTINCT site_name FROM ${dumpTable} WHERE site_name ILIKE $1 LIMIT 5`, [`%${siteName}%`]);
+        const paramCheck = await sharedPool.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`, [paramName]);
         let msg = `🔍 DEBUG SQL: ${sqlText}\n\nRÉSULTAT DE RECHERCHE : AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" sur le site "${siteName}".\n`;
         if (!siteCheck.rows.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base ${dumpTable}.\n`;
         else msg += `Sites similaires : ${siteCheck.rows.map(r => r.site_name).join(', ')}\n`;
@@ -1172,7 +1178,7 @@ async function searchDumpParameterLocal(query) {
          ORDER BY dimension, nb_cells DESC`;
       console.log(`\n🔍 [PARMY SQL] Distribution query:\n   param=${paramName}, groupBy=${groupCol}\n   SQL: ${sqlText}\n`);
 
-      let result = await pool.query(
+      let result = await sharedPool.query(
         `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
          FROM ${dumpTable} WHERE parameter = $1
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
@@ -1187,7 +1193,7 @@ async function searchDumpParameterLocal(query) {
          FROM ${dumpTable} WHERE parameter ILIKE '${paramName}'
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC`;
-        result = await pool.query(
+        result = await sharedPool.query(
           `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
            FROM ${dumpTable} WHERE parameter ILIKE $1
            GROUP BY COALESCE(${groupCol}, 'N/A'), value
@@ -1204,7 +1210,7 @@ async function searchDumpParameterLocal(query) {
          FROM ${dumpTable} WHERE parameter ILIKE '%${paramName}%'
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC LIMIT 500`;
-        result = await pool.query(
+        result = await sharedPool.query(
           `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
            FROM ${dumpTable} WHERE parameter ILIKE $1
            GROUP BY COALESCE(${groupCol}, 'N/A'), value
@@ -1216,7 +1222,7 @@ async function searchDumpParameterLocal(query) {
 
       if (!result.rows.length) {
         // Debug: check what parameters exist that are similar
-        const checkResult = await pool.query(
+        const checkResult = await sharedPool.query(
           `SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`,
           [`%${paramName.split('.').pop()}%`]
         );
@@ -1240,7 +1246,7 @@ async function searchDumpParameterLocal(query) {
     const sqlStd = `SELECT dn, enodeb_id, mrbts_id, gnodeb_id, cell_name, vendor, site_name, bande, plaque, parameter, version, value
        FROM ${dumpTable} WHERE ${conditions} LIMIT 80`;
     console.log(`\n🔍 [PARMY SQL] Standard search:\n   terms=${terms.join(', ')}\n   SQL: ${sqlStd}\n`);
-    const result = await pool.query(sqlStd, params);
+    const result = await sharedPool.query(sqlStd, params);
     if (!result.rows.length) return `🔍 DEBUG SQL: ${sqlStd}\n\nAUCUNE DONNÉE trouvée dans ${dumpTable} pour: ${terms.join(', ')}`;
     const header = 'dn | enodeb_id | mrbts_id | cell_name | vendor | site_name | bande | plaque | parameter | version | value';
     const lines = result.rows.map(r =>
@@ -1250,8 +1256,6 @@ async function searchDumpParameterLocal(query) {
   } catch (e) {
     console.error('❌ [PARMY SQL ERROR]', e.message, '\n   Stack:', e.stack?.split('\n')[1]);
     return `⚠️ Erreur SQL PARMY: ${e.message}\n\nStack: ${e.stack?.split('\n').slice(0,3).join('\n')}`;
-  } finally {
-    await pool.end();
   }
 }
 
