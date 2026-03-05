@@ -227,6 +227,15 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
       <div className="relative overflow-hidden border-b border-border">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
         <div className="relative max-w-7xl mx-auto px-6 py-10">
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate('ai_assistant')}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-primary hover:bg-primary/10 transition-colors mb-4 border border-primary/20"
+            >
+              <ArrowLeft size={16} />
+              Back to QOEBIT
+            </button>
+          )}
           <div className="flex items-center gap-4 mb-3">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-lg shadow-primary/10">
               <Cpu className="w-7 h-7 text-primary" />
