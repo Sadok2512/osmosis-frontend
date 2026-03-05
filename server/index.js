@@ -2118,6 +2118,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   if (resolved.topo) sections.push(`📡 TOPOLOGIE:\n${resolved.topo}`);
   if (resolved.topoStats) sections.push(`📊 STATS TOPOLOGIE:\n${resolved.topoStats}`);
   if (resolved.params) sections.push(`⚙️ PARAMÈTRES:\n${resolved.params}`);
+  if (resolved.parmySql) sections.push(`⚙️ PARMY SQL ENGINE:\n${resolved.parmySql}`);
   if (resolved.changes) sections.push(`🔧 HISTORIQUE CHANGEMENTS:\n${resolved.changes}`);
   if (resolved.rag) sections.push(`📚 DOCUMENTS RAG:\n${resolved.rag}`);
 
