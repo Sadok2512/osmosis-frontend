@@ -982,25 +982,35 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 ? [draft.sizeBy].filter((v): v is string => !!v)
                 : []
         }
-        single={kpiModalTarget?.type !== 'metric'}
+        single={kpiModalTarget?.type !== 'metric' || (kpiModalTarget?.type === 'metric' && kpiModalTarget.index >= 0)}
         onConfirm={(keys) => {
           if (!kpiModalTarget) return;
           if (kpiModalTarget.type === 'metric') {
-            const existingMap = new Map(draft.yMetrics.map(m => [m.kpi, m]));
-            const newMetrics: YMetricConfig[] = keys.map((key, idx) => {
-              const existing = existingMap.get(key as BIKPI);
-              if (existing) return existing;
-              return {
-                kpi: key as BIKPI,
-                aggregation: 'AVG' as Aggregation,
-                axis: 'left' as AxisSide,
-                chartType: 'line' as ChartType,
-                color: CHART_COLORS[idx % CHART_COLORS.length],
-                showMovingAvg: false,
-                smoothCurve: true,
+            if (kpiModalTarget.index >= 0 && keys.length === 1) {
+              // Replace single metric at index
+              const metrics = [...draft.yMetrics];
+              metrics[kpiModalTarget.index] = {
+                ...metrics[kpiModalTarget.index],
+                kpi: keys[0] as BIKPI,
               };
-            });
-            update({ yMetrics: newMetrics });
+              update({ yMetrics: metrics });
+            } else {
+              const existingMap = new Map(draft.yMetrics.map(m => [m.kpi, m]));
+              const newMetrics: YMetricConfig[] = keys.map((key, idx) => {
+                const existing = existingMap.get(key as BIKPI);
+                if (existing) return existing;
+                return {
+                  kpi: key as BIKPI,
+                  aggregation: 'AVG' as Aggregation,
+                  axis: 'left' as AxisSide,
+                  chartType: 'line' as ChartType,
+                  color: CHART_COLORS[idx % CHART_COLORS.length],
+                  showMovingAvg: false,
+                  smoothCurve: true,
+                };
+              });
+              update({ yMetrics: newMetrics });
+            }
           } else if (kpiModalTarget.type === 'xAxis') {
             updateX({ value: keys[0] });
           } else if (kpiModalTarget.type === 'sizeBy') {
