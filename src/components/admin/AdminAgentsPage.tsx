@@ -160,6 +160,7 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
   useEffect(() => {
     setPrompt(agent.base_prompt);
     setPromptDirty(false);
+    Promise.all([
       supabase.from('agent_runs').select('*').eq('agent_id', agent.id).order('started_at', { ascending: false }).limit(50),
       supabase.from('admin_documents').select('*').eq('agent_id', agent.id).order('created_at', { ascending: false }),
       supabase.from('agent_modules').select('module_id').eq('agent_id', agent.id),
