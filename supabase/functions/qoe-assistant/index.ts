@@ -842,7 +842,6 @@ Generate the SQL now:`;
     return "";
   }
 }
-}
 
 async function searchParameterChanges(query: string): Promise<string> {
   try {
