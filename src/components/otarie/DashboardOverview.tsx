@@ -593,7 +593,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
               {filtered.map(db => (
                 <div key={db.id} className="relative">
                   <button onClick={() => setSelectedId(db.id)}
-                    className="w-full grid grid-cols-[1fr_80px_200px_160px_120px_100px_80px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left">
+                    className="w-full grid grid-cols-[1fr_80px_200px_160px_120px_100px_120px] gap-2 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors text-left">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         {db.dashboardType === 'map' ? <MapIcon className="w-3.5 h-3.5 text-primary" /> : <BarChart2 className="w-3.5 h-3.5 text-primary" />}
@@ -611,6 +611,18 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                     </span>
                     <span><VisibilityBadge visibility={db.visibility} sharedWith={db.sharedWith} /></span>
                     <div className="flex justify-center gap-0.5">
+                      <span onClick={(e) => { e.stopPropagation(); setSelectedId(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Voir">
+                        <Eye className="w-3.5 h-3.5" />
+                      </span>
+                      <span onClick={(e) => { e.stopPropagation(); setEditModalId(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Modifier">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </span>
+                      <span onClick={(e) => { e.stopPropagation(); openInEditor(db.id); }}
+                        className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Ouvrir en édition">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </span>
                       <span onClick={(e) => { e.stopPropagation(); setSharePopoverId(sharePopoverId === db.id ? null : db.id); }}
                         className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-all cursor-pointer" title="Partager">
                         <Share2 className="w-3.5 h-3.5" />
