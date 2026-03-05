@@ -4,7 +4,7 @@ import { loginAdmin } from '@/services/adminAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { Activity, Loader2, Eye, EyeOff, Lock, User } from 'lucide-react';
+import { ShieldCheck, Loader2, Eye, EyeOff, Lock, User } from 'lucide-react';
 
 export default function UserLogin() {
   const [username, setUsername] = useState('');
@@ -35,29 +35,29 @@ export default function UserLogin() {
     <div className="min-h-screen flex relative overflow-hidden">
       {/* Left decorative panel */}
       <div className="hidden lg:flex lg:w-[45%] relative items-center justify-center"
-        style={{ background: 'linear-gradient(135deg, hsl(220 50% 10%), hsl(220 40% 16%), hsl(200 70% 25%))' }}>
+        style={{ background: 'linear-gradient(135deg, hsl(220 50% 10%), hsl(220 40% 16%), hsl(170 70% 25%))' }}>
         {/* Floating geometric shapes */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-[15%] left-[10%] w-32 h-32 rounded-full border border-white/5 animate-pulse" />
           <div className="absolute bottom-[20%] right-[15%] w-48 h-48 rounded-full border border-white/5" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-[50%] left-[50%] w-20 h-20 rotate-45 border border-[hsl(200,70%,35%)]/20" />
-          <div className="absolute top-[30%] right-[25%] w-3 h-3 rounded-full bg-[hsl(200,70%,45%)]/30" />
-          <div className="absolute bottom-[35%] left-[30%] w-2 h-2 rounded-full bg-[hsl(200,70%,45%)]/20" />
+          <div className="absolute top-[50%] left-[50%] w-20 h-20 rotate-45 border border-[hsl(170,70%,35%)]/20" />
+          <div className="absolute top-[30%] right-[25%] w-3 h-3 rounded-full bg-[hsl(170,70%,45%)]/30" />
+          <div className="absolute bottom-[35%] left-[30%] w-2 h-2 rounded-full bg-[hsl(170,70%,45%)]/20" />
         </div>
         <div className="relative z-10 px-12 text-center">
-          <div className="w-20 h-20 mx-auto mb-8 rounded-2xl bg-[hsl(200,70%,35%)]/15 backdrop-blur-sm flex items-center justify-center border border-[hsl(200,70%,45%)]/20">
-            <Activity className="w-10 h-10 text-[hsl(200,70%,55%)]" />
+          <div className="w-20 h-20 mx-auto mb-8 rounded-2xl bg-[hsl(170,70%,35%)]/15 backdrop-blur-sm flex items-center justify-center border border-[hsl(170,70%,45%)]/20">
+            <ShieldCheck className="w-10 h-10 text-[hsl(170,70%,55%)]" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">
-            QOEBIT
+            QOEBIT Admin
           </h2>
           <p className="text-white/50 text-sm max-w-xs mx-auto leading-relaxed">
-            Quality of Experience analytics platform. Monitor network performance, KPIs and subscriber experience in real-time.
+            Centralized management for users, agents, models, memory sessions and system health monitoring.
           </p>
           <div className="mt-10 flex items-center justify-center gap-6 text-white/30 text-xs">
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400/60" />Real-time</span>
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-400/60" />Analytics</span>
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-indigo-400/60" />AI-powered</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-400/60" />Secure</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-400/60" />Role-based</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-purple-400/60" />Audited</span>
           </div>
         </div>
       </div>
@@ -68,13 +68,13 @@ export default function UserLogin() {
           {/* Mobile-only logo */}
           <div className="lg:hidden flex items-center justify-center mb-8">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Activity className="w-6 h-6 text-primary" />
+              <ShieldCheck className="w-6 h-6 text-primary" />
             </div>
           </div>
 
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Sign in</h1>
-            <p className="text-muted-foreground text-sm mt-1.5">Enter your credentials to access the platform</p>
+            <p className="text-muted-foreground text-sm mt-1.5">Enter your credentials to access the admin panel</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -122,13 +122,7 @@ export default function UserLogin() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <a href="/admin/login" className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
-              Admin access →
-            </a>
-          </div>
-
-          <p className="text-center text-xs text-muted-foreground/50 mt-6">
+          <p className="text-center text-xs text-muted-foreground/50 mt-8">
             Protected access · QOEBIT Platform
           </p>
         </div>
