@@ -2278,7 +2278,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
     sections.push(`📊 KPI MONITOR CONTEXT:\n${kpiMonitorContext}`);
   }
 
-  return sections.join('\n\n');
+  return { context: sections.join('\n\n'), parmySqlDebug: resolved.parmySql || null };
 }
 
 app.post('/api/qoe-assistant', async (req, res) => {
@@ -2332,7 +2332,7 @@ app.post('/api/qoe-assistant', async (req, res) => {
     console.log(`[qoe-assistant] 🧠 Plan: agent=${plan.agent}, intent=${plan.intent}, scope=${JSON.stringify(plan.scope)}, needs=[${plan.needs.join(',')}]`);
 
     // 2. Build context from local DB
-    const context = await buildContextFromPlanLocal(plan, lastUserMsg, filters, legacyCellContext, kpiMonitorContext);
+    const { context, parmySqlDebug } = await buildContextFromPlanLocal(plan, lastUserMsg, filters, legacyCellContext, kpiMonitorContext);
 
     // 3. Build system prompt
     let systemContent = `[AGENT:${plan.agent}]\n\n` + (AGENT_PROMPTS[plan.agent] || AGENT_PROMPTS.PULSE);
@@ -2429,6 +2429,19 @@ app.post('/api/qoe-assistant', async (req, res) => {
     // Inject agent tag as first SSE event
     const agentTag = `data: ${JSON.stringify({ choices: [{ delta: { content: `<!-- AGENT:${plan.agent} -->\n` } }] })}\n\n`;
     res.write(agentTag);
+
+    // Inject PARMY debug SQL block directly into stream so user ALWAYS sees it
+    if (plan.agent === 'PARMY' && parmySqlDebug) {
+      const debugMatch = parmySqlDebug.match(/🔍 DEBUG SQL: (.+?)(?:\n\n|$)/s);
+      const dataPreview = parmySqlDebug.replace(/🔍 DEBUG SQL: .+?\n\n/s, '').slice(0, 2000);
+      let debugBlock = '\n\n<details><summary>🔍 **DEBUG MODE — SQL & Données**</summary>\n\n';
+      if (debugMatch) {
+        debugBlock += '```sql\n' + debugMatch[1].trim() + '\n```\n\n';
+      }
+      debugBlock += '**Résultat brut (extrait) :**\n```\n' + dataPreview + '\n```\n\n</details>\n\n';
+      const debugSSE = `data: ${JSON.stringify({ choices: [{ delta: { content: debugBlock } }] })}\n\n`;
+      res.write(debugSSE);
+    }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
