@@ -1314,6 +1314,12 @@ function buildContextPlan(query, uiScope, filters) {
         if (isParameterFocusedQuery(query)) needs.push('param_dump');
         if (scope.level === 'site') needs.push('topology');
         break;
+      case 'PARMY':
+        needs.push('documents_rag','parmy_sql');
+        if (isParameterFocusedQuery(query)) needs.push('param_dump');
+        if (scope.level === 'site') needs.push('topology','kpi_snapshot');
+        if (isChangeHistoryQuery(query)) needs.push('change_history');
+        break;
       case 'TOPO':
         needs.push('documents_rag');
         if (isTopoInventoryQuery(query)) {
