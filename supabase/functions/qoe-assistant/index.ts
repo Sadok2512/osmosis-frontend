@@ -937,7 +937,7 @@ Generate the SQL now:`;
       })}\n\`\`\``;
     }
 
-    return `⚙️ PARMY SQL ENGINE — Requête exécutée avec succès\nSQL: ${generatedSql}\n\nRÉSULTATS (${rows.length} lignes):\n${header}\n${separator}\n${lines.join("\n")}${chartBlock}\n\nINSTRUCTION: Présente ces résultats de manière structurée avec analyse et recommandations.`;
+    return `⚙️ PARMY SQL ENGINE — Requête exécutée avec succès${paramCorrection}\nSQL: ${generatedSql}\n\nRÉSULTATS (${rows.length} lignes):\n${header}\n${separator}\n${lines.join("\n")}${chartBlock}\n\nINSTRUCTION: Présente ces résultats de manière structurée avec analyse et recommandations.${paramCorrection ? " Mentionne la correction du nom de paramètre." : ""}`;
   } catch (e) {
     console.error("PARMY SQL engine failed:", e);
     return "";
