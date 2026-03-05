@@ -463,14 +463,14 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </div>
 
           {draft.xAxis.type === 'date' && (
-            <div className="space-y-4">
-              {/* Quick date presets */}
-              <div className="flex gap-1.5">
+            <div className="space-y-2.5">
+              {/* Quick date presets - small scale buttons */}
+              <div className="flex gap-1">
                 {DATE_PRESETS.map(p => (
                   <button
                     key={p.label}
                     onClick={() => applyDatePreset(p.days)}
-                    className="flex-1 py-2 rounded-lg text-[11px] font-bold border border-border/40
+                    className="flex-1 py-1.5 rounded-md text-[10px] font-bold border border-border/40
                       bg-muted/30 text-muted-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5
                       transition-all duration-200"
                   >
@@ -479,37 +479,37 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 ))}
               </div>
 
-              {/* Date inputs on same row with arrow */}
-              <div className="flex items-end gap-2">
-                <div className="flex-1 space-y-1.5">
+              {/* Date inputs compact */}
+              <div className="flex items-end gap-1.5">
+                <div className="flex-1 space-y-1">
                   <FieldLabel>Start</FieldLabel>
                   <input
                     type="date"
                     value={draft.xAxis.dateStart}
                     onChange={e => updateX({ dateStart: e.target.value })}
-                    className="w-full bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[12px] text-foreground
+                    className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[11px] text-foreground
                       outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
                       hover:border-border transition-all duration-150"
                   />
                 </div>
-                <div className="pb-2.5">
-                  <ArrowRight className="w-4 h-4 text-muted-foreground/50" />
+                <div className="pb-2">
+                  <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50" />
                 </div>
-                <div className="flex-1 space-y-1.5">
+                <div className="flex-1 space-y-1">
                   <FieldLabel>End</FieldLabel>
                   <input
                     type="date"
                     value={draft.xAxis.dateEnd}
                     onChange={e => updateX({ dateEnd: e.target.value })}
-                    className="w-full bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[12px] text-foreground
+                    className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[11px] text-foreground
                       outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
                       hover:border-border transition-all duration-150"
                   />
                 </div>
               </div>
 
-              {/* Granularity */}
-              <div className="space-y-2">
+              {/* Granularity compact */}
+              <div className="space-y-1">
                 <FieldLabel>Granularity</FieldLabel>
                 <SegmentedControl
                   options={GRANULARITIES.map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
