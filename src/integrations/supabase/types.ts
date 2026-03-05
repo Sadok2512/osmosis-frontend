@@ -14,6 +14,143 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_agents: {
+        Row: {
+          base_prompt: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          model_config_id: string | null
+          name: string
+        }
+        Insert: {
+          base_prompt?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          model_config_id?: string | null
+          name: string
+        }
+        Update: {
+          base_prompt?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          model_config_id?: string | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_agents_model_config_id_fkey"
+            columns: ["model_config_id"]
+            isOneToOne: false
+            referencedRelation: "llm_model_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_documents: {
+        Row: {
+          agent_id: string
+          created_at: string
+          filename: string
+          id: string
+          mime_type: string | null
+          storage_path: string
+          uploaded_by_user_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          filename: string
+          id?: string
+          mime_type?: string | null
+          storage_path: string
+          uploaded_by_user_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          storage_path?: string
+          uploaded_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_documents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "admin_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_documents_uploaded_by_user_id_fkey"
+            columns: ["uploaded_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_modules: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      admin_users: {
+        Row: {
+          created_at: string
+          id: string
+          last_login: string | null
+          password_hash: string
+          role: string
+          status: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_login?: string | null
+          password_hash: string
+          role?: string
+          status?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_login?: string | null
+          password_hash?: string
+          role?: string
+          status?: string
+          username?: string
+        }
+        Relationships: []
+      }
       agent_feedback: {
         Row: {
           agent: string
@@ -88,6 +225,96 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      agent_modules: {
+        Row: {
+          agent_id: string
+          module_id: string
+        }
+        Insert: {
+          agent_id: string
+          module_id: string
+        }
+        Update: {
+          agent_id?: string
+          module_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_modules_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "admin_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_modules_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "admin_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_runs: {
+        Row: {
+          agent_id: string
+          cost_estimate: number | null
+          finished_at: string | null
+          id: string
+          latency_ms: number | null
+          notes: string | null
+          score: number | null
+          started_at: string
+          status: string
+          tokens_in: number | null
+          tokens_out: number | null
+          user_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          cost_estimate?: number | null
+          finished_at?: string | null
+          id?: string
+          latency_ms?: number | null
+          notes?: string | null
+          score?: number | null
+          started_at?: string
+          status?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          cost_estimate?: number | null
+          finished_at?: string | null
+          id?: string
+          latency_ms?: number | null
+          notes?: string | null
+          score?: number | null
+          started_at?: string
+          status?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "admin_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dashboards: {
         Row: {
@@ -449,6 +676,45 @@ export type Database = {
         }
         Relationships: []
       }
+      llm_model_configs: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          max_tokens: number
+          model_name: string
+          provider: string
+          system_prompt_prefix: string | null
+          temperature: number
+          top_p: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          max_tokens?: number
+          model_name?: string
+          provider?: string
+          system_prompt_prefix?: string | null
+          temperature?: number
+          top_p?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          max_tokens?: number
+          model_name?: string
+          provider?: string
+          system_prompt_prefix?: string | null
+          temperature?: number
+          top_p?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       map_views: {
         Row: {
           created_at: string
@@ -478,6 +744,54 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      memory_items: {
+        Row: {
+          agent_id: string | null
+          content: string
+          created_at: string
+          id: string
+          importance: number
+          tags: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          importance?: number
+          tags?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          importance?: number
+          tags?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_items_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "admin_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memory_items_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ml_features: {
         Row: {
@@ -1376,6 +1690,27 @@ export type Database = {
           vendor?: string | null
           version?: string | null
           zone_arcep?: string | null
+        }
+        Relationships: []
+      }
+      ping_stats: {
+        Row: {
+          id: string
+          last_ping_at: string
+          ping_count: number
+          table_name: string
+        }
+        Insert: {
+          id?: string
+          last_ping_at?: string
+          ping_count?: number
+          table_name: string
+        }
+        Update: {
+          id?: string
+          last_ping_at?: string
+          ping_count?: number
+          table_name?: string
         }
         Relationships: []
       }
