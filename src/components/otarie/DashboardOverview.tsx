@@ -521,7 +521,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   };
 
   const deleteDashboard = async (id: string) => {
-    await dashboardsApi.delete(id);
+    await dashboardsApi.remove(id);
     const refreshed = await loadAllDashboardsFromDB();
     setDashboards(refreshed);
     setDeleteModalId(null);
