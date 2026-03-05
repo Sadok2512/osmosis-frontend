@@ -1130,13 +1130,13 @@ async function searchDumpParameterLocal(query) {
 
     // Site-specific parameter query (e.g. "T300 pour FIRMINY_TDF")
     if (paramName && siteName && !isDistrib) {
-      const sql = `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque
+      const sql = `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
          FROM ${dumpTable}
          WHERE parameter ILIKE '%${paramName}%' AND site_name ILIKE '%${siteName}%'
          ORDER BY cell_name, parameter LIMIT 200`;
       console.log(`\n🔍 [PARMY SQL] Site+param search:\n   param=${paramName}, site=${siteName}\n   SQL: ${sql}\n`);
       const result = await pool.query(
-        `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, ur, plaque
+        `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
          FROM ${dumpTable}
          WHERE parameter ILIKE $1 AND site_name ILIKE $2
          ORDER BY cell_name, parameter LIMIT 200`,
@@ -1152,9 +1152,9 @@ async function searchDumpParameterLocal(query) {
         else msg += `Paramètres contenant "${paramName}" : ${paramCheck.rows.map(r => r.parameter).join(', ')}\n`;
         return msg;
       }
-      const header = 'dn | cell_name | site_name | parameter | value | version | vendor | bande | ur | plaque';
+      const header = 'dn | cell_name | site_name | parameter | value | version | vendor | bande | dor | plaque';
       const lines = result.rows.map(r =>
-        `${r.dn||''} | ${r.cell_name||''} | ${r.site_name||''} | ${r.parameter||''} | ${r.value||''} | ${r.version||''} | ${r.vendor||''} | ${r.bande||''} | ${r.ur||''} | ${r.plaque||''}`
+        `${r.dn||''} | ${r.cell_name||''} | ${r.site_name||''} | ${r.parameter||''} | ${r.value||''} | ${r.version||''} | ${r.vendor||''} | ${r.bande||''} | ${r.dor||''} | ${r.plaque||''}`
       );
       console.log(`   ✅ [PARMY] Résultat: ${result.rows.length} lignes retournées`);
       return `DONNÉES RÉELLES pour ${paramName} sur ${siteName} (${result.rows.length} résultats) :\n${header}\n${lines.join('\n')}`;
