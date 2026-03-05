@@ -3343,7 +3343,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           )}
         </div>
       </div>
-
+      {expandedDashboardId && (
+        <div className="px-2 mb-2">
+          <span className="text-[11px] font-bold text-primary truncate block">
+            {dashboards.find(d => d.id === expandedDashboardId)?.name || ''}
+          </span>
+        </div>
+      )}
 
       {/* Floating top bar — single row with scroll, dynamically positioned between sidebars */}
       <div
