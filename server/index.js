@@ -1411,6 +1411,9 @@ function classifyIntent(query, scopeLevel) {
   // Top/worst/best queries take HIGHEST priority (even if "par DOR" is present)
   const isTopQuery = ['top','pire','worst','meilleur','best','classement','ranking','dégradé','degradé','degraded'].some(h => n.includes(h));
   if (isTopQuery) return 'top_degradations';
+  // Trend / time-series queries — "plot", "tracer", "courbe", "évolution", "tendance", "trend"
+  const isTrendQuery = ['plot','tracer','courbe','évolution','evolution','tendance','trend','time series','timeseries','historique'].some(h => n.includes(h));
+  if (isTrendQuery) return 'kpi_trend';
   // Topology / site count queries — BEFORE dimension detection so "nombre de sites par dor" routes here
   if (['nombre de sites','nombre des sites','combien de sites','nb sites','répartition des sites','count sites','nombre de cellules','nombre des cellules','nb cellules'].some(h => n.includes(h))) return 'topo_stats';
   // Dimension-based queries
@@ -1481,7 +1484,11 @@ function buildContextPlan(query, uiScope, filters) {
     switch (agent) {
       case 'PULSE':
         needs.push('documents_rag');
-        if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
+        if (intent === 'kpi_trend') {
+          metric = detectMetricLocal(query) || 'qoe_index';
+          needs.push('kpi_time_series');
+        }
+        else if (['global_summary','compare','other'].includes(intent)) { needs.push('agg_stats','worst_sites'); }
         else if (intent === 'top_degradations') {
           const topNMatch = query.match(/\btop\s*(\d+)/i);
           const topN = topNMatch ? parseInt(topNMatch[1]) : 20;
@@ -1530,7 +1537,11 @@ function buildContextPlan(query, uiScope, filters) {
   }
 
   const n = query.toLowerCase();
-  if (n.includes('hier') || n.includes('24h') || n.includes("aujourd")) limits.maxDays = 1;
+  // Detect time range: j-15, j-14, 2 semaines → 15 days; j-30, mois → 30 days; default 7
+  const jMatch = n.match(/j[- ]?(\d+)/);
+  if (jMatch) { limits.maxDays = parseInt(jMatch[1]); }
+  else if (n.includes('2 semaines') || n.includes('two weeks') || n.includes('15 jours') || n.includes('15j')) { limits.maxDays = 15; }
+  else if (n.includes('hier') || n.includes('24h') || n.includes("aujourd")) limits.maxDays = 1;
   else if (n.includes('mois') || n.includes('30j')) limits.maxDays = 30;
 
   return { agent, intent, scope, needs, limits, groupBy, metric };
@@ -1901,7 +1912,56 @@ async function searchParameterChangesLocal(query) {
   } catch (e) { console.error('[searchParameterChangesLocal]', e.message); return ''; }
 }
 
-// ─── Dimension-based data providers on qoe_metric ───
+// ─── Time-series data provider on qoe_metric ───
+async function fetchKpiTimeSeriesLocal(metric, filters, days) {
+  days = days || 7;
+  try {
+    const src = await detectKpiTable();
+    if (!src) return '';
+    const { dim1, dim2 } = dimCols(src.isQoeMetric);
+    const colRes = await sharedPool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND table_schema = 'public'`, [src.table]
+    );
+    const availCols = new Set(colRes.rows.map(r => r.column_name));
+    const metricCol = availCols.has(metric) ? metric : 'qoe_index';
+    const hasDatePart = availCols.has('date_part');
+    if (!hasDatePart) return `Table ${src.table} does not have date_part column for time-series.`;
+
+    let sql = `SELECT date_part, AVG(${metricCol}) AS value`;
+    if (availCols.has('session_nbr')) sql += `, SUM(session_nbr) AS sessions`;
+    sql += ` FROM ${src.table} WHERE date_part >= (CURRENT_DATE - INTERVAL '${days} days')::text`;
+    const params = [];
+    let pi = 1;
+    if (filters?.vendor) { sql += ` AND ${availCols.has('constructeur') ? 'constructeur' : 'vendor'} ILIKE $${pi++}`; params.push(`%${filters.vendor}%`); }
+    if (filters?.techno) { sql += ` AND techno = $${pi++}`; params.push(filters.techno); }
+    if (filters?.plaque) { sql += ` AND plaque = $${pi++}`; params.push(filters.plaque); }
+    if (filters?.dor) { sql += ` AND dor = $${pi++}`; params.push(filters.dor); }
+    sql += ` GROUP BY date_part ORDER BY date_part ASC`;
+    console.log(`[fetchKpiTimeSeriesLocal] ${sql} params=${JSON.stringify(params)}`);
+    const { rows } = await sharedPool.query(sql, params);
+    if (!rows.length) return `Aucune donnée temporelle pour ${metricCol} sur les ${days} derniers jours.`;
+
+    // Build markdown table
+    const header = `| Date | ${metricCol} |`;
+    const sep = '|---|---|';
+    const lines = rows.map(r => `| ${r.date_part} | ${Number(r.value).toFixed(2)} |`);
+
+    // Build line chart
+    const chartData = rows.map(r => ({ date: r.date_part?.slice(5) || r.date_part, [metricCol]: Math.round(Number(r.value) * 100) / 100 }));
+    const chartJson = JSON.stringify({
+      type: 'line',
+      title: `${metricCol} — ${days} derniers jours`,
+      xKey: 'date',
+      yKeys: [metricCol],
+      data: chartData,
+      colors: ['#3b82f6']
+    });
+
+    const filterDesc = [filters?.vendor, filters?.techno, filters?.plaque, filters?.dor].filter(Boolean).join(', ');
+    return `TENDANCE ${metricCol} sur ${days} jours${filterDesc ? ` (${filterDesc})` : ''} (${rows.length} points, source: ${src.table}):\n\n${header}\n${sep}\n${lines.join('\n')}\n\nINSTRUCTION: Affiche ces données en tendance temporelle. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+  } catch (e) { console.error('[fetchKpiTimeSeriesLocal]', e.message); return ''; }
+}
+
 async function fetchMetricDistributionLocal(dimension1Type, metric, filters, days, limit) {
   days = days || 7; limit = limit || 30;
   try {
@@ -2302,6 +2362,9 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
   if (plan.needs.includes('param_dump')) promises.params = searchDumpParameterLocal(query);
   if (plan.needs.includes('change_history')) promises.changes = searchParameterChangesLocal(query);
   if (plan.needs.includes('parmy_sql')) promises.parmySql = searchDumpParameterLocal(query);
+  if (plan.needs.includes('kpi_time_series')) {
+    promises.timeSeries = fetchKpiTimeSeriesLocal(plan.metric || 'qoe_index', effectiveFilters, plan.limits.maxDays);
+  }
   if (plan.needs.includes('dimension_agg') && plan.groupBy?.dimension1) {
     promises.dimAgg = fetchMetricDistributionLocal(plan.groupBy.dimension1, plan.metric || 'qoe_index', effectiveFilters, plan.limits.maxDays, 30);
   }
@@ -2334,6 +2397,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
 
   if (resolved.topoInv) sections.push(`🗼 INVENTAIRE TOPO:\n${resolved.topoInv}`);
   if (resolved.topoAgg) sections.push(`📡 DISTRIBUTION TOPO:\n${resolved.topoAgg}`);
+  if (resolved.timeSeries) sections.push(`📈 TENDANCE TEMPORELLE:\n${resolved.timeSeries}`);
   if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
   if (resolved.dimValues) sections.push(`📋 VALEURS DIMENSION:\n${resolved.dimValues}`);
   if (resolved.agg) sections.push(`📊 STATS AGRÉGÉES:\n${resolved.agg}`);
