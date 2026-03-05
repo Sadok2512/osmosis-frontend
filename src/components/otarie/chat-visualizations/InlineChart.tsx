@@ -82,8 +82,8 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
               cy="50%"
               outerRadius={80}
               label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-              labelLine={{ strokeWidth: 1 }}
-              style={{ fontSize: 10 }}
+              labelLine={{ strokeWidth: 1, stroke: 'hsl(var(--foreground))' }}
+              style={{ fontSize: 10, fill: 'hsl(var(--foreground))', fontWeight: 600 }}
             >
               {pieData.map((entry, i) => (
                 <Cell key={i} fill={entry.fill} />
