@@ -13,6 +13,15 @@ const corsHeaders = {
 
 type AgentId = "PULSE" | "TRACE" | "SENTINEL" | "TOPO" | "PARMY";
 
+function isTimeSeriesQuery(query: string): boolean {
+  const n = query.toLowerCase();
+  return ["x=date", "x = date", "par date", "par jour", "évolution", "evolution",
+    "tendance", "trend", "plot", "courbe", "time series", "timeseries",
+    "au fil du temps", "historique", "j-7", "j-14", "j-15", "j-30",
+    "daily", "journalier", "sur le temps", "dans le temps"
+  ].some(h => n.includes(h));
+}
+
 type Intent =
   | "global_summary"
   | "top_degradations"
