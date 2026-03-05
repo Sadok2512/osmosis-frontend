@@ -1051,6 +1051,8 @@ function isParmyQuery(query: string): boolean {
 
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
+  // Parameter-focused queries with known prefixes → PARMY FIRST (before anything else)
+  if (extractParamName(query)) return "PARMY";
   // Topo inventory queries (nombre de cellules, combien de sites) → TOPO always first
   if (isTopoInventoryQuery(query)) return "TOPO";
   // Pure topo metric queries (just "tilt", "azimut", "hba") → TOPO
