@@ -310,31 +310,30 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
 
       {/* ─── Header ─── */}
       <div className="px-5 py-5 border-b border-border/40 bg-card/50">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <BarChart2 className="w-4 h-4 text-primary" />
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-foreground tracking-tight">New Chart</h2>
+            <div className="flex-1 min-w-0">
+              <input
+                value={draft.title}
+                onChange={e => update({ title: e.target.value })}
+                className="w-full bg-transparent text-sm font-bold text-foreground outline-none
+                  border-b border-transparent focus:border-primary/40
+                  transition-all duration-200 placeholder:text-muted-foreground/40 truncate"
+                placeholder="Titre du graphique…"
+              />
               <p className="text-[11px] text-muted-foreground mt-0.5">Configure chart settings</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted/60 transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted/60 transition-colors shrink-0 ml-2"
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
-        <input
-          value={draft.title}
-          onChange={e => update({ title: e.target.value })}
-          className="w-full bg-muted/30 rounded-lg text-sm font-semibold text-foreground outline-none
-            border border-border/40 px-3 py-2.5 focus:border-primary/40 focus:bg-background
-            transition-all duration-200 placeholder:text-muted-foreground/40"
-          placeholder="Titre du graphique…"
-        />
       </div>
 
       {/* ─── Scrollable Sections ─── */}
