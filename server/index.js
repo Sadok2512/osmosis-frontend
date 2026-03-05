@@ -1133,18 +1133,18 @@ async function searchDumpParameterLocal(query) {
     if (paramName && siteName && !isDistrib) {
       const sqlText = `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
          FROM ${dumpTable}
-         WHERE parameter ILIKE '%${paramName}%' AND site_name ILIKE '%${siteName}%'
+         WHERE parameter = '${paramName}' AND site_name ILIKE '%${siteName}%'
          ORDER BY cell_name, parameter LIMIT 200`;
       console.log(`\n🔍 [PARMY SQL] Site+param search:\n   param=${paramName}, site=${siteName}\n   SQL: ${sqlText}\n`);
       const result = await pool.query(
         `SELECT dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, dor, plaque
-         FROM ${dumpTable} WHERE parameter ILIKE $1 AND site_name ILIKE $2
+         FROM ${dumpTable} WHERE parameter = $1 AND site_name ILIKE $2
          ORDER BY cell_name, parameter LIMIT 200`,
-        [`%${paramName}%`, `%${siteName}%`]
+        [paramName, `%${siteName}%`]
       );
       if (!result.rows.length) {
         const siteCheck = await pool.query(`SELECT DISTINCT site_name FROM ${dumpTable} WHERE site_name ILIKE $1 LIMIT 5`, [`%${siteName}%`]);
-        const paramCheck = await pool.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`, [`%${paramName}%`]);
+        const paramCheck = await pool.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter = $1 LIMIT 10`, [paramName]);
         let msg = `🔍 DEBUG SQL: ${sqlText}\n\nRÉSULTAT DE RECHERCHE : AUCUNE DONNÉE trouvée pour le paramètre "${paramName}" sur le site "${siteName}".\n`;
         if (!siteCheck.rows.length) msg += `⚠️ Le site "${siteName}" n'existe pas dans la base ${dumpTable}.\n`;
         else msg += `Sites similaires : ${siteCheck.rows.map(r => r.site_name).join(', ')}\n`;
@@ -1163,19 +1163,18 @@ async function searchDumpParameterLocal(query) {
     if (isDistrib && paramName) {
       const groupCol = extractGroupByColumn(query);
       const sqlText = `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
-         FROM ${dumpTable} WHERE parameter ILIKE '%${paramName}%'
+         FROM ${dumpTable} WHERE parameter = '${paramName}'
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC`;
       console.log(`\n🔍 [PARMY SQL] Distribution query:\n   param=${paramName}, groupBy=${groupCol}\n   SQL: ${sqlText}\n`);
 
-      // First check if parameter exists at all
+      // First check if parameter exists at all (use exact match for speed)
       const paramCheck = await pool.query(
-        `SELECT COUNT(*) AS cnt, COUNT(DISTINCT parameter) AS dist FROM ${dumpTable} WHERE parameter ILIKE $1`,
-        [`%${paramName}%`]
+        `SELECT COUNT(*) AS cnt FROM ${dumpTable} WHERE parameter = $1 LIMIT 1`,
+        [paramName]
       );
       const paramCount = parseInt(paramCheck.rows[0].cnt);
-      const paramDistinct = parseInt(paramCheck.rows[0].dist);
-      console.log(`   📊 [PARMY] Parameter "${paramName}" matches: ${paramCount} rows, ${paramDistinct} distinct params`);
+      console.log(`   📊 [PARMY] Parameter "${paramName}" matches: ${paramCount} rows`);
 
       if (paramCount === 0) {
         // Show available parameters containing keyword
@@ -1188,10 +1187,10 @@ async function searchDumpParameterLocal(query) {
 
       const result = await pool.query(
         `SELECT COALESCE(${groupCol}, 'N/A') AS dimension, value AS param_value, COUNT(*) AS nb_cells
-         FROM ${dumpTable} WHERE parameter ILIKE $1
+         FROM ${dumpTable} WHERE parameter = $1
          GROUP BY COALESCE(${groupCol}, 'N/A'), value
          ORDER BY dimension, nb_cells DESC`,
-        [`%${paramName}%`]
+        [paramName]
       );
       if (!result.rows.length) {
         return `🔍 DEBUG SQL: ${sqlText}\n\nAUCUNE DONNÉE trouvée pour le paramètre "${paramName}" dans la base ${dumpTable}.`;
