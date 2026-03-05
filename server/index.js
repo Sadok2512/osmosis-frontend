@@ -1045,7 +1045,10 @@ function extractSiteName(query) {
 }
 function extractParamName(query) {
   const n = query.toLowerCase();
-  // Known parameter name patterns
+  // Priority 1: Try to extract PARAM.subparam pattern (e.g., LNCEL.pMax) — most specific
+  const dotMatch = query.match(/\b([A-Za-z]\w+\.\w+)\b/);
+  if (dotMatch) return dotMatch[1];
+  // Priority 2: Known parameter name patterns
   const knownParams = [
     't300','t301','t304','t310','t311','t320','t321',
     'lncel','lnbts','nrcell','nrbts','gnbdu','gnbcucp','gnbcuup',
@@ -1057,9 +1060,6 @@ function extractParamName(query) {
   for (const p of knownParams) {
     if (n.includes(p)) return p;
   }
-  // Try to extract PARAM.subparam pattern (e.g., LNCEL.pMax)
-  const dotMatch = query.match(/\b([A-Z]\w+\.\w+)\b/);
-  if (dotMatch) return dotMatch[1];
   // Try to extract uppercase parameter names
   const upperMatch = query.match(/\b([A-Z][A-Z0-9_]{2,})\b/);
   if (upperMatch) {
@@ -1219,6 +1219,9 @@ function isParameterFocusedQuery(query) {
   return ['paramètre','parametre','parameter','param','config','configuration','dump',
     'mrbts','lnbts','enodeb','gnodeb','template','dn','version',
     'nokia','ericsson','huawei','cell_dn','blockingstate',
+    'lncel','nrcell','nrbts','lnhoif','lnrelci','nrcel','gnbdu','gnbcucp',
+    'pmax','pzero','qrxlevmin','qqualmin','dlchbw','ulchbw',
+    'dlmimomode','ulmimomode','dlrsboost','cellbarred',
     't300','t301','t304','t310','t311','t320','t321',
     'timer','rrc','handover','reselection','distribution','valeur','valeurs',
   ].some(h => n.includes(h));
