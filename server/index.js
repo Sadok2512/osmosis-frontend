@@ -1111,7 +1111,6 @@ function extractParamName(query) {
 
 // ─── Helper: search parameter_dump locally ───
 async function searchDumpParameterLocal(query) {
-  const pool = createPool(getLocalDbConfig());
   try {
     const dumpTable = 'parameter_dump';
 
@@ -1120,14 +1119,21 @@ async function searchDumpParameterLocal(query) {
     const siteName = extractSiteName(query);
     console.log(`\n🔍 [PARMY] extractParamName="${paramName}", isDistrib=${isDistrib}, siteName=${siteName}, query="${query}"`);
 
-    // Use cache to check if table has data (avoid COUNT(*) on 87M rows)
-    const cacheHasData = (distinctCache.parameter || []).length > 0;
-    if (!cacheHasData) {
-      const estResult = await pool.query(`SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = '${dumpTable}'`);
-      const estimate = parseInt(estResult.rows[0]?.estimate || '0');
-      console.log(`   📊 [PARMY] Table ${dumpTable} estimated ${estimate} rows (pg_class)`);
-      if (estimate === 0) {
-        return `⚠️ DEBUG: La table ${dumpTable} est VIDE (0 lignes). Importez des données via le module Topologie.`;
+    // Quick sanity check: does the parameter exist at all?
+    if (paramName) {
+      const sanity = await sharedPool.query(
+        `SELECT parameter, COUNT(*) AS cnt FROM ${dumpTable} WHERE parameter ILIKE $1 GROUP BY parameter LIMIT 5`,
+        [paramName]
+      );
+      if (sanity.rows.length) {
+        console.log(`   ✅ [PARMY] Sanity check: parameter "${paramName}" exists — ${sanity.rows.map(r => `${r.parameter}(${r.cnt})`).join(', ')}`);
+      } else {
+        // Try partial
+        const partial = await sharedPool.query(
+          `SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter ILIKE $1 LIMIT 10`,
+          [`%${paramName.split('.').pop() || paramName}%`]
+        );
+        console.log(`   ❌ [PARMY] Sanity check: "${paramName}" NOT FOUND. Similar: ${partial.rows.map(r => r.parameter).join(', ') || 'none'}`);
       }
     }
 
