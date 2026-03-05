@@ -1787,14 +1787,19 @@ serve(async (req) => {
     (async () => {
       await writer.write(metaChunk);
 
-      // Inject SQL debug block for PARMY agent
+      // Inject SQL debug block for PARMY agent (plain markdown, not <details> which ReactMarkdown strips)
       if (plan.agent === "PARMY" && parmySqlDebug) {
-        const sqlMatch = parmySqlDebug.match(/SQL: (.+?)(?:\n\n|$)/s);
+        // Match both "SQL: ..." and "SQL QUERY (N results):\n..."
+        const sqlMatch = parmySqlDebug.match(/(?:SQL(?:\s*QUERY[^:]*)?:\s*)(.+?)(?:\n\n|$)/s);
         const sqlQuery = sqlMatch ? sqlMatch[1].trim() : "";
         const dataPreview = parmySqlDebug.slice(0, 2000);
-        let debugBlock = "\n\n---\n<details><summary>🔍 **DEBUG — SQL & Données brutes**</summary>\n\n";
-        if (sqlQuery) debugBlock += "```sql\n" + sqlQuery + "\n```\n\n";
-        debugBlock += "**Résultat brut (extrait) :**\n```\n" + dataPreview + "\n```\n\n</details>\n\n---\n\n";
+        let debugBlock = "\n\n---\n\n🔍 **DEBUG — SQL & Données brutes**\n\n";
+        if (sqlQuery) {
+          debugBlock += "```sql\n" + sqlQuery + "\n```\n\n";
+        } else {
+          debugBlock += "*(Aucune requête SQL générée)*\n\n";
+        }
+        debugBlock += "**Résultat brut (extrait) :**\n```\n" + dataPreview + "\n```\n\n---\n\n";
         const debugChunk = encoder.encode(
           `data: ${JSON.stringify({ choices: [{ delta: { content: debugBlock } }] })}\n\n`
         );
