@@ -11,7 +11,7 @@ const corsHeaders = {
 //  TYPES (Context-on-Demand)
 // ═══════════════════════════════════════════════════════════════
 
-type AgentId = "PULSE" | "TRACE" | "SENTINEL" | "TOPO";
+type AgentId = "PULSE" | "TRACE" | "SENTINEL" | "TOPO" | "PARMY";
 
 type Intent =
   | "global_summary"
