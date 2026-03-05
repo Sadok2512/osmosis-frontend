@@ -1464,6 +1464,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [mapKpi, setMapKpi] = useState('qoe_score_avg');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
+  const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
   const [mapRendering, setMapRendering] = useState(false);
