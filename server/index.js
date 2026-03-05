@@ -1343,15 +1343,24 @@ function isSentinelQuery(query) {
 }
 function isParameterFocusedQuery(query) {
   const n = query.toLowerCase();
-  return ['paramètre','parametre','parameter','param','config','configuration','dump',
+  // Vendor names alone should NOT route to PARMY — they are dimensions for PULSE
+  // Only route to PARMY if vendor is combined with parameter-specific keywords
+  const vendorOnly = /\b(nokia|ericsson|huawei|samsung)\b/i.test(query);
+  const hasParamKeyword = ['paramètre','parametre','parameter','param','config','configuration','dump',
     'mrbts','lnbts','enodeb','gnodeb','template','dn','version',
-    'nokia','ericsson','huawei','cell_dn','blockingstate',
+    'cell_dn','blockingstate',
     'lncel','nrcell','nrbts','lnhoif','lnrelci','nrcel','gnbdu','gnbcucp',
     'pmax','pzero','qrxlevmin','qqualmin','dlchbw','ulchbw',
     'dlmimomode','ulmimomode','dlrsboost','cellbarred',
     't300','t301','t304','t310','t311','t320','t321',
-    'timer','rrc','handover','reselection','distribution','valeur','valeurs',
+    'timer','rrc','handover','reselection',
   ].some(h => n.includes(h));
+  // If only vendor mentioned without param keywords → not a parameter query
+  if (vendorOnly && !hasParamKeyword) return false;
+  // Distribution/valeur alone are too generic — need param context
+  const hasDistribKeyword = ['distribution','valeur','valeurs'].some(h => n.includes(h));
+  if (hasDistribKeyword && !hasParamKeyword) return false;
+  return hasParamKeyword || hasDistribKeyword;
 }
 function isParmyQuery(query) {
   const n = query.toLowerCase();
