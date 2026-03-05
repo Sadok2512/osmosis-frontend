@@ -1060,12 +1060,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setCreatingDash(true);
     const id = crypto.randomUUID();
     try {
+      const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
       await dashboardsApi.upsert({
         id,
         name: newDashName.trim(),
         description: '',
         is_shared: true,
         widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '' }],
+        owner_username: session?.username,
       });
       setNewDashName('');
       setShowCreateDash(false);

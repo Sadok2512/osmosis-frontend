@@ -63,12 +63,14 @@ async function loadAllDashboardsFromDB(): Promise<SavedDashboard[]> {
 
 async function upsertDashboardToDB(db: SavedDashboard) {
   try {
+    const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
     await dashboardsApi.upsert({
       id: db.id,
       name: db.name,
       description: db.description,
       is_shared: db.isShared,
       widgets: db.widgets,
+      owner_username: session?.username,
     });
   } catch (e) {
     console.error('[DashboardManager] Failed to save dashboard:', e);
