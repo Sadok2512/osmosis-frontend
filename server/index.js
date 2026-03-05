@@ -2278,7 +2278,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
     sections.push(`📊 KPI MONITOR CONTEXT:\n${kpiMonitorContext}`);
   }
 
-  return sections.join('\n\n');
+  return { context: sections.join('\n\n'), parmySqlDebug: resolved.parmySql || null };
 }
 
 app.post('/api/qoe-assistant', async (req, res) => {
