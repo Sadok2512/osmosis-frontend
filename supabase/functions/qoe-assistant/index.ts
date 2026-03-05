@@ -896,18 +896,16 @@ Generate the SQL now:`;
 
     console.log(`⚙️ PARMY SQL generated: ${generatedSql.slice(0, 200)}`);
 
-    // Execute via RPC
-    const supabase = getSupabase();
     const { data, error } = await supabase.rpc("execute_parmy_sql", { query_sql: generatedSql });
 
     if (error) {
       console.error("PARMY SQL execution error:", error);
-      return `⚠️ SQL EXECUTION ERROR: ${error.message}\nGenerated SQL: ${generatedSql}`;
+      return `⚠️ SQL EXECUTION ERROR: ${error.message}\nGenerated SQL: ${generatedSql}${paramCorrection}`;
     }
 
     const rows = data as any[];
     if (!rows || rows.length === 0) {
-      return `SQL QUERY (0 results):\n${generatedSql}\n\nAucun résultat trouvé.`;
+      return `SQL QUERY (0 results):\n${generatedSql}${paramCorrection}\n\nAucun résultat trouvé.`;
     }
 
     // Format results as a table
