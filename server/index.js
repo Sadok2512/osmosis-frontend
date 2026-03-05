@@ -1204,17 +1204,19 @@ function classifyAgent(query) {
   // Pure topo metric queries (tilt, azimut, hba) → TOPO
   const met = detectMetricLocal(query);
   if (TOPO_METRICS.has(met)) return 'TOPO';
-  // Comparison queries should go to PULSE even if they mention vendor names
+  // Site design queries → TOPO
+  if (isSiteDesignQuery(query)) return 'TOPO';
+  // PARMY: parameter audit, check, consistency — BEFORE dimension queries
+  if (isParmyQuery(query)) return 'PARMY';
+  if (isParameterFocusedQuery(query)) return 'PARMY';
+  // Comparison queries should go to PULSE
   const isCompare = ['compare','comparer','comparaison','vs','versus','benchmark'].some(h => n.includes(h));
   if (isCompare) return 'PULSE';
   // Dimension queries go to PULSE
   const { isDim } = isDimensionQueryLocal(query);
   if (isDim) return 'PULSE';
-  if (isSiteDesignQuery(query)) return 'TOPO';
   if (isChangeHistoryQuery(query)) return 'TRACE';
   if (isSentinelQuery(query)) return 'SENTINEL';
-  // Parameter-focused but not a compare → TRACE
-  if (isParameterFocusedQuery(query)) return 'TRACE';
   return 'PULSE';
 }
 function classifyIntent(query, scopeLevel) {
@@ -2124,7 +2126,7 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
 }
 
 app.post('/api/qoe-assistant', async (req, res) => {
-  const { messages, uiScope, filters, openrouter_key, model, cellContext: legacyCellContext, kpiMonitorContext } = req.body;
+  const { messages, uiScope, filters, openrouter_key, model, cellContext: legacyCellContext, kpiMonitorContext, forcedAgent } = req.body;
   const apiKey = openrouter_key || process.env.OPENROUTER_API_KEY;
 
   if (!apiKey) {
