@@ -1043,30 +1043,77 @@ function extractSiteName(query) {
   }
   return null;
 }
+// Fuzzy match a user-typed param against the real parameter list from cache
+function resolveParamFromCache(rawParam) {
+  if (!rawParam) return null;
+  const paramList = distinctCache.parameter || [];
+  if (!paramList.length) {
+    console.log('   ⚠️ [PARMY] Parameter cache empty, using raw param:', rawParam);
+    return rawParam;
+  }
+  const lower = rawParam.toLowerCase();
+  // 1) Exact match (case-insensitive)
+  const exact = paramList.find(p => p.toLowerCase() === lower);
+  if (exact) { console.log(`   🎯 [PARMY] Exact match: "${rawParam}" → "${exact}"`); return exact; }
+  // 2) Contains match — find params that contain user input or vice versa
+  const contains = paramList.filter(p => p.toLowerCase().includes(lower) || lower.includes(p.toLowerCase()));
+  if (contains.length === 1) { console.log(`   🎯 [PARMY] Contains match: "${rawParam}" → "${contains[0]}"`); return contains[0]; }
+  if (contains.length > 1) {
+    // Prefer shortest match (most specific)
+    contains.sort((a, b) => a.length - b.length);
+    console.log(`   🎯 [PARMY] Best contains match: "${rawParam}" → "${contains[0]}" (${contains.length} candidates: ${contains.slice(0,5).join(', ')})`);
+    return contains[0];
+  }
+  // 3) Levenshtein-like: find closest by character overlap
+  let bestScore = 0, bestMatch = null;
+  for (const p of paramList) {
+    const pl = p.toLowerCase();
+    let score = 0;
+    for (let i = 0; i < lower.length; i++) {
+      if (pl.includes(lower[i])) score++;
+    }
+    score = score / Math.max(lower.length, pl.length);
+    if (score > bestScore && score > 0.5) { bestScore = score; bestMatch = p; }
+  }
+  if (bestMatch) {
+    console.log(`   🔍 [PARMY] Fuzzy match: "${rawParam}" → "${bestMatch}" (score: ${bestScore.toFixed(2)})`);
+    return bestMatch;
+  }
+  console.log(`   ❌ [PARMY] No match found for "${rawParam}" in ${paramList.length} parameters`);
+  return rawParam; // fallback to raw
+}
+
 function extractParamName(query) {
   const n = query.toLowerCase();
+  let raw = null;
   // Priority 1: Try to extract PARAM.subparam pattern (e.g., LNCEL.pMax) — most specific
   const dotMatch = query.match(/\b([A-Za-z]\w+\.\w+)\b/);
-  if (dotMatch) return dotMatch[1];
+  if (dotMatch) { raw = dotMatch[1]; }
   // Priority 2: Known parameter name patterns
-  const knownParams = [
-    't300','t301','t304','t310','t311','t320','t321',
-    'lncel','lnbts','nrcell','nrbts','gnbdu','gnbcucp','gnbcuup',
-    'mrbts','blockingstate','pmax','prach','sib','catmpr',
-    'irfim','lnhoif','lnrelif','noklte','gnbts',
-    'rrcconnreconfigcompltimer','rrcsetuptimer','s1setuptimer',
-    'x2setuptimer','inactivitytimer','drxinactivitytimer',
-  ];
-  for (const p of knownParams) {
-    if (n.includes(p)) return p;
+  if (!raw) {
+    const knownParams = [
+      't300','t301','t304','t310','t311','t320','t321',
+      'lncel','lnbts','nrcell','nrbts','gnbdu','gnbcucp','gnbcuup',
+      'mrbts','blockingstate','pmax','prach','sib','catmpr',
+      'irfim','lnhoif','lnrelif','noklte','gnbts',
+      'rrcconnreconfigcompltimer','rrcsetuptimer','s1setuptimer',
+      'x2setuptimer','inactivitytimer','drxinactivitytimer',
+    ];
+    for (const p of knownParams) {
+      if (n.includes(p)) { raw = p; break; }
+    }
   }
-  // Try to extract uppercase parameter names
-  const upperMatch = query.match(/\b([A-Z][A-Z0-9_]{2,})\b/);
-  if (upperMatch) {
-    const paramPrefixes = /^(PER|PAR|FOR|THE|AND|NOT|ALL|TOP|DOR|LES|DES|SUR|QUE|AVEC|POUR|DANS|VENDOR|NOKIA|ERICSSON|HUAWEI|SAMSUNG)$/i;
-    if (!paramPrefixes.test(upperMatch[1])) return upperMatch[1];
+  // Priority 3: Try to extract uppercase parameter names
+  if (!raw) {
+    const upperMatch = query.match(/\b([A-Z][A-Z0-9_]{2,})\b/);
+    if (upperMatch) {
+      const paramPrefixes = /^(PER|PAR|FOR|THE|AND|NOT|ALL|TOP|DOR|LES|DES|SUR|QUE|AVEC|POUR|DANS|VENDOR|NOKIA|ERICSSON|HUAWEI|SAMSUNG)$/i;
+      if (!paramPrefixes.test(upperMatch[1])) raw = upperMatch[1];
+    }
   }
-  return null;
+  if (!raw) return null;
+  // Resolve against real parameter cache
+  return resolveParamFromCache(raw);
 }
 
 // ─── Helper: search parameter_dump locally ───
