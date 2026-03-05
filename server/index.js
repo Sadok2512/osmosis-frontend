@@ -2526,6 +2526,23 @@ app.post('/api/qoe-assistant', async (req, res) => {
   }
 });
 
+// ─── /api/test-parmy — Direct test endpoint for PARMY parameter resolution ───
+app.get('/api/test-parmy', async (req, res) => {
+  try {
+    const query = req.query.q || 'LNCEL.pMax par dor';
+    console.log(`\n🧪 [TEST-PARMY] Testing query: "${query}"`);
+    const result = await searchDumpParameterLocal(query);
+    res.json({
+      query,
+      cacheSize: (distinctCache.parameter || []).length,
+      cacheSample: (distinctCache.parameter || []).slice(0, 20),
+      result: result ? result.slice(0, 3000) : null,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── /api/dump-parameter (query parameter_dump with filters) ───
 app.get('/api/dump-parameter', async (req, res) => {
   const reqStart = Date.now();
