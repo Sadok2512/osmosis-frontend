@@ -1010,14 +1010,16 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const fetchAll = async () => {
     setLdg(true);
     try {
-      const [dbData, mvData] = await Promise.all([
-        dashboardsApi.list(),
-        mapViewsApi.list(),
-      ]);
+      const dbData = await dashboardsApi.list();
       if (Array.isArray(dbData)) setDashboards(dbData.filter((d: any) => !d.is_archived));
+    } catch (e) {
+      console.warn('[SitesMonitor] fetchAll dashboards failed:', e);
+    }
+    try {
+      const mvData = await mapViewsApi.list();
       if (Array.isArray(mvData)) setMapViews(mvData);
     } catch (e) {
-      console.warn('[SitesMonitor] fetchAll failed:', e);
+      console.warn('[SitesMonitor] fetchAll mapViews failed:', e);
     }
     setLdg(false);
   };
