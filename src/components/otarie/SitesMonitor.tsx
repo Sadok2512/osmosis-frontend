@@ -3821,10 +3821,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              <div className="text-[15px] font-black tracking-tight" style={{ color: getKpiColor((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0) }}>
-                                {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                              <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg min-w-[48px]" style={{ background: getKpiColor((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0), color: '#fff' }}>
+                                <span className="text-[15px] font-black tracking-tight leading-none">
+                                  {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                                </span>
                               </div>
-                              <div className="text-[9px] font-semibold text-muted-foreground uppercase">{site.cell_count} cells</div>
+                              <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{site.cell_count} cells</div>
                             </div>
                             <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </button>
