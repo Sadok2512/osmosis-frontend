@@ -319,32 +319,44 @@ export type Database = {
       dashboards: {
         Row: {
           created_at: string
+          dashboard_type: string
           description: string
           id: string
           is_archived: boolean
           is_shared: boolean
           name: string
+          owner_username: string | null
+          shared_with: string[] | null
           updated_at: string
+          visibility: string
           widgets: Json
         }
         Insert: {
           created_at?: string
+          dashboard_type?: string
           description?: string
           id: string
           is_archived?: boolean
           is_shared?: boolean
           name: string
+          owner_username?: string | null
+          shared_with?: string[] | null
           updated_at?: string
+          visibility?: string
           widgets?: Json
         }
         Update: {
           created_at?: string
+          dashboard_type?: string
           description?: string
           id?: string
           is_archived?: boolean
           is_shared?: boolean
           name?: string
+          owner_username?: string | null
+          shared_with?: string[] | null
           updated_at?: string
+          visibility?: string
           widgets?: Json
         }
         Relationships: []
