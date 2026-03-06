@@ -356,9 +356,13 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   transition-all duration-200 placeholder:text-muted-foreground/40 truncate"
                 placeholder="Chart title…"
               />
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-                Configure data source, metrics & grouping
-              </p>
+              <input
+                value={draft.description || ''}
+                onChange={e => update({ description: e.target.value })}
+                className="w-full bg-transparent text-[11px] text-muted-foreground mt-0.5 leading-tight outline-none
+                  border-b border-transparent focus:border-primary/20 transition-all placeholder:text-muted-foreground/40"
+                placeholder="Description…"
+              />
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0 ml-2">
