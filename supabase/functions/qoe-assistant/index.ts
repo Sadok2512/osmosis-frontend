@@ -2157,17 +2157,32 @@ serve(async (req) => {
     (async () => {
       await writer.write(metaChunk);
 
-      // Stream the AI response first
+      // Stream the AI response and collect full text for learning
       const reader = originalBody.getReader();
+      const decoder = new TextDecoder();
+      let fullAssistantResponse = '';
+      
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         await writer.write(value);
+        
+        // Collect response text for post-stream learning
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const parsed = JSON.parse(line.slice(6));
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) fullAssistantResponse += content;
+            } catch { /* skip */ }
+          }
+        }
       }
 
       // Append SQL debug block AFTER the AI response for PARMY agent
       if (plan.agent === "PARMY" && parmySqlDebug) {
-        // Extract SQL from formats: "SQL: SELECT...", "SQL QUERY (0 results):\nSELECT...", "Generated SQL: SELECT..."
         const sqlMatch = parmySqlDebug.match(/(?:SQL[^:]*:|Generated SQL:)\s*\n?(SELECT[^]*?)(?:\n\n|\nRÉSULTATS|\nAucun|$)/i);
         const sqlQuery = sqlMatch ? sqlMatch[1].trim() : "";
         if (sqlQuery) {
@@ -2180,6 +2195,25 @@ serve(async (req) => {
       }
 
       await writer.close();
+
+      // ═══════════════════════════════════════════════════════
+      // POST-STREAM: Async preference extraction & learning
+      // ═══════════════════════════════════════════════════════
+      try {
+        await extractAndSavePreferences(
+          lastUserMessage,
+          fullAssistantResponse,
+          plan.agent,
+          user_id,
+          session_id,
+          getSupabase(),
+          useLovable ? "https://ai.gateway.lovable.dev/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions",
+          aiHeaders,
+          useLovable ? "google/gemini-2.5-flash-lite" : "google/gemini-2.5-flash-preview-05-20"
+        );
+      } catch (learnErr) {
+        console.warn('Post-stream learning failed:', learnErr);
+      }
     })();
 
     return new Response(readable, {
