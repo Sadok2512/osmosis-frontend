@@ -6,7 +6,7 @@ import {
   X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart,
   ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check,
   Grid3X3, Calendar, Filter, GitBranch, Settings2, Palette,
-  Zap, ArrowRight, BarChart2, Clock, Eye
+  Zap, ArrowRight, BarChart2, Clock, Eye, CircleDot
 } from 'lucide-react';
 import {
   ChartConfig, YMetricConfig, XAxisConfig, FilterConfig,
@@ -42,6 +42,7 @@ const BG_PALETTE = [
 
 const CHART_TYPE_OPTIONS: { type: ChartType; icon: React.ReactNode; label: string }[] = [
   { type: 'line', icon: <TrendingUp className="w-4 h-4" />, label: 'Ligne' },
+  { type: 'line_dot', icon: <CircleDot className="w-4 h-4" />, label: 'Ligne•Pt' },
   { type: 'bar', icon: <BarChart3 className="w-4 h-4" />, label: 'Barres' },
   { type: 'area', icon: <AreaChart className="w-4 h-4" />, label: 'Aire' },
   { type: 'scatter', icon: <ScatterChart className="w-4 h-4" />, label: 'Scatter' },

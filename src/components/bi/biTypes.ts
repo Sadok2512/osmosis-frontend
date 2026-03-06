@@ -117,7 +117,7 @@ export const BI_KPIS = BI_KPI_CATALOG.map(k => k.key) as unknown as readonly str
 export type BIKPI = string;
 
 export type Aggregation = 'AVG' | 'SUM' | 'MAX' | 'MIN' | 'P50' | 'P95';
-export type ChartType = 'line' | 'bar' | 'area' | 'scatter' | 'stacked_bar' | 'grouped_bar' | 'heatmap' | 'pie' | 'kpi_card';
+export type ChartType = 'line' | 'line_dot' | 'bar' | 'area' | 'scatter' | 'stacked_bar' | 'grouped_bar' | 'heatmap' | 'pie' | 'kpi_card';
 export type Granularity = 'hour' | 'day' | 'week' | 'month';
 export type AxisSide = 'left' | 'right';
 export type LineStyle = 'solid' | 'dashed' | 'dotted';
