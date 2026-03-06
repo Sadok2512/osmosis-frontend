@@ -333,9 +333,9 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   const filterSummary = draft.filters.length === 0
     ? 'No active filters'
     : draft.filters.map(f => `${f.dimension}: ${f.values.length > 0 ? f.values.slice(0, 2).join(', ') : 'All'}`).join(' · ');
-  const groupBySummary = draft.groupBy.length === 0 && !draft.colorBy
+  const groupBySummary = draft.groupBy.length === 0 && !draft.colorBy && !draft.sizeBy
     ? 'None'
-    : [draft.groupBy[0], draft.colorBy].filter(Boolean).join(', ');
+    : [draft.groupBy[0] && `Agg: ${draft.groupBy[0]}`, draft.colorBy && `Color: ${draft.colorBy}`, draft.sizeBy && `Size: ${draft.sizeBy}`].filter(Boolean).join(' · ');
 
   return (
     <div className="w-[360px] h-full bg-background border-l border-border/40 flex flex-col overflow-hidden">
@@ -813,17 +813,17 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </button>
         </ConfigCard>
 
-        {/* ── GROUP BY ── */}
+        {/* ── AGGREGATION ── */}
         <ConfigCard
           icon={<GitBranch className="w-4 h-4" />}
-          title="Group By"
+          title="Aggregation"
           summary={groupBySummary}
           open={openCard === 'group'}
           onToggle={() => toggleCard('group')}
         >
           <div className="space-y-3 pt-2">
             <div className="space-y-1.5">
-              <FieldLabel>Group By</FieldLabel>
+              <FieldLabel>Aggregation</FieldLabel>
               <StyledSelect
                 value={draft.groupBy[0] || ''}
                 options={['', ...BI_DIMENSIONS] as any}
@@ -842,12 +842,12 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             </div>
             <div className="space-y-1.5">
               <FieldLabel>Size By</FieldLabel>
-              <button
-                onClick={() => { setKpiModalTarget({ type: 'sizeBy' }); setKpiModalOpen(true); }}
-                className="w-full text-left bg-background border border-border/60 rounded-lg px-3 py-2 text-[12px] text-foreground hover:border-primary/40 transition-all"
-              >
-                {draft.sizeBy ? getKpiDisplayName(draft.sizeBy) : 'None'}
-              </button>
+              <StyledSelect
+                value={draft.sizeBy || ''}
+                options={['', ...BI_DIMENSIONS] as any}
+                onChange={v => update({ sizeBy: v ? v as BIDimension : undefined })}
+                placeholder="None"
+              />
             </div>
           </div>
         </ConfigCard>
