@@ -309,35 +309,36 @@ const TableConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
               <Check className="w-3.5 h-3.5" /> KPIs sélectionnés
               <span className="ml-auto text-[9px] font-medium text-muted-foreground">{selectedKpis.length}</span>
             </button>
-            {kpiOpen && <button
-              onClick={() => setShowKpiSelector(true)}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors group"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-                  <Plus className="w-4 h-4 text-primary" />
+            {kpiOpen && (<>
+              <button
+                onClick={() => setShowKpiSelector(true)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors group"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+                    <Plus className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="text-left min-w-0">
+                    <div className="text-[11px] font-semibold text-primary">Sélectionner des KPIs</div>
+                    <div className="text-[9px] text-muted-foreground">{selectedKpis.length} KPI(s) actif(s)</div>
+                  </div>
                 </div>
-                <div className="text-left min-w-0">
-                  <div className="text-[11px] font-semibold text-primary">Sélectionner des KPIs</div>
-                  <div className="text-[9px] text-muted-foreground">{selectedKpis.length} KPI(s) actif(s)</div>
+                <ChevronRight className="w-4 h-4 text-primary/60 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+              {selectedKpis.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {selectedKpis.map(key => {
+                    const kpi = BI_KPI_CATALOG.find(k => k.key === key);
+                    const catColor = kpi ? (CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground') : 'bg-muted-foreground';
+                    return (
+                      <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-semibold">
+                        <div className={`w-1.5 h-1.5 rounded-full ${catColor}`} />
+                        {kpi?.display_name || key}
+                      </span>
+                    );
+                  })}
                 </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-primary/60 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-            {selectedKpis.length > 0 && (
-              <div className="flex flex-wrap gap-1 pt-1">
-                {selectedKpis.map(key => {
-                  const kpi = BI_KPI_CATALOG.find(k => k.key === key);
-                  const catColor = kpi ? (CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground') : 'bg-muted-foreground';
-                  return (
-                    <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-semibold">
-                      <div className={`w-1.5 h-1.5 rounded-full ${catColor}`} />
-                      {kpi?.display_name || key}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
+              )}
             </>)}
           </div>
 
