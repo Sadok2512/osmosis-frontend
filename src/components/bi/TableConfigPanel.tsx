@@ -251,7 +251,7 @@ const FilterRow: React.FC<{
 
 /* ─── Main Panel ─── */
 const TableConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'kpis' | 'settings'>('kpis');
+  const [showKpiSelector, setShowKpiSelector] = useState(false);
 
   const addFilter = () => {
     const used = (config.filters || []).map(f => f.dimension);
@@ -260,61 +260,73 @@ const TableConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   };
 
   const filters = config.filters || [];
+  const selectedKpis = config.kpis || [];
 
   return (
-    <div className="w-[360px] h-full bg-background border-l border-border/40 flex flex-col overflow-hidden">
+    <>
+      <div className="w-[360px] h-full bg-background border-l border-border/40 flex flex-col overflow-hidden">
 
-      {/* ─── Header ─── */}
-      <div className="px-5 py-4 border-b border-border/40 bg-card/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Table2 className="w-5 h-5 text-primary" />
+        {/* ─── Header ─── */}
+        <div className="px-5 py-4 border-b border-border/40 bg-card/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Table2 className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <input
+                  value={config.title}
+                  onChange={e => onChange({ ...config, title: e.target.value })}
+                  className="w-full bg-transparent text-[15px] font-bold text-foreground outline-none border-b border-transparent focus:border-primary/40 transition-all placeholder:text-muted-foreground/40 truncate"
+                  placeholder="Table title…"
+                />
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <input
-                value={config.title}
-                onChange={e => onChange({ ...config, title: e.target.value })}
-                className="w-full bg-transparent text-[15px] font-bold text-foreground outline-none border-b border-transparent focus:border-primary/40 transition-all placeholder:text-muted-foreground/40 truncate"
-                placeholder="Table title…"
-              />
-            </div>
+            <button onClick={onClose}
+              className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted/60 text-muted-foreground" title="Close">
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted/60 text-muted-foreground" title="Close">
-            <X className="w-4 h-4" />
-          </button>
         </div>
-      </div>
 
-      {/* ─── Tabs ─── */}
-      <div className="flex border-b border-border/40">
-        <button onClick={() => setActiveTab('kpis')}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-semibold transition-colors ${
-            activeTab === 'kpis'
-              ? 'text-primary border-b-2 border-primary bg-primary/5'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}>
-          <Check className="w-3.5 h-3.5" /> KPIs
-        </button>
-        <button onClick={() => setActiveTab('settings')}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-semibold transition-colors ${
-            activeTab === 'settings'
-              ? 'text-primary border-b-2 border-primary bg-primary/5'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}>
-          <Settings2 className="w-3.5 h-3.5" /> Configuration
-        </button>
-      </div>
-
-      {/* ─── Tab Content ─── */}
-      {activeTab === 'kpis' ? (
-        <KpiSelectorSection
-          selected={config.kpis || []}
-          onConfirm={kpis => onChange({ ...config, kpis })}
-        />
-      ) : (
+        {/* ─── Content ─── */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+
+          {/* ── KPI SELECTION BUTTON ── */}
+          <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5" /> KPIs sélectionnés
+            </label>
+            <button
+              onClick={() => setShowKpiSelector(true)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors group"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+                  <Plus className="w-4 h-4 text-primary" />
+                </div>
+                <div className="text-left min-w-0">
+                  <div className="text-[11px] font-semibold text-primary">Sélectionner des KPIs</div>
+                  <div className="text-[9px] text-muted-foreground">{selectedKpis.length} KPI(s) actif(s)</div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-primary/60 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+            {selectedKpis.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {selectedKpis.map(key => {
+                  const kpi = BI_KPI_CATALOG.find(k => k.key === key);
+                  const catColor = kpi ? (CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground') : 'bg-muted-foreground';
+                  return (
+                    <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-semibold">
+                      <div className={`w-1.5 h-1.5 rounded-full ${catColor}`} />
+                      {kpi?.display_name || key}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* ── X AXIS ── */}
           <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
@@ -414,8 +426,31 @@ const TableConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ─── KPI Selector Overlay ─── */}
+      {showKpiSelector && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-[600px] max-w-[95vw] h-[80vh] max-h-[700px] bg-background rounded-2xl shadow-2xl border border-border/40 flex flex-col overflow-hidden">
+            {/* Modal header */}
+            <div className="px-5 py-3.5 bg-primary text-primary-foreground flex items-center justify-between shrink-0">
+              <h2 className="text-[14px] font-bold">Sélectionner des KPIs</h2>
+              <button onClick={() => setShowKpiSelector(false)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-primary-foreground/20">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <KpiSelectorSection
+              selected={config.kpis || []}
+              onConfirm={kpis => {
+                onChange({ ...config, kpis });
+                setShowKpiSelector(false);
+              }}
+              onClose={() => setShowKpiSelector(false)}
+            />
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 };
 
