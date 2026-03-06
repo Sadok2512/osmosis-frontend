@@ -359,6 +359,7 @@ const KPIMonitorInner: React.FC = () => {
   const updateTableConfig = (id: string, config: TableWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'table' ? { ...w, config } : w));
 
   const editingChart = validWidgets.find(w => getId(w) === editingId && w.kind === 'chart');
+  const editingTable = validWidgets.find(w => getId(w) === editingId && w.kind === 'table');
 
   const renderWidget = (w: WidgetItem) => {
     const wId = getId(w);
