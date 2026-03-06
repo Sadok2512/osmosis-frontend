@@ -116,16 +116,29 @@ const DISPLAY_MODES: { id: MapDisplayMode; label: string }[] = [
   { id: 'parameter', label: 'Parameter' },
 ];
 
+const AUTO_LOAD_THRESHOLD = 500;
+
 const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [sitesLoaded, setSitesLoaded] = useState(false);
+  const [forceDisplay, setForceDisplay] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
 
   const handleLoadSites = useCallback(() => {
+    if (loading) return;
     setLoading(true);
     fetchTopoSites().then(s => { setSites(s); setLoading(false); setSitesLoaded(true); });
-  }, []);
+  }, [loading]);
+
+  // Auto-load sites when filters are narrowed (not all defaults)
+  const hasActiveFilter = config.vendorFilter !== 'ALL' || config.dorFilter !== 'ALL' || config.plaqueFilter !== 'ALL' || config.zoneArcepFilter !== 'ALL' || config.bandeFilter !== 'ALL';
+
+  useEffect(() => {
+    if (hasActiveFilter && !sitesLoaded && !loading) {
+      handleLoadSites();
+    }
+  }, [hasActiveFilter, sitesLoaded, loading, handleLoadSites]);
 
   const availablePlaques = useMemo(() => getAvailablePlaques(config.dorFilter, config.vendorFilter), [config.dorFilter, config.vendorFilter]);
   const availableBandes = useMemo(() => getAvailableBandes(config.technoFilter), [config.technoFilter]);
@@ -142,6 +155,9 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
       return true;
     });
   }, [sites, config.vendorFilter, config.dorFilter, config.plaqueFilter, config.technoFilter, config.zoneArcepFilter, config.bandeFilter]);
+
+  // Only render markers if filtered count is small enough or filters are active
+  const shouldRenderSites = sitesLoaded && (hasActiveFilter || filtered.length <= AUTO_LOAD_THRESHOLD || forceDisplay);
 
   const metricLabel = MAP_METRICS.find(m => m.id === config.metric)?.label || config.metric;
   const getSiteValue = (s: SiteSummary): number => (s as any)[config.metric] ?? s.qoe_score_avg;
@@ -340,43 +356,45 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               attribution={TILE_URLS[config.mapLayer].attribution}
             />
             <MapSync onChange={handleMapSync} />
-            <MarkerClusterGroup
-              chunkedLoading
-              iconCreateFunction={createClusterIcon}
-              maxClusterRadius={50}
-              showCoverageOnHover={false}
-              zoomToBoundsOnClick
-            >
-              {filtered.map(site => {
-                const color = getSiteColor(site);
-                const val = getSiteValue(site);
-                return (
-                  <CircleMarker
-                    key={site.site_id}
-                    center={site.coordinates}
-                    radius={7}
-                    pathOptions={{
-                      color: 'white',
-                      fillColor: color,
-                      fillOpacity: 0.9,
-                      weight: 2,
-                    }}
-                  >
-                    <Tooltip key={`tt-${config.showSiteNames}`} direction="top" offset={[0, -10]} permanent={config.showSiteNames}>
-                      <div style={{ fontFamily: 'Inter, sans-serif' }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{site.site_name}</div>
-                        <div style={{ fontSize: 10, color: '#64748b' }}>{site.vendor} · {site.cell_count} cells</div>
-                        {config.displayMode === 'qoe' && config.showMetricValues && (
-                          <div style={{ fontSize: 11, fontWeight: 700, color, marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
-                            {metricLabel}: {typeof val === 'number' ? val.toFixed(1) : val}
-                          </div>
-                        )}
-                      </div>
-                    </Tooltip>
-                  </CircleMarker>
-                );
-              })}
-            </MarkerClusterGroup>
+            {shouldRenderSites ? (
+              <MarkerClusterGroup
+                chunkedLoading
+                iconCreateFunction={createClusterIcon}
+                maxClusterRadius={50}
+                showCoverageOnHover={false}
+                zoomToBoundsOnClick
+              >
+                {filtered.map(site => {
+                  const color = getSiteColor(site);
+                  const val = getSiteValue(site);
+                  return (
+                    <CircleMarker
+                      key={site.site_id}
+                      center={site.coordinates}
+                      radius={7}
+                      pathOptions={{
+                        color: 'white',
+                        fillColor: color,
+                        fillOpacity: 0.9,
+                        weight: 2,
+                      }}
+                    >
+                      <Tooltip key={`tt-${config.showSiteNames}`} direction="top" offset={[0, -10]} permanent={config.showSiteNames}>
+                        <div style={{ fontFamily: 'Inter, sans-serif' }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{site.site_name}</div>
+                          <div style={{ fontSize: 10, color: '#64748b' }}>{site.vendor} · {site.cell_count} cells</div>
+                          {config.displayMode === 'qoe' && config.showMetricValues && (
+                            <div style={{ fontSize: 11, fontWeight: 700, color, marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
+                              {metricLabel}: {typeof val === 'number' ? val.toFixed(1) : val}
+                            </div>
+                          )}
+                        </div>
+                      </Tooltip>
+                    </CircleMarker>
+                  );
+                })}
+              </MarkerClusterGroup>
+            ) : null}
 
             {/* Layer control */}
             <div className="absolute bottom-3 right-3 z-[1000] flex flex-col gap-2">
@@ -435,11 +453,32 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
 
             {/* Site count badge */}
             <div className="absolute top-3 left-3 z-[1000] bg-card/95 backdrop-blur-md border border-border/40 rounded-xl px-3 py-1.5 shadow-lg">
-              <span className="text-[11px] font-semibold text-foreground" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                {filtered.length}
-              </span>
-              <span className="text-[10px] text-muted-foreground ml-1.5">sites</span>
+              {sitesLoaded ? (
+                <>
+                  <span className="text-[11px] font-semibold text-foreground" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {shouldRenderSites ? filtered.length : 0}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground ml-1.5">
+                    / {filtered.length} sites
+                  </span>
+                </>
+              ) : (
+                <span className="text-[10px] text-muted-foreground">Aucun site chargé</span>
+              )}
             </div>
+
+            {/* Too many sites overlay */}
+            {sitesLoaded && !shouldRenderSites && (
+              <div className="absolute top-14 left-3 z-[1000] bg-card/95 backdrop-blur-md border border-destructive/30 rounded-xl px-4 py-3 shadow-lg max-w-[220px]">
+                <p className="text-[11px] text-foreground font-semibold mb-1">⚠️ {filtered.length} sites</p>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Affinez les filtres (DOR, Plaque, Vendor…) pour réduire à moins de {AUTO_LOAD_THRESHOLD} sites, ou cliquez sur ⚙️ → Charger les sites.
+                </p>
+                <button onClick={() => setForceDisplay(true)} className="mt-2 text-[10px] font-semibold text-primary hover:underline">
+                  Forcer l'affichage
+                </button>
+              </div>
+            )}
           </MapContainer>
         )}
       </div>
