@@ -122,6 +122,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [sitesLoaded, setSitesLoaded] = useState(false);
+  const [forceDisplay, setForceDisplay] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
 
   const handleLoadSites = useCallback(() => {
