@@ -314,8 +314,8 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   return (
     <div className="w-[360px] h-full bg-background border-l border-border/40 flex flex-col overflow-hidden">
 
-      {/* ─── Header ─── */}
-      <div className="px-5 py-5 border-b border-border/40 bg-card/50">
+      {/* ─── Header with inline date range ─── */}
+      <div className="px-5 py-4 border-b border-border/40 bg-card/50 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -340,6 +340,47 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
+
+        {/* Inline date range always visible */}
+        {draft.xAxis.type === 'date' && (
+          <div className="space-y-2.5">
+            <div className="flex items-end gap-1.5">
+              <div className="flex-1 space-y-1">
+                <FieldLabel>Start</FieldLabel>
+                <input
+                  type="date"
+                  value={draft.xAxis.dateStart}
+                  onChange={e => updateX({ dateStart: e.target.value })}
+                  className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[11px] text-foreground
+                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                    hover:border-border transition-all duration-150"
+                />
+              </div>
+              <div className="pb-2">
+                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <FieldLabel>End</FieldLabel>
+                <input
+                  type="date"
+                  value={draft.xAxis.dateEnd}
+                  onChange={e => updateX({ dateEnd: e.target.value })}
+                  className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[11px] text-foreground
+                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                    hover:border-border transition-all duration-150"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <FieldLabel>Granularity</FieldLabel>
+              <SegmentedControl
+                options={GRANULARITIES.map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
+                value={draft.xAxis.granularity || 'day'}
+                onChange={v => updateX({ granularity: v as Granularity })}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── Scrollable Sections ─── */}
@@ -428,115 +469,38 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </SectionCard>
         )}
 
-        {/* ── DATE RANGE ── */}
-        <SectionCard
-          title="Date Range"
-          icon={<Calendar className="w-4 h-4" />}
-          open={sections.x}
-          toggle={() => toggle('x')}
-        >
-          <div className="flex items-center gap-2">
-            <SegmentedControl
-              options={[
-                { value: 'date', label: 'Date' },
-                { value: 'dimension', label: 'Dimension' },
-                { value: 'kpi', label: 'KPI' },
-              ]}
-              value={draft.xAxis.type}
-              onChange={v => updateX({ type: v as any })}
-            />
-            {draft.xAxis.type === 'kpi' && draft.yMetrics.length === 1 && (
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => {
-                        const currentXKpi = draft.xAxis.value;
-                        const currentYKpi = draft.yMetrics[0].kpi;
-                        updateX({ value: currentYKpi });
-                        updateMetric(0, { kpi: currentXKpi as any });
-                      }}
-                      className="w-8 h-8 rounded-lg border border-border/60 bg-background flex items-center justify-center
-                        text-muted-foreground hover:text-primary hover:border-primary/40 transition-all duration-150"
-                    >
-                      <ArrowLeftRight className="w-3.5 h-3.5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-[11px]">Inverser X ↔ Y</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
-
-          {draft.xAxis.type === 'date' && (
-            <div className="space-y-2.5">
-              {/* Quick date presets - small scale buttons */}
-              <div className="flex gap-1">
-                {DATE_PRESETS.map(p => (
-                  <button
-                    key={p.label}
-                    onClick={() => applyDatePreset(p.days)}
-                    className="flex-1 py-1.5 rounded-md text-[10px] font-bold border border-border/40
-                      bg-muted/30 text-muted-foreground hover:text-primary hover:border-primary/30 hover:bg-primary/5
-                      transition-all duration-200"
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Date inputs compact */}
-              <div className="flex items-end gap-1.5">
-                <div className="flex-1 space-y-1">
-                  <FieldLabel>Start</FieldLabel>
-                  <input
-                    type="date"
-                    value={draft.xAxis.dateStart}
-                    onChange={e => updateX({ dateStart: e.target.value })}
-                    className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[11px] text-foreground
-                      outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
-                      hover:border-border transition-all duration-150"
-                  />
-                </div>
-                <div className="pb-2">
-                  <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <FieldLabel>End</FieldLabel>
-                  <input
-                    type="date"
-                    value={draft.xAxis.dateEnd}
-                    onChange={e => updateX({ dateEnd: e.target.value })}
-                    className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[11px] text-foreground
-                      outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
-                      hover:border-border transition-all duration-150"
-                  />
-                </div>
-              </div>
-
-              {/* Granularity compact */}
-              <div className="space-y-1">
-                <FieldLabel>Granularity</FieldLabel>
-                <SegmentedControl
-                  options={GRANULARITIES.map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
-                  value={draft.xAxis.granularity || 'day'}
-                  onChange={v => updateX({ granularity: v as Granularity })}
-                />
-              </div>
+        {/* Date Range moved to header — X-axis type selector kept here for non-date modes */}
+        {draft.xAxis.type !== 'date' && (
+          <SectionCard
+            title="X Axis"
+            icon={<Calendar className="w-4 h-4" />}
+            open={sections.x}
+            toggle={() => toggle('x')}
+          >
+            <div className="flex items-center gap-2">
+              <SegmentedControl
+                options={[
+                  { value: 'date', label: 'Date' },
+                  { value: 'dimension', label: 'Dimension' },
+                  { value: 'kpi', label: 'KPI' },
+                ]}
+                value={draft.xAxis.type}
+                onChange={v => updateX({ type: v as any })}
+              />
             </div>
-          )}
-          {draft.xAxis.type === 'dimension' && (
-            <StyledSelect value={draft.xAxis.value} options={BI_DIMENSIONS} onChange={v => updateX({ value: v })} />
-          )}
-          {draft.xAxis.type === 'kpi' && (
-            <button
-              onClick={() => { setKpiModalTarget({ type: 'xAxis' }); setKpiModalOpen(true); }}
-              className="w-full text-left bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[13px] text-foreground hover:border-primary/40 transition-all"
-            >
-              {getKpiDisplayName(draft.xAxis.value) || 'Sélectionner un KPI…'}
-            </button>
-          )}
-        </SectionCard>
+            {draft.xAxis.type === 'dimension' && (
+              <StyledSelect value={draft.xAxis.value} options={BI_DIMENSIONS} onChange={v => updateX({ value: v })} />
+            )}
+            {draft.xAxis.type === 'kpi' && (
+              <button
+                onClick={() => { setKpiModalTarget({ type: 'xAxis' }); setKpiModalOpen(true); }}
+                className="w-full text-left bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[13px] text-foreground hover:border-primary/40 transition-all"
+              >
+                {getKpiDisplayName(draft.xAxis.value) || 'Sélectionner un KPI…'}
+              </button>
+            )}
+          </SectionCard>
+        )}
 
         {/* ═══ METRICS ═══ */}
         <SectionCategory>Metrics</SectionCategory>
