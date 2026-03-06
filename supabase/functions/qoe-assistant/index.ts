@@ -1886,6 +1886,190 @@ function getAgentPrompt(agent: AgentId): string {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  LEARNING ENGINE — Preference extraction & persistence
+// ═══════════════════════════════════════════════════════════════
+
+const PREFERENCE_EXTRACTION_PROMPT = `Tu es un extracteur de préférences utilisateur. Analyse le message de l'utilisateur et sa conversation pour détecter des préférences EXPLICITES ou IMPLICITES.
+
+Catégories de préférences à détecter :
+1. VISUAL: couleurs préférées, types de graphiques, format d'affichage
+2. SCOPE: DOR, vendor, plaque, bande, zone habituelle de l'utilisateur
+3. STYLE: réponses concises vs détaillées, technique vs vulgarisé, langue
+4. CORRECTION: si l'utilisateur corrige une erreur ou exprime une insatisfaction
+
+Réponds en JSON strict (pas de markdown, pas de texte avant/après) :
+{"preferences": [{"category": "VISUAL|SCOPE|STYLE|CORRECTION", "key": "nom_court", "value": "valeur", "confidence": 0.0-1.0}]}
+
+Si AUCUNE préférence n'est détectée, réponds : {"preferences": []}
+Ne détecte PAS de préférences dans les questions factuelles simples (ex: "donne moi le QoE par DOR" → pas de préférence).`;
+
+async function extractAndSavePreferences(
+  userMessage: string,
+  assistantResponse: string,
+  agent: string,
+  userId: string | null,
+  sessionId: string | null,
+  supaClient: any,
+  aiUrl: string,
+  aiHeaders: Record<string, string>,
+  model: string
+): Promise<void> {
+  // Skip very short messages (unlikely to contain preferences)
+  if (userMessage.length < 15) return;
+  
+  // Quick heuristic check: skip if no preference-like words
+  const prefHints = [
+    'couleur', 'color', 'vert', 'rouge', 'bleu', 'violet', 'orange', 'noir',
+    'préfère', 'prefer', 'toujours', 'always', 'jamais', 'never', 'plutôt',
+    'concis', 'détaillé', 'simple', 'technique', 'vulgarisé',
+    'graphique', 'chart', 'bar', 'pie', 'camembert', 'ligne', 'line',
+    'par défaut', 'default', 'habituel', 'favorite', 'favori',
+    'non', 'incorrect', 'faux', 'erreur', 'pas ça', 'wrong',
+    'dor', 'vendor', 'plaque', 'zone', 'scope', 'périmètre',
+    'rappelle', 'souviens', 'remember', 'mémorise', 'retiens',
+    'prochaine fois', 'next time', 'dorénavant', 'désormais',
+  ];
+  const lower = userMessage.toLowerCase();
+  const hasPrefSignal = prefHints.some(h => lower.includes(h));
+  if (!hasPrefSignal) return;
+
+  console.log(`🧠 Learning: preference signal detected in "${userMessage.slice(0, 60)}..."`);
+
+  try {
+    const extractResp = await fetch(aiUrl, {
+      method: "POST",
+      headers: aiHeaders,
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: PREFERENCE_EXTRACTION_PROMPT },
+          { role: "user", content: `Message utilisateur: "${userMessage}"\n\nRéponse assistant (contexte): "${assistantResponse.slice(0, 500)}"` },
+        ],
+        temperature: 0.1,
+        max_tokens: 500,
+      }),
+    });
+
+    if (!extractResp.ok) {
+      console.warn(`Learning extraction failed: ${extractResp.status}`);
+      return;
+    }
+
+    const result = await extractResp.json();
+    const content = result.choices?.[0]?.message?.content || '';
+    
+    // Parse JSON from response (handle markdown wrapping)
+    let jsonStr = content.trim();
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+    }
+    
+    const parsed = JSON.parse(jsonStr);
+    const preferences = parsed.preferences || [];
+
+    if (preferences.length === 0) {
+      console.log('🧠 Learning: no preferences extracted');
+      return;
+    }
+
+    console.log(`🧠 Learning: extracted ${preferences.length} preferences`);
+
+    // Save each preference to agent_memory
+    for (const pref of preferences) {
+      if (pref.confidence < 0.5) continue; // Skip low-confidence
+
+      const memKey = `${pref.category.toLowerCase()}_${pref.key}`;
+      const sourceId = userId ? `user:${userId}` : (sessionId || null);
+
+      // Upsert: check if key already exists for this user/agent
+      const { data: existing } = await supaClient
+        .from('agent_memory')
+        .select('id, relevance_score')
+        .eq('memory_type', 'preference')
+        .eq('key', memKey)
+        .eq('agent', agent)
+        .maybeSingle();
+
+      if (existing?.id) {
+        // Update existing preference (boost relevance score)
+        const newScore = Math.min(2.0, (existing.relevance_score || 1.0) + 0.2);
+        await supaClient
+          .from('agent_memory')
+          .update({
+            value: { data: pref.value, category: pref.category, confidence: pref.confidence },
+            relevance_score: newScore,
+            updated_at: new Date().toISOString(),
+            source_session_id: sourceId,
+          })
+          .eq('id', existing.id);
+        console.log(`🧠 Updated preference: ${memKey} = ${pref.value} (score: ${newScore})`);
+      } else {
+        // Insert new preference
+        await supaClient.from('agent_memory').insert({
+          memory_type: 'preference',
+          agent,
+          key: memKey,
+          value: { data: pref.value, category: pref.category, confidence: pref.confidence },
+          relevance_score: pref.confidence,
+          source_session_id: sourceId,
+        });
+        console.log(`🧠 Saved new preference: ${memKey} = ${pref.value}`);
+      }
+    }
+  } catch (e) {
+    console.warn('Preference extraction error:', e);
+  }
+}
+
+// Session summarization: called periodically or when session ends
+async function summarizeSession(
+  messages: { role: string; content: string }[],
+  agent: string,
+  userId: string | null,
+  supaClient: any,
+  aiUrl: string,
+  aiHeaders: Record<string, string>,
+  model: string
+): Promise<void> {
+  if (messages.length < 4) return; // Need enough messages
+
+  try {
+    const conversation = messages.slice(-10).map(m => `${m.role}: ${m.content.slice(0, 300)}`).join('\n');
+    
+    const resp = await fetch(aiUrl, {
+      method: "POST",
+      headers: aiHeaders,
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: "Résume cette conversation en 2-3 phrases. Mentionne les sujets abordés, les dimensions analysées, et les conclusions principales. Format: texte brut, pas de JSON." },
+          { role: "user", content: conversation },
+        ],
+        temperature: 0.3,
+        max_tokens: 200,
+      }),
+    });
+
+    if (!resp.ok) return;
+    const result = await resp.json();
+    const summary = result.choices?.[0]?.message?.content || '';
+    if (!summary) return;
+
+    await supaClient.from('agent_memory').insert({
+      memory_type: 'session_summary',
+      agent,
+      key: `session_${Date.now()}`,
+      value: { summary, messageCount: messages.length, timestamp: new Date().toISOString() },
+      relevance_score: 1.0,
+      source_session_id: userId ? `user:${userId}` : null,
+    });
+    console.log(`🧠 Session summarized: "${summary.slice(0, 80)}..."`);
+  } catch (e) {
+    console.warn('Session summarization failed:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════
 
