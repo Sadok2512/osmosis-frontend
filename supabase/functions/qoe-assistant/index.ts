@@ -1556,6 +1556,16 @@ async function buildContextFromPlan(
       plan.limits.maxDays,
       plan.resultLimit || 30
     );
+    // If dual-dimension, also fetch second dimension distribution
+    if (plan.groupBy.dimension2 && plan.groupBy.dimension2 !== plan.groupBy.dimension1) {
+      promises.dimAgg2 = fetchMetricDistributionByDimension1(
+        plan.groupBy.dimension2,
+        plan.metric || "qoe_index",
+        filters,
+        plan.limits.maxDays,
+        plan.resultLimit || 30
+      );
+    }
   }
   if (plan.needs.includes("dimension_timeseries") && plan.groupBy?.dimension1) {
     promises.dimTimeSeries = fetchMetricTimeSeriesByDimension(
