@@ -130,6 +130,7 @@ export interface YMetricConfig {
   color: string;
   showMovingAvg: boolean;
   smoothCurve: boolean;
+  dimension1?: string; // e.g. 'Site', 'Vendor', 'DOR', etc.
 }
 
 export interface XAxisConfig {
