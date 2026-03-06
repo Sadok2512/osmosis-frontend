@@ -80,7 +80,7 @@ interface ContextPlan {
     maxDays: number;
     maxRagChunks: number;
   };
-  groupBy?: { dimension1: string };
+  groupBy?: { dimension1: string; dimension2?: string };
   metric?: string;
   resultLimit?: number;
   clarificationNeeded?: boolean;
@@ -215,29 +215,39 @@ function isDistributionQuery(query: string): boolean {
   ].some((h) => normalized.includes(h));
 }
 
+const DIMENSION_MAP: [RegExp, Dimension1Type][] = [
+  [/\b(dors?|direction)\b/, "DOR"],
+  [/\b(vendors?|fournisseurs?|constructeurs?)\b/, "Vendor"],
+  [/\b(bandes?|bands?|frequen)\b/, "Bande"],
+  [/\b(rats?|techno|technologie|4g\s*(vs|et)\s*5g|5g\s*(vs|et)\s*4g)\b/, "RAT"],
+  [/\b(plaques?|regions?)\b/, "Plaque"],
+  [/\b(applications?|apps?|services?)\b/, "Application"],
+  [/\b(sites?)\b/, "Site"],
+  [/\b(cellules?|cells?)\b/, "Cellule"],
+  [/\b(arcep|zone_arcep)\b/, "ARCEP"],
+  [/\b(tac)\b/, "TAC"],
+  [/\b(os)\b/, "OS"],
+  [/\b(devices?|terminaux?|terminals?|handsets?)\b/, "Device_brand"],
+  [/\b(pop)\b/, "POP"],
+  [/\b(as)\b/, "AS"],
+  [/\b(orf)\b/, "ORF"],
+];
+
 function detectDimension1Type(message: string): Dimension1Type {
   const n = message.toLowerCase();
-  const map: [RegExp, Dimension1Type][] = [
-    [/\b(dors?|direction)\b/, "DOR"],
-    [/\b(vendors?|fournisseurs?|constructeurs?)\b/, "Vendor"],
-    [/\b(bandes?|bands?|frequen)\b/, "Bande"],
-    [/\b(rats?|techno|technologie|4g\s*(vs|et)\s*5g|5g\s*(vs|et)\s*4g)\b/, "RAT"],
-    [/\b(plaques?|regions?)\b/, "Plaque"],
-    [/\b(applications?|apps?|services?)\b/, "Application"],
-    [/\b(sites?)\b/, "Site"],
-    [/\b(cellules?|cells?)\b/, "Cellule"],
-    [/\b(arcep|zone_arcep)\b/, "ARCEP"],
-    [/\b(tac)\b/, "TAC"],
-    [/\b(os)\b/, "OS"],
-    [/\b(devices?|terminaux?|terminals?|handsets?)\b/, "Device_brand"],
-    [/\b(pop)\b/, "POP"],
-    [/\b(as)\b/, "AS"],
-    [/\b(orf)\b/, "ORF"],
-  ];
-  for (const [regex, dim] of map) {
+  for (const [regex, dim] of DIMENSION_MAP) {
     if (regex.test(n)) return dim;
   }
   return "Site"; // default
+}
+
+function detectAllDimensions(message: string): Dimension1Type[] {
+  const n = message.toLowerCase();
+  const found: Dimension1Type[] = [];
+  for (const [regex, dim] of DIMENSION_MAP) {
+    if (regex.test(n) && !found.includes(dim)) found.push(dim);
+  }
+  return found.length ? found : ["Site"];
 }
 
 function detectMetric(message: string): string {
