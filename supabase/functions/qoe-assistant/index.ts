@@ -532,28 +532,74 @@ function extractSiteName(query: string): string | null {
 async function fetchTopoMetricByDimension(
   metric: string,
   dimension: string,
-  limit = 30
+  limit = 30,
+  dimension2?: string
 ): Promise<string> {
   try {
     const supabase = getSupabase();
-    // Map dimension keywords to topo column names
     const dimColMap: Record<string, string> = {
       DOR: "dor", Vendor: "constructeur", Bande: "bande", Plaque: "plaque",
       Site: "nom_site", ARCEP: "zone_arcep", Cellule: "nom_cellule",
       RAT: "techno",
     };
     const groupCol = dimColMap[dimension] || "dor";
+    const groupCol2 = dimension2 ? (dimColMap[dimension2] || null) : null;
+
+    const selectCols = groupCol2 && groupCol2 !== groupCol
+      ? `${groupCol}, ${groupCol2}, ${metric}`
+      : `${groupCol}, ${metric}`;
 
     const { data, error } = await supabase
       .from("topo")
-      .select(`${groupCol}, ${metric}`)
+      .select(selectCols)
       .not(metric, "is", null)
       .limit(50000);
 
     if (error) { console.error("fetchTopoMetricByDimension error:", error); return ""; }
     if (!data?.length) return `Aucune donnée topo pour ${metric}.`;
 
-    // Aggregate
+    // Dual-dimension grouping
+    if (groupCol2 && groupCol2 !== groupCol) {
+      const groups = new Map<string, { values: number[]; count: number }>();
+      for (const r of data) {
+        const label1 = (r as any)[groupCol] || "N/A";
+        const label2 = (r as any)[groupCol2] || "N/A";
+        const key = `${label1} | ${label2}`;
+        if (!groups.has(key)) groups.set(key, { values: [], count: 0 });
+        const g = groups.get(key)!;
+        const val = (r as any)[metric];
+        if (val != null) { g.values.push(Number(val)); g.count++; }
+      }
+
+      const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+      const sorted = Array.from(groups.entries())
+        .map(([key, g]) => {
+          const [l1, l2] = key.split(" | ");
+          return { label1: l1, label2: l2, avg: avg(g.values), min: Math.min(...g.values), max: Math.max(...g.values), count: g.count };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+
+      const globalAvg = avg(data.map((r: any) => Number((r as any)[metric])).filter((v: number) => !isNaN(v)));
+
+      const header = `# | ${dimension} | ${dimension2} | AVG(${metric}) | MIN | MAX | Cells`;
+      const lines = sorted.map((r, i) =>
+        `${i + 1} | ${r.label1} | ${r.label2} | ${r.avg.toFixed(1)} | ${r.min} | ${r.max} | ${r.count}`
+      );
+
+      const chartData = sorted.slice(0, 20).map(r => ({ label: `${r.label1} · ${r.label2}`, value: Math.round(r.avg * 10) / 10 }));
+      const chartJson = JSON.stringify({
+        type: "bar",
+        title: `${metric} moyen par ${dimension} et ${dimension2}`,
+        xKey: "label",
+        yKeys: ["value"],
+        data: chartData,
+      });
+
+      return `DISTRIBUTION TOPO ${metric} par ${dimension} et ${dimension2} (${data.length} cellules, ${groups.size} groupes, moyenne globale: ${globalAvg.toFixed(1)}):\n${header}\n${lines.join("\n")}\n\nINSTRUCTION: Présente ces données de la table TOPO croisées par ${dimension} et ${dimension2}. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+    }
+
+    // Single-dimension grouping (original)
     const groups = new Map<string, { values: number[]; count: number }>();
     for (const r of data) {
       const label = (r as any)[groupCol] || "N/A";
