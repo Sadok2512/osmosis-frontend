@@ -3,11 +3,11 @@ import { MapContainer, TileLayer, CircleMarker, Tooltip, useMapEvents } from 're
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapWidgetConfig } from './dashboardTypes';
+import { MapWidgetConfig, MapDisplayMode } from './dashboardTypes';
 import { fetchTopoSites } from '../../services/topoService';
 import { SiteSummary } from '../../types';
 import { Settings, Trash2, Map as MapIcon, Eye, EyeOff, Tag, Layers, Radio, X } from 'lucide-react';
-import { VENDORS, URS, PLAQUES } from '../../constants';
+import { REF_DOR_TREE, REF_TECHNO_BANDE } from '../../config/filterDimensions';
 
 const TILE_URLS: Record<string, { url: string; attribution: string }> = {
   light: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attribution: '© OSM © CARTO' },
@@ -26,11 +26,57 @@ const MAP_METRICS = [
   { id: 'sessions', label: 'Sessions', unit: '' },
 ];
 
+const ZONE_ARCEP_VALUES = ['ALL', 'top15', 'rural', 'Intermidiare', 'AXE', 'TGV'];
+
+// Derive vendor list from REF_DOR_TREE
+const ALL_VENDORS = (() => {
+  const set = new Set<string>();
+  Object.values(REF_DOR_TREE.tree).forEach(byDor => {
+    Object.keys(byDor).forEach(v => set.add(v));
+  });
+  return ['ALL', ...Array.from(set).sort()];
+})();
+
+// Derive DOR list
+const ALL_DORS = ['ALL', ...REF_DOR_TREE.dors];
+
+// Derive plaques from tree
+function getAvailablePlaques(dorFilter: string, vendorFilter: string): string[] {
+  const dors = dorFilter !== 'ALL' ? [dorFilter] : REF_DOR_TREE.dors;
+  const plaques = new Set<string>();
+  for (const dor of dors) {
+    const byDor = REF_DOR_TREE.tree[dor];
+    if (!byDor) continue;
+    const vendors = vendorFilter !== 'ALL' ? [vendorFilter] : Object.keys(byDor);
+    for (const v of vendors) {
+      byDor[v]?.forEach(p => plaques.add(p));
+    }
+  }
+  return ['ALL', ...Array.from(plaques).sort()];
+}
+
+// Derive bandes from techno
+function getAvailableBandes(technoFilter: string): string[] {
+  const technos = technoFilter !== 'ALL' && technoFilter !== 'NONE' ? [technoFilter.toLowerCase()] : Object.keys(REF_TECHNO_BANDE);
+  const bands = new Set<string>();
+  for (const t of technos) {
+    REF_TECHNO_BANDE[t]?.forEach(b => bands.add(b));
+  }
+  return ['ALL', ...Array.from(bands).sort()];
+}
+
+const TECHNO_COLORS: Record<string, string> = { '5G': '#a855f7', '4G': '#3b82f6' };
+
 const getMetricColor = (value: number, metric: string): string => {
-  if (metric.includes('thr_dn')) { return value >= 100 ? '#10b981' : value >= 30 ? '#f59e0b' : '#ef4444'; }
-  if (metric.includes('thr_up')) { return value >= 20 ? '#10b981' : value >= 5 ? '#f59e0b' : '#ef4444'; }
-  if (metric === 'sessions') { return value >= 2000 ? '#10b981' : value >= 500 ? '#f59e0b' : '#ef4444'; }
+  if (metric.includes('thr_dn')) return value >= 100 ? '#10b981' : value >= 30 ? '#f59e0b' : '#ef4444';
+  if (metric.includes('thr_up')) return value >= 20 ? '#10b981' : value >= 5 ? '#f59e0b' : '#ef4444';
+  if (metric === 'sessions') return value >= 2000 ? '#10b981' : value >= 500 ? '#f59e0b' : '#ef4444';
   return value >= 80 ? '#10b981' : value >= 60 ? '#f59e0b' : '#ef4444';
+};
+
+const getTopoColor = (site: SiteSummary): string => {
+  const has5G = site.cells.some(c => c.techno === '5G');
+  return has5G ? '#a855f7' : '#f59e0b';
 };
 
 const createClusterIcon = (_cluster: any) => {
@@ -64,6 +110,12 @@ interface Props {
   onDelete: () => void;
 }
 
+const DISPLAY_MODES: { id: MapDisplayMode; label: string }[] = [
+  { id: 'topo', label: 'Topo' },
+  { id: 'qoe', label: 'QoE' },
+  { id: 'parameter', label: 'Parameter' },
+];
+
 const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,19 +125,29 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
     fetchTopoSites().then(s => { setSites(s); setLoading(false); });
   }, []);
 
+  const availablePlaques = useMemo(() => getAvailablePlaques(config.dorFilter, config.vendorFilter), [config.dorFilter, config.vendorFilter]);
+  const availableBandes = useMemo(() => getAvailableBandes(config.technoFilter), [config.technoFilter]);
+
   const filtered = useMemo(() => {
     if (config.technoFilter === 'NONE') return [];
     return sites.filter(s => {
       if (config.vendorFilter !== 'ALL' && s.vendor !== config.vendorFilter) return false;
       if (config.dorFilter !== 'ALL' && s.dor !== config.dorFilter) return false;
       if (config.plaqueFilter !== 'ALL' && s.plaque !== config.plaqueFilter) return false;
+      if (config.zoneArcepFilter !== 'ALL' && (s as any).zone_arcep !== config.zoneArcepFilter) return false;
+      if (config.bandeFilter !== 'ALL' && !s.cells.some(c => (c as any).bande === config.bandeFilter)) return false;
       if (config.technoFilter !== 'ALL' && !s.cells.some(c => c.techno === config.technoFilter)) return false;
       return true;
     });
-  }, [sites, config.vendorFilter, config.dorFilter, config.plaqueFilter, config.technoFilter]);
+  }, [sites, config.vendorFilter, config.dorFilter, config.plaqueFilter, config.technoFilter, config.zoneArcepFilter, config.bandeFilter]);
 
   const metricLabel = MAP_METRICS.find(m => m.id === config.metric)?.label || config.metric;
   const getSiteValue = (s: SiteSummary): number => (s as any)[config.metric] ?? s.qoe_score_avg;
+  const getSiteColor = (site: SiteSummary): string => {
+    if (config.displayMode === 'topo') return getTopoColor(site);
+    const val = getSiteValue(site);
+    return getMetricColor(val, config.metric);
+  };
 
   const handleMapSync = useCallback(() => {}, []);
   const stopDrag = (e: React.MouseEvent) => e.stopPropagation();
@@ -106,6 +168,14 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
           : 'bg-primary text-primary-foreground shadow-[0_2px_8px_hsl(var(--primary)/0.3)]'
         : 'text-foreground/70 hover:text-foreground hover:bg-muted/60'
     }`;
+  const modeBtn = (active: boolean) =>
+    `px-3 py-1.5 rounded-lg text-[10px] font-semibold tracking-wide transition-all duration-200 ${
+      active
+        ? 'bg-primary text-primary-foreground shadow-sm'
+        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+    }`;
+
+  const displayModeLabel = DISPLAY_MODES.find(m => m.id === config.displayMode)?.label ?? 'QoE';
 
   return (
     <div className="h-full flex flex-col rounded-2xl border border-border/60 shadow-[0_4px_24px_-8px_hsl(var(--foreground)/0.08)] overflow-hidden group transition-all duration-300 hover:shadow-[0_8px_40px_-10px_hsl(var(--foreground)/0.12)] bg-card">
@@ -117,7 +187,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
           </div>
           <div className="min-w-0">
             <h3 className="text-[13px] font-semibold text-foreground truncate select-none leading-tight">{config.title}</h3>
-            <span className="text-[10px] text-muted-foreground font-mono leading-none">{filtered.length} sites · {metricLabel}</span>
+            <span className="text-[10px] text-muted-foreground font-mono leading-none">{filtered.length} sites · {displayModeLabel}</span>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onMouseDown={stopDrag}>
@@ -131,37 +201,74 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
         </div>
       </div>
 
-      {/* Config panel — glassmorphism */}
+      {/* Config panel */}
       {showConfig && (
         <div className="px-4 py-3 space-y-3 border-b border-border/40 bg-muted/20 backdrop-blur-sm" onMouseDown={stopDrag}>
-          <div className="grid grid-cols-3 gap-2">
+          {/* Display mode selector */}
+          <div className="space-y-1">
+            <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Display</label>
+            <div className="flex gap-1 bg-muted/30 rounded-lg p-0.5 border border-border/30">
+              {DISPLAY_MODES.map(m => (
+                <button key={m.id} className={modeBtn(config.displayMode === m.id)}
+                  onClick={() => onChange({ ...config, displayMode: m.id })}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Metric (only for QoE mode) */}
+          {config.displayMode === 'qoe' && (
             <div className="space-y-1">
               <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Metric</label>
               <select className={selectClass} value={config.metric} onChange={e => onChange({ ...config, metric: e.target.value })}>
                 {MAP_METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
             </div>
+          )}
+
+          {/* Filters row 1: Vendor, DOR, Plaque */}
+          <div className="grid grid-cols-3 gap-2">
             <div className="space-y-1">
               <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Vendor</label>
-              <select className={selectClass} value={config.vendorFilter} onChange={e => onChange({ ...config, vendorFilter: e.target.value })}>
-                {VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
+              <select className={selectClass} value={config.vendorFilter}
+                onChange={e => onChange({ ...config, vendorFilter: e.target.value, plaqueFilter: 'ALL' })}>
+                {ALL_VENDORS.map(v => <option key={v} value={v}>{v}</option>)}
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">UR</label>
-              <select className={selectClass} value={config.dorFilter} onChange={e => onChange({ ...config, dorFilter: e.target.value })}>
-                {URS.map(d => <option key={d} value={d}>{d}</option>)}
+              <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">DOR</label>
+              <select className={selectClass} value={config.dorFilter}
+                onChange={e => onChange({ ...config, dorFilter: e.target.value, plaqueFilter: 'ALL' })}>
+                {ALL_DORS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Plaque</label>
+              <select className={selectClass} value={config.plaqueFilter}
+                onChange={e => onChange({ ...config, plaqueFilter: e.target.value })}>
+                {availablePlaques.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
           </div>
+
+          {/* Filters row 2: Zone ARCEP, Bande, Title */}
           <div className="grid grid-cols-3 gap-2">
             <div className="space-y-1">
-              <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Plaque</label>
-              <select className={selectClass} value={config.plaqueFilter} onChange={e => onChange({ ...config, plaqueFilter: e.target.value })}>
-                {PLAQUES.map(p => <option key={p} value={p}>{p}</option>)}
+              <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Zone ARCEP</label>
+              <select className={selectClass} value={config.zoneArcepFilter}
+                onChange={e => onChange({ ...config, zoneArcepFilter: e.target.value })}>
+                {ZONE_ARCEP_VALUES.map(z => <option key={z} value={z}>{z}</option>)}
               </select>
             </div>
-            <div className="space-y-1 col-span-2">
+            <div className="space-y-1">
+              <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Bande</label>
+              <select className={selectClass} value={config.bandeFilter}
+                onChange={e => onChange({ ...config, bandeFilter: e.target.value })}>
+                {availableBandes.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
               <label className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Title</label>
               <input className={selectClass} value={config.title} onChange={e => onChange({ ...config, title: e.target.value })} />
             </div>
@@ -227,8 +334,8 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               zoomToBoundsOnClick
             >
               {filtered.map(site => {
+                const color = getSiteColor(site);
                 const val = getSiteValue(site);
-                const color = getMetricColor(val, config.metric);
                 return (
                   <CircleMarker
                     key={site.site_id}
@@ -245,7 +352,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
                       <div style={{ fontFamily: 'Inter, sans-serif' }}>
                         <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{site.site_name}</div>
                         <div style={{ fontSize: 10, color: '#64748b' }}>{site.vendor} · {site.cell_count} cells</div>
-                        {config.showMetricValues && (
+                        {config.displayMode === 'qoe' && config.showMetricValues && (
                           <div style={{ fontSize: 11, fontWeight: 700, color, marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
                             {metricLabel}: {typeof val === 'number' ? val.toFixed(1) : val}
                           </div>
@@ -257,46 +364,62 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               })}
             </MarkerClusterGroup>
 
-            {/* Layer control — bottom right, floating pills */}
+            {/* Layer control */}
             <div className="absolute bottom-3 right-3 z-[1000] flex flex-col gap-2">
-              {/* Map base layer */}
               <div className="flex gap-0.5 bg-card/95 backdrop-blur-md border border-border/40 rounded-xl p-1 shadow-lg">
                 <Layers className="w-3.5 h-3.5 text-muted-foreground self-center ml-1 mr-0.5" />
                 <button className={layerBtn(config.mapLayer === 'light')} onClick={() => onChange({ ...config, mapLayer: 'light' })}>L</button>
                 <button className={layerBtn(config.mapLayer === 'dark')} onClick={() => onChange({ ...config, mapLayer: 'dark' })}>D</button>
                 <button className={layerBtn(config.mapLayer === 'satellite')} onClick={() => onChange({ ...config, mapLayer: 'satellite' })}>S</button>
               </div>
-              {/* Techno filter */}
               <div className="flex gap-0.5 bg-card/95 backdrop-blur-md border border-border/40 rounded-xl p-1 shadow-lg">
                 <Radio className="w-3.5 h-3.5 text-muted-foreground self-center ml-1 mr-0.5" />
-                <button className={techBtn(config.technoFilter === 'ALL', 'ALL')} onClick={() => onChange({ ...config, technoFilter: config.technoFilter === 'ALL' ? 'NONE' : 'ALL' })}>ALL</button>
-                <button className={techBtn(config.technoFilter === '5G', '5G')} onClick={() => onChange({ ...config, technoFilter: config.technoFilter === '5G' ? 'NONE' : '5G' })}>5G</button>
-                <button className={techBtn(config.technoFilter === '4G', '4G')} onClick={() => onChange({ ...config, technoFilter: config.technoFilter === '4G' ? 'NONE' : '4G' })}>4G</button>
+                <button className={techBtn(config.technoFilter === 'ALL', 'ALL')} onClick={() => onChange({ ...config, technoFilter: config.technoFilter === 'ALL' ? 'NONE' : 'ALL', bandeFilter: 'ALL' })}>ALL</button>
+                <button className={techBtn(config.technoFilter === '5G', '5G')} onClick={() => onChange({ ...config, technoFilter: config.technoFilter === '5G' ? 'NONE' : '5G', bandeFilter: 'ALL' })}>5G</button>
+                <button className={techBtn(config.technoFilter === '4G', '4G')} onClick={() => onChange({ ...config, technoFilter: config.technoFilter === '4G' ? 'NONE' : '4G', bandeFilter: 'ALL' })}>4G</button>
               </div>
             </div>
 
-            {/* Legend — bottom left, refined glassmorphism */}
-            {config.showMetricValues && (
-              <div className="absolute bottom-3 left-3 z-[1000] bg-card/95 backdrop-blur-md border border-border/40 rounded-xl px-3 py-2 shadow-lg">
-                <div className="text-[10px] font-semibold text-foreground mb-1.5 tracking-wide">{metricLabel}</div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.4)]" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }} />
-                    <span className="text-[10px] text-foreground/80 font-medium">Good</span>
+            {/* Legend */}
+            <div className="absolute bottom-3 left-3 z-[1000] bg-card/95 backdrop-blur-md border border-border/40 rounded-xl px-3 py-2 shadow-lg">
+              {config.displayMode === 'qoe' ? (
+                <>
+                  <div className="text-[10px] font-semibold text-foreground mb-1.5 tracking-wide">{metricLabel}</div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.4)]" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }} />
+                      <span className="text-[10px] text-foreground/80 font-medium">Good</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full shadow-[0_0_6px_rgba(245,158,11,0.4)]" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }} />
+                      <span className="text-[10px] text-foreground/80 font-medium">Medium</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full shadow-[0_0_6px_rgba(239,68,68,0.4)]" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }} />
+                      <span className="text-[10px] text-foreground/80 font-medium">Bad</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shadow-[0_0_6px_rgba(245,158,11,0.4)]" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }} />
-                    <span className="text-[10px] text-foreground/80 font-medium">Medium</span>
+                </>
+              ) : config.displayMode === 'topo' ? (
+                <>
+                  <div className="text-[10px] font-semibold text-foreground mb-1.5 tracking-wide">Technologie</div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full" style={{ background: '#a855f7' }} />
+                      <span className="text-[10px] text-foreground/80 font-medium">5G</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full" style={{ background: '#f59e0b' }} />
+                      <span className="text-[10px] text-foreground/80 font-medium">4G</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shadow-[0_0_6px_rgba(239,68,68,0.4)]" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }} />
-                    <span className="text-[10px] text-foreground/80 font-medium">Bad</span>
-                  </div>
-                </div>
-              </div>
-            )}
+                </>
+              ) : (
+                <div className="text-[10px] font-semibold text-foreground tracking-wide">Parameter</div>
+              )}
+            </div>
 
-            {/* Site count badge — top left */}
+            {/* Site count badge */}
             <div className="absolute top-3 left-3 z-[1000] bg-card/95 backdrop-blur-md border border-border/40 rounded-xl px-3 py-1.5 shadow-lg">
               <span className="text-[11px] font-semibold text-foreground" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 {filtered.length}
