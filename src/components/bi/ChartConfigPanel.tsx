@@ -507,15 +507,15 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </ConfigCard>
         )}
 
-        {/* ── X AXIS MODE ── */}
+        {/* ── X AXIS ── */}
         <ConfigCard
           icon={<ArrowRight className="w-4 h-4" />}
           title="X Axis"
-          summary={draft.xAxis.type === 'dimension' ? 'Dimension' : 'Date'}
+          summary={draft.xAxis.type === 'dimension' ? `Dimension · ${draft.dimension1 || '—'}` : `Date · ${granularitySummary}`}
           open={openCard === 'xaxis'}
           onToggle={() => toggleCard('xaxis')}
         >
-          <div className="pt-2 space-y-3">
+          <div className="pt-2 space-y-4">
             <SegmentedControl
               options={[
                 { value: 'date', label: 'Date' },
@@ -524,115 +524,97 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
               value={draft.xAxis.type || 'date'}
               onChange={v => updateX({ type: v as 'date' | 'dimension' })}
             />
+
+            {/* Date sub-section */}
+            {(draft.xAxis.type || 'date') === 'date' && (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1 space-y-1">
+                      <FieldLabel>Start</FieldLabel>
+                      <input
+                        type="date"
+                        value={draft.xAxis.dateStart}
+                        onChange={e => updateX({ dateStart: e.target.value })}
+                        className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
+                          outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                          hover:border-border transition-all duration-150"
+                      />
+                    </div>
+                    <div className="pb-2.5">
+                      <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <FieldLabel>End</FieldLabel>
+                      <input
+                        type="date"
+                        value={draft.xAxis.dateEnd}
+                        onChange={e => updateX({ dateEnd: e.target.value })}
+                        className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
+                          outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                          hover:border-border transition-all duration-150"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <FieldLabel>Quick Presets</FieldLabel>
+                    <div className="flex gap-1.5">
+                      {DATE_PRESETS.map(p => (
+                        <button
+                          key={p.label}
+                          onClick={() => applyDatePreset(p.days)}
+                          className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-border/50
+                            text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5
+                            transition-all duration-150"
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="h-px bg-border/30" />
+                <div className="space-y-1.5">
+                  <FieldLabel>Granularity</FieldLabel>
+                  <SegmentedControl
+                    options={GRANULARITIES.map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
+                    value={draft.xAxis.granularity || 'day'}
+                    onChange={v => updateX({ granularity: v as Granularity })}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Dimension sub-section */}
+            {draft.xAxis.type === 'dimension' && (
+              <div className="space-y-1.5">
+                <FieldLabel>Dimension 1</FieldLabel>
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {BI_DIMENSIONS.map(d => (
+                    <button
+                      key={d}
+                      onClick={() => update({ dimension1: d as any })}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all duration-150 ${
+                        draft.dimension1 === d
+                          ? 'bg-primary/10 text-primary border border-primary/30'
+                          : 'text-foreground hover:bg-muted/50 border border-transparent'
+                      }`}
+                    >
+                      {draft.dimension1 === d ? (
+                        <Check className="w-3.5 h-3.5 shrink-0" />
+                      ) : (
+                        <div className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </ConfigCard>
 
-        {/* ── TIME RANGE (only when X = Date) ── */}
-        {(draft.xAxis.type || 'date') === 'date' && (
-          <>
-            <ConfigCard
-              icon={<Calendar className="w-4 h-4" />}
-              title="Time Range"
-              summary={timeRangeSummary}
-              open={openCard === 'time'}
-              onToggle={() => toggleCard('time')}
-            >
-              <div className="space-y-3 pt-2">
-                <div className="flex items-end gap-2">
-                  <div className="flex-1 space-y-1">
-                    <FieldLabel>Start</FieldLabel>
-                    <input
-                      type="date"
-                      value={draft.xAxis.dateStart}
-                      onChange={e => updateX({ dateStart: e.target.value })}
-                      className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
-                        outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
-                        hover:border-border transition-all duration-150"
-                    />
-                  </div>
-                  <div className="pb-2.5">
-                    <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50" />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <FieldLabel>End</FieldLabel>
-                    <input
-                      type="date"
-                      value={draft.xAxis.dateEnd}
-                      onChange={e => updateX({ dateEnd: e.target.value })}
-                      className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
-                        outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
-                        hover:border-border transition-all duration-150"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <FieldLabel>Quick Presets</FieldLabel>
-                  <div className="flex gap-1.5">
-                    {DATE_PRESETS.map(p => (
-                      <button
-                        key={p.label}
-                        onClick={() => applyDatePreset(p.days)}
-                        className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-border/50
-                          text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5
-                          transition-all duration-150"
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </ConfigCard>
 
-            <ConfigCard
-              icon={<Clock className="w-4 h-4" />}
-              title="Granularity"
-              summary={granularitySummary}
-              open={openCard === 'granularity'}
-              onToggle={() => toggleCard('granularity')}
-            >
-              <div className="pt-2">
-                <SegmentedControl
-                  options={GRANULARITIES.map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
-                  value={draft.xAxis.granularity || 'day'}
-                  onChange={v => updateX({ granularity: v as Granularity })}
-                />
-              </div>
-            </ConfigCard>
-          </>
-        )}
-
-        {/* ── DIMENSION 1 (only when X = Dimension) ── */}
-        {draft.xAxis.type === 'dimension' && (
-          <ConfigCard
-            icon={<Eye className="w-4 h-4" />}
-            title="Dimension 1"
-            summary={dimension1Summary}
-            open={openCard === 'dimension1'}
-            onToggle={() => toggleCard('dimension1')}
-          >
-            <div className="pt-2 space-y-1.5">
-              {BI_DIMENSIONS.map(d => (
-                <button
-                  key={d}
-                  onClick={() => update({ dimension1: d as any })}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all duration-150 ${
-                    draft.dimension1 === d
-                      ? 'bg-primary/10 text-primary border border-primary/30'
-                      : 'text-foreground hover:bg-muted/50 border border-transparent'
-                  }`}
-                >
-                  {draft.dimension1 === d ? (
-                    <Check className="w-3.5 h-3.5 shrink-0" />
-                  ) : (
-                    <div className="w-3.5 h-3.5 shrink-0" />
-                  )}
-                  {d}
-                </button>
-              ))}
-            </div>
-          </ConfigCard>
-        )}
 
         {/* ── KPI SELECTION ── */}
         <ConfigCard
