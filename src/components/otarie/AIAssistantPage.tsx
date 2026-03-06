@@ -336,6 +336,47 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     } catch (e) { console.error('Cell extraction failed:', e); }
   };
 
+  // ─── Dashboard creation from AI response ───
+  const handleDashboardCreation = async (responseText: string) => {
+    const match = responseText.match(/<!--\s*CREATE_DASHBOARD:(.*?)-->/s);
+    if (!match) return;
+    try {
+      const spec = JSON.parse(match[1].trim());
+      const dashId = `ai_${Date.now()}`;
+      const now = new Date();
+      const dateEnd = now.toISOString().slice(0, 10);
+      const dateStart = new Date(now.getTime() - (spec.charts?.[0]?.dateRange || 30) * 86400000).toISOString().slice(0, 10);
+      const widgets = (spec.charts || []).map((chart: any, idx: number) => {
+        const base = createDefaultChart(`chart_${Date.now()}_${idx}`);
+        const kpis = chart.kpis || ['qoe_index'];
+        base.title = chart.title || `Chart ${idx + 1}`;
+        base.xAxis = { type: 'date', value: 'date', dateStart, dateEnd, granularity: 'day' };
+        base.dataSource = { type: 'local' };
+        if (chart.dimension1) base.dimension1 = chart.dimension1;
+        base.yMetrics = kpis.map((kpi: string, ki: number) => ({
+          kpi, axis: ki === 0 ? 'left' as const : 'right' as const,
+          color: CHART_COLORS[ki % CHART_COLORS.length],
+          chartType: (chart.chartTypes?.[ki]) || 'line',
+          aggregation: 'AVG' as const, smoothCurve: true, showMovingAvg: false,
+        }));
+        base.advanced.showLegend = true;
+        base.advanced.legendPosition = 'top';
+        return { kind: 'chart' as const, config: base, layout: { x: 0, y: idx * 6, w: 12, h: 6 } };
+      });
+      const session = getStoredSession();
+      await dashboardsApi.upsert({
+        id: dashId, name: spec.name || 'AI Dashboard', description: spec.description || '',
+        is_shared: true, widgets, dashboard_type: 'analytic_qoe',
+        owner_username: session?.username || 'QOEBIT AI',
+      });
+      toast({ title: '📊 Dashboard créé !', description: `"${spec.name}" est disponible dans Dashboard Overview.` });
+      addDebugLog(`✅ Dashboard "${spec.name}" created with ${widgets.length} charts`);
+    } catch (e) {
+      console.error('Dashboard creation failed:', e);
+      addDebugLog(`❌ Dashboard creation error: ${e}`);
+    }
+  };
+
   const send = async (text?: string) => {
     const msg = text || input.trim();
     if (!msg || isLoading) return;
@@ -347,6 +388,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     try {
       const finalText = await streamChat(updatedMessages);
       extractCellsFromResponse(finalText);
+      handleDashboardCreation(finalText);
     } catch (e: any) {
       console.error('QOEBIT stream error:', e);
       addDebugLog(`❌ Error: ${e?.message}`);
