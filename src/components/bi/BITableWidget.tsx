@@ -8,6 +8,8 @@ export interface TableFilter {
   values: string[];
 }
 
+export type TableGranularity = 'hour' | 'day' | 'week' | 'month';
+
 export interface TableWidgetConfig {
   id: string;
   type: 'table';
@@ -17,6 +19,7 @@ export interface TableWidgetConfig {
   xAxisType: 'date' | 'dimension';
   dateFrom?: string;
   dateTo?: string;
+  granularity?: TableGranularity;
   filters: TableFilter[];
   fontSize: number;
   showHeader: boolean;
