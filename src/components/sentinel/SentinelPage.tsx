@@ -138,19 +138,10 @@ const SentinelPage: React.FC = () => {
         {/* Date picker - calendar input */}
         <input
           type="date"
-          value={pendingDate || selectedDate}
-          onChange={e => setPendingDate(e.target.value)}
-          onBlur={() => {
-            if (pendingDate && pendingDate !== selectedDate) {
-              setSelectedDate(pendingDate);
-            }
-            setPendingDate('');
-          }}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && pendingDate) {
-              setSelectedDate(pendingDate);
-              setPendingDate('');
-            }
+          value={selectedDate}
+          onChange={e => {
+            const v = e.target.value;
+            if (v && v !== selectedDate) setSelectedDate(v);
           }}
           className="text-xs border border-border rounded-md px-2 py-1.5 bg-card text-foreground cursor-pointer"
         />
