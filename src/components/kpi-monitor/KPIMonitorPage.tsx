@@ -22,6 +22,7 @@ import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../b
 import BIMapWidget from '../bi/BIMapWidget';
 import BITableWidget, { TableWidgetConfig, createDefaultTableWidget } from '../bi/BITableWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
+import TableConfigPanel from '../bi/TableConfigPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
 import { CSVDataProvider, CSVUploadButton, CSVDataPanel, useCSVData } from '../bi/CSVDataStore';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
@@ -365,7 +366,7 @@ const KPIMonitorInner: React.FC = () => {
     if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { store.setActiveEditingWidgetId(wId); setShowAI(false); }} onDuplicate={() => duplicateWidget(wId)} onDelete={() => deleteWidget(wId)} />;
     if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={cfg => updateMapConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
     if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={cfg => updateImageConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
-    if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
+    if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} onEdit={() => { setEditingId(wId); }} />;
     return <BITextWidget config={w.config as TextWidgetConfig} onChange={cfg => updateTextConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
   };
 
