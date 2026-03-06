@@ -425,6 +425,17 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             </div>
           </div>
         </div>
+        {/* Data / Voix toggle */}
+        <div className="flex items-center gap-2 mt-3">
+          <SegmentedControl
+            options={[
+              { value: 'data', label: 'Data' },
+              { value: 'voix', label: 'Voix' },
+            ]}
+            value={draft.dataMode || 'data'}
+            onChange={v => update({ dataMode: v as 'data' | 'voix' })}
+          />
+        </div>
       </div>
 
       {/* ─── Scrollable Cards ─── */}
