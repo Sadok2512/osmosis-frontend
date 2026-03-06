@@ -168,48 +168,6 @@ const DashboardSettingsPopup: React.FC<Props> = ({ open, onClose, dashboardId, d
             </p>
           </section>
 
-          {/* Section 3: Technologies */}
-          <section className="space-y-3">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Technologie</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {TECHNOLOGIES.map(tech => {
-                const selected = draft.technologies.includes(tech);
-                return (
-                  <button
-                    key={tech}
-                    onClick={() => toggleTech(tech)}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all",
-                      selected
-                        ? "border-primary/40 bg-primary/5 text-foreground"
-                        : "border-border bg-background text-muted-foreground hover:border-border hover:bg-muted/30"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-all",
-                      selected ? "bg-primary border-primary" : "border-border/80 bg-background"
-                    )}>
-                      {selected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
-                    </div>
-                    {tech}
-                  </button>
-                );
-              })}
-            </div>
-            {draft.technologies.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {draft.technologies.map(t => (
-                  <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-medium">
-                    {t}
-                    <button onClick={() => toggleTech(t)} className="hover:text-destructive transition-colors">
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </section>
-
           {/* Section 4: Theme */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
