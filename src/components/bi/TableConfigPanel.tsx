@@ -355,45 +355,44 @@ const TableConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 <LayoutGrid className="w-3.5 h-3.5" /> Dimension
               </button>
             </div>
-            {config.xAxisType === 'date' ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <label className="text-[9px] text-muted-foreground mb-0.5 block">Début</label>
-                    <input type="date" value={config.dateFrom || ''} onChange={e => onChange({ ...config, dateFrom: e.target.value })}
-                      className="text-[11px] bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none w-full focus:ring-1 focus:ring-primary" />
-                  </div>
-                  <span className="text-muted-foreground mt-3">→</span>
-                  <div className="flex-1">
-                    <label className="text-[9px] text-muted-foreground mb-0.5 block">Fin</label>
-                    <input type="date" value={config.dateTo || ''} onChange={e => onChange({ ...config, dateTo: e.target.value })}
-                      className="text-[11px] bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none w-full focus:ring-1 focus:ring-primary" />
-                  </div>
-                </div>
-                {/* Granularity */}
-                <div>
-                  <label className="text-[9px] text-muted-foreground mb-1 block">Granularité</label>
-                  <div className="flex gap-1">
-                    {GRANULARITIES.map(g => (
-                      <button key={g.key}
-                        onClick={() => onChange({ ...config, granularity: g.key })}
-                        className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-colors ${
-                          (config.granularity || 'day') === g.key
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'bg-muted text-muted-foreground hover:text-foreground'
-                        }`}>
-                        {g.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
+            {(config.xAxisType || 'dimension') === 'dimension' && (
               <select value={config.dimension} onChange={e => onChange({ ...config, dimension: e.target.value as BIDimension })}
                 className="text-[11px] bg-background border border-border rounded-lg px-2.5 py-2 text-foreground outline-none w-full focus:ring-1 focus:ring-primary">
                 {BI_DIMENSIONS.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             )}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <label className="text-[9px] text-muted-foreground mb-0.5 block">Début</label>
+                  <input type="date" value={config.dateFrom || ''} onChange={e => onChange({ ...config, dateFrom: e.target.value })}
+                    className="text-[11px] bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none w-full focus:ring-1 focus:ring-primary" />
+                </div>
+                <span className="text-muted-foreground mt-3">→</span>
+                <div className="flex-1">
+                  <label className="text-[9px] text-muted-foreground mb-0.5 block">Fin</label>
+                  <input type="date" value={config.dateTo || ''} onChange={e => onChange({ ...config, dateTo: e.target.value })}
+                    className="text-[11px] bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none w-full focus:ring-1 focus:ring-primary" />
+                </div>
+              </div>
+              {/* Granularity */}
+              <div>
+                <label className="text-[9px] text-muted-foreground mb-1 block">Granularité</label>
+                <div className="flex gap-1">
+                  {GRANULARITIES.map(g => (
+                    <button key={g.key}
+                      onClick={() => onChange({ ...config, granularity: g.key })}
+                      className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-colors ${
+                        (config.granularity || 'day') === g.key
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted text-muted-foreground hover:text-foreground'
+                      }`}>
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* ── FILTERS ── */}
