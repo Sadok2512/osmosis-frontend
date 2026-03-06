@@ -4,7 +4,7 @@ import { fetchClusters, fetchClusterMembers } from '../sentinelApi';
 import { ClusterData, ClusterMember, CLUSTER_COLORS, SentinelDimension } from '../types';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, BarChart3 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 import { cn } from '@/lib/utils';
 
@@ -36,22 +36,23 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
         <div className="text-center space-y-2">
           <AlertCircle className="w-10 h-10 mx-auto text-destructive" />
           <p className="text-sm">API Sentinel non disponible</p>
+          <p className="text-xs text-muted-foreground">Vérifiez la connexion à localhost:1000</p>
         </div>
       </div>
     );
   }
 
   // Scatter plot
-  const scatterOption = clusters ? {
+  const scatterOption = (clusters && clusters.length > 0) ? {
     tooltip: {
       trigger: 'item',
       formatter: (p: any) => `${p.data[3]}<br/>Débit: ${p.data[0].toFixed(2)}<br/>Latence: ${p.data[1].toFixed(2)}<br/>${p.data[4]} membres`,
     },
     grid: { left: 50, right: 20, top: 20, bottom: 40 },
-    xAxis: { name: 'Score Débit', nameLocation: 'center', nameGap: 25, type: 'value', min: 0, max: 1, axisLabel: { fontSize: 9 } },
-    yAxis: { name: 'Score Latence', nameLocation: 'center', nameGap: 35, type: 'value', min: 0, max: 1, axisLabel: { fontSize: 9 } },
+    xAxis: { name: 'Score Débit', nameLocation: 'center' as const, nameGap: 25, type: 'value' as const, min: 0, max: 1, axisLabel: { fontSize: 9 } },
+    yAxis: { name: 'Score Latence', nameLocation: 'center' as const, nameGap: 35, type: 'value' as const, min: 0, max: 1, axisLabel: { fontSize: 9 } },
     series: clusters.map(c => ({
-      type: 'scatter',
+      type: 'scatter' as const,
       name: c.cluster_label,
       symbolSize: Math.max(10, Math.min(40, c.cluster_size / 2)),
       data: [[c.centroid.score_debit, c.centroid.score_latence, c.cluster_size, c.cluster_label, c.cluster_size]],
@@ -60,7 +61,7 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
   } : null;
 
   // Radar overlay
-  const radarOption = clusters ? {
+  const radarOption = (clusters && clusters.length > 0) ? {
     tooltip: {},
     legend: { bottom: 0, textStyle: { fontSize: 9, color: 'hsl(220,9%,46%)' } },
     radar: {
@@ -97,6 +98,14 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
 
       {isLoading ? (
         <div className="grid grid-cols-5 gap-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
+      ) : !clusters?.length ? (
+        <div className="flex-1 flex items-center justify-center py-20">
+          <div className="text-center space-y-2">
+            <BarChart3 className="w-10 h-10 mx-auto text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Aucun cluster disponible pour cette date</p>
+            <p className="text-xs text-muted-foreground/60">L'API a retourné 0 clusters. Vérifiez les données ML.</p>
+          </div>
+        </div>
       ) : (
         <>
           {/* Cluster summary cards */}
