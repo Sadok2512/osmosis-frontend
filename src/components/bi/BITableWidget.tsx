@@ -41,8 +41,8 @@ export function createDefaultTableWidget(id: string): TableWidgetConfig {
   return {
     id,
     type: 'table',
-    title: 'KPI Table',
-    kpis: ['qoe_index', 'debit_dl', 'debit_ul', 'dms_debit_dl_3', 'dms_debit_dl_8'],
+    title: '',
+    kpis: [],
     dimension: 'Vendor',
     xAxisType: 'dimension',
     dateFrom: start.toISOString().split('T')[0],
