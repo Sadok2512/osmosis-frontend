@@ -919,7 +919,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             : kpiModalTarget?.type === 'xAxis'
               ? [draft.xAxis.value].filter(Boolean)
               : kpiModalTarget?.type === 'sizeBy'
-                ? [draft.sizeBy].filter((v): v is string => !!v)
+                ? []
                 : []
         }
         single={kpiModalTarget?.type !== 'metric' || (kpiModalTarget?.type === 'metric' && kpiModalTarget.index >= 0)}
@@ -953,7 +953,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           } else if (kpiModalTarget.type === 'xAxis') {
             updateX({ value: keys[0] });
           } else if (kpiModalTarget.type === 'sizeBy') {
-            update({ sizeBy: keys[0] as BIKPI });
+            // no-op, sizeBy now uses dimension dropdown
           }
         }}
       />
