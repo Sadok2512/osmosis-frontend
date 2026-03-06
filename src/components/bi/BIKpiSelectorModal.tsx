@@ -197,33 +197,31 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
         </div>
 
         {/* Footer */}
-        {!single && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-card">
-            <div className="flex flex-wrap gap-1 max-w-[400px] overflow-hidden">
-              {Array.from(selected).slice(0, 6).map(key => {
-                const k = BI_KPI_CATALOG.find(c => c.key === key);
-                return (
-                  <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[k?.category || ''] }} />
-                    {k?.display_name || key}
-                    <button onClick={(e) => { e.stopPropagation(); toggle(key); }} className="ml-0.5 hover:text-destructive">
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </span>
-                );
-              })}
-              {selected.size > 6 && <span className="text-[9px] text-muted-foreground self-center">+{selected.size - 6}</span>}
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
-                Fermer
-              </button>
-              <button onClick={handleConfirm} className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity">
-                Ok
-              </button>
-            </div>
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-card">
+          <div className="flex flex-wrap gap-1 max-w-[400px] overflow-hidden">
+            {Array.from(selected).slice(0, 6).map(key => {
+              const k = BI_KPI_CATALOG.find(c => c.key === key);
+              return (
+                <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[k?.category || ''] }} />
+                  {k?.display_name || key}
+                  <button onClick={(e) => { e.stopPropagation(); toggle(key); }} className="ml-0.5 hover:text-destructive">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              );
+            })}
+            {selected.size > 6 && <span className="text-[9px] text-muted-foreground self-center">+{selected.size - 6}</span>}
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
+              Fermer
+            </button>
+            <button onClick={handleConfirm} className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity">
+              Confirmer
+            </button>
+          </div>
+        </div>
       </div>
     </div>,
     document.body
