@@ -1886,6 +1886,190 @@ function getAgentPrompt(agent: AgentId): string {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  LEARNING ENGINE — Preference extraction & persistence
+// ═══════════════════════════════════════════════════════════════
+
+const PREFERENCE_EXTRACTION_PROMPT = `Tu es un extracteur de préférences utilisateur. Analyse le message de l'utilisateur et sa conversation pour détecter des préférences EXPLICITES ou IMPLICITES.
+
+Catégories de préférences à détecter :
+1. VISUAL: couleurs préférées, types de graphiques, format d'affichage
+2. SCOPE: DOR, vendor, plaque, bande, zone habituelle de l'utilisateur
+3. STYLE: réponses concises vs détaillées, technique vs vulgarisé, langue
+4. CORRECTION: si l'utilisateur corrige une erreur ou exprime une insatisfaction
+
+Réponds en JSON strict (pas de markdown, pas de texte avant/après) :
+{"preferences": [{"category": "VISUAL|SCOPE|STYLE|CORRECTION", "key": "nom_court", "value": "valeur", "confidence": 0.0-1.0}]}
+
+Si AUCUNE préférence n'est détectée, réponds : {"preferences": []}
+Ne détecte PAS de préférences dans les questions factuelles simples (ex: "donne moi le QoE par DOR" → pas de préférence).`;
+
+async function extractAndSavePreferences(
+  userMessage: string,
+  assistantResponse: string,
+  agent: string,
+  userId: string | null,
+  sessionId: string | null,
+  supaClient: any,
+  aiUrl: string,
+  aiHeaders: Record<string, string>,
+  model: string
+): Promise<void> {
+  // Skip very short messages (unlikely to contain preferences)
+  if (userMessage.length < 15) return;
+  
+  // Quick heuristic check: skip if no preference-like words
+  const prefHints = [
+    'couleur', 'color', 'vert', 'rouge', 'bleu', 'violet', 'orange', 'noir',
+    'préfère', 'prefer', 'toujours', 'always', 'jamais', 'never', 'plutôt',
+    'concis', 'détaillé', 'simple', 'technique', 'vulgarisé',
+    'graphique', 'chart', 'bar', 'pie', 'camembert', 'ligne', 'line',
+    'par défaut', 'default', 'habituel', 'favorite', 'favori',
+    'non', 'incorrect', 'faux', 'erreur', 'pas ça', 'wrong',
+    'dor', 'vendor', 'plaque', 'zone', 'scope', 'périmètre',
+    'rappelle', 'souviens', 'remember', 'mémorise', 'retiens',
+    'prochaine fois', 'next time', 'dorénavant', 'désormais',
+  ];
+  const lower = userMessage.toLowerCase();
+  const hasPrefSignal = prefHints.some(h => lower.includes(h));
+  if (!hasPrefSignal) return;
+
+  console.log(`🧠 Learning: preference signal detected in "${userMessage.slice(0, 60)}..."`);
+
+  try {
+    const extractResp = await fetch(aiUrl, {
+      method: "POST",
+      headers: aiHeaders,
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: PREFERENCE_EXTRACTION_PROMPT },
+          { role: "user", content: `Message utilisateur: "${userMessage}"\n\nRéponse assistant (contexte): "${assistantResponse.slice(0, 500)}"` },
+        ],
+        temperature: 0.1,
+        max_tokens: 500,
+      }),
+    });
+
+    if (!extractResp.ok) {
+      console.warn(`Learning extraction failed: ${extractResp.status}`);
+      return;
+    }
+
+    const result = await extractResp.json();
+    const content = result.choices?.[0]?.message?.content || '';
+    
+    // Parse JSON from response (handle markdown wrapping)
+    let jsonStr = content.trim();
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+    }
+    
+    const parsed = JSON.parse(jsonStr);
+    const preferences = parsed.preferences || [];
+
+    if (preferences.length === 0) {
+      console.log('🧠 Learning: no preferences extracted');
+      return;
+    }
+
+    console.log(`🧠 Learning: extracted ${preferences.length} preferences`);
+
+    // Save each preference to agent_memory
+    for (const pref of preferences) {
+      if (pref.confidence < 0.5) continue; // Skip low-confidence
+
+      const memKey = `${pref.category.toLowerCase()}_${pref.key}`;
+      const sourceId = userId ? `user:${userId}` : (sessionId || null);
+
+      // Upsert: check if key already exists for this user/agent
+      const { data: existing } = await supaClient
+        .from('agent_memory')
+        .select('id, relevance_score')
+        .eq('memory_type', 'preference')
+        .eq('key', memKey)
+        .eq('agent', agent)
+        .maybeSingle();
+
+      if (existing?.id) {
+        // Update existing preference (boost relevance score)
+        const newScore = Math.min(2.0, (existing.relevance_score || 1.0) + 0.2);
+        await supaClient
+          .from('agent_memory')
+          .update({
+            value: { data: pref.value, category: pref.category, confidence: pref.confidence },
+            relevance_score: newScore,
+            updated_at: new Date().toISOString(),
+            source_session_id: sourceId,
+          })
+          .eq('id', existing.id);
+        console.log(`🧠 Updated preference: ${memKey} = ${pref.value} (score: ${newScore})`);
+      } else {
+        // Insert new preference
+        await supaClient.from('agent_memory').insert({
+          memory_type: 'preference',
+          agent,
+          key: memKey,
+          value: { data: pref.value, category: pref.category, confidence: pref.confidence },
+          relevance_score: pref.confidence,
+          source_session_id: sourceId,
+        });
+        console.log(`🧠 Saved new preference: ${memKey} = ${pref.value}`);
+      }
+    }
+  } catch (e) {
+    console.warn('Preference extraction error:', e);
+  }
+}
+
+// Session summarization: called periodically or when session ends
+async function summarizeSession(
+  messages: { role: string; content: string }[],
+  agent: string,
+  userId: string | null,
+  supaClient: any,
+  aiUrl: string,
+  aiHeaders: Record<string, string>,
+  model: string
+): Promise<void> {
+  if (messages.length < 4) return; // Need enough messages
+
+  try {
+    const conversation = messages.slice(-10).map(m => `${m.role}: ${m.content.slice(0, 300)}`).join('\n');
+    
+    const resp = await fetch(aiUrl, {
+      method: "POST",
+      headers: aiHeaders,
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: "Résume cette conversation en 2-3 phrases. Mentionne les sujets abordés, les dimensions analysées, et les conclusions principales. Format: texte brut, pas de JSON." },
+          { role: "user", content: conversation },
+        ],
+        temperature: 0.3,
+        max_tokens: 200,
+      }),
+    });
+
+    if (!resp.ok) return;
+    const result = await resp.json();
+    const summary = result.choices?.[0]?.message?.content || '';
+    if (!summary) return;
+
+    await supaClient.from('agent_memory').insert({
+      memory_type: 'session_summary',
+      agent,
+      key: `session_${Date.now()}`,
+      value: { summary, messageCount: messages.length, timestamp: new Date().toISOString() },
+      relevance_score: 1.0,
+      source_session_id: userId ? `user:${userId}` : null,
+    });
+    console.log(`🧠 Session summarized: "${summary.slice(0, 80)}..."`);
+  } catch (e) {
+    console.warn('Session summarization failed:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════
 
@@ -1905,6 +2089,8 @@ serve(async (req) => {
       cellContext: legacyCellContext,
       kpiMonitorContext,
       forcedAgent,
+      user_id,
+      session_id,
     } = body;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -1973,7 +2159,7 @@ serve(async (req) => {
     const supaClient = getSupabase();
     let learningContext = '';
     try {
-      // Few-shot examples from positively-rated responses
+      // Few-shot examples from positively-rated responses (agent-specific)
       const { data: fewShots } = await supaClient
         .from('agent_feedback')
         .select('user_question, assistant_response')
@@ -1986,20 +2172,79 @@ serve(async (req) => {
         const examples = fewShots.map((d: any, i: number) =>
           `--- Exemple ${i + 1} ---\nQ: ${d.user_question}\nR: ${(d.assistant_response || '').slice(0, 800)}`
         ).join('\n\n');
-        learningContext += `\n\n🎓 EXEMPLES DE BONNES RÉPONSES (few-shot learning - réponses validées par l'utilisateur):\n${examples}`;
+        learningContext += `\n\n🎓 EXEMPLES DE BONNES RÉPONSES (few-shot learning):\n${examples}`;
       }
 
-      // User preferences/memory
-      const { data: memories } = await supaClient
+      // User-specific preferences (filtered by user_id if available)
+      let memQuery = supaClient
+        .from('agent_memory')
+        .select('key, value, agent, relevance_score, updated_at')
+        .eq('memory_type', 'preference')
+        .order('relevance_score', { ascending: false })
+        .limit(20);
+
+      if (user_id) {
+        // Fetch user-specific + global preferences
+        const { data: userPrefs } = await supaClient
+          .from('agent_memory')
+          .select('key, value, agent, relevance_score, updated_at')
+          .eq('memory_type', 'preference')
+          .or(`source_session_id.eq.user:${user_id},source_session_id.is.null`)
+          .order('relevance_score', { ascending: false })
+          .limit(20);
+
+        if (userPrefs && userPrefs.length > 0) {
+          // Apply temporal decay: reduce relevance for old preferences
+          const now = Date.now();
+          const enriched = userPrefs.map((d: any) => {
+            const age = (now - new Date(d.updated_at).getTime()) / (1000 * 60 * 60 * 24); // days
+            const decay = Math.max(0.3, 1 - age / 90); // decay over 90 days, min 0.3
+            return { ...d, effectiveScore: (d.relevance_score || 1.0) * decay };
+          }).sort((a: any, b: any) => b.effectiveScore - a.effectiveScore);
+
+          const prefs = enriched.map((d: any) => {
+            const agentTag = d.agent ? ` [${d.agent}]` : '';
+            return `- ${d.key}${agentTag}: ${JSON.stringify(d.value?.data || d.value)} (score: ${d.effectiveScore.toFixed(2)})`;
+          }).join('\n');
+          learningContext += `\n\n🧠 MÉMOIRE UTILISATEUR (préférences apprises — adapte tes réponses):\n${prefs}`;
+        }
+      } else {
+        // No user_id: fetch global preferences
+        const { data: memories } = await memQuery;
+        if (memories && memories.length > 0) {
+          const prefs = memories.map((d: any) => `- ${d.key}: ${JSON.stringify(d.value?.data || d.value)}`).join('\n');
+          learningContext += `\n\n🧠 MÉMOIRE (préférences globales):\n${prefs}`;
+        }
+      }
+
+      // Fetch corrections (negative feedback patterns to avoid)
+      const { data: corrections } = await supaClient
         .from('agent_memory')
         .select('key, value')
-        .eq('memory_type', 'preference')
+        .eq('memory_type', 'correction')
+        .eq('agent', plan.agent)
         .order('updated_at', { ascending: false })
-        .limit(10);
+        .limit(5);
 
-      if (memories && memories.length > 0) {
-        const prefs = memories.map((d: any) => `- ${d.key}: ${JSON.stringify(d.value?.data || d.value)}`).join('\n');
-        learningContext += `\n\n🧠 MÉMOIRE UTILISATEUR (préférences apprises):\n${prefs}\nAdapte ton style et tes réponses selon ces préférences.`;
+      if (corrections && corrections.length > 0) {
+        const corr = corrections.map((d: any) => `- ❌ ${d.key}: ${JSON.stringify(d.value?.data || d.value)}`).join('\n');
+        learningContext += `\n\n⚠️ CORRECTIONS APPRISES (évite ces erreurs):\n${corr}`;
+      }
+
+      // Session summary from previous sessions (if user_id)
+      if (user_id) {
+        const { data: summaries } = await supaClient
+          .from('agent_memory')
+          .select('key, value')
+          .eq('memory_type', 'session_summary')
+          .eq('source_session_id', `user:${user_id}`)
+          .order('updated_at', { ascending: false })
+          .limit(3);
+
+        if (summaries && summaries.length > 0) {
+          const summ = summaries.map((d: any) => `- ${d.value?.summary || JSON.stringify(d.value)}`).join('\n');
+          learningContext += `\n\n📝 RÉSUMÉS SESSIONS PRÉCÉDENTES:\n${summ}`;
+        }
       }
     } catch (learningErr) {
       console.warn('Learning context fetch failed:', learningErr);
@@ -2096,17 +2341,32 @@ serve(async (req) => {
     (async () => {
       await writer.write(metaChunk);
 
-      // Stream the AI response first
+      // Stream the AI response and collect full text for learning
       const reader = originalBody.getReader();
+      const decoder = new TextDecoder();
+      let fullAssistantResponse = '';
+      
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         await writer.write(value);
+        
+        // Collect response text for post-stream learning
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const parsed = JSON.parse(line.slice(6));
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) fullAssistantResponse += content;
+            } catch { /* skip */ }
+          }
+        }
       }
 
       // Append SQL debug block AFTER the AI response for PARMY agent
       if (plan.agent === "PARMY" && parmySqlDebug) {
-        // Extract SQL from formats: "SQL: SELECT...", "SQL QUERY (0 results):\nSELECT...", "Generated SQL: SELECT..."
         const sqlMatch = parmySqlDebug.match(/(?:SQL[^:]*:|Generated SQL:)\s*\n?(SELECT[^]*?)(?:\n\n|\nRÉSULTATS|\nAucun|$)/i);
         const sqlQuery = sqlMatch ? sqlMatch[1].trim() : "";
         if (sqlQuery) {
@@ -2119,6 +2379,25 @@ serve(async (req) => {
       }
 
       await writer.close();
+
+      // ═══════════════════════════════════════════════════════
+      // POST-STREAM: Async preference extraction & learning
+      // ═══════════════════════════════════════════════════════
+      try {
+        await extractAndSavePreferences(
+          lastUserMessage,
+          fullAssistantResponse,
+          plan.agent,
+          user_id,
+          session_id,
+          getSupabase(),
+          useLovable ? "https://ai.gateway.lovable.dev/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions",
+          aiHeaders,
+          useLovable ? "google/gemini-2.5-flash-lite" : "google/gemini-2.5-flash-preview-05-20"
+        );
+      } catch (learnErr) {
+        console.warn('Post-stream learning failed:', learnErr);
+      }
     })();
 
     return new Response(readable, {

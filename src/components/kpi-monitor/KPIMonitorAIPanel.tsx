@@ -104,6 +104,11 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
       return { role: m.role, content: m.content };
     });
 
+    // Get user_id from admin session
+    const { getStoredSession } = await import('@/services/adminAuth');
+    const session = getStoredSession();
+    const userId = session?.id || null;
+
     const payload = JSON.stringify({
       messages: trimmedMessages,
       uiScope: { page: 'kpi_monitor' },
@@ -111,6 +116,7 @@ ${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimensi
       kpiMonitorContext: kpiContext,
       openrouter_key: openrouterKey,
       model: llmModel,
+      user_id: userId,
     });
 
     const url = getApiUrl('qoe-assistant');

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
+import { getStoredSession } from '@/services/adminAuth';
 
 export interface AgentFeedback {
   sessionId: string;
@@ -10,30 +11,33 @@ export interface AgentFeedback {
   agent: string;
   rating: 1 | -1;
   intent?: string;
+  scopeLevel?: string;
 }
 
 export interface AgentMemoryEntry {
   id?: string;
-  memoryType: 'preference' | 'few_shot' | 'correction';
+  memoryType: 'preference' | 'few_shot' | 'correction' | 'session_summary';
   agent?: string;
   key: string;
   value: Record<string, any>;
   relevanceScore?: number;
 }
 
-interface AgentLearningState {
-  // Local cache of user preferences
-  preferences: Record<string, any>;
-  // Feedback tracking (which messages were rated)
-  ratedMessages: Record<string, 1 | -1>; // key: `${sessionId}-${messageIndex}`
+function getUserSourceId(): string | null {
+  const session = getStoredSession();
+  return session?.id ? `user:${session.id}` : null;
+}
 
-  // Actions
+interface AgentLearningState {
+  preferences: Record<string, any>;
+  ratedMessages: Record<string, 1 | -1>;
+
   submitFeedback: (feedback: AgentFeedback) => Promise<void>;
-  savePreference: (key: string, value: any) => Promise<void>;
+  savePreference: (key: string, value: any, agent?: string) => Promise<void>;
   getPreferences: () => Record<string, any>;
   getFeedbackKey: (sessionId: string, messageIndex: number) => 1 | -1 | undefined;
   fetchFewShots: (agent: string, limit?: number) => Promise<string>;
-  fetchMemoryContext: () => Promise<string>;
+  fetchMemoryContext: (agent?: string) => Promise<string>;
 }
 
 export const useAgentLearningStore = create<AgentLearningState>()(
@@ -44,13 +48,12 @@ export const useAgentLearningStore = create<AgentLearningState>()(
 
       submitFeedback: async (feedback) => {
         const ratingKey = `${feedback.sessionId}-${feedback.messageIndex}`;
+        const sourceId = getUserSourceId();
         
-        // Save locally
         set(state => ({
           ratedMessages: { ...state.ratedMessages, [ratingKey]: feedback.rating },
         }));
 
-        // Save to DB
         try {
           await (supabase as any).from('agent_feedback').insert({
             session_id: feedback.sessionId,
@@ -60,10 +63,11 @@ export const useAgentLearningStore = create<AgentLearningState>()(
             agent: feedback.agent,
             rating: feedback.rating,
             intent: feedback.intent || null,
+            scope_level: feedback.scopeLevel || null,
           });
 
-          // If positive, also save as few-shot in agent_memory
           if (feedback.rating === 1) {
+            // Save as few-shot example
             await (supabase as any).from('agent_memory').insert({
               memory_type: 'few_shot',
               agent: feedback.agent,
@@ -72,7 +76,21 @@ export const useAgentLearningStore = create<AgentLearningState>()(
                 question: feedback.userQuestion.slice(0, 500),
                 answer: feedback.assistantResponse.slice(0, 1500),
               },
-              source_session_id: feedback.sessionId,
+              source_session_id: sourceId || feedback.sessionId,
+              relevance_score: 1.0,
+            });
+          } else if (feedback.rating === -1) {
+            // Save as correction to avoid
+            await (supabase as any).from('agent_memory').insert({
+              memory_type: 'correction',
+              agent: feedback.agent,
+              key: `correction_${Date.now()}`,
+              value: {
+                question: feedback.userQuestion.slice(0, 500),
+                badAnswer: feedback.assistantResponse.slice(0, 500),
+                reason: 'User marked as unhelpful',
+              },
+              source_session_id: sourceId || feedback.sessionId,
               relevance_score: 1.0,
             });
           }
@@ -81,30 +99,40 @@ export const useAgentLearningStore = create<AgentLearningState>()(
         }
       },
 
-      savePreference: async (key, value) => {
+      savePreference: async (key, value, agent) => {
         set(state => ({
           preferences: { ...state.preferences, [key]: value },
         }));
 
+        const sourceId = getUserSourceId();
+
         try {
-          // Upsert in DB
           const existing = await (supabase as any)
             .from('agent_memory')
-            .select('id')
+            .select('id, relevance_score')
             .eq('memory_type', 'preference')
             .eq('key', key)
             .maybeSingle();
 
           if (existing.data?.id) {
+            const newScore = Math.min(2.0, (existing.data.relevance_score || 1.0) + 0.2);
             await (supabase as any)
               .from('agent_memory')
-              .update({ value: { data: value }, updated_at: new Date().toISOString() })
+              .update({
+                value: { data: value },
+                relevance_score: newScore,
+                updated_at: new Date().toISOString(),
+                source_session_id: sourceId,
+                ...(agent ? { agent } : {}),
+              })
               .eq('id', existing.data.id);
           } else {
             await (supabase as any).from('agent_memory').insert({
               memory_type: 'preference',
               key,
               value: { data: value },
+              source_session_id: sourceId,
+              ...(agent ? { agent } : {}),
             });
           }
         } catch (e) {
@@ -140,18 +168,27 @@ export const useAgentLearningStore = create<AgentLearningState>()(
         }
       },
 
-      fetchMemoryContext: async () => {
+      fetchMemoryContext: async (agent) => {
         try {
-          const { data } = await (supabase as any)
+          const sourceId = getUserSourceId();
+          let query = (supabase as any)
             .from('agent_memory')
-            .select('key, value')
+            .select('key, value, agent, relevance_score')
             .eq('memory_type', 'preference')
             .order('updated_at', { ascending: false })
-            .limit(10);
+            .limit(15);
 
+          if (sourceId) {
+            query = query.or(`source_session_id.eq.${sourceId},source_session_id.is.null`);
+          }
+
+          const { data } = await query;
           if (!data || data.length === 0) return '';
 
-          const prefs = data.map((d: any) => `- ${d.key}: ${JSON.stringify(d.value?.data || d.value)}`).join('\n');
+          const prefs = data.map((d: any) => {
+            const agentTag = d.agent ? ` [${d.agent}]` : '';
+            return `- ${d.key}${agentTag}: ${JSON.stringify(d.value?.data || d.value)}`;
+          }).join('\n');
           return `\n\n🧠 MÉMOIRE UTILISATEUR (préférences apprises):\n${prefs}`;
         } catch {
           return '';
@@ -160,7 +197,7 @@ export const useAgentLearningStore = create<AgentLearningState>()(
     }),
     {
       name: 'qoebit-agent-learning',
-      version: 1,
+      version: 2,
     }
   )
 );

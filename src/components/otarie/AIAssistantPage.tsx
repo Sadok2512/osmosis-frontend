@@ -207,12 +207,18 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       return { role: m.role, content: m.content };
     });
 
+    // Get user_id from admin session
+    const session = getStoredSession();
+    const userId = session?.id || null;
+
     const payload = JSON.stringify({
       messages: trimmedMessages,
       uiScope,
       filters: assistantFilters,
       openrouter_key: openrouterKey,
       model: llmModel,
+      user_id: userId,
+      session_id: activeSessionId,
       ...(forcedAgent ? { forcedAgent } : {}),
     });
 
