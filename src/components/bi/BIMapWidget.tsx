@@ -303,6 +303,18 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               <span className={`w-1.5 h-1.5 rounded-full ${config.showMetricValues ? 'bg-primary' : 'bg-muted-foreground/40'}`} />
             </button>
           </div>
+
+          {/* Load Sites button */}
+          <div className="pt-1">
+            <button
+              onClick={handleLoadSites}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all duration-200 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm disabled:opacity-50"
+            >
+              <MapIcon className="w-3.5 h-3.5" />
+              {loading ? 'Chargement...' : sitesLoaded ? 'Recharger les sites' : 'Charger les sites'}
+            </button>
+          </div>
         </div>
       )}
 
