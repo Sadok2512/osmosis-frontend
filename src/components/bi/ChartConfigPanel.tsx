@@ -438,6 +438,24 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 onChange={v => updateX({ granularity: v as Granularity })}
               />
             </div>
+            {/* Dimension 1 selector */}
+            <div className="space-y-1">
+              <FieldLabel>Dimension 1</FieldLabel>
+              <Select
+                value={draft.dimension1 || '__all__'}
+                onValueChange={v => update({ dimension1: v === '__all__' ? undefined : v as any })}
+              >
+                <SelectTrigger className="h-9 text-[12px] bg-background border-border/60 rounded-lg">
+                  <SelectValue placeholder="Toutes dimensions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Toutes dimensions</SelectItem>
+                  {BI_DIMENSIONS.map(d => (
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )}
       </div>
@@ -593,23 +611,6 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                       </button>
                     </div>
 
-                    {/* Dimension1 selector */}
-                    <div className="mt-1.5">
-                      <Select
-                        value={m.dimension1 || '__all__'}
-                        onValueChange={v => updateMetric(i, { dimension1: v === '__all__' ? undefined : v })}
-                      >
-                        <SelectTrigger className="h-7 text-[11px] bg-muted/30 border-border/40 rounded-lg">
-                          <SelectValue placeholder="Toutes dimensions" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__all__">Toutes dimensions</SelectItem>
-                          {BI_DIMENSIONS.map(d => (
-                            <SelectItem key={d} value={d}>{d}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
 
                     {/* Collapsible settings */}
                     <div className={`transition-all duration-200 ease-out ${isExpanded ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0 overflow-hidden'}`}>
