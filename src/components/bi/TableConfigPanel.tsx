@@ -260,6 +260,8 @@ const FilterRow: React.FC<{
 /* ─── Main Panel ─── */
 const TableConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   const [showKpiSelector, setShowKpiSelector] = useState(false);
+  const [kpiOpen, setKpiOpen] = useState(true);
+  const [axeOpen, setAxeOpen] = useState(true);
 
   const addFilter = () => {
     const used = (config.filters || []).map(f => f.dimension);
@@ -302,10 +304,12 @@ const TableConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
 
           {/* ── KPI SELECTION BUTTON ── */}
           <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <button onClick={() => setKpiOpen(!kpiOpen)} className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
+              {kpiOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
               <Check className="w-3.5 h-3.5" /> KPIs sélectionnés
-            </label>
-            <button
+              <span className="ml-auto text-[9px] font-medium text-muted-foreground">{selectedKpis.length}</span>
+            </button>
+            {kpiOpen && <button
               onClick={() => setShowKpiSelector(true)}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors group"
             >
@@ -334,14 +338,17 @@ const TableConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 })}
               </div>
             )}
+            </>)}
           </div>
 
           {/* ── X AXIS ── */}
           <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <button onClick={() => setAxeOpen(!axeOpen)} className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
+              {axeOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
               <LayoutGrid className="w-3.5 h-3.5" /> Axe X
-            </label>
-            <div className="flex gap-1">
+              <span className="ml-auto text-[9px] font-medium text-muted-foreground">{config.xAxisType === 'date' ? 'Date' : config.dimension}</span>
+            </button>
+            {axeOpen && <><div className="flex gap-1">
               <button onClick={() => onChange({ ...config, xAxisType: 'date' })}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
                   config.xAxisType === 'date' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:text-foreground'
@@ -393,6 +400,7 @@ const TableConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 </div>
               </div>
             </div>
+            </>}
           </div>
 
           {/* ── FILTERS ── */}
