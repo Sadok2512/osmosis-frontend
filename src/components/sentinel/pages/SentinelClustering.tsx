@@ -98,6 +98,14 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
 
       {isLoading ? (
         <div className="grid grid-cols-5 gap-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
+      ) : !clusters?.length ? (
+        <div className="flex-1 flex items-center justify-center py-20">
+          <div className="text-center space-y-2">
+            <BarChart3 className="w-10 h-10 mx-auto text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Aucun cluster disponible pour cette date</p>
+            <p className="text-xs text-muted-foreground/60">L'API a retourné 0 clusters. Vérifiez les données ML.</p>
+          </div>
+        </div>
       ) : (
         <>
           {/* Cluster summary cards */}
