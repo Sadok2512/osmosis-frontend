@@ -136,19 +136,7 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
     </div>
   );
 
-  /* ── Footer ── */
-  const footerContent = () => (
-    <div className="flex items-center justify-between px-4 py-2 border-t border-border/30">
-      <div className="flex items-center gap-3">
-        <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
-          {config.yMetrics.length} metric{config.yMetrics.length > 1 ? 's' : ''}
-        </span>
-      </div>
-      <span className="text-[10px] text-muted-foreground/50 tabular-nums">
-        {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-      </span>
-    </div>
-  );
+  /* ── Footer (removed) ── */
 
   /* ── Fullscreen overlay ── */
   const fullscreenOverlay = fullscreen ? createPortal(
@@ -165,7 +153,6 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
         <div ref={fsChartRef} className="flex-1 px-4 pb-4 min-h-0">
           <BIChartRendererECharts config={config} />
         </div>
-        {footerContent()}
       </div>
     </div>,
     document.body
@@ -183,7 +170,7 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
         <div ref={chartRef} className="flex-1 px-2 pt-1 pb-1 min-h-0">
           <BIChartRendererECharts config={config} />
         </div>
-        {footerContent()}
+        
       </div>
       {fullscreenOverlay}
     </>
