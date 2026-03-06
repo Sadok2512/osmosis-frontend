@@ -561,13 +561,22 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     return v?.length > 10 ? v.slice(0, 10) + '…' : v;
   };
 
-  const yAxis: any[] = [{ ...PREMIUM_YAXIS_BASE, type: 'value' }];
+  const yAxisMode = config.advanced.yAxisMode || 'auto';
+  const yAxisFixedMin = config.advanced.yAxisMin;
+  const yAxisFixedMax = config.advanced.yAxisMax;
+  const yAxisRange = yAxisMode === 'fixed' ? {
+    ...(yAxisFixedMin != null ? { min: yAxisFixedMin } : {}),
+    ...(yAxisFixedMax != null ? { max: yAxisFixedMax } : {}),
+  } : {};
+
+  const yAxis: any[] = [{ ...PREMIUM_YAXIS_BASE, type: 'value', ...yAxisRange }];
   if (hasRight) {
     yAxis.push({
       ...PREMIUM_YAXIS_BASE,
       type: 'value',
       position: 'right',
       splitLine: { show: false },
+      ...yAxisRange,
     });
   }
 

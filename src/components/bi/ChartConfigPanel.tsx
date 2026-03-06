@@ -452,6 +452,52 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 ))}
               </div>
             </div>
+            <div className="h-px bg-border/30" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <BarChart2 className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <FieldLabel>Y Axis Range</FieldLabel>
+              </div>
+              <div className="flex gap-1 mb-2">
+                {(['auto', 'fixed'] as const).map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => update({ advanced: { ...draft.advanced, yAxisMode: mode } })}
+                    className={`px-3 py-1 rounded-md text-[10px] font-semibold capitalize transition-all ${
+                      (draft.advanced.yAxisMode || 'auto') === mode
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {mode === 'auto' ? 'Auto' : 'Fixe'}
+                  </button>
+                ))}
+              </div>
+              {(draft.advanced.yAxisMode || 'auto') === 'fixed' && (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] text-muted-foreground mb-0.5 block">Min</label>
+                    <input
+                      type="number"
+                      value={draft.advanced.yAxisMin ?? ''}
+                      onChange={e => update({ advanced: { ...draft.advanced, yAxisMin: e.target.value === '' ? null : Number(e.target.value) } })}
+                      className="w-full px-2 py-1 rounded-md bg-muted/50 border border-border/40 text-foreground text-[11px]"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] text-muted-foreground mb-0.5 block">Max</label>
+                    <input
+                      type="number"
+                      value={draft.advanced.yAxisMax ?? ''}
+                      onChange={e => update({ advanced: { ...draft.advanced, yAxisMax: e.target.value === '' ? null : Number(e.target.value) } })}
+                      className="w-full px-2 py-1 rounded-md bg-muted/50 border border-border/40 text-foreground text-[11px]"
+                      placeholder="100"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         {/* Data / Voix toggle */}
