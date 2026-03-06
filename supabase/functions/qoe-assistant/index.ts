@@ -1406,7 +1406,7 @@ function buildContextPlan(
   const needs: DataNeed[] = [];
   const limits = { maxSites: 20, maxCells: 0, maxKpis: 10, maxDays: 7, maxRagChunks: 3 };
 
-  let groupBy: { dimension1: string } | undefined;
+  let groupBy: { dimension1: string; dimension2?: string } | undefined;
   let metric: string | undefined;
   let resultLimit = 30;
 
