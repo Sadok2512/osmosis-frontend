@@ -232,7 +232,7 @@ export function createDefaultChart(id: string): ChartConfig {
   start.setDate(start.getDate() - 30);
   return {
     id,
-    title: 'New Chart',
+    title: '',
     xAxis: {
       type: 'date',
       value: 'date',
@@ -240,15 +240,7 @@ export function createDefaultChart(id: string): ChartConfig {
       dateEnd: end.toISOString().split('T')[0],
       granularity: 'day',
     },
-    yMetrics: [{
-      kpi: 'qoe_index',
-      aggregation: 'AVG',
-      axis: 'left',
-      chartType: 'line',
-      color: CHART_COLORS[0],
-      showMovingAvg: false,
-      smoothCurve: true,
-    }],
+    yMetrics: [],
     filters: [],
     groupBy: [],
     dataSource: { type: 'local' },
