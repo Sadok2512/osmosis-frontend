@@ -589,26 +589,19 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             {draft.xAxis.type === 'dimension' && (
               <div className="space-y-1.5">
                 <FieldLabel>Dimension 1</FieldLabel>
-                <div className="max-h-48 overflow-y-auto space-y-1">
+                <select
+                  value={draft.dimension1 || ''}
+                  onChange={e => update({ dimension1: e.target.value as any })}
+                  className="w-full bg-background border border-border/60 rounded-lg px-3 py-2 text-[12px] text-foreground
+                    outline-none transition-all duration-150 cursor-pointer
+                    focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                    hover:border-border appearance-none"
+                >
+                  <option value="">Select dimension…</option>
                   {BI_DIMENSIONS.map(d => (
-                    <button
-                      key={d}
-                      onClick={() => update({ dimension1: d as any })}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all duration-150 ${
-                        draft.dimension1 === d
-                          ? 'bg-primary/10 text-primary border border-primary/30'
-                          : 'text-foreground hover:bg-muted/50 border border-transparent'
-                      }`}
-                    >
-                      {draft.dimension1 === d ? (
-                        <Check className="w-3.5 h-3.5 shrink-0" />
-                      ) : (
-                        <div className="w-3.5 h-3.5 shrink-0" />
-                      )}
-                      {d}
-                    </button>
+                    <option key={d} value={d}>{d}</option>
                   ))}
-                </div>
+                </select>
               </div>
             )}
           </div>
