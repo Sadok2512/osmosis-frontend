@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchKPIHistory, fetchDimensionValues, fetchAnomalies } from '../sentinelApi';
-import { Anomaly, SEVERITY_CONFIG, ANOMALY_TYPE_LABELS, TREND_LABELS, KPIHistoryData } from '../types';
+import { Anomaly, SEVERITY_CONFIG, ANOMALY_TYPE_LABELS, KPIHistoryData } from '../types';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, AlertCircle, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Search } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 
 interface Props { date: string; }
@@ -28,7 +28,6 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Autocomplete
   const handleSearch = useCallback(async (val: string) => {
     setSearchText(val);
     if (val.length >= 2) {
@@ -48,26 +47,46 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
     setShowSuggestions(false);
   };
 
-  // Fetch histories for each KPI
-  const historyQueries = KPI_LINES.map(kl =>
-    useQuery<KPIHistoryData>({
-      queryKey: ['sentinel-temporal', selectedEntity?.dim1, selectedEntity?.dim2, kl.kpi],
-      queryFn: () => fetchKPIHistory(selectedEntity!.dim1, selectedEntity!.dim2, kl.kpi),
-      enabled: !!selectedEntity && enabledKpis[kl.kpi],
-      staleTime: 30_000,
-      retry: 1,
-    })
-  );
+  const dim1 = selectedEntity?.dim1 || '';
+  const dim2 = selectedEntity?.dim2 || '';
+  const hasEntity = !!selectedEntity;
 
-  // Anomalies for this entity
+  // Fixed number of useQuery calls — always 4
+  const q0 = useQuery<KPIHistoryData>({
+    queryKey: ['sentinel-temporal', dim1, dim2, KPI_LINES[0].kpi],
+    queryFn: () => fetchKPIHistory(dim1, dim2, KPI_LINES[0].kpi),
+    enabled: hasEntity && enabledKpis[KPI_LINES[0].kpi],
+    staleTime: 30_000, retry: 1,
+  });
+  const q1 = useQuery<KPIHistoryData>({
+    queryKey: ['sentinel-temporal', dim1, dim2, KPI_LINES[1].kpi],
+    queryFn: () => fetchKPIHistory(dim1, dim2, KPI_LINES[1].kpi),
+    enabled: hasEntity && enabledKpis[KPI_LINES[1].kpi],
+    staleTime: 30_000, retry: 1,
+  });
+  const q2 = useQuery<KPIHistoryData>({
+    queryKey: ['sentinel-temporal', dim1, dim2, KPI_LINES[2].kpi],
+    queryFn: () => fetchKPIHistory(dim1, dim2, KPI_LINES[2].kpi),
+    enabled: hasEntity && enabledKpis[KPI_LINES[2].kpi],
+    staleTime: 30_000, retry: 1,
+  });
+  const q3 = useQuery<KPIHistoryData>({
+    queryKey: ['sentinel-temporal', dim1, dim2, KPI_LINES[3].kpi],
+    queryFn: () => fetchKPIHistory(dim1, dim2, KPI_LINES[3].kpi),
+    enabled: hasEntity && enabledKpis[KPI_LINES[3].kpi],
+    staleTime: 30_000, retry: 1,
+  });
+  const historyQueries = [q0, q1, q2, q3];
+
   const { data: entityAnomalies } = useQuery<Anomaly[]>({
-    queryKey: ['sentinel-temporal-anomalies', selectedEntity?.dim2, date],
-    queryFn: () => fetchAnomalies({ date, search: selectedEntity!.dim2 }),
-    enabled: !!selectedEntity,
+    queryKey: ['sentinel-temporal-anomalies', dim2, date],
+    queryFn: () => fetchAnomalies({ date, search: dim2 }),
+    enabled: hasEntity,
     staleTime: 30_000,
   });
 
-  // Multi-line chart
+  const anyLoading = historyQueries.some(q => q.isLoading);
+
   const chartOption = useMemo(() => {
     const xDates: string[] = [];
     const seriesData: any[] = [];
@@ -76,30 +95,21 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
       if (!enabledKpis[kl.kpi]) return;
       const qData = historyQueries[idx].data;
       if (!qData?.data) return;
-      if (xDates.length === 0) {
-        qData.data.forEach(d => xDates.push(d.date));
-      }
+      if (xDates.length === 0) qData.data.forEach(d => xDates.push(d.date));
       seriesData.push({
-        name: kl.label,
-        type: 'line',
-        smooth: true,
+        name: kl.label, type: 'line', smooth: true,
         data: qData.data.map(d => d.value),
         lineStyle: { color: kl.color, width: 2 },
         itemStyle: { color: kl.color },
-        yAxisIndex: idx === 3 ? 1 : 0, // loss on right axis
+        yAxisIndex: idx === 3 ? 1 : 0,
       });
     });
 
-    // Anomaly mark areas
     const anomalyDates = new Set<string>();
     entityAnomalies?.forEach(a => anomalyDates.add(a.date_part));
     const markAreas = Array.from(anomalyDates).map(d => [{ xAxis: d }, { xAxis: d }]);
-
     if (seriesData.length > 0 && markAreas.length > 0) {
-      seriesData[0].markArea = {
-        itemStyle: { color: 'hsl(0,72%,51%/0.1)' },
-        data: markAreas,
-      };
+      seriesData[0].markArea = { itemStyle: { color: 'hsl(0,72%,51%/0.1)' }, data: markAreas };
     }
 
     return {
@@ -113,9 +123,7 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
       ],
       series: seriesData,
     };
-  }, [historyQueries.map(q => q.data), enabledKpis, entityAnomalies]);
-
-  const anyLoading = historyQueries.some(q => q.isLoading);
+  }, [q0.data, q1.data, q2.data, q3.data, enabledKpis, entityAnomalies]);
 
   return (
     <div className="p-6 space-y-4">
@@ -142,13 +150,12 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
         )}
       </div>
 
-      {!selectedEntity ? (
+      {!hasEntity ? (
         <div className="flex-1 flex items-center justify-center py-20">
           <p className="text-sm text-muted-foreground">Sélectionnez une entité pour visualiser l'analyse temporelle</p>
         </div>
       ) : (
         <>
-          {/* KPI toggles */}
           <div className="flex items-center gap-4">
             {KPI_LINES.map(kl => (
               <label key={kl.kpi} className="flex items-center gap-1.5 cursor-pointer">
@@ -161,16 +168,10 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
             ))}
           </div>
 
-          {/* Chart */}
           <Card className="p-4">
-            {anyLoading ? (
-              <Skeleton className="h-72 rounded-lg" />
-            ) : (
-              <ReactECharts option={chartOption} style={{ height: 300 }} />
-            )}
+            {anyLoading ? <Skeleton className="h-72 rounded-lg" /> : <ReactECharts option={chartOption} style={{ height: 300 }} />}
           </Card>
 
-          {/* Summary cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {KPI_LINES.map((kl, idx) => {
               const qData = historyQueries[idx].data;
@@ -186,7 +187,6 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
             })}
           </div>
 
-          {/* Anomalies table */}
           {entityAnomalies && entityAnomalies.length > 0 && (
             <Card className="p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
@@ -207,12 +207,8 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
                       return (
                         <tr key={i} className="border-b border-border/30">
                           <td className="py-1.5 px-2">{a.date_part}</td>
-                          <td className="py-1.5 px-2">
-                            <Badge variant="outline" className="text-[9px]">{ANOMALY_TYPE_LABELS[a.anomaly_type]}</Badge>
-                          </td>
-                          <td className="py-1.5 px-2">
-                            <Badge className="text-[9px]" style={{ background: sev.bg, color: sev.color, border: 'none' }}>{sev.label}</Badge>
-                          </td>
+                          <td className="py-1.5 px-2"><Badge variant="outline" className="text-[9px]">{ANOMALY_TYPE_LABELS[a.anomaly_type]}</Badge></td>
+                          <td className="py-1.5 px-2"><Badge className="text-[9px]" style={{ background: sev.bg, color: sev.color, border: 'none' }}>{sev.label}</Badge></td>
                           <td className="py-1.5 px-2 font-mono">{a.kpi_name}</td>
                           <td className="py-1.5 px-2 font-mono" style={{ color: a.deviation_pct < 0 ? 'hsl(0,72%,51%)' : 'hsl(142,71%,45%)' }}>
                             {a.deviation_pct > 0 ? '+' : ''}{a.deviation_pct?.toFixed(1)}%
