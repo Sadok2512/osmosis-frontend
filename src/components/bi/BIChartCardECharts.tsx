@@ -108,10 +108,23 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
   /* ── Header ── */
   const headerContent = (isFs: boolean) => (
     <div className={cn('flex items-center justify-between border-b border-border/40', isFs ? 'px-6 py-4' : 'px-4 py-3')}>
-      <div className={cn('flex items-center gap-2.5 min-w-0 flex-1', !isFs && 'drag-handle cursor-grab active:cursor-grabbing')}>
+      <div className={cn('flex items-center gap-2 min-w-0 flex-1', !isFs && 'drag-handle cursor-grab active:cursor-grabbing')}>
+        <button
+          onClick={e => { e.stopPropagation(); onEdit(); }}
+          className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-primary transition-colors shrink-0"
+          title="Settings"
+          onMouseDown={stopDrag}
+        >
+          <Settings className="w-4 h-4" />
+        </button>
         <h3 className={cn('font-semibold text-foreground truncate tracking-tight', isFs ? 'text-sm' : 'text-[13px]')}>
           {titleLabel} <span className="text-muted-foreground font-normal">{unitLabel}</span>
         </h3>
+        {config.description && (
+          <span className="text-[11px] text-muted-foreground/60 truncate hidden sm:inline">
+            {config.description}
+          </span>
+        )}
         {firstThreshold && (
           <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold"
             style={{ background: `${firstThreshold.color}12`, color: firstThreshold.color }}>
