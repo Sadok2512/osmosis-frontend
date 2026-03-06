@@ -1570,7 +1570,8 @@ async function buildContextFromPlan(
     promises.topoAgg = fetchTopoMetricByDimension(
       plan.metric || "tilt",
       plan.groupBy.dimension1,
-      plan.resultLimit || 30
+      plan.resultLimit || 30,
+      plan.groupBy.dimension2
     );
   }
   if (plan.needs.includes("dimension_values") && plan.groupBy?.dimension1) {
