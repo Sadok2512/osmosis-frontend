@@ -60,8 +60,6 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
   const toggle = (key: string) => {
     if (single) {
       setSelected(new Set([key]));
-      onConfirm([key]);
-      onClose();
       return;
     }
     setSelected(prev => {
