@@ -517,7 +517,6 @@ const ReadOnlyTable: React.FC<{ config: TableWidgetConfig }> = ({ config }) => {
       </div>
     </div>
   );
-  );
 };
 
 const ReadOnlyWidget: React.FC<{ widget: any }> = ({ widget }) => {
