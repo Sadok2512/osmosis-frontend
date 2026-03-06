@@ -30,8 +30,19 @@ export async function fetchDates(): Promise<string[]> {
 
 export async function fetchOverview(date: string): Promise<DashboardOverviewData> {
   const raw = await fetchJson<any>(`${BASE}/api/dashboard/overview?date=${date}`);
-  // Handle wrapped response
-  return raw?.data || raw;
+  console.log('[Sentinel] fetchOverview raw:', JSON.stringify(raw).slice(0, 500));
+  const d = raw?.data || raw?.overview || raw;
+  // Normalize with safe defaults
+  return {
+    date: d?.date || date,
+    total_anomalies: d?.total_anomalies ?? 0,
+    critical: d?.critical ?? 0,
+    major: d?.major ?? 0,
+    minor: d?.minor ?? 0,
+    anomalies_by_type: d?.anomalies_by_type ?? {},
+    anomalies_by_dimension: Array.isArray(d?.anomalies_by_dimension) ? d.anomalies_by_dimension : [],
+    top_degraded: Array.isArray(d?.top_degraded) ? d.top_degraded : [],
+  };
 }
 
 export async function fetchAnomalies(filters: AnomalyFilters): Promise<Anomaly[]> {
@@ -44,9 +55,11 @@ export async function fetchAnomalies(filters: AnomalyFilters): Promise<Anomaly[]
   if (filters.page) params.set('page', String(filters.page));
   if (filters.per_page) params.set('per_page', String(filters.per_page));
   const raw = await fetchJson<any>(`${BASE}/api/anomalies?${params}`);
+  console.log('[Sentinel] fetchAnomalies raw:', JSON.stringify(raw).slice(0, 500));
   if (Array.isArray(raw)) return raw;
   if (raw?.anomalies && Array.isArray(raw.anomalies)) return raw.anomalies;
   if (raw?.data && Array.isArray(raw.data)) return raw.data;
+  if (raw?.items && Array.isArray(raw.items)) return raw.items;
   return [];
 }
 

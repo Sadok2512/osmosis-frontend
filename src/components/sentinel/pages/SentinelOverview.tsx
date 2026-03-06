@@ -53,10 +53,12 @@ const SentinelOverview: React.FC<Props> = ({ date }) => {
   ];
 
   // Donut chart: anomalies by type
-  const donutData = Object.entries(data.anomalies_by_type).map(([key, val]) => ({
-    name: ANOMALY_TYPE_LABELS[key as keyof typeof ANOMALY_TYPE_LABELS] || key,
-    value: val,
-  }));
+  const donutData = data.anomalies_by_type
+    ? Object.entries(data.anomalies_by_type).filter(([, val]) => val > 0).map(([key, val]) => ({
+        name: ANOMALY_TYPE_LABELS[key as keyof typeof ANOMALY_TYPE_LABELS] || key,
+        value: val,
+      }))
+    : [];
 
   const donutOption = {
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
@@ -72,7 +74,7 @@ const SentinelOverview: React.FC<Props> = ({ date }) => {
   };
 
   // Bar chart: anomalies by dimension
-  const barDimensions = data.anomalies_by_dimension.sort((a, b) => b.count - a.count);
+  const barDimensions = (data.anomalies_by_dimension || []).sort((a, b) => b.count - a.count);
   const barOption = {
     tooltip: { trigger: 'axis' },
     grid: { left: 100, right: 20, top: 10, bottom: 30 },
