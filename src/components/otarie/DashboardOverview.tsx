@@ -838,7 +838,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             {filtered.map(db => (
               <div key={db.id}
                 onClick={() => setSelectedId(db.id)}
-                className="group cursor-pointer grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto_auto] gap-2 md:gap-4 items-center px-5 py-3.5 border-b border-border/30 hover:bg-muted/20 transition-all">
+                className="group cursor-pointer grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_auto_auto_auto] gap-2 md:gap-4 items-center px-5 py-3.5 border-b border-border/30 hover:bg-muted/20 transition-all">
                 {/* Name cell */}
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
@@ -850,6 +850,11 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                       <TypeBadge type={db.dashboardType} />
                     </div>
                   </div>
+                </div>
+
+                {/* Description */}
+                <div className="min-w-0">
+                  <span className="text-xs text-muted-foreground truncate block">{db.description || '—'}</span>
                 </div>
 
                 {/* Créé par */}
