@@ -791,9 +791,6 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                 </div>
 
                 <h3 className="text-sm font-semibold text-foreground mb-1 truncate">{db.name}</h3>
-                <p className="text-xs text-muted-foreground truncate mb-3">
-                  {db.description || '—'}
-                </p>
 
                 <div className="text-xs text-muted-foreground flex items-center gap-1 mb-3">
                   <Clock className="w-3 h-3 shrink-0" />
@@ -857,9 +854,6 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                       <span className="text-sm font-semibold text-foreground truncate">{db.name}</span>
                       <TypeBadge type={db.dashboardType} />
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {db.description || '—'}
-                    </p>
                   </div>
                 </div>
 
