@@ -25,12 +25,17 @@ const KpiSelectorSection: React.FC<{
   selected: BIKPI[];
   onConfirm: (kpis: BIKPI[]) => void;
 }> = ({ selected, onConfirm }) => {
+  const [draft, setDraft] = useState<BIKPI[]>(selected);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
+  // Sync draft when parent selection changes externally
+  React.useEffect(() => { setDraft(selected); }, [selected]);
+
+  const isDirty = JSON.stringify(draft.slice().sort()) !== JSON.stringify(selected.slice().sort());
+
   const toggle = (key: string) => {
-    const next = selected.includes(key) ? selected.filter(k => k !== key) : [...selected, key];
-    onConfirm(next);
+    setDraft(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
 
   const filteredKpis = BI_KPI_CATALOG.filter(k => {
@@ -51,9 +56,9 @@ const KpiSelectorSection: React.FC<{
       <div className="flex items-center justify-between px-4 py-2 border-b border-border/40">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-semibold text-foreground">Sélection</span>
-          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{selected.length}</span>
+          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{draft.length}</span>
         </div>
-        <button onClick={() => onConfirm([])} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
+        <button onClick={() => setDraft([])} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
           <RotateCcw className="w-3 h-3" /> Réinitialiser
         </button>
       </div>
@@ -95,7 +100,7 @@ const KpiSelectorSection: React.FC<{
       {/* KPI list */}
       <div className="flex-1 overflow-y-auto">
         {filteredKpis.map(kpi => {
-          const isSelected = selected.includes(kpi.key);
+          const isSelected = draft.includes(kpi.key);
           const catColor = CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground';
           return (
             <button key={kpi.key} onClick={() => toggle(kpi.key)}
@@ -120,24 +125,40 @@ const KpiSelectorSection: React.FC<{
         })}
       </div>
 
-      {/* Selected tags */}
-      {selected.length > 0 && (
-        <div className="px-4 py-2 border-t border-border/40 bg-muted/10 max-h-[80px] overflow-y-auto">
-          <div className="flex flex-wrap gap-1">
-            {selected.map(key => {
-              const kpi = BI_KPI_CATALOG.find(k => k.key === key);
-              const catColor = kpi ? (CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground') : 'bg-muted-foreground';
-              return (
-                <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-medium">
-                  <div className={`w-1.5 h-1.5 rounded-full ${catColor}`} />
-                  {kpi?.display_name || key}
-                  <button onClick={() => toggle(key)} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
-                </span>
-              );
-            })}
+      {/* Selected tags + Confirm button */}
+      <div className="border-t border-border/40 bg-muted/10">
+        {draft.length > 0 && (
+          <div className="px-4 py-2 max-h-[80px] overflow-y-auto">
+            <div className="flex flex-wrap gap-1">
+              {draft.map(key => {
+                const kpi = BI_KPI_CATALOG.find(k => k.key === key);
+                const catColor = kpi ? (CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground') : 'bg-muted-foreground';
+                return (
+                  <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-medium">
+                    <div className={`w-1.5 h-1.5 rounded-full ${catColor}`} />
+                    {kpi?.display_name || key}
+                    <button onClick={() => toggle(key)} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                  </span>
+                );
+              })}
+            </div>
           </div>
+        )}
+        <div className="px-4 py-2 border-t border-border/30">
+          <button
+            disabled={!isDirty}
+            onClick={() => onConfirm(draft)}
+            className={`w-full py-2 rounded-lg text-[11px] font-semibold transition-all ${
+              isDirty
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
+            }`}
+          >
+            <Check className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />
+            Confirmer la sélection ({draft.length})
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 };
