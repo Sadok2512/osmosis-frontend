@@ -117,8 +117,9 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
         >
           <Settings className="w-4 h-4" />
         </button>
-        <h3 className={cn('font-semibold text-foreground truncate tracking-tight', isFs ? 'text-sm' : 'text-[13px]')}>
-          {titleLabel} <span className="text-muted-foreground font-normal">{unitLabel}</span>
+        <h3 className={cn('font-semibold text-foreground truncate tracking-tight', isFs ? 'text-sm' : 'text-[13px]')}
+          style={config.advanced.headerTextColor ? { color: config.advanced.headerTextColor } : undefined}>
+          {titleLabel} <span className="font-normal" style={{ color: config.advanced.headerTextColor || undefined }}>{unitLabel}</span>
         </h3>
         {config.description && (
           <span className="text-[11px] text-muted-foreground/60 truncate hidden sm:inline">
