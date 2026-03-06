@@ -23,18 +23,33 @@ const SentinelPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      // Force exit loading after 3s even if API doesn't respond
+      setLoading(prev => {
+        if (prev) {
+          const today = new Date().toISOString().split('T')[0];
+          setAvailableDates([today]);
+          setSelectedDate(today);
+        }
+        return false;
+      });
+    }, 3000);
+
     fetchDates()
       .then(dates => {
+        clearTimeout(timeout);
         setAvailableDates(dates);
         if (dates.length > 0) setSelectedDate(dates[dates.length - 1]);
       })
       .catch(() => {
-        // API not available yet — use today
+        clearTimeout(timeout);
         const today = new Date().toISOString().split('T')[0];
         setAvailableDates([today]);
         setSelectedDate(today);
       })
       .finally(() => setLoading(false));
+
+    return () => clearTimeout(timeout);
   }, []);
 
   if (loading || !selectedDate) {
