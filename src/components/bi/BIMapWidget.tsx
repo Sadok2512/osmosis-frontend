@@ -189,7 +189,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
           </div>
           <div className="min-w-0">
             <h3 className="text-[13px] font-semibold text-foreground truncate select-none leading-tight">{config.title}</h3>
-            <span className="text-[10px] text-muted-foreground font-mono leading-none">{filtered.length} sites · {displayModeLabel}</span>
+            <span className="text-[10px] text-muted-foreground font-mono leading-none">{sitesLoaded ? `${filtered.length} sites` : 'No sites loaded'} · {displayModeLabel}</span>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onMouseDown={stopDrag}>
