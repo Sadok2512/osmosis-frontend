@@ -13,7 +13,7 @@ import { WidgetItem } from '../bi/dashboardTypes';
 import { TableWidgetConfig } from '../bi/BITableWidget';
 import { KPI_UNITS } from '../bi/biTypes';
 import { getDimensionValues } from '../bi/mockBIData';
-import BIChartRenderer from '../bi/BIChartRenderer';
+import BIChartRendererECharts from '../bi/BIChartRendererECharts';
 import { dashboardsApi } from '@/lib/localDb';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -480,15 +480,29 @@ const ReadOnlyTable: React.FC<{ config: TableWidgetConfig }> = ({ config }) => {
   );
 };
 
-const ReadOnlyWidget: React.FC<{ widget: WidgetItem }> = ({ widget }) => {
-  switch (widget.kind) {
-    case 'chart': return <div className="w-full h-full"><BIChartRenderer config={widget.config} /></div>;
-    case 'text': return <ReadOnlyText config={widget.config} />;
-    case 'image': return <ReadOnlyImage config={widget.config} />;
-    case 'map': return <ReadOnlyMap config={widget.config} />;
-    case 'table': return <ReadOnlyTable config={widget.config as TableWidgetConfig} />;
-    default: return null;
+const ReadOnlyWidget: React.FC<{ widget: any }> = ({ widget }) => {
+  // Handle analytic_qoe widgets with 'kind'
+  if (widget.kind) {
+    switch (widget.kind) {
+      case 'chart': return <div className="w-full h-full"><BIChartRendererECharts config={widget.config} /></div>;
+      case 'text': return <ReadOnlyText config={widget.config} />;
+      case 'image': return <ReadOnlyImage config={widget.config} />;
+      case 'map': return <ReadOnlyMap config={widget.config} />;
+      case 'table': return <ReadOnlyTable config={widget.config as TableWidgetConfig} />;
+      default: return null;
+    }
   }
+  // Handle map dashboard settings widgets (_type)
+  if (widget._type === 'dashboard_settings') {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-2 p-4">
+        <MapIcon className="w-8 h-8 text-primary/40" />
+        <span className="text-xs font-medium">Map Dashboard</span>
+        <span className="text-[10px] text-muted-foreground/60">Ouvrir en édition pour visualiser la carte</span>
+      </div>
+    );
+  }
+  return null;
 };
 
 /* ═══════════════════════════════════════════════════
