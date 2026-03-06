@@ -469,7 +469,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
 
             {/* Too many sites overlay */}
             {sitesLoaded && !shouldRenderSites && (
-              <div className="absolute top-14 left-3 z-[1000] bg-card/95 backdrop-blur-md border border-amber-500/40 rounded-xl px-4 py-3 shadow-lg max-w-[220px]">
+              <div className="absolute top-14 left-3 z-[1000] bg-card/95 backdrop-blur-md border border-destructive/30 rounded-xl px-4 py-3 shadow-lg max-w-[220px]">
                 <p className="text-[11px] text-foreground font-semibold mb-1">⚠️ {filtered.length} sites</p>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
                   Affinez les filtres (DOR, Plaque, Vendor…) pour réduire à moins de {AUTO_LOAD_THRESHOLD} sites, ou cliquez sur ⚙️ → Charger les sites.
