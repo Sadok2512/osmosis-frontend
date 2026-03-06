@@ -1687,8 +1687,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [dashboardSaving, setDashboardSaving] = useState(false);
   const [dashboardSaveFlash, setDashboardSaveFlash] = useState(false);
 
-  // ── Right settings bar ──
-  const [showRightSettings, setShowRightSettings] = useState(true);
+  // ── Right settings bar (removed) ──
 
   // ── Parameter overlay mode ──
   const [paramMode, setParamMode] = useState(false); // true = parameter markers on map
@@ -3343,7 +3342,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
 
       {/* Floating info badge — site count + zoom level */}
-      <div className="absolute bottom-6 z-[1000] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + (showRightSettings ? 260 : 40)}px) / 2)`, transform: 'translateX(-50%)' }}>
+      <div className="absolute bottom-6 z-[1000] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`, transform: 'translateX(-50%)' }}>
         <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-5 py-2.5 flex items-center gap-4">
           {paramMode ? (
             <>
@@ -3379,9 +3378,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         className="absolute z-[1000] pointer-events-auto transition-all duration-300"
         style={{
           top: 12,
-          left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + (showRightSettings ? 260 : 40)}px) / 2)`,
+          left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
           transform: 'translateX(-50%)',
-          maxWidth: `min(1060px, calc(100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + (showRightSettings ? 260 : 40) + 32}px))`,
+          maxWidth: `min(1060px, calc(100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
           width: '100%',
         }}
       >
@@ -3662,7 +3661,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Parameters panel — rendered outside overflow container */}
       {paramPanelOpen && (
-        <div className="absolute top-[80px] z-[1100] pointer-events-auto w-[320px] transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + (showRightSettings ? 260 : 40) + 16 }}>
+        <div className="absolute top-[80px] z-[1100] pointer-events-auto w-[320px] transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16 }}>
           <div className="bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-3 border-b border-border">
               <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Sélectionner un paramètre</div>
@@ -3730,7 +3729,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating bottom-right: techno filter + layer switcher + legend */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + (showRightSettings ? 260 : 40) + 24 }}>
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 24 }}>
           {/* Display mode: Sites / Points / Heatmap */}
           <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
             {([
@@ -4415,220 +4414,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* ══ RIGHT SETTINGS BAR ══ */}
-      <div
-        className={`absolute top-0 bottom-0 z-[1001] pointer-events-auto transition-all duration-300 flex flex-col`}
-        style={{ right: showRightPanel && !detailFullscreen ? 450 : 0, width: showRightSettings ? 260 : 40 }}
-      >
-        {!showRightSettings ? (
-          <div className="h-full bg-card/95 backdrop-blur-sm border-l border-border flex flex-col items-center py-4">
-            <button onClick={() => setShowRightSettings(true)} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-all" title="Open Settings">
-              <SlidersHorizontal size={16} />
-            </button>
-          </div>
-        ) : (
-          <div className="h-full bg-card/95 backdrop-blur-sm border-l border-border flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal size={14} className="text-primary" />
-                <span className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Settings</span>
-              </div>
-              <button onClick={() => setShowRightSettings(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                <X size={14} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3 space-y-4">
-              {/* ── Display Mode ── */}
-              <div>
-                <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">📊 Mode d'affichage</label>
-                <div className="flex flex-col gap-1">
-                  {([
-                    { key: 'topo', label: 'TOPO', icon: <Radio size={12} />, desc: 'Couleur par techno', gradient: 'from-violet-500 to-purple-500' },
-                    { key: 'kpi', label: 'QOE', icon: <Zap size={12} />, desc: 'Couleur par KPI', gradient: 'from-emerald-500 to-teal-500' },
-                    { key: 'param', label: 'PARAMÈTRE', icon: <MapPin size={12} />, desc: 'Afficher un paramètre', gradient: 'from-emerald-500 to-green-500' },
-                  ] as const).map(mode => {
-                    const isActive = mode.key === 'param' ? (paramMode || paramPanelOpen) : (!paramMode && !paramPanelOpen && sectorColorMode === mode.key);
-                    return (
-                      <button
-                        key={mode.key}
-                        onClick={() => {
-                          if (mode.key === 'topo') { setSectorColorMode('topo'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }
-                          else if (mode.key === 'kpi') { setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }
-                          else { setParamPanelOpen(!paramPanelOpen); }
-                        }}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[10px] font-bold transition-all w-full ${
-                          isActive
-                            ? `bg-gradient-to-r ${mode.gradient} text-white shadow-md`
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        {mode.icon}
-                        <div className="text-left">
-                          <div className="font-extrabold uppercase tracking-wider">{mode.label}</div>
-                          <div className={`text-[8px] ${isActive ? 'text-white/70' : 'text-muted-foreground/60'}`}>{mode.desc}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* ── Mode-specific options ── */}
-              {/* TOPO: 5G/4G toggle */}
-              {sectorColorMode === 'topo' && !paramMode && !paramPanelOpen && (
-                <div>
-                  <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">📡 Technologie</label>
-                  <div className="flex gap-1">
-                    {(['ALL', '5G', '4G', 'OFF'] as const).map(tech => (
-                      <button
-                        key={tech}
-                        onClick={() => {
-                          setMapTechnoFilter(tech);
-                          if (tech === 'ALL') setEnabledBands(new Set([...NR_BANDS, ...LTE_BANDS]));
-                          else if (tech === '5G') setEnabledBands(new Set(NR_BANDS));
-                          else if (tech === '4G') setEnabledBands(new Set(LTE_BANDS));
-                          else setEnabledBands(new Set());
-                        }}
-                        className={`flex-1 px-2 py-2 rounded-lg text-[10px] font-black tracking-wider transition-all ${
-                          mapTechnoFilter === tech
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'bg-muted text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        {tech}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* QOE: KPI selector */}
-              {sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen && (
-                <div>
-                  <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">🎯 KPI Couleur</label>
-                  <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
-                    {SETTINGS_KPI_OPTIONS.map(kpi => (
-                      <button
-                        key={kpi.value}
-                        onClick={() => { setMapKpi(kpi.value); setSectorColorMode('kpi'); }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold transition-all ${
-                          mapKpi === kpi.value
-                            ? 'bg-primary/15 text-primary border border-primary/30'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        <div className={`w-2 h-2 rounded-full shrink-0 ${mapKpi === kpi.value ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
-                        {kpi.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* PARAM: parameter selector */}
-              {(paramMode || paramPanelOpen) && (
-                <div>
-                  <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">⚙️ Paramètre</label>
-                  {paramConfirmed && (
-                    <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
-                      <span className="text-[10px] font-bold text-primary truncate flex-1">{paramConfirmed}</span>
-                      <span className="text-[9px] text-muted-foreground">({paramPoints.length})</span>
-                      <button onClick={handleParamReset} className="text-[9px] text-destructive font-bold hover:underline">✕</button>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => setParamPanelOpen(true)}
-                    className="w-full px-3 py-2 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/40 transition-all"
-                  >
-                    {paramConfirmed ? 'Changer le paramètre' : 'Sélectionner un paramètre'}
-                  </button>
-                </div>
-              )}
-
-              {/* ── Divider ── */}
-              <div className="h-px bg-border" />
-
-              {/* ── Filters ── */}
-              <div>
-                <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">🔍 Filtres</label>
-                <div className="space-y-2.5">
-                  {[
-                    { label: 'Vendor', value: localVendor, setter: setLocalVendor, options: uniqueVendors },
-                    { label: 'DOR', value: localDor, setter: setLocalDor, options: uniqueDors },
-                    { label: 'Plaque', value: localPlaque, setter: setLocalPlaque, options: uniquePlaques },
-                    { label: 'Zone ARCEP', value: localZoneArcep, setter: setLocalZoneArcep, options: uniqueZoneArceps },
-                    { label: 'Bande', value: localBande, setter: setLocalBande, options: uniqueBandes },
-                  ].map(f => (
-                    <div key={f.label}>
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">{f.label}</span>
-                      <select
-                        value={f.value}
-                        onChange={(e) => f.setter(e.target.value)}
-                        className="w-full bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all"
-                      >
-                        {f.options.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Divider ── */}
-              <div className="h-px bg-border" />
-
-              {/* ── Map Layer ── */}
-              <div>
-                <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">🗺️ Couche carte</label>
-                <div className="flex gap-1">
-                  {([
-                    { key: 'light' as const, label: 'Light' },
-                    { key: 'dark' as const, label: 'Dark' },
-                    { key: 'satellite' as const, label: 'Sat' },
-                  ]).map(({ key, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => setMapLayer(key)}
-                      className={`flex-1 px-2 py-2 rounded-lg text-[10px] font-bold transition-all ${
-                        mapLayer === key
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Display mode ── */}
-              <div>
-                <label className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-2">📍 Rendu</label>
-                <div className="flex gap-1">
-                  {([
-                    { key: 'sites' as const, label: '📍 Sites' },
-                    { key: 'points' as const, label: '● Points' },
-                    { key: 'heatmap' as const, label: '🔥 Heat' },
-                  ]).map(({ key, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => setMapDisplayMode(key)}
-                      className={`flex-1 px-2 py-2 rounded-lg text-[10px] font-bold transition-all ${
-                        mapDisplayMode === key
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
 
 
       {showRightPanel && (
