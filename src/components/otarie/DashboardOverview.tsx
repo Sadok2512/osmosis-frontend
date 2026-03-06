@@ -13,7 +13,7 @@ import { WidgetItem } from '../bi/dashboardTypes';
 import { TableWidgetConfig } from '../bi/BITableWidget';
 import { KPI_UNITS } from '../bi/biTypes';
 import { getDimensionValues } from '../bi/mockBIData';
-import BIChartRendererECharts from '../bi/BIChartRendererECharts';
+import BIChartCardECharts from '../bi/BIChartCardECharts';
 import { dashboardsApi } from '@/lib/localDb';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -484,7 +484,7 @@ const ReadOnlyWidget: React.FC<{ widget: any }> = ({ widget }) => {
   // Handle analytic_qoe widgets with 'kind'
   if (widget.kind) {
     switch (widget.kind) {
-      case 'chart': return <div className="w-full h-full"><BIChartRendererECharts config={widget.config} /></div>;
+      case 'chart': return <div className="w-full h-full"><BIChartCardECharts config={widget.config} onEdit={() => {}} onDuplicate={() => {}} onDelete={() => {}} /></div>;
       case 'text': return <ReadOnlyText config={widget.config} />;
       case 'image': return <ReadOnlyImage config={widget.config} />;
       case 'map': return <ReadOnlyMap config={widget.config} />;
