@@ -1687,6 +1687,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [dashboardSaving, setDashboardSaving] = useState(false);
   const [dashboardSaveFlash, setDashboardSaveFlash] = useState(false);
 
+  // ── Right settings bar ──
+  const [showRightSettings, setShowRightSettings] = useState(true);
+
   // ── Parameter overlay mode ──
   const [paramMode, setParamMode] = useState(false); // true = parameter markers on map
   const [paramPanelOpen, setParamPanelOpen] = useState(false);
