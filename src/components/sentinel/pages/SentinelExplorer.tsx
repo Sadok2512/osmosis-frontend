@@ -19,7 +19,7 @@ interface Props { date: string; }
 const DIMENSIONS: SentinelDimension[] = ['Cellule', 'Site', 'Bande', 'Vendor', 'DOR', 'Plaque', 'ARCEP', 'RAT'];
 const SEVERITIES: SentinelSeverity[] = ['critical', 'major', 'minor'];
 const TYPES: AnomalyType[] = ['degradation_soudaine', 'tendance_anormale', 'outlier_vs_peers', 'correlation_croisee'];
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 1000;
 
 const SentinelExplorer: React.FC<Props> = ({ date }) => {
   const [dimension, setDimension] = useState<SentinelDimension | ''>('');

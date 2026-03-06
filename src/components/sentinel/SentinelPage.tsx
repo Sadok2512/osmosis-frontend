@@ -54,7 +54,7 @@ const SentinelPage: React.FC = () => {
       const dates = await fetchDates();
       const elapsed = Date.now() - start;
       setConnectionStatus('connected');
-      setApiResponse(`✓ ${dates.length} dates disponibles (${elapsed}ms)`);
+      setApiResponse(`✓ ${Array.isArray(dates) ? dates.length : 0} dates disponibles (${elapsed}ms)`);
       if (dates.length > 0) {
         setAvailableDates(dates);
         setSelectedDate(dates[dates.length - 1]);
@@ -135,16 +135,19 @@ const SentinelPage: React.FC = () => {
           Test FastAPI
         </button>
 
-        {/* Date picker */}
-        <select
+        {/* Date picker - calendar input */}
+        <input
+          type="date"
           value={selectedDate}
           onChange={e => setSelectedDate(e.target.value)}
-          className="text-xs border border-border rounded-md px-2 py-1 bg-card text-foreground"
-        >
+          list="sentinel-dates"
+          className="text-xs border border-border rounded-md px-2 py-1.5 bg-card text-foreground cursor-pointer"
+        />
+        <datalist id="sentinel-dates">
           {availableDates.map(d => (
-            <option key={d} value={d}>{d}</option>
+            <option key={d} value={d} />
           ))}
-        </select>
+        </datalist>
 
         {/* Tab nav */}
         <div className="flex gap-1 bg-muted rounded-lg p-0.5">
