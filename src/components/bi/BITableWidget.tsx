@@ -297,7 +297,7 @@ const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete 
           <Plus className="w-3.5 h-3.5" />
         </button>
         <button onClick={() => setShowSettings(!showSettings)}
-          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors" title="Settings">
+          className={`p-1 rounded hover:bg-muted transition-colors ${showSettings ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} title="Settings">
           <Settings className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete}
@@ -315,12 +315,12 @@ const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete 
         />
       )}
 
-      {/* Settings panel */}
+      {/* Settings: each section in its own box */}
       {showSettings && (
-        <div className="border-b border-border bg-muted/10 p-3 space-y-3 shrink-0">
-          {/* X Axis: Date / Dimension */}
-          <div>
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
+        <div className="p-2.5 space-y-2 border-b border-border bg-background/50 shrink-0 overflow-auto max-h-[50%]">
+          {/* ── X AXIS Box ── */}
+          <div className="rounded-lg border border-border bg-muted/10 p-2.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
               <LayoutGrid className="w-3 h-3" /> X Axis
             </label>
             <div className="flex gap-1 mb-2">
@@ -337,26 +337,25 @@ const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete 
                 <LayoutGrid className="w-3 h-3" /> Dimension
               </button>
             </div>
-
             {config.xAxisType === 'date' ? (
               <div className="flex items-center gap-2">
                 <input type="date" value={config.dateFrom || ''} onChange={e => onChange({ ...config, dateFrom: e.target.value })}
-                  className="text-[10px] bg-background border border-border rounded px-2 py-1 text-foreground outline-none" />
+                  className="text-[10px] bg-background border border-border rounded px-2 py-1 text-foreground outline-none flex-1" />
                 <span className="text-[10px] text-muted-foreground">→</span>
                 <input type="date" value={config.dateTo || ''} onChange={e => onChange({ ...config, dateTo: e.target.value })}
-                  className="text-[10px] bg-background border border-border rounded px-2 py-1 text-foreground outline-none" />
+                  className="text-[10px] bg-background border border-border rounded px-2 py-1 text-foreground outline-none flex-1" />
               </div>
             ) : (
               <select value={config.dimension} onChange={e => onChange({ ...config, dimension: e.target.value as BIDimension })}
-                className="text-[10px] bg-background border border-border rounded px-2 py-1 text-foreground outline-none w-full">
+                className="text-[10px] bg-background border border-border rounded px-2 py-1.5 text-foreground outline-none w-full">
                 {BI_DIMENSIONS.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             )}
           </div>
 
-          {/* Filters */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
+          {/* ── FILTERS Box ── */}
+          <div className="rounded-lg border border-border bg-muted/10 p-2.5">
+            <div className="flex items-center justify-between mb-2">
               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                 <Filter className="w-3 h-3" /> Filters
               </label>
@@ -382,14 +381,14 @@ const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete 
             </div>
           </div>
 
-          {/* Display options */}
-          <div className="flex items-center gap-4 pt-1 border-t border-border/50">
+          {/* ── Display Options ── */}
+          <div className="flex items-center gap-4">
             <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
-              <input type="checkbox" checked={config.striped} onChange={e => onChange({ ...config, striped: e.target.checked })} className="rounded w-3 h-3" />
+              <input type="checkbox" checked={config.striped} onChange={e => onChange({ ...config, striped: e.target.checked })} className="rounded w-3 h-3 accent-primary" />
               Striped
             </label>
             <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
-              <input type="checkbox" checked={config.compact} onChange={e => onChange({ ...config, compact: e.target.checked })} className="rounded w-3 h-3" />
+              <input type="checkbox" checked={config.compact} onChange={e => onChange({ ...config, compact: e.target.checked })} className="rounded w-3 h-3 accent-primary" />
               Compact
             </label>
           </div>
