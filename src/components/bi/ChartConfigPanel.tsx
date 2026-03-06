@@ -386,7 +386,206 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
       {/* ─── Scrollable Sections ─── */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-thin">
 
-        {/* ═══ DATA ═══ */}
+        {/* ═══ ADVANCED (top of panel) ═══ */}
+        <SectionCategory>Advanced</SectionCategory>
+
+        <SectionCard
+          title="Advanced Settings"
+          icon={<Settings2 className="w-4 h-4" />}
+          open={sections.advanced}
+          toggle={() => toggle('advanced')}
+        >
+          <div className="space-y-5">
+            {/* Toggles */}
+            <div className="space-y-3">
+              {[
+                { key: 'showLegend' as const, label: 'Legend' },
+                { key: 'highlightAnomalies' as const, label: 'Anomalies' },
+                { key: 'sortByValue' as const, label: 'Sort by value' },
+              ].map(opt => (
+                <div key={opt.key} className="flex items-center justify-between py-1">
+                  <span className="text-[12px] text-foreground font-medium">{opt.label}</span>
+                  <Switch
+                    checked={draft.advanced[opt.key] as boolean}
+                    onCheckedChange={v => update({ advanced: { ...draft.advanced, [opt.key]: v } })}
+                  />
+                </div>
+              ))}
+              <div className="flex items-center justify-between py-1">
+                <span className="text-[12px] text-foreground font-medium">Top N</span>
+                <input
+                  type="number" min={0} max={100}
+                  value={draft.advanced.topN || ''}
+                  placeholder="All"
+                  onChange={e => update({ advanced: { ...draft.advanced, topN: e.target.value ? Number(e.target.value) : null } })}
+                  className="w-20 bg-background border border-border/60 rounded-lg px-3 py-1.5 text-[12px] text-foreground text-right
+                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="h-px bg-border/30" />
+
+            {/* Background color */}
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-1.5">
+                <Paintbrush className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <FieldLabel>Background</FieldLabel>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {BG_PALETTE.map(c => (
+                  <ColorDot
+                    key={c} color={c} size={22}
+                    selected={(draft.advanced.backgroundColor || 'transparent') === c}
+                    onClick={() => update({ advanced: { ...draft.advanced, backgroundColor: c } })}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-border/30" />
+
+            {/* Thresholds */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <FieldLabel>Thresholds</FieldLabel>
+              </div>
+              {draft.advanced.thresholds.map((t, i) => (
+                <div key={i} className="rounded-xl border border-border/40 bg-card/30 p-3.5 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" value={t.value}
+                      onChange={e => {
+                        const thresholds = [...draft.advanced.thresholds];
+                        thresholds[i] = { ...t, value: Number(e.target.value) };
+                        update({ advanced: { ...draft.advanced, thresholds } });
+                      }}
+                      className="w-20 bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
+                        outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      placeholder="Value"
+                    />
+                    <input
+                      value={t.label}
+                      onChange={e => {
+                        const thresholds = [...draft.advanced.thresholds];
+                        thresholds[i] = { ...t, label: e.target.value };
+                        update({ advanced: { ...draft.advanced, thresholds } });
+                      }}
+                      className="flex-1 bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
+                        outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      placeholder="Label"
+                    />
+                    <StyledSelect
+                      value={t.lineStyle}
+                      options={LINE_STYLES}
+                      onChange={v => {
+                        const thresholds = [...draft.advanced.thresholds];
+                        thresholds[i] = { ...t, lineStyle: v as LineStyle };
+                        update({ advanced: { ...draft.advanced, thresholds } });
+                      }}
+                      className="!w-20"
+                    />
+                    <button
+                      onClick={() => update({ advanced: { ...draft.advanced, thresholds: draft.advanced.thresholds.filter((_, j) => j !== i) } })}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {SIMPLE_PALETTE.map(c => (
+                      <ColorDot key={c} color={c} size={16} selected={t.color === c} onClick={() => {
+                        const thresholds = [...draft.advanced.thresholds];
+                        thresholds[i] = { ...t, color: c };
+                        update({ advanced: { ...draft.advanced, thresholds } });
+                      }} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => update({ advanced: { ...draft.advanced, thresholds: [...draft.advanced.thresholds, { value: 0, label: 'Threshold', color: '#EF4444', lineStyle: 'dashed' }] } })}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed border-border/50
+                  text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all hover:bg-primary/5"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Threshold
+              </button>
+            </div>
+
+            <div className="h-px bg-border/30" />
+
+            {/* Milestones */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-1.5">
+                <Milestone className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <FieldLabel>Milestones</FieldLabel>
+              </div>
+              {(draft.advanced.milestones || []).map((m, i) => (
+                <div key={i} className="rounded-xl border border-border/40 bg-card/30 p-3.5 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date" value={m.date}
+                      onChange={e => {
+                        const milestones = [...(draft.advanced.milestones || [])];
+                        milestones[i] = { ...m, date: e.target.value };
+                        update({ advanced: { ...draft.advanced, milestones } });
+                      }}
+                      className="flex-1 bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
+                        outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                    <button
+                      onClick={() => update({ advanced: { ...draft.advanced, milestones: (draft.advanced.milestones || []).filter((_, j) => j !== i) } })}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <input
+                    value={m.label}
+                    onChange={e => {
+                      const milestones = [...(draft.advanced.milestones || [])];
+                      milestones[i] = { ...m, label: e.target.value };
+                      update({ advanced: { ...draft.advanced, milestones } });
+                    }}
+                    className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
+                      outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="Milestone label"
+                  />
+                  <div className="flex items-center gap-2">
+                    <StyledSelect
+                      value={m.lineStyle}
+                      options={LINE_STYLES}
+                      onChange={v => {
+                        const milestones = [...(draft.advanced.milestones || [])];
+                        milestones[i] = { ...m, lineStyle: v as LineStyle };
+                        update({ advanced: { ...draft.advanced, milestones } });
+                      }}
+                      className="!w-24"
+                    />
+                  </div>
+                  <div className="flex gap-1.5">
+                    {SIMPLE_PALETTE.map(c => (
+                      <ColorDot key={c} color={c} size={16} selected={m.color === c} onClick={() => {
+                        const milestones = [...(draft.advanced.milestones || [])];
+                        milestones[i] = { ...m, color: c };
+                        update({ advanced: { ...draft.advanced, milestones } });
+                      }} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => update({ advanced: { ...draft.advanced, milestones: [...(draft.advanced.milestones || []), { date: '2026-02-08', label: 'Milestone', color: '#8B5CF6', lineStyle: 'dashed' }] } })}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed border-border/50
+                  text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all hover:bg-primary/5"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Milestone
+              </button>
+            </div>
+          </div>
+        </SectionCard>
+
         <SectionCategory>Data</SectionCategory>
 
         {/* ── DATA SOURCE ── */}
@@ -735,205 +934,6 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </div>
         </SectionCard>
 
-        {/* ═══ ADVANCED ═══ */}
-        <SectionCategory>Advanced</SectionCategory>
-
-        <SectionCard
-          title="Advanced Settings"
-          icon={<Settings2 className="w-4 h-4" />}
-          open={sections.advanced}
-          toggle={() => toggle('advanced')}
-        >
-          <div className="space-y-5">
-            {/* Toggles */}
-            <div className="space-y-3">
-              {[
-                { key: 'showLegend' as const, label: 'Legend' },
-                { key: 'highlightAnomalies' as const, label: 'Anomalies' },
-                { key: 'sortByValue' as const, label: 'Sort by value' },
-              ].map(opt => (
-                <div key={opt.key} className="flex items-center justify-between py-1">
-                  <span className="text-[12px] text-foreground font-medium">{opt.label}</span>
-                  <Switch
-                    checked={draft.advanced[opt.key] as boolean}
-                    onCheckedChange={v => update({ advanced: { ...draft.advanced, [opt.key]: v } })}
-                  />
-                </div>
-              ))}
-              <div className="flex items-center justify-between py-1">
-                <span className="text-[12px] text-foreground font-medium">Top N</span>
-                <input
-                  type="number" min={0} max={100}
-                  value={draft.advanced.topN || ''}
-                  placeholder="All"
-                  onChange={e => update({ advanced: { ...draft.advanced, topN: e.target.value ? Number(e.target.value) : null } })}
-                  className="w-20 bg-background border border-border/60 rounded-lg px-3 py-1.5 text-[12px] text-foreground text-right
-                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="h-px bg-border/30" />
-
-            {/* Background color */}
-            <div className="space-y-2.5">
-              <div className="flex items-center gap-1.5">
-                <Paintbrush className="w-3.5 h-3.5 text-muted-foreground/60" />
-                <FieldLabel>Background</FieldLabel>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {BG_PALETTE.map(c => (
-                  <ColorDot
-                    key={c} color={c} size={22}
-                    selected={(draft.advanced.backgroundColor || 'transparent') === c}
-                    onClick={() => update({ advanced: { ...draft.advanced, backgroundColor: c } })}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="h-px bg-border/30" />
-
-            {/* Thresholds */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-1.5">
-                <Target className="w-3.5 h-3.5 text-muted-foreground/60" />
-                <FieldLabel>Thresholds</FieldLabel>
-              </div>
-              {draft.advanced.thresholds.map((t, i) => (
-                <div key={i} className="rounded-xl border border-border/40 bg-card/30 p-3.5 space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number" value={t.value}
-                      onChange={e => {
-                        const thresholds = [...draft.advanced.thresholds];
-                        thresholds[i] = { ...t, value: Number(e.target.value) };
-                        update({ advanced: { ...draft.advanced, thresholds } });
-                      }}
-                      className="w-20 bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
-                        outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                      placeholder="Value"
-                    />
-                    <input
-                      value={t.label}
-                      onChange={e => {
-                        const thresholds = [...draft.advanced.thresholds];
-                        thresholds[i] = { ...t, label: e.target.value };
-                        update({ advanced: { ...draft.advanced, thresholds } });
-                      }}
-                      className="flex-1 bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
-                        outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                      placeholder="Label"
-                    />
-                    <StyledSelect
-                      value={t.lineStyle}
-                      options={LINE_STYLES}
-                      onChange={v => {
-                        const thresholds = [...draft.advanced.thresholds];
-                        thresholds[i] = { ...t, lineStyle: v as LineStyle };
-                        update({ advanced: { ...draft.advanced, thresholds } });
-                      }}
-                      className="!w-20"
-                    />
-                    <button
-                      onClick={() => update({ advanced: { ...draft.advanced, thresholds: draft.advanced.thresholds.filter((_, j) => j !== i) } })}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="flex gap-1.5">
-                    {SIMPLE_PALETTE.map(c => (
-                      <ColorDot key={c} color={c} size={16} selected={t.color === c} onClick={() => {
-                        const thresholds = [...draft.advanced.thresholds];
-                        thresholds[i] = { ...t, color: c };
-                        update({ advanced: { ...draft.advanced, thresholds } });
-                      }} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              <button
-                onClick={() => update({ advanced: { ...draft.advanced, thresholds: [...draft.advanced.thresholds, { value: 0, label: 'Threshold', color: '#EF4444', lineStyle: 'dashed' }] } })}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed border-border/50
-                  text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all hover:bg-primary/5"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Threshold
-              </button>
-            </div>
-
-            <div className="h-px bg-border/30" />
-
-            {/* Milestones */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-1.5">
-                <Milestone className="w-3.5 h-3.5 text-muted-foreground/60" />
-                <FieldLabel>Milestones</FieldLabel>
-              </div>
-              {(draft.advanced.milestones || []).map((m, i) => (
-                <div key={i} className="rounded-xl border border-border/40 bg-card/30 p-3.5 space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="date" value={m.date}
-                      onChange={e => {
-                        const milestones = [...(draft.advanced.milestones || [])];
-                        milestones[i] = { ...m, date: e.target.value };
-                        update({ advanced: { ...draft.advanced, milestones } });
-                      }}
-                      className="flex-1 bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
-                        outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                    />
-                    <button
-                      onClick={() => update({ advanced: { ...draft.advanced, milestones: (draft.advanced.milestones || []).filter((_, j) => j !== i) } })}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <input
-                    value={m.label}
-                    onChange={e => {
-                      const milestones = [...(draft.advanced.milestones || [])];
-                      milestones[i] = { ...m, label: e.target.value };
-                      update({ advanced: { ...draft.advanced, milestones } });
-                    }}
-                    className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
-                      outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                    placeholder="Milestone label"
-                  />
-                  <div className="flex items-center gap-2">
-                    <StyledSelect
-                      value={m.lineStyle}
-                      options={LINE_STYLES}
-                      onChange={v => {
-                        const milestones = [...(draft.advanced.milestones || [])];
-                        milestones[i] = { ...m, lineStyle: v as LineStyle };
-                        update({ advanced: { ...draft.advanced, milestones } });
-                      }}
-                      className="!w-24"
-                    />
-                  </div>
-                  <div className="flex gap-1.5">
-                    {SIMPLE_PALETTE.map(c => (
-                      <ColorDot key={c} color={c} size={16} selected={m.color === c} onClick={() => {
-                        const milestones = [...(draft.advanced.milestones || [])];
-                        milestones[i] = { ...m, color: c };
-                        update({ advanced: { ...draft.advanced, milestones } });
-                      }} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              <button
-                onClick={() => update({ advanced: { ...draft.advanced, milestones: [...(draft.advanced.milestones || []), { date: '2026-02-08', label: 'Milestone', color: '#8B5CF6', lineStyle: 'dashed' }] } })}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed border-border/50
-                  text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all hover:bg-primary/5"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Milestone
-              </button>
-            </div>
-          </div>
-        </SectionCard>
       </div>
 
       {/* ─── Apply Button ─── */}
