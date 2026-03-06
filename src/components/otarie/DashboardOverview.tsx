@@ -676,12 +676,6 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => openInEditor('')}
-              className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" /> Nouveau dashboard
-            </button>
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="w-3 h-3 text-primary" />
