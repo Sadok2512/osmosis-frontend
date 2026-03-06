@@ -181,7 +181,7 @@ const KpiSelectorSection: React.FC<{
         )}
         <div className="flex items-center gap-2 px-3 py-2.5 border-t border-border/30">
           <button
-            onClick={() => { setDraft(selected); }}
+            onClick={() => { setDraft(selected); onClose?.(); }}
             className="flex-1 py-2 rounded-lg text-[11px] font-semibold border border-border text-foreground hover:bg-muted/40 transition-colors"
           >
             Fermer
