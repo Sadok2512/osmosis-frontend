@@ -314,8 +314,8 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   return (
     <div className="w-[360px] h-full bg-background border-l border-border/40 flex flex-col overflow-hidden">
 
-      {/* ─── Header ─── */}
-      <div className="px-5 py-5 border-b border-border/40 bg-card/50">
+      {/* ─── Header with inline date range ─── */}
+      <div className="px-5 py-4 border-b border-border/40 bg-card/50 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -340,6 +340,47 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
+
+        {/* Inline date range always visible */}
+        {draft.xAxis.type === 'date' && (
+          <div className="space-y-2.5">
+            <div className="flex items-end gap-1.5">
+              <div className="flex-1 space-y-1">
+                <FieldLabel>Start</FieldLabel>
+                <input
+                  type="date"
+                  value={draft.xAxis.dateStart}
+                  onChange={e => updateX({ dateStart: e.target.value })}
+                  className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[11px] text-foreground
+                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                    hover:border-border transition-all duration-150"
+                />
+              </div>
+              <div className="pb-2">
+                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <FieldLabel>End</FieldLabel>
+                <input
+                  type="date"
+                  value={draft.xAxis.dateEnd}
+                  onChange={e => updateX({ dateEnd: e.target.value })}
+                  className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[11px] text-foreground
+                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                    hover:border-border transition-all duration-150"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <FieldLabel>Granularity</FieldLabel>
+              <SegmentedControl
+                options={GRANULARITIES.map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
+                value={draft.xAxis.granularity || 'day'}
+                onChange={v => updateX({ granularity: v as Granularity })}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── Scrollable Sections ─── */}
