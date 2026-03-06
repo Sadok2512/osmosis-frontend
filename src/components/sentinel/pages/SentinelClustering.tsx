@@ -36,6 +36,7 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
         <div className="text-center space-y-2">
           <AlertCircle className="w-10 h-10 mx-auto text-destructive" />
           <p className="text-sm">API Sentinel non disponible</p>
+          <p className="text-xs text-muted-foreground">Vérifiez la connexion à localhost:1000</p>
         </div>
       </div>
     );
