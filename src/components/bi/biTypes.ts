@@ -185,6 +185,7 @@ export interface ChartConfig {
     sortByValue: boolean;
     topN: number | null;
     showLegend: boolean;
+    legendPosition: 'bottom' | 'top' | 'left' | 'right';
     backgroundColor: string;
   };
 }
@@ -254,6 +255,7 @@ export function createDefaultChart(id: string): ChartConfig {
       sortByValue: false,
       topN: null,
       showLegend: true,
+      legendPosition: 'bottom',
       backgroundColor: 'transparent',
     },
   };
