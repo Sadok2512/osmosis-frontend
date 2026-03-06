@@ -26,9 +26,9 @@ export interface MapWidgetConfig {
 export function createDefaultMapWidget(id: string): MapWidgetConfig {
   return {
     id,
-    title: 'Sites Map',
-    displayMode: 'qoe',
-    metric: 'qoe_score_avg',
+    title: '',
+    displayMode: 'topo',
+    metric: '',
     vendorFilter: 'ALL',
     technoFilter: 'ALL',
     dorFilter: 'ALL',
