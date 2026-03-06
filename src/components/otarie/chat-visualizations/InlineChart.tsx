@@ -58,6 +58,8 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
   );
   const [showPalette, setShowPalette] = useState(false);
 
+  const [colorByX, setColorByX] = useState(false);
+
   const palette = paletteIdx >= 0 ? COLOR_PALETTES[paletteIdx].colors : (colors || COLOR_PALETTES[4].colors);
 
   const togglePalette = useCallback(() => setShowPalette(p => !p), []);
