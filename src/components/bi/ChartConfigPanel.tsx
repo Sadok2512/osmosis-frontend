@@ -507,11 +507,11 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </ConfigCard>
         )}
 
-        {/* ── X AXIS MODE ── */}
+        {/* ── X AXIS ── */}
         <ConfigCard
           icon={<ArrowRight className="w-4 h-4" />}
           title="X Axis"
-          summary={draft.xAxis.type === 'dimension' ? 'Dimension' : 'Date'}
+          summary={draft.xAxis.type === 'dimension' ? `Dimension · ${draft.dimension1 || '—'}` : `Date · ${granularitySummary}`}
           open={openCard === 'xaxis'}
           onToggle={() => toggleCard('xaxis')}
         >
