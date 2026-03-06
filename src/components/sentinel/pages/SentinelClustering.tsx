@@ -28,7 +28,7 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
     queryFn: () => fetchClusterMembers(selectedCluster!, date, dimension),
     enabled: selectedCluster !== null,
     staleTime: 30_000,
-  });
+    retry: 1,
 
   if (error) {
     return (

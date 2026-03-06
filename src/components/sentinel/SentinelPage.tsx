@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Eye, BarChart3, Clock, ChevronRight, Wifi, WifiOff, Loader2, CheckCircle } from 'lucide-react';
 import SentinelOverview from './pages/SentinelOverview';
 import SentinelExplorer from './pages/SentinelExplorer';
@@ -25,7 +25,7 @@ const SentinelPage: React.FC = () => {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
   const [apiResponse, setApiResponse] = useState<string>('');
-
+  const [pendingDate, setPendingDate] = useState<string>('');
   // Initialize with today's date immediately so UI is always visible
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -138,16 +138,22 @@ const SentinelPage: React.FC = () => {
         {/* Date picker - calendar input */}
         <input
           type="date"
-          value={selectedDate}
-          onChange={e => setSelectedDate(e.target.value)}
-          list="sentinel-dates"
+          value={pendingDate || selectedDate}
+          onChange={e => setPendingDate(e.target.value)}
+          onBlur={() => {
+            if (pendingDate && pendingDate !== selectedDate) {
+              setSelectedDate(pendingDate);
+            }
+            setPendingDate('');
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && pendingDate) {
+              setSelectedDate(pendingDate);
+              setPendingDate('');
+            }
+          }}
           className="text-xs border border-border rounded-md px-2 py-1.5 bg-card text-foreground cursor-pointer"
         />
-        <datalist id="sentinel-dates">
-          {availableDates.map(d => (
-            <option key={d} value={d} />
-          ))}
-        </datalist>
 
         {/* Tab nav */}
         <div className="flex gap-1 bg-muted rounded-lg p-0.5">
