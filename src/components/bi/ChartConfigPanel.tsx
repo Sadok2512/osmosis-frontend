@@ -620,10 +620,10 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
 
 
 
-        {/* ── KPI SELECTION ── */}
+        {/* ── KPI SELECTION (Y Axis) ── */}
         <ConfigCard
           icon={<TrendingUp className="w-4 h-4" />}
-          title="KPI Selection"
+          title="KPI Selection (Y Axis)"
           summary={kpiSummary}
           badge={draft.yMetrics.length}
           open={openCard === 'kpi'}
