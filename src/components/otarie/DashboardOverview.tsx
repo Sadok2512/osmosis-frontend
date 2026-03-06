@@ -1,4 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Tooltip as LTooltip } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   LayoutDashboard, Clock, Eye, ChevronLeft, Table2, Search, User,
   BarChart2, ImageIcon, Map as MapIcon, LayoutGrid, List, Copy,
@@ -410,7 +414,7 @@ const FilterDropdown: React.FC<{
 const ReadOnlyText: React.FC<{ config: any }> = ({ config }) => (
   <div className="w-full h-full flex items-start p-3 overflow-auto rounded-xl"
     style={{ backgroundColor: config.bgColor || 'transparent', color: config.color || 'hsl(var(--foreground))', fontSize: config.fontSize || 14, fontWeight: config.fontWeight || 'normal', fontStyle: config.fontStyle || 'normal', textAlign: config.textAlign || 'left' }}>
-    <span className="whitespace-pre-wrap">{config.content}</span>
+    <span className="whitespace-pre-wrap">{config.content || 'Texte vide'}</span>
   </div>
 );
 
@@ -422,15 +426,32 @@ const ReadOnlyImage: React.FC<{ config: any }> = ({ config }) => (
   </div>
 );
 
-const ReadOnlyMap: React.FC<{ config: any }> = ({ config }) => (
-  <div className="w-full h-full flex items-center justify-center rounded-xl bg-muted/30 border border-border">
-    <div className="text-center text-muted-foreground">
-      <LayoutDashboard className="w-8 h-8 mx-auto mb-2 opacity-40" />
-      <p className="text-xs font-medium">{config.title || 'Map Widget'}</p>
-      <p className="text-[10px] opacity-60">Carte interactive (lecture seule)</p>
+const TILE_URLS_RO: Record<string, string> = {
+  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+};
+
+const ReadOnlyMap: React.FC<{ config: any }> = ({ config }) => {
+  const center = config.center || [46.6, 2.5];
+  const zoom = config.zoom || 6;
+  const tileUrl = TILE_URLS_RO[config.mapLayer] || TILE_URLS_RO.light;
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden rounded-xl">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30 shrink-0">
+        <MapIcon className="w-3.5 h-3.5 text-primary" />
+        <span className="text-xs font-semibold text-foreground">{config.title || 'Map'}</span>
+        <span className="text-[10px] text-muted-foreground ml-auto">Lecture seule</span>
+      </div>
+      <div className="flex-1 min-h-0">
+        <MapContainer center={center} zoom={zoom} style={{ height: '100%', width: '100%' }} zoomControl={false} dragging={false} scrollWheelZoom={false} doubleClickZoom={false}>
+          <TileLayer url={tileUrl} />
+        </MapContainer>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const ReadOnlyTable: React.FC<{ config: TableWidgetConfig }> = ({ config }) => {
   const rng = (() => { let s = config.id.charCodeAt(0) * 100 + config.kpis.length; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; })();
@@ -445,6 +466,24 @@ const ReadOnlyTable: React.FC<{ config: TableWidgetConfig }> = ({ config }) => {
     for (const kpi of config.kpis) { const [min, max] = kpiRanges[kpi] || [0, 100]; row[kpi] = +(min + rng() * (max - min)).toFixed(2); }
     return row;
   });
+
+  if (!config.kpis || config.kpis.length === 0) {
+    return (
+      <div className="w-full h-full flex flex-col overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30 shrink-0">
+          <Table2 className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-semibold text-foreground">{config.title}</span>
+        </div>
+        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+          <div className="text-center">
+            <Table2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            <p className="text-xs font-medium">Aucun KPI sélectionné</p>
+            <p className="text-[10px] opacity-60">Ouvrir en édition pour configurer</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
