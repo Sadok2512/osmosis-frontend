@@ -1412,9 +1412,11 @@ function buildContextPlan(
 
   // Handle dimension-based intents FIRST
   if (intent === "distribution") {
-    const dim1 = detectDimension1Type(query);
+    const allDims = detectAllDimensions(query);
+    const dim1 = allDims[0];
+    const dim2 = allDims.length > 1 ? allDims[1] : undefined;
     const met = detectMetric(query);
-    groupBy = { dimension1: dim1 };
+    groupBy = { dimension1: dim1, dimension2: dim2 };
     metric = met;
     if (TOPO_METRICS.has(met)) {
       needs.push("topo_metric_agg", "documents_rag");
