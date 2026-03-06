@@ -168,7 +168,7 @@ export interface ChartConfig {
   filters: FilterConfig[];
   groupBy: BIDimension[];
   colorBy?: BIDimension;
-  sizeBy?: BIKPI;
+  sizeBy?: BIDimension;
   dataSource?: {
     type: 'mock' | 'csv' | 'local';
     csvDatasetId?: string;
