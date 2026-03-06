@@ -467,6 +467,24 @@ const ReadOnlyTable: React.FC<{ config: TableWidgetConfig }> = ({ config }) => {
     return row;
   });
 
+  if (!config.kpis || config.kpis.length === 0) {
+    return (
+      <div className="w-full h-full flex flex-col overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30 shrink-0">
+          <Table2 className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-semibold text-foreground">{config.title}</span>
+        </div>
+        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+          <div className="text-center">
+            <Table2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            <p className="text-xs font-medium">Aucun KPI sélectionné</p>
+            <p className="text-[10px] opacity-60">Ouvrir en édition pour configurer</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30 shrink-0">
@@ -498,6 +516,7 @@ const ReadOnlyTable: React.FC<{ config: TableWidgetConfig }> = ({ config }) => {
         </table>
       </div>
     </div>
+  );
   );
 };
 
