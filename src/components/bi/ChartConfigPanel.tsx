@@ -751,6 +751,17 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                           {getKpiDisplayName(m.kpi)}
                         </button>
                         <button
+                          onClick={() => updateMetric(i, { visible: m.visible === false ? true : false })}
+                          className={`w-6 h-6 rounded-md flex items-center justify-center transition-all duration-150 ${
+                            m.visible === false
+                              ? 'text-muted-foreground/30 hover:text-primary hover:bg-primary/10'
+                              : 'text-muted-foreground/50 hover:text-primary hover:bg-primary/10'
+                          }`}
+                          title={m.visible === false ? 'Show' : 'Hide'}
+                        >
+                          <Eye className={`w-3 h-3 ${m.visible === false ? 'opacity-30' : ''}`} />
+                        </button>
+                        <button
                           onClick={() => toggleMetricExpand(i)}
                           className="w-6 h-6 rounded-md flex items-center justify-center
                             text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-all duration-150"
