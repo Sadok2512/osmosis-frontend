@@ -187,6 +187,7 @@ export interface ChartConfig {
     showLegend: boolean;
     legendPosition: 'bottom' | 'top' | 'left' | 'right';
     backgroundColor: string;
+    headerTextColor: string;
   };
 }
 
@@ -257,6 +258,7 @@ export function createDefaultChart(id: string): ChartConfig {
       showLegend: true,
       legendPosition: 'bottom',
       backgroundColor: 'transparent',
+      headerTextColor: '',
     },
   };
 }

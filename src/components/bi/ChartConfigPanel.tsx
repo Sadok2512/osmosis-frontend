@@ -6,7 +6,7 @@ import {
   X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart,
   ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check,
   Grid3X3, Calendar, Filter, GitBranch, Settings2, Palette,
-  Zap, ArrowRight, BarChart2, Clock, Eye, CircleDot
+  Zap, ArrowRight, BarChart2, Clock, Eye, CircleDot, Type
 } from 'lucide-react';
 import {
   ChartConfig, YMetricConfig, XAxisConfig, FilterConfig,
@@ -38,6 +38,12 @@ const BG_PALETTE = [
   'transparent', '#ffffff', '#f8fafc', '#f1f5f9', '#e2e8f0',
   '#0f172a', '#1e293b', '#1a1a2e', '#fef9ef', '#f0fdf4',
   '#eff6ff', '#fdf2f8',
+];
+
+const TEXT_COLOR_PALETTE = [
+  '', '#0f172a', '#1e293b', '#334155', '#64748b',
+  '#ffffff', '#e2e8f0', '#2563EB', '#10B981', '#EF4444',
+  '#F59E0B', '#8B5CF6',
 ];
 
 const CHART_TYPE_OPTIONS: { type: ChartType; icon: React.ReactNode; label: string }[] = [
@@ -427,6 +433,21 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   <ColorDot key={c} color={c} size={20}
                     selected={(draft.advanced.backgroundColor || 'transparent') === c}
                     onClick={() => update({ advanced: { ...draft.advanced, backgroundColor: c } })}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="h-px bg-border/30" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Type className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <FieldLabel>Header Text Color</FieldLabel>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {TEXT_COLOR_PALETTE.map(c => (
+                  <ColorDot key={c || 'default'} color={c || 'currentColor'} size={20}
+                    selected={(draft.advanced.headerTextColor || '') === c}
+                    onClick={() => update({ advanced: { ...draft.advanced, headerTextColor: c } })}
                   />
                 ))}
               </div>
