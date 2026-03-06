@@ -1,5 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { GripVertical, Trash2, Plus, X, Table2, Settings, Filter } from 'lucide-react';
+import { GripVertical, Trash2, Plus, X, Table2, Settings, Filter, MoreVertical, Copy, Download, Pencil } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { BI_KPI_CATALOG, BI_DIMENSIONS, BIDimension, BIKPI, KPI_UNITS, getKpiDisplayName } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 
