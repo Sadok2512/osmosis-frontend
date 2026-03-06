@@ -606,6 +606,14 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
 
   /* ─── Detail View ─── */
   if (selected) {
+    // Extract theme from widgets (saved as _type: 'theme_settings' or _type: 'dashboard_settings')
+    const themeWidget = selected.widgets.find((w: any) => w?._type === 'theme_settings');
+    const dashSettingsWidget = selected.widgets.find((w: any) => w?._type === 'dashboard_settings');
+    const dashBgColor = themeWidget?.backgroundColor || dashSettingsWidget?.color || '';
+    const dashTitleColor = themeWidget?.titleTextColor || '';
+    // Filter out meta widgets for rendering
+    const renderWidgets = selected.widgets.filter((w: any) => w != null && w._type !== 'theme_settings');
+
     return (
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
@@ -619,7 +627,10 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-foreground">{selected.name}</h2>
+                <h2 className="text-base font-semibold"
+                  style={dashTitleColor ? { color: dashTitleColor } : undefined}>
+                  {selected.name}
+                </h2>
                 <TypeBadge type={selected.dashboardType} />
                 <VisibilityBadge visibility={selected.visibility} sharedWith={selected.sharedWith} />
               </div>
@@ -651,9 +662,10 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-6"
+          style={dashBgColor ? { backgroundColor: dashBgColor } : undefined}>
           <div className="grid grid-cols-12 gap-4" style={{ gridAutoRows: '80px' }}>
-            {selected.widgets.filter(w => w != null).map((widget: any, idx) => {
+            {renderWidgets.map((widget: any, idx: number) => {
               const layout = widget.layout || { w: 12, h: 4 };
               const w = Math.min(layout.w || 6, 12);
               const h = layout.h || 3;
