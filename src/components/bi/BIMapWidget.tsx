@@ -116,6 +116,8 @@ const DISPLAY_MODES: { id: MapDisplayMode; label: string }[] = [
   { id: 'parameter', label: 'Parameter' },
 ];
 
+const AUTO_LOAD_THRESHOLD = 500;
+
 const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -123,9 +125,19 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [showConfig, setShowConfig] = useState(false);
 
   const handleLoadSites = useCallback(() => {
+    if (loading) return;
     setLoading(true);
     fetchTopoSites().then(s => { setSites(s); setLoading(false); setSitesLoaded(true); });
-  }, []);
+  }, [loading]);
+
+  // Auto-load sites when filters are narrowed (not all defaults)
+  const hasActiveFilter = config.vendorFilter !== 'ALL' || config.dorFilter !== 'ALL' || config.plaqueFilter !== 'ALL' || config.zoneArcepFilter !== 'ALL' || config.bandeFilter !== 'ALL';
+
+  useEffect(() => {
+    if (hasActiveFilter && !sitesLoaded && !loading) {
+      handleLoadSites();
+    }
+  }, [hasActiveFilter, sitesLoaded, loading, handleLoadSites]);
 
   const availablePlaques = useMemo(() => getAvailablePlaques(config.dorFilter, config.vendorFilter), [config.dorFilter, config.vendorFilter]);
   const availableBandes = useMemo(() => getAvailableBandes(config.technoFilter), [config.technoFilter]);
@@ -142,6 +154,9 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
       return true;
     });
   }, [sites, config.vendorFilter, config.dorFilter, config.plaqueFilter, config.technoFilter, config.zoneArcepFilter, config.bandeFilter]);
+
+  // Only render markers if filtered count is small enough or filters are active
+  const shouldRenderSites = sitesLoaded && (hasActiveFilter || filtered.length <= AUTO_LOAD_THRESHOLD);
 
   const metricLabel = MAP_METRICS.find(m => m.id === config.metric)?.label || config.metric;
   const getSiteValue = (s: SiteSummary): number => (s as any)[config.metric] ?? s.qoe_score_avg;
