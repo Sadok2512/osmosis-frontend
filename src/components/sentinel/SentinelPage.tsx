@@ -25,7 +25,7 @@ const SentinelPage: React.FC = () => {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
   const [apiResponse, setApiResponse] = useState<string>('');
-  const [pendingDate, setPendingDate] = useState<string>('');
+  
   // Initialize with today's date immediately so UI is always visible
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
