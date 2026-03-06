@@ -256,7 +256,15 @@ const FilterRow: React.FC<{
   );
 };
 
-const BITableWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
+const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete }) => {
+  // Backfill defaults for configs saved before new fields existed
+  const config = useMemo(() => ({
+    ...rawConfig,
+    filters: rawConfig.filters || [],
+    xAxisType: rawConfig.xAxisType || 'dimension',
+    kpis: rawConfig.kpis || [],
+  }), [rawConfig]);
+
   const [showSettings, setShowSettings] = useState(false);
   const [showKpiModal, setShowKpiModal] = useState(false);
   const tableData = useMemo(() => generateTableData(config), [config]);
