@@ -118,11 +118,13 @@ const DISPLAY_MODES: { id: MapDisplayMode; label: string }[] = [
 
 const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [sitesLoaded, setSitesLoaded] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
 
-  useEffect(() => {
-    fetchTopoSites().then(s => { setSites(s); setLoading(false); });
+  const handleLoadSites = useCallback(() => {
+    setLoading(true);
+    fetchTopoSites().then(s => { setSites(s); setLoading(false); setSitesLoaded(true); });
   }, []);
 
   const availablePlaques = useMemo(() => getAvailablePlaques(config.dorFilter, config.vendorFilter), [config.dorFilter, config.vendorFilter]);
@@ -187,7 +189,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
           </div>
           <div className="min-w-0">
             <h3 className="text-[13px] font-semibold text-foreground truncate select-none leading-tight">{config.title}</h3>
-            <span className="text-[10px] text-muted-foreground font-mono leading-none">{filtered.length} sites · {displayModeLabel}</span>
+            <span className="text-[10px] text-muted-foreground font-mono leading-none">{sitesLoaded ? `${filtered.length} sites` : 'No sites loaded'} · {displayModeLabel}</span>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onMouseDown={stopDrag}>
@@ -301,6 +303,18 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               <span className={`w-1.5 h-1.5 rounded-full ${config.showMetricValues ? 'bg-primary' : 'bg-muted-foreground/40'}`} />
             </button>
           </div>
+
+          {/* Load Sites button */}
+          <div className="pt-1">
+            <button
+              onClick={handleLoadSites}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all duration-200 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm disabled:opacity-50"
+            >
+              <MapIcon className="w-3.5 h-3.5" />
+              {loading ? 'Chargement...' : sitesLoaded ? 'Recharger les sites' : 'Charger les sites'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -311,7 +325,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center animate-pulse">
               <MapIcon className="w-4 h-4 text-primary" />
             </div>
-            <span className="text-[11px] text-muted-foreground font-medium">Loading sites...</span>
+            <span className="text-[11px] text-muted-foreground font-medium">Chargement des sites...</span>
           </div>
         ) : (
           <MapContainer
