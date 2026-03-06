@@ -613,15 +613,6 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             )}
           </div>
         </ConfigCard>
-        {(draft.xAxis.type || 'date') === 'date' && (
-          <>
-            <ConfigCard
-              icon={<Calendar className="w-4 h-4" />}
-              title="Time Range"
-              summary={timeRangeSummary}
-              open={openCard === 'time'}
-              onToggle={() => toggleCard('time')}
-            >
               <div className="space-y-3 pt-2">
                 <div className="flex items-end gap-2">
                   <div className="flex-1 space-y-1">
