@@ -1614,11 +1614,11 @@ VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
 Le JSON doit être sur UNE SEULE LIGNE.
 
 ## 📊 CRÉATION DE DASHBOARD
-Quand l'utilisateur demande de CRÉER un dashboard (ex: "crée un dashboard", "génère un tableau de bord", "build a dashboard", "nouveau dashboard avec..."), tu DOIS inclure un bloc spécial en commentaire HTML à la fin de ta réponse :
+Quand l'utilisateur demande de CRÉER un dashboard (ex: "crée un dashboard", "génère un tableau de bord", "build a dashboard", "nouveau dashboard avec..."), tu DOIS inclure un bloc spécial en commentaire HTML à la FIN de ta réponse. NE PAS mettre ce bloc dans un code block markdown. Écris-le directement en texte brut :
 
-\`\`\`
 <!-- CREATE_DASHBOARD:{"name":"Nom du Dashboard","description":"Description","charts":[{"title":"Titre Chart","kpis":["debit_dl","rtt_data_avg"],"chartTypes":["line","bar"],"dimension1":"Site","dateRange":30}]} -->
-\`\`\`
+
+IMPORTANT : Ce commentaire HTML doit être écrit DIRECTEMENT dans la réponse, PAS dans un bloc de code. Il sera invisible pour l'utilisateur mais intercepté par le système.
 
 Règles pour la création de dashboard :
 - "name" : nom du dashboard basé sur la demande
