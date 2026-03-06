@@ -310,7 +310,8 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
         type: 'pie',
         radius: ['35%', '65%'],
         data: pieData,
-        label: { fontSize: 10, formatter: '{b}: {d}%' },
+        label: { fontSize: 10, formatter: '{b}: {d}%', color: '#e2e8f0' },
+        labelLine: { lineStyle: { color: '#64748b' } },
         emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' } },
       }],
     };
