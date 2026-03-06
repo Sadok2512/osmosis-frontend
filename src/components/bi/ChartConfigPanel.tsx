@@ -592,6 +592,22 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                       </button>
                     </div>
 
+                    {/* Dimension1 selector */}
+                    <div className="mt-1.5">
+                      <select
+                        value={m.dimension1 || ''}
+                        onChange={e => updateMetric(i, { dimension1: e.target.value || undefined })}
+                        className="w-full bg-muted/30 border border-border/40 rounded-lg px-2.5 py-1.5 text-[11px] text-foreground
+                          outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                          hover:border-border appearance-none cursor-pointer transition-all duration-150"
+                      >
+                        <option value="">Toutes dimensions</option>
+                        {BI_DIMENSIONS.map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     {/* Collapsible settings */}
                     <div className={`transition-all duration-200 ease-out ${isExpanded ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0 overflow-hidden'}`}>
                       <div className="space-y-3 pb-1">
