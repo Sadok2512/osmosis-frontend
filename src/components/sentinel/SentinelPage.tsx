@@ -43,7 +43,7 @@ const SentinelPage: React.FC = () => {
         <div className="text-center space-y-3">
           <Shield className="w-12 h-12 mx-auto text-muted-foreground animate-pulse" />
           <p className="text-sm text-muted-foreground">Connexion à l'Agent Sentinel...</p>
-          <p className="text-xs text-muted-foreground/60">FastAPI backend à localhost:8000</p>
+          <p className="text-xs text-muted-foreground/60"><p className="text-xs text-muted-foreground/60">FastAPI backend à localhost:3000</p></p>
         </div>
       </div>
     );
