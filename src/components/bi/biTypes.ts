@@ -189,6 +189,7 @@ export interface ChartConfig {
     legendPosition: 'bottom' | 'top' | 'left' | 'right';
     backgroundColor: string;
     headerTextColor: string;
+    showGrid: boolean;
     yAxisMode: 'auto' | 'fixed';
     yAxisMin: number | null;
     yAxisMax: number | null;
@@ -255,6 +256,7 @@ export function createDefaultChart(id: string): ChartConfig {
       legendPosition: 'bottom',
       backgroundColor: 'transparent',
       headerTextColor: '',
+      showGrid: true,
       yAxisMode: 'auto',
       yAxisMin: null,
       yAxisMax: null,
