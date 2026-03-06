@@ -30,6 +30,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'kpi_monitor', label: 'KPI Monitor', icon: <LineChart className="w-5 h-5" /> },
   { id: 'alerts', label: 'Alerts & RCA Monitor', icon: <Bell className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
+  { id: 'sentinel', label: 'Agent Sentinel', icon: <Radio className="w-5 h-5" /> },
   { id: 'topologie', label: 'Parameters HUB', icon: <Sliders className="w-5 h-5" /> },
   
   { id: 'docs', label: 'Documentation', icon: <BookOpen className="w-5 h-5" /> },
