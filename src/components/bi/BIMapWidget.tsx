@@ -157,7 +157,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   }, [sites, config.vendorFilter, config.dorFilter, config.plaqueFilter, config.technoFilter, config.zoneArcepFilter, config.bandeFilter]);
 
   // Only render markers if filtered count is small enough or filters are active
-  const shouldRenderSites = sitesLoaded && (hasActiveFilter || filtered.length <= AUTO_LOAD_THRESHOLD);
+  const shouldRenderSites = sitesLoaded && (hasActiveFilter || filtered.length <= AUTO_LOAD_THRESHOLD || forceDisplay);
 
   const metricLabel = MAP_METRICS.find(m => m.id === config.metric)?.label || config.metric;
   const getSiteValue = (s: SiteSummary): number => (s as any)[config.metric] ?? s.qoe_score_avg;
