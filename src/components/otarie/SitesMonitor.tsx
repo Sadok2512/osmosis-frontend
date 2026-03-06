@@ -4024,7 +4024,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <div className="px-5 pb-2 shrink-0 flex items-center gap-1 bg-muted/20 border-b border-border">
                 {[
                   { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
-                  { id: 'dashboard' as const, label: activeDashboard ? activeDashboard.name : 'Dashboard', icon: <LayoutGrid size={12} /> },
+                  { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
                 ].map(tab => (
                   <button
                     key={tab.id}
