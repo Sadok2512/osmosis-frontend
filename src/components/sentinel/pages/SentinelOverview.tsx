@@ -24,7 +24,7 @@ const SentinelOverview: React.FC<Props> = ({ date }) => {
         <div className="text-center space-y-2">
           <AlertCircle className="w-10 h-10 mx-auto text-destructive" />
           <p className="text-sm font-medium">Impossible de contacter l'API Sentinel</p>
-          <p className="text-xs text-muted-foreground">Vérifiez que le backend FastAPI tourne sur localhost:8000</p>
+          <p className="text-xs text-muted-foreground"><p className="text-xs text-muted-foreground">Vérifiez que le backend FastAPI tourne sur localhost:3000</p></p>
         </div>
       </div>
     );
