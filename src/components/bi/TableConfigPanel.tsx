@@ -20,7 +20,7 @@ interface Props {
   onClose: () => void;
 }
 
-/* ─── Inline KPI Selector ─── */
+/* ─── Inline KPI Selector (split layout like graph) ─── */
 const KpiSelectorSection: React.FC<{
   selected: BIKPI[];
   onConfirm: (kpis: BIKPI[]) => void;
@@ -29,7 +29,6 @@ const KpiSelectorSection: React.FC<{
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  // Sync draft when parent selection changes externally
   React.useEffect(() => { setDraft(selected); }, [selected]);
 
   const isDirty = JSON.stringify(draft.slice().sort()) !== JSON.stringify(selected.slice().sort());
@@ -53,109 +52,149 @@ const KpiSelectorSection: React.FC<{
   return (
     <div className="flex flex-col min-h-0 flex-1">
       {/* Sub-header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/40">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold text-foreground">Sélection</span>
-          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{draft.length}</span>
+          <span className="text-[12px] font-bold text-foreground">Sélection</span>
+          <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-medium">{draft.length} élément(s)</span>
         </div>
-        <button onClick={() => setDraft([])} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
+        <button onClick={() => setDraft([])} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
           <RotateCcw className="w-3 h-3" /> Réinitialiser
         </button>
       </div>
 
-      {/* Category pills */}
-      <div className="px-4 py-2 border-b border-border/40">
-        <div className="flex flex-wrap gap-1">
-          <button onClick={() => setActiveCategory(null)}
-            className={`px-2 py-0.5 rounded-full text-[9px] font-semibold transition-colors ${
-              !activeCategory ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
-            }`}>
-            Tous ({BI_KPI_CATALOG.length})
+      {/* Split layout: categories sidebar + KPI list */}
+      <div className="flex flex-1 min-h-0">
+        {/* ── Left sidebar: categories ── */}
+        <div className="w-[120px] shrink-0 border-r border-border/40 overflow-y-auto bg-muted/10">
+          <div className="px-2 pt-2 pb-1">
+            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">KPIs par catégorie</span>
+          </div>
+          {/* All */}
+          <button
+            onClick={() => setActiveCategory(null)}
+            className={`w-full flex items-center justify-between px-2.5 py-2 text-left transition-colors ${
+              !activeCategory ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/40'
+            }`}
+          >
+            <span className="text-[10px] font-semibold truncate">Tous</span>
+            <div className="flex items-center gap-1 shrink-0">
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                !activeCategory ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+              }`}>{BI_KPI_CATALOG.length}</span>
+              <ChevronRight className="w-3 h-3 text-muted-foreground" />
+            </div>
           </button>
-          {BI_KPI_CATEGORIES.map(cat => (
-            <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold transition-colors ${
-                activeCategory === cat ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
-              }`}>
-              <div className={`w-1.5 h-1.5 rounded-full ${CATEGORY_COLORS[cat] || 'bg-muted-foreground'}`} />
-              {cat} ({categoryCounts[cat] || 0})
-            </button>
-          ))}
+          {BI_KPI_CATEGORIES.map(cat => {
+            const isActive = activeCategory === cat;
+            const catColor = CATEGORY_COLORS[cat] || 'bg-muted-foreground';
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(isActive ? null : cat)}
+                className={`w-full flex items-center justify-between px-2.5 py-2 text-left transition-colors ${
+                  isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/40'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${catColor}`} />
+                  <span className="text-[10px] font-medium truncate">{cat}</span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                    isActive ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                  }`}>{categoryCounts[cat] || 0}</span>
+                  <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Right panel: search + KPI list ── */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+          {/* Search */}
+          <div className="px-3 py-2 border-b border-border/40">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <input
+                className="w-full pl-8 pr-3 py-1.5 text-[11px] bg-muted/30 border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
+                placeholder="Rechercher un KPI..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* KPI list */}
+          <div className="flex-1 overflow-y-auto">
+            {filteredKpis.map(kpi => {
+              const isSelected = draft.includes(kpi.key);
+              const catColor = CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground';
+              return (
+                <button key={kpi.key} onClick={() => toggle(kpi.key)}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-all border-b border-border/20 ${
+                    isSelected ? 'bg-primary/8 ring-1 ring-primary/20' : 'hover:bg-muted/30'
+                  }`}>
+                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
+                    isSelected ? 'bg-primary border-primary shadow-sm' : 'border-border/60'
+                  }`}>
+                    {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                  </div>
+                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${catColor}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[11px] font-semibold text-foreground truncate">{kpi.display_name}</div>
+                    <div className="text-[9px] text-muted-foreground">{kpi.key}</div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {kpi.unit && <span className="text-[8px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">{kpi.unit}</span>}
+                    <span className="text-[8px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">{kpi.category}</span>
+                  </div>
+                </button>
+              );
+            })}
+            {filteredKpis.length === 0 && (
+              <div className="text-[11px] text-muted-foreground text-center py-8 italic">Aucun KPI trouvé</div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="px-4 py-2 border-b border-border/40">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <input
-            className="w-full pl-8 pr-3 py-1.5 text-[11px] bg-muted/30 border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
-            placeholder="Rechercher un KPI..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* KPI list */}
-      <div className="flex-1 overflow-y-auto">
-        {filteredKpis.map(kpi => {
-          const isSelected = draft.includes(kpi.key);
-          const catColor = CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground';
-          return (
-            <button key={kpi.key} onClick={() => toggle(kpi.key)}
-              className={`w-full flex items-center gap-2.5 px-4 py-2 text-left transition-all border-b border-border/20 ${
-                isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'
-              }`}>
-              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
-                isSelected ? 'bg-primary border-primary' : 'border-border'
-              }`}>
-                {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
-              </div>
-              <div className={`w-2 h-2 rounded-full shrink-0 ${catColor}`} />
-              <div className="flex-1 min-w-0">
-                <div className="text-[11px] font-medium text-foreground truncate">{kpi.display_name}</div>
-                <div className="text-[9px] text-muted-foreground">{kpi.key}</div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {kpi.unit && <span className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground">{kpi.unit}</span>}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Selected tags + Confirm button */}
+      {/* Footer: selected tags + actions */}
       <div className="border-t border-border/40 bg-muted/10">
         {draft.length > 0 && (
-          <div className="px-4 py-2 max-h-[80px] overflow-y-auto">
+          <div className="px-3 py-2 max-h-[60px] overflow-y-auto">
             <div className="flex flex-wrap gap-1">
               {draft.map(key => {
                 const kpi = BI_KPI_CATALOG.find(k => k.key === key);
                 const catColor = kpi ? (CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground') : 'bg-muted-foreground';
                 return (
-                  <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-medium">
+                  <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-semibold">
                     <div className={`w-1.5 h-1.5 rounded-full ${catColor}`} />
                     {kpi?.display_name || key}
-                    <button onClick={() => toggle(key)} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                    <button onClick={() => toggle(key)} className="hover:text-destructive ml-0.5"><X className="w-2.5 h-2.5" /></button>
                   </span>
                 );
               })}
             </div>
           </div>
         )}
-        <div className="px-4 py-2 border-t border-border/30">
+        <div className="flex items-center gap-2 px-3 py-2.5 border-t border-border/30">
+          <button
+            onClick={() => { setDraft(selected); }}
+            className="flex-1 py-2 rounded-lg text-[11px] font-semibold border border-border text-foreground hover:bg-muted/40 transition-colors"
+          >
+            Fermer
+          </button>
           <button
             disabled={!isDirty}
             onClick={() => onConfirm(draft)}
-            className={`w-full py-2 rounded-lg text-[11px] font-semibold transition-all ${
+            className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
               isDirty
                 ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
                 : 'bg-muted text-muted-foreground cursor-not-allowed'
             }`}
           >
-            <Check className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />
-            Confirmer la sélection ({draft.length})
+            Confirmer
           </button>
         </div>
       </div>
