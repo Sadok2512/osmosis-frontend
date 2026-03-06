@@ -304,9 +304,9 @@ export const parameterChangesApi = {
   create: (change: Record<string, any>) => post<any>('parameter-changes', change),
 };
 
-// ─── BI Query (always local — uses qoe_metric on local PostgreSQL, no Cloud fallback) ───
+// ─── BI Query (local first, Cloud fallback via kpi_qoe_aggregated) ───
 export const biQueryApi = {
-  query: (params: {
+  query: async (params: {
     kpis: string[];
     aggregation?: string;
     dateStart?: string;
@@ -318,15 +318,94 @@ export const biQueryApi = {
     xAxisType?: string;
     xAxisDimension?: string;
   }): Promise<{ rows: any[]; total: number }> => {
-    return post<{ rows: any[]; total: number }>('bi-query', params);
+    if (useLocal()) {
+      return post<{ rows: any[]; total: number }>('bi-query', params);
+    }
+    // Cloud fallback: query kpi_qoe_aggregated from Supabase
+    try {
+      let query = supabase.from('kpi_qoe_aggregated').select('*');
+
+      if (params.dateStart) query = query.gte('date_part', params.dateStart);
+      if (params.dateEnd) query = query.lte('date_part', params.dateEnd);
+
+      // Apply filters
+      if (params.filters) {
+        for (const f of params.filters) {
+          if (f.values.length > 0) {
+            if (f.dimension === 'dimension_1') {
+              query = query.in('dimension_1', f.values);
+            } else if (f.dimension === 'dimension_2') {
+              query = query.in('dimension_2', f.values);
+            }
+          }
+        }
+      }
+
+      query = query.order('date_part', { ascending: true }).limit(1000);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const rows = (data || []).map((row: any) => {
+        const mapped: Record<string, any> = {
+          x: row.date_part,
+          dimension_1: row.dimension_1,
+          dimension_2: row.dimension_2,
+        };
+        for (const kpi of params.kpis) {
+          mapped[kpi] = row[kpi] ?? null;
+        }
+        return mapped;
+      });
+
+      return { rows, total: rows.length };
+    } catch (err) {
+      console.warn('[BI Cloud fallback] failed:', err);
+      return { rows: [], total: 0 };
+    }
   },
 
-  distinct: (dimension: string): Promise<string[]> => {
-    return get<string[]>(`bi-distinct?dimension=${encodeURIComponent(dimension)}`);
+  distinct: async (dimension: string): Promise<string[]> => {
+    if (useLocal()) {
+      return get<string[]>(`bi-distinct?dimension=${encodeURIComponent(dimension)}`);
+    }
+    // Cloud fallback
+    try {
+      const { data, error } = await supabase
+        .from('kpi_qoe_aggregated')
+        .select(dimension)
+        .limit(1000);
+      if (error) throw error;
+      const unique = [...new Set((data || []).map((r: any) => r[dimension]).filter(Boolean))];
+      return unique as string[];
+    } catch {
+      return [];
+    }
   },
 
-  dateRange: (): Promise<{ min_date: string | null; max_date: string | null }> => {
-    return get<{ min_date: string | null; max_date: string | null }>('bi-date-range');
+  dateRange: async (): Promise<{ min_date: string | null; max_date: string | null }> => {
+    if (useLocal()) {
+      return get<{ min_date: string | null; max_date: string | null }>('bi-date-range');
+    }
+    // Cloud fallback
+    try {
+      const { data: minData } = await supabase
+        .from('kpi_qoe_aggregated')
+        .select('date_part')
+        .order('date_part', { ascending: true })
+        .limit(1);
+      const { data: maxData } = await supabase
+        .from('kpi_qoe_aggregated')
+        .select('date_part')
+        .order('date_part', { ascending: false })
+        .limit(1);
+      return {
+        min_date: minData?.[0]?.date_part || null,
+        max_date: maxData?.[0]?.date_part || null,
+      };
+    } catch {
+      return { min_date: null, max_date: null };
+    }
   },
 };
 
