@@ -123,10 +123,13 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
             <XAxis dataKey={xKey} tick={{ fontSize: 10 }} />
             <YAxis tick={{ fontSize: 10 }} />
             <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }} />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
+            {!colorByX && <Legend wrapperStyle={{ fontSize: 10 }} />}
             {yKeys.map((key, i) => (
               <Bar key={key} dataKey={key} fill={palette[i % palette.length]} radius={[4, 4, 0, 0]}>
-                <LabelList dataKey={key} position="top" offset={8} style={{ fontSize: 9, fontWeight: 700, fill: palette[i % palette.length] }} formatter={formatValue} />
+                {colorByX && data.map((_, di) => (
+                  <Cell key={di} fill={RAINBOW_PALETTE[di % RAINBOW_PALETTE.length]} />
+                ))}
+                <LabelList dataKey={key} position="top" offset={8} style={{ fontSize: 9, fontWeight: 700, fill: colorByX ? 'hsl(var(--foreground))' : palette[i % palette.length] }} formatter={formatValue} />
               </Bar>
             ))}
           </BarChart>
