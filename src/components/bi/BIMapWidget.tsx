@@ -355,43 +355,45 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               attribution={TILE_URLS[config.mapLayer].attribution}
             />
             <MapSync onChange={handleMapSync} />
-            <MarkerClusterGroup
-              chunkedLoading
-              iconCreateFunction={createClusterIcon}
-              maxClusterRadius={50}
-              showCoverageOnHover={false}
-              zoomToBoundsOnClick
-            >
-              {filtered.map(site => {
-                const color = getSiteColor(site);
-                const val = getSiteValue(site);
-                return (
-                  <CircleMarker
-                    key={site.site_id}
-                    center={site.coordinates}
-                    radius={7}
-                    pathOptions={{
-                      color: 'white',
-                      fillColor: color,
-                      fillOpacity: 0.9,
-                      weight: 2,
-                    }}
-                  >
-                    <Tooltip key={`tt-${config.showSiteNames}`} direction="top" offset={[0, -10]} permanent={config.showSiteNames}>
-                      <div style={{ fontFamily: 'Inter, sans-serif' }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{site.site_name}</div>
-                        <div style={{ fontSize: 10, color: '#64748b' }}>{site.vendor} · {site.cell_count} cells</div>
-                        {config.displayMode === 'qoe' && config.showMetricValues && (
-                          <div style={{ fontSize: 11, fontWeight: 700, color, marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
-                            {metricLabel}: {typeof val === 'number' ? val.toFixed(1) : val}
-                          </div>
-                        )}
-                      </div>
-                    </Tooltip>
-                  </CircleMarker>
-                );
-              })}
-            </MarkerClusterGroup>
+            {shouldRenderSites ? (
+              <MarkerClusterGroup
+                chunkedLoading
+                iconCreateFunction={createClusterIcon}
+                maxClusterRadius={50}
+                showCoverageOnHover={false}
+                zoomToBoundsOnClick
+              >
+                {filtered.map(site => {
+                  const color = getSiteColor(site);
+                  const val = getSiteValue(site);
+                  return (
+                    <CircleMarker
+                      key={site.site_id}
+                      center={site.coordinates}
+                      radius={7}
+                      pathOptions={{
+                        color: 'white',
+                        fillColor: color,
+                        fillOpacity: 0.9,
+                        weight: 2,
+                      }}
+                    >
+                      <Tooltip key={`tt-${config.showSiteNames}`} direction="top" offset={[0, -10]} permanent={config.showSiteNames}>
+                        <div style={{ fontFamily: 'Inter, sans-serif' }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{site.site_name}</div>
+                          <div style={{ fontSize: 10, color: '#64748b' }}>{site.vendor} · {site.cell_count} cells</div>
+                          {config.displayMode === 'qoe' && config.showMetricValues && (
+                            <div style={{ fontSize: 11, fontWeight: 700, color, marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
+                              {metricLabel}: {typeof val === 'number' ? val.toFixed(1) : val}
+                            </div>
+                          )}
+                        </div>
+                      </Tooltip>
+                    </CircleMarker>
+                  );
+                })}
+              </MarkerClusterGroup>
+            ) : null}
 
             {/* Layer control */}
             <div className="absolute bottom-3 right-3 z-[1000] flex flex-col gap-2">
