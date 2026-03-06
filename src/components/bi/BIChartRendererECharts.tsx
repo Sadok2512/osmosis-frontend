@@ -219,7 +219,8 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
         smoothCurve: true,
       }));
     }
-    return config.yMetrics;
+    // Filter out hidden metrics
+    return config.yMetrics.filter(m => m.visible !== false);
   }, [csvDataset, config.dataSource?.yColumns, config.yMetrics]);
 
   const firstMetric = effectiveYMetrics[0];
