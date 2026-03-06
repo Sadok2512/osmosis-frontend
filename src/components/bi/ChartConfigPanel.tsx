@@ -852,43 +852,6 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </div>
         </ConfigCard>
 
-        {/* ── VISUALIZATION ── */}
-        <ConfigCard
-          icon={<BarChart3 className="w-4 h-4" />}
-          title="Visualization"
-          summary={`${CHART_TYPE_OPTIONS.find(o => o.type === draft.yMetrics[0]?.chartType)?.label || 'Line'} chart`}
-          open={openCard === 'visualization'}
-          onToggle={() => toggleCard('visualization')}
-        >
-          <div className="pt-2">
-            <TooltipProvider delayDuration={200}>
-              <div className="grid grid-cols-3 gap-2">
-                {CHART_TYPE_OPTIONS.map(opt => (
-                  <Tooltip key={opt.type}>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => {
-                          // Apply to all metrics
-                          const metrics = draft.yMetrics.map(m => ({ ...m, chartType: opt.type }));
-                          update({ yMetrics: metrics });
-                        }}
-                        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-[11px] font-medium transition-all duration-200 ${
-                          draft.yMetrics[0]?.chartType === opt.type
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                            : 'bg-muted/20 text-muted-foreground border-border/40 hover:border-border/70 hover:text-foreground hover:bg-muted/40'
-                        }`}
-                      >
-                        {opt.icon}
-                        {opt.label}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-[11px]">{opt.label}</TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
-            </TooltipProvider>
-          </div>
-        </ConfigCard>
 
       </div>
 
