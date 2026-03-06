@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { GripVertical, Trash2, Plus, X, Table2, Settings, Filter, Calendar, LayoutGrid, Check, Search, ChevronDown } from 'lucide-react';
+import { GripVertical, Trash2, Plus, X, Table2, Settings, Filter, Calendar, LayoutGrid, Check, Search, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
 import { BI_KPI_CATALOG, BI_KPI_CATEGORIES, BI_DIMENSIONS, BIDimension, BIKPI, KPI_UNITS, getKpiDisplayName } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 
@@ -103,7 +103,17 @@ const getKpiColor = (kpi: string, value: number): string => {
   return 'text-foreground';
 };
 
-/* ─── KPI Selector Modal ─── */
+const CATEGORY_COLORS: Record<string, string> = {
+  'Volume': 'bg-blue-500',
+  'Débit': 'bg-emerald-500',
+  'Latence': 'bg-amber-500',
+  'TCP Session KPI': 'bg-rose-500',
+  'Radio Access Tech': 'bg-sky-500',
+  'QOE Index': 'bg-red-500',
+  'User Capabilité': 'bg-purple-500',
+};
+
+/* ─── KPI Selector Modal (redesigned) ─── */
 const KpiSelectorModal: React.FC<{
   selected: BIKPI[];
   onConfirm: (kpis: BIKPI[]) => void;
@@ -123,85 +133,138 @@ const KpiSelectorModal: React.FC<{
     return matchSearch && matchCat;
   });
 
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    BI_KPI_CATALOG.forEach(k => { counts[k.category] = (counts[k.category] || 0) + 1; });
+    return counts;
+  }, []);
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-[560px] max-h-[70vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-[720px] max-h-[75vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/30">
+        <div className="px-5 py-3.5 bg-primary">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-primary-foreground">Sélectionner des KPIs</h3>
+            <button onClick={onClose} className="p-1 rounded hover:bg-white/20 text-primary-foreground"><X className="w-4 h-4" /></button>
+          </div>
+        </div>
+
+        {/* Sub-header: count + reset */}
+        <div className="flex items-center justify-between px-5 py-2.5 border-b border-border">
           <div className="flex items-center gap-2">
-            <Table2 className="w-4 h-4 text-primary" />
-            <span className="text-sm font-bold text-foreground">Select KPIs</span>
-            <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">{draft.length} selected</span>
+            <span className="text-xs font-semibold text-foreground">Sélection</span>
+            <span className="text-[10px] text-muted-foreground">{draft.length} élément(s)</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4 text-muted-foreground" /></button>
+          <button onClick={() => setDraft([])} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
+            <RotateCcw className="w-3 h-3" /> Réinitialiser
+          </button>
         </div>
 
-        {/* Search */}
-        <div className="px-5 py-2 border-b border-border">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted/30 border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
-              placeholder="Search KPIs..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Category tabs */}
-        <div className="flex gap-1 px-5 py-2 border-b border-border overflow-x-auto">
-          <button
-            onClick={() => setActiveCategory(null)}
-            className={`px-2.5 py-1 rounded-full text-[10px] font-semibold whitespace-nowrap transition-colors ${
-              !activeCategory ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
-            }`}
-          >All</button>
-          {BI_KPI_CATEGORIES.map(cat => (
-            <button key={cat} onClick={() => setActiveCategory(cat)}
-              className={`px-2.5 py-1 rounded-full text-[10px] font-semibold whitespace-nowrap transition-colors ${
-                activeCategory === cat ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
-              }`}
-            >{cat}</button>
-          ))}
-        </div>
-
-        {/* KPI grid */}
-        <div className="flex-1 overflow-y-auto px-5 py-3">
-          <div className="grid grid-cols-2 gap-1.5">
-            {filteredKpis.map(kpi => {
-              const isSelected = draft.includes(kpi.key);
-              return (
-                <button key={kpi.key} onClick={() => toggle(kpi.key)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
-                    isSelected
-                      ? 'bg-primary/10 border border-primary/30 ring-1 ring-primary/20'
-                      : 'bg-muted/20 border border-transparent hover:bg-muted/40'
-                  }`}>
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                    isSelected ? 'bg-primary border-primary' : 'border-border'
-                  }`}>
-                    {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-medium text-foreground truncate">{kpi.display_name}</div>
-                    <div className="text-[9px] text-muted-foreground">{kpi.category}{kpi.unit ? ` • ${kpi.unit}` : ''}</div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-muted/20">
-          <button onClick={() => setDraft([])} className="text-[10px] text-muted-foreground hover:text-foreground">Clear all</button>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-3 py-1.5 text-xs rounded-lg bg-muted text-muted-foreground hover:text-foreground">Cancel</button>
-            <button onClick={() => { onConfirm(draft); onClose(); }}
-              className="px-4 py-1.5 text-xs rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90">
-              Confirm ({draft.length})
+        {/* Body: sidebar + list */}
+        <div className="flex flex-1 min-h-0">
+          {/* Category sidebar */}
+          <div className="w-[200px] border-r border-border py-2 overflow-y-auto shrink-0">
+            <div className="px-3 mb-1">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">KPIs par catégorie</span>
+            </div>
+            {/* All */}
+            <button onClick={() => setActiveCategory(null)}
+              className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors ${
+                !activeCategory ? 'bg-primary/10 text-primary font-bold' : 'text-foreground hover:bg-muted/40'
+              }`}>
+              <span>Tous</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground">{BI_KPI_CATALOG.length}</span>
+                <ChevronRight className="w-3 h-3 text-muted-foreground" />
+              </div>
             </button>
+            {BI_KPI_CATEGORIES.map(cat => (
+              <button key={cat} onClick={() => setActiveCategory(cat)}
+                className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors ${
+                  activeCategory === cat ? 'bg-primary/10 text-primary font-bold' : 'text-foreground hover:bg-muted/40'
+                }`}>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${CATEGORY_COLORS[cat] || 'bg-muted-foreground'}`} />
+                  <span>{cat}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground">{categoryCounts[cat] || 0}</span>
+                  <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* KPI list */}
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Search */}
+            <div className="px-4 py-2.5 border-b border-border">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-muted/30 border border-border rounded-lg outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
+                  placeholder="Rechercher un KPI..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Scrollable list */}
+            <div className="flex-1 overflow-y-auto">
+              {filteredKpis.map(kpi => {
+                const isSelected = draft.includes(kpi.key);
+                const catColor = CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground';
+                return (
+                  <button key={kpi.key} onClick={() => toggle(kpi.key)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all border-b border-border/30 ${
+                      isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'
+                    }`}>
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      isSelected ? 'bg-primary border-primary' : 'border-border'
+                    }`}>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-primary-foreground" />}
+                    </div>
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${catColor}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-foreground">{kpi.display_name}</div>
+                      <div className="text-[10px] text-muted-foreground">{kpi.key}</div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {kpi.unit && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{kpi.unit}</span>}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{kpi.category}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer: selected tags + buttons */}
+        <div className="border-t border-border bg-muted/20 px-5 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-wrap gap-1 flex-1 mr-4">
+              {draft.map(key => {
+                const kpi = BI_KPI_CATALOG.find(k => k.key === key);
+                const catColor = kpi ? (CATEGORY_COLORS[kpi.category] || 'bg-muted-foreground') : 'bg-muted-foreground';
+                return (
+                  <span key={key} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+                    <div className={`w-1.5 h-1.5 rounded-full ${catColor}`} />
+                    {kpi?.display_name || key}
+                    <button onClick={(e) => { e.stopPropagation(); toggle(key); }} className="hover:text-destructive ml-0.5"><X className="w-2.5 h-2.5" /></button>
+                  </span>
+                );
+              })}
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={onClose} className="px-4 py-2 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted">Fermer</button>
+              <button onClick={() => { onConfirm(draft); onClose(); }}
+                className="px-5 py-2 text-xs rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90">
+                Confirmer
+              </button>
+            </div>
           </div>
         </div>
       </div>
