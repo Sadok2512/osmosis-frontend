@@ -1905,6 +1905,8 @@ serve(async (req) => {
       cellContext: legacyCellContext,
       kpiMonitorContext,
       forcedAgent,
+      user_id,
+      session_id,
     } = body;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
