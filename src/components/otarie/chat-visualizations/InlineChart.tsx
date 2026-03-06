@@ -26,6 +26,12 @@ const COLOR_PALETTES: { name: string; colors: string[] }[] = [
   { name: 'Teal', colors: ['hsl(174, 70%, 40%)', 'hsl(174, 70%, 30%)', 'hsl(185, 60%, 45%)', 'hsl(165, 55%, 50%)', 'hsl(190, 65%, 35%)', 'hsl(180, 50%, 55%)'] },
 ];
 
+const RAINBOW_PALETTE = [
+  'hsl(221, 83%, 53%)', 'hsl(142, 70%, 45%)', 'hsl(25, 90%, 55%)', 'hsl(280, 65%, 55%)',
+  'hsl(0, 80%, 55%)', 'hsl(45, 90%, 48%)', 'hsl(174, 70%, 40%)', 'hsl(330, 70%, 50%)',
+  'hsl(200, 75%, 45%)', 'hsl(60, 80%, 42%)', 'hsl(310, 55%, 55%)', 'hsl(15, 85%, 50%)',
+];
+
 const CHART_TYPES: { key: ChartType; icon: React.ElementType; label: string }[] = [
   { key: 'bar', icon: BarChart3, label: 'Barres' },
   { key: 'line', icon: TrendingUp, label: 'Ligne' },
