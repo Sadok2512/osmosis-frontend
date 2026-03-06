@@ -1975,7 +1975,7 @@ serve(async (req) => {
     const supaClient = getSupabase();
     let learningContext = '';
     try {
-      // Few-shot examples from positively-rated responses
+      // Few-shot examples from positively-rated responses (agent-specific)
       const { data: fewShots } = await supaClient
         .from('agent_feedback')
         .select('user_question, assistant_response')
@@ -1988,20 +1988,79 @@ serve(async (req) => {
         const examples = fewShots.map((d: any, i: number) =>
           `--- Exemple ${i + 1} ---\nQ: ${d.user_question}\nR: ${(d.assistant_response || '').slice(0, 800)}`
         ).join('\n\n');
-        learningContext += `\n\n🎓 EXEMPLES DE BONNES RÉPONSES (few-shot learning - réponses validées par l'utilisateur):\n${examples}`;
+        learningContext += `\n\n🎓 EXEMPLES DE BONNES RÉPONSES (few-shot learning):\n${examples}`;
       }
 
-      // User preferences/memory
-      const { data: memories } = await supaClient
+      // User-specific preferences (filtered by user_id if available)
+      let memQuery = supaClient
+        .from('agent_memory')
+        .select('key, value, agent, relevance_score, updated_at')
+        .eq('memory_type', 'preference')
+        .order('relevance_score', { ascending: false })
+        .limit(20);
+
+      if (user_id) {
+        // Fetch user-specific + global preferences
+        const { data: userPrefs } = await supaClient
+          .from('agent_memory')
+          .select('key, value, agent, relevance_score, updated_at')
+          .eq('memory_type', 'preference')
+          .or(`source_session_id.eq.user:${user_id},source_session_id.is.null`)
+          .order('relevance_score', { ascending: false })
+          .limit(20);
+
+        if (userPrefs && userPrefs.length > 0) {
+          // Apply temporal decay: reduce relevance for old preferences
+          const now = Date.now();
+          const enriched = userPrefs.map((d: any) => {
+            const age = (now - new Date(d.updated_at).getTime()) / (1000 * 60 * 60 * 24); // days
+            const decay = Math.max(0.3, 1 - age / 90); // decay over 90 days, min 0.3
+            return { ...d, effectiveScore: (d.relevance_score || 1.0) * decay };
+          }).sort((a: any, b: any) => b.effectiveScore - a.effectiveScore);
+
+          const prefs = enriched.map((d: any) => {
+            const agentTag = d.agent ? ` [${d.agent}]` : '';
+            return `- ${d.key}${agentTag}: ${JSON.stringify(d.value?.data || d.value)} (score: ${d.effectiveScore.toFixed(2)})`;
+          }).join('\n');
+          learningContext += `\n\n🧠 MÉMOIRE UTILISATEUR (préférences apprises — adapte tes réponses):\n${prefs}`;
+        }
+      } else {
+        // No user_id: fetch global preferences
+        const { data: memories } = await memQuery;
+        if (memories && memories.length > 0) {
+          const prefs = memories.map((d: any) => `- ${d.key}: ${JSON.stringify(d.value?.data || d.value)}`).join('\n');
+          learningContext += `\n\n🧠 MÉMOIRE (préférences globales):\n${prefs}`;
+        }
+      }
+
+      // Fetch corrections (negative feedback patterns to avoid)
+      const { data: corrections } = await supaClient
         .from('agent_memory')
         .select('key, value')
-        .eq('memory_type', 'preference')
+        .eq('memory_type', 'correction')
+        .eq('agent', plan.agent)
         .order('updated_at', { ascending: false })
-        .limit(10);
+        .limit(5);
 
-      if (memories && memories.length > 0) {
-        const prefs = memories.map((d: any) => `- ${d.key}: ${JSON.stringify(d.value?.data || d.value)}`).join('\n');
-        learningContext += `\n\n🧠 MÉMOIRE UTILISATEUR (préférences apprises):\n${prefs}\nAdapte ton style et tes réponses selon ces préférences.`;
+      if (corrections && corrections.length > 0) {
+        const corr = corrections.map((d: any) => `- ❌ ${d.key}: ${JSON.stringify(d.value?.data || d.value)}`).join('\n');
+        learningContext += `\n\n⚠️ CORRECTIONS APPRISES (évite ces erreurs):\n${corr}`;
+      }
+
+      // Session summary from previous sessions (if user_id)
+      if (user_id) {
+        const { data: summaries } = await supaClient
+          .from('agent_memory')
+          .select('key, value')
+          .eq('memory_type', 'session_summary')
+          .eq('source_session_id', `user:${user_id}`)
+          .order('updated_at', { ascending: false })
+          .limit(3);
+
+        if (summaries && summaries.length > 0) {
+          const summ = summaries.map((d: any) => `- ${d.value?.summary || JSON.stringify(d.value)}`).join('\n');
+          learningContext += `\n\n📝 RÉSUMÉS SESSIONS PRÉCÉDENTES:\n${summ}`;
+        }
       }
     } catch (learningErr) {
       console.warn('Learning context fetch failed:', learningErr);
