@@ -607,12 +607,12 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   /* ─── Detail View ─── */
   if (selected) {
     // Extract theme from widgets (saved as _type: 'theme_settings' or _type: 'dashboard_settings')
-    const themeWidget = selected.widgets.find((w: any) => w?._type === 'theme_settings');
-    const dashSettingsWidget = selected.widgets.find((w: any) => w?._type === 'dashboard_settings');
+    const themeWidget = (selected.widgets as any[]).find((w: any) => w?._type === 'theme_settings');
+    const dashSettingsWidget = (selected.widgets as any[]).find((w: any) => w?._type === 'dashboard_settings');
     const dashBgColor = themeWidget?.backgroundColor || dashSettingsWidget?.color || '';
     const dashTitleColor = themeWidget?.titleTextColor || '';
     // Filter out meta widgets for rendering
-    const renderWidgets = selected.widgets.filter((w: any) => w != null && w._type !== 'theme_settings');
+    const renderWidgets = (selected.widgets as any[]).filter((w: any) => w != null && w._type !== 'theme_settings');
 
     return (
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
