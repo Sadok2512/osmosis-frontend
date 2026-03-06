@@ -113,7 +113,7 @@ const getKpiColor = (kpi: string, value: number): string => {
   return 'text-foreground';
 };
 
-const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete, onEdit }) => {
+const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete, onEdit, onCopy }) => {
   const config = useMemo(() => ({
     ...rawConfig,
     filters: rawConfig.filters || [],
