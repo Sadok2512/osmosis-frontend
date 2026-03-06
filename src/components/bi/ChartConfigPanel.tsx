@@ -525,38 +525,6 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           </SectionCard>
         )}
 
-        {/* Date Range moved to header — X-axis type selector kept here for non-date modes */}
-        {draft.xAxis.type !== 'date' && (
-          <SectionCard
-            title="X Axis"
-            icon={<Calendar className="w-4 h-4" />}
-            open={sections.x}
-            toggle={() => toggle('x')}
-          >
-            <div className="flex items-center gap-2">
-              <SegmentedControl
-                options={[
-                  { value: 'date', label: 'Date' },
-                  { value: 'dimension', label: 'Dimension' },
-                  { value: 'kpi', label: 'KPI' },
-                ]}
-                value={draft.xAxis.type}
-                onChange={v => updateX({ type: v as any })}
-              />
-            </div>
-            {draft.xAxis.type === 'dimension' && (
-              <StyledSelect value={draft.xAxis.value} options={BI_DIMENSIONS} onChange={v => updateX({ value: v })} />
-            )}
-            {draft.xAxis.type === 'kpi' && (
-              <button
-                onClick={() => { setKpiModalTarget({ type: 'xAxis' }); setKpiModalOpen(true); }}
-                className="w-full text-left bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[13px] text-foreground hover:border-primary/40 transition-all"
-              >
-                {getKpiDisplayName(draft.xAxis.value) || 'Sélectionner un KPI…'}
-              </button>
-            )}
-          </SectionCard>
-        )}
 
         {/* ═══ METRICS ═══ */}
         <SectionCategory>Metrics</SectionCategory>
