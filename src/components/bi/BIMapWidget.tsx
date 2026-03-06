@@ -118,11 +118,13 @@ const DISPLAY_MODES: { id: MapDisplayMode; label: string }[] = [
 
 const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [sitesLoaded, setSitesLoaded] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
 
-  useEffect(() => {
-    fetchTopoSites().then(s => { setSites(s); setLoading(false); });
+  const handleLoadSites = useCallback(() => {
+    setLoading(true);
+    fetchTopoSites().then(s => { setSites(s); setLoading(false); setSitesLoaded(true); });
   }, []);
 
   const availablePlaques = useMemo(() => getAvailablePlaques(config.dorFilter, config.vendorFilter), [config.dorFilter, config.vendorFilter]);
