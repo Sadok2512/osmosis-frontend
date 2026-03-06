@@ -22,6 +22,7 @@ import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../b
 import BIMapWidget from '../bi/BIMapWidget';
 import BITableWidget, { TableWidgetConfig, createDefaultTableWidget } from '../bi/BITableWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
+import TableConfigPanel from '../bi/TableConfigPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
 import { CSVDataProvider, CSVUploadButton, CSVDataPanel, useCSVData } from '../bi/CSVDataStore';
 import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
@@ -358,6 +359,7 @@ const KPIMonitorInner: React.FC = () => {
   const updateTableConfig = (id: string, config: TableWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'table' ? { ...w, config } : w));
 
   const editingChart = validWidgets.find(w => getId(w) === editingId && w.kind === 'chart');
+  const editingTable = validWidgets.find(w => getId(w) === editingId && w.kind === 'table');
 
   const renderWidget = (w: WidgetItem) => {
     const wId = getId(w);
@@ -365,7 +367,7 @@ const KPIMonitorInner: React.FC = () => {
     if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { store.setActiveEditingWidgetId(wId); setShowAI(false); }} onDuplicate={() => duplicateWidget(wId)} onDelete={() => deleteWidget(wId)} />;
     if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={cfg => updateMapConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
     if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={cfg => updateImageConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
-    if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
+    if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} onEdit={() => { setEditingId(wId); }} />;
     return <BITextWidget config={w.config as TextWidgetConfig} onChange={cfg => updateTextConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
   };
 
@@ -572,6 +574,13 @@ const KPIMonitorInner: React.FC = () => {
                 onThresholdsChange={t => setWidgetThresholds(prev => ({ ...prev, [configKey]: t }))}
                 thresholdsEnabled={widgetThresholdsEnabled[configKey] || false}
                 onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [configKey]: v }))}
+              />
+            )}
+            {editingTable && editingTable.kind === 'table' && !isMonoView && (
+              <TableConfigPanel
+                config={editingTable.config as TableWidgetConfig}
+                onChange={cfg => updateTableConfig(getId(editingTable), cfg)}
+                onClose={() => setEditingId(null)}
               />
             )}
           </div>

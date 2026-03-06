@@ -19,6 +19,7 @@ import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../b
 import BIMapWidget from '../bi/BIMapWidget';
 import BITableWidget, { TableWidgetConfig, createDefaultTableWidget } from '../bi/BITableWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
+import TableConfigPanel from '../bi/TableConfigPanel';
 import AIAssistantPanel from '../bi/AIAssistantPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
 import { CSVDataProvider, CSVUploadButton, CSVDataPanel, useCSVData } from '../bi/CSVDataStore';
@@ -312,6 +313,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   };
 
   const editingChart = validWidgets.find(w => getId(w) === editingId && w.kind === 'chart');
+  const editingTable = validWidgets.find(w => getId(w) === editingId && w.kind === 'table');
   const chartCount = validWidgets.filter(w => w.kind === 'chart').length;
   const textCount = validWidgets.filter(w => w.kind === 'text').length;
   const mapCount = validWidgets.filter(w => w.kind === 'map').length;
@@ -361,6 +363,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
           config={w.config as TableWidgetConfig}
           onChange={cfg => updateTableConfig(getId(w), cfg)}
           onDelete={() => deleteWidget(getId(w))}
+          onEdit={() => { setEditingId(getId(w)); setShowAI(false); }}
         />
       );
     }
@@ -533,6 +536,13 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
           <ChartConfigPanel
             config={editingChart.config as ChartConfig}
             onChange={cfg => updateChartConfig(getId(editingChart), cfg)}
+            onClose={() => setEditingId(null)}
+          />
+        )}
+        {editingTable && editingTable.kind === 'table' && (
+          <TableConfigPanel
+            config={editingTable.config as TableWidgetConfig}
+            onChange={cfg => updateTableConfig(getId(editingTable), cfg)}
             onClose={() => setEditingId(null)}
           />
         )}
