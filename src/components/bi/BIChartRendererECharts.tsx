@@ -305,7 +305,12 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
 
     const option = {
       tooltip: { ...PREMIUM_TOOLTIP, trigger: 'item' as const, formatter: undefined },
-      legend: config.advanced.showLegend ? PREMIUM_LEGEND : undefined,
+      legend: config.advanced.showLegend ? {
+        ...PREMIUM_LEGEND,
+        ...((config.advanced.legendPosition || 'bottom') === 'top' ? { top: 0, bottom: undefined } : {}),
+        ...((config.advanced.legendPosition || 'bottom') === 'left' ? { left: 0, top: 'middle', bottom: undefined, orient: 'vertical' as const } : {}),
+        ...((config.advanced.legendPosition || 'bottom') === 'right' ? { right: 0, top: 'middle', bottom: undefined, orient: 'vertical' as const } : {}),
+      } : undefined,
       series: [{
         type: 'pie',
         radius: ['35%', '65%'],
