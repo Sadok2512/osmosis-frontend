@@ -43,16 +43,16 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
   }
 
   // Scatter plot
-  const scatterOption = clusters ? {
+  const scatterOption = (clusters && clusters.length > 0) ? {
     tooltip: {
       trigger: 'item',
       formatter: (p: any) => `${p.data[3]}<br/>Débit: ${p.data[0].toFixed(2)}<br/>Latence: ${p.data[1].toFixed(2)}<br/>${p.data[4]} membres`,
     },
     grid: { left: 50, right: 20, top: 20, bottom: 40 },
-    xAxis: { name: 'Score Débit', nameLocation: 'center', nameGap: 25, type: 'value', min: 0, max: 1, axisLabel: { fontSize: 9 } },
-    yAxis: { name: 'Score Latence', nameLocation: 'center', nameGap: 35, type: 'value', min: 0, max: 1, axisLabel: { fontSize: 9 } },
+    xAxis: { name: 'Score Débit', nameLocation: 'center' as const, nameGap: 25, type: 'value' as const, min: 0, max: 1, axisLabel: { fontSize: 9 } },
+    yAxis: { name: 'Score Latence', nameLocation: 'center' as const, nameGap: 35, type: 'value' as const, min: 0, max: 1, axisLabel: { fontSize: 9 } },
     series: clusters.map(c => ({
-      type: 'scatter',
+      type: 'scatter' as const,
       name: c.cluster_label,
       symbolSize: Math.max(10, Math.min(40, c.cluster_size / 2)),
       data: [[c.centroid.score_debit, c.centroid.score_latence, c.cluster_size, c.cluster_label, c.cluster_size]],
