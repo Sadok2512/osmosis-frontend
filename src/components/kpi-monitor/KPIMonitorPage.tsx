@@ -576,6 +576,13 @@ const KPIMonitorInner: React.FC = () => {
                 onThresholdsEnabledChange={v => setWidgetThresholdsEnabled(prev => ({ ...prev, [configKey]: v }))}
               />
             )}
+            {editingTable && editingTable.kind === 'table' && !isMonoView && (
+              <TableConfigPanel
+                config={editingTable.config as TableWidgetConfig}
+                onChange={cfg => updateTableConfig(getId(editingTable), cfg)}
+                onClose={() => setEditingId(null)}
+              />
+            )}
           </div>
         );
       })()}
