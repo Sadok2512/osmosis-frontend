@@ -163,6 +163,7 @@ export interface MilestoneLine {
 export interface ChartConfig {
   id: string;
   title: string;
+  description?: string;
   xAxis: XAxisConfig;
   yMetrics: YMetricConfig[];
   filters: FilterConfig[];
