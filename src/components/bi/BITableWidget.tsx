@@ -38,8 +38,8 @@ interface Props {
   onChange: (config: TableWidgetConfig) => void;
   onDelete: () => void;
   onEdit?: () => void;
+  onCopy?: () => void;
 }
-
 export function createDefaultTableWidget(id: string): TableWidgetConfig {
   const end = new Date();
   const start = new Date();
