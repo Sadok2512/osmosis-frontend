@@ -305,7 +305,12 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
 
     const option = {
       tooltip: { ...PREMIUM_TOOLTIP, trigger: 'item' as const, formatter: undefined },
-      legend: config.advanced.showLegend ? PREMIUM_LEGEND : undefined,
+      legend: config.advanced.showLegend ? {
+        ...PREMIUM_LEGEND,
+        ...((config.advanced.legendPosition || 'bottom') === 'top' ? { top: 0, bottom: undefined } : {}),
+        ...((config.advanced.legendPosition || 'bottom') === 'left' ? { left: 0, top: 'middle', bottom: undefined, orient: 'vertical' as const } : {}),
+        ...((config.advanced.legendPosition || 'bottom') === 'right' ? { right: 0, top: 'middle', bottom: undefined, orient: 'vertical' as const } : {}),
+      } : undefined,
       series: [{
         type: 'pie',
         radius: ['35%', '65%'],
@@ -567,16 +572,24 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
   }
 
   const showLegend = config.advanced.showLegend;
-  const legendBottom = showLegend ? 28 : 8;
+  const legendPos = config.advanced.legendPosition || 'bottom';
+  const legendBottom = showLegend && legendPos === 'bottom' ? 28 : 8;
+
+  const legendConfig = showLegend ? {
+    ...PREMIUM_LEGEND,
+    ...(legendPos === 'top' ? { top: 0, bottom: undefined } : {}),
+    ...(legendPos === 'left' ? { left: 0, top: 'middle', bottom: undefined, orient: 'vertical' as const } : {}),
+    ...(legendPos === 'right' ? { right: 0, top: 'middle', bottom: undefined, orient: 'vertical' as const } : {}),
+  } : undefined;
 
   const option = {
     tooltip: PREMIUM_TOOLTIP,
-    legend: showLegend ? PREMIUM_LEGEND : undefined,
+    legend: legendConfig,
     grid: {
-      top: 24,
-      right: hasRight ? 64 : 24,
-      bottom: showLegend ? 58 : 38,
-      left: 52,
+      top: showLegend && legendPos === 'top' ? 40 : 24,
+      right: (hasRight ? 64 : 24) + (showLegend && legendPos === 'right' ? 100 : 0),
+      bottom: showLegend && legendPos === 'bottom' ? 58 : 38,
+      left: 52 + (showLegend && legendPos === 'left' ? 100 : 0),
     },
     xAxis: {
       type: 'category' as const,

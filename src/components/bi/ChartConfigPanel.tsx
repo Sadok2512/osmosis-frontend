@@ -388,30 +388,33 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         <div className={`transition-all duration-200 ease-out ${showAdvanced ? 'max-h-[400px] opacity-100 mt-4' : 'max-h-0 opacity-0 overflow-hidden'}`}>
           <div className="rounded-xl border border-border/40 bg-muted/20 p-4 space-y-4">
             <div className="space-y-3">
-              {[
-                { key: 'showLegend' as const, label: 'Legend' },
-                { key: 'highlightAnomalies' as const, label: 'Anomalies' },
-                { key: 'sortByValue' as const, label: 'Sort by value' },
-              ].map(opt => (
-                <div key={opt.key} className="flex items-center justify-between py-0.5">
-                  <span className="text-[12px] text-foreground font-medium">{opt.label}</span>
-                  <Switch
-                    checked={draft.advanced[opt.key] as boolean}
-                    onCheckedChange={v => update({ advanced: { ...draft.advanced, [opt.key]: v } })}
-                  />
-                </div>
-              ))}
               <div className="flex items-center justify-between py-0.5">
-                <span className="text-[12px] text-foreground font-medium">Top N</span>
-                <input
-                  type="number" min={0} max={100}
-                  value={draft.advanced.topN || ''}
-                  placeholder="All"
-                  onChange={e => update({ advanced: { ...draft.advanced, topN: e.target.value ? Number(e.target.value) : null } })}
-                  className="w-20 bg-background border border-border/60 rounded-lg px-3 py-1.5 text-[12px] text-foreground text-right
-                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+                <span className="text-[12px] text-foreground font-medium">Legend</span>
+                <Switch
+                  checked={draft.advanced.showLegend}
+                  onCheckedChange={v => update({ advanced: { ...draft.advanced, showLegend: v } })}
                 />
               </div>
+              {draft.advanced.showLegend && (
+                <div className="flex items-center justify-between py-0.5">
+                  <span className="text-[12px] text-muted-foreground">Position</span>
+                  <div className="flex gap-1">
+                    {(['bottom', 'top', 'left', 'right'] as const).map(pos => (
+                      <button
+                        key={pos}
+                        onClick={() => update({ advanced: { ...draft.advanced, legendPosition: pos } })}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-medium capitalize transition-all ${
+                          (draft.advanced.legendPosition || 'bottom') === pos
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {pos}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="h-px bg-border/30" />
             <div className="space-y-2">
