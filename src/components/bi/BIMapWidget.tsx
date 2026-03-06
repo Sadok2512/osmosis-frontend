@@ -474,7 +474,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
                   Affinez les filtres (DOR, Plaque, Vendor…) pour réduire à moins de {AUTO_LOAD_THRESHOLD} sites, ou cliquez sur ⚙️ → Charger les sites.
                 </p>
-                <button onClick={() => onChange({ ...config })} className="mt-2 text-[10px] font-semibold text-primary hover:underline">
+                <button onClick={() => setForceDisplay(true)} className="mt-2 text-[10px] font-semibold text-primary hover:underline">
                   Forcer l'affichage
                 </button>
               </div>
