@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart,
   ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check,
-  Grid3X3, ArrowLeftRight, Calendar, Filter, GitBranch, Settings2, Palette,
-  GripVertical, Zap, Target, Milestone, ArrowRight, BarChart2
+  Grid3X3, Calendar, Filter, GitBranch, Settings2, Palette,
+  Zap, ArrowRight, BarChart2, Clock, Eye
 } from 'lucide-react';
 import {
-  ChartConfig, YMetricConfig, XAxisConfig, FilterConfig, ThresholdLine,
-  MilestoneLine, BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI,
-  Aggregation, ChartType, Granularity, AxisSide, LineStyle, KPI_UNITS, getKpiDisplayName
+  ChartConfig, YMetricConfig, XAxisConfig, FilterConfig,
+  BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI,
+  Aggregation, ChartType, Granularity, AxisSide, LineStyle, getKpiDisplayName
 } from './biTypes';
 import BIKpiSelectorModal from './BIKpiSelectorModal';
 import { getDimensionValues } from './mockBIData';
@@ -53,8 +53,8 @@ const CHART_TYPE_OPTIONS: { type: ChartType; icon: React.ReactNode; label: strin
 ];
 
 const DATE_PRESETS = [
+  { label: '24h', days: 1 },
   { label: '7D', days: 7 },
-  { label: '14D', days: 14 },
   { label: '30D', days: 30 },
   { label: '90D', days: 90 },
 ];
@@ -66,7 +66,6 @@ const FilterValuePicker: React.FC<{
   onChange: (vals: string[]) => void;
 }> = ({ dimension, selected, onChange }) => {
   const [values, setValues] = useState<string[]>(getDimensionValues(dimension));
-
   useEffect(() => {
     let cancelled = false;
     biQueryApi.distinct(dimension).then(res => {
@@ -74,7 +73,6 @@ const FilterValuePicker: React.FC<{
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [dimension]);
-
   return (
     <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
       {values.map(val => (
@@ -97,38 +95,45 @@ const FilterValuePicker: React.FC<{
   );
 };
 
-/* ─── Section Header (category label) ─── */
-const SectionCategory: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="px-1 pt-2 pb-1">
-    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">{children}</span>
-  </div>
-);
-
-/* ─── Section Card ─── */
-const SectionCard: React.FC<{
-  title: string;
+/* ─── Config Card (Notion/Linear style) ─── */
+const ConfigCard: React.FC<{
   icon: React.ReactNode;
+  title: string;
+  summary: string;
+  badge?: number;
   open: boolean;
-  toggle: () => void;
-  badge?: string;
+  onToggle: () => void;
   children: React.ReactNode;
-}> = ({ title, icon, open, toggle, badge, children }) => (
-  <div className="rounded-xl border border-border/40 bg-card/30 overflow-hidden transition-all duration-200 hover:border-border/70">
+}> = ({ icon, title, summary, badge, open, onToggle, children }) => (
+  <div className={`rounded-xl border transition-all duration-200 overflow-hidden ${
+    open
+      ? 'border-primary/30 bg-card shadow-sm'
+      : 'border-border/50 bg-card hover:bg-muted/30 hover:border-border/80'
+  }`}>
     <button
-      onClick={toggle}
-      className="flex items-center gap-2.5 w-full px-4 py-3.5 text-left group transition-colors hover:bg-muted/20"
+      onClick={onToggle}
+      className="w-full flex items-center gap-3 px-3.5 py-3 text-left group"
     >
-      <span className="text-primary/70 group-hover:text-primary transition-colors">{icon}</span>
-      <span className="text-[13px] font-semibold text-foreground flex-1 tracking-tight">{title}</span>
-      {badge && (
-        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold tabular-nums min-w-[22px] text-center">
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-200 ${
+        open ? 'bg-primary/15 text-primary' : 'bg-muted/60 text-muted-foreground group-hover:bg-muted group-hover:text-foreground'
+      }`}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="text-[13px] font-semibold text-foreground block leading-tight">{title}</span>
+        <span className="text-[11px] text-muted-foreground truncate block mt-0.5 leading-tight">{summary}</span>
+      </div>
+      {badge !== undefined && badge > 0 && (
+        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[11px] font-bold tabular-nums shrink-0">
           {badge}
         </span>
       )}
-      <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground/60 transition-transform duration-200 ${open ? 'rotate-0' : '-rotate-90'}`} />
+      <ChevronRight className={`w-4 h-4 text-muted-foreground/50 transition-transform duration-200 shrink-0 ${
+        open ? 'rotate-90' : ''
+      }`} />
     </button>
     <div className={`transition-all duration-200 ease-out ${open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-      <div className="px-4 pb-5 pt-1 space-y-4">
+      <div className="px-3.5 pb-4 pt-0.5 space-y-3 border-t border-border/30">
         {children}
       </div>
     </div>
@@ -136,7 +141,7 @@ const SectionCard: React.FC<{
 );
 
 const FieldLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">{children}</span>
+  <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">{children}</span>
 );
 
 const StyledSelect: React.FC<{
@@ -149,7 +154,7 @@ const StyledSelect: React.FC<{
   <select
     value={value}
     onChange={e => onChange(e.target.value)}
-    className={`w-full bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[13px] text-foreground
+    className={`w-full bg-background border border-border/60 rounded-lg px-3 py-2 text-[12px] text-foreground
       outline-none transition-all duration-150
       focus:ring-2 focus:ring-primary/20 focus:border-primary/50
       hover:border-border appearance-none cursor-pointer ${className || ''}`}
@@ -160,7 +165,7 @@ const StyledSelect: React.FC<{
 );
 
 const ColorDot: React.FC<{ color: string; selected: boolean; onClick: () => void; size?: number }> = ({
-  color, selected, onClick, size = 20
+  color, selected, onClick, size = 18
 }) => (
   <button
     onClick={onClick}
@@ -184,7 +189,7 @@ const SegmentedControl: React.FC<{
   value: string;
   onChange: (v: string) => void;
 }> = ({ options, value, onChange }) => (
-  <div className="inline-flex rounded-lg bg-muted/50 p-1 border border-border/30 gap-0.5">
+  <div className="inline-flex rounded-lg bg-muted/50 p-0.5 border border-border/30 gap-0.5">
     {options.map(opt => (
       <button
         key={opt.value}
@@ -204,10 +209,8 @@ const SegmentedControl: React.FC<{
 /* ─── Main Panel ─── */
 
 const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
-  const [sections, setSections] = useState({
-    source: false, x: true, y: true, filters: false, group: false, advanced: false
-  });
-  const toggle = (s: keyof typeof sections) => setSections(p => ({ ...p, [s]: !p[s] }));
+  const [openCard, setOpenCard] = useState<string | null>(null);
+  const toggleCard = (id: string) => setOpenCard(prev => prev === id ? null : id);
   const { datasets } = useCSVData();
 
   const [draft, setDraft] = useState<ChartConfig>(() => JSON.parse(JSON.stringify(config)));
@@ -221,6 +224,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
     next.has(idx) ? next.delete(idx) : next.add(idx);
     return next;
   });
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Auto-detect available date range from local DB
   useEffect(() => {
@@ -312,33 +316,55 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
     });
   };
 
+  // Summaries for cards
+  const formatDate = (d: string) => {
+    if (!d) return '—';
+    try {
+      return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch { return d; }
+  };
+  const timeRangeSummary = `${formatDate(draft.xAxis.dateStart)} → ${formatDate(draft.xAxis.dateEnd)}`;
+  const granularitySummary = (draft.xAxis.granularity || 'day').charAt(0).toUpperCase() + (draft.xAxis.granularity || 'day').slice(1);
+  const dimension1Summary = draft.dimension1 || 'Toutes dimensions';
+  const kpiSummary = draft.yMetrics.length === 0
+    ? 'No KPI selected'
+    : draft.yMetrics.map(m => getKpiDisplayName(m.kpi)).join(', ');
+  const filterSummary = draft.filters.length === 0
+    ? 'No active filters'
+    : draft.filters.map(f => `${f.dimension}: ${f.values.length > 0 ? f.values.slice(0, 2).join(', ') : 'All'}`).join(' · ');
+  const groupBySummary = draft.groupBy.length === 0 && !draft.colorBy
+    ? 'None'
+    : [draft.groupBy[0], draft.colorBy].filter(Boolean).join(', ');
+
   return (
     <div className="w-[360px] h-full bg-background border-l border-border/40 flex flex-col overflow-hidden">
 
-      {/* ─── Header with inline date range ─── */}
-      <div className="px-5 py-4 border-b border-border/40 bg-card/50 space-y-4">
+      {/* ─── Header ─── */}
+      <div className="px-5 py-4 border-b border-border/40 bg-card/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <BarChart2 className="w-4 h-4 text-primary" />
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <BarChart2 className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <input
                 value={draft.title}
                 onChange={e => update({ title: e.target.value })}
-                className="w-full bg-transparent text-sm font-bold text-foreground outline-none
+                className="w-full bg-transparent text-[15px] font-bold text-foreground outline-none
                   border-b border-transparent focus:border-primary/40
                   transition-all duration-200 placeholder:text-muted-foreground/40 truncate"
-                placeholder="Titre du graphique…"
+                placeholder="Chart title…"
               />
-              <p className="text-[11px] text-muted-foreground mt-0.5">Configure chart settings</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                Configure data source, metrics & grouping
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0 ml-2">
             <button
-              onClick={() => toggle('advanced')}
+              onClick={() => setShowAdvanced(!showAdvanced)}
               className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                sections.advanced ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                showAdvanced ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
               }`}
               title="Advanced Settings"
             >
@@ -354,8 +380,8 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         </div>
 
         {/* Advanced Settings dropdown */}
-        <div className={`transition-all duration-200 ease-out ${sections.advanced ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-          <div className="rounded-xl border border-border/40 bg-card/30 p-4 space-y-4">
+        <div className={`transition-all duration-200 ease-out ${showAdvanced ? 'max-h-[400px] opacity-100 mt-4' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+          <div className="rounded-xl border border-border/40 bg-muted/20 p-4 space-y-4">
             <div className="space-y-3">
               {[
                 { key: 'showLegend' as const, label: 'Legend' },
@@ -399,88 +425,29 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             </div>
           </div>
         </div>
-
-        {/* Inline date range */}
-        {draft.xAxis.type === 'date' && (
-          <div className="space-y-2.5">
-            <div className="flex items-end gap-1.5">
-              <div className="flex-1 space-y-1">
-                <FieldLabel>Start</FieldLabel>
-                <input
-                  type="date"
-                  value={draft.xAxis.dateStart}
-                  onChange={e => updateX({ dateStart: e.target.value })}
-                  className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[11px] text-foreground
-                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
-                    hover:border-border transition-all duration-150"
-                />
-              </div>
-              <div className="pb-2">
-                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <FieldLabel>End</FieldLabel>
-                <input
-                  type="date"
-                  value={draft.xAxis.dateEnd}
-                  onChange={e => updateX({ dateEnd: e.target.value })}
-                  className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[11px] text-foreground
-                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
-                    hover:border-border transition-all duration-150"
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <FieldLabel>Granularity</FieldLabel>
-              <SegmentedControl
-                options={GRANULARITIES.map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
-                value={draft.xAxis.granularity || 'day'}
-                onChange={v => updateX({ granularity: v as Granularity })}
-              />
-            </div>
-            {/* Dimension 1 selector */}
-            <div className="space-y-1">
-              <FieldLabel>Dimension 1</FieldLabel>
-              <Select
-                value={draft.dimension1 || '__all__'}
-                onValueChange={v => update({ dimension1: v === '__all__' ? undefined : v as any })}
-              >
-                <SelectTrigger className="h-9 text-[12px] bg-background border-border/60 rounded-lg">
-                  <SelectValue placeholder="Toutes dimensions" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Toutes dimensions</SelectItem>
-                  {BI_DIMENSIONS.map(d => (
-                    <SelectItem key={d} value={d}>{d}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* ─── Scrollable Sections ─── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-thin">
+      {/* ─── Scrollable Cards ─── */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5 scrollbar-thin">
 
-
-        {/* ── DATA SOURCE ── */}
+        {/* ── DATA SOURCE (CSV) ── */}
         {datasets.length > 0 && (
-          <SectionCard
-            title="Source de données"
+          <ConfigCard
             icon={<Database className="w-4 h-4" />}
-            open={sections.source}
-            toggle={() => toggle('source')}
+            title="Data Source"
+            summary={draft.dataSource?.type === 'csv' ? `CSV: ${draft.dataSource.csvDatasetId || '—'}` : 'Simulated data'}
+            open={openCard === 'source'}
+            onToggle={() => toggleCard('source')}
           >
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               {[
-                { type: 'mock' as const, label: 'Simulé', icon: <Zap className="w-3.5 h-3.5" /> },
+                { type: 'mock' as const, label: 'Simulated', icon: <Zap className="w-3.5 h-3.5" /> },
                 { type: 'csv' as const, label: 'CSV', icon: <Database className="w-3.5 h-3.5" /> },
               ].map(src => (
                 <button
                   key={src.type}
                   onClick={() => update({ dataSource: { type: src.type, ...(src.type === 'csv' ? { csvDatasetId: datasets[0]?.id } : {}) } })}
-                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-[12px] font-medium border transition-all duration-150 ${
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[12px] font-medium border transition-all duration-150 ${
                     ((!draft.dataSource || draft.dataSource.type === 'mock') && src.type === 'mock') ||
                     (draft.dataSource?.type === 'csv' && src.type === 'csv')
                       ? 'bg-primary text-primary-foreground border-primary shadow-sm'
@@ -491,225 +458,315 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 </button>
               ))}
             </div>
-            {draft.dataSource?.type === 'csv' && (
-              <div className="space-y-3 pt-1">
-                <StyledSelect
-                  value={draft.dataSource.csvDatasetId || ''}
-                  options={datasets.map(ds => ds.id)}
-                  onChange={v => update({ dataSource: { ...draft.dataSource!, csvDatasetId: v } })}
-                />
-                {(() => {
-                  const ds = datasets.find(d => d.id === draft.dataSource?.csvDatasetId);
-                  if (!ds) return null;
-                  return (
-                    <>
-                      <div className="space-y-1.5">
-                        <FieldLabel>Colonne X</FieldLabel>
-                        <StyledSelect
-                          value={draft.dataSource?.xColumn || ds.columns[0]}
-                          options={ds.columns}
-                          onChange={v => update({ dataSource: { ...draft.dataSource!, xColumn: v } })}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <FieldLabel>Colonnes Y</FieldLabel>
-                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                          {ds.columns.filter(c => c !== (draft.dataSource?.xColumn || ds.columns[0])).map(col => {
-                            const selected = draft.dataSource?.yColumns?.includes(col);
-                            return (
-                              <button
-                                key={col}
-                                onClick={() => {
-                                  const current = draft.dataSource?.yColumns || [];
-                                  const next = selected ? current.filter(c => c !== col) : [...current, col];
-                                  update({ dataSource: { ...draft.dataSource!, yColumns: next } });
-                                }}
-                                className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-all duration-150 ${
-                                  selected
-                                    ? 'bg-primary/10 text-primary border-primary/30'
-                                    : 'bg-background text-muted-foreground border-border/50 hover:border-primary/30'
-                                }`}
-                              >
-                                {col}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-          </SectionCard>
+            {draft.dataSource?.type === 'csv' && (() => {
+              const ds = datasets.find(d => d.id === draft.dataSource?.csvDatasetId);
+              if (!ds) return null;
+              return (
+                <div className="space-y-3 pt-1">
+                  <StyledSelect
+                    value={draft.dataSource.csvDatasetId || ''}
+                    options={datasets.map(d => d.id)}
+                    onChange={v => update({ dataSource: { ...draft.dataSource!, csvDatasetId: v } })}
+                  />
+                  <div className="space-y-1.5">
+                    <FieldLabel>Column X</FieldLabel>
+                    <StyledSelect
+                      value={draft.dataSource?.xColumn || ds.columns[0]}
+                      options={ds.columns}
+                      onChange={v => update({ dataSource: { ...draft.dataSource!, xColumn: v } })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <FieldLabel>Columns Y</FieldLabel>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                      {ds.columns.filter(c => c !== (draft.dataSource?.xColumn || ds.columns[0])).map(col => {
+                        const selected = draft.dataSource?.yColumns?.includes(col);
+                        return (
+                          <button
+                            key={col}
+                            onClick={() => {
+                              const current = draft.dataSource?.yColumns || [];
+                              const next = selected ? current.filter(c => c !== col) : [...current, col];
+                              update({ dataSource: { ...draft.dataSource!, yColumns: next } });
+                            }}
+                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-all duration-150 ${
+                              selected
+                                ? 'bg-primary/10 text-primary border-primary/30'
+                                : 'bg-background text-muted-foreground border-border/50 hover:border-primary/30'
+                            }`}
+                          >
+                            {col}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </ConfigCard>
         )}
 
+        {/* ── TIME RANGE ── */}
+        <ConfigCard
+          icon={<Calendar className="w-4 h-4" />}
+          title="Time Range"
+          summary={timeRangeSummary}
+          open={openCard === 'time'}
+          onToggle={() => toggleCard('time')}
+        >
+          <div className="space-y-3 pt-2">
+            <div className="flex items-end gap-2">
+              <div className="flex-1 space-y-1">
+                <FieldLabel>Start</FieldLabel>
+                <input
+                  type="date"
+                  value={draft.xAxis.dateStart}
+                  onChange={e => updateX({ dateStart: e.target.value })}
+                  className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
+                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                    hover:border-border transition-all duration-150"
+                />
+              </div>
+              <div className="pb-2.5">
+                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <FieldLabel>End</FieldLabel>
+                <input
+                  type="date"
+                  value={draft.xAxis.dateEnd}
+                  onChange={e => updateX({ dateEnd: e.target.value })}
+                  className="w-full bg-background border border-border/60 rounded-lg px-2.5 py-2 text-[12px] text-foreground
+                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+                    hover:border-border transition-all duration-150"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Quick Presets</FieldLabel>
+              <div className="flex gap-1.5">
+                {DATE_PRESETS.map(p => (
+                  <button
+                    key={p.label}
+                    onClick={() => applyDatePreset(p.days)}
+                    className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-border/50
+                      text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5
+                      transition-all duration-150"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </ConfigCard>
 
-        {/* ═══ METRICS ═══ */}
-        <SectionCategory>Metrics</SectionCategory>
+        {/* ── GRANULARITY ── */}
+        <ConfigCard
+          icon={<Clock className="w-4 h-4" />}
+          title="Granularity"
+          summary={granularitySummary}
+          open={openCard === 'granularity'}
+          onToggle={() => toggleCard('granularity')}
+        >
+          <div className="pt-2">
+            <SegmentedControl
+              options={GRANULARITIES.map(g => ({ value: g, label: g.charAt(0).toUpperCase() + g.slice(1) }))}
+              value={draft.xAxis.granularity || 'day'}
+              onChange={v => updateX({ granularity: v as Granularity })}
+            />
+          </div>
+        </ConfigCard>
 
-        {/* ── Y AXIS (METRICS) ── */}
-        <SectionCard
-          title="KPI Selection"
+        {/* ── DIMENSION 1 ── */}
+        <ConfigCard
+          icon={<Eye className="w-4 h-4" />}
+          title="Dimension 1"
+          summary={dimension1Summary}
+          open={openCard === 'dimension1'}
+          onToggle={() => toggleCard('dimension1')}
+        >
+          <div className="pt-2 space-y-1.5">
+            {['__all__', ...BI_DIMENSIONS].map(d => (
+              <button
+                key={d}
+                onClick={() => update({ dimension1: d === '__all__' ? undefined : d as any })}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all duration-150 ${
+                  (d === '__all__' && !draft.dimension1) || draft.dimension1 === d
+                    ? 'bg-primary/10 text-primary border border-primary/30'
+                    : 'text-foreground hover:bg-muted/50 border border-transparent'
+                }`}
+              >
+                {(d === '__all__' && !draft.dimension1) || draft.dimension1 === d ? (
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                ) : (
+                  <div className="w-3.5 h-3.5 shrink-0" />
+                )}
+                {d === '__all__' ? 'Toutes dimensions' : d}
+              </button>
+            ))}
+          </div>
+        </ConfigCard>
+
+        {/* ── KPI SELECTION ── */}
+        <ConfigCard
           icon={<TrendingUp className="w-4 h-4" />}
-          open={sections.y}
-          toggle={() => toggle('y')}
-          badge={`${draft.yMetrics.length}`}
+          title="KPI Selection"
+          summary={kpiSummary}
+          badge={draft.yMetrics.length}
+          open={openCard === 'kpi'}
+          onToggle={() => toggleCard('kpi')}
         >
           {/* Add Metrics CTA */}
           <button
             onClick={() => { setKpiModalTarget({ type: 'metric', index: -1 }); setKpiModalOpen(true); }}
-            className="w-full flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-muted/20
-              hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 group"
+            className="w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-border/50 bg-muted/10
+              hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 group mt-2"
           >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center
               group-hover:bg-primary/20 transition-colors duration-200">
-              <Plus className="w-5 h-5 text-primary" />
+              <Plus className="w-4 h-4 text-primary" />
             </div>
             <div className="text-left">
-              <span className="text-[13px] font-semibold text-foreground block">Add Metrics</span>
-              <span className="text-[11px] text-muted-foreground">Select KPIs to visualize</span>
+              <span className="text-[12px] font-semibold text-foreground block">Add Metrics</span>
+              <span className="text-[10px] text-muted-foreground">Select KPIs to visualize</span>
             </div>
           </button>
 
           {/* Metric cards */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             {draft.yMetrics.map((m, i) => {
               const isExpanded = expandedMetrics.has(i);
               return (
-              <div
-                key={i}
-                className="rounded-xl border border-border/40 bg-card/40 overflow-hidden transition-all duration-200 hover:border-border/70 hover:shadow-sm"
-              >
-                {/* Metric header with colored accent */}
-                <div className="flex items-stretch">
-                  <div className="w-1 rounded-l-xl shrink-0" style={{ background: m.color }} />
-                  <div className="flex-1 px-3 py-2.5 space-y-0">
-                    {/* Top row: KPI name + expand toggle + delete */}
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => { setKpiModalTarget({ type: 'metric', index: i }); setKpiModalOpen(true); }}
-                        className="flex-1 text-left text-[13px] font-bold text-foreground truncate
-                          hover:text-primary transition-colors duration-150 cursor-pointer"
-                      >
-                        {getKpiDisplayName(m.kpi)}
-                      </button>
-                      <button
-                        onClick={() => toggleMetricExpand(i)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center
-                          text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-all duration-150"
-                        title="Settings"
-                      >
-                        <Settings2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => removeMetric(i)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center
-                          text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all duration-150"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                <div
+                  key={i}
+                  className="rounded-xl border border-border/40 bg-card/40 overflow-hidden transition-all duration-200 hover:border-border/70"
+                >
+                  <div className="flex items-stretch">
+                    <div className="w-1 rounded-l-xl shrink-0" style={{ background: m.color }} />
+                    <div className="flex-1 px-3 py-2.5 space-y-0">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => { setKpiModalTarget({ type: 'metric', index: i }); setKpiModalOpen(true); }}
+                          className="flex-1 text-left text-[12px] font-bold text-foreground truncate
+                            hover:text-primary transition-colors duration-150 cursor-pointer"
+                        >
+                          {getKpiDisplayName(m.kpi)}
+                        </button>
+                        <button
+                          onClick={() => toggleMetricExpand(i)}
+                          className="w-6 h-6 rounded-md flex items-center justify-center
+                            text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-all duration-150"
+                          title="Settings"
+                        >
+                          <Settings2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => removeMetric(i)}
+                          className="w-6 h-6 rounded-md flex items-center justify-center
+                            text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all duration-150"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
 
+                      {/* Collapsible settings */}
+                      <div className={`transition-all duration-200 ease-out ${isExpanded ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+                        <div className="space-y-3 pb-1">
+                          {/* Chart Type */}
+                          <div className="space-y-1.5">
+                            <FieldLabel>Chart Type</FieldLabel>
+                            <TooltipProvider delayDuration={200}>
+                              <div className="grid grid-cols-9 gap-1">
+                                {CHART_TYPE_OPTIONS.map(opt => (
+                                  <Tooltip key={opt.type}>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={() => updateMetric(i, { chartType: opt.type })}
+                                        className={`aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 ${
+                                          m.chartType === opt.type
+                                            ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-105'
+                                            : 'bg-muted/20 text-muted-foreground border-transparent hover:border-border/60 hover:text-foreground hover:bg-muted/40'
+                                        }`}
+                                      >
+                                        {opt.icon}
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-[11px]">{opt.label}</TooltipContent>
+                                  </Tooltip>
+                                ))}
+                              </div>
+                            </TooltipProvider>
+                          </div>
 
-                    {/* Collapsible settings */}
-                    <div className={`transition-all duration-200 ease-out ${isExpanded ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-                      <div className="space-y-3 pb-1">
-                        {/* Chart Type */}
-                        <div className="space-y-1.5">
-                          <FieldLabel>Chart Type</FieldLabel>
-                          <TooltipProvider delayDuration={200}>
-                            <div className="grid grid-cols-9 gap-1">
-                              {CHART_TYPE_OPTIONS.map(opt => (
-                                <Tooltip key={opt.type}>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => updateMetric(i, { chartType: opt.type })}
-                                      className={`aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 ${
-                                        m.chartType === opt.type
-                                          ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-105'
-                                          : 'bg-muted/20 text-muted-foreground border-transparent hover:border-border/60 hover:text-foreground hover:bg-muted/40'
-                                      }`}
-                                    >
-                                      {opt.icon}
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="text-[11px]">{opt.label}</TooltipContent>
-                                </Tooltip>
+                          {/* Axis + Toggles */}
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <FieldLabel>Axis</FieldLabel>
+                              <SegmentedControl
+                                options={[
+                                  { value: 'left', label: 'Left' },
+                                  { value: 'right', label: 'Right' },
+                                ]}
+                                value={m.axis}
+                                onChange={v => updateMetric(i, { axis: v as AxisSide })}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                                <Switch
+                                  checked={m.smoothCurve}
+                                  onCheckedChange={v => updateMetric(i, { smoothCurve: v })}
+                                  className="scale-[0.8] origin-left"
+                                />
+                                <span className="text-[11px] font-medium text-muted-foreground group-hover/toggle:text-foreground transition-colors">Smooth</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                                <Switch
+                                  checked={m.showMovingAvg}
+                                  onCheckedChange={v => updateMetric(i, { showMovingAvg: v })}
+                                  className="scale-[0.8] origin-left"
+                                />
+                                <span className="text-[11px] font-medium text-muted-foreground group-hover/toggle:text-foreground transition-colors">Moving Avg</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Color picker */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <Palette className="w-3 h-3 text-muted-foreground/60" />
+                              <FieldLabel>Color</FieldLabel>
+                            </div>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {SIMPLE_PALETTE.map(c => (
+                                <ColorDot key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} size={16} />
                               ))}
                             </div>
-                          </TooltipProvider>
-                        </div>
-
-                        {/* Axis + Toggles */}
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-1">
-                            <FieldLabel>Axis</FieldLabel>
-                            <SegmentedControl
-                              options={[
-                                { value: 'left', label: 'Left' },
-                                { value: 'right', label: 'Right' },
-                              ]}
-                              value={m.axis}
-                              onChange={v => updateMetric(i, { axis: v as AxisSide })}
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                              <Switch
-                                checked={m.smoothCurve}
-                                onCheckedChange={v => updateMetric(i, { smoothCurve: v })}
-                                className="scale-[0.8] origin-left"
-                              />
-                              <span className="text-[11px] font-medium text-muted-foreground group-hover/toggle:text-foreground transition-colors">Smooth</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                              <Switch
-                                checked={m.showMovingAvg}
-                                onCheckedChange={v => updateMetric(i, { showMovingAvg: v })}
-                                className="scale-[0.8] origin-left"
-                              />
-                              <span className="text-[11px] font-medium text-muted-foreground group-hover/toggle:text-foreground transition-colors">Moving Avg</span>
-                            </label>
-                          </div>
-                        </div>
-
-                        {/* Color picker */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <Palette className="w-3 h-3 text-muted-foreground/60" />
-                            <FieldLabel>Color</FieldLabel>
-                          </div>
-                          <div className="flex gap-1.5 flex-wrap">
-                            {SIMPLE_PALETTE.map(c => (
-                              <ColorDot key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} size={18} />
-                            ))}
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
               );
             })}
           </div>
-        </SectionCard>
-
-        {/* ═══ VISUALIZATION ═══ */}
-        <SectionCategory>Filters & Groups</SectionCategory>
+        </ConfigCard>
 
         {/* ── FILTERS ── */}
-        <SectionCard
-          title="Filters"
+        <ConfigCard
           icon={<Filter className="w-4 h-4" />}
-          open={sections.filters}
-          toggle={() => toggle('filters')}
-          badge={draft.filters.length > 0 ? `${draft.filters.length}` : undefined}
+          title="Filters"
+          summary={filterSummary}
+          badge={draft.filters.length > 0 ? draft.filters.length : undefined}
+          open={openCard === 'filters'}
+          onToggle={() => toggleCard('filters')}
         >
-          <div className="space-y-3">
+          <div className="space-y-2.5 pt-2">
             {draft.filters.map((f, i) => (
-              <div key={i} className="rounded-xl border border-border/40 bg-card/30 p-3.5 space-y-2.5">
+              <div key={i} className="rounded-lg border border-border/40 bg-muted/10 p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   <StyledSelect
                     value={f.dimension}
@@ -719,37 +776,37 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                   />
                   <button
                     onClick={() => removeFilter(i)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center
+                    className="w-6 h-6 rounded-md flex items-center justify-center
                       text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
                 <FilterValuePicker dimension={f.dimension} selected={f.values} onChange={vals => updateFilter(i, { values: vals })} />
               </div>
             ))}
           </div>
-
           <button
             onClick={addFilter}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-border/50
-              text-[12px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-border/50
+              text-[11px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40
               transition-all duration-200 hover:bg-primary/5"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             Add Filter
           </button>
-        </SectionCard>
+        </ConfigCard>
 
-        {/* ── GROUP BY / SCATTER ── */}
-        <SectionCard
-          title="Group By / Scatter"
+        {/* ── GROUP BY ── */}
+        <ConfigCard
           icon={<GitBranch className="w-4 h-4" />}
-          open={sections.group}
-          toggle={() => toggle('group')}
+          title="Group By"
+          summary={groupBySummary}
+          open={openCard === 'group'}
+          onToggle={() => toggleCard('group')}
         >
-          <div className="space-y-4">
-            <div className="space-y-2">
+          <div className="space-y-3 pt-2">
+            <div className="space-y-1.5">
               <FieldLabel>Group By</FieldLabel>
               <StyledSelect
                 value={draft.groupBy[0] || ''}
@@ -758,7 +815,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 placeholder="None"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <FieldLabel>Color By</FieldLabel>
               <StyledSelect
                 value={draft.colorBy || ''}
@@ -767,17 +824,55 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 placeholder="None"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <FieldLabel>Size By</FieldLabel>
               <button
                 onClick={() => { setKpiModalTarget({ type: 'sizeBy' }); setKpiModalOpen(true); }}
-                className="w-full text-left bg-background border border-border/60 rounded-lg px-3 py-2.5 text-[13px] text-foreground hover:border-primary/40 transition-all"
+                className="w-full text-left bg-background border border-border/60 rounded-lg px-3 py-2 text-[12px] text-foreground hover:border-primary/40 transition-all"
               >
                 {draft.sizeBy ? getKpiDisplayName(draft.sizeBy) : 'None'}
               </button>
             </div>
           </div>
-        </SectionCard>
+        </ConfigCard>
+
+        {/* ── VISUALIZATION ── */}
+        <ConfigCard
+          icon={<BarChart3 className="w-4 h-4" />}
+          title="Visualization"
+          summary={`${CHART_TYPE_OPTIONS.find(o => o.type === draft.yMetrics[0]?.chartType)?.label || 'Line'} chart`}
+          open={openCard === 'visualization'}
+          onToggle={() => toggleCard('visualization')}
+        >
+          <div className="pt-2">
+            <TooltipProvider delayDuration={200}>
+              <div className="grid grid-cols-3 gap-2">
+                {CHART_TYPE_OPTIONS.map(opt => (
+                  <Tooltip key={opt.type}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          // Apply to all metrics
+                          const metrics = draft.yMetrics.map(m => ({ ...m, chartType: opt.type }));
+                          update({ yMetrics: metrics });
+                        }}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-[11px] font-medium transition-all duration-200 ${
+                          draft.yMetrics[0]?.chartType === opt.type
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                            : 'bg-muted/20 text-muted-foreground border-border/40 hover:border-border/70 hover:text-foreground hover:bg-muted/40'
+                        }`}
+                      >
+                        {opt.icon}
+                        {opt.label}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-[11px]">{opt.label}</TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </TooltipProvider>
+          </div>
+        </ConfigCard>
 
       </div>
 
@@ -786,7 +881,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
         <button
           onClick={handleApply}
           disabled={!dirty}
-          className={`w-full flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[13px] font-bold
+          className={`w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-[13px] font-bold
             tracking-wide transition-all duration-200 ${
             dirty
               ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 active:scale-[0.98]'
@@ -816,7 +911,6 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
           if (!kpiModalTarget) return;
           if (kpiModalTarget.type === 'metric') {
             if (kpiModalTarget.index >= 0 && keys.length === 1) {
-              // Replace single metric at index
               const metrics = [...draft.yMetrics];
               metrics[kpiModalTarget.index] = {
                 ...metrics[kpiModalTarget.index],
