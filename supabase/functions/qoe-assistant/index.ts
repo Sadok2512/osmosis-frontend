@@ -1473,8 +1473,8 @@ function buildContextPlan(
           // For topo metric queries (tilt, azimut, hba) without specific site, fetch global distribution
           const topoMet = detectMetric(query);
           if (TOPO_METRICS.has(topoMet)) {
-            const dim1 = detectDimension1Type(query);
-            groupBy = { dimension1: dim1 };
+            const allDims = detectAllDimensions(query);
+            groupBy = { dimension1: allDims[0], dimension2: allDims.length > 1 ? allDims[1] : undefined };
             metric = topoMet;
             needs.push("topo_metric_agg");
           }
