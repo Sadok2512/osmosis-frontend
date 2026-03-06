@@ -61,7 +61,7 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
   } : null;
 
   // Radar overlay
-  const radarOption = clusters ? {
+  const radarOption = (clusters && clusters.length > 0) ? {
     tooltip: {},
     legend: { bottom: 0, textStyle: { fontSize: 9, color: 'hsl(220,9%,46%)' } },
     radar: {
