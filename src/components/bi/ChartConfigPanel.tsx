@@ -453,6 +453,16 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
               </div>
             </div>
             <div className="h-px bg-border/30" />
+            <div className="flex items-center justify-between py-0.5">
+              <div className="flex items-center gap-1.5">
+                <Grid3X3 className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <span className="text-[12px] text-foreground font-medium">Grid</span>
+              </div>
+              <Switch
+                checked={draft.advanced.showGrid !== false}
+                onCheckedChange={v => update({ advanced: { ...draft.advanced, showGrid: v } })}
+              />
+            </div>
             <div className="space-y-2">
               <div className="flex items-center gap-1.5">
                 <BarChart2 className="w-3.5 h-3.5 text-muted-foreground/60" />
@@ -739,6 +749,17 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                             hover:text-primary transition-colors duration-150 cursor-pointer"
                         >
                           {getKpiDisplayName(m.kpi)}
+                        </button>
+                        <button
+                          onClick={() => updateMetric(i, { visible: m.visible === false ? true : false })}
+                          className={`w-6 h-6 rounded-md flex items-center justify-center transition-all duration-150 ${
+                            m.visible === false
+                              ? 'text-muted-foreground/30 hover:text-primary hover:bg-primary/10'
+                              : 'text-muted-foreground/50 hover:text-primary hover:bg-primary/10'
+                          }`}
+                          title={m.visible === false ? 'Show' : 'Hide'}
+                        >
+                          <Eye className={`w-3 h-3 ${m.visible === false ? 'opacity-30' : ''}`} />
                         </button>
                         <button
                           onClick={() => toggleMetricExpand(i)}
