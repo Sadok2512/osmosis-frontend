@@ -29,6 +29,7 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
     enabled: selectedCluster !== null,
     staleTime: 30_000,
     retry: 1,
+  });
 
   if (error) {
     return (
