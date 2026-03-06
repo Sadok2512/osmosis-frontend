@@ -2049,7 +2049,7 @@ async function fetchTopoStatsLocal(query) {
 }
 
 // ─── Topo metric by dimension (tilt/azimut/hba par bande/dor/vendor...) — mirrors Cloud fetchTopoMetricByDimension ───
-async function fetchTopoMetricByDimensionLocal(metric, dimension, limit) {
+async function fetchTopoMetricByDimensionLocal(metric, dimension, limit, dimension2) {
   limit = limit || 30;
   try {
     const dimColMap = {
@@ -2057,22 +2057,74 @@ async function fetchTopoMetricByDimensionLocal(metric, dimension, limit) {
       Site: 'nom_site', ARCEP: 'zone_arcep', Cellule: 'nom_cellule', RAT: 'techno',
     };
     const groupCol = dimColMap[dimension] || 'dor';
+    const groupCol2 = dimension2 ? (dimColMap[dimension2] || null) : null;
 
-    // Check column exists
+    // Check columns exist
+    const colsToCheck = [metric, groupCol];
+    if (groupCol2 && groupCol2 !== groupCol) colsToCheck.push(groupCol2);
     const colCheck = await sharedPool.query(
-      `SELECT column_name FROM information_schema.columns WHERE table_name = 'topo' AND table_schema = 'public' AND column_name IN ($1, $2)`,
-      [metric, groupCol]
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'topo' AND table_schema = 'public' AND column_name = ANY($1)`,
+      [colsToCheck]
     );
     const existingCols = new Set(colCheck.rows.map(r => r.column_name));
     if (!existingCols.has(metric)) return `La colonne '${metric}' n'existe pas dans la table topo.`;
     if (!existingCols.has(groupCol)) return `La colonne '${groupCol}' n'existe pas dans la table topo.`;
 
+    // Dual-dimension cross-tabulation
+    if (groupCol2 && groupCol2 !== groupCol) {
+      if (!existingCols.has(groupCol2)) return `La colonne '${groupCol2}' n'existe pas dans la table topo.`;
+
+      const { rows: data } = await sharedPool.query(
+        `SELECT ${groupCol} AS grp1, ${groupCol2} AS grp2, ${metric} AS val FROM topo WHERE ${metric} IS NOT NULL LIMIT 50000`
+      );
+      if (!data.length) return `Aucune donnée topo pour ${metric}.`;
+
+      const groups = new Map();
+      for (const r of data) {
+        const label1 = r.grp1 || 'N/A';
+        const label2 = r.grp2 || 'N/A';
+        const key = `${label1} | ${label2}`;
+        if (!groups.has(key)) groups.set(key, { values: [], count: 0 });
+        const g = groups.get(key);
+        if (r.val != null) { g.values.push(Number(r.val)); g.count++; }
+      }
+
+      const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+      const sorted = Array.from(groups.entries())
+        .map(([key, g]) => {
+          const [l1, l2] = key.split(' | ');
+          return { label1: l1, label2: l2, avg: avg(g.values), min: Math.min(...g.values), max: Math.max(...g.values), count: g.count };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+
+      const globalAvg = avg(data.map(r => Number(r.val)).filter(v => !isNaN(v)));
+
+      const header = `| # | ${dimension} | ${dimension2} | AVG(${metric}) | MIN | MAX | Cells |`;
+      const sep = '|---|---|---|---|---|---|---|';
+      const lines = sorted.map((r, i) =>
+        `| ${i + 1} | ${r.label1} | ${r.label2} | ${r.avg.toFixed(1)} | ${r.min} | ${r.max} | ${r.count} |`
+      );
+
+      const chartData = sorted.slice(0, 20).map(r => ({ label: `${r.label1} · ${r.label2}`, value: Math.round(r.avg * 10) / 10 }));
+      const chartJson = JSON.stringify({
+        type: 'bar',
+        title: `${metric} moyen par ${dimension} et ${dimension2}`,
+        xKey: 'label',
+        yKeys: ['value'],
+        data: chartData,
+        colors: ['#0d9488','#2563eb','#9333ea','#ea580c','#16a34a','#be185d','#ca8a04','#0891b2'],
+      });
+
+      return `DISTRIBUTION TOPO ${metric} par ${dimension} et ${dimension2} (${data.length} cellules, ${groups.size} groupes, moyenne globale: ${globalAvg.toFixed(1)}):\n\n${header}\n${sep}\n${lines.join('\n')}\n\nINSTRUCTION: Présente ces données de la table TOPO croisées par ${dimension} et ${dimension2}. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+    }
+
+    // Single-dimension grouping
     const { rows: data } = await sharedPool.query(
       `SELECT ${groupCol} AS grp, ${metric} AS val FROM topo WHERE ${metric} IS NOT NULL LIMIT 50000`
     );
     if (!data.length) return `Aucune donnée topo pour ${metric}.`;
 
-    // Aggregate
     const groups = new Map();
     for (const r of data) {
       const label = r.grp || 'N/A';
@@ -2380,7 +2432,8 @@ async function buildContextFromPlanLocal(plan, query, filters, legacyCellContext
     promises.topoAgg = fetchTopoMetricByDimensionLocal(
       plan.metric || 'tilt',
       plan.groupBy.dimension1,
-      plan.resultLimit || 30
+      plan.resultLimit || 30,
+      plan.groupBy.dimension2
     );
   }
   // NEW: topo_inventory — mirrors Cloud
