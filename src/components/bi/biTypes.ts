@@ -175,6 +175,7 @@ export interface ChartConfig {
     xColumn?: string;
     yColumns?: string[];
   };
+  dimension1?: BIDimension;
   advanced: {
     thresholds: ThresholdLine[];
     milestones: MilestoneLine[];
