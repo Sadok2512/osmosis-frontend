@@ -46,7 +46,7 @@ const SUGGESTIONS = [
   "Compare les vendors Ericsson vs Nokia sur le Débit DL",
   "Quels sont les sites avec le plus de retransmissions TCP ?",
   "Analyse la qualité par technologie (4G vs 5G)",
-  "Top 5 des plaques régionales en DMS DL 30M",
+  "Crée un dashboard QoE avec débit DL, RTT et sessions par vendor",
   "Quel est l'état du réseau en zone rurale ?",
 ];
 
@@ -338,7 +338,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
 
   // ─── Dashboard creation from AI response ───
   const handleDashboardCreation = async (responseText: string) => {
-    const match = responseText.match(/<!--\s*CREATE_DASHBOARD:(.*?)-->/s);
+    // Match CREATE_DASHBOARD whether raw or inside a code block
+    const match = responseText.match(/<!--\s*CREATE_DASHBOARD:([\s\S]*?)-->/s);
     if (!match) return;
     try {
       const spec = JSON.parse(match[1].trim());
