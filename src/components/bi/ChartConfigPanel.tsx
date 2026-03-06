@@ -214,6 +214,12 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   const [availableDateRange, setAvailableDateRange] = useState<{ min_date: string | null; max_date: string | null }>({ min_date: null, max_date: null });
   const [kpiModalOpen, setKpiModalOpen] = useState(false);
   const [kpiModalTarget, setKpiModalTarget] = useState<{ type: 'metric'; index: number } | { type: 'xAxis' } | { type: 'sizeBy' } | null>(null);
+  const [expandedMetrics, setExpandedMetrics] = useState<Set<number>>(new Set());
+  const toggleMetricExpand = (idx: number) => setExpandedMetrics(prev => {
+    const next = new Set(prev);
+    next.has(idx) ? next.delete(idx) : next.add(idx);
+    return next;
+  });
 
   // Auto-detect available date range from local DB
   useEffect(() => {
