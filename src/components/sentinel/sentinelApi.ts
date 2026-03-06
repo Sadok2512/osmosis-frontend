@@ -15,11 +15,17 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function fetchDates(): Promise<string[]> {
-  return fetchJson<string[]>(`${BASE}/api/dates`);
+  const raw = await fetchJson<any>(`${BASE}/api/dates`);
+  // Handle both array and wrapped object responses
+  if (Array.isArray(raw)) return raw;
+  if (raw?.dates && Array.isArray(raw.dates)) return raw.dates;
+  return [];
 }
 
 export async function fetchOverview(date: string): Promise<DashboardOverviewData> {
-  return fetchJson<DashboardOverviewData>(`${BASE}/api/dashboard/overview?date=${date}`);
+  const raw = await fetchJson<any>(`${BASE}/api/dashboard/overview?date=${date}`);
+  // Handle wrapped response
+  return raw?.data || raw;
 }
 
 export async function fetchAnomalies(filters: AnomalyFilters): Promise<Anomaly[]> {
@@ -31,11 +37,18 @@ export async function fetchAnomalies(filters: AnomalyFilters): Promise<Anomaly[]
   if (filters.search) params.set('search', filters.search);
   if (filters.page) params.set('page', String(filters.page));
   if (filters.per_page) params.set('per_page', String(filters.per_page));
-  return fetchJson<Anomaly[]>(`${BASE}/api/anomalies?${params}`);
+  const raw = await fetchJson<any>(`${BASE}/api/anomalies?${params}`);
+  if (Array.isArray(raw)) return raw;
+  if (raw?.anomalies && Array.isArray(raw.anomalies)) return raw.anomalies;
+  if (raw?.data && Array.isArray(raw.data)) return raw.data;
+  return [];
 }
 
 export async function fetchAnomalySummary(date: string): Promise<AnomalySummary[]> {
-  return fetchJson<AnomalySummary[]>(`${BASE}/api/anomalies/summary?date=${date}`);
+  const raw = await fetchJson<any>(`${BASE}/api/anomalies/summary?date=${date}`);
+  if (Array.isArray(raw)) return raw;
+  if (raw?.summary && Array.isArray(raw.summary)) return raw.summary;
+  return [];
 }
 
 export async function fetchKPIHistory(
@@ -53,15 +66,21 @@ export async function fetchKPICompare(dimension_2: string, date: string): Promis
 }
 
 export async function fetchClusters(date: string, dimension: SentinelDimension = 'Cellule'): Promise<ClusterData[]> {
-  return fetchJson<ClusterData[]>(`${BASE}/api/clusters?date=${date}&dimension=${dimension}`);
+  const raw = await fetchJson<any>(`${BASE}/api/clusters?date=${date}&dimension=${dimension}`);
+  if (Array.isArray(raw)) return raw;
+  if (raw?.clusters && Array.isArray(raw.clusters)) return raw.clusters;
+  return [];
 }
 
 export async function fetchClusterMembers(
   clusterId: number, date: string, dimension: SentinelDimension = 'Cellule'
 ): Promise<ClusterMember[]> {
-  return fetchJson<ClusterMember[]>(
+  const raw = await fetchJson<any>(
     `${BASE}/api/clusters/${clusterId}/members?date=${date}&dimension=${dimension}`
   );
+  if (Array.isArray(raw)) return raw;
+  if (raw?.members && Array.isArray(raw.members)) return raw.members;
+  return [];
 }
 
 export async function fetchDimensionValues(
