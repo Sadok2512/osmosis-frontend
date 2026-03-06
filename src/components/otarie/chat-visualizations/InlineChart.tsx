@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList
 } from 'recharts';
-import { BarChart3, TrendingUp, Layers, PieChart as PieIcon, Palette } from 'lucide-react';
+import { BarChart3, TrendingUp, Layers, PieChart as PieIcon, Palette, Paintbrush } from 'lucide-react';
 
 export interface ChartBlock {
   type: 'line' | 'bar' | 'area' | 'scatter' | 'stacked_bar' | 'pie';
