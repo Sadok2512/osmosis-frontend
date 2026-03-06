@@ -428,7 +428,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 <Paintbrush className="w-3.5 h-3.5 text-muted-foreground/60" />
                 <FieldLabel>Background</FieldLabel>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-border">
                 {BG_PALETTE.map(c => (
                   <ColorDot key={c} color={c} size={20}
                     selected={(draft.advanced.backgroundColor || 'transparent') === c}
@@ -443,7 +443,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 <Type className="w-3.5 h-3.5 text-muted-foreground/60" />
                 <FieldLabel>Header Text Color</FieldLabel>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-border">
                 {TEXT_COLOR_PALETTE.map(c => (
                   <ColorDot key={c || 'default'} color={c || 'currentColor'} size={20}
                     selected={(draft.advanced.headerTextColor || '') === c}
