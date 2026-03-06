@@ -1,5 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { GripVertical, Trash2, Plus, X, Table2, Settings, Filter } from 'lucide-react';
+import { GripVertical, Trash2, Plus, X, Table2, Settings, Filter, MoreVertical, Copy, Download, Pencil } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { BI_KPI_CATALOG, BI_DIMENSIONS, BIDimension, BIKPI, KPI_UNITS, getKpiDisplayName } from './biTypes';
 import { getDimensionValues } from './mockBIData';
 
@@ -32,8 +38,8 @@ interface Props {
   onChange: (config: TableWidgetConfig) => void;
   onDelete: () => void;
   onEdit?: () => void;
+  onCopy?: () => void;
 }
-
 export function createDefaultTableWidget(id: string): TableWidgetConfig {
   const end = new Date();
   const start = new Date();
@@ -107,7 +113,7 @@ const getKpiColor = (kpi: string, value: number): string => {
   return 'text-foreground';
 };
 
-const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete, onEdit }) => {
+const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete, onEdit, onCopy }) => {
   const config = useMemo(() => ({
     ...rawConfig,
     filters: rawConfig.filters || [],
@@ -120,6 +126,20 @@ const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete,
 
   const removeKpi = (kpi: BIKPI) => {
     onChange({ ...config, kpis: kpis.filter(k => k !== kpi) });
+  };
+
+  const exportCsv = () => {
+    if (kpis.length === 0) return;
+    const header = [config.xAxisType === 'date' ? 'Date' : config.dimension, ...kpis.map(k => getKpiDisplayName(k))].join(';');
+    const rows = tableData.map(row => [row.dimension, ...kpis.map(k => row[k])].join(';'));
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${config.title || 'table'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -135,14 +155,27 @@ const BITableWidget: React.FC<Props> = ({ config: rawConfig, onChange, onDelete,
           value={config.title}
           onChange={e => onChange({ ...config, title: e.target.value })}
         />
-        <button onClick={onEdit}
-          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors" title="Settings">
-          <Settings className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={onDelete}
-          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <MoreVertical className="w-3.5 h-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[140px]">
+            <DropdownMenuItem onClick={onEdit} className="text-xs gap-2">
+              <Pencil className="w-3.5 h-3.5" /> Éditer
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onCopy} className="text-xs gap-2">
+              <Copy className="w-3.5 h-3.5" /> Dupliquer
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportCsv} className="text-xs gap-2">
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onDelete} className="text-xs gap-2 text-destructive focus:text-destructive">
+              <Trash2 className="w-3.5 h-3.5" /> Supprimer
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Active KPI tags */}
