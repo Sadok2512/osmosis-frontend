@@ -381,6 +381,58 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
             </div>
           </div>
         )}
+
+        {/* Advanced Settings collapsible in header */}
+        <SectionCard
+          title="Advanced Settings"
+          icon={<Settings2 className="w-4 h-4" />}
+          open={sections.advanced}
+          toggle={() => toggle('advanced')}
+        >
+          <div className="space-y-5">
+            <div className="space-y-3">
+              {[
+                { key: 'showLegend' as const, label: 'Legend' },
+                { key: 'highlightAnomalies' as const, label: 'Anomalies' },
+                { key: 'sortByValue' as const, label: 'Sort by value' },
+              ].map(opt => (
+                <div key={opt.key} className="flex items-center justify-between py-1">
+                  <span className="text-[12px] text-foreground font-medium">{opt.label}</span>
+                  <Switch
+                    checked={draft.advanced[opt.key] as boolean}
+                    onCheckedChange={v => update({ advanced: { ...draft.advanced, [opt.key]: v } })}
+                  />
+                </div>
+              ))}
+              <div className="flex items-center justify-between py-1">
+                <span className="text-[12px] text-foreground font-medium">Top N</span>
+                <input
+                  type="number" min={0} max={100}
+                  value={draft.advanced.topN || ''}
+                  placeholder="All"
+                  onChange={e => update({ advanced: { ...draft.advanced, topN: e.target.value ? Number(e.target.value) : null } })}
+                  className="w-20 bg-background border border-border/60 rounded-lg px-3 py-1.5 text-[12px] text-foreground text-right
+                    outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+                />
+              </div>
+            </div>
+            <div className="h-px bg-border/30" />
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-1.5">
+                <Paintbrush className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <FieldLabel>Background</FieldLabel>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {BG_PALETTE.map(c => (
+                  <ColorDot key={c} color={c} size={22}
+                    selected={(draft.advanced.backgroundColor || 'transparent') === c}
+                    onClick={() => update({ advanced: { ...draft.advanced, backgroundColor: c } })}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </SectionCard>
       </div>
 
       {/* ─── Scrollable Sections ─── */}
