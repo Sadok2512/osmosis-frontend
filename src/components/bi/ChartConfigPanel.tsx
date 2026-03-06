@@ -6,7 +6,7 @@ import {
   X, Plus, Trash2, ChevronDown, ChevronRight, TrendingUp, BarChart3, AreaChart,
   ScatterChart, Layers, Columns3, PieChart, Hash, Paintbrush, Database, Check,
   Grid3X3, Calendar, Filter, GitBranch, Settings2, Palette,
-  Zap, ArrowRight, BarChart2, Clock, Eye, CircleDot
+  Zap, ArrowRight, BarChart2, Clock, Eye, CircleDot, Type
 } from 'lucide-react';
 import {
   ChartConfig, YMetricConfig, XAxisConfig, FilterConfig,
