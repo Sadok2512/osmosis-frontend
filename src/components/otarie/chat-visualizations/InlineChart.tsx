@@ -181,6 +181,21 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
 
           <div className="w-px h-4 bg-border mx-0.5" />
 
+          {/* Color by X toggle */}
+          <button
+            onClick={() => setColorByX(p => !p)}
+            title="Couleur par catégorie"
+            className={`p-1.5 rounded-md transition-all ${
+              colorByX
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <Paintbrush size={13} />
+          </button>
+
+          <div className="w-px h-4 bg-border mx-0.5" />
+
           {/* Color palette button */}
           <button
             onClick={togglePalette}
