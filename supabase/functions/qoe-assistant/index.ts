@@ -1613,6 +1613,25 @@ VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
 - kpi: {"title":"...","cards":[{"label":"...","value":"...","unit":"...","trend":"up/down/stable","status":"good/warning/critical"}]}
 Le JSON doit être sur UNE SEULE LIGNE.
 
+## 📊 CRÉATION DE DASHBOARD
+Quand l'utilisateur demande de CRÉER un dashboard (ex: "crée un dashboard", "génère un tableau de bord", "build a dashboard", "nouveau dashboard avec..."), tu DOIS inclure un bloc spécial en commentaire HTML à la fin de ta réponse :
+
+\`\`\`
+<!-- CREATE_DASHBOARD:{"name":"Nom du Dashboard","description":"Description","charts":[{"title":"Titre Chart","kpis":["debit_dl","rtt_data_avg"],"chartTypes":["line","bar"],"dimension1":"Site","dateRange":30}]} -->
+\`\`\`
+
+Règles pour la création de dashboard :
+- "name" : nom du dashboard basé sur la demande
+- "description" : courte description
+- "charts" : tableau de graphiques à créer (1 à 4 charts max)
+  - "title" : titre du graphique
+  - "kpis" : liste des kpi_key à afficher (utilise les 32 KPIs connus)
+  - "chartTypes" : type de chart pour chaque KPI ("line", "bar", "area", "scatter", "line_dot")
+  - "dimension1" : dimension pour le groupement (optionnel, ex: "Vendor", "DOR", "RAT")
+  - "dateRange" : nombre de jours pour la période (default 30)
+- Accompagne le bloc d'une explication de ce que le dashboard contiendra
+- Le JSON doit être sur UNE SEULE LIGNE dans le commentaire HTML
+
 Réponds TOUJOURS en français.`;
 
 const PULSE_PROMPT = `Tu es **PULSE** 📡, agent spécialisé en performance RAN et QoE réseau mobile.

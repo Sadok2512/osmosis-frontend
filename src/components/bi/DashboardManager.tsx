@@ -64,12 +64,21 @@ async function loadAllDashboardsFromDB(): Promise<SavedDashboard[]> {
 async function upsertDashboardToDB(db: SavedDashboard) {
   try {
     const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
+    // Inject theme settings from zustand store into widgets as a special entry
+    const themeStore = useDashboardSettingsStore.getState();
+    const theme = themeStore.getSettings(db.id, db.name).theme;
+    // Remove any existing theme entry and prepend current theme
+    const cleanWidgets = (db.widgets || []).filter((w: any) => w?._type !== 'theme_settings');
+    const widgetsWithTheme = [
+      { _type: 'theme_settings', backgroundColor: theme.backgroundColor || '', titleTextColor: theme.titleTextColor || '' } as any,
+      ...cleanWidgets,
+    ];
     await dashboardsApi.upsert({
       id: db.id,
       name: db.name,
       description: db.description,
       is_shared: db.isShared,
-      widgets: db.widgets,
+      widgets: widgetsWithTheme,
       owner_username: session?.username,
     });
   } catch (e) {
