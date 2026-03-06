@@ -392,6 +392,13 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
           <div className="flex items-center gap-2">
             <LayoutGrid className="w-4 h-4 text-primary" />
             <span className="text-base font-bold text-foreground truncate max-w-[300px]">{dm.activeTab?.name}</span>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-primary transition-colors"
+              title="Dashboard settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
           </div>
           {/* Description inline edit */}
           <input
