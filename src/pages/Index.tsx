@@ -21,6 +21,7 @@ import ParametersPage from '../components/otarie/ParametersPage';
 
 import AgentHubPage from '../components/otarie/AgentHubPage';
 import KPIMonitorPage from '../components/kpi-monitor/KPIMonitorPage';
+import SentinelPage from '../components/sentinel/SentinelPage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
@@ -149,6 +150,8 @@ const Index: React.FC = () => {
         return <ParametersPage />;
       case 'agent_hub':
         return <AgentHubPage onNavigate={setActiveTab} />;
+      case 'sentinel':
+        return <SentinelPage />;
       default:
         return null;
     }
