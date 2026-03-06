@@ -683,37 +683,41 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                       </div>
 
                       {/* Collapsible settings */}
-                      <div className={`transition-all duration-200 ease-out ${isExpanded ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-                        <div className="space-y-3 pb-1">
-                          {/* Chart Type */}
-                          <div className="space-y-1.5">
-                            <FieldLabel>Chart Type</FieldLabel>
-                            <TooltipProvider delayDuration={200}>
-                              <div className="grid grid-cols-9 gap-1">
-                                {CHART_TYPE_OPTIONS.map(opt => (
-                                  <Tooltip key={opt.type}>
-                                    <TooltipTrigger asChild>
-                                      <button
-                                        onClick={() => updateMetric(i, { chartType: opt.type })}
-                                        className={`aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 ${
-                                          m.chartType === opt.type
-                                            ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-105'
-                                            : 'bg-muted/20 text-muted-foreground border-transparent hover:border-border/60 hover:text-foreground hover:bg-muted/40'
-                                        }`}
-                                      >
-                                        {opt.icon}
-                                      </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="text-[11px]">{opt.label}</TooltipContent>
-                                  </Tooltip>
-                                ))}
+                      <div className={`transition-all duration-200 ease-out ${isExpanded ? 'max-h-[800px] opacity-100 mt-3' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+                        <div className="space-y-4 pb-1">
+
+                          {/* ── Visualization (Chart Type) ── */}
+                          <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-2.5">
+                            <div className="flex items-center gap-2">
+                              <BarChart3 className="w-4 h-4 text-muted-foreground" />
+                              <div>
+                                <span className="text-[12px] font-bold text-foreground">Visualization</span>
+                                <span className="text-[10px] text-muted-foreground ml-2">
+                                  {CHART_TYPE_OPTIONS.find(o => o.type === m.chartType)?.label || 'Ligne'} chart
+                                </span>
                               </div>
-                            </TooltipProvider>
+                            </div>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {CHART_TYPE_OPTIONS.map(opt => (
+                                <button
+                                  key={opt.type}
+                                  onClick={() => updateMetric(i, { chartType: opt.type })}
+                                  className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[11px] font-medium transition-all duration-200 ${
+                                    m.chartType === opt.type
+                                      ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
+                                      : 'bg-background text-muted-foreground border-border/40 hover:border-primary/30 hover:text-foreground hover:bg-muted/30'
+                                  }`}
+                                >
+                                  {opt.icon}
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
                           </div>
 
-                          {/* Axis + Toggles */}
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-1">
+                          {/* ── Axis + Toggles ── */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1.5">
                               <FieldLabel>Axis</FieldLabel>
                               <SegmentedControl
                                 options={[
@@ -724,7 +728,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                                 onChange={v => updateMetric(i, { axis: v as AxisSide })}
                               />
                             </div>
-                            <div className="space-y-1.5">
+                            <div className="space-y-2">
                               <label className="flex items-center gap-2 cursor-pointer group/toggle">
                                 <Switch
                                   checked={m.smoothCurve}
@@ -744,15 +748,15 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                             </div>
                           </div>
 
-                          {/* Color picker */}
+                          {/* ── Color palette ── */}
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-1.5">
                               <Palette className="w-3 h-3 text-muted-foreground/60" />
                               <FieldLabel>Color</FieldLabel>
                             </div>
-                            <div className="flex gap-1.5 flex-wrap">
+                            <div className="flex gap-2 flex-wrap">
                               {SIMPLE_PALETTE.map(c => (
-                                <ColorDot key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} size={16} />
+                                <ColorDot key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} size={18} />
                               ))}
                             </div>
                           </div>
