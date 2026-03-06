@@ -4,7 +4,7 @@ import { fetchClusters, fetchClusterMembers } from '../sentinelApi';
 import { ClusterData, ClusterMember, CLUSTER_COLORS, SentinelDimension } from '../types';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, BarChart3 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 import { cn } from '@/lib/utils';
 
