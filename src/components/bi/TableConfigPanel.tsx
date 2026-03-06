@@ -2,7 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { X, Table2, Filter, Calendar, LayoutGrid, Check, Search, ChevronDown, ChevronRight, RotateCcw, Plus, Settings2 } from 'lucide-react';
 import { BI_KPI_CATALOG, BI_KPI_CATEGORIES, BI_DIMENSIONS, BIDimension, BIKPI, getKpiDisplayName } from './biTypes';
 import { getDimensionValues } from './mockBIData';
-import { TableWidgetConfig, TableFilter } from './BITableWidget';
+import { TableWidgetConfig, TableFilter, TableGranularity } from './BITableWidget';
+
+const GRANULARITIES: { key: TableGranularity; label: string }[] = [
+  { key: 'hour', label: 'Heure' },
+  { key: 'day', label: 'Jour' },
+  { key: 'week', label: 'Semaine' },
+  { key: 'month', label: 'Mois' },
+];
 
 const CATEGORY_COLORS: Record<string, string> = {
   'Volume': 'bg-blue-500',
