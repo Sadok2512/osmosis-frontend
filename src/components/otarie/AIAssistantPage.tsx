@@ -16,6 +16,9 @@ import InlineKPICards from './chat-visualizations/InlineKPICards';
 import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore';
 import { useAgentLearningStore } from '@/stores/agentLearningStore';
+import { dashboardsApi } from '@/lib/localDb';
+import { createDefaultChart, CHART_COLORS } from '@/components/bi/biTypes';
+import { getStoredSession } from '@/services/adminAuth';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
 type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'QOEBIT';
