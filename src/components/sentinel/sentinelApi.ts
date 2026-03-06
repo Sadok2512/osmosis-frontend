@@ -6,7 +6,7 @@ import {
   AnomalyFilters, SentinelDimension
 } from './types';
 
-const BASE = import.meta.env.VITE_SENTINEL_API_URL || 'http://localhost:3000';
+const BASE = import.meta.env.VITE_SENTINEL_API_URL || 'http://localhost:1000';
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
