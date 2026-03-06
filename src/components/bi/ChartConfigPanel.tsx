@@ -214,6 +214,12 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   const [availableDateRange, setAvailableDateRange] = useState<{ min_date: string | null; max_date: string | null }>({ min_date: null, max_date: null });
   const [kpiModalOpen, setKpiModalOpen] = useState(false);
   const [kpiModalTarget, setKpiModalTarget] = useState<{ type: 'metric'; index: number } | { type: 'xAxis' } | { type: 'sizeBy' } | null>(null);
+  const [expandedMetrics, setExpandedMetrics] = useState<Set<number>>(new Set());
+  const toggleMetricExpand = (idx: number) => setExpandedMetrics(prev => {
+    const next = new Set(prev);
+    next.has(idx) ? next.delete(idx) : next.add(idx);
+    return next;
+  });
 
   // Auto-detect available date range from local DB
   useEffect(() => {
@@ -561,7 +567,9 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
 
           {/* Metric cards */}
           <div className="space-y-3">
-            {draft.yMetrics.map((m, i) => (
+            {draft.yMetrics.map((m, i) => {
+              const isExpanded = expandedMetrics.has(i);
+              return (
               <div
                 key={i}
                 className="rounded-xl border border-border/40 bg-card/40 overflow-hidden transition-all duration-200 hover:border-border/70 hover:shadow-sm"
@@ -569,15 +577,23 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                 {/* Metric header with colored accent */}
                 <div className="flex items-stretch">
                   <div className="w-1 rounded-l-xl shrink-0" style={{ background: m.color }} />
-                  <div className="flex-1 p-4 space-y-4">
-                    {/* Top row: KPI name + delete */}
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1 px-3 py-2.5 space-y-0">
+                    {/* Top row: KPI name + expand toggle + delete */}
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => { setKpiModalTarget({ type: 'metric', index: i }); setKpiModalOpen(true); }}
                         className="flex-1 text-left text-[13px] font-bold text-foreground truncate
                           hover:text-primary transition-colors duration-150 cursor-pointer"
                       >
                         {getKpiDisplayName(m.kpi)}
+                      </button>
+                      <button
+                        onClick={() => toggleMetricExpand(i)}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center
+                          text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-all duration-150"
+                        title="Settings"
+                      >
+                        <Settings2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => removeMetric(i)}
@@ -588,83 +604,87 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                       </button>
                     </div>
 
-                    {/* ── VISUALIZATION subsection ── */}
-                    <div className="space-y-3">
-                      <FieldLabel>Chart Type</FieldLabel>
-                      <TooltipProvider delayDuration={200}>
-                        <div className="grid grid-cols-9 gap-1">
-                          {CHART_TYPE_OPTIONS.map(opt => (
-                            <Tooltip key={opt.type}>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={() => updateMetric(i, { chartType: opt.type })}
-                                  className={`aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 ${
-                                    m.chartType === opt.type
-                                      ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-105'
-                                      : 'bg-muted/20 text-muted-foreground border-transparent hover:border-border/60 hover:text-foreground hover:bg-muted/40'
-                                  }`}
-                                >
-                                  {opt.icon}
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="text-[11px]">{opt.label}</TooltipContent>
-                            </Tooltip>
-                          ))}
-                        </div>
-                      </TooltipProvider>
-                    </div>
-
-                    {/* Axis + Toggles */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
+                    {/* Collapsible settings */}
+                    <div className={`transition-all duration-200 ease-out ${isExpanded ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+                      <div className="space-y-3 pb-1">
+                        {/* Chart Type */}
                         <div className="space-y-1.5">
-                          <FieldLabel>Axis</FieldLabel>
-                          <SegmentedControl
-                            options={[
-                              { value: 'left', label: 'Left' },
-                              { value: 'right', label: 'Right' },
-                            ]}
-                            value={m.axis}
-                            onChange={v => updateMetric(i, { axis: v as AxisSide })}
-                          />
+                          <FieldLabel>Chart Type</FieldLabel>
+                          <TooltipProvider delayDuration={200}>
+                            <div className="grid grid-cols-9 gap-1">
+                              {CHART_TYPE_OPTIONS.map(opt => (
+                                <Tooltip key={opt.type}>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => updateMetric(i, { chartType: opt.type })}
+                                      className={`aspect-square flex items-center justify-center rounded-lg border transition-all duration-200 ${
+                                        m.chartType === opt.type
+                                          ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-105'
+                                          : 'bg-muted/20 text-muted-foreground border-transparent hover:border-border/60 hover:text-foreground hover:bg-muted/40'
+                                      }`}
+                                    >
+                                      {opt.icon}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="text-[11px]">{opt.label}</TooltipContent>
+                                </Tooltip>
+                              ))}
+                            </div>
+                          </TooltipProvider>
                         </div>
-                        <div className="space-y-2 pt-4">
-                          <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                            <Switch
-                              checked={m.smoothCurve}
-                              onCheckedChange={v => updateMetric(i, { smoothCurve: v })}
-                              className="scale-[0.8] origin-left"
-                            />
-                            <span className="text-[11px] font-medium text-muted-foreground group-hover/toggle:text-foreground transition-colors">Smooth</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                            <Switch
-                              checked={m.showMovingAvg}
-                              onCheckedChange={v => updateMetric(i, { showMovingAvg: v })}
-                              className="scale-[0.8] origin-left"
-                            />
-                            <span className="text-[11px] font-medium text-muted-foreground group-hover/toggle:text-foreground transition-colors">Moving Avg</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Color picker */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1.5">
-                        <Palette className="w-3 h-3 text-muted-foreground/60" />
-                        <FieldLabel>Color</FieldLabel>
-                      </div>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {SIMPLE_PALETTE.map(c => (
-                          <ColorDot key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} size={20} />
-                        ))}
+                        {/* Axis + Toggles */}
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <FieldLabel>Axis</FieldLabel>
+                            <SegmentedControl
+                              options={[
+                                { value: 'left', label: 'Left' },
+                                { value: 'right', label: 'Right' },
+                              ]}
+                              value={m.axis}
+                              onChange={v => updateMetric(i, { axis: v as AxisSide })}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                              <Switch
+                                checked={m.smoothCurve}
+                                onCheckedChange={v => updateMetric(i, { smoothCurve: v })}
+                                className="scale-[0.8] origin-left"
+                              />
+                              <span className="text-[11px] font-medium text-muted-foreground group-hover/toggle:text-foreground transition-colors">Smooth</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                              <Switch
+                                checked={m.showMovingAvg}
+                                onCheckedChange={v => updateMetric(i, { showMovingAvg: v })}
+                                className="scale-[0.8] origin-left"
+                              />
+                              <span className="text-[11px] font-medium text-muted-foreground group-hover/toggle:text-foreground transition-colors">Moving Avg</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Color picker */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <Palette className="w-3 h-3 text-muted-foreground/60" />
+                            <FieldLabel>Color</FieldLabel>
+                          </div>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {SIMPLE_PALETTE.map(c => (
+                              <ColorDot key={c} color={c} selected={m.color === c} onClick={() => updateMetric(i, { color: c })} size={18} />
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </SectionCard>
 
