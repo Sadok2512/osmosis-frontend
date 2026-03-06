@@ -13,7 +13,7 @@ import SettingsPanel from '../components/otarie/SettingsPanel';
 import DocumentationPage from '../components/otarie/DocumentationPage';
 import AIAssistantPage from '../components/otarie/AIAssistantPage';
 import DashboardOverview from '../components/otarie/DashboardOverview';
-import RAGManager from '../components/otarie/RAGManager';
+
 import RadioProfilePage from '../components/otarie/RadioProfilePage';
 import BackendAdmin from '../components/otarie/BackendAdmin';
 import TopologiePage from '../components/otarie/TopologiePage';
@@ -139,8 +139,6 @@ const Index: React.FC = () => {
         return <AIAssistantPage sites={sites} onShowWorstCells={(cellIds) => { setHighlightedCellIds(cellIds); setActiveTab('sites'); }} initialPrompt={aiInitialPrompt} onPromptConsumed={() => setAiInitialPrompt(undefined)} onNavigate={(tab) => setActiveTab(tab as AppTab)} />;
       case 'radio_profile':
         return <RadioProfilePage />;
-      case 'rag':
-        return <RAGManager />;
       case 'backend_admin':
         return <BackendAdmin />;
       case 'topologie':

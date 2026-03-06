@@ -160,7 +160,7 @@ const MODULE_DEFS: { id: string; label: string; description: string; icon: React
   { id: 'ai_assistant', label: 'QOEBIT AI', description: 'Assistant IA pour l\'analyse QoE', icon: <Zap className="w-5 h-5" /> },
   { id: 'radio_profile', label: 'Radio Profile', description: 'Profil de propagation RF et terrain', icon: <Radio className="w-5 h-5" /> },
   { id: 'topologie', label: 'Topologie Réseau', description: 'Gestion topologique du réseau', icon: <Antenna className="w-5 h-5" /> },
-  { id: 'rag', label: 'RAG Knowledge Base', description: 'Base de connaissances documentaire', icon: <Database className="w-5 h-5" /> },
+  
   { id: 'docs', label: 'Documentation', description: 'Documentation technique de la plateforme', icon: <FileSpreadsheet className="w-5 h-5" /> },
   { id: 'backend_admin', label: 'Backend Admin', description: 'Administration et configuration backend', icon: <Database className="w-5 h-5" /> },
 ];
