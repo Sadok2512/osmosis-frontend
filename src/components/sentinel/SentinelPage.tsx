@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Eye, BarChart3, Clock, ChevronRight } from 'lucide-react';
+import { Shield, Eye, BarChart3, Clock, ChevronRight, Wifi, WifiOff, Loader2, CheckCircle } from 'lucide-react';
 import SentinelOverview from './pages/SentinelOverview';
 import SentinelExplorer from './pages/SentinelExplorer';
 import SentinelClustering from './pages/SentinelClustering';
 import SentinelTemporal from './pages/SentinelTemporal';
 import { fetchDates } from './sentinelApi';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 type SentinelTab = 'overview' | 'explorer' | 'clustering' | 'temporal';
 
@@ -16,50 +17,87 @@ const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'temporal', label: 'Analyse temporelle', icon: <Clock className="w-4 h-4" /> },
 ];
 
+type ConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
+
 const SentinelPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SentinelTab>('overview');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
+  const [apiResponse, setApiResponse] = useState<string>('');
 
+  // Initialize with today's date immediately so UI is always visible
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      // Force exit loading after 3s even if API doesn't respond
-      setLoading(prev => {
-        if (prev) {
-          const today = new Date().toISOString().split('T')[0];
-          setAvailableDates([today]);
-          setSelectedDate(today);
-        }
-        return false;
-      });
-    }, 3000);
+    const today = new Date().toISOString().split('T')[0];
+    setSelectedDate(today);
+    setAvailableDates([today]);
 
+    // Try to fetch real dates in background
     fetchDates()
       .then(dates => {
-        clearTimeout(timeout);
-        setAvailableDates(dates);
-        if (dates.length > 0) setSelectedDate(dates[dates.length - 1]);
+        if (dates.length > 0) {
+          setAvailableDates(dates);
+          setSelectedDate(dates[dates.length - 1]);
+          setConnectionStatus('connected');
+        }
       })
       .catch(() => {
-        clearTimeout(timeout);
-        const today = new Date().toISOString().split('T')[0];
-        setAvailableDates([today]);
-        setSelectedDate(today);
-      })
-      .finally(() => setLoading(false));
-
-    return () => clearTimeout(timeout);
+        setConnectionStatus('error');
+      });
   }, []);
 
-  if (loading || !selectedDate) {
+  const testConnection = async () => {
+    setConnectionStatus('testing');
+    setApiResponse('');
+    try {
+      const start = Date.now();
+      const dates = await fetchDates();
+      const elapsed = Date.now() - start;
+      setConnectionStatus('connected');
+      setApiResponse(`✓ ${dates.length} dates disponibles (${elapsed}ms)`);
+      if (dates.length > 0) {
+        setAvailableDates(dates);
+        setSelectedDate(dates[dates.length - 1]);
+      }
+    } catch (err: any) {
+      setConnectionStatus('error');
+      setApiResponse(`✗ ${err.message || 'Connexion impossible'}`);
+    }
+  };
+
+  const statusBadge = () => {
+    switch (connectionStatus) {
+      case 'testing':
+        return (
+          <Badge variant="outline" className="text-[10px] gap-1 animate-pulse border-yellow-500/50 text-yellow-600">
+            <Loader2 className="w-3 h-3 animate-spin" /> Test en cours...
+          </Badge>
+        );
+      case 'connected':
+        return (
+          <Badge variant="outline" className="text-[10px] gap-1 border-green-500/50 text-green-600">
+            <Wifi className="w-3 h-3" /> Connecté
+          </Badge>
+        );
+      case 'error':
+        return (
+          <Badge variant="outline" className="text-[10px] gap-1 border-destructive/50 text-destructive">
+            <WifiOff className="w-3 h-3" /> Hors ligne
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground">
+            <WifiOff className="w-3 h-3" /> Non testé
+          </Badge>
+        );
+    }
+  };
+
+  if (!selectedDate) {
     return (
       <div className="flex-1 flex items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <Shield className="w-12 h-12 mx-auto text-muted-foreground animate-pulse" />
-          <p className="text-sm text-muted-foreground">Connexion à l'Agent Sentinel...</p>
-          <p className="text-xs text-muted-foreground/60"><p className="text-xs text-muted-foreground/60">FastAPI backend à localhost:1000</p></p>
-        </div>
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -67,7 +105,7 @@ const SentinelPage: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
       {/* Top bar */}
-      <div className="h-12 border-b border-border flex items-center px-4 gap-4 shrink-0">
+      <div className="h-12 border-b border-border flex items-center px-4 gap-3 shrink-0">
         <div className="flex items-center gap-2">
           <Shield className="w-5 h-5 text-destructive" />
           <span className="font-bold text-sm tracking-wide">SENTINEL</span>
@@ -76,6 +114,26 @@ const SentinelPage: React.FC = () => {
         </div>
 
         <div className="flex-1" />
+
+        {/* Connection status + Test button */}
+        {statusBadge()}
+        <button
+          onClick={testConnection}
+          disabled={connectionStatus === 'testing'}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all border',
+            connectionStatus === 'testing'
+              ? 'bg-muted text-muted-foreground border-border cursor-wait'
+              : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
+          )}
+        >
+          {connectionStatus === 'testing' ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Wifi className="w-3.5 h-3.5" />
+          )}
+          Test FastAPI
+        </button>
 
         {/* Date picker */}
         <select
@@ -107,6 +165,19 @@ const SentinelPage: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* API response toast */}
+      {apiResponse && (
+        <div className={cn(
+          'mx-4 mt-2 px-3 py-2 rounded-md text-xs flex items-center justify-between',
+          connectionStatus === 'connected'
+            ? 'bg-green-500/10 text-green-700 border border-green-500/20'
+            : 'bg-destructive/10 text-destructive border border-destructive/20'
+        )}>
+          <span>{apiResponse}</span>
+          <button onClick={() => setApiResponse('')} className="ml-2 text-current hover:opacity-70">✕</button>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
