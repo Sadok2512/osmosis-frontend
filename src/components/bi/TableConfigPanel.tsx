@@ -24,7 +24,8 @@ interface Props {
 const KpiSelectorSection: React.FC<{
   selected: BIKPI[];
   onConfirm: (kpis: BIKPI[]) => void;
-}> = ({ selected, onConfirm }) => {
+  onClose?: () => void;
+}> = ({ selected, onConfirm, onClose }) => {
   const [draft, setDraft] = useState<BIKPI[]>(selected);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
