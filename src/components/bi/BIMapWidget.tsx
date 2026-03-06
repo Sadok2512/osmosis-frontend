@@ -325,7 +325,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center animate-pulse">
               <MapIcon className="w-4 h-4 text-primary" />
             </div>
-            <span className="text-[11px] text-muted-foreground font-medium">Loading sites...</span>
+            <span className="text-[11px] text-muted-foreground font-medium">Chargement des sites...</span>
           </div>
         ) : (
           <MapContainer
