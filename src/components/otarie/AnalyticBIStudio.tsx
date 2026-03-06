@@ -374,7 +374,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-background">
+    <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-white via-slate-50/80 to-white">
       {/* Tab bar */}
       <DashboardTabBar
         tabs={dm.tabs}
@@ -387,7 +387,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
       />
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/50">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200/60 bg-white/70 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <LayoutGrid className="w-4 h-4 text-primary" />
@@ -479,7 +479,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
       {/* Content area: canvas + side panels */}
       <div className="flex-1 flex overflow-hidden">
         {/* Dashboard canvas */}
-        <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4" style={dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor ? { backgroundColor: dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor } : undefined}>
+        <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }} className="flex-1 overflow-auto p-4 bg-gradient-to-b from-slate-50/50 to-white" style={dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor ? { backgroundColor: dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor } : undefined}>
           {widgets.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
