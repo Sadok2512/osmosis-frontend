@@ -826,8 +826,9 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
           /* ── List View ── */
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
             {/* Header */}
-            <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 bg-muted/30 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <div className="hidden md:grid grid-cols-[1fr_1fr_auto_auto_auto_auto] gap-4 px-5 py-3 bg-muted/30 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <span>Dashboard</span>
+              <span>Description</span>
               <span className="w-28 text-center">Créé par</span>
               <span className="w-24 text-center">Visibilité</span>
               <span className="w-36 text-right">Dernière modification</span>
