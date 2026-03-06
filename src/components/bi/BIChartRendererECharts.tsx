@@ -565,12 +565,16 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
   const yAxisMode = config.advanced.yAxisMode || 'auto';
   const yAxisFixedMin = config.advanced.yAxisMin;
   const yAxisFixedMax = config.advanced.yAxisMax;
+  const showGrid = config.advanced.showGrid !== false;
   const yAxisRange = yAxisMode === 'fixed' ? {
     ...(yAxisFixedMin != null ? { min: yAxisFixedMin } : {}),
     ...(yAxisFixedMax != null ? { max: yAxisFixedMax } : {}),
   } : {};
 
-  const yAxis: any[] = [{ ...PREMIUM_YAXIS_BASE, type: 'value', ...yAxisRange }];
+  const yAxis: any[] = [{
+    ...PREMIUM_YAXIS_BASE, type: 'value', ...yAxisRange,
+    splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)', type: [4, 4] as any, width: 1 }, show: showGrid },
+  }];
   if (hasRight) {
     yAxis.push({
       ...PREMIUM_YAXIS_BASE,
