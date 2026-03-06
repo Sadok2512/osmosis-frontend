@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
-  Database, Activity, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
+  Database, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
   Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin, LogOut
 } from 'lucide-react';
 import { clearSession } from '@/services/adminAuth';
