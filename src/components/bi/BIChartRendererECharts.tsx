@@ -616,7 +616,7 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
       },
       axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
       axisTick: { show: false },
-      splitLine: { show: true, lineStyle: { color: 'rgba(0,0,0,0.03)', type: [2, 4] as any } },
+      splitLine: { show: showGrid, lineStyle: { color: 'rgba(0,0,0,0.03)', type: [2, 4] as any } },
     },
     yAxis,
     series: buildSeries(),
