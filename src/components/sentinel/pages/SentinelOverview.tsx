@@ -5,7 +5,7 @@ import { SEVERITY_CONFIG, ANOMALY_TYPE_LABELS, type DashboardOverviewData } from
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Shield, AlertTriangle, AlertCircle, Info, CheckCircle } from 'lucide-react';
+import { Shield, AlertTriangle, AlertCircle, Info, CheckCircle, Loader2 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 
 interface Props { date: string; apiConnected?: boolean; }
