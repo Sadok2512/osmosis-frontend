@@ -385,10 +385,24 @@ async function fetchMetricTimeSeriesByDimension(
     const supabase = getSupabase();
     const selectCols = `dimension_1, dimension_2, date_part, ${metric}`;
 
-    // Apply date filter based on days parameter
-    const dateTo = new Date();
+    // Find the latest available date in DB instead of using today's date
+    let latestQ = supabase.from("kpi_qoe_aggregated")
+      .select("date_part")
+      .eq("dimension_1", dimension1Type)
+      .not(metric, "is", null)
+      .order("date_part", { ascending: false })
+      .limit(1);
+    if (filters?.vendor) latestQ = latestQ.ilike("dimension_2", `%${filters.vendor}%`);
+    if (filters?.plaque) latestQ = latestQ.ilike("dimension_2", `%${filters.plaque}%`);
+    if (filters?.dor) latestQ = latestQ.ilike("dimension_2", `%${filters.dor}%`);
+    const { data: latestData } = await latestQ;
+    if (!latestData?.length) return `Aucune donnée temporelle pour ${metric} par ${dimension1Type}.`;
+    
+    const latestDate = latestData[0].date_part;
+    const dateTo = new Date(latestDate);
     const dateFrom = new Date(dateTo.getTime() - days * 86400000);
     const dateFromStr = dateFrom.toISOString().slice(0, 10);
+    console.log(`📈 TimeSeries range: ${dateFromStr} → ${latestDate} (${days}d from latest DB date)`);
 
     let q = supabase.from("kpi_qoe_aggregated")
       .select(selectCols)
