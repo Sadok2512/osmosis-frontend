@@ -84,14 +84,17 @@ const ROOT_CAUSE_MAP: Record<string, string[]> = {
   ],
 };
 
-// Mock mini trend data generator
-const generateMiniTrend = (baseValue: number, volatility: number, points = 24) => {
-  const data: number[] = [];
+// Mock mini trend data generator with dates
+const generateMiniTrend = (baseValue: number, volatility: number, days = 30) => {
+  const data: { date: string; value: number }[] = [];
   let val = baseValue;
-  for (let i = 0; i < points; i++) {
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
     val += (Math.random() - 0.5) * volatility;
     val = Math.max(0, val);
-    data.push(parseFloat(val.toFixed(2)));
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    data.push({ date: d.toISOString().split('T')[0], value: parseFloat(val.toFixed(2)) });
   }
   return data;
 };
@@ -203,29 +206,44 @@ const SentinelExplorer: React.FC<Props> = ({ date, apiConnected = true }) => {
     a.href = url; a.download = `sentinel_anomalies_${date}.csv`; a.click();
   };
 
-  // Mini chart options for detail panel
-  const miniChartOption = (title: string, data: number[], color: string, unit: string) => ({
+  // Mini chart options for detail panel — line only with date slider
+  const miniChartOption = (title: string, data: { date: string; value: number }[], color: string, unit: string) => ({
     tooltip: {
       trigger: 'axis' as const,
-      formatter: (params: any) => `${params[0].axisValue}h — ${params[0].value} ${unit}`,
+      formatter: (params: any) => `${params[0].axisValue} — ${params[0].value} ${unit}`,
       backgroundColor: 'hsl(220, 20%, 14%)',
       borderColor: 'hsl(220, 13%, 25%)',
       textStyle: { color: '#fff', fontSize: 10 },
     },
-    grid: { left: 6, right: 6, top: 8, bottom: 4, containLabel: false },
+    grid: { left: 4, right: 4, top: 8, bottom: 28, containLabel: false },
     xAxis: {
       type: 'category' as const,
-      data: Array.from({ length: 24 }, (_, i) => `${i}`),
-      show: false,
+      data: data.map(d => d.date),
+      axisLabel: { show: false },
+      axisLine: { show: false },
+      axisTick: { show: false },
     },
     yAxis: { type: 'value' as const, show: false },
+    dataZoom: [{
+      type: 'slider',
+      height: 14,
+      bottom: 2,
+      start: 60,
+      end: 100,
+      borderColor: 'transparent',
+      backgroundColor: 'hsl(220,13%,91%/0.15)',
+      fillerColor: `${color}33`,
+      handleSize: '60%',
+      handleStyle: { color, borderColor: color },
+      textStyle: { fontSize: 8, color: 'hsl(220,9%,46%)' },
+      labelFormatter: (val: number) => data[val]?.date?.slice(5) || '',
+    }],
     series: [{
       type: 'line' as const,
-      data,
+      data: data.map(d => d.value),
       smooth: true,
       symbol: 'none',
       lineStyle: { color, width: 1.5 },
-      areaStyle: { color: `${color}22` },
     }],
   });
 
@@ -581,7 +599,7 @@ const SentinelExplorer: React.FC<Props> = ({ date, apiConnected = true }) => {
                   <div className="space-y-2">
                     <h4 className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
                       <BarChart3 className="w-3.5 h-3.5 text-primary" />
-                      Tendances KPI (24h)
+                      Tendances KPI (30j)
                     </h4>
 
                     {miniTrends && (
@@ -589,23 +607,23 @@ const SentinelExplorer: React.FC<Props> = ({ date, apiConnected = true }) => {
                         <div className="rounded-lg border border-border p-2">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-[9px] text-muted-foreground uppercase font-medium">DL Throughput (Mbps)</span>
-                            <span className="text-[9px] font-mono text-foreground">{miniTrends.dl[23]?.toFixed(1)}</span>
+                            <span className="text-[9px] font-mono text-foreground">{miniTrends.dl[miniTrends.dl.length - 1]?.value.toFixed(1)}</span>
                           </div>
-                          <ReactECharts option={miniChartOption('DL', miniTrends.dl, 'hsl(217,91%,60%)', 'Mbps')} style={{ height: 60 }} />
+                          <ReactECharts option={miniChartOption('DL', miniTrends.dl, 'hsl(217,91%,60%)', 'Mbps')} style={{ height: 80 }} />
                         </div>
                         <div className="rounded-lg border border-border p-2">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-[9px] text-muted-foreground uppercase font-medium">Latency (ms)</span>
-                            <span className="text-[9px] font-mono text-foreground">{miniTrends.latency[23]?.toFixed(0)}</span>
+                            <span className="text-[9px] font-mono text-foreground">{miniTrends.latency[miniTrends.latency.length - 1]?.value.toFixed(0)}</span>
                           </div>
-                          <ReactECharts option={miniChartOption('Latency', miniTrends.latency, 'hsl(38,92%,50%)', 'ms')} style={{ height: 60 }} />
+                          <ReactECharts option={miniChartOption('Latency', miniTrends.latency, 'hsl(38,92%,50%)', 'ms')} style={{ height: 80 }} />
                         </div>
                         <div className="rounded-lg border border-border p-2">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-[9px] text-muted-foreground uppercase font-medium">Session Drop Rate (%)</span>
-                            <span className="text-[9px] font-mono text-foreground">{miniTrends.dcr[23]?.toFixed(2)}</span>
+                            <span className="text-[9px] font-mono text-foreground">{miniTrends.dcr[miniTrends.dcr.length - 1]?.value.toFixed(2)}</span>
                           </div>
-                          <ReactECharts option={miniChartOption('DCR', miniTrends.dcr, 'hsl(0,72%,51%)', '%')} style={{ height: 60 }} />
+                          <ReactECharts option={miniChartOption('DCR', miniTrends.dcr, 'hsl(0,72%,51%)', '%')} style={{ height: 80 }} />
                         </div>
                       </div>
                     )}
