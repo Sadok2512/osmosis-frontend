@@ -1689,6 +1689,8 @@ const SHARED_RULES = `
 1. Utilise EXCLUSIVEMENT les données fournies dans le contexte. COPIE-COLLE les noms tels quels.
 2. Il est INTERDIT d'inventer des noms de cellules, sites, valeurs ou métriques.
 3. Si aucune donnée n'est disponible, dis-le clairement.
+4. ⛔ NE JAMAIS GÉNÉRER de bloc \`\`\`chart avec des données inventées. Les blocs chart doivent UNIQUEMENT contenir des données EXACTES du contexte.
+5. Si le contexte contient déjà un bloc \`\`\`chart pré-construit, COPIE-LE tel quel — ne le recrée PAS avec d'autres valeurs.
 
 FORMATAGE : Markdown pur (pas de HTML).
 - Tableaux Markdown | et ---
@@ -1701,6 +1703,7 @@ VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
 - map: {"title":"...","markers":[{"lat":...,"lng":...,"label":"...","value":...}]}
 - kpi: {"title":"...","cards":[{"label":"...","value":"...","unit":"...","trend":"up/down/stable","status":"good/warning/critical"}]}
 Le JSON doit être sur UNE SEULE LIGNE.
+⚠️ IMPORTANT: Si un bloc \`\`\`chart est déjà inclus dans le contexte fourni, RECOPIE-LE EXACTEMENT. Ne modifie PAS les données.
 
 ## 📊 CRÉATION DE DASHBOARD
 Quand l'utilisateur demande de CRÉER un dashboard (ex: "crée un dashboard", "génère un tableau de bord", "build a dashboard", "nouveau dashboard avec..."), tu DOIS inclure un bloc spécial en commentaire HTML à la FIN de ta réponse. NE PAS mettre ce bloc dans un code block markdown. Écris-le directement en texte brut :
