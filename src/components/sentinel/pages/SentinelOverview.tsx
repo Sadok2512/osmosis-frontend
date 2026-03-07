@@ -11,10 +11,36 @@ import {
 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 
-interface Props { date: string; apiConnected?: boolean; }
+interface Props { date: string; apiConnected?: boolean; theme?: 'light' | 'dark'; }
 
-/* ── NOC Color Palette — Light Mode ── */
-const NOC = {
+/* ── NOC Color Palettes ── */
+const NOC_DARK = {
+  bg: '#0a0e1a',
+  cardBg: '#111827',
+  cardBorder: '#1e293b',
+  cardBgHover: '#1a2332',
+  critical: '#ef4444',
+  criticalBg: 'rgba(239,68,68,0.08)',
+  criticalGlow: 'rgba(239,68,68,0.25)',
+  major: '#f59e0b',
+  majorBg: 'rgba(245,158,11,0.08)',
+  majorGlow: 'rgba(245,158,11,0.25)',
+  minor: '#3b82f6',
+  minorBg: 'rgba(59,130,246,0.08)',
+  minorGlow: 'rgba(59,130,246,0.25)',
+  ok: '#10b981',
+  okBg: 'rgba(16,185,129,0.08)',
+  text: '#f1f5f9',
+  textMuted: '#94a3b8',
+  textDim: '#64748b',
+  accent: '#06b6d4',
+  accentBg: 'rgba(6,182,212,0.08)',
+  purple: '#8b5cf6',
+  grid: 'rgba(148,163,184,0.06)',
+  chartColors: ['#ef4444', '#f59e0b', '#8b5cf6', '#3b82f6', '#06b6d4', '#10b981'],
+};
+
+const NOC_LIGHT = {
   bg: '#f8fafc',
   cardBg: '#ffffff',
   cardBorder: '#e2e8f0',

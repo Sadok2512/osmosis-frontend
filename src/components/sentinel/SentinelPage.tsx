@@ -19,7 +19,7 @@ const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
 
 type ConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
 
-const SentinelPage: React.FC = () => {
+const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' }) => {
   const [activeTab, setActiveTab] = useState<SentinelTab>('overview');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [availableDates, setAvailableDates] = useState<string[]>([]);
@@ -187,7 +187,7 @@ const SentinelPage: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        {activeTab === 'overview' && <SentinelOverview date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
+        {activeTab === 'overview' && <SentinelOverview date={selectedDate} apiConnected={connectionStatus === 'connected'} theme={theme} />}
         {activeTab === 'explorer' && <SentinelExplorer date={selectedDate} />}
         {activeTab === 'clustering' && <SentinelClustering date={selectedDate} />}
         {activeTab === 'temporal' && <SentinelTemporal date={selectedDate} />}
