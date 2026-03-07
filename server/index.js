@@ -84,27 +84,14 @@ sharedPool.connect(async (err, client, release) => {
     if (dumpTable) {
       console.log(`\n📊 Analyse de "${dumpTable}":`);
 
-      // Exact count
-      const countRes = await client.query(`SELECT COUNT(*) AS cnt FROM ${dumpTable}`);
-      const totalRows = parseInt(countRes.rows[0].cnt);
-      console.log(`   Total lignes: ${totalRows.toLocaleString()}`);
+      // Fast estimate instead of COUNT(*) on 80M+ rows
+      const estRes = await client.query(`SELECT reltuples::bigint AS cnt FROM pg_class WHERE relname = $1`, [dumpTable]);
+      const totalRows = parseInt(estRes.rows[0]?.cnt || '0');
+      console.log(`   Total lignes (estimé): ~${totalRows.toLocaleString()}`);
 
       if (totalRows > 0) {
-        // Distinct counts
-        const paramRes = await client.query(`SELECT COUNT(DISTINCT parameter) AS cnt FROM ${dumpTable}`);
-        const siteRes = await client.query(`SELECT COUNT(DISTINCT site_name) AS cnt FROM ${dumpTable}`);
-        const vendorRes = await client.query(`SELECT COUNT(DISTINCT vendor) AS cnt FROM ${dumpTable}`);
-        console.log(`   Paramètres distincts: ${paramRes.rows[0].cnt}`);
-        console.log(`   Sites distincts: ${siteRes.rows[0].cnt}`);
-        console.log(`   Vendors distincts: ${vendorRes.rows[0].cnt}`);
-
-        // Show first 10 parameters as sanity check
-        const sampleParams = await client.query(`SELECT DISTINCT parameter FROM ${dumpTable} WHERE parameter IS NOT NULL ORDER BY parameter LIMIT 10`);
-        console.log(`   🔎 Échantillon paramètres: [${sampleParams.rows.map(r => r.parameter).join(', ')}]`);
-
-        // Show first 5 sites
-        const sampleSites = await client.query(`SELECT DISTINCT site_name FROM ${dumpTable} WHERE site_name IS NOT NULL ORDER BY site_name LIMIT 5`);
-        console.log(`   🔎 Échantillon sites: [${sampleSites.rows.map(r => r.site_name).join(', ')}]`);
+        // Skip expensive DISTINCT counts on huge tables — use pg_stats
+        console.log(`   (Détails DISTINCT ignorés au démarrage pour éviter les requêtes lentes)`);
       } else {
         console.log(`   ⚠️ TABLE VIDE — aucune donnée importée`);
       }
@@ -115,8 +102,8 @@ sharedPool.connect(async (err, client, release) => {
 
     // Check topo table
     if (tableNames.includes('topo')) {
-      const topoCount = await client.query('SELECT COUNT(*) AS cnt FROM topo');
-      console.log(`\n📊 Table "topo": ${topoCount.rows[0].cnt} lignes`);
+      const topoEst = await client.query(`SELECT reltuples::bigint AS cnt FROM pg_class WHERE relname = 'topo'`);
+      console.log(`\n📊 Table "topo": ~${parseInt(topoEst.rows[0]?.cnt || '0').toLocaleString()} lignes (estimé)`);
     }
 
     console.log('═══════════════════════════════════════════');
