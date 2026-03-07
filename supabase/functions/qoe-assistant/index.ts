@@ -61,7 +61,10 @@ type DataNeed =
   | "dimension_agg"
   | "dimension_values"
   | "topo_metric_agg"
-  | "topo_inventory";
+  | "topo_inventory"
+  | "sentinel_anomalies"
+  | "sentinel_timeseries"
+  | "dimension_timeseries";
 
 type Dimension1Type =
   | "Cellule" | "Site" | "Vendor" | "Bande" | "ARCEP" | "Application"
@@ -1144,6 +1147,218 @@ async function searchParameterChanges(query: string): Promise<string> {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  🔍 SENTINEL ML ENGINE — anomaly detection from ml_features
+// ═══════════════════════════════════════════════════════════════
+
+async function fetchSentinelAnomalies(
+  filters?: AssistantFilters,
+  scope?: Scope,
+  limit = 30
+): Promise<string> {
+  try {
+    const supabase = getSupabase();
+
+    // Find the latest date in ml_features
+    let latestQ = supabase.from("ml_features")
+      .select("date_part")
+      .order("date_part", { ascending: false })
+      .limit(1);
+    if (filters?.vendor) latestQ = latestQ.ilike("dimension_2", `%${filters.vendor}%`);
+    const { data: latestData } = await latestQ;
+    if (!latestData?.length) return "Aucune donnée ML disponible.";
+    const latestDate = latestData[0].date_part;
+
+    // Fetch ML features for the latest date (or specific scope)
+    const selectCols = `dimension_1, dimension_2, date_part, qoe_index, qoe_composite, debit_dl, debit_ul, rtt_data_avg, loss_dl_rate, tcp_retr_rate_dl, session_dcr, session_nbr, dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, wind_full_rate, instability_rate, fallback_5G_to_4G_rate, z_qoe_index, z_debit_dl, z_debit_ul, z_rtt_data_avg, z_loss_dl_rate, z_tcp_retr_rate_dl, z_session_dcr, z_wind_full_rate, z_instability_rate, pct_qoe_index, pct_debit_dl, score_debit, score_latence, score_loss, score_retr, score_stabilite, score_drop, score_dms, trend_qoe, trend_debit_dl, trend_rtt, debit_dl_delta7j_pct, qoe_index_delta7j_pct`;
+
+    let q = supabase.from("ml_features")
+      .select(selectCols)
+      .eq("date_part", latestDate)
+      .order("qoe_composite", { ascending: true })
+      .limit(1000);
+
+    if (scope?.level === "vendor" && "vendor" in scope) q = q.eq("dimension_1", "Vendor").ilike("dimension_2", `%${scope.vendor}%`);
+    else if (scope?.level === "site" && "siteName" in scope) q = q.ilike("dimension_2", `%${scope.siteName}%`);
+    else if (filters?.vendor) q = q.eq("dimension_1", "Vendor").ilike("dimension_2", `%${filters.vendor}%`);
+    else if (filters?.plaque) q = q.eq("dimension_1", "Plaque").ilike("dimension_2", `%${filters.plaque}%`);
+    else if (filters?.dor) q = q.eq("dimension_1", "DOR").ilike("dimension_2", `%${filters.dor}%`);
+
+    const { data, error } = await q;
+    if (error) { console.error("fetchSentinelAnomalies error:", error); return ""; }
+    if (!data?.length) return `Aucune donnée ML pour la date ${latestDate}.`;
+
+    // Identify anomalies: z-score > 2 or < -2, or qoe_composite < 40
+    const anomalies = data.filter((r: any) => {
+      const zFields = ['z_qoe_index', 'z_debit_dl', 'z_rtt_data_avg', 'z_loss_dl_rate', 'z_tcp_retr_rate_dl', 'z_session_dcr', 'z_wind_full_rate', 'z_instability_rate'];
+      const hasZAnomaly = zFields.some(f => {
+        const v = r[f];
+        return v != null && Math.abs(v) > 2;
+      });
+      const hasLowComposite = r.qoe_composite != null && r.qoe_composite < 40;
+      const hasLowQoe = r.qoe_index != null && r.qoe_index < 50;
+      return hasZAnomaly || hasLowComposite || hasLowQoe;
+    });
+
+    // Build summary stats
+    const totalEntities = data.length;
+    const anomalyCount = anomalies.length;
+    const avgQoe = data.filter((r: any) => r.qoe_index != null).reduce((s: number, r: any) => s + r.qoe_index, 0) / (data.filter((r: any) => r.qoe_index != null).length || 1);
+    const avgComposite = data.filter((r: any) => r.qoe_composite != null).reduce((s: number, r: any) => s + r.qoe_composite, 0) / (data.filter((r: any) => r.qoe_composite != null).length || 1);
+
+    // Severity classification
+    const critical = anomalies.filter((r: any) => (r.qoe_composite != null && r.qoe_composite < 20) || (r.qoe_index != null && r.qoe_index < 30));
+    const major = anomalies.filter((r: any) => {
+      const c = r.qoe_composite; const q = r.qoe_index;
+      return !((c != null && c < 20) || (q != null && q < 30)) && ((c != null && c < 40) || (q != null && q < 50));
+    });
+    const minor = anomalies.filter((r: any) => !critical.includes(r) && !major.includes(r));
+
+    let result = `🚨 SENTINEL ML ANALYSIS — Date: ${latestDate}\n`;
+    result += `Entités analysées: ${totalEntities} | Anomalies détectées: ${anomalyCount}\n`;
+    result += `🔴 Critiques: ${critical.length} | 🟠 Majeures: ${major.length} | 🟡 Mineures: ${minor.length}\n`;
+    result += `QoE moyen: ${avgQoe.toFixed(1)} | Composite moyen: ${avgComposite.toFixed(1)}\n\n`;
+
+    // Top anomalies table
+    const topAnomalies = anomalies.slice(0, limit);
+    if (topAnomalies.length > 0) {
+      result += `TOP ${topAnomalies.length} ANOMALIES (par composite):\n`;
+      result += `# | Dim1 | Dim2 | QoE | Composite | DL_Mbps | RTT | Loss% | Retr% | DCR% | Trend_QoE | Δ7j_QoE | z_QoE | z_DL | z_RTT\n`;
+      topAnomalies.forEach((r: any, i: number) => {
+        const severity = (r.qoe_composite != null && r.qoe_composite < 20) || (r.qoe_index != null && r.qoe_index < 30) ? "🔴" : (r.qoe_composite != null && r.qoe_composite < 40) || (r.qoe_index != null && r.qoe_index < 50) ? "🟠" : "🟡";
+        result += `${severity} ${i + 1} | ${r.dimension_1} | ${r.dimension_2} | ${r.qoe_index?.toFixed(1) ?? "-"} | ${r.qoe_composite?.toFixed(1) ?? "-"} | ${r.debit_dl?.toFixed(1) ?? "-"} | ${r.rtt_data_avg?.toFixed(0) ?? "-"} | ${r.loss_dl_rate != null ? (r.loss_dl_rate * 100).toFixed(2) : "-"} | ${r.tcp_retr_rate_dl != null ? (r.tcp_retr_rate_dl * 100).toFixed(2) : "-"} | ${r.session_dcr?.toFixed(2) ?? "-"} | ${r.trend_qoe || "-"} | ${r.qoe_index_delta7j_pct?.toFixed(1) ?? "-"}% | ${r.z_qoe_index?.toFixed(2) ?? "-"} | ${r.z_debit_dl?.toFixed(2) ?? "-"} | ${r.z_rtt_data_avg?.toFixed(2) ?? "-"}\n`;
+      });
+    }
+
+    // Score breakdown for top anomalies
+    const topForScores = topAnomalies.slice(0, 10);
+    if (topForScores.length > 0) {
+      result += `\nSCORES DÉTAILLÉS (top ${topForScores.length}):\n`;
+      result += `# | Dim2 | Score_Débit | Score_Latence | Score_Loss | Score_Retr | Score_Stabilité | Score_Drop | Score_DMS\n`;
+      topForScores.forEach((r: any, i: number) => {
+        result += `${i + 1} | ${r.dimension_2} | ${r.score_debit?.toFixed(1) ?? "-"} | ${r.score_latence?.toFixed(1) ?? "-"} | ${r.score_loss?.toFixed(1) ?? "-"} | ${r.score_retr?.toFixed(1) ?? "-"} | ${r.score_stabilite?.toFixed(1) ?? "-"} | ${r.score_drop?.toFixed(1) ?? "-"} | ${r.score_dms?.toFixed(1) ?? "-"}\n`;
+      });
+    }
+
+    // Build chart data
+    const chartData = topAnomalies.slice(0, 15).map((r: any) => ({
+      label: (r.dimension_2 || "N/A").slice(0, 25),
+      qoe: r.qoe_index != null ? Math.round(r.qoe_index * 10) / 10 : null,
+      composite: r.qoe_composite != null ? Math.round(r.qoe_composite * 10) / 10 : null,
+    }));
+    const chartJson = JSON.stringify({
+      type: "bar",
+      title: `Anomalies ML — ${latestDate}`,
+      xKey: "label",
+      yKeys: ["qoe", "composite"],
+      data: chartData,
+    });
+    result += `\nINSTRUCTION: Présente les anomalies avec sévérité et recommandations RCA. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+
+    // KPI cards
+    const kpiJson = JSON.stringify({
+      title: "Sentinel ML Overview",
+      cards: [
+        { label: "Anomalies", value: String(anomalyCount), unit: "", status: anomalyCount > 10 ? "critical" : anomalyCount > 5 ? "warning" : "good" },
+        { label: "Critiques", value: String(critical.length), unit: "", status: critical.length > 0 ? "critical" : "good" },
+        { label: "QoE Moyen", value: avgQoe.toFixed(1), unit: "%", status: avgQoe < 50 ? "critical" : avgQoe < 65 ? "warning" : "good" },
+        { label: "Composite", value: avgComposite.toFixed(1), unit: "", status: avgComposite < 40 ? "critical" : avgComposite < 60 ? "warning" : "good" },
+      ],
+    });
+    result += `\n\`\`\`kpi\n${kpiJson}\n\`\`\``;
+
+    console.log(`🚨 Sentinel: ${anomalyCount} anomalies / ${totalEntities} entities on ${latestDate}`);
+    return result;
+  } catch (e) {
+    console.error("fetchSentinelAnomalies failed:", e);
+    return "";
+  }
+}
+
+async function fetchSentinelTimeSeries(
+  filters?: AssistantFilters,
+  scope?: Scope,
+  metric = "qoe_index",
+  days = 15
+): Promise<string> {
+  try {
+    const supabase = getSupabase();
+
+    // Find latest date
+    let latestQ = supabase.from("ml_features")
+      .select("date_part")
+      .not(metric, "is", null)
+      .order("date_part", { ascending: false })
+      .limit(1);
+    if (filters?.vendor) latestQ = latestQ.ilike("dimension_2", `%${filters.vendor}%`);
+    const { data: latestData } = await latestQ;
+    if (!latestData?.length) return `Aucune donnée ML temporelle pour ${metric}.`;
+
+    const latestDate = latestData[0].date_part;
+    const dateTo = new Date(latestDate);
+    const dateFrom = new Date(dateTo.getTime() - days * 86400000);
+    const dateFromStr = dateFrom.toISOString().slice(0, 10);
+
+    const selectCols = `dimension_1, dimension_2, date_part, ${metric}, qoe_composite`;
+    let q = supabase.from("ml_features")
+      .select(selectCols)
+      .not(metric, "is", null)
+      .gte("date_part", dateFromStr)
+      .order("date_part", { ascending: true })
+      .limit(5000);
+
+    if (scope?.level === "vendor" && "vendor" in scope) q = q.eq("dimension_1", "Vendor").ilike("dimension_2", `%${scope.vendor}%`);
+    else if (filters?.vendor) q = q.eq("dimension_1", "Vendor").ilike("dimension_2", `%${filters.vendor}%`);
+    else if (filters?.plaque) q = q.eq("dimension_1", "Plaque").ilike("dimension_2", `%${filters.plaque}%`);
+    else if (filters?.dor) q = q.eq("dimension_1", "DOR").ilike("dimension_2", `%${filters.dor}%`);
+
+    const { data, error } = await q;
+    if (error) { console.error("fetchSentinelTimeSeries error:", error); return ""; }
+    if (!data?.length) return `Aucune donnée ML temporelle pour ${metric}.`;
+
+    // Group by dimension_2 then by date
+    const series = new Map<string, Map<string, number[]>>();
+    for (const r of data) {
+      const dim2 = r.dimension_2 || "N/A";
+      if (!series.has(dim2)) series.set(dim2, new Map());
+      const dateMap = series.get(dim2)!;
+      if (!dateMap.has(r.date_part)) dateMap.set(r.date_part, []);
+      const val = (r as any)[metric];
+      if (val != null) dateMap.get(r.date_part)!.push(Number(val));
+    }
+
+    const allDates = [...new Set(data.map((r: any) => r.date_part))].sort();
+    const dimAvgs = Array.from(series.entries()).map(([dim2, dateMap]) => {
+      const allVals: number[] = [];
+      for (const vals of dateMap.values()) allVals.push(...vals);
+      const avg = allVals.length ? allVals.reduce((a, b) => a + b, 0) / allVals.length : 0;
+      return { dim2, avg, dateMap };
+    }).sort((a, b) => a.avg - b.avg).slice(0, 10); // Worst first
+
+    const chartData = allDates.map(date => {
+      const point: Record<string, any> = { date };
+      for (const d of dimAvgs) {
+        const dayVals = d.dateMap.get(date);
+        point[d.dim2] = dayVals?.length ? Math.round((dayVals.reduce((a, b) => a + b, 0) / dayVals.length) * 100) / 100 : null;
+      }
+      return point;
+    });
+
+    const chartJson = JSON.stringify({
+      type: "line",
+      title: `ML ${metric} — Évolution temporelle`,
+      xKey: "date",
+      yKeys: dimAvgs.map(d => d.dim2),
+      data: chartData,
+    });
+
+    return `SENTINEL TIME SERIES ${metric} (${allDates.length} dates, ${dimAvgs.length} séries):\nPériode: ${dateFromStr} → ${latestDate}\n\nINSTRUCTION: Présente l'évolution temporelle ML avec analyse des tendances. Inclus ce chart:\n\`\`\`chart\n${chartJson}\n\`\`\``;
+  } catch (e) {
+    console.error("fetchSentinelTimeSeries failed:", e);
+    return "";
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  DATA PROVIDER — fetch targeted data from DB
 // ═══════════════════════════════════════════════════════════════
 
@@ -1463,12 +1678,15 @@ function buildContextPlan(
         break;
 
       case "SENTINEL":
-        needs.push("documents_rag");
+        needs.push("documents_rag", "sentinel_anomalies");
+        if (isTimeSeriesQuery(query)) {
+          needs.push("sentinel_timeseries");
+        }
         if (scope.level === "site" || scope.level === "cell") {
           needs.push("kpi_snapshot", "worst_cells");
           limits.maxCells = 20;
         } else {
-          needs.push("agg_stats", "worst_sites");
+          needs.push("worst_sites");
           limits.maxSites = 15;
         }
         break;
@@ -1630,6 +1848,13 @@ async function buildContextFromPlan(
   if (plan.needs.includes("topo_inventory")) {
     promises.topoInv = fetchTopoInventory(filters);
   }
+  if (plan.needs.includes("sentinel_anomalies")) {
+    promises.sentinelAnomalies = fetchSentinelAnomalies(filters, plan.scope);
+  }
+  if (plan.needs.includes("sentinel_timeseries")) {
+    const met = plan.metric || detectMetric(query);
+    promises.sentinelTs = fetchSentinelTimeSeries(filters, plan.scope, met, plan.limits.maxDays || 15);
+  }
 
   const keys = Object.keys(promises);
   const results = await Promise.all(Object.values(promises));
@@ -1638,6 +1863,8 @@ async function buildContextFromPlan(
 
   console.log(`📦 Context fetched: ${keys.filter(k => resolved[k]).join(", ") || "none"}`);
 
+  if (resolved.sentinelAnomalies) sections.push(`🚨 SENTINEL ML:\n${resolved.sentinelAnomalies}`);
+  if (resolved.sentinelTs) sections.push(`📈 SENTINEL TIME SERIES:\n${resolved.sentinelTs}`);
   if (resolved.topoInv) sections.push(`🗼 INVENTAIRE TOPO:\n${resolved.topoInv}`);
   if (resolved.topoAgg) sections.push(`📡 DISTRIBUTION TOPO:\n${resolved.topoAgg}`);
   if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
@@ -1813,9 +2040,35 @@ Domaine : tuning, upgrades SW, swaps, rollbacks.
 Présente les changements en timeline chronologique + tableau avant/après + corrélation KPIs.
 ${SHARED_RULES}`;
 
-const SENTINEL_PROMPT = `Tu es **SENTINEL** 🚨, agent spécialisé en détection d'anomalies et RCA.
-Structure RCA : 1) Classe cause racine 2) Résumé 3) Preuves KPI 4) Actions recommandées 5) Confiance.
-Seuils : QoE<50% → 🔴, DMS3<90% → 🟠, RTT>100ms → 🟠, TCP Loss>2% → 🔴.
+const SENTINEL_PROMPT = `Tu es **SENTINEL** 🚨, agent spécialisé en détection d'anomalies ML, Root Cause Analysis (RCA) et surveillance proactive de la qualité réseau.
+
+## DONNÉES ML (table ml_features)
+Tu analyses les données de la table **ml_features** qui contient des features ML avancées :
+- **Z-scores** (z_qoe_index, z_debit_dl, z_rtt_data_avg, etc.) : écart standardisé par rapport à la moyenne. |z| > 2 = anomalie statistique.
+- **Percentiles** (pct_qoe_index, pct_debit_dl, etc.) : position relative dans la distribution (0-100).
+- **Scores composites** (score_debit, score_latence, score_loss, score_retr, score_stabilite, score_drop, score_dms) : scores normalisés par catégorie.
+- **qoe_composite** : score global ML combinant tous les facteurs.
+- **Tendances** (trend_qoe, trend_debit_dl, trend_rtt) : direction de la tendance (up/down/stable).
+- **Deltas** (debit_dl_delta7j_pct, qoe_index_delta7j_pct, etc.) : variation vs J-7 et J-14.
+
+## SÉVÉRITÉ DES ANOMALIES
+- 🔴 **Critique** : qoe_composite < 20 ou qoe_index < 30 ou |z-score| > 3
+- 🟠 **Majeur** : qoe_composite < 40 ou qoe_index < 50 ou |z-score| > 2.5
+- 🟡 **Mineur** : |z-score| > 2 ou trend_qoe = 'down' avec delta7j > -10%
+
+## MÉTHODOLOGIE RCA
+1. **Détection** : Identifier les entités avec z-scores anormaux ou composite bas
+2. **Classification** : Classer par score composant (débit, latence, loss, retr, stabilité, drop, DMS)
+3. **Corrélation** : Croiser avec les KPIs réels pour confirmer
+4. **Cause racine** : Identifier le facteur dominant (le score composant le plus bas)
+5. **Recommandation** : Proposer des actions correctives ciblées
+
+## FORMAT DE RÉPONSE
+- 🎯 **Vue d'ensemble** : KPI cards avec statistiques globales (nb anomalies, sévérité, QoE moyen)
+- 📊 **Tableau d'anomalies** : Classé par sévérité avec z-scores et scores composants
+- 🔍 **Analyse RCA** : Pour chaque anomalie critique, identifier la cause racine via les scores
+- 💡 **Recommandations** : Actions correctives ordonnées par impact
+- 📈 **Tendances** : Évolution temporelle si disponible
 ${SHARED_RULES}`;
 
 const TOPO_PROMPT = `Tu es **TOPO** 🗼, agent spécialisé en topologie réseau, design de sites radio et inventaire infrastructure.
@@ -2175,7 +2428,9 @@ serve(async (req) => {
           if (plan.scope.level === "site") plan.needs.push("topology");
           break;
         case "SENTINEL":
-          plan.needs.push("agg_stats", "worst_sites");
+          plan.needs.push("sentinel_anomalies");
+          if (isTimeSeriesQuery(lastUserMessage)) plan.needs.push("sentinel_timeseries");
+          plan.needs.push("worst_sites");
           break;
       }
       console.log(`🎯 Agent FORCÉ: ${originalAgent} → ${forcedAgent} | needs=[${plan.needs.join(",")}]`);
