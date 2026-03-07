@@ -222,6 +222,7 @@ const AgentCard: React.FC<{ agent: SubAgent; isExpanded: boolean; onToggle: () =
 const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavigate }) => {
   const [expandedId, setExpandedId] = useState<string | null>('PULSE');
   const [memoryCounts, setMemoryCounts] = useState<Record<string, number>>({});
+  const [skillCounts, setSkillCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchMemory = async () => {
@@ -239,7 +240,27 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
         }
       } catch { /* fallback: empty */ }
     };
+
+    const fetchSkills = async () => {
+      try {
+        // Fetch skills with their agent name via admin_agents join
+        const { data } = await supabase
+          .from('agent_skills')
+          .select('agent_id, admin_agents!inner(name)')
+          .eq('is_active', true);
+        if (data && Array.isArray(data)) {
+          const counts: Record<string, number> = {};
+          data.forEach((row: any) => {
+            const agentName = row.admin_agents?.name || 'UNKNOWN';
+            counts[agentName] = (counts[agentName] || 0) + 1;
+          });
+          setSkillCounts(counts);
+        }
+      } catch { /* fallback: empty */ }
+    };
+
     fetchMemory();
+    fetchSkills();
   }, []);
 
   return (
