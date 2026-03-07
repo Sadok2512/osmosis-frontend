@@ -26,22 +26,28 @@ const SentinelPage: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
   const [apiResponse, setApiResponse] = useState<string>('');
   
-  // Initialize with today's date immediately so UI is always visible
+  // Initialize: fetch dates first, only set selectedDate once we know real dates
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    setSelectedDate(today);
-    setAvailableDates([today]);
-
-    // Try to fetch real dates in background
+    setConnectionStatus('testing');
     fetchDates()
       .then(dates => {
         if (dates.length > 0) {
           setAvailableDates(dates);
           setSelectedDate(dates[dates.length - 1]);
           setConnectionStatus('connected');
+        } else {
+          // API reachable but no dates
+          const today = new Date().toISOString().split('T')[0];
+          setSelectedDate(today);
+          setAvailableDates([today]);
+          setConnectionStatus('connected');
         }
       })
       .catch(() => {
+        // API unreachable — set a fallback date so UI renders
+        const today = new Date().toISOString().split('T')[0];
+        setSelectedDate(today);
+        setAvailableDates([today]);
         setConnectionStatus('error');
       });
   }, []);
@@ -181,7 +187,7 @@ const SentinelPage: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        {activeTab === 'overview' && <SentinelOverview date={selectedDate} />}
+        {activeTab === 'overview' && <SentinelOverview date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
         {activeTab === 'explorer' && <SentinelExplorer date={selectedDate} />}
         {activeTab === 'clustering' && <SentinelClustering date={selectedDate} />}
         {activeTab === 'temporal' && <SentinelTemporal date={selectedDate} />}
