@@ -102,8 +102,8 @@ sharedPool.connect(async (err, client, release) => {
 
     // Check topo table
     if (tableNames.includes('topo')) {
-      const topoCount = await client.query('SELECT COUNT(*) AS cnt FROM topo');
-      console.log(`\n📊 Table "topo": ${topoCount.rows[0].cnt} lignes`);
+      const topoEst = await client.query(`SELECT reltuples::bigint AS cnt FROM pg_class WHERE relname = 'topo'`);
+      console.log(`\n📊 Table "topo": ~${parseInt(topoEst.rows[0]?.cnt || '0').toLocaleString()} lignes (estimé)`);
     }
 
     console.log('═══════════════════════════════════════════');
