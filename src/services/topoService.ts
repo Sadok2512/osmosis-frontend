@@ -260,12 +260,13 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
 
   let baseSites: SiteSummary[] | null = null;
 
-  // 1) Try local Express server
+  // 1) Try local Express server (capped at 50k to avoid OOM)
+  const LEGACY_CAP = 50000;
   try {
-    const json = await topoApi.list(100000);
+    const json = await topoApi.list(LEGACY_CAP);
     const rows: TopoRow[] = json.rows ?? [];
     const total: number = json.total ?? rows.length;
-    console.log(`[TopoService] LOCAL: received ${rows.length}/${total} cells`);
+    console.log(`[TopoService] LOCAL: received ${rows.length}/${total} cells (cap=${LEGACY_CAP})`);
     if (rows.length > 0) {
       baseSites = buildSitesFromRows(rows);
       console.log(`[TopoService] LOCAL: Built ${baseSites.length} sites`);
