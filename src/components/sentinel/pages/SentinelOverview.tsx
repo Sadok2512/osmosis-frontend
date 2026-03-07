@@ -40,6 +40,10 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
   if (isLoading || !data) {
     return (
       <div className="p-6 space-y-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Chargement des données Sentinel… (peut prendre jusqu'à 60s)</span>
+        </div>
         <div className="grid grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
