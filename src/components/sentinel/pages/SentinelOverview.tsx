@@ -5,19 +5,24 @@ import { SEVERITY_CONFIG, ANOMALY_TYPE_LABELS, type DashboardOverviewData } from
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Shield, AlertTriangle, AlertCircle, Info, CheckCircle } from 'lucide-react';
+import { Shield, AlertTriangle, AlertCircle, Info, CheckCircle, Loader2 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 
 interface Props { date: string; apiConnected?: boolean; }
 
 const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
-  const { data, isLoading, error } = useQuery<DashboardOverviewData>({
+  const { data, isLoading, isFetching, error } = useQuery<DashboardOverviewData>({
     queryKey: ['sentinel-overview', date],
     queryFn: () => fetchOverview(date),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     retry: 0,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
     enabled: apiConnected && !!date,
   });
+
+  console.log('[SentinelOverview] state:', { isLoading, isFetching, error: error?.message, hasData: !!data, date, apiConnected });
 
   if (error) {
     return (
@@ -35,6 +40,10 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
   if (isLoading || !data) {
     return (
       <div className="p-6 space-y-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Chargement des données Sentinel… (peut prendre jusqu'à 60s)</span>
+        </div>
         <div className="grid grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
