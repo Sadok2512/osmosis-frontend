@@ -309,16 +309,23 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
 
               {/* Agent row */}
               <div className="grid grid-cols-5 gap-4 mb-8">
-                {agents.map((agent) => (
-                  <div key={agent.id} className="flex flex-col items-center">
-                    <div className="w-2 h-8 bg-gradient-to-b from-primary/30 to-transparent rounded-full mb-2" />
-                    <div className={`w-16 h-16 rounded-xl border-2 ${agent.color} bg-background flex items-center justify-center shadow-md`}>
-                      {agent.icon}
+                {agents.map((agent) => {
+                  const memCount = memoryCounts[agent.id] || 0;
+                  return (
+                    <div key={agent.id} className="flex flex-col items-center">
+                      <div className="w-2 h-8 bg-gradient-to-b from-primary/30 to-transparent rounded-full mb-2" />
+                      <div className={`w-16 h-16 rounded-xl border-2 ${agent.color} bg-background flex items-center justify-center shadow-md`}>
+                        {agent.icon}
+                      </div>
+                      <span className="text-xs font-bold text-foreground mt-2">{agent.name}</span>
+                      <span className="text-[9px] text-muted-foreground text-center leading-tight mt-0.5 max-w-[100px]">{agent.role}</span>
+                      <div className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+                        <Brain size={10} className="text-primary" />
+                        <span className="text-[9px] font-bold text-primary">{memCount} mem</span>
+                      </div>
                     </div>
-                    <span className="text-xs font-bold text-foreground mt-2">{agent.name}</span>
-                    <span className="text-[9px] text-muted-foreground text-center leading-tight mt-0.5 max-w-[100px]">{agent.role}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Connection lines as a table */}
