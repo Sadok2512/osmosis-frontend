@@ -61,7 +61,10 @@ type DataNeed =
   | "dimension_agg"
   | "dimension_values"
   | "topo_metric_agg"
-  | "topo_inventory";
+  | "topo_inventory"
+  | "sentinel_anomalies"
+  | "sentinel_timeseries"
+  | "dimension_timeseries";
 
 type Dimension1Type =
   | "Cellule" | "Site" | "Vendor" | "Bande" | "ARCEP" | "Application"
