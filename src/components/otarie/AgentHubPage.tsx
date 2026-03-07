@@ -221,6 +221,26 @@ const AgentCard: React.FC<{ agent: SubAgent; isExpanded: boolean; onToggle: () =
 /* ── Main Page ── */
 const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavigate }) => {
   const [expandedId, setExpandedId] = useState<string | null>('PULSE');
+  const [memoryCounts, setMemoryCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const fetchMemory = async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from('agent_memory')
+          .select('agent');
+        if (data && Array.isArray(data)) {
+          const counts: Record<string, number> = {};
+          data.forEach((row: any) => {
+            const a = row.agent || 'UNKNOWN';
+            counts[a] = (counts[a] || 0) + 1;
+          });
+          setMemoryCounts(counts);
+        }
+      } catch { /* fallback: empty */ }
+    };
+    fetchMemory();
+  }, []);
 
   return (
     <div className="h-full overflow-y-auto bg-background">
