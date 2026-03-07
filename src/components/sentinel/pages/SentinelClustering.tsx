@@ -2,46 +2,63 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchClusters, fetchClusterMembers } from '../sentinelApi';
 import { ClusterData, ClusterMember, CLUSTER_COLORS, SentinelDimension } from '../types';
+import { MOCK_CLUSTERS } from '../mockSentinelData';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, BarChart3 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 import { cn } from '@/lib/utils';
 
-interface Props { date: string; }
+interface Props { date: string; apiConnected?: boolean; }
 
 const DIMS: SentinelDimension[] = ['Cellule', 'Site', 'Bande', 'Vendor', 'DOR', 'Plaque'];
 
-const SentinelClustering: React.FC<Props> = ({ date }) => {
+// Mock members for demo
+const MOCK_MEMBERS: Record<number, ClusterMember[]> = {
+  0: [
+    { dimension_2: 'PAR_LTE_B1_001', qoe_index: 88.2, debit_dl: 52.1, rtt_setup_avg: 28000, loss_dl_rate: 0.002, cluster_label: 'performant', centroid_distance: 0.042 },
+    { dimension_2: 'PAR_LTE_B3_002', qoe_index: 85.9, debit_dl: 48.7, rtt_setup_avg: 31000, loss_dl_rate: 0.003, cluster_label: 'performant', centroid_distance: 0.058 },
+    { dimension_2: 'LYO_LTE_B1_008', qoe_index: 91.3, debit_dl: 55.4, rtt_setup_avg: 25000, loss_dl_rate: 0.001, cluster_label: 'performant', centroid_distance: 0.031 },
+  ],
+  1: [
+    { dimension_2: 'LYO_LTE_B7_003', qoe_index: 64.5, debit_dl: 28.3, rtt_setup_avg: 68000, loss_dl_rate: 0.015, cluster_label: 'moyen', centroid_distance: 0.087 },
+    { dimension_2: 'TLS_NR_B1_004', qoe_index: 61.2, debit_dl: 24.8, rtt_setup_avg: 72000, loss_dl_rate: 0.018, cluster_label: 'moyen', centroid_distance: 0.095 },
+  ],
+  2: [
+    { dimension_2: 'NTE_LTE_B3_005', qoe_index: 42.1, debit_dl: 12.5, rtt_setup_avg: 145000, loss_dl_rate: 0.045, cluster_label: 'degrade', centroid_distance: 0.12 },
+    { dimension_2: 'BDX_LTE_B1_006', qoe_index: 38.8, debit_dl: 10.2, rtt_setup_avg: 162000, loss_dl_rate: 0.052, cluster_label: 'degrade', centroid_distance: 0.15 },
+  ],
+  3: [
+    { dimension_2: 'PAR_LTE_B3_001', qoe_index: 32.1, debit_dl: 4.2, rtt_setup_avg: 285000, loss_dl_rate: 0.082, cluster_label: 'critique', centroid_distance: 0.18 },
+    { dimension_2: 'LYO_NR_B78_012', qoe_index: 38.5, debit_dl: 8.7, rtt_setup_avg: 210000, loss_dl_rate: 0.067, cluster_label: 'critique', centroid_distance: 0.14 },
+  ],
+};
+
+const SentinelClustering: React.FC<Props> = ({ date, apiConnected = true }) => {
   const [dimension, setDimension] = useState<SentinelDimension>('Cellule');
   const [selectedCluster, setSelectedCluster] = useState<number | null>(null);
 
-  const { data: clusters, isLoading, error } = useQuery<ClusterData[]>({
+  const { data: apiClusters, isLoading, error } = useQuery<ClusterData[]>({
     queryKey: ['sentinel-clusters', date, dimension],
     queryFn: () => fetchClusters(date, dimension),
     staleTime: 30_000,
-    retry: 1,
+    retry: 0,
+    refetchOnWindowFocus: false,
+    enabled: apiConnected,
   });
 
-  const { data: members } = useQuery<ClusterMember[]>({
+  const clusters = apiClusters || (!apiConnected ? MOCK_CLUSTERS : null);
+  const isMock = !apiClusters && !apiConnected;
+
+  const { data: apiMembers } = useQuery<ClusterMember[]>({
     queryKey: ['sentinel-cluster-members', selectedCluster, date, dimension],
     queryFn: () => fetchClusterMembers(selectedCluster!, date, dimension),
-    enabled: selectedCluster !== null,
+    enabled: selectedCluster !== null && apiConnected,
     staleTime: 30_000,
-    retry: 1,
+    retry: 0,
   });
 
-  if (error) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center space-y-2">
-          <AlertCircle className="w-10 h-10 mx-auto text-destructive" />
-          <p className="text-sm">API Sentinel non disponible</p>
-          <p className="text-xs text-muted-foreground">Vérifiez la connexion à localhost:1000</p>
-        </div>
-      </div>
-    );
-  }
+  const members = apiMembers || (isMock && selectedCluster !== null ? MOCK_MEMBERS[selectedCluster] || [] : undefined);
 
   // Scatter plot
   const scatterOption = (clusters && clusters.length > 0) ? {
@@ -50,12 +67,12 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
       formatter: (p: any) => `${p.data[3]}<br/>Débit: ${p.data[0].toFixed(2)}<br/>Latence: ${p.data[1].toFixed(2)}<br/>${p.data[4]} membres`,
     },
     grid: { left: 50, right: 20, top: 20, bottom: 40 },
-    xAxis: { name: 'Score Débit', nameLocation: 'center' as const, nameGap: 25, type: 'value' as const, min: 0, max: 1, axisLabel: { fontSize: 9 } },
-    yAxis: { name: 'Score Latence', nameLocation: 'center' as const, nameGap: 35, type: 'value' as const, min: 0, max: 1, axisLabel: { fontSize: 9 } },
+    xAxis: { name: 'Score Débit', nameLocation: 'center' as const, nameGap: 25, type: 'value' as const, min: 0, max: 100, axisLabel: { fontSize: 9 } },
+    yAxis: { name: 'Score Latence', nameLocation: 'center' as const, nameGap: 35, type: 'value' as const, min: 0, max: 100, axisLabel: { fontSize: 9 } },
     series: clusters.map(c => ({
       type: 'scatter' as const,
       name: c.cluster_label,
-      symbolSize: Math.max(10, Math.min(40, c.cluster_size / 2)),
+      symbolSize: Math.max(10, Math.min(40, c.cluster_size / 5)),
       data: [[c.centroid.score_debit, c.centroid.score_latence, c.cluster_size, c.cluster_label, c.cluster_size]],
       itemStyle: { color: CLUSTER_COLORS[c.cluster_label.toLowerCase()] || 'hsl(220,9%,46%)' },
     })),
@@ -67,8 +84,8 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
     legend: { bottom: 0, textStyle: { fontSize: 9, color: 'hsl(220,9%,46%)' } },
     radar: {
       indicator: [
-        { name: 'Débit', max: 1 }, { name: 'Latence', max: 1 }, { name: 'Loss', max: 1 },
-        { name: 'Retrans.', max: 1 }, { name: 'Stabilité', max: 1 }, { name: 'Drop', max: 1 }, { name: 'DMS', max: 1 },
+        { name: 'Débit', max: 100 }, { name: 'Latence', max: 100 }, { name: 'Loss', max: 100 },
+        { name: 'Retrans.', max: 100 }, { name: 'Stabilité', max: 100 }, { name: 'Drop', max: 100 }, { name: 'DMS', max: 100 },
       ],
       radius: '60%',
       axisName: { fontSize: 9, color: 'hsl(220,9%,46%)' },
@@ -86,6 +103,12 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
 
   return (
     <div className="p-6 space-y-4">
+      {isMock && (
+        <div className="px-3 py-2 rounded-md text-xs bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center gap-2">
+          ⚠ Données de démonstration — Backend FastAPI non connecté
+        </div>
+      )}
+
       {/* Controls */}
       <div className="flex items-center gap-3">
         <select
@@ -97,21 +120,20 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
         </select>
       </div>
 
-      {isLoading ? (
+      {isLoading && apiConnected ? (
         <div className="grid grid-cols-5 gap-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
       ) : !clusters?.length ? (
         <div className="flex-1 flex items-center justify-center py-20">
           <div className="text-center space-y-2">
             <BarChart3 className="w-10 h-10 mx-auto text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Aucun cluster disponible pour cette date</p>
-            <p className="text-xs text-muted-foreground/60">L'API a retourné 0 clusters. Vérifiez les données ML.</p>
+            <p className="text-sm text-muted-foreground">Aucun cluster disponible</p>
           </div>
         </div>
       ) : (
         <>
           {/* Cluster summary cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {clusters?.map(c => {
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {clusters.map(c => {
               const color = CLUSTER_COLORS[c.cluster_label.toLowerCase()] || 'hsl(220,9%,46%)';
               const isActive = selectedCluster === c.cluster_id;
               return (
@@ -123,7 +145,7 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-3 h-3 rounded-full" style={{ background: color }} />
-                    <span className="text-xs font-semibold">{c.cluster_label}</span>
+                    <span className="text-xs font-semibold capitalize">{c.cluster_label}</span>
                   </div>
                   <p className="text-xl font-bold">{c.cluster_size}</p>
                   <p className="text-[10px] text-muted-foreground">entités</p>
@@ -149,7 +171,7 @@ const SentinelClustering: React.FC<Props> = ({ date }) => {
           </div>
 
           {/* Members table */}
-          {selectedCluster !== null && members && (
+          {selectedCluster !== null && members && members.length > 0 && (
             <Card className="p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
                 Membres du cluster ({members.length})

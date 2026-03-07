@@ -6,6 +6,7 @@ import {
   DETECTOR_LABELS, TREND_LABELS, SentinelDimension, SentinelSeverity, AnomalyType,
   KPICompareData
 } from '../types';
+import { MOCK_ANOMALIES } from '../mockSentinelData';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,14 +15,27 @@ import { Input } from '@/components/ui/input';
 import { Search, X, Download, AlertCircle, CheckCircle, ArrowUp, ArrowDown } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 
-interface Props { date: string; }
+interface Props { date: string; apiConnected?: boolean; }
 
 const DIMENSIONS: SentinelDimension[] = ['Cellule', 'Site', 'Bande', 'Vendor', 'DOR', 'Plaque', 'ARCEP', 'RAT'];
 const SEVERITIES: SentinelSeverity[] = ['critical', 'major', 'minor'];
 const TYPES: AnomalyType[] = ['degradation_soudaine', 'tendance_anormale', 'outlier_vs_peers', 'correlation_croisee'];
 const PAGE_SIZE = 1000;
 
-const SentinelExplorer: React.FC<Props> = ({ date }) => {
+// Generate extended mock anomalies for demo
+const EXTENDED_MOCK: Anomaly[] = [
+  ...MOCK_ANOMALIES,
+  { date_part: '2025-12-02', dimension_1: 'Site', dimension_2: 'NICE_NORD_07', anomaly_type: 'degradation_soudaine', severity: 'major', kpi_name: 'debit_ul', current_value: 2.1, reference_value: 18.5, deviation_pct: -88.6, detector: 'D1', confidence: 0.86, description: 'Débit UL effondré sur le site' },
+  { date_part: '2025-12-02', dimension_1: 'Cellule', dimension_2: 'REN_LTE_B28_004', anomaly_type: 'tendance_anormale', severity: 'minor', kpi_name: 'instability_rate', current_value: 0.28, reference_value: 0.06, deviation_pct: 366.7, detector: 'D2', confidence: 0.79, description: 'Instabilité RAT croissante' },
+  { date_part: '2025-12-02', dimension_1: 'DOR', dimension_2: 'DOR_SUD_OUEST', anomaly_type: 'correlation_croisee', severity: 'major', kpi_name: 'qoe_index', current_value: 45.2, reference_value: 72.8, deviation_pct: -37.9, detector: 'D4', confidence: 0.83, description: 'Corrélation QoE-latence-perte' },
+  { date_part: '2025-12-02', dimension_1: 'Cellule', dimension_2: 'STR_NR_N78_002', anomaly_type: 'outlier_vs_peers', severity: 'major', kpi_name: 'session_dcr', current_value: 5.4, reference_value: 0.8, deviation_pct: 575.0, detector: 'D3', confidence: 0.87, description: 'DCR très supérieur aux pairs NR' },
+  { date_part: '2025-12-02', dimension_1: 'Bande', dimension_2: 'NR3500', anomaly_type: 'tendance_anormale', severity: 'minor', kpi_name: 'fallback_5G_to_4G_rate', current_value: 0.42, reference_value: 0.12, deviation_pct: 250.0, detector: 'D2', confidence: 0.76, description: 'Fallback 5G→4G en hausse sur N3500' },
+  { date_part: '2025-12-02', dimension_1: 'Cellule', dimension_2: 'LIL_LTE_B7_011', anomaly_type: 'degradation_soudaine', severity: 'critical', kpi_name: 'loss_dl_rate', current_value: 0.08, reference_value: 0.005, deviation_pct: 1500.0, detector: 'D1', confidence: 0.95, description: 'Pertes DL critiques' },
+  { date_part: '2025-12-02', dimension_1: 'Vendor', dimension_2: 'Nokia', anomaly_type: 'correlation_croisee', severity: 'minor', kpi_name: 'tcp_retr_rate_dl', current_value: 0.045, reference_value: 0.015, deviation_pct: 200.0, detector: 'D4', confidence: 0.74, description: 'Retransmission corrélée vendor Nokia' },
+  { date_part: '2025-12-02', dimension_1: 'Cellule', dimension_2: 'BOR_NR_B1_006', anomaly_type: 'outlier_vs_peers', severity: 'major', kpi_name: 'rtt_data_avg', current_value: 195000, reference_value: 55000, deviation_pct: 254.5, detector: 'D3', confidence: 0.84, description: 'Latence data très élevée vs pairs' },
+];
+
+const SentinelExplorer: React.FC<Props> = ({ date, apiConnected = true }) => {
   const [dimension, setDimension] = useState<SentinelDimension | ''>('');
   const [severity, setSeverity] = useState<SentinelSeverity[]>([]);
   const [types, setTypes] = useState<AnomalyType[]>([]);
@@ -39,25 +53,43 @@ const SentinelExplorer: React.FC<Props> = ({ date }) => {
     per_page: PAGE_SIZE,
   };
 
-  const { data: anomalies, isLoading, error } = useQuery<Anomaly[]>({
+  const { data: apiAnomalies, isLoading, error } = useQuery<Anomaly[]>({
     queryKey: ['sentinel-anomalies', filters],
     queryFn: () => fetchAnomalies(filters),
     staleTime: 30_000,
-    retry: 1,
+    retry: 0,
+    refetchOnWindowFocus: false,
+    enabled: apiConnected,
   });
+
+  // Use mock data when API is not connected
+  const anomalies = useMemo(() => {
+    if (apiAnomalies) return apiAnomalies;
+    if (!apiConnected) {
+      let filtered = [...EXTENDED_MOCK];
+      if (dimension) filtered = filtered.filter(a => a.dimension_1 === dimension);
+      if (severity.length) filtered = filtered.filter(a => severity.includes(a.severity));
+      if (types.length) filtered = filtered.filter(a => types.includes(a.anomaly_type));
+      if (search) filtered = filtered.filter(a => a.dimension_2.toLowerCase().includes(search.toLowerCase()));
+      return filtered;
+    }
+    return [];
+  }, [apiAnomalies, apiConnected, dimension, severity, types, search]);
+
+  const isMock = !apiAnomalies && !apiConnected;
 
   // Detail panel queries
   const { data: kpiHistory } = useQuery({
     queryKey: ['sentinel-kpi-history', selected?.dimension_1, selected?.dimension_2, selected?.kpi_name],
     queryFn: () => fetchKPIHistory(selected!.dimension_1, selected!.dimension_2, selected!.kpi_name),
-    enabled: !!selected,
+    enabled: !!selected && apiConnected,
     staleTime: 30_000,
   });
 
   const { data: kpiCompare } = useQuery<KPICompareData>({
     queryKey: ['sentinel-kpi-compare', selected?.dimension_2, date],
     queryFn: () => fetchKPICompare(selected!.dimension_2, date),
-    enabled: !!selected,
+    enabled: !!selected && apiConnected,
     staleTime: 30_000,
   });
 
@@ -126,19 +158,15 @@ const SentinelExplorer: React.FC<Props> = ({ date }) => {
     };
   }, [kpiCompare]);
 
-  if (error) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center space-y-2">
-          <AlertCircle className="w-10 h-10 mx-auto text-destructive" />
-          <p className="text-sm">API Sentinel non disponible</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 flex flex-col p-4 gap-4">
+      {/* Mock banner */}
+      {isMock && (
+        <div className="px-3 py-2 rounded-md text-xs bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center gap-2">
+          ⚠ Données de démonstration — Backend FastAPI non connecté
+        </div>
+      )}
+
       {/* Filters */}
       <Card className="p-3 flex flex-wrap items-center gap-2">
         <div className="relative">
@@ -204,7 +232,7 @@ const SentinelExplorer: React.FC<Props> = ({ date }) => {
       </Card>
 
       {/* Table */}
-      {isLoading ? (
+      {isLoading && apiConnected ? (
         <div className="space-y-2">{[...Array(8)].map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}</div>
       ) : !anomalies?.length ? (
         <div className="flex-1 flex items-center justify-center">
@@ -255,11 +283,15 @@ const SentinelExplorer: React.FC<Props> = ({ date }) => {
 
           {/* Pagination */}
           <div className="flex items-center justify-between p-2 border-t border-border">
-            <span className="text-xs text-muted-foreground">Page {page}</span>
-            <div className="flex gap-2">
-              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="text-xs px-2 py-1 rounded border border-border disabled:opacity-30">Précédent</button>
-              <button disabled={(anomalies?.length || 0) < PAGE_SIZE} onClick={() => setPage(p => p + 1)} className="text-xs px-2 py-1 rounded border border-border disabled:opacity-30">Suivant</button>
-            </div>
+            <span className="text-xs text-muted-foreground">
+              {anomalies.length} anomalies {isMock ? '(demo)' : `— Page ${page}`}
+            </span>
+            {!isMock && (
+              <div className="flex gap-2">
+                <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="text-xs px-2 py-1 rounded border border-border disabled:opacity-30">Précédent</button>
+                <button disabled={(anomalies?.length || 0) < PAGE_SIZE} onClick={() => setPage(p => p + 1)} className="text-xs px-2 py-1 rounded border border-border disabled:opacity-30">Suivant</button>
+              </div>
+            )}
           </div>
         </Card>
       )}
@@ -284,23 +316,18 @@ const SentinelExplorer: React.FC<Props> = ({ date }) => {
               </SheetHeader>
 
               <div className="mt-4 space-y-4">
-                {/* KPI History */}
                 {historyOption && (
                   <div>
                     <p className="text-xs font-semibold mb-2">Historique {selected.kpi_name} (15j)</p>
                     <ReactECharts option={historyOption} style={{ height: 180 }} />
                   </div>
                 )}
-
-                {/* Radar */}
                 {radarOption && (
                   <div>
                     <p className="text-xs font-semibold mb-2">Profil des scores</p>
                     <ReactECharts option={radarOption} style={{ height: 200 }} />
                   </div>
                 )}
-
-                {/* Deltas */}
                 {kpiCompare && (
                   <div className="grid grid-cols-2 gap-2">
                     {['debit_dl', 'rtt_setup_avg', 'qoe_index', 'loss_dl_rate'].map(kpi => {
@@ -332,8 +359,6 @@ const SentinelExplorer: React.FC<Props> = ({ date }) => {
                     })}
                   </div>
                 )}
-
-                {/* Trends */}
                 {kpiCompare?.trends && (
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(kpiCompare.trends).map(([kpi, trend]) => {
@@ -347,8 +372,6 @@ const SentinelExplorer: React.FC<Props> = ({ date }) => {
                     })}
                   </div>
                 )}
-
-                {/* Description */}
                 <Card className="p-3">
                   <p className="text-xs text-muted-foreground">{selected.description}</p>
                 </Card>

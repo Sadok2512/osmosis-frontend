@@ -188,9 +188,9 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
       {/* Content */}
       <div className="flex-1 overflow-auto">
         {activeTab === 'overview' && <SentinelOverview date={selectedDate} apiConnected={connectionStatus === 'connected'} theme={theme} />}
-        {activeTab === 'explorer' && <SentinelExplorer date={selectedDate} />}
-        {activeTab === 'clustering' && <SentinelClustering date={selectedDate} />}
-        {activeTab === 'temporal' && <SentinelTemporal date={selectedDate} />}
+        {activeTab === 'explorer' && <SentinelExplorer date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
+        {activeTab === 'clustering' && <SentinelClustering date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
+        {activeTab === 'temporal' && <SentinelTemporal date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
       </div>
     </div>
   );
