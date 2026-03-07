@@ -106,6 +106,11 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
 
   return (
     <div className="p-6 space-y-6">
+      {isMock && (
+        <div className="mx-0 mb-4 px-3 py-2 rounded-md text-xs bg-[hsl(38,92%,50%/0.1)] text-[hsl(38,92%,50%)] border border-[hsl(38,92%,50%/0.2)]">
+          ⚠ Données de démonstration — Backend FastAPI non connecté
+        </div>
+      )}
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {statCards.map(card => (
