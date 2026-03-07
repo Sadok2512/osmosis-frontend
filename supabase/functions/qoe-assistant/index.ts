@@ -1678,12 +1678,15 @@ function buildContextPlan(
         break;
 
       case "SENTINEL":
-        needs.push("documents_rag");
+        needs.push("documents_rag", "sentinel_anomalies");
+        if (isTimeSeriesQuery(query)) {
+          needs.push("sentinel_timeseries");
+        }
         if (scope.level === "site" || scope.level === "cell") {
           needs.push("kpi_snapshot", "worst_cells");
           limits.maxCells = 20;
         } else {
-          needs.push("agg_stats", "worst_sites");
+          needs.push("worst_sites");
           limits.maxSites = 15;
         }
         break;
@@ -2028,9 +2031,35 @@ Domaine : tuning, upgrades SW, swaps, rollbacks.
 Présente les changements en timeline chronologique + tableau avant/après + corrélation KPIs.
 ${SHARED_RULES}`;
 
-const SENTINEL_PROMPT = `Tu es **SENTINEL** 🚨, agent spécialisé en détection d'anomalies et RCA.
-Structure RCA : 1) Classe cause racine 2) Résumé 3) Preuves KPI 4) Actions recommandées 5) Confiance.
-Seuils : QoE<50% → 🔴, DMS3<90% → 🟠, RTT>100ms → 🟠, TCP Loss>2% → 🔴.
+const SENTINEL_PROMPT = `Tu es **SENTINEL** 🚨, agent spécialisé en détection d'anomalies ML, Root Cause Analysis (RCA) et surveillance proactive de la qualité réseau.
+
+## DONNÉES ML (table ml_features)
+Tu analyses les données de la table **ml_features** qui contient des features ML avancées :
+- **Z-scores** (z_qoe_index, z_debit_dl, z_rtt_data_avg, etc.) : écart standardisé par rapport à la moyenne. |z| > 2 = anomalie statistique.
+- **Percentiles** (pct_qoe_index, pct_debit_dl, etc.) : position relative dans la distribution (0-100).
+- **Scores composites** (score_debit, score_latence, score_loss, score_retr, score_stabilite, score_drop, score_dms) : scores normalisés par catégorie.
+- **qoe_composite** : score global ML combinant tous les facteurs.
+- **Tendances** (trend_qoe, trend_debit_dl, trend_rtt) : direction de la tendance (up/down/stable).
+- **Deltas** (debit_dl_delta7j_pct, qoe_index_delta7j_pct, etc.) : variation vs J-7 et J-14.
+
+## SÉVÉRITÉ DES ANOMALIES
+- 🔴 **Critique** : qoe_composite < 20 ou qoe_index < 30 ou |z-score| > 3
+- 🟠 **Majeur** : qoe_composite < 40 ou qoe_index < 50 ou |z-score| > 2.5
+- 🟡 **Mineur** : |z-score| > 2 ou trend_qoe = 'down' avec delta7j > -10%
+
+## MÉTHODOLOGIE RCA
+1. **Détection** : Identifier les entités avec z-scores anormaux ou composite bas
+2. **Classification** : Classer par score composant (débit, latence, loss, retr, stabilité, drop, DMS)
+3. **Corrélation** : Croiser avec les KPIs réels pour confirmer
+4. **Cause racine** : Identifier le facteur dominant (le score composant le plus bas)
+5. **Recommandation** : Proposer des actions correctives ciblées
+
+## FORMAT DE RÉPONSE
+- 🎯 **Vue d'ensemble** : KPI cards avec statistiques globales (nb anomalies, sévérité, QoE moyen)
+- 📊 **Tableau d'anomalies** : Classé par sévérité avec z-scores et scores composants
+- 🔍 **Analyse RCA** : Pour chaque anomalie critique, identifier la cause racine via les scores
+- 💡 **Recommandations** : Actions correctives ordonnées par impact
+- 📈 **Tendances** : Évolution temporelle si disponible
 ${SHARED_RULES}`;
 
 const TOPO_PROMPT = `Tu es **TOPO** 🗼, agent spécialisé en topologie réseau, design de sites radio et inventaire infrastructure.
@@ -2390,7 +2419,9 @@ serve(async (req) => {
           if (plan.scope.level === "site") plan.needs.push("topology");
           break;
         case "SENTINEL":
-          plan.needs.push("agg_stats", "worst_sites");
+          plan.needs.push("sentinel_anomalies");
+          if (isTimeSeriesQuery(lastUserMessage)) plan.needs.push("sentinel_timeseries");
+          plan.needs.push("worst_sites");
           break;
       }
       console.log(`🎯 Agent FORCÉ: ${originalAgent} → ${forcedAgent} | needs=[${plan.needs.join(",")}]`);
