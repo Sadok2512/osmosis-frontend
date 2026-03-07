@@ -294,6 +294,7 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
               { label: 'Agents actifs', value: agents.filter(a => a.status === 'active').length, icon: <Sparkles size={14} /> },
               { label: 'Connexions', value: connections.length, icon: <GitBranch size={14} /> },
               { label: 'Tables connectées', value: [...new Set(agents.flatMap(a => a.dataSources))].length, icon: <Database size={14} /> },
+              { label: 'Skills', value: Object.values(skillCounts).reduce((s, c) => s + c, 0), icon: <Zap size={14} className="text-amber-500" /> },
               { label: 'Capacités', value: agents.reduce((s, a) => s + a.capabilities.length, 0), icon: <Zap size={14} /> },
             ].map((stat) => (
               <div key={stat.label} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border">
