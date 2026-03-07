@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Eye, BarChart3, Bot, ChevronRight, Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { Shield, Eye, BarChart3, Bot, ChevronRight, Wifi, WifiOff, Loader2, CalendarRange } from 'lucide-react';
 import SentinelOverview from './pages/SentinelOverview';
 import SentinelExplorer from './pages/SentinelExplorer';
 import SentinelClustering from './pages/SentinelClustering';
@@ -20,7 +20,8 @@ type ConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
 
 const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' }) => {
   const [activeTab, setActiveTab] = useState<SentinelTab>('overview');
-  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [dateStart, setDateStart] = useState<string>('');
+  const [dateEnd, setDateEnd] = useState<string>('');
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
   const [apiResponse, setApiResponse] = useState<string>('');
@@ -32,18 +33,27 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
       .then(dates => {
         if (dates.length > 0) {
           setAvailableDates(dates);
-          setSelectedDate(dates[dates.length - 1]);
+          // Default: last 7 days range
+          const end = dates[dates.length - 1];
+          const startIdx = Math.max(0, dates.length - 7);
+          const start = dates[startIdx];
+          setDateEnd(end);
+          setDateStart(start);
           setConnectionStatus('connected');
         } else {
           const today = new Date().toISOString().split('T')[0];
-          setSelectedDate(today);
+          const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+          setDateEnd(today);
+          setDateStart(weekAgo);
           setAvailableDates([today]);
           setConnectionStatus('connected');
         }
       })
       .catch(() => {
         const today = new Date().toISOString().split('T')[0];
-        setSelectedDate(today);
+        const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+        setDateEnd(today);
+        setDateStart(weekAgo);
         setAvailableDates([today]);
         setConnectionStatus('error');
       });
@@ -60,7 +70,9 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
       setApiResponse(`✓ ${Array.isArray(dates) ? dates.length : 0} dates disponibles (${elapsed}ms)`);
       if (dates.length > 0) {
         setAvailableDates(dates);
-        setSelectedDate(dates[dates.length - 1]);
+        setDateEnd(dates[dates.length - 1]);
+        const startIdx = Math.max(0, dates.length - 7);
+        setDateStart(dates[startIdx]);
       }
     } catch (err: any) {
       setConnectionStatus('error');
@@ -97,13 +109,16 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
     }
   };
 
-  if (!selectedDate) {
+  if (!dateEnd) {
     return (
       <div className="flex-1 flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
+
+  // Use dateEnd as the primary date for API calls that need a single date
+  const selectedDate = dateEnd;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
@@ -137,15 +152,29 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
           Test FastAPI
         </button>
 
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={e => {
-            const v = e.target.value;
-            if (v && v !== selectedDate) setSelectedDate(v);
-          }}
-          className="text-xs border border-border rounded-md px-2 py-1.5 bg-card text-foreground cursor-pointer"
-        />
+        {/* Date range: start → end */}
+        <div className="flex items-center gap-1.5">
+          <CalendarRange className="w-3.5 h-3.5 text-muted-foreground" />
+          <input
+            type="date"
+            value={dateStart}
+            onChange={e => {
+              const v = e.target.value;
+              if (v && v !== dateStart) setDateStart(v);
+            }}
+            className="text-xs border border-border rounded-md px-2 py-1.5 bg-card text-foreground cursor-pointer w-[120px]"
+          />
+          <span className="text-[10px] text-muted-foreground font-medium">→</span>
+          <input
+            type="date"
+            value={dateEnd}
+            onChange={e => {
+              const v = e.target.value;
+              if (v && v !== dateEnd) setDateEnd(v);
+            }}
+            className="text-xs border border-border rounded-md px-2 py-1.5 bg-card text-foreground cursor-pointer w-[120px]"
+          />
+        </div>
 
         {/* Tab nav */}
         <div className="flex gap-1 bg-muted rounded-lg p-0.5">
@@ -198,7 +227,7 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 overflow-auto">
           {activeTab === 'overview' && <SentinelOverview date={selectedDate} apiConnected={connectionStatus === 'connected'} theme={theme} />}
-          {activeTab === 'explorer' && <SentinelExplorer date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
+          {activeTab === 'explorer' && <SentinelExplorer date={selectedDate} dateStart={dateStart} dateEnd={dateEnd} apiConnected={connectionStatus === 'connected'} />}
           {activeTab === 'clustering' && <SentinelClustering date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
         </div>
 
