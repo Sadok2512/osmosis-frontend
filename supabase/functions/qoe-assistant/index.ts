@@ -1495,6 +1495,26 @@ function buildContextPlan(
     }
   }
 
+  // ── TIME SERIES FALLBACK: if query is temporal but dimension_timeseries wasn't added yet ──
+  if (isTimeSeriesQuery(query) && !needs.includes("dimension_timeseries")) {
+    // Infer dimension from scope if no groupBy was set
+    if (!groupBy) {
+      let dim1: Dimension1Type = "Site";
+      if (scope.level === "vendor") dim1 = "Vendor";
+      else if (scope.level === "techno") dim1 = "RAT";
+      else if (scope.level === "plaque") dim1 = "Plaque";
+      else if (scope.level === "dor") dim1 = "DOR";
+      else {
+        const detected = detectAllDimensions(query);
+        dim1 = detected[0];
+      }
+      groupBy = { dimension1: dim1 };
+    }
+    if (!metric) metric = detectMetric(query);
+    needs.push("dimension_timeseries");
+    console.log(`📈 Time series fallback: dim=${groupBy.dimension1}, metric=${metric}`);
+  }
+
   const n = query.toLowerCase();
   if (n.includes("hier") || n.includes("24h") || n.includes("aujourd")) limits.maxDays = 1;
   else if (n.includes("semaine") || n.includes("7j") || n.includes("7 jour")) limits.maxDays = 7;
