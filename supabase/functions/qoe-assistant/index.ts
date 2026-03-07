@@ -1848,6 +1848,13 @@ async function buildContextFromPlan(
   if (plan.needs.includes("topo_inventory")) {
     promises.topoInv = fetchTopoInventory(filters);
   }
+  if (plan.needs.includes("sentinel_anomalies")) {
+    promises.sentinelAnomalies = fetchSentinelAnomalies(filters, plan.scope);
+  }
+  if (plan.needs.includes("sentinel_timeseries")) {
+    const met = plan.metric || detectMetric(query);
+    promises.sentinelTs = fetchSentinelTimeSeries(filters, plan.scope, met, plan.limits.maxDays || 15);
+  }
 
   const keys = Object.keys(promises);
   const results = await Promise.all(Object.values(promises));
@@ -1856,6 +1863,8 @@ async function buildContextFromPlan(
 
   console.log(`📦 Context fetched: ${keys.filter(k => resolved[k]).join(", ") || "none"}`);
 
+  if (resolved.sentinelAnomalies) sections.push(`🚨 SENTINEL ML:\n${resolved.sentinelAnomalies}`);
+  if (resolved.sentinelTs) sections.push(`📈 SENTINEL TIME SERIES:\n${resolved.sentinelTs}`);
   if (resolved.topoInv) sections.push(`🗼 INVENTAIRE TOPO:\n${resolved.topoInv}`);
   if (resolved.topoAgg) sections.push(`📡 DISTRIBUTION TOPO:\n${resolved.topoAgg}`);
   if (resolved.dimAgg) sections.push(`📊 DISTRIBUTION PAR DIMENSION:\n${resolved.dimAgg}`);
