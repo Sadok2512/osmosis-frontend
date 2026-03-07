@@ -151,16 +151,17 @@ const METRICS_CONFIG: { name: string; id: string; numColors: number; thresholds:
 ];
 
 const MODULE_DEFS: { id: string; label: string; description: string; icon: React.ReactNode }[] = [
+  { id: 'ai_assistant', label: 'QOEBIT AI', description: 'Assistant IA pour l\'analyse QoE', icon: <Zap className="w-5 h-5" /> },
   { id: 'dashboard_overview', label: 'Dashboard Overview', description: 'Vue d\'ensemble des KPIs globaux', icon: <BarChart3 className="w-5 h-5" /> },
   { id: 'list', label: 'Live Monitor Map', description: 'Carte temps-réel des sites & cellules', icon: <Globe className="w-5 h-5" /> },
   { id: 'sites', label: 'Network Topology', description: 'Topologie réseau et inventaire sites', icon: <Server className="w-5 h-5" /> },
   { id: 'traffic', label: 'Analytic QOE', description: 'Tableaux de bord analytiques personnalisés', icon: <BarChart3 className="w-5 h-5" /> },
+  { id: 'kpi_monitor', label: 'KPI Monitor', description: 'Suivi et analyse des indicateurs de performance', icon: <Activity className="w-5 h-5" /> },
   { id: 'alerts', label: 'Alerts & RCA Monitor', description: 'Détection d\'anomalies et analyse causale', icon: <Bell className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', description: 'Console de détection ML avancée', icon: <Shield className="w-5 h-5" /> },
-  { id: 'ai_assistant', label: 'QOEBIT AI', description: 'Assistant IA pour l\'analyse QoE', icon: <Zap className="w-5 h-5" /> },
+  { id: 'sentinel', label: 'ML Detector', description: 'Détection d\'anomalies ML et clustering', icon: <Radio className="w-5 h-5" /> },
   { id: 'radio_profile', label: 'Radio Profile', description: 'Profil de propagation RF et terrain', icon: <Radio className="w-5 h-5" /> },
   { id: 'topologie', label: 'Parameters HUB', description: 'Gestion topologique du réseau', icon: <Antenna className="w-5 h-5" /> },
-  
   { id: 'docs', label: 'Documentation', description: 'Documentation technique de la plateforme', icon: <FileSpreadsheet className="w-5 h-5" /> },
   { id: 'backend_admin', label: 'Backend Admin', description: 'Administration et configuration backend', icon: <Database className="w-5 h-5" /> },
 ];
