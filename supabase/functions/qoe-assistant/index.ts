@@ -1495,10 +1495,31 @@ function buildContextPlan(
     }
   }
 
+  // ── TIME SERIES FALLBACK: if query is temporal but dimension_timeseries wasn't added yet ──
+  if (isTimeSeriesQuery(query) && !needs.includes("dimension_timeseries")) {
+    // Infer dimension from scope if no groupBy was set
+    if (!groupBy) {
+      let dim1: Dimension1Type = "Site";
+      if (scope.level === "vendor") dim1 = "Vendor";
+      else if (scope.level === "techno") dim1 = "RAT";
+      else if (scope.level === "plaque") dim1 = "Plaque";
+      else if (scope.level === "dor") dim1 = "DOR";
+      else {
+        const detected = detectAllDimensions(query);
+        dim1 = detected[0];
+      }
+      groupBy = { dimension1: dim1 };
+    }
+    if (!metric) metric = detectMetric(query);
+    needs.push("dimension_timeseries");
+    console.log(`📈 Time series fallback: dim=${groupBy.dimension1}, metric=${metric}`);
+  }
+
   const n = query.toLowerCase();
   if (n.includes("hier") || n.includes("24h") || n.includes("aujourd")) limits.maxDays = 1;
   else if (n.includes("semaine") || n.includes("7j") || n.includes("7 jour")) limits.maxDays = 7;
   else if (n.includes("mois") || n.includes("30j")) limits.maxDays = 30;
+  else if (needs.includes("dimension_timeseries")) limits.maxDays = 15; // Default 15 days for time series
 
   let clarificationNeeded = false;
   let clarificationQuestion: string | undefined;
@@ -1669,6 +1690,8 @@ const SHARED_RULES = `
 1. Utilise EXCLUSIVEMENT les données fournies dans le contexte. COPIE-COLLE les noms tels quels.
 2. Il est INTERDIT d'inventer des noms de cellules, sites, valeurs ou métriques.
 3. Si aucune donnée n'est disponible, dis-le clairement.
+4. ⛔ NE JAMAIS GÉNÉRER de bloc \`\`\`chart avec des données inventées. Les blocs chart doivent UNIQUEMENT contenir des données EXACTES du contexte.
+5. Si le contexte contient déjà un bloc \`\`\`chart pré-construit, COPIE-LE tel quel — ne le recrée PAS avec d'autres valeurs.
 
 FORMATAGE : Markdown pur (pas de HTML).
 - Tableaux Markdown | et ---
@@ -1681,6 +1704,7 @@ VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
 - map: {"title":"...","markers":[{"lat":...,"lng":...,"label":"...","value":...}]}
 - kpi: {"title":"...","cards":[{"label":"...","value":"...","unit":"...","trend":"up/down/stable","status":"good/warning/critical"}]}
 Le JSON doit être sur UNE SEULE LIGNE.
+⚠️ IMPORTANT: Si un bloc \`\`\`chart est déjà inclus dans le contexte fourni, RECOPIE-LE EXACTEMENT. Ne modifie PAS les données.
 
 ## 📊 CRÉATION DE DASHBOARD
 Quand l'utilisateur demande de CRÉER un dashboard (ex: "crée un dashboard", "génère un tableau de bord", "build a dashboard", "nouveau dashboard avec..."), tu DOIS inclure un bloc spécial en commentaire HTML à la FIN de ta réponse. NE PAS mettre ce bloc dans un code block markdown. Écris-le directement en texte brut :
