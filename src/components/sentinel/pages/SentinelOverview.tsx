@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOverview } from '../sentinelApi';
 import { SEVERITY_CONFIG, ANOMALY_TYPE_LABELS, type DashboardOverviewData } from '../types';
+import { MOCK_OVERVIEW } from '../mockSentinelData';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +12,7 @@ import ReactECharts from 'echarts-for-react';
 interface Props { date: string; apiConnected?: boolean; }
 
 const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
-  const { data, isLoading, isFetching, error } = useQuery<DashboardOverviewData>({
+  const { data: apiData, isLoading, isFetching, error } = useQuery<DashboardOverviewData>({
     queryKey: ['sentinel-overview', date],
     queryFn: () => fetchOverview(date),
     staleTime: 5 * 60_000,
@@ -22,22 +23,11 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
     enabled: apiConnected && !!date,
   });
 
-  console.log('[SentinelOverview] state:', { isLoading, isFetching, error: error?.message, hasData: !!data, date, apiConnected });
+  // Use API data if available, otherwise fall back to mock data
+  const data = apiData || (!apiConnected ? { ...MOCK_OVERVIEW, date } : null);
+  const isMock = !apiData && !apiConnected;
 
-  if (error) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center space-y-2">
-          <AlertCircle className="w-10 h-10 mx-auto text-destructive" />
-          <p className="text-sm font-medium">Impossible de contacter l'API Sentinel</p>
-          <p className="text-xs text-muted-foreground">Vérifiez que le backend FastAPI tourne sur localhost:1000</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">Note : la preview cloud ne peut pas accéder à localhost. Testez en local ou utilisez un tunnel (ngrok).</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading || !data) {
+  if (isLoading && apiConnected) {
     return (
       <div className="p-6 space-y-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
@@ -50,6 +40,18 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
         <div className="grid grid-cols-2 gap-4">
           <Skeleton className="h-64 rounded-xl" />
           <Skeleton className="h-64 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="text-center space-y-2">
+          <AlertCircle className="w-10 h-10 mx-auto text-destructive" />
+          <p className="text-sm font-medium">Aucune donnée disponible</p>
+          <p className="text-xs text-muted-foreground">Vérifiez la connexion au backend FastAPI</p>
         </div>
       </div>
     );
@@ -104,6 +106,11 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
 
   return (
     <div className="p-6 space-y-6">
+      {isMock && (
+        <div className="mx-0 mb-4 px-3 py-2 rounded-md text-xs bg-[hsl(38,92%,50%/0.1)] text-[hsl(38,92%,50%)] border border-[hsl(38,92%,50%/0.2)]">
+          ⚠ Données de démonstration — Backend FastAPI non connecté
+        </div>
+      )}
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {statCards.map(card => (
