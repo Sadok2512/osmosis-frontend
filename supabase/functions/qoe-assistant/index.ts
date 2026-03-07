@@ -1519,6 +1519,7 @@ function buildContextPlan(
   if (n.includes("hier") || n.includes("24h") || n.includes("aujourd")) limits.maxDays = 1;
   else if (n.includes("semaine") || n.includes("7j") || n.includes("7 jour")) limits.maxDays = 7;
   else if (n.includes("mois") || n.includes("30j")) limits.maxDays = 30;
+  else if (needs.includes("dimension_timeseries")) limits.maxDays = 15; // Default 15 days for time series
 
   let clarificationNeeded = false;
   let clarificationQuestion: string | undefined;
