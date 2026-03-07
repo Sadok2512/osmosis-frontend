@@ -8,14 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { Shield, AlertTriangle, AlertCircle, Info, CheckCircle } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 
-interface Props { date: string; }
+interface Props { date: string; apiConnected?: boolean; }
 
-const SentinelOverview: React.FC<Props> = ({ date }) => {
+const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
   const { data, isLoading, error } = useQuery<DashboardOverviewData>({
     queryKey: ['sentinel-overview', date],
     queryFn: () => fetchOverview(date),
     staleTime: 30_000,
     retry: 1,
+    enabled: apiConnected && !!date,
   });
 
   if (error) {
