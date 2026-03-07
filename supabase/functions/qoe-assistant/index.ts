@@ -1369,8 +1369,30 @@ function getSupabase() {
 async function fetchAggStats(filters?: AssistantFilters, maxDays = 7): Promise<string> {
   try {
     const supabase = getSupabase();
+
+    // 1. Find the latest available date in DB (anchoring)
+    let latestQ = supabase.from("kpi_qoe_aggregated")
+      .select("date_part")
+      .not("qoe_index", "is", null)
+      .order("date_part", { ascending: false })
+      .limit(1);
+    if (filters?.vendor) latestQ = latestQ.eq("dimension_1", "Vendor").ilike("dimension_2", `%${filters.vendor}%`);
+    else if (filters?.plaque) latestQ = latestQ.eq("dimension_1", "Plaque").ilike("dimension_2", `%${filters.plaque}%`);
+    else if (filters?.dor) latestQ = latestQ.eq("dimension_1", "DOR").ilike("dimension_2", `%${filters.dor}%`);
+    const { data: latestData } = await latestQ;
+    if (!latestData?.length) return "Aucune donnée agrégée disponible.";
+
+    const latestDate = latestData[0].date_part;
+    const dateTo = new Date(latestDate);
+    const dateFrom = new Date(dateTo.getTime() - maxDays * 86400000);
+    const dateFromStr = dateFrom.toISOString().slice(0, 10);
+    console.log(`📊 AggStats range: ${dateFromStr} → ${latestDate} (${maxDays}d)`);
+
+    // 2. Fetch data within the anchored date range
     let q = supabase.from("kpi_qoe_aggregated")
       .select("dimension_1, dimension_2, date_part, qoe_index, debit_dl, debit_ul, rtt_data_avg, dms_debit_dl_3, dms_debit_dl_8, dms_debit_dl_30, tcp_retr_rate_dl, loss_dl_rate, session_dcr, session_nbr, wind_full_rate")
+      .gte("date_part", dateFromStr)
+      .lte("date_part", latestDate)
       .order("date_part", { ascending: false })
       .limit(500);
 
@@ -1386,7 +1408,12 @@ async function fetchAggStats(filters?: AssistantFilters, maxDays = 7): Promise<s
 
     const { data, error } = await q;
     if (error) { console.error("fetchAggStats error:", error); return ""; }
-    if (!data?.length) return "Aucune donnée agrégée disponible.";
+    if (!data?.length) return `Aucune donnée agrégée disponible pour la période ${dateFromStr} → ${latestDate}.`;
+
+    // Extract actual min/max dates from results
+    const dates = data.map((r: any) => r.date_part).filter(Boolean).sort();
+    const actualFrom = dates[0] || dateFromStr;
+    const actualTo = dates[dates.length - 1] || latestDate;
 
     const groups = new Map<string, { qoe: number[]; dl: number[]; ul: number[]; rtt: number[]; dms3: number[]; dms8: number[]; dms30: number[]; loss: number[]; retr: number[]; sess: number; count: number }>();
     for (const r of data) {
@@ -1411,7 +1438,7 @@ async function fetchAggStats(filters?: AssistantFilters, maxDays = 7): Promise<s
     const lines = Array.from(groups.entries()).map(([k, g]) =>
       `${k} | ${g.count} | ${avg(g.qoe).toFixed(1)} | ${avg(g.dl).toFixed(1)} | ${avg(g.ul).toFixed(1)} | ${avg(g.rtt).toFixed(0)} | ${avg(g.dms3).toFixed(1)} | ${avg(g.dms8).toFixed(1)} | ${avg(g.dms30).toFixed(1)} | ${(avg(g.loss) * 100).toFixed(2)} | ${(avg(g.retr) * 100).toFixed(2)} | ${g.sess}`
     );
-    return `STATS AGRÉGÉES (${data.length} points, ${groups.size} dimensions):\n${header}\n${lines.join("\n")}`;
+    return `STATS AGRÉGÉES — Période: ${actualFrom} → ${actualTo} (${data.length} points, ${groups.size} dimensions):\n⚠️ IMPORTANT: Les données couvrent la période du ${actualFrom} au ${actualTo}. Ne mentionne JAMAIS une autre date.\n${header}\n${lines.join("\n")}`;
   } catch (e) {
     console.error("fetchAggStats failed:", e);
     return "";
