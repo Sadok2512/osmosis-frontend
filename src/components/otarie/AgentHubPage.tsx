@@ -363,16 +363,10 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
                   <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-1.5 w-28">
                       <span className="text-xs font-bold text-foreground">{conn.from}</span>
-                      <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[8px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
-                        <Zap size={8} />{skillCounts[conn.from] || 0}
-                      </span>
                     </div>
                     <ArrowRight size={14} className="text-muted-foreground" />
                     <div className="flex items-center gap-1.5 w-28">
                       <span className="text-xs font-bold text-foreground">{conn.to}</span>
-                      <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[8px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
-                        <Zap size={8} />{skillCounts[conn.to] || 0}
-                      </span>
                     </div>
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider text-white ${connectionColors[conn.type]}`}>
                       {connectionLabels[conn.type]}
