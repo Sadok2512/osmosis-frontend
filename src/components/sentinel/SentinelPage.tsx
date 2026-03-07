@@ -170,10 +170,10 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
         <button
           onClick={() => setAiPanelOpen(prev => !prev)}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all border',
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all border border-destructive/50 text-destructive',
             aiPanelOpen
-              ? 'bg-destructive text-destructive-foreground border-destructive'
-              : 'bg-card text-foreground border-border hover:bg-accent'
+              ? 'bg-destructive/15 ring-1 ring-destructive/30'
+              : 'bg-destructive/5 hover:bg-destructive/10'
           )}
         >
           <Bot className="w-3.5 h-3.5" />
