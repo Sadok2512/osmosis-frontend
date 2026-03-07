@@ -1,4 +1,4 @@
-// Mock data for Sentinel when FastAPI backend is unreachable
+// Mock data for Sentinel NOC Dashboard
 import type { DashboardOverviewData, Anomaly, ClusterData } from './types';
 
 export const MOCK_OVERVIEW: DashboardOverviewData = {
@@ -34,6 +34,68 @@ export const MOCK_OVERVIEW: DashboardOverviewData = {
     { dimension_1: 'Cellule', dimension_2: 'STR_LTE_B3_005', severity: 'minor', qoe_index: 68.2, debit_dl: 31.1, main_issue: 'Wind full rate élevé' },
   ],
 };
+
+// Extended ML insights data for the NOC dashboard
+export interface MLInsightRow {
+  entity: string;
+  technology: 'LTE' | 'NR';
+  dimension: string;
+  severity: 'critical' | 'major' | 'minor';
+  qoe_index: number;
+  dl_throughput: number;
+  problem: string;
+  ml_confidence: number;
+  anomaly_score: number;
+  root_cause: string;
+}
+
+export const MOCK_ML_INSIGHTS: MLInsightRow[] = [
+  { entity: 'PAR_LTE_B3_001', technology: 'LTE', dimension: 'Cell', severity: 'critical', qoe_index: 32.1, dl_throughput: 4.2, problem: 'DL Throughput collapse', ml_confidence: 0.97, anomaly_score: 9.4, root_cause: 'Hardware degradation' },
+  { entity: 'LYO_NR_B78_012', technology: 'NR', dimension: 'Cell', severity: 'critical', qoe_index: 38.5, dl_throughput: 8.7, problem: 'High latency + packet loss', ml_confidence: 0.94, anomaly_score: 8.8, root_cause: 'Backhaul congestion' },
+  { entity: 'MARSEILLE_SUD_04', technology: 'LTE', dimension: 'Site', severity: 'critical', qoe_index: 41.2, dl_throughput: 12.3, problem: 'Session DCR spike', ml_confidence: 0.91, anomaly_score: 8.2, root_cause: 'Power supply instability' },
+  { entity: 'TLS_LTE_B1_007', technology: 'LTE', dimension: 'Cell', severity: 'major', qoe_index: 48.9, dl_throughput: 15.1, problem: 'TCP retransmission', ml_confidence: 0.88, anomaly_score: 7.1, root_cause: 'Interference B1/B3' },
+  { entity: 'BDX_NR_B1_003', technology: 'NR', dimension: 'Cell', severity: 'major', qoe_index: 55.7, dl_throughput: 18.4, problem: '5G→4G Fallback', ml_confidence: 0.85, anomaly_score: 6.5, root_cause: 'Coverage gap NR' },
+  { entity: 'NTE_LTE_B7_019', technology: 'LTE', dimension: 'Cell', severity: 'minor', qoe_index: 62.4, dl_throughput: 25.3, problem: 'Out of order packets', ml_confidence: 0.82, anomaly_score: 5.3, root_cause: 'Path asymmetry' },
+  { entity: 'STR_NR_N78_002', technology: 'NR', dimension: 'Cell', severity: 'major', qoe_index: 50.2, dl_throughput: 14.8, problem: 'Beam failure rate', ml_confidence: 0.87, anomaly_score: 6.9, root_cause: 'Antenna tilt drift' },
+  { entity: 'REN_LTE_B28_004', technology: 'LTE', dimension: 'Cell', severity: 'minor', qoe_index: 64.1, dl_throughput: 22.7, problem: 'RAT instability', ml_confidence: 0.79, anomaly_score: 4.8, root_cause: 'Neighbor config' },
+];
+
+// QoE score data for gauge
+export const MOCK_QOE_SCORE = 71.4;
+export const MOCK_QOE_YESTERDAY = 73.8;
+
+// Trend deltas (vs yesterday)
+export const MOCK_DELTAS = {
+  total_anomalies: +12,
+  critical: +3,
+  major: -2,
+  minor: +11,
+};
+
+// Heatmap region data for the map
+export interface RegionHeatData {
+  name: string;
+  lat: number;
+  lng: number;
+  anomalyCount: number;
+  severity: 'critical' | 'major' | 'minor' | 'ok';
+  qoe: number;
+}
+
+export const MOCK_REGION_HEAT: RegionHeatData[] = [
+  { name: 'Île-de-France', lat: 48.8566, lng: 2.3522, anomalyCount: 42, severity: 'critical', qoe: 58.3 },
+  { name: 'Auvergne-Rhône-Alpes', lat: 45.764, lng: 4.8357, anomalyCount: 28, severity: 'major', qoe: 65.1 },
+  { name: 'Provence-Alpes-Côte d\'Azur', lat: 43.2965, lng: 5.3698, anomalyCount: 31, severity: 'critical', qoe: 55.7 },
+  { name: 'Occitanie', lat: 43.6047, lng: 1.4442, anomalyCount: 19, severity: 'major', qoe: 68.4 },
+  { name: 'Nouvelle-Aquitaine', lat: 44.8378, lng: -0.5792, anomalyCount: 15, severity: 'minor', qoe: 72.9 },
+  { name: 'Grand Est', lat: 48.5734, lng: 7.7521, anomalyCount: 12, severity: 'minor', qoe: 74.2 },
+  { name: 'Hauts-de-France', lat: 50.6292, lng: 3.0573, anomalyCount: 22, severity: 'major', qoe: 63.8 },
+  { name: 'Bretagne', lat: 48.1173, lng: -1.6778, anomalyCount: 8, severity: 'ok', qoe: 79.1 },
+  { name: 'Normandie', lat: 49.1829, lng: -0.3707, anomalyCount: 10, severity: 'minor', qoe: 75.6 },
+  { name: 'Pays de la Loire', lat: 47.2184, lng: -1.5536, anomalyCount: 7, severity: 'ok', qoe: 80.3 },
+  { name: 'Centre-Val de Loire', lat: 47.3941, lng: 1.6933, anomalyCount: 9, severity: 'minor', qoe: 76.4 },
+  { name: 'Bourgogne-Franche-Comté', lat: 47.3220, lng: 5.0415, anomalyCount: 6, severity: 'ok', qoe: 81.2 },
+];
 
 export const MOCK_ANOMALIES: Anomaly[] = [
   { date_part: '2025-12-02', dimension_1: 'Cellule', dimension_2: 'PAR_LTE_B3_001', anomaly_type: 'degradation_soudaine', severity: 'critical', kpi_name: 'debit_dl', current_value: 4.2, reference_value: 45.8, deviation_pct: -90.8, detector: 'D1', confidence: 0.97, description: 'Chute brutale du débit DL' },

@@ -1,18 +1,47 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOverview } from '../sentinelApi';
 import { SEVERITY_CONFIG, ANOMALY_TYPE_LABELS, type DashboardOverviewData } from '../types';
-import { MOCK_OVERVIEW } from '../mockSentinelData';
+import { MOCK_OVERVIEW, MOCK_ML_INSIGHTS, MOCK_QOE_SCORE, MOCK_QOE_YESTERDAY, MOCK_DELTAS, MOCK_REGION_HEAT, type MLInsightRow } from '../mockSentinelData';
 import { Card } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Shield, AlertTriangle, AlertCircle, Info, CheckCircle, Loader2 } from 'lucide-react';
+import {
+  Shield, AlertTriangle, AlertCircle, Info, Loader2, TrendingUp, TrendingDown,
+  Activity, Brain, MapPin, Cpu, Radio, ChevronDown, Signal
+} from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 
 interface Props { date: string; apiConnected?: boolean; }
 
+/* ── NOC Color Palette ── */
+const NOC = {
+  bg: '#0a0e1a',
+  cardBg: '#111827',
+  cardBorder: '#1e293b',
+  cardBgHover: '#1a2332',
+  critical: '#ef4444',
+  criticalBg: 'rgba(239,68,68,0.08)',
+  criticalGlow: 'rgba(239,68,68,0.25)',
+  major: '#f59e0b',
+  majorBg: 'rgba(245,158,11,0.08)',
+  majorGlow: 'rgba(245,158,11,0.25)',
+  minor: '#3b82f6',
+  minorBg: 'rgba(59,130,246,0.08)',
+  minorGlow: 'rgba(59,130,246,0.25)',
+  ok: '#10b981',
+  okBg: 'rgba(16,185,129,0.08)',
+  text: '#f1f5f9',
+  textMuted: '#94a3b8',
+  textDim: '#64748b',
+  accent: '#06b6d4',
+  accentBg: 'rgba(6,182,212,0.08)',
+  purple: '#8b5cf6',
+  grid: 'rgba(148,163,184,0.06)',
+  chartColors: ['#ef4444', '#f59e0b', '#8b5cf6', '#3b82f6', '#06b6d4', '#10b981'],
+};
+
 const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
-  const { data: apiData, isLoading, isFetching, error } = useQuery<DashboardOverviewData>({
+  const { data: apiData, isLoading } = useQuery<DashboardOverviewData>({
     queryKey: ['sentinel-overview', date],
     queryFn: () => fetchOverview(date),
     staleTime: 5 * 60_000,
@@ -23,165 +52,320 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
     enabled: apiConnected && !!date,
   });
 
-  // Use API data if available, otherwise fall back to mock data
   const data = apiData || (!apiConnected ? { ...MOCK_OVERVIEW, date } : null);
   const isMock = !apiData && !apiConnected;
+  const qoeScore = MOCK_QOE_SCORE;
+  const qoeYesterday = MOCK_QOE_YESTERDAY;
+  const deltas = MOCK_DELTAS;
 
   if (isLoading && apiConnected) {
     return (
-      <div className="p-6 space-y-4">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Chargement des données Sentinel… (peut prendre jusqu'à 60s)</span>
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8" style={{ background: NOC.bg }}>
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${NOC.accent} transparent ${NOC.accent} ${NOC.accent}` }} />
+          <Activity className="w-6 h-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ color: NOC.accent }} />
         </div>
-        <div className="grid grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Skeleton className="h-64 rounded-xl" />
-          <Skeleton className="h-64 rounded-xl" />
-        </div>
+        <p className="text-sm font-medium" style={{ color: NOC.textMuted }}>Loading Sentinel data… (up to 60s)</p>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center space-y-2">
-          <AlertCircle className="w-10 h-10 mx-auto text-destructive" />
-          <p className="text-sm font-medium">Aucune donnée disponible</p>
-          <p className="text-xs text-muted-foreground">Vérifiez la connexion au backend FastAPI</p>
+      <div className="flex-1 flex items-center justify-center p-8" style={{ background: NOC.bg }}>
+        <div className="text-center space-y-3">
+          <AlertCircle className="w-12 h-12 mx-auto" style={{ color: NOC.critical }} />
+          <p className="text-sm font-semibold" style={{ color: NOC.text }}>No Data Available</p>
+          <p className="text-xs" style={{ color: NOC.textDim }}>Verify FastAPI backend connection</p>
         </div>
       </div>
     );
   }
 
-  const statCards = [
-    { label: 'Total Anomalies', value: data.total_anomalies, icon: <Shield className="w-5 h-5" />, color: 'text-foreground', bg: 'bg-muted' },
-    { label: 'Critiques', value: data.critical, icon: <AlertTriangle className="w-5 h-5" />, color: 'text-[hsl(0,72%,51%)]', bg: 'bg-[hsl(0,72%,51%/0.1)]' },
-    { label: 'Majeures', value: data.major, icon: <AlertCircle className="w-5 h-5" />, color: 'text-[hsl(38,92%,50%)]', bg: 'bg-[hsl(38,92%,50%/0.1)]' },
-    { label: 'Mineures', value: data.minor, icon: <Info className="w-5 h-5" />, color: 'text-[hsl(217,91%,60%)]', bg: 'bg-[hsl(217,91%,60%/0.1)]' },
-  ];
-
-  // Donut chart: anomalies by type
-  const donutData = data.anomalies_by_type
-    ? Object.entries(data.anomalies_by_type).filter(([, val]) => val > 0).map(([key, val]) => ({
-        name: ANOMALY_TYPE_LABELS[key as keyof typeof ANOMALY_TYPE_LABELS] || key,
-        value: val,
-      }))
-    : [];
-
-  const donutOption = {
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { bottom: 0, textStyle: { color: 'hsl(220, 9%, 46%)', fontSize: 10 } },
-    series: [{
-      type: 'pie', radius: ['45%', '72%'], center: ['50%', '45%'],
-      label: { show: false },
-      emphasis: { label: { show: true, fontSize: 12, fontWeight: 'bold' } },
-      data: donutData,
-      itemStyle: { borderRadius: 6, borderWidth: 2, borderColor: 'transparent' },
-      color: ['hsl(0,72%,51%)', 'hsl(38,92%,50%)', 'hsl(258,90%,66%)', 'hsl(217,91%,60%)'],
-    }],
-  };
-
-  // Bar chart: anomalies by dimension
-  const barDimensions = (data.anomalies_by_dimension || []).sort((a, b) => b.count - a.count);
-  const barOption = {
-    tooltip: { trigger: 'axis' },
-    grid: { left: 100, right: 20, top: 10, bottom: 30 },
-    xAxis: { type: 'value', splitLine: { lineStyle: { color: 'hsl(220,13%,91%/0.3)' } } },
-    yAxis: {
-      type: 'category',
-      data: barDimensions.map(d => d.dimension),
-      axisLabel: { fontSize: 10, color: 'hsl(220,9%,46%)' },
-      inverse: true,
-    },
-    series: [{
-      type: 'bar', data: barDimensions.map(d => d.count),
-      itemStyle: { color: 'hsl(0,72%,51%)', borderRadius: [0, 4, 4, 0] },
-      barWidth: 16,
-    }],
-  };
-
   return (
-    <div className="p-6 space-y-6">
-      {isMock && (
-        <div className="mx-0 mb-4 px-3 py-2 rounded-md text-xs bg-[hsl(38,92%,50%/0.1)] text-[hsl(38,92%,50%)] border border-[hsl(38,92%,50%/0.2)]">
-          ⚠ Données de démonstration — Backend FastAPI non connecté
-        </div>
-      )}
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {statCards.map(card => (
-          <Card key={card.label} className="p-4 flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${card.bg}`}>
-              <span className={card.color}>{card.icon}</span>
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{card.value}</p>
-              <p className="text-xs text-muted-foreground">{card.label}</p>
-            </div>
-          </Card>
-        ))}
-      </div>
+    <div className="min-h-full" style={{ background: NOC.bg }}>
+      <div className="p-5 space-y-5 max-w-[1920px] mx-auto">
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Anomalies par type</p>
-          <ReactECharts option={donutOption} style={{ height: 250 }} />
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Anomalies par dimension</p>
-          <ReactECharts option={barOption} style={{ height: 250 }} />
-        </Card>
-      </div>
-
-      {/* Top 10 degraded */}
-      <Card className="p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Top 10 entités dégradées</p>
-        {data.top_degraded.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground gap-2">
-            <CheckCircle className="w-5 h-5 text-[hsl(142,71%,45%)]" />
-            <span className="text-sm">Aucune anomalie détectée</span>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Nom</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Dimension</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Sévérité</th>
-                  <th className="text-right py-2 px-2 font-medium text-muted-foreground">QoE Index</th>
-                  <th className="text-right py-2 px-2 font-medium text-muted-foreground">Débit DL</th>
-                  <th className="text-left py-2 px-2 font-medium text-muted-foreground">Problème</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.top_degraded.slice(0, 10).map((row, i) => {
-                  const sev = SEVERITY_CONFIG[row.severity];
-                  return (
-                    <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="py-2 px-2 font-medium">{row.dimension_2}</td>
-                      <td className="py-2 px-2 text-muted-foreground">{row.dimension_1}</td>
-                      <td className="py-2 px-2">
-                        <Badge className="text-[10px]" style={{ background: sev.bg, color: sev.color, border: 'none' }}>
-                          {sev.label}
-                        </Badge>
-                      </td>
-                      <td className="py-2 px-2 text-right font-mono">{row.qoe_index?.toFixed(1)}</td>
-                      <td className="py-2 px-2 text-right font-mono">{row.debit_dl?.toFixed(1)}</td>
-                      <td className="py-2 px-2 text-muted-foreground">{row.main_issue}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {/* Mock banner */}
+        {isMock && (
+          <div className="px-4 py-2.5 rounded-lg text-xs font-medium flex items-center gap-2"
+            style={{ background: NOC.majorBg, color: NOC.major, border: `1px solid ${NOC.majorGlow}` }}>
+            <AlertTriangle className="w-4 h-4" />
+            Demo Data — FastAPI backend not connected
           </div>
         )}
-      </Card>
+
+        {/* ── KPI Summary Cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <KPICard
+            label="Total Anomalies" value={data.total_anomalies} delta={deltas.total_anomalies}
+            icon={<Shield className="w-5 h-5" />} color={NOC.text} bgAccent={NOC.accentBg} iconColor={NOC.accent}
+          />
+          <KPICard
+            label="Critical" value={data.critical} delta={deltas.critical}
+            icon={<AlertTriangle className="w-5 h-5" />} color={NOC.critical} bgAccent={NOC.criticalBg} iconColor={NOC.critical}
+            pulse={data.critical > 0}
+          />
+          <KPICard
+            label="Major" value={data.major} delta={deltas.major}
+            icon={<AlertCircle className="w-5 h-5" />} color={NOC.major} bgAccent={NOC.majorBg} iconColor={NOC.major}
+          />
+          <KPICard
+            label="Minor" value={data.minor} delta={deltas.minor}
+            icon={<Info className="w-5 h-5" />} color={NOC.minor} bgAccent={NOC.minorBg} iconColor={NOC.minor}
+          />
+          <QoEGaugeCard score={qoeScore} yesterday={qoeYesterday} />
+        </div>
+
+        {/* ── Charts Row ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <NOCCard title="Anomalies by Type" icon={<Brain className="w-4 h-4" />}>
+            <AnomalyTypeChart data={data.anomalies_by_type} />
+          </NOCCard>
+          <NOCCard title="Anomalies by Network Dimension" icon={<Radio className="w-4 h-4" />}>
+            <DimensionChart data={data.anomalies_by_dimension} />
+          </NOCCard>
+        </div>
+
+        {/* ── Network Heatmap ── */}
+        <NOCCard title="Network QoE Heatmap" icon={<MapPin className="w-4 h-4" />} subtitle="Regional anomaly density">
+          <RegionHeatmap />
+        </NOCCard>
+
+        {/* ── ML Detection Insights ── */}
+        <NOCCard title="ML Detection Insights" icon={<Cpu className="w-4 h-4" />} subtitle="Top anomalous entities detected by AI/ML">
+          <MLInsightsTable rows={MOCK_ML_INSIGHTS} />
+        </NOCCard>
+      </div>
+    </div>
+  );
+};
+
+/* ━━━━━━━━━━ KPI Card ━━━━━━━━━━ */
+const KPICard: React.FC<{
+  label: string; value: number; delta: number;
+  icon: React.ReactNode; color: string; bgAccent: string; iconColor: string;
+  pulse?: boolean;
+}> = ({ label, value, delta, icon, color, bgAccent, iconColor, pulse }) => {
+  const isUp = delta > 0;
+  return (
+    <div className="rounded-xl p-4 relative overflow-hidden transition-all duration-200 hover:scale-[1.02]"
+      style={{ background: NOC.cardBg, border: `1px solid ${NOC.cardBorder}` }}>
+      {pulse && (
+        <div className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />
+      )}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: bgAccent }}>
+          <span style={{ color: iconColor }}>{icon}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-medium uppercase tracking-wider" style={{ color: NOC.textDim }}>{label}</p>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="text-2xl font-bold tabular-nums" style={{ color }}>{value.toLocaleString()}</span>
+            <span className="text-[11px] font-medium flex items-center gap-0.5" style={{ color: isUp ? NOC.critical : NOC.ok }}>
+              {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+              {isUp ? '+' : ''}{delta} vs yesterday
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ━━━━━━━━━━ QoE Gauge Card ━━━━━━━━━━ */
+const QoEGaugeCard: React.FC<{ score: number; yesterday: number }> = ({ score, yesterday }) => {
+  const delta = score - yesterday;
+  const gaugeColor = score >= 75 ? NOC.ok : score >= 50 ? NOC.major : NOC.critical;
+
+  const option = useMemo(() => ({
+    series: [{
+      type: 'gauge',
+      center: ['50%', '65%'],
+      radius: '90%',
+      startAngle: 200,
+      endAngle: -20,
+      min: 0, max: 100,
+      pointer: { show: false },
+      progress: { show: true, width: 12, roundCap: true, itemStyle: { color: gaugeColor } },
+      axisLine: { lineStyle: { width: 12, color: [[1, 'rgba(148,163,184,0.1)']] } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      axisLabel: { show: false },
+      detail: {
+        valueAnimation: true, fontSize: 26, fontWeight: 700, color: gaugeColor,
+        formatter: '{value}', offsetCenter: [0, '-5%'],
+      },
+      data: [{ value: score }],
+    }],
+  }), [score, gaugeColor]);
+
+  return (
+    <div className="rounded-xl p-4 relative overflow-hidden col-span-2 lg:col-span-1"
+      style={{ background: NOC.cardBg, border: `1px solid ${NOC.cardBorder}` }}>
+      <p className="text-[11px] font-medium uppercase tracking-wider" style={{ color: NOC.textDim }}>Network QoE Score</p>
+      <ReactECharts option={option} style={{ height: 100 }} opts={{ renderer: 'canvas' }} />
+      <div className="text-center -mt-2">
+        <span className="text-[11px] font-medium flex items-center justify-center gap-1" style={{ color: delta >= 0 ? NOC.ok : NOC.critical }}>
+          {delta >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+          {delta >= 0 ? '+' : ''}{delta.toFixed(1)} vs yesterday
+        </span>
+      </div>
+    </div>
+  );
+};
+
+/* ━━━━━━━━━━ NOC Card Wrapper ━━━━━━━━━━ */
+const NOCCard: React.FC<{ title: string; icon?: React.ReactNode; subtitle?: string; children: React.ReactNode }> = ({ title, icon, subtitle, children }) => (
+  <div className="rounded-xl overflow-hidden" style={{ background: NOC.cardBg, border: `1px solid ${NOC.cardBorder}` }}>
+    <div className="px-5 py-3.5 flex items-center gap-2" style={{ borderBottom: `1px solid ${NOC.cardBorder}` }}>
+      {icon && <span style={{ color: NOC.accent }}>{icon}</span>}
+      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: NOC.text }}>{title}</span>
+      {subtitle && <span className="text-[10px] ml-2" style={{ color: NOC.textDim }}>— {subtitle}</span>}
+    </div>
+    <div className="p-4">{children}</div>
+  </div>
+);
+
+/* ━━━━━━━━━━ Anomaly Type Horizontal Bar Chart ━━━━━━━━━━ */
+const AnomalyTypeChart: React.FC<{ data: Record<string, number> }> = ({ data }) => {
+  const entries = Object.entries(data).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const labels = entries.map(([k]) => ANOMALY_TYPE_LABELS[k as keyof typeof ANOMALY_TYPE_LABELS] || k);
+  const values = entries.map(([, v]) => v);
+
+  const option = useMemo(() => ({
+    tooltip: { trigger: 'axis', backgroundColor: NOC.cardBg, borderColor: NOC.cardBorder, textStyle: { color: NOC.text, fontSize: 11 } },
+    grid: { left: 180, right: 30, top: 10, bottom: 10 },
+    xAxis: { type: 'value', splitLine: { lineStyle: { color: NOC.grid } }, axisLabel: { color: NOC.textDim, fontSize: 10 } },
+    yAxis: { type: 'category', data: labels, inverse: true, axisLabel: { color: NOC.textMuted, fontSize: 11 }, axisLine: { show: false }, axisTick: { show: false } },
+    series: [{
+      type: 'bar', data: values, barWidth: 20,
+      itemStyle: {
+        borderRadius: [0, 4, 4, 0],
+        color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: NOC.critical }, { offset: 1, color: NOC.major }] },
+      },
+      label: { show: true, position: 'right', color: NOC.textMuted, fontSize: 11, fontWeight: 600 },
+    }],
+  }), [labels, values]);
+
+  return <ReactECharts option={option} style={{ height: 200 }} />;
+};
+
+/* ━━━━━━━━━━ Dimension Bar Chart ━━━━━━━━━━ */
+const DimensionChart: React.FC<{ data: { dimension: string; count: number }[] }> = ({ data }) => {
+  const sorted = [...data].sort((a, b) => b.count - a.count);
+
+  const option = useMemo(() => ({
+    tooltip: { trigger: 'axis', backgroundColor: NOC.cardBg, borderColor: NOC.cardBorder, textStyle: { color: NOC.text, fontSize: 11 } },
+    grid: { left: 80, right: 30, top: 10, bottom: 10 },
+    xAxis: { type: 'value', splitLine: { lineStyle: { color: NOC.grid } }, axisLabel: { color: NOC.textDim, fontSize: 10 } },
+    yAxis: { type: 'category', data: sorted.map(d => d.dimension), inverse: true, axisLabel: { color: NOC.textMuted, fontSize: 11 }, axisLine: { show: false }, axisTick: { show: false } },
+    series: [{
+      type: 'bar', data: sorted.map((d, i) => ({ value: d.count, itemStyle: { color: NOC.chartColors[i % NOC.chartColors.length] } })),
+      barWidth: 20,
+      itemStyle: { borderRadius: [0, 4, 4, 0] },
+      label: { show: true, position: 'right', color: NOC.textMuted, fontSize: 11, fontWeight: 600 },
+    }],
+  }), [sorted]);
+
+  return <ReactECharts option={option} style={{ height: 200 }} />;
+};
+
+/* ━━━━━━━━━━ Region Heatmap (Bubble Chart) ━━━━━━━━━━ */
+const RegionHeatmap: React.FC = () => {
+  const sevColor = (s: string) => s === 'critical' ? NOC.critical : s === 'major' ? NOC.major : s === 'minor' ? NOC.minor : NOC.ok;
+
+  const option = useMemo(() => ({
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: NOC.cardBg, borderColor: NOC.cardBorder, textStyle: { color: NOC.text, fontSize: 11 },
+      formatter: (p: any) => {
+        const d = MOCK_REGION_HEAT[p.dataIndex];
+        return `<b>${d.name}</b><br/>Anomalies: ${d.anomalyCount}<br/>QoE: ${d.qoe}<br/>Severity: ${d.severity}`;
+      },
+    },
+    grid: { left: 140, right: 40, top: 30, bottom: 30 },
+    xAxis: { type: 'value', name: 'QoE Score', nameLocation: 'center', nameGap: 25, nameTextStyle: { color: NOC.textDim, fontSize: 10 }, min: 50, max: 85, splitLine: { lineStyle: { color: NOC.grid } }, axisLabel: { color: NOC.textDim, fontSize: 10 } },
+    yAxis: { type: 'category', data: MOCK_REGION_HEAT.map(r => r.name), axisLabel: { color: NOC.textMuted, fontSize: 10 }, axisLine: { show: false }, axisTick: { show: false } },
+    series: [{
+      type: 'scatter',
+      symbolSize: (val: any) => Math.max(12, val[1] * 1.2),
+      data: MOCK_REGION_HEAT.map((r, i) => ({
+        value: [r.qoe, r.anomalyCount],
+        itemStyle: { color: sevColor(r.severity), shadowBlur: 8, shadowColor: sevColor(r.severity) + '40' },
+      })),
+    }],
+    visualMap: { show: false },
+  }), []);
+
+  return <ReactECharts option={option} style={{ height: 320 }} />;
+};
+
+/* ━━━━━━━━━━ ML Insights Table ━━━━━━━━━━ */
+const MLInsightsTable: React.FC<{ rows: MLInsightRow[] }> = ({ rows }) => {
+  const sevBadge = (s: string) => {
+    const c = s === 'critical' ? { bg: NOC.criticalBg, color: NOC.critical, border: NOC.criticalGlow }
+            : s === 'major' ? { bg: NOC.majorBg, color: NOC.major, border: NOC.majorGlow }
+            : { bg: NOC.minorBg, color: NOC.minor, border: NOC.minorGlow };
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider"
+        style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>
+        {s}
+      </span>
+    );
+  };
+
+  const confBar = (v: number) => (
+    <div className="flex items-center gap-2">
+      <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(148,163,184,0.1)' }}>
+        <div className="h-full rounded-full" style={{ width: `${v * 100}%`, background: v >= 0.9 ? NOC.ok : v >= 0.8 ? NOC.accent : NOC.major }} />
+      </div>
+      <span className="text-[11px] font-mono tabular-nums" style={{ color: NOC.textMuted }}>{(v * 100).toFixed(0)}%</span>
+    </div>
+  );
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs" style={{ color: NOC.text }}>
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${NOC.cardBorder}` }}>
+            {['Entity Name', 'Tech', 'Dimension', 'Severity', 'QoE', 'DL Throughput', 'Problem Detected', 'Root Cause', 'ML Confidence'].map(h => (
+              <th key={h} className="text-left py-3 px-3 font-semibold uppercase tracking-wider" style={{ color: NOC.textDim, fontSize: 10 }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i}
+              className="transition-colors cursor-pointer"
+              style={{
+                background: row.severity === 'critical' ? NOC.criticalBg : 'transparent',
+                borderBottom: `1px solid ${NOC.cardBorder}`,
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = NOC.cardBgHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = row.severity === 'critical' ? NOC.criticalBg : 'transparent')}
+            >
+              <td className="py-2.5 px-3 font-mono font-medium" style={{ color: NOC.accent }}>{row.entity}</td>
+              <td className="py-2.5 px-3">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                  style={{ background: row.technology === 'NR' ? 'rgba(139,92,246,0.15)' : 'rgba(6,182,212,0.15)', color: row.technology === 'NR' ? NOC.purple : NOC.accent }}>
+                  <Signal className="w-3 h-3" />
+                  {row.technology === 'NR' ? '5G NR' : 'LTE'}
+                </span>
+              </td>
+              <td className="py-2.5 px-3" style={{ color: NOC.textMuted }}>{row.dimension}</td>
+              <td className="py-2.5 px-3">{sevBadge(row.severity)}</td>
+              <td className="py-2.5 px-3 font-mono tabular-nums font-medium" style={{ color: row.qoe_index < 45 ? NOC.critical : row.qoe_index < 60 ? NOC.major : NOC.text }}>
+                {row.qoe_index.toFixed(1)}
+              </td>
+              <td className="py-2.5 px-3 font-mono tabular-nums" style={{ color: NOC.textMuted }}>{row.dl_throughput.toFixed(1)} Mbps</td>
+              <td className="py-2.5 px-3" style={{ color: NOC.textMuted }}>{row.problem}</td>
+              <td className="py-2.5 px-3 text-[11px]" style={{ color: NOC.purple }}>{row.root_cause}</td>
+              <td className="py-2.5 px-3">{confBar(row.ml_confidence)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
