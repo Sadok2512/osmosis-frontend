@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchKPIHistory, fetchDimensionValues, fetchAnomalies } from '../sentinelApi';
 import { Anomaly, SEVERITY_CONFIG, ANOMALY_TYPE_LABELS, KPIHistoryData } from '../types';
+import { MOCK_ANOMALIES } from '../mockSentinelData';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Search } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 
-interface Props { date: string; }
+interface Props { date: string; apiConnected?: boolean; }
 
 const KPI_LINES = [
   { kpi: 'debit_dl', label: 'Débit DL', color: 'hsl(217,91%,60%)', unit: 'Mbps' },
@@ -19,7 +20,31 @@ const KPI_LINES = [
   { kpi: 'loss_dl_rate', label: 'Loss DL', color: 'hsl(0,72%,51%)', unit: '%' },
 ];
 
-const SentinelTemporal: React.FC<Props> = ({ date }) => {
+// Mock entity suggestions
+const MOCK_ENTITIES = [
+  'PAR_LTE_B3_001', 'LYO_NR_B78_012', 'MARSEILLE_SUD_04', 'TLS_LTE_B1_007',
+  'BDX_NR_B1_003', 'NTE_LTE_B7_019', 'STR_NR_N78_002', 'REN_LTE_B28_004',
+];
+
+// Generate mock KPI history
+function generateMockHistory(kpi: string, entity: string): KPIHistoryData {
+  const baseValues: Record<string, number> = { debit_dl: 35, rtt_setup_avg: 45000, qoe_index: 65, loss_dl_rate: 0.01 };
+  const base = baseValues[kpi] || 50;
+  const data = [];
+  for (let i = 14; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const noise = (Math.random() - 0.5) * base * 0.3;
+    const isAnomaly = i <= 2 && Math.random() > 0.6;
+    data.push({
+      date: d.toISOString().split('T')[0],
+      value: Math.max(0, base + noise + (isAnomaly ? -base * 0.4 : 0)),
+      is_anomaly: isAnomaly,
+    });
+  }
+  return { dimension_2: entity, kpi, data };
+}
+
+const SentinelTemporal: React.FC<Props> = ({ date, apiConnected = true }) => {
   const [searchText, setSearchText] = useState('');
   const [selectedEntity, setSelectedEntity] = useState<{ dim1: string; dim2: string } | null>(null);
   const [enabledKpis, setEnabledKpis] = useState<Record<string, boolean>>(
@@ -28,18 +53,27 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  const isMock = !apiConnected;
+
   const handleSearch = useCallback(async (val: string) => {
     setSearchText(val);
     if (val.length >= 2) {
-      try {
-        const results = await fetchDimensionValues('Cellule', val);
-        setSuggestions(results.slice(0, 10));
-        setShowSuggestions(true);
-      } catch { setSuggestions([]); }
+      if (apiConnected) {
+        try {
+          const results = await fetchDimensionValues('Cellule', val);
+          setSuggestions(results.slice(0, 10));
+          setShowSuggestions(true);
+        } catch { setSuggestions([]); }
+      } else {
+        // Mock suggestions
+        const filtered = MOCK_ENTITIES.filter(e => e.toLowerCase().includes(val.toLowerCase()));
+        setSuggestions(filtered);
+        setShowSuggestions(filtered.length > 0);
+      }
     } else {
       setShowSuggestions(false);
     }
-  }, []);
+  }, [apiConnected]);
 
   const selectEntity = (name: string) => {
     setSelectedEntity({ dim1: 'Cellule', dim2: name });
@@ -55,37 +89,45 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
   const q0 = useQuery<KPIHistoryData>({
     queryKey: ['sentinel-temporal', dim1, dim2, KPI_LINES[0].kpi],
     queryFn: () => fetchKPIHistory(dim1, dim2, KPI_LINES[0].kpi),
-    enabled: hasEntity && enabledKpis[KPI_LINES[0].kpi],
-    staleTime: 30_000, retry: 1,
+    enabled: hasEntity && enabledKpis[KPI_LINES[0].kpi] && apiConnected,
+    staleTime: 30_000, retry: 0,
   });
   const q1 = useQuery<KPIHistoryData>({
     queryKey: ['sentinel-temporal', dim1, dim2, KPI_LINES[1].kpi],
     queryFn: () => fetchKPIHistory(dim1, dim2, KPI_LINES[1].kpi),
-    enabled: hasEntity && enabledKpis[KPI_LINES[1].kpi],
-    staleTime: 30_000, retry: 1,
+    enabled: hasEntity && enabledKpis[KPI_LINES[1].kpi] && apiConnected,
+    staleTime: 30_000, retry: 0,
   });
   const q2 = useQuery<KPIHistoryData>({
     queryKey: ['sentinel-temporal', dim1, dim2, KPI_LINES[2].kpi],
     queryFn: () => fetchKPIHistory(dim1, dim2, KPI_LINES[2].kpi),
-    enabled: hasEntity && enabledKpis[KPI_LINES[2].kpi],
-    staleTime: 30_000, retry: 1,
+    enabled: hasEntity && enabledKpis[KPI_LINES[2].kpi] && apiConnected,
+    staleTime: 30_000, retry: 0,
   });
   const q3 = useQuery<KPIHistoryData>({
     queryKey: ['sentinel-temporal', dim1, dim2, KPI_LINES[3].kpi],
     queryFn: () => fetchKPIHistory(dim1, dim2, KPI_LINES[3].kpi),
-    enabled: hasEntity && enabledKpis[KPI_LINES[3].kpi],
-    staleTime: 30_000, retry: 1,
+    enabled: hasEntity && enabledKpis[KPI_LINES[3].kpi] && apiConnected,
+    staleTime: 30_000, retry: 0,
   });
   const historyQueries = [q0, q1, q2, q3];
 
-  const { data: entityAnomalies } = useQuery<Anomaly[]>({
+  // Generate mock history data when not connected
+  const mockHistories = useMemo(() => {
+    if (!isMock || !hasEntity) return [];
+    return KPI_LINES.map(kl => generateMockHistory(kl.kpi, dim2));
+  }, [isMock, hasEntity, dim2]);
+
+  const { data: apiEntityAnomalies } = useQuery<Anomaly[]>({
     queryKey: ['sentinel-temporal-anomalies', dim2, date],
     queryFn: () => fetchAnomalies({ date, search: dim2 }),
-    enabled: hasEntity,
+    enabled: hasEntity && apiConnected,
     staleTime: 30_000,
   });
 
-  const anyLoading = historyQueries.some(q => q.isLoading);
+  const entityAnomalies = apiEntityAnomalies || (isMock && hasEntity ? MOCK_ANOMALIES.filter(a => a.dimension_2 === dim2) : []);
+
+  const anyLoading = apiConnected && historyQueries.some(q => q.isLoading);
 
   const chartOption = useMemo(() => {
     const xDates: string[] = [];
@@ -93,7 +135,7 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
 
     KPI_LINES.forEach((kl, idx) => {
       if (!enabledKpis[kl.kpi]) return;
-      const qData = historyQueries[idx].data;
+      const qData = isMock ? mockHistories[idx] : historyQueries[idx].data;
       if (!qData?.data) return;
       if (xDates.length === 0) qData.data.forEach(d => xDates.push(d.date));
       seriesData.push({
@@ -123,15 +165,21 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
       ],
       series: seriesData,
     };
-  }, [q0.data, q1.data, q2.data, q3.data, enabledKpis, entityAnomalies]);
+  }, [q0.data, q1.data, q2.data, q3.data, enabledKpis, entityAnomalies, isMock, mockHistories]);
 
   return (
     <div className="p-6 space-y-4">
+      {isMock && (
+        <div className="px-3 py-2 rounded-md text-xs bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center gap-2">
+          ⚠ Données de démonstration — Backend FastAPI non connecté
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Rechercher une entité (ex: PARIS_MONTMARTRE)..."
+          placeholder="Rechercher une entité (ex: PAR_LTE_B3_001)..."
           value={searchText}
           onChange={e => handleSearch(e.target.value)}
           onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
@@ -152,7 +200,9 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
 
       {!hasEntity ? (
         <div className="flex-1 flex items-center justify-center py-20">
-          <p className="text-sm text-muted-foreground">Sélectionnez une entité pour visualiser l'analyse temporelle</p>
+          <p className="text-sm text-muted-foreground">
+            {isMock ? 'Tapez "PAR" ou "LYO" pour tester avec les données de démo' : 'Sélectionnez une entité pour visualiser l\'analyse temporelle'}
+          </p>
         </div>
       ) : (
         <>
@@ -174,7 +224,7 @@ const SentinelTemporal: React.FC<Props> = ({ date }) => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {KPI_LINES.map((kl, idx) => {
-              const qData = historyQueries[idx].data;
+              const qData = isMock ? mockHistories[idx] : historyQueries[idx].data;
               const lastVal = qData?.data?.[qData.data.length - 1]?.value;
               return (
                 <Card key={kl.kpi} className="p-3">
