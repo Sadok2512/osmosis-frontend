@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Eye, BarChart3, Clock, ChevronRight, Wifi, WifiOff, Loader2, CheckCircle } from 'lucide-react';
+import { Shield, Eye, BarChart3, Bot, ChevronRight, Wifi, WifiOff, Loader2, CheckCircle } from 'lucide-react';
 import SentinelOverview from './pages/SentinelOverview';
 import SentinelExplorer from './pages/SentinelExplorer';
 import SentinelClustering from './pages/SentinelClustering';
-import SentinelTemporal from './pages/SentinelTemporal';
+import SentinelAIPanel from './SentinelAIPanel';
 import { fetchDates } from './sentinelApi';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-type SentinelTab = 'overview' | 'explorer' | 'clustering' | 'temporal';
+type SentinelTab = 'overview' | 'explorer' | 'clustering' | 'ai';
 
 const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Vue d\'ensemble', icon: <Shield className="w-4 h-4" /> },
   { id: 'explorer', label: 'Anomalies', icon: <Eye className="w-4 h-4" /> },
   { id: 'clustering', label: 'Clustering', icon: <BarChart3 className="w-4 h-4" /> },
-  { id: 'temporal', label: 'Analyse temporelle', icon: <Clock className="w-4 h-4" /> },
+  { id: 'ai', label: 'Sentinel AI', icon: <Bot className="w-4 h-4" /> },
 ];
 
 type ConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
@@ -190,7 +190,7 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
         {activeTab === 'overview' && <SentinelOverview date={selectedDate} apiConnected={connectionStatus === 'connected'} theme={theme} />}
         {activeTab === 'explorer' && <SentinelExplorer date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
         {activeTab === 'clustering' && <SentinelClustering date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
-        {activeTab === 'temporal' && <SentinelTemporal date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
+        {activeTab === 'ai' && <SentinelAIPanel onClose={() => setActiveTab('overview')} date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
       </div>
     </div>
   );
