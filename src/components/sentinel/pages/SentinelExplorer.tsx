@@ -600,7 +600,10 @@ const SentinelExplorer: React.FC<Props> = ({ date, dateStart, dateEnd, apiConnec
                   <div className="space-y-2">
                     <h4 className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
                       <BarChart3 className="w-3.5 h-3.5 text-primary" />
-                      Tendances KPI (30j)
+                      Tendances KPI
+                      <span className="text-[9px] font-normal text-muted-foreground ml-1">
+                        {dateStart?.slice(5)} → {dateEnd?.slice(5)}
+                      </span>
                     </h4>
 
                     {miniTrends && (
