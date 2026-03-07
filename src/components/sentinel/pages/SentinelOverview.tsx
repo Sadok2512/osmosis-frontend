@@ -11,13 +11,18 @@ import ReactECharts from 'echarts-for-react';
 interface Props { date: string; apiConnected?: boolean; }
 
 const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
-  const { data, isLoading, error } = useQuery<DashboardOverviewData>({
+  const { data, isLoading, isFetching, error } = useQuery<DashboardOverviewData>({
     queryKey: ['sentinel-overview', date],
     queryFn: () => fetchOverview(date),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     retry: 0,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
     enabled: apiConnected && !!date,
   });
+
+  console.log('[SentinelOverview] state:', { isLoading, isFetching, error: error?.message, hasData: !!data, date, apiConnected });
 
   if (error) {
     return (
