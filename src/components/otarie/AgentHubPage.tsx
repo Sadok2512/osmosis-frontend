@@ -244,7 +244,7 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
     const fetchSkills = async () => {
       try {
         // Fetch skills with their agent name via admin_agents join
-        const { data } = await supabase
+        const { data } = await (supabase as any)
           .from('agent_skills')
           .select('agent_id, admin_agents!inner(name)')
           .eq('is_active', true);
