@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles, Activity, Network, ShieldCheck, AlertTriangle, Cpu,
   ArrowRight, ChevronDown, ChevronUp, Zap, Database, Search,
-  BarChart2, FileText, Target, Layers, GitBranch, Radio, ArrowLeft
+  BarChart2, FileText, Target, Layers, GitBranch, Radio, ArrowLeft, Brain
 } from 'lucide-react';
 import { AppTab } from '../../types';
+import { supabase } from '@/integrations/supabase/client';
 
 /* ── Agent definitions ── */
 interface SubAgent {
@@ -220,6 +221,26 @@ const AgentCard: React.FC<{ agent: SubAgent; isExpanded: boolean; onToggle: () =
 /* ── Main Page ── */
 const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavigate }) => {
   const [expandedId, setExpandedId] = useState<string | null>('PULSE');
+  const [memoryCounts, setMemoryCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const fetchMemory = async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from('agent_memory')
+          .select('agent');
+        if (data && Array.isArray(data)) {
+          const counts: Record<string, number> = {};
+          data.forEach((row: any) => {
+            const a = row.agent || 'UNKNOWN';
+            counts[a] = (counts[a] || 0) + 1;
+          });
+          setMemoryCounts(counts);
+        }
+      } catch { /* fallback: empty */ }
+    };
+    fetchMemory();
+  }, []);
 
   return (
     <div className="h-full overflow-y-auto bg-background">
@@ -288,16 +309,23 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
 
               {/* Agent row */}
               <div className="grid grid-cols-5 gap-4 mb-8">
-                {agents.map((agent) => (
-                  <div key={agent.id} className="flex flex-col items-center">
-                    <div className="w-2 h-8 bg-gradient-to-b from-primary/30 to-transparent rounded-full mb-2" />
-                    <div className={`w-16 h-16 rounded-xl border-2 ${agent.color} bg-background flex items-center justify-center shadow-md`}>
-                      {agent.icon}
+                {agents.map((agent) => {
+                  const memCount = memoryCounts[agent.id] || 0;
+                  return (
+                    <div key={agent.id} className="flex flex-col items-center">
+                      <div className="w-2 h-8 bg-gradient-to-b from-primary/30 to-transparent rounded-full mb-2" />
+                      <div className={`w-16 h-16 rounded-xl border-2 ${agent.color} bg-background flex items-center justify-center shadow-md`}>
+                        {agent.icon}
+                      </div>
+                      <span className="text-xs font-bold text-foreground mt-2">{agent.name}</span>
+                      <span className="text-[9px] text-muted-foreground text-center leading-tight mt-0.5 max-w-[100px]">{agent.role}</span>
+                      <div className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+                        <Brain size={10} className="text-primary" />
+                        <span className="text-[9px] font-bold text-primary">{memCount} mem</span>
+                      </div>
                     </div>
-                    <span className="text-xs font-bold text-foreground mt-2">{agent.name}</span>
-                    <span className="text-[9px] text-muted-foreground text-center leading-tight mt-0.5 max-w-[100px]">{agent.role}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Connection lines as a table */}
