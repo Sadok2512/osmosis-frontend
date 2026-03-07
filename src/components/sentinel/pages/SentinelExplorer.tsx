@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 
-interface Props { date: string; apiConnected?: boolean; }
+interface Props { date: string; dateStart?: string; dateEnd?: string; apiConnected?: boolean; }
 
 const DIMENSIONS: SentinelDimension[] = ['Cellule', 'Site', 'Bande', 'Vendor', 'DOR', 'Plaque', 'ARCEP', 'RAT'];
 const SEVERITIES: SentinelSeverity[] = ['critical', 'major', 'minor'];
@@ -85,15 +85,17 @@ const ROOT_CAUSE_MAP: Record<string, string[]> = {
 };
 
 // Mock mini trend data generator with dates
-const generateMiniTrend = (baseValue: number, volatility: number, days = 30) => {
+const generateMiniTrend = (baseValue: number, volatility: number, startDate?: string, endDate?: string) => {
   const data: { date: string; value: number }[] = [];
   let val = baseValue;
-  const now = new Date();
-  for (let i = days - 1; i >= 0; i--) {
+  const end = endDate ? new Date(endDate) : new Date();
+  const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 86400000);
+  const days = Math.max(7, Math.round((end.getTime() - start.getTime()) / 86400000));
+  for (let i = 0; i < days; i++) {
     val += (Math.random() - 0.5) * volatility;
     val = Math.max(0, val);
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
     data.push({ date: d.toISOString().split('T')[0], value: parseFloat(val.toFixed(2)) });
   }
   return data;
@@ -119,7 +121,7 @@ const detectTechnology = (name: string): 'NR' | 'LTE' | '—' => {
   return '—';
 };
 
-const SentinelExplorer: React.FC<Props> = ({ date, apiConnected = true }) => {
+const SentinelExplorer: React.FC<Props> = ({ date, dateStart, dateEnd, apiConnected = true }) => {
   const [dimension, setDimension] = useState<SentinelDimension | ''>('');
   const [severity, setSeverity] = useState<SentinelSeverity[]>([]);
   const [types, setTypes] = useState<AnomalyType[]>([]);
@@ -206,7 +208,7 @@ const SentinelExplorer: React.FC<Props> = ({ date, apiConnected = true }) => {
     a.href = url; a.download = `sentinel_anomalies_${date}.csv`; a.click();
   };
 
-  // Mini chart options for detail panel — line only with date slider
+  // Mini chart options for detail panel — clean line only with date range labels
   const miniChartOption = (title: string, data: { date: string; value: number }[], color: string, unit: string) => ({
     tooltip: {
       trigger: 'axis' as const,
@@ -215,35 +217,34 @@ const SentinelExplorer: React.FC<Props> = ({ date, apiConnected = true }) => {
       borderColor: 'hsl(220, 13%, 25%)',
       textStyle: { color: '#fff', fontSize: 10 },
     },
-    grid: { left: 4, right: 4, top: 8, bottom: 28, containLabel: false },
+    grid: { left: 40, right: 10, top: 8, bottom: 22, containLabel: false },
     xAxis: {
       type: 'category' as const,
       data: data.map(d => d.date),
-      axisLabel: { show: false },
+      axisLabel: {
+        show: true,
+        fontSize: 8,
+        color: 'hsl(220,9%,46%)',
+        formatter: (val: string) => val?.slice(5) || '',
+        interval: Math.max(0, Math.floor(data.length / 5) - 1),
+      },
       axisLine: { show: false },
       axisTick: { show: false },
+      boundaryGap: false,
     },
-    yAxis: { type: 'value' as const, show: false },
-    dataZoom: [{
-      type: 'slider',
-      height: 14,
-      bottom: 2,
-      start: 60,
-      end: 100,
-      borderColor: 'transparent',
-      backgroundColor: 'hsl(220,13%,91%/0.15)',
-      fillerColor: `${color}33`,
-      handleSize: '60%',
-      handleStyle: { color, borderColor: color },
-      textStyle: { fontSize: 8, color: 'hsl(220,9%,46%)' },
-      labelFormatter: (val: number) => data[val]?.date?.slice(5) || '',
-    }],
+    yAxis: {
+      type: 'value' as const,
+      show: true,
+      splitLine: { lineStyle: { color: 'hsl(220,13%,91%,0.15)' } },
+      axisLabel: { fontSize: 8, color: 'hsl(220,9%,46%)' },
+    },
     series: [{
       type: 'line' as const,
       data: data.map(d => d.value),
       smooth: true,
       symbol: 'none',
-      lineStyle: { color, width: 1.5 },
+      lineStyle: { color, width: 2 },
+      areaStyle: undefined,
     }],
   });
 
@@ -251,11 +252,11 @@ const SentinelExplorer: React.FC<Props> = ({ date, apiConnected = true }) => {
   const miniTrends = useMemo(() => {
     if (!selected) return null;
     return {
-      dl: generateMiniTrend(35, 8),
-      latency: generateMiniTrend(65, 20),
-      dcr: generateMiniTrend(1.2, 0.5),
+      dl: generateMiniTrend(35, 8, dateStart, dateEnd),
+      latency: generateMiniTrend(65, 20, dateStart, dateEnd),
+      dcr: generateMiniTrend(1.2, 0.5, dateStart, dateEnd),
     };
-  }, [selected]);
+  }, [selected, dateStart, dateEnd]);
 
   // History chart option
   const historyOption = useMemo(() => {
@@ -599,7 +600,10 @@ const SentinelExplorer: React.FC<Props> = ({ date, apiConnected = true }) => {
                   <div className="space-y-2">
                     <h4 className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
                       <BarChart3 className="w-3.5 h-3.5 text-primary" />
-                      Tendances KPI (30j)
+                      Tendances KPI
+                      <span className="text-[9px] font-normal text-muted-foreground ml-1">
+                        {dateStart?.slice(5)} → {dateEnd?.slice(5)}
+                      </span>
                     </h4>
 
                     {miniTrends && (
