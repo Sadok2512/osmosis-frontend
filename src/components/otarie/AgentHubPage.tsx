@@ -332,6 +332,7 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
               <div className="grid grid-cols-5 gap-4 mb-8">
                 {agents.map((agent) => {
                   const memCount = memoryCounts[agent.id] || 0;
+                  const skillCount = skillCounts[agent.id] || 0;
                   return (
                     <div key={agent.id} className="flex flex-col items-center">
                       <div className="w-2 h-8 bg-gradient-to-b from-primary/30 to-transparent rounded-full mb-2" />
@@ -340,9 +341,15 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
                       </div>
                       <span className="text-xs font-bold text-foreground mt-2">{agent.name}</span>
                       <span className="text-[9px] text-muted-foreground text-center leading-tight mt-0.5 max-w-[100px]">{agent.role}</span>
-                      <div className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
-                        <Brain size={10} className="text-primary" />
-                        <span className="text-[9px] font-bold text-primary">{memCount} mem</span>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+                          <Brain size={10} className="text-primary" />
+                          <span className="text-[9px] font-bold text-primary">{memCount}</span>
+                        </div>
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                          <Zap size={10} className="text-amber-500" />
+                          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400">{skillCount}</span>
+                        </div>
                       </div>
                     </div>
                   );
