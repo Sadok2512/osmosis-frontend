@@ -1,13 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, createContext, useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOverview } from '../sentinelApi';
-import { SEVERITY_CONFIG, ANOMALY_TYPE_LABELS, type DashboardOverviewData } from '../types';
+import { ANOMALY_TYPE_LABELS, type DashboardOverviewData } from '../types';
 import { MOCK_OVERVIEW, MOCK_ML_INSIGHTS, MOCK_QOE_SCORE, MOCK_QOE_YESTERDAY, MOCK_DELTAS, MOCK_REGION_HEAT, type MLInsightRow } from '../mockSentinelData';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
-  Shield, AlertTriangle, AlertCircle, Info, Loader2, TrendingUp, TrendingDown,
-  Activity, Brain, MapPin, Cpu, Radio, ChevronDown, Signal
+  Shield, AlertTriangle, AlertCircle, Info, TrendingUp, TrendingDown,
+  Activity, Brain, MapPin, Cpu, Radio, Signal
 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 
@@ -15,73 +13,46 @@ interface Props { date: string; apiConnected?: boolean; theme?: 'light' | 'dark'
 
 /* ── NOC Color Palettes ── */
 const NOC_DARK = {
-  bg: '#0a0e1a',
-  cardBg: '#111827',
-  cardBorder: '#1e293b',
-  cardBgHover: '#1a2332',
-  critical: '#ef4444',
-  criticalBg: 'rgba(239,68,68,0.08)',
-  criticalGlow: 'rgba(239,68,68,0.25)',
-  major: '#f59e0b',
-  majorBg: 'rgba(245,158,11,0.08)',
-  majorGlow: 'rgba(245,158,11,0.25)',
-  minor: '#3b82f6',
-  minorBg: 'rgba(59,130,246,0.08)',
-  minorGlow: 'rgba(59,130,246,0.25)',
-  ok: '#10b981',
-  okBg: 'rgba(16,185,129,0.08)',
-  text: '#f1f5f9',
-  textMuted: '#94a3b8',
-  textDim: '#64748b',
-  accent: '#06b6d4',
-  accentBg: 'rgba(6,182,212,0.08)',
-  purple: '#8b5cf6',
+  bg: '#0a0e1a', cardBg: '#111827', cardBorder: '#1e293b', cardBgHover: '#1a2332',
+  critical: '#ef4444', criticalBg: 'rgba(239,68,68,0.08)', criticalGlow: 'rgba(239,68,68,0.25)',
+  major: '#f59e0b', majorBg: 'rgba(245,158,11,0.08)', majorGlow: 'rgba(245,158,11,0.25)',
+  minor: '#3b82f6', minorBg: 'rgba(59,130,246,0.08)', minorGlow: 'rgba(59,130,246,0.25)',
+  ok: '#10b981', okBg: 'rgba(16,185,129,0.08)',
+  text: '#f1f5f9', textMuted: '#94a3b8', textDim: '#64748b',
+  accent: '#06b6d4', accentBg: 'rgba(6,182,212,0.08)', purple: '#8b5cf6',
   grid: 'rgba(148,163,184,0.06)',
   chartColors: ['#ef4444', '#f59e0b', '#8b5cf6', '#3b82f6', '#06b6d4', '#10b981'],
 };
 
 const NOC_LIGHT = {
-  bg: '#f8fafc',
-  cardBg: '#ffffff',
-  cardBorder: '#e2e8f0',
-  cardBgHover: '#f1f5f9',
-  critical: '#dc2626',
-  criticalBg: 'rgba(220,38,38,0.06)',
-  criticalGlow: 'rgba(220,38,38,0.18)',
-  major: '#d97706',
-  majorBg: 'rgba(217,119,6,0.06)',
-  majorGlow: 'rgba(217,119,6,0.18)',
-  minor: '#2563eb',
-  minorBg: 'rgba(37,99,235,0.06)',
-  minorGlow: 'rgba(37,99,235,0.18)',
-  ok: '#059669',
-  okBg: 'rgba(5,150,105,0.06)',
-  text: '#0f172a',
-  textMuted: '#475569',
-  textDim: '#94a3b8',
-  accent: '#0891b2',
-  accentBg: 'rgba(8,145,178,0.06)',
-  purple: '#7c3aed',
+  bg: '#f8fafc', cardBg: '#ffffff', cardBorder: '#e2e8f0', cardBgHover: '#f1f5f9',
+  critical: '#dc2626', criticalBg: 'rgba(220,38,38,0.06)', criticalGlow: 'rgba(220,38,38,0.18)',
+  major: '#d97706', majorBg: 'rgba(217,119,6,0.06)', majorGlow: 'rgba(217,119,6,0.18)',
+  minor: '#2563eb', minorBg: 'rgba(37,99,235,0.06)', minorGlow: 'rgba(37,99,235,0.18)',
+  ok: '#059669', okBg: 'rgba(5,150,105,0.06)',
+  text: '#0f172a', textMuted: '#475569', textDim: '#94a3b8',
+  accent: '#0891b2', accentBg: 'rgba(8,145,178,0.06)', purple: '#7c3aed',
   grid: 'rgba(148,163,184,0.12)',
   chartColors: ['#dc2626', '#d97706', '#7c3aed', '#2563eb', '#0891b2', '#059669'],
 };
 
-const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
+type NOCPalette = typeof NOC_DARK;
+const NOCContext = createContext<NOCPalette>(NOC_LIGHT);
+const useNOC = () => useContext(NOCContext);
+
+const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true, theme = 'light' }) => {
+  const NOC = theme === 'dark' ? NOC_DARK : NOC_LIGHT;
+
   const { data: apiData, isLoading } = useQuery<DashboardOverviewData>({
     queryKey: ['sentinel-overview', date],
     queryFn: () => fetchOverview(date),
-    staleTime: 5 * 60_000,
-    gcTime: 10 * 60_000,
-    retry: 0,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    staleTime: 5 * 60_000, gcTime: 10 * 60_000, retry: 0,
+    refetchOnWindowFocus: false, refetchOnMount: false,
     enabled: apiConnected && !!date,
   });
 
   const data = apiData || (!apiConnected ? { ...MOCK_OVERVIEW, date } : null);
   const isMock = !apiData && !apiConnected;
-  const qoeScore = MOCK_QOE_SCORE;
-  const qoeYesterday = MOCK_QOE_YESTERDAY;
   const deltas = MOCK_DELTAS;
 
   if (isLoading && apiConnected) {
@@ -91,7 +62,7 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
           <div className="w-16 h-16 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${NOC.accent} transparent ${NOC.accent} ${NOC.accent}` }} />
           <Activity className="w-6 h-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ color: NOC.accent }} />
         </div>
-        <p className="text-sm font-medium" style={{ color: NOC.textMuted }}>Loading Sentinel data… (up to 60s)</p>
+        <p className="text-sm font-medium" style={{ color: NOC.textMuted }}>Loading Sentinel data…</p>
       </div>
     );
   }
@@ -109,77 +80,63 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
   }
 
   return (
-    <div className="min-h-full" style={{ background: NOC.bg }}>
-      <div className="p-5 space-y-5 max-w-[1920px] mx-auto">
+    <NOCContext.Provider value={NOC}>
+      <div className="min-h-full" style={{ background: NOC.bg }}>
+        <div className="p-5 space-y-5 max-w-[1920px] mx-auto">
+          {isMock && (
+            <div className="px-4 py-2.5 rounded-lg text-xs font-medium flex items-center gap-2"
+              style={{ background: NOC.majorBg, color: NOC.major, border: `1px solid ${NOC.majorGlow}` }}>
+              <AlertTriangle className="w-4 h-4" /> Demo Data — FastAPI backend not connected
+            </div>
+          )}
 
-        {/* Mock banner */}
-        {isMock && (
-          <div className="px-4 py-2.5 rounded-lg text-xs font-medium flex items-center gap-2"
-            style={{ background: NOC.majorBg, color: NOC.major, border: `1px solid ${NOC.majorGlow}` }}>
-            <AlertTriangle className="w-4 h-4" />
-            Demo Data — FastAPI backend not connected
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <KPICard label="Total Anomalies" value={data.total_anomalies} delta={deltas.total_anomalies}
+              icon={<Shield className="w-5 h-5" />} color={NOC.text} bgAccent={NOC.accentBg} iconColor={NOC.accent} />
+            <KPICard label="Critical" value={data.critical} delta={deltas.critical}
+              icon={<AlertTriangle className="w-5 h-5" />} color={NOC.critical} bgAccent={NOC.criticalBg} iconColor={NOC.critical} pulse={data.critical > 0} />
+            <KPICard label="Major" value={data.major} delta={deltas.major}
+              icon={<AlertCircle className="w-5 h-5" />} color={NOC.major} bgAccent={NOC.majorBg} iconColor={NOC.major} />
+            <KPICard label="Minor" value={data.minor} delta={deltas.minor}
+              icon={<Info className="w-5 h-5" />} color={NOC.minor} bgAccent={NOC.minorBg} iconColor={NOC.minor} />
+            <QoEGaugeCard score={MOCK_QOE_SCORE} yesterday={MOCK_QOE_YESTERDAY} />
           </div>
-        )}
 
-        {/* ── KPI Summary Cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <KPICard
-            label="Total Anomalies" value={data.total_anomalies} delta={deltas.total_anomalies}
-            icon={<Shield className="w-5 h-5" />} color={NOC.text} bgAccent={NOC.accentBg} iconColor={NOC.accent}
-          />
-          <KPICard
-            label="Critical" value={data.critical} delta={deltas.critical}
-            icon={<AlertTriangle className="w-5 h-5" />} color={NOC.critical} bgAccent={NOC.criticalBg} iconColor={NOC.critical}
-            pulse={data.critical > 0}
-          />
-          <KPICard
-            label="Major" value={data.major} delta={deltas.major}
-            icon={<AlertCircle className="w-5 h-5" />} color={NOC.major} bgAccent={NOC.majorBg} iconColor={NOC.major}
-          />
-          <KPICard
-            label="Minor" value={data.minor} delta={deltas.minor}
-            icon={<Info className="w-5 h-5" />} color={NOC.minor} bgAccent={NOC.minorBg} iconColor={NOC.minor}
-          />
-          <QoEGaugeCard score={qoeScore} yesterday={qoeYesterday} />
-        </div>
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <NOCCard title="Anomalies by Type" icon={<Brain className="w-4 h-4" />}>
+              <AnomalyTypeChart data={data.anomalies_by_type} />
+            </NOCCard>
+            <NOCCard title="Anomalies by Network Dimension" icon={<Radio className="w-4 h-4" />}>
+              <DimensionChart data={data.anomalies_by_dimension} />
+            </NOCCard>
+          </div>
 
-        {/* ── Charts Row ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <NOCCard title="Anomalies by Type" icon={<Brain className="w-4 h-4" />}>
-            <AnomalyTypeChart data={data.anomalies_by_type} />
+          <NOCCard title="Network QoE Heatmap" icon={<MapPin className="w-4 h-4" />} subtitle="Regional anomaly density">
+            <RegionHeatmap />
           </NOCCard>
-          <NOCCard title="Anomalies by Network Dimension" icon={<Radio className="w-4 h-4" />}>
-            <DimensionChart data={data.anomalies_by_dimension} />
+
+          <NOCCard title="ML Detection Insights" icon={<Cpu className="w-4 h-4" />} subtitle="Top anomalous entities detected by AI/ML">
+            <MLInsightsTable rows={MOCK_ML_INSIGHTS} />
           </NOCCard>
         </div>
-
-        {/* ── Network Heatmap ── */}
-        <NOCCard title="Network QoE Heatmap" icon={<MapPin className="w-4 h-4" />} subtitle="Regional anomaly density">
-          <RegionHeatmap />
-        </NOCCard>
-
-        {/* ── ML Detection Insights ── */}
-        <NOCCard title="ML Detection Insights" icon={<Cpu className="w-4 h-4" />} subtitle="Top anomalous entities detected by AI/ML">
-          <MLInsightsTable rows={MOCK_ML_INSIGHTS} />
-        </NOCCard>
       </div>
-    </div>
+    </NOCContext.Provider>
   );
 };
 
-/* ━━━━━━━━━━ KPI Card ━━━━━━━━━━ */
+/* ━━━ KPI Card ━━━ */
 const KPICard: React.FC<{
   label: string; value: number; delta: number;
-  icon: React.ReactNode; color: string; bgAccent: string; iconColor: string;
-  pulse?: boolean;
+  icon: React.ReactNode; color: string; bgAccent: string; iconColor: string; pulse?: boolean;
 }> = ({ label, value, delta, icon, color, bgAccent, iconColor, pulse }) => {
+  const NOC = useNOC();
   const isUp = delta > 0;
   return (
     <div className="rounded-xl p-4 relative overflow-hidden transition-all duration-200 hover:scale-[1.02]"
       style={{ background: NOC.cardBg, border: `1px solid ${NOC.cardBorder}` }}>
-      {pulse && (
-        <div className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />
-      )}
+      {pulse && <div className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: bgAccent }}>
           <span style={{ color: iconColor }}>{icon}</span>
@@ -199,29 +156,19 @@ const KPICard: React.FC<{
   );
 };
 
-/* ━━━━━━━━━━ QoE Gauge Card ━━━━━━━━━━ */
+/* ━━━ QoE Gauge ━━━ */
 const QoEGaugeCard: React.FC<{ score: number; yesterday: number }> = ({ score, yesterday }) => {
+  const NOC = useNOC();
   const delta = score - yesterday;
   const gaugeColor = score >= 75 ? NOC.ok : score >= 50 ? NOC.major : NOC.critical;
-
   const option = useMemo(() => ({
     series: [{
-      type: 'gauge',
-      center: ['50%', '65%'],
-      radius: '90%',
-      startAngle: 200,
-      endAngle: -20,
-      min: 0, max: 100,
+      type: 'gauge', center: ['50%', '65%'], radius: '90%', startAngle: 200, endAngle: -20, min: 0, max: 100,
       pointer: { show: false },
       progress: { show: true, width: 12, roundCap: true, itemStyle: { color: gaugeColor } },
       axisLine: { lineStyle: { width: 12, color: [[1, 'rgba(148,163,184,0.1)']] } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-      axisLabel: { show: false },
-      detail: {
-        valueAnimation: true, fontSize: 26, fontWeight: 700, color: gaugeColor,
-        formatter: '{value}', offsetCenter: [0, '-5%'],
-      },
+      axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
+      detail: { valueAnimation: true, fontSize: 26, fontWeight: 700, color: gaugeColor, formatter: '{value}', offsetCenter: [0, '-5%'] },
       data: [{ value: score }],
     }],
   }), [score, gaugeColor]);
@@ -241,106 +188,87 @@ const QoEGaugeCard: React.FC<{ score: number; yesterday: number }> = ({ score, y
   );
 };
 
-/* ━━━━━━━━━━ NOC Card Wrapper ━━━━━━━━━━ */
-const NOCCard: React.FC<{ title: string; icon?: React.ReactNode; subtitle?: string; children: React.ReactNode }> = ({ title, icon, subtitle, children }) => (
-  <div className="rounded-xl overflow-hidden" style={{ background: NOC.cardBg, border: `1px solid ${NOC.cardBorder}` }}>
-    <div className="px-5 py-3.5 flex items-center gap-2" style={{ borderBottom: `1px solid ${NOC.cardBorder}` }}>
-      {icon && <span style={{ color: NOC.accent }}>{icon}</span>}
-      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: NOC.text }}>{title}</span>
-      {subtitle && <span className="text-[10px] ml-2" style={{ color: NOC.textDim }}>— {subtitle}</span>}
+/* ━━━ Card Wrapper ━━━ */
+const NOCCard: React.FC<{ title: string; icon?: React.ReactNode; subtitle?: string; children: React.ReactNode }> = ({ title, icon, subtitle, children }) => {
+  const NOC = useNOC();
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ background: NOC.cardBg, border: `1px solid ${NOC.cardBorder}` }}>
+      <div className="px-5 py-3.5 flex items-center gap-2" style={{ borderBottom: `1px solid ${NOC.cardBorder}` }}>
+        {icon && <span style={{ color: NOC.accent }}>{icon}</span>}
+        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: NOC.text }}>{title}</span>
+        {subtitle && <span className="text-[10px] ml-2" style={{ color: NOC.textDim }}>— {subtitle}</span>}
+      </div>
+      <div className="p-4">{children}</div>
     </div>
-    <div className="p-4">{children}</div>
-  </div>
-);
+  );
+};
 
-/* ━━━━━━━━━━ Anomaly Type Horizontal Bar Chart ━━━━━━━━━━ */
+/* ━━━ Anomaly Type Chart ━━━ */
 const AnomalyTypeChart: React.FC<{ data: Record<string, number> }> = ({ data }) => {
+  const NOC = useNOC();
   const entries = Object.entries(data).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const labels = entries.map(([k]) => ANOMALY_TYPE_LABELS[k as keyof typeof ANOMALY_TYPE_LABELS] || k);
   const values = entries.map(([, v]) => v);
-
   const option = useMemo(() => ({
     tooltip: { trigger: 'axis', backgroundColor: NOC.cardBg, borderColor: NOC.cardBorder, textStyle: { color: NOC.text, fontSize: 11 } },
     grid: { left: 180, right: 30, top: 10, bottom: 10 },
     xAxis: { type: 'value', splitLine: { lineStyle: { color: NOC.grid } }, axisLabel: { color: NOC.textDim, fontSize: 10 } },
     yAxis: { type: 'category', data: labels, inverse: true, axisLabel: { color: NOC.textMuted, fontSize: 11 }, axisLine: { show: false }, axisTick: { show: false } },
-    series: [{
-      type: 'bar', data: values, barWidth: 20,
-      itemStyle: {
-        borderRadius: [0, 4, 4, 0],
-        color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: NOC.critical }, { offset: 1, color: NOC.major }] },
-      },
+    series: [{ type: 'bar', data: values, barWidth: 20,
+      itemStyle: { borderRadius: [0, 4, 4, 0], color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: NOC.critical }, { offset: 1, color: NOC.major }] } },
       label: { show: true, position: 'right', color: NOC.textMuted, fontSize: 11, fontWeight: 600 },
     }],
-  }), [labels, values]);
-
+  }), [labels, values, NOC]);
   return <ReactECharts option={option} style={{ height: 200 }} />;
 };
 
-/* ━━━━━━━━━━ Dimension Bar Chart ━━━━━━━━━━ */
+/* ━━━ Dimension Chart ━━━ */
 const DimensionChart: React.FC<{ data: { dimension: string; count: number }[] }> = ({ data }) => {
+  const NOC = useNOC();
   const sorted = [...data].sort((a, b) => b.count - a.count);
-
   const option = useMemo(() => ({
     tooltip: { trigger: 'axis', backgroundColor: NOC.cardBg, borderColor: NOC.cardBorder, textStyle: { color: NOC.text, fontSize: 11 } },
     grid: { left: 80, right: 30, top: 10, bottom: 10 },
     xAxis: { type: 'value', splitLine: { lineStyle: { color: NOC.grid } }, axisLabel: { color: NOC.textDim, fontSize: 10 } },
     yAxis: { type: 'category', data: sorted.map(d => d.dimension), inverse: true, axisLabel: { color: NOC.textMuted, fontSize: 11 }, axisLine: { show: false }, axisTick: { show: false } },
-    series: [{
-      type: 'bar', data: sorted.map((d, i) => ({ value: d.count, itemStyle: { color: NOC.chartColors[i % NOC.chartColors.length] } })),
-      barWidth: 20,
-      itemStyle: { borderRadius: [0, 4, 4, 0] },
+    series: [{ type: 'bar', data: sorted.map((d, i) => ({ value: d.count, itemStyle: { color: NOC.chartColors[i % NOC.chartColors.length] } })),
+      barWidth: 20, itemStyle: { borderRadius: [0, 4, 4, 0] },
       label: { show: true, position: 'right', color: NOC.textMuted, fontSize: 11, fontWeight: 600 },
     }],
-  }), [sorted]);
-
+  }), [sorted, NOC]);
   return <ReactECharts option={option} style={{ height: 200 }} />;
 };
 
-/* ━━━━━━━━━━ Region Heatmap (Bubble Chart) ━━━━━━━━━━ */
+/* ━━━ Region Heatmap ━━━ */
 const RegionHeatmap: React.FC = () => {
+  const NOC = useNOC();
   const sevColor = (s: string) => s === 'critical' ? NOC.critical : s === 'major' ? NOC.major : s === 'minor' ? NOC.minor : NOC.ok;
-
   const option = useMemo(() => ({
     tooltip: {
-      trigger: 'item',
-      backgroundColor: NOC.cardBg, borderColor: NOC.cardBorder, textStyle: { color: NOC.text, fontSize: 11 },
-      formatter: (p: any) => {
-        const d = MOCK_REGION_HEAT[p.dataIndex];
-        return `<b>${d.name}</b><br/>Anomalies: ${d.anomalyCount}<br/>QoE: ${d.qoe}<br/>Severity: ${d.severity}`;
-      },
+      trigger: 'item', backgroundColor: NOC.cardBg, borderColor: NOC.cardBorder, textStyle: { color: NOC.text, fontSize: 11 },
+      formatter: (p: any) => { const d = MOCK_REGION_HEAT[p.dataIndex]; return `<b>${d.name}</b><br/>Anomalies: ${d.anomalyCount}<br/>QoE: ${d.qoe}<br/>Severity: ${d.severity}`; },
     },
     grid: { left: 140, right: 40, top: 30, bottom: 30 },
     xAxis: { type: 'value', name: 'QoE Score', nameLocation: 'center', nameGap: 25, nameTextStyle: { color: NOC.textDim, fontSize: 10 }, min: 50, max: 85, splitLine: { lineStyle: { color: NOC.grid } }, axisLabel: { color: NOC.textDim, fontSize: 10 } },
     yAxis: { type: 'category', data: MOCK_REGION_HEAT.map(r => r.name), axisLabel: { color: NOC.textMuted, fontSize: 10 }, axisLine: { show: false }, axisTick: { show: false } },
-    series: [{
-      type: 'scatter',
-      symbolSize: (val: any) => Math.max(12, val[1] * 1.2),
-      data: MOCK_REGION_HEAT.map((r, i) => ({
-        value: [r.qoe, r.anomalyCount],
-        itemStyle: { color: sevColor(r.severity), shadowBlur: 8, shadowColor: sevColor(r.severity) + '40' },
-      })),
+    series: [{ type: 'scatter', symbolSize: (val: any) => Math.max(12, val[1] * 1.2),
+      data: MOCK_REGION_HEAT.map(r => ({ value: [r.qoe, r.anomalyCount], itemStyle: { color: sevColor(r.severity), shadowBlur: 8, shadowColor: sevColor(r.severity) + '40' } })),
     }],
     visualMap: { show: false },
-  }), []);
-
+  }), [NOC]);
   return <ReactECharts option={option} style={{ height: 320 }} />;
 };
 
-/* ━━━━━━━━━━ ML Insights Table ━━━━━━━━━━ */
+/* ━━━ ML Insights Table ━━━ */
 const MLInsightsTable: React.FC<{ rows: MLInsightRow[] }> = ({ rows }) => {
+  const NOC = useNOC();
   const sevBadge = (s: string) => {
     const c = s === 'critical' ? { bg: NOC.criticalBg, color: NOC.critical, border: NOC.criticalGlow }
             : s === 'major' ? { bg: NOC.majorBg, color: NOC.major, border: NOC.majorGlow }
             : { bg: NOC.minorBg, color: NOC.minor, border: NOC.minorGlow };
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider"
-        style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>
-        {s}
-      </span>
-    );
+    return <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider"
+      style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>{s}</span>;
   };
-
   const confBar = (v: number) => (
     <div className="flex items-center gap-2">
       <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(148,163,184,0.1)' }}>
@@ -362,21 +290,15 @@ const MLInsightsTable: React.FC<{ rows: MLInsightRow[] }> = ({ rows }) => {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i}
-              className="transition-colors cursor-pointer"
-              style={{
-                background: row.severity === 'critical' ? NOC.criticalBg : 'transparent',
-                borderBottom: `1px solid ${NOC.cardBorder}`,
-              }}
+            <tr key={i} className="transition-colors cursor-pointer"
+              style={{ background: row.severity === 'critical' ? NOC.criticalBg : 'transparent', borderBottom: `1px solid ${NOC.cardBorder}` }}
               onMouseEnter={e => (e.currentTarget.style.background = NOC.cardBgHover)}
-              onMouseLeave={e => (e.currentTarget.style.background = row.severity === 'critical' ? NOC.criticalBg : 'transparent')}
-            >
+              onMouseLeave={e => (e.currentTarget.style.background = row.severity === 'critical' ? NOC.criticalBg : 'transparent')}>
               <td className="py-2.5 px-3 font-mono font-medium" style={{ color: NOC.accent }}>{row.entity}</td>
               <td className="py-2.5 px-3">
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold"
                   style={{ background: row.technology === 'NR' ? 'rgba(139,92,246,0.15)' : 'rgba(6,182,212,0.15)', color: row.technology === 'NR' ? NOC.purple : NOC.accent }}>
-                  <Signal className="w-3 h-3" />
-                  {row.technology === 'NR' ? '5G NR' : 'LTE'}
+                  <Signal className="w-3 h-3" />{row.technology === 'NR' ? '5G NR' : 'LTE'}
                 </span>
               </td>
               <td className="py-2.5 px-3" style={{ color: NOC.textMuted }}>{row.dimension}</td>
