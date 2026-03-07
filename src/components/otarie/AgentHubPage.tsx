@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles, Activity, Network, ShieldCheck, AlertTriangle, Cpu,
   ArrowRight, ChevronDown, ChevronUp, Zap, Database, Search,
-  BarChart2, FileText, Target, Layers, GitBranch, Radio, ArrowLeft
+  BarChart2, FileText, Target, Layers, GitBranch, Radio, ArrowLeft, Brain
 } from 'lucide-react';
 import { AppTab } from '../../types';
+import { supabase } from '@/integrations/supabase/client';
 
 /* ── Agent definitions ── */
 interface SubAgent {
