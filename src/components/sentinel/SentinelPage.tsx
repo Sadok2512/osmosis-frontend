@@ -190,7 +190,7 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
         {activeTab === 'overview' && <SentinelOverview date={selectedDate} apiConnected={connectionStatus === 'connected'} theme={theme} />}
         {activeTab === 'explorer' && <SentinelExplorer date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
         {activeTab === 'clustering' && <SentinelClustering date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
-        {activeTab === 'temporal' && <SentinelTemporal date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
+        {activeTab === 'ai' && <SentinelAIPanel onClose={() => setActiveTab('overview')} date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
       </div>
     </div>
   );
