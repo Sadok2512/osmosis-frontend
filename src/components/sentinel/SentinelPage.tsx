@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Eye, BarChart3, Bot, ChevronRight, Wifi, WifiOff, Loader2, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Shield, Eye, BarChart3, Bot, ChevronRight, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import SentinelOverview from './pages/SentinelOverview';
 import SentinelExplorer from './pages/SentinelExplorer';
 import SentinelClustering from './pages/SentinelClustering';
@@ -8,13 +8,12 @@ import { fetchDates } from './sentinelApi';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-type SentinelTab = 'overview' | 'explorer' | 'clustering' | 'ai';
+type SentinelTab = 'overview' | 'explorer' | 'clustering';
 
 const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Vue d\'ensemble', icon: <Shield className="w-4 h-4" /> },
   { id: 'explorer', label: 'Anomalies', icon: <Eye className="w-4 h-4" /> },
   { id: 'clustering', label: 'Clustering', icon: <BarChart3 className="w-4 h-4" /> },
-  { id: 'ai', label: 'Sentinel AI', icon: <Bot className="w-4 h-4" /> },
 ];
 
 type ConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
@@ -25,8 +24,8 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
   const [apiResponse, setApiResponse] = useState<string>('');
-  
-  // Initialize: fetch dates first, only set selectedDate once we know real dates
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+
   useEffect(() => {
     setConnectionStatus('testing');
     fetchDates()
@@ -36,7 +35,6 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
           setSelectedDate(dates[dates.length - 1]);
           setConnectionStatus('connected');
         } else {
-          // API reachable but no dates
           const today = new Date().toISOString().split('T')[0];
           setSelectedDate(today);
           setAvailableDates([today]);
@@ -44,7 +42,6 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
         }
       })
       .catch(() => {
-        // API unreachable — set a fallback date so UI renders
         const today = new Date().toISOString().split('T')[0];
         setSelectedDate(today);
         setAvailableDates([today]);
@@ -121,7 +118,6 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
 
         <div className="flex-1" />
 
-        {/* Connection status + Test button */}
         {statusBadge()}
         <button
           onClick={testConnection}
@@ -141,7 +137,6 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
           Test FastAPI
         </button>
 
-        {/* Date picker - calendar input */}
         <input
           type="date"
           value={selectedDate}
@@ -170,6 +165,20 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
             </button>
           ))}
         </div>
+
+        {/* Sentinel AI toggle button */}
+        <button
+          onClick={() => setAiPanelOpen(prev => !prev)}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all border',
+            aiPanelOpen
+              ? 'bg-destructive text-destructive-foreground border-destructive'
+              : 'bg-card text-foreground border-border hover:bg-accent'
+          )}
+        >
+          <Bot className="w-3.5 h-3.5" />
+          <span className="hidden md:inline">Sentinel AI</span>
+        </button>
       </div>
 
       {/* API response toast */}
@@ -185,12 +194,29 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
         </div>
       )}
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto">
-        {activeTab === 'overview' && <SentinelOverview date={selectedDate} apiConnected={connectionStatus === 'connected'} theme={theme} />}
-        {activeTab === 'explorer' && <SentinelExplorer date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
-        {activeTab === 'clustering' && <SentinelClustering date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
-        {activeTab === 'ai' && <SentinelAIPanel onClose={() => setActiveTab('overview')} date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
+      {/* Content + AI sidebar */}
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 overflow-auto">
+          {activeTab === 'overview' && <SentinelOverview date={selectedDate} apiConnected={connectionStatus === 'connected'} theme={theme} />}
+          {activeTab === 'explorer' && <SentinelExplorer date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
+          {activeTab === 'clustering' && <SentinelClustering date={selectedDate} apiConnected={connectionStatus === 'connected'} />}
+        </div>
+
+        {/* Sliding right AI panel */}
+        <div
+          className={cn(
+            'border-l border-border bg-card transition-all duration-300 ease-in-out overflow-hidden shrink-0',
+            aiPanelOpen ? 'w-[420px]' : 'w-0 border-l-0'
+          )}
+        >
+          {aiPanelOpen && (
+            <SentinelAIPanel
+              onClose={() => setAiPanelOpen(false)}
+              date={selectedDate}
+              apiConnected={connectionStatus === 'connected'}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
