@@ -81,14 +81,24 @@ const SentinelAIPanel: React.FC<SentinelAIPanelProps> = ({ onClose, date, apiCon
       user_id: userId,
     });
 
-    const url = getApiUrl('qoe-assistant');
-    const headers = getApiHeaders();
+    const localUrl = getApiUrl('qoe-assistant');
+    const localHeaders = getApiHeaders();
+    const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
+    const cloudHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+    };
 
     let resp: Response;
     try {
-      resp = await fetch(url, { method: 'POST', headers, body: payload });
-    } catch (fetchErr: any) {
-      throw new Error(`Impossible de contacter le serveur: ${fetchErr.message}`);
+      resp = await fetch(localUrl, { method: 'POST', headers: localHeaders, body: payload });
+    } catch {
+      // Local server unreachable — fallback to cloud edge function
+      try {
+        resp = await fetch(cloudUrl, { method: 'POST', headers: cloudHeaders, body: payload });
+      } catch (cloudErr: any) {
+        throw new Error(`Impossible de contacter le serveur: ${cloudErr.message}`);
+      }
     }
 
     if (!resp.ok) {
