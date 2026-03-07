@@ -10,7 +10,7 @@ const BASE = import.meta.env.VITE_SENTINEL_API_URL || 'http://localhost:1000';
 
 async function fetchJson<T>(url: string): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), 30000);
   try {
     const res = await fetch(url, { signal: controller.signal });
     if (!res.ok) throw new Error(`Sentinel API ${res.status}: ${res.statusText}`);
