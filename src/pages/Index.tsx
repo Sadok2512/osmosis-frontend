@@ -151,7 +151,7 @@ const Index: React.FC = () => {
       case 'agent_hub':
         return <AgentHubPage onNavigate={setActiveTab} />;
       case 'sentinel':
-        return <SentinelPage />;
+        return <SentinelPage theme={theme} />;
       default:
         return null;
     }
