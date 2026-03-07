@@ -14,8 +14,8 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true }) => {
   const { data, isLoading, error } = useQuery<DashboardOverviewData>({
     queryKey: ['sentinel-overview', date],
     queryFn: () => fetchOverview(date),
-    staleTime: 30_000,
-    retry: 1,
+    staleTime: 60_000,
+    retry: 0,
     enabled: apiConnected && !!date,
   });
 
