@@ -248,30 +248,38 @@ export default function AdminAITeamPage() {
     triggerAgentResponses(activeDiscId!);
   };
 
-  const triggerAgentResponses = useCallback((discId: string) => {
+  const triggerAgentResponses = useCallback(async (discId: string) => {
     // Pick 2-4 random agents to respond
     const respondingCount = 2 + Math.floor(Math.random() * 3);
     const shuffled = [...qAgents].sort(() => Math.random() - 0.5).slice(0, respondingCount);
 
     setDiscTypingAgents(shuffled.map(a => a.id));
 
-    shuffled.forEach((agent, idx) => {
-      setTimeout(() => {
-        const pool = agentResponses[agent.id] || ['Compris, je travaille dessus.'];
-        const msg: DiscussionMessage = {
-          id: genId(),
-          sender: agent.id,
-          senderEmoji: agent.emoji,
-          senderName: agent.name,
-          content: pool[Math.floor(Math.random() * pool.length)],
-          timestamp: Date.now(),
-          color: agent.color,
-        };
-        setDiscussions(prev => prev.map(d => d.id === discId ? { ...d, messages: [...d.messages, msg], updatedAt: Date.now() } : d));
-        setDiscTypingAgents(prev => prev.filter(id => id !== agent.id));
-      }, 2000 + idx * 1500);
-    });
-  }, []);
+    // Get current discussion for context
+    const currentDisc = discussions.find(d => d.id === discId);
+    const discName = currentDisc?.name || 'Discussion';
+
+    for (let idx = 0; idx < shuffled.length; idx++) {
+      const agent = shuffled[idx];
+      // Get latest messages (re-read state)
+      const latestDisc = discussions.find(d => d.id === discId);
+      const latestMessages = latestDisc?.messages || currentDisc?.messages || [];
+
+      const content = await callAgentAI(agent.id, discName, latestMessages, profile);
+
+      const msg: DiscussionMessage = {
+        id: genId(),
+        sender: agent.id,
+        senderEmoji: agent.emoji,
+        senderName: agent.name,
+        content,
+        timestamp: Date.now(),
+        color: agent.color,
+      };
+      setDiscussions(prev => prev.map(d => d.id === discId ? { ...d, messages: [...d.messages, msg], updatedAt: Date.now() } : d));
+      setDiscTypingAgents(prev => prev.filter(id => id !== agent.id));
+    }
+  }, [discussions, profile]);
 
   const endDiscussion = (discId: string) => {
     setDiscussions(prev => prev.map(d => d.id === discId ? { ...d, isEnded: true, updatedAt: Date.now() } : d));
