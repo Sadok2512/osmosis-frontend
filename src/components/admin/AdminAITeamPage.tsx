@@ -467,6 +467,7 @@ export default function AdminAITeamPage() {
         {[
           { id: 'agents' as TabId, label: 'Agents', icon: Bot },
           { id: 'discussions' as TabId, label: 'Discussions', icon: Users },
+          { id: 'config' as TabId, label: 'Config Agents', icon: Settings2 },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-t-lg border border-b-0 transition-colors ${
             tab === t.id ? 'bg-card text-foreground border-border' : 'bg-transparent text-muted-foreground border-transparent hover:text-foreground'
