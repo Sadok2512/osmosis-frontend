@@ -230,6 +230,33 @@ export default function AdminAITeamPage() {
     setNewDiscOpen(false);
   };
 
+  const quickStartDiscussion = (message: string) => {
+    const userMsg: DiscussionMessage = {
+      id: genId(),
+      sender: 'USER',
+      senderEmoji: profile?.emoji || '👤',
+      senderName: profile?.name || 'Admin',
+      content: message,
+      timestamp: Date.now(),
+      color: profile?.color || '#e8572a',
+    };
+    const discName = message.length > 50 ? message.slice(0, 50) + '…' : message;
+    const disc: Discussion = {
+      id: genId(),
+      name: discName,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      isEnded: false,
+      startedBy: profile?.name || 'Admin',
+      messages: [userMsg],
+      participatingAgents: qAgents.map(a => a.id),
+    };
+    setDiscussions(prev => [disc, ...prev]);
+    setActiveDiscId(disc.id);
+    setDiscInput('');
+    triggerAgentResponses(disc.id, discName, [userMsg]);
+  };
+
   const sendDiscussionMessage = () => {
     if (!discInput.trim() || !activeDisc || activeDisc.isEnded) return;
     const userMsg: DiscussionMessage = {
@@ -521,10 +548,26 @@ export default function AdminAITeamPage() {
             {/* Discussion chat */}
             <div className="flex-1 flex flex-col">
               {!activeDisc ? (
-                <div className="flex-1 flex items-center justify-center text-center">
-                  <div className="space-y-2 opacity-50">
-                    <Users size={40} className="mx-auto text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Sélectionnez ou créez une discussion</p>
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                  <div className="space-y-4 w-full max-w-md">
+                    <Users size={40} className="mx-auto text-muted-foreground opacity-50" />
+                    <p className="text-sm text-muted-foreground">Sélectionnez une discussion ou démarrez-en une</p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={discInput}
+                        onChange={e => setDiscInput(e.target.value)}
+                        placeholder="Tapez votre message pour démarrer une discussion…"
+                        className="text-xs"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && discInput.trim()) {
+                            quickStartDiscussion(discInput.trim());
+                          }
+                        }}
+                      />
+                      <Button size="icon" onClick={() => discInput.trim() && quickStartDiscussion(discInput.trim())} disabled={!discInput.trim()}>
+                        <Send size={14} />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ) : (
