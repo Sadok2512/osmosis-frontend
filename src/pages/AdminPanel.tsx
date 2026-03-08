@@ -59,7 +59,6 @@ export default function AdminPanel() {
       case 'dashboard': return <AdminDashboardPage />;
       case 'ai-team': return <AdminAITeamPage />;
       case 'users': return user.role === 'admin' ? <AdminUsersPage /> : null;
-      case 'agents': return <AdminAgentsPage currentUser={user} />;
       case 'modules': return user.role === 'admin' ? <AdminModulesPage /> : null;
       case 'llm': return user.role === 'admin' ? <AdminLLMPage /> : null;
       case 'memory': return <AdminMemoryPage currentUser={user} />;

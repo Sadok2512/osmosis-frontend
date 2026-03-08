@@ -751,6 +751,12 @@ export default function AdminAITeamPage() {
             </div>
           </div>
         )}
+
+        {tab === 'config' && (
+          <div className="h-full overflow-auto">
+            <AdminAgentsPage currentUser={getStoredSession() || { id: '', username: 'admin', role: 'admin', status: 'active' }} />
+          </div>
+        )}
       </div>
 
       {/* Profile Dialog */}
