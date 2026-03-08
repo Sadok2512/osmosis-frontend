@@ -290,7 +290,7 @@ export default function AdminAITeamPage() {
     if (activeDiscId === discId) setActiveDiscId(null);
   };
 
-  const startAutonomousDiscussion = () => {
+  const startAutonomousDiscussion = async () => {
     const topics = [
       'Analyse de la dégradation QoE détectée sur la plaque Nord',
       'Revue hebdomadaire des KPIs critiques',
@@ -300,6 +300,10 @@ export default function AdminAITeamPage() {
     ];
     const topic = topics[Math.floor(Math.random() * topics.length)];
     const initiator = qAgents[Math.floor(Math.random() * qAgents.length)];
+
+    // Get real AI response for the initiator
+    const initContent = await callAgentAI(initiator.id, topic, [], profile);
+
     const disc: Discussion = {
       id: genId(),
       name: topic,
@@ -312,7 +316,7 @@ export default function AdminAITeamPage() {
         sender: initiator.id,
         senderEmoji: initiator.emoji,
         senderName: initiator.name,
-        content: `Je lance cette discussion : "${topic}". J'ai détecté un point nécessitant une coordination inter-agents.`,
+        content: initContent,
         timestamp: Date.now(),
         color: initiator.color,
       }],
@@ -321,8 +325,8 @@ export default function AdminAITeamPage() {
     setDiscussions(prev => [disc, ...prev]);
     setActiveDiscId(disc.id);
 
-    // Other agents auto-respond after a delay
-    setTimeout(() => triggerAgentResponses(disc.id), 2500);
+    // Other agents auto-respond
+    triggerAgentResponses(disc.id);
   };
 
   const groups = ['lead', 'analyst', 'specialist', 'monitor'] as const;
