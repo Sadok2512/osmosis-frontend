@@ -262,8 +262,10 @@ export default function AdminAITeamPage() {
     setDiscussions(prev => prev.map(d => d.id === activeDiscId ? { ...d, messages: updatedMessages, updatedAt: Date.now() } : d));
     setDiscInput('');
 
-    // Pass messages directly to avoid stale closure
-    triggerAgentResponses(activeDiscId!, activeDisc.name, updatedMessages);
+    // During autonomous discussions, don't trigger separate agent responses — the auto loop will pick up user messages via syncWithLiveMessages
+    if (!autoDiscRef.current[activeDiscId!]) {
+      triggerAgentResponses(activeDiscId!, activeDisc.name, updatedMessages);
+    }
   };
 
   const triggerAgentResponses = useCallback(async (discId: string, discName: string, currentMessages: DiscussionMessage[]) => {
