@@ -90,43 +90,42 @@ function saveDiscussions(d: Discussion[]) { localStorage.setItem(DISCUSSIONS_KEY
 const profileEmojis = ['👤','👨‍💼','👩‍💼','🧑‍💻','👨‍🔬','👩‍🔬','🦊','🐺','🦅','🐉','⚡','🎯','🚀','💎','🔥','🌟','👑','🎭','🧬','🏴‍☠️'];
 const profileColors = ['#e8572a','#3dd68c','#4ea8de','#a78bfa','#f59e0b','#ef4444','#06b6d4','#ec4899','#10b981','#8b5cf6'];
 
-const agentResponses: Record<string, string[]> = {
-  ORCHESTRATOR: [
-    'D\'après mon analyse, je recommande de vérifier les KPIs de latence sur cette zone.',
-    'J\'ai coordonné les agents. PULSE et TRACE confirment une corrélation.',
-    'Priorité : investigation sur les cellules à fort trafic dans le secteur Nord.',
-  ],
-  PULSE: [
-    'Le débit DL moyen est de 45.2 Mbps, en hausse de 3% sur 7 jours.',
-    'RTT data anormalement élevé : 128ms (seuil : 80ms). Zone impactée : Plaque Sud.',
-    'QoE index à 7.2/10, stable. DMS 3s conforme à 92%.',
-  ],
-  TOPO: [
-    '152 sites actifs dans cette zone. 12 cellules en état "dégradé".',
-    'Le site SIT_042 a un tilt de 8° — supérieur à la référence (6°).',
-    'Couverture 5G : 78% sur la plaque. 3 zones blanches identifiées.',
-  ],
-  PARMY: [
-    'Audit terminé : 3 anomalies détectées sur le paramètre LNCEL.maxTxPower.',
-    'Distribution des valeurs conforme à 94%. Écart sur la bande 2100.',
-    'Paramètre qRxLevMin modifié sur 28 cellules hier — vérification en cours.',
-  ],
-  TRACE: [
-    'RCA : corrélation trouvée entre changement de tilt (J-3) et dégradation RTT.',
-    'Impact estimé : -12% sur le débit DL pour les cellules concernées.',
-    'Recommandation : rollback du tilt sur SIT_042, SIT_087.',
-  ],
-  SENTINEL: [
-    '2 alertes critiques en attente. Seuil RTT dépassé sur 5 cellules.',
-    'Anomalie détectée : pic de session DCR à 4.2% (seuil : 2%).',
-    'Cluster de 8 cellules avec QoE < 5/10 identifié dans la zone Est.',
-  ],
-  ANALYTIC: [
-    'Rapport hebdomadaire généré. 24 pages, 15 graphiques.',
-    'Export CSV des KPIs prêt. Période : 7 derniers jours.',
-    'Dashboard mis à jour avec les données consolidées.',
-  ],
-};
+/* ── Real AI call to edge function ── */
+async function callAgentAI(
+  agentId: string,
+  discussionName: string,
+  messages: DiscussionMessage[],
+  userProfile: UserProfile | null
+): Promise<string> {
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-discussion`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          agentId,
+          discussionName,
+          messages: messages.map(m => ({ sender: m.sender, senderName: m.senderName, content: m.content })),
+          userProfile: userProfile ? { name: userProfile.name, role: userProfile.role } : null,
+        }),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('Agent AI error:', err);
+      return `[Erreur IA: ${err.error || res.status}]`;
+    }
+    const data = await res.json();
+    return data.content || 'Je réfléchis…';
+  } catch (e) {
+    console.error('Agent AI call failed:', e);
+    return '[Erreur de connexion IA]';
+  }
+}
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
@@ -187,17 +186,29 @@ export default function AdminAITeamPage() {
   /* ── Agent chat ── */
   const agentMsgs = selectedAgent ? (chatMessages[selectedAgent.id] || []) : [];
 
-  const sendAgentChat = () => {
+  const sendAgentChat = async () => {
     if (!chatInput.trim() || !selectedAgent) return;
     const agentId = selectedAgent.id;
-    setChatMessages(prev => ({ ...prev, [agentId]: [...(prev[agentId] || []), { role: 'user' as const, content: chatInput.trim() }] }));
+    const userContent = chatInput.trim();
+    setChatMessages(prev => ({ ...prev, [agentId]: [...(prev[agentId] || []), { role: 'user' as const, content: userContent }] }));
     setChatInput('');
     setTyping(true);
-    setTimeout(() => {
-      const pool = agentResponses[agentId] || ['Traitement en cours…'];
-      setChatMessages(prev => ({ ...prev, [agentId]: [...(prev[agentId] || []), { role: 'agent' as const, content: pool[Math.floor(Math.random() * pool.length)] }] }));
-      setTyping(false);
-    }, 1500);
+
+    // Build messages for AI context
+    const prevMsgs = chatMessages[agentId] || [];
+    const discMsgs: DiscussionMessage[] = [
+      ...prevMsgs.map((m, i) => ({
+        id: String(i), sender: m.role === 'user' ? 'USER' : agentId,
+        senderEmoji: m.role === 'user' ? (profile?.emoji || '👤') : selectedAgent.emoji,
+        senderName: m.role === 'user' ? (profile?.name || 'Admin') : selectedAgent.name,
+        content: m.content, timestamp: Date.now(), color: m.role === 'user' ? '#e8572a' : selectedAgent.color,
+      })),
+      { id: 'new', sender: 'USER', senderEmoji: profile?.emoji || '👤', senderName: profile?.name || 'Admin', content: userContent, timestamp: Date.now(), color: '#e8572a' },
+    ];
+
+    const reply = await callAgentAI(agentId, `Chat 1:1 avec ${selectedAgent.name}`, discMsgs, profile);
+    setChatMessages(prev => ({ ...prev, [agentId]: [...(prev[agentId] || []), { role: 'agent' as const, content: reply }] }));
+    setTyping(false);
   };
 
   /* ── Discussions ── */
@@ -237,30 +248,38 @@ export default function AdminAITeamPage() {
     triggerAgentResponses(activeDiscId!);
   };
 
-  const triggerAgentResponses = useCallback((discId: string) => {
+  const triggerAgentResponses = useCallback(async (discId: string) => {
     // Pick 2-4 random agents to respond
     const respondingCount = 2 + Math.floor(Math.random() * 3);
     const shuffled = [...qAgents].sort(() => Math.random() - 0.5).slice(0, respondingCount);
 
     setDiscTypingAgents(shuffled.map(a => a.id));
 
-    shuffled.forEach((agent, idx) => {
-      setTimeout(() => {
-        const pool = agentResponses[agent.id] || ['Compris, je travaille dessus.'];
-        const msg: DiscussionMessage = {
-          id: genId(),
-          sender: agent.id,
-          senderEmoji: agent.emoji,
-          senderName: agent.name,
-          content: pool[Math.floor(Math.random() * pool.length)],
-          timestamp: Date.now(),
-          color: agent.color,
-        };
-        setDiscussions(prev => prev.map(d => d.id === discId ? { ...d, messages: [...d.messages, msg], updatedAt: Date.now() } : d));
-        setDiscTypingAgents(prev => prev.filter(id => id !== agent.id));
-      }, 2000 + idx * 1500);
-    });
-  }, []);
+    // Get current discussion for context
+    const currentDisc = discussions.find(d => d.id === discId);
+    const discName = currentDisc?.name || 'Discussion';
+
+    for (let idx = 0; idx < shuffled.length; idx++) {
+      const agent = shuffled[idx];
+      // Get latest messages (re-read state)
+      const latestDisc = discussions.find(d => d.id === discId);
+      const latestMessages = latestDisc?.messages || currentDisc?.messages || [];
+
+      const content = await callAgentAI(agent.id, discName, latestMessages, profile);
+
+      const msg: DiscussionMessage = {
+        id: genId(),
+        sender: agent.id,
+        senderEmoji: agent.emoji,
+        senderName: agent.name,
+        content,
+        timestamp: Date.now(),
+        color: agent.color,
+      };
+      setDiscussions(prev => prev.map(d => d.id === discId ? { ...d, messages: [...d.messages, msg], updatedAt: Date.now() } : d));
+      setDiscTypingAgents(prev => prev.filter(id => id !== agent.id));
+    }
+  }, [discussions, profile]);
 
   const endDiscussion = (discId: string) => {
     setDiscussions(prev => prev.map(d => d.id === discId ? { ...d, isEnded: true, updatedAt: Date.now() } : d));
@@ -271,7 +290,7 @@ export default function AdminAITeamPage() {
     if (activeDiscId === discId) setActiveDiscId(null);
   };
 
-  const startAutonomousDiscussion = () => {
+  const startAutonomousDiscussion = async () => {
     const topics = [
       'Analyse de la dégradation QoE détectée sur la plaque Nord',
       'Revue hebdomadaire des KPIs critiques',
@@ -281,6 +300,10 @@ export default function AdminAITeamPage() {
     ];
     const topic = topics[Math.floor(Math.random() * topics.length)];
     const initiator = qAgents[Math.floor(Math.random() * qAgents.length)];
+
+    // Get real AI response for the initiator
+    const initContent = await callAgentAI(initiator.id, topic, [], profile);
+
     const disc: Discussion = {
       id: genId(),
       name: topic,
@@ -293,7 +316,7 @@ export default function AdminAITeamPage() {
         sender: initiator.id,
         senderEmoji: initiator.emoji,
         senderName: initiator.name,
-        content: `Je lance cette discussion : "${topic}". J'ai détecté un point nécessitant une coordination inter-agents.`,
+        content: initContent,
         timestamp: Date.now(),
         color: initiator.color,
       }],
@@ -302,8 +325,8 @@ export default function AdminAITeamPage() {
     setDiscussions(prev => [disc, ...prev]);
     setActiveDiscId(disc.id);
 
-    // Other agents auto-respond after a delay
-    setTimeout(() => triggerAgentResponses(disc.id), 2500);
+    // Other agents auto-respond
+    triggerAgentResponses(disc.id);
   };
 
   const groups = ['lead', 'analyst', 'specialist', 'monitor'] as const;
