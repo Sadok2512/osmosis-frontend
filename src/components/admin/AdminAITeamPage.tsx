@@ -262,8 +262,10 @@ export default function AdminAITeamPage() {
     setDiscussions(prev => prev.map(d => d.id === activeDiscId ? { ...d, messages: updatedMessages, updatedAt: Date.now() } : d));
     setDiscInput('');
 
-    // Pass messages directly to avoid stale closure
-    triggerAgentResponses(activeDiscId!, activeDisc.name, updatedMessages);
+    // During autonomous discussions, don't trigger separate agent responses — the auto loop will pick up user messages via syncWithLiveMessages
+    if (!autoDiscRef.current[activeDiscId!]) {
+      triggerAgentResponses(activeDiscId!, activeDisc.name, updatedMessages);
+    }
   };
 
   const triggerAgentResponses = useCallback(async (discId: string, discName: string, currentMessages: DiscussionMessage[]) => {
@@ -304,6 +306,8 @@ export default function AdminAITeamPage() {
   };
 
   const autoDiscRef = useRef<Record<string, boolean>>({});
+  const discussionsRef = useRef(discussions);
+  useEffect(() => { discussionsRef.current = discussions; }, [discussions]);
 
   const startAutonomousDiscussion = async () => {
     const topics = [
@@ -350,6 +354,19 @@ export default function AdminAITeamPage() {
     runAutonomousRounds(discId, topic, initiator, [initMsg]);
   };
 
+  // Helper: sync runningMessages with any user messages injected during autonomous loop
+  const syncWithLiveMessages = (discId: string, runningMessages: DiscussionMessage[]): DiscussionMessage[] => {
+    const liveDisc = discussionsRef.current.find(d => d.id === discId);
+    if (!liveDisc) return runningMessages;
+    // Find user messages in live state that aren't in runningMessages
+    const knownIds = new Set(runningMessages.map(m => m.id));
+    const newUserMsgs = liveDisc.messages.filter(m => !knownIds.has(m.id) && m.sender === 'USER');
+    if (newUserMsgs.length > 0) {
+      return [...runningMessages, ...newUserMsgs];
+    }
+    return runningMessages;
+  };
+
   const runAutonomousRounds = useCallback(async (
     discId: string, topic: string, initiator: QAgent, initialMessages: DiscussionMessage[]
   ) => {
@@ -358,6 +375,9 @@ export default function AdminAITeamPage() {
 
     for (let round = 0; round < MAX_ROUNDS; round++) {
       if (!autoDiscRef.current[discId]) break;
+
+      // Merge any user messages injected while agents were responding
+      runningMessages = syncWithLiveMessages(discId, runningMessages);
 
       // Pick 2-3 random agents (not the initiator for variety, except last round)
       const otherAgents = qAgents.filter(a => a.id !== initiator.id);
@@ -368,6 +388,8 @@ export default function AdminAITeamPage() {
 
       for (const agent of shuffled) {
         if (!autoDiscRef.current[discId]) break;
+        // Re-sync before each agent call to catch recent user messages
+        runningMessages = syncWithLiveMessages(discId, runningMessages);
         const content = await callAgentAI(agent.id, topic, runningMessages, profile);
         const msg: DiscussionMessage = {
           id: genId(), sender: agent.id, senderEmoji: agent.emoji,
@@ -382,6 +404,7 @@ export default function AdminAITeamPage() {
 
       // Last round: initiator concludes
       if (round === MAX_ROUNDS - 1) {
+        runningMessages = syncWithLiveMessages(discId, runningMessages);
         setDiscTypingAgents([initiator.id]);
         const closingContent = await callAgentAI(initiator.id, `${topic} — SYNTHÈSE FINALE`, runningMessages, profile);
         const closingMsg: DiscussionMessage = {
@@ -714,7 +737,7 @@ export default function AdminAITeamPage() {
                         )}
                         <input value={discInput} onChange={e => setDiscInput(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && sendDiscussionMessage()}
-                          placeholder="Donner un ordre ou participer…"
+                          placeholder={autoDiscRef.current[activeDisc.id] ? "Intervenir dans la discussion autonome…" : "Donner un ordre ou participer…"}
                           className="flex-1 px-3 py-2 rounded-lg bg-background border border-input text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
                         <Button size="icon" onClick={sendDiscussionMessage} disabled={!discInput.trim()} className="h-8 w-8"><Send size={14} /></Button>
                       </div>
