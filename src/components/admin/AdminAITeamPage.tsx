@@ -230,7 +230,33 @@ export default function AdminAITeamPage() {
     setNewDiscOpen(false);
   };
 
-  const sendDiscussionMessage = () => {
+  const quickStartDiscussion = (message: string) => {
+    const userMsg: DiscussionMessage = {
+      id: genId(),
+      sender: 'USER',
+      senderEmoji: profile?.emoji || '👤',
+      senderName: profile?.name || 'Admin',
+      content: message,
+      timestamp: Date.now(),
+      color: profile?.color || '#e8572a',
+    };
+    const discName = message.length > 50 ? message.slice(0, 50) + '…' : message;
+    const disc: Discussion = {
+      id: genId(),
+      name: discName,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      isEnded: false,
+      startedBy: profile?.name || 'Admin',
+      messages: [userMsg],
+      participatingAgents: qAgents.map(a => a.id),
+    };
+    setDiscussions(prev => [disc, ...prev]);
+    setActiveDiscId(disc.id);
+    setDiscInput('');
+    triggerAgentResponses(disc.id, discName, [userMsg]);
+  };
+
     if (!discInput.trim() || !activeDisc || activeDisc.isEnded) return;
     const userMsg: DiscussionMessage = {
       id: genId(),
