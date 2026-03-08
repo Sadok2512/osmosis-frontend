@@ -304,6 +304,8 @@ export default function AdminAITeamPage() {
   };
 
   const autoDiscRef = useRef<Record<string, boolean>>({});
+  const discussionsRef = useRef(discussions);
+  useEffect(() => { discussionsRef.current = discussions; }, [discussions]);
 
   const startAutonomousDiscussion = async () => {
     const topics = [
