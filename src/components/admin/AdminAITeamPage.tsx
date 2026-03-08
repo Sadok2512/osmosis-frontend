@@ -634,12 +634,18 @@ export default function AdminAITeamPage() {
                       <div className="text-sm font-bold text-foreground flex items-center gap-2">
                         {activeDisc.name}
                         {activeDisc.isEnded && <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 font-semibold">TERMINÉE</span>}
+                        {autoDiscRef.current[activeDisc.id] && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 font-semibold animate-pulse">AUTONOME</span>}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         Démarrée par {activeDisc.startedBy} · {new Date(activeDisc.createdAt).toLocaleDateString('fr-FR')}
                       </div>
                     </div>
-                    {!activeDisc.isEnded && (
+                    {autoDiscRef.current[activeDisc.id] && (
+                      <Button size="sm" variant="destructive" onClick={() => { stopAutonomousDiscussion(activeDisc.id); endDiscussion(activeDisc.id); }} className="text-xs">
+                        <X size={12} className="mr-1" /> Stopper
+                      </Button>
+                    )}
+                    {!activeDisc.isEnded && !autoDiscRef.current[activeDisc.id] && (
                       <Button size="sm" variant="outline" onClick={() => endDiscussion(activeDisc.id)} className="text-xs">
                         <CheckCircle2 size={12} className="mr-1" /> Terminer
                       </Button>
