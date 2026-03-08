@@ -27,7 +27,6 @@ const navSections = [
     label: 'Administration',
     items: [
       { id: 'users', label: 'Users', icon: Users, adminOnly: true },
-      { id: 'agents', label: 'Agents', icon: Bot, adminOnly: false },
       { id: 'modules', label: 'Modules', icon: Blocks, adminOnly: true },
       { id: 'llm', label: 'LLM Settings', icon: Settings2, adminOnly: true },
       { id: 'memory', label: 'Memory', icon: Brain, adminOnly: false },
