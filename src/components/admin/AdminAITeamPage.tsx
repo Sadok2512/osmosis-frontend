@@ -214,18 +214,8 @@ export default function AdminAITeamPage() {
   /* ── Discussions ── */
   const createDiscussion = () => {
     if (!newDiscName.trim()) return;
-    const disc: Discussion = {
-      id: genId(),
-      name: newDiscName.trim(),
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      isEnded: false,
-      startedBy: profile?.name || 'Admin',
-      messages: [],
-      participatingAgents: qAgents.map(a => a.id),
-    };
-    setDiscussions(prev => [disc, ...prev]);
-    setActiveDiscId(disc.id);
+    // Use quickStartDiscussion so the name becomes the first message too
+    quickStartDiscussion(newDiscName.trim());
     setNewDiscName('');
     setNewDiscOpen(false);
   };
