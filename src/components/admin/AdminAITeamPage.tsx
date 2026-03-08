@@ -241,31 +241,26 @@ export default function AdminAITeamPage() {
       timestamp: Date.now(),
       color: profile?.color || '#e8572a',
     };
-    setDiscussions(prev => prev.map(d => d.id === activeDiscId ? { ...d, messages: [...d.messages, userMsg], updatedAt: Date.now() } : d));
+    const updatedMessages = [...activeDisc.messages, userMsg];
+    setDiscussions(prev => prev.map(d => d.id === activeDiscId ? { ...d, messages: updatedMessages, updatedAt: Date.now() } : d));
     setDiscInput('');
 
-    // Agents auto-respond
-    triggerAgentResponses(activeDiscId!);
+    // Pass messages directly to avoid stale closure
+    triggerAgentResponses(activeDiscId!, activeDisc.name, updatedMessages);
   };
 
-  const triggerAgentResponses = useCallback(async (discId: string) => {
-    // Pick 2-4 random agents to respond
+  const triggerAgentResponses = useCallback(async (discId: string, discName: string, currentMessages: DiscussionMessage[]) => {
     const respondingCount = 2 + Math.floor(Math.random() * 3);
     const shuffled = [...qAgents].sort(() => Math.random() - 0.5).slice(0, respondingCount);
 
     setDiscTypingAgents(shuffled.map(a => a.id));
 
-    // Get current discussion for context
-    const currentDisc = discussions.find(d => d.id === discId);
-    const discName = currentDisc?.name || 'Discussion';
+    let runningMessages = [...currentMessages];
 
     for (let idx = 0; idx < shuffled.length; idx++) {
       const agent = shuffled[idx];
-      // Get latest messages (re-read state)
-      const latestDisc = discussions.find(d => d.id === discId);
-      const latestMessages = latestDisc?.messages || currentDisc?.messages || [];
 
-      const content = await callAgentAI(agent.id, discName, latestMessages, profile);
+      const content = await callAgentAI(agent.id, discName, runningMessages, profile);
 
       const msg: DiscussionMessage = {
         id: genId(),
@@ -276,10 +271,11 @@ export default function AdminAITeamPage() {
         timestamp: Date.now(),
         color: agent.color,
       };
-      setDiscussions(prev => prev.map(d => d.id === discId ? { ...d, messages: [...d.messages, msg], updatedAt: Date.now() } : d));
+      runningMessages = [...runningMessages, msg];
+      setDiscussions(prev => prev.map(d => d.id === discId ? { ...d, messages: runningMessages, updatedAt: Date.now() } : d));
       setDiscTypingAgents(prev => prev.filter(id => id !== agent.id));
     }
-  }, [discussions, profile]);
+  }, [profile]);
 
   const endDiscussion = (discId: string) => {
     setDiscussions(prev => prev.map(d => d.id === discId ? { ...d, isEnded: true, updatedAt: Date.now() } : d));
@@ -301,8 +297,17 @@ export default function AdminAITeamPage() {
     const topic = topics[Math.floor(Math.random() * topics.length)];
     const initiator = qAgents[Math.floor(Math.random() * qAgents.length)];
 
-    // Get real AI response for the initiator
     const initContent = await callAgentAI(initiator.id, topic, [], profile);
+
+    const initMsg: DiscussionMessage = {
+      id: genId(),
+      sender: initiator.id,
+      senderEmoji: initiator.emoji,
+      senderName: initiator.name,
+      content: initContent,
+      timestamp: Date.now(),
+      color: initiator.color,
+    };
 
     const disc: Discussion = {
       id: genId(),
@@ -311,22 +316,14 @@ export default function AdminAITeamPage() {
       updatedAt: Date.now(),
       isEnded: false,
       startedBy: initiator.name,
-      messages: [{
-        id: genId(),
-        sender: initiator.id,
-        senderEmoji: initiator.emoji,
-        senderName: initiator.name,
-        content: initContent,
-        timestamp: Date.now(),
-        color: initiator.color,
-      }],
+      messages: [initMsg],
       participatingAgents: qAgents.map(a => a.id),
     };
     setDiscussions(prev => [disc, ...prev]);
     setActiveDiscId(disc.id);
 
-    // Other agents auto-respond
-    triggerAgentResponses(disc.id);
+    // Pass messages directly
+    triggerAgentResponses(disc.id, topic, [initMsg]);
   };
 
   const groups = ['lead', 'analyst', 'specialist', 'monitor'] as const;
