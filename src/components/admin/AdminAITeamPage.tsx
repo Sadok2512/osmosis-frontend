@@ -90,43 +90,42 @@ function saveDiscussions(d: Discussion[]) { localStorage.setItem(DISCUSSIONS_KEY
 const profileEmojis = ['👤','👨‍💼','👩‍💼','🧑‍💻','👨‍🔬','👩‍🔬','🦊','🐺','🦅','🐉','⚡','🎯','🚀','💎','🔥','🌟','👑','🎭','🧬','🏴‍☠️'];
 const profileColors = ['#e8572a','#3dd68c','#4ea8de','#a78bfa','#f59e0b','#ef4444','#06b6d4','#ec4899','#10b981','#8b5cf6'];
 
-const agentResponses: Record<string, string[]> = {
-  ORCHESTRATOR: [
-    'D\'après mon analyse, je recommande de vérifier les KPIs de latence sur cette zone.',
-    'J\'ai coordonné les agents. PULSE et TRACE confirment une corrélation.',
-    'Priorité : investigation sur les cellules à fort trafic dans le secteur Nord.',
-  ],
-  PULSE: [
-    'Le débit DL moyen est de 45.2 Mbps, en hausse de 3% sur 7 jours.',
-    'RTT data anormalement élevé : 128ms (seuil : 80ms). Zone impactée : Plaque Sud.',
-    'QoE index à 7.2/10, stable. DMS 3s conforme à 92%.',
-  ],
-  TOPO: [
-    '152 sites actifs dans cette zone. 12 cellules en état "dégradé".',
-    'Le site SIT_042 a un tilt de 8° — supérieur à la référence (6°).',
-    'Couverture 5G : 78% sur la plaque. 3 zones blanches identifiées.',
-  ],
-  PARMY: [
-    'Audit terminé : 3 anomalies détectées sur le paramètre LNCEL.maxTxPower.',
-    'Distribution des valeurs conforme à 94%. Écart sur la bande 2100.',
-    'Paramètre qRxLevMin modifié sur 28 cellules hier — vérification en cours.',
-  ],
-  TRACE: [
-    'RCA : corrélation trouvée entre changement de tilt (J-3) et dégradation RTT.',
-    'Impact estimé : -12% sur le débit DL pour les cellules concernées.',
-    'Recommandation : rollback du tilt sur SIT_042, SIT_087.',
-  ],
-  SENTINEL: [
-    '2 alertes critiques en attente. Seuil RTT dépassé sur 5 cellules.',
-    'Anomalie détectée : pic de session DCR à 4.2% (seuil : 2%).',
-    'Cluster de 8 cellules avec QoE < 5/10 identifié dans la zone Est.',
-  ],
-  ANALYTIC: [
-    'Rapport hebdomadaire généré. 24 pages, 15 graphiques.',
-    'Export CSV des KPIs prêt. Période : 7 derniers jours.',
-    'Dashboard mis à jour avec les données consolidées.',
-  ],
-};
+/* ── Real AI call to edge function ── */
+async function callAgentAI(
+  agentId: string,
+  discussionName: string,
+  messages: DiscussionMessage[],
+  userProfile: UserProfile | null
+): Promise<string> {
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-discussion`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          agentId,
+          discussionName,
+          messages: messages.map(m => ({ sender: m.sender, senderName: m.senderName, content: m.content })),
+          userProfile: userProfile ? { name: userProfile.name, role: userProfile.role } : null,
+        }),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('Agent AI error:', err);
+      return `[Erreur IA: ${err.error || res.status}]`;
+    }
+    const data = await res.json();
+    return data.content || 'Je réfléchis…';
+  } catch (e) {
+    console.error('Agent AI call failed:', e);
+    return '[Erreur de connexion IA]';
+  }
+}
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
