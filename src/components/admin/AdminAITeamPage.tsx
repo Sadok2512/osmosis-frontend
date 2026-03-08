@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Activity, Network, Database, Search, ShieldCheck, FileText,
   Send, RotateCcw, X, Bot, MessageSquare, Cpu, Plus, Users,
-  UserCircle, CheckCircle2, Clock, Sparkles, Trash2, Edit2, Save
+  UserCircle, CheckCircle2, Clock, Sparkles, Trash2, Edit2, Save, Settings2
 } from 'lucide-react';
+import AdminAgentsPage from '@/components/admin/AdminAgentsPage';
+import { getStoredSession } from '@/services/adminAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -130,7 +132,7 @@ async function callAgentAI(
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 /* ── Tab type ── */
-type TabId = 'agents' | 'discussions';
+type TabId = 'agents' | 'discussions' | 'config';
 
 export default function AdminAITeamPage() {
   const [tab, setTab] = useState<TabId>('agents');
@@ -465,6 +467,7 @@ export default function AdminAITeamPage() {
         {[
           { id: 'agents' as TabId, label: 'Agents', icon: Bot },
           { id: 'discussions' as TabId, label: 'Discussions', icon: Users },
+          { id: 'config' as TabId, label: 'Config Agents', icon: Settings2 },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-t-lg border border-b-0 transition-colors ${
             tab === t.id ? 'bg-card text-foreground border-border' : 'bg-transparent text-muted-foreground border-transparent hover:text-foreground'
@@ -746,6 +749,12 @@ export default function AdminAITeamPage() {
                 </>
               )}
             </div>
+          </div>
+        )}
+
+        {tab === 'config' && (
+          <div className="h-full overflow-auto">
+            <AdminAgentsPage currentUser={getStoredSession() || { id: '', username: 'admin', role: 'admin', status: 'active', created_at: '', last_login: null }} />
           </div>
         )}
       </div>

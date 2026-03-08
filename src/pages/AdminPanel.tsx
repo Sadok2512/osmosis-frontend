@@ -7,7 +7,6 @@ import {
   LayoutDashboard, Cpu, Brain
 } from 'lucide-react';
 import AdminUsersPage from '@/components/admin/AdminUsersPage';
-import AdminAgentsPage from '@/components/admin/AdminAgentsPage';
 import AdminModulesPage from '@/components/admin/AdminModulesPage';
 import AdminLLMPage from '@/components/admin/AdminLLMPage';
 import AdminHealthPage from '@/components/admin/AdminHealthPage';
@@ -27,7 +26,6 @@ const navSections = [
     label: 'Administration',
     items: [
       { id: 'users', label: 'Users', icon: Users, adminOnly: true },
-      { id: 'agents', label: 'Agents', icon: Bot, adminOnly: false },
       { id: 'modules', label: 'Modules', icon: Blocks, adminOnly: true },
       { id: 'llm', label: 'LLM Settings', icon: Settings2, adminOnly: true },
       { id: 'memory', label: 'Memory', icon: Brain, adminOnly: false },
@@ -60,7 +58,6 @@ export default function AdminPanel() {
       case 'dashboard': return <AdminDashboardPage />;
       case 'ai-team': return <AdminAITeamPage />;
       case 'users': return user.role === 'admin' ? <AdminUsersPage /> : null;
-      case 'agents': return <AdminAgentsPage currentUser={user} />;
       case 'modules': return user.role === 'admin' ? <AdminModulesPage /> : null;
       case 'llm': return user.role === 'admin' ? <AdminLLMPage /> : null;
       case 'memory': return <AdminMemoryPage currentUser={user} />;
