@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Activity, Network, Database, Search, ShieldCheck, FileText,
   Send, RotateCcw, X, Bot, MessageSquare, Cpu, Plus, Users,
-  UserCircle, CheckCircle2, Clock, Sparkles, Trash2, Edit2, Save
+  UserCircle, CheckCircle2, Clock, Sparkles, Trash2, Edit2, Save, Settings2
 } from 'lucide-react';
+import AdminAgentsPage from '@/components/admin/AdminAgentsPage';
+import { getStoredSession } from '@/services/adminAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
