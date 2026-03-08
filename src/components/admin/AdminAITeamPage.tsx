@@ -186,17 +186,29 @@ export default function AdminAITeamPage() {
   /* ── Agent chat ── */
   const agentMsgs = selectedAgent ? (chatMessages[selectedAgent.id] || []) : [];
 
-  const sendAgentChat = () => {
+  const sendAgentChat = async () => {
     if (!chatInput.trim() || !selectedAgent) return;
     const agentId = selectedAgent.id;
-    setChatMessages(prev => ({ ...prev, [agentId]: [...(prev[agentId] || []), { role: 'user' as const, content: chatInput.trim() }] }));
+    const userContent = chatInput.trim();
+    setChatMessages(prev => ({ ...prev, [agentId]: [...(prev[agentId] || []), { role: 'user' as const, content: userContent }] }));
     setChatInput('');
     setTyping(true);
-    setTimeout(() => {
-      const pool = agentResponses[agentId] || ['Traitement en cours…'];
-      setChatMessages(prev => ({ ...prev, [agentId]: [...(prev[agentId] || []), { role: 'agent' as const, content: pool[Math.floor(Math.random() * pool.length)] }] }));
-      setTyping(false);
-    }, 1500);
+
+    // Build messages for AI context
+    const prevMsgs = chatMessages[agentId] || [];
+    const discMsgs: DiscussionMessage[] = [
+      ...prevMsgs.map((m, i) => ({
+        id: String(i), sender: m.role === 'user' ? 'USER' : agentId,
+        senderEmoji: m.role === 'user' ? (profile?.emoji || '👤') : selectedAgent.emoji,
+        senderName: m.role === 'user' ? (profile?.name || 'Admin') : selectedAgent.name,
+        content: m.content, timestamp: Date.now(), color: m.role === 'user' ? '#e8572a' : selectedAgent.color,
+      })),
+      { id: 'new', sender: 'USER', senderEmoji: profile?.emoji || '👤', senderName: profile?.name || 'Admin', content: userContent, timestamp: Date.now(), color: '#e8572a' },
+    ];
+
+    const reply = await callAgentAI(agentId, `Chat 1:1 avec ${selectedAgent.name}`, discMsgs, profile);
+    setChatMessages(prev => ({ ...prev, [agentId]: [...(prev[agentId] || []), { role: 'agent' as const, content: reply }] }));
+    setTyping(false);
   };
 
   /* ── Discussions ── */
