@@ -257,6 +257,7 @@ export default function AdminAITeamPage() {
     triggerAgentResponses(disc.id, discName, [userMsg]);
   };
 
+  const sendDiscussionMessage = () => {
     if (!discInput.trim() || !activeDisc || activeDisc.isEnded) return;
     const userMsg: DiscussionMessage = {
       id: genId(),
