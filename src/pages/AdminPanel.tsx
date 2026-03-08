@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import AdminUsersPage from '@/components/admin/AdminUsersPage';
 import AdminModulesPage from '@/components/admin/AdminModulesPage';
-import AdminModulesPage from '@/components/admin/AdminModulesPage';
 import AdminLLMPage from '@/components/admin/AdminLLMPage';
 import AdminHealthPage from '@/components/admin/AdminHealthPage';
 import AdminMemoryPage from '@/components/admin/AdminMemoryPage';

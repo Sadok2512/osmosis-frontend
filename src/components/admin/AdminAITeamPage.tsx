@@ -754,7 +754,7 @@ export default function AdminAITeamPage() {
 
         {tab === 'config' && (
           <div className="h-full overflow-auto">
-            <AdminAgentsPage currentUser={getStoredSession() || { id: '', username: 'admin', role: 'admin', status: 'active' }} />
+            <AdminAgentsPage currentUser={getStoredSession() || { id: '', username: 'admin', role: 'admin', status: 'active', created_at: '', last_login: null }} />
           </div>
         )}
       </div>
