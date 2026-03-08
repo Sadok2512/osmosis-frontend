@@ -352,6 +352,19 @@ export default function AdminAITeamPage() {
     runAutonomousRounds(discId, topic, initiator, [initMsg]);
   };
 
+  // Helper: sync runningMessages with any user messages injected during autonomous loop
+  const syncWithLiveMessages = (discId: string, runningMessages: DiscussionMessage[]): DiscussionMessage[] => {
+    const liveDisc = discussionsRef.current.find(d => d.id === discId);
+    if (!liveDisc) return runningMessages;
+    // Find user messages in live state that aren't in runningMessages
+    const knownIds = new Set(runningMessages.map(m => m.id));
+    const newUserMsgs = liveDisc.messages.filter(m => !knownIds.has(m.id) && m.sender === 'USER');
+    if (newUserMsgs.length > 0) {
+      return [...runningMessages, ...newUserMsgs];
+    }
+    return runningMessages;
+  };
+
   const runAutonomousRounds = useCallback(async (
     discId: string, topic: string, initiator: QAgent, initialMessages: DiscussionMessage[]
   ) => {
@@ -360,6 +373,9 @@ export default function AdminAITeamPage() {
 
     for (let round = 0; round < MAX_ROUNDS; round++) {
       if (!autoDiscRef.current[discId]) break;
+
+      // Merge any user messages injected while agents were responding
+      runningMessages = syncWithLiveMessages(discId, runningMessages);
 
       // Pick 2-3 random agents (not the initiator for variety, except last round)
       const otherAgents = qAgents.filter(a => a.id !== initiator.id);
@@ -370,6 +386,8 @@ export default function AdminAITeamPage() {
 
       for (const agent of shuffled) {
         if (!autoDiscRef.current[discId]) break;
+        // Re-sync before each agent call to catch recent user messages
+        runningMessages = syncWithLiveMessages(discId, runningMessages);
         const content = await callAgentAI(agent.id, topic, runningMessages, profile);
         const msg: DiscussionMessage = {
           id: genId(), sender: agent.id, senderEmoji: agent.emoji,
@@ -384,6 +402,7 @@ export default function AdminAITeamPage() {
 
       // Last round: initiator concludes
       if (round === MAX_ROUNDS - 1) {
+        runningMessages = syncWithLiveMessages(discId, runningMessages);
         setDiscTypingAgents([initiator.id]);
         const closingContent = await callAgentAI(initiator.id, `${topic} — SYNTHÈSE FINALE`, runningMessages, profile);
         const closingMsg: DiscussionMessage = {
