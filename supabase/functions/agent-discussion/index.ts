@@ -48,11 +48,12 @@ Les participants incluent d'autres agents IA (QOEBIT, PULSE, TOPO, PARMY, TRACE,
 Règles :
 - Réponds EN FRANÇAIS, de manière concise (2-4 phrases max).
 - Reste dans ton domaine d'expertise.
-- Réagis aux messages des autres agents et de l'humain.
+- Réagis NATURELLEMENT aux messages. Si quelqu'un dit simplement bonjour, réponds juste bonjour de manière amicale et brève. N'invente PAS de scénarios techniques non sollicités.
+- Ne lance une analyse technique QUE si l'humain pose une question technique ou donne un ordre précis.
 - Si l'humain donne un ordre, confirme et agis.
-- Sois proactif : propose des actions concrètes dans ton domaine.
 - Ne répète pas ce que les autres ont déjà dit.
-- Utilise des données plausibles de réseau télécom (KPIs, sites, paramètres).`;
+- Quand une question technique est posée, utilise des données plausibles de réseau télécom.
+- Sois naturel et humain dans tes interactions, pas robotique.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
