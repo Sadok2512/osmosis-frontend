@@ -735,7 +735,7 @@ export default function AdminAITeamPage() {
                         )}
                         <input value={discInput} onChange={e => setDiscInput(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && sendDiscussionMessage()}
-                          placeholder="Donner un ordre ou participer…"
+                          placeholder={autoDiscRef.current[activeDisc.id] ? "Intervenir dans la discussion autonome…" : "Donner un ordre ou participer…"}
                           className="flex-1 px-3 py-2 rounded-lg bg-background border border-input text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
                         <Button size="icon" onClick={sendDiscussionMessage} disabled={!discInput.trim()} className="h-8 w-8"><Send size={14} /></Button>
                       </div>
