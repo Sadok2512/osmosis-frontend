@@ -130,7 +130,7 @@ async function callAgentAI(
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 /* ── Tab type ── */
-type TabId = 'agents' | 'discussions';
+type TabId = 'agents' | 'discussions' | 'config';
 
 export default function AdminAITeamPage() {
   const [tab, setTab] = useState<TabId>('agents');
