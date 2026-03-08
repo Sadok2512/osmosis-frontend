@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Cpu, Brain
 } from 'lucide-react';
 import AdminUsersPage from '@/components/admin/AdminUsersPage';
-import AdminAgentsPage from '@/components/admin/AdminAgentsPage';
+import AdminModulesPage from '@/components/admin/AdminModulesPage';
 import AdminModulesPage from '@/components/admin/AdminModulesPage';
 import AdminLLMPage from '@/components/admin/AdminLLMPage';
 import AdminHealthPage from '@/components/admin/AdminHealthPage';
