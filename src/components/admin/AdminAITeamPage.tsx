@@ -303,6 +303,8 @@ export default function AdminAITeamPage() {
     if (activeDiscId === discId) setActiveDiscId(null);
   };
 
+  const autoDiscRef = useRef<Record<string, boolean>>({});
+
   const startAutonomousDiscussion = async () => {
     const topics = [
       'Analyse de la dégradation QoE détectée sur la plaque Nord',
@@ -310,9 +312,13 @@ export default function AdminAITeamPage() {
       'Investigation anomalie RTT sur cluster Est',
       'Coordination rollback paramètres site SIT_042',
       'Planification audit 5G zone dense',
+      'Alerte : chute du QoE index sur le cluster Ouest',
+      'Demande d\'information sur les paramètres LNCEL zone Sud',
+      'Corrélation entre changement de tilt et dégradation débit DL',
     ];
     const topic = topics[Math.floor(Math.random() * topics.length)];
     const initiator = qAgents[Math.floor(Math.random() * qAgents.length)];
+    const discId = genId();
 
     const initContent = await callAgentAI(initiator.id, topic, [], profile);
 
@@ -327,20 +333,80 @@ export default function AdminAITeamPage() {
     };
 
     const disc: Discussion = {
-      id: genId(),
-      name: topic,
+      id: discId,
+      name: `🤖 ${topic}`,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       isEnded: false,
-      startedBy: initiator.name,
+      startedBy: `${initiator.emoji} ${initiator.name} (Auto)`,
       messages: [initMsg],
       participatingAgents: qAgents.map(a => a.id),
     };
     setDiscussions(prev => [disc, ...prev]);
-    setActiveDiscId(disc.id);
+    setActiveDiscId(discId);
+    autoDiscRef.current[discId] = true;
 
-    // Pass messages directly
-    triggerAgentResponses(disc.id, topic, [initMsg]);
+    // Run fully autonomous rounds
+    runAutonomousRounds(discId, topic, initiator, [initMsg]);
+  };
+
+  const runAutonomousRounds = useCallback(async (
+    discId: string, topic: string, initiator: QAgent, initialMessages: DiscussionMessage[]
+  ) => {
+    const MAX_ROUNDS = 3;
+    let runningMessages = [...initialMessages];
+
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+      if (!autoDiscRef.current[discId]) break;
+
+      // Pick 2-3 random agents (not the initiator for variety, except last round)
+      const otherAgents = qAgents.filter(a => a.id !== initiator.id);
+      const respondingCount = 2 + Math.floor(Math.random() * 2);
+      const shuffled = [...otherAgents].sort(() => Math.random() - 0.5).slice(0, respondingCount);
+
+      setDiscTypingAgents(shuffled.map(a => a.id));
+
+      for (const agent of shuffled) {
+        if (!autoDiscRef.current[discId]) break;
+        const content = await callAgentAI(agent.id, topic, runningMessages, profile);
+        const msg: DiscussionMessage = {
+          id: genId(), sender: agent.id, senderEmoji: agent.emoji,
+          senderName: agent.name, content, timestamp: Date.now(), color: agent.color,
+        };
+        runningMessages = [...runningMessages, msg];
+        setDiscussions(prev => prev.map(d => d.id === discId ? { ...d, messages: runningMessages, updatedAt: Date.now() } : d));
+        setDiscTypingAgents(prev => prev.filter(id => id !== agent.id));
+      }
+
+      if (!autoDiscRef.current[discId]) break;
+
+      // Last round: initiator concludes
+      if (round === MAX_ROUNDS - 1) {
+        setDiscTypingAgents([initiator.id]);
+        const closingContent = await callAgentAI(initiator.id, `${topic} — SYNTHÈSE FINALE`, runningMessages, profile);
+        const closingMsg: DiscussionMessage = {
+          id: genId(), sender: initiator.id, senderEmoji: initiator.emoji,
+          senderName: initiator.name,
+          content: `📋 **Synthèse** — ${closingContent}`,
+          timestamp: Date.now(), color: initiator.color,
+        };
+        runningMessages = [...runningMessages, closingMsg];
+        setDiscussions(prev => prev.map(d => d.id === discId ? {
+          ...d, messages: runningMessages, updatedAt: Date.now(), isEnded: true
+        } : d));
+        setDiscTypingAgents([]);
+        delete autoDiscRef.current[discId];
+        return;
+      }
+    }
+
+    setDiscTypingAgents([]);
+    delete autoDiscRef.current[discId];
+  }, [profile]);
+
+  const stopAutonomousDiscussion = (discId: string) => {
+    delete autoDiscRef.current[discId];
+    setDiscTypingAgents([]);
   };
 
   const groups = ['lead', 'analyst', 'specialist', 'monitor'] as const;
@@ -568,12 +634,18 @@ export default function AdminAITeamPage() {
                       <div className="text-sm font-bold text-foreground flex items-center gap-2">
                         {activeDisc.name}
                         {activeDisc.isEnded && <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 font-semibold">TERMINÉE</span>}
+                        {autoDiscRef.current[activeDisc.id] && <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 font-semibold animate-pulse">AUTONOME</span>}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         Démarrée par {activeDisc.startedBy} · {new Date(activeDisc.createdAt).toLocaleDateString('fr-FR')}
                       </div>
                     </div>
-                    {!activeDisc.isEnded && (
+                    {autoDiscRef.current[activeDisc.id] && (
+                      <Button size="sm" variant="destructive" onClick={() => { stopAutonomousDiscussion(activeDisc.id); endDiscussion(activeDisc.id); }} className="text-xs">
+                        <X size={12} className="mr-1" /> Stopper
+                      </Button>
+                    )}
+                    {!activeDisc.isEnded && !autoDiscRef.current[activeDisc.id] && (
                       <Button size="sm" variant="outline" onClick={() => endDiscussion(activeDisc.id)} className="text-xs">
                         <CheckCircle2 size={12} className="mr-1" /> Terminer
                       </Button>

@@ -40,6 +40,8 @@ serve(async (req) => {
       content: `[${m.senderName}]: ${m.content}`,
     }));
 
+    const isSynthesis = discussionName.includes('SYNTHÈSE FINALE');
+
     const systemPrompt = `${persona}
 
 Tu participes à une discussion d'équipe multi-agents intitulée "${discussionName}".
@@ -49,11 +51,14 @@ Règles :
 - Réponds EN FRANÇAIS, de manière concise (2-4 phrases max).
 - Reste dans ton domaine d'expertise.
 - Réagis NATURELLEMENT aux messages. Si quelqu'un dit simplement bonjour, réponds juste bonjour de manière amicale et brève. N'invente PAS de scénarios techniques non sollicités.
-- Ne lance une analyse technique QUE si l'humain pose une question technique ou donne un ordre précis.
+- Ne lance une analyse technique QUE si l'humain pose une question technique ou donne un ordre précis, OU si c'est une discussion autonome entre agents.
 - Si l'humain donne un ordre, confirme et agis.
 - Ne répète pas ce que les autres ont déjà dit.
 - Quand une question technique est posée, utilise des données plausibles de réseau télécom.
-- Sois naturel et humain dans tes interactions, pas robotique.`;
+- Sois naturel et humain dans tes interactions, pas robotique.
+- Si un autre agent te demande une information qui relève de ton domaine, réponds avec des données concrètes.
+${isSynthesis ? `
+IMPORTANT: Tu dois faire une SYNTHÈSE FINALE de la discussion. Résume les points clés, les conclusions et les actions recommandées en 3-5 phrases structurées. Termine par une recommandation claire.` : ''}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
