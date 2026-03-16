@@ -2200,14 +2200,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       console.log('[QOE Filter] Active filters:', JSON.stringify(qoeFilters));
       console.log('[QOE Filter] Total sites before filter:', sites.length);
     }
+    const searchTerm = localSearch.toLowerCase();
     const filtered = sites.filter(s => {
-      const matchesSearch = s.site_name.toLowerCase().includes(localSearch.toLowerCase()) || s.site_id.toLowerCase().includes(localSearch.toLowerCase());
+      const siteName = String(s.site_name ?? '');
+      const siteId = String(s.site_id ?? '');
+      const siteCells = Array.isArray(s.cells) ? s.cells : [];
+      const matchesSearch = siteName.toLowerCase().includes(searchTerm) || siteId.toLowerCase().includes(searchTerm);
       const matchesDor = filters.dor === 'ALL' || s.dor === filters.dor;
       const matchesPlaque = filters.plaque === 'ALL' || s.plaque === filters.plaque;
       const matchesVendor = filters.vendor === 'ALL' || s.vendor === filters.vendor;
       const matchesDep = filters.department === 'ALL' || s.department === filters.department;
       // When cells are empty (bbox-loaded), bypass RAT filter
-      const matchesRat = filters.rat === 'ALL' || s.cells.length === 0 || s.cells.some(c => c.techno === filters.rat);
+      const matchesRat = filters.rat === 'ALL' || siteCells.length === 0 || siteCells.some(c => c.techno === filters.rat);
       const matchesLocalVendor = localVendor === 'ALL' || s.vendor === localVendor;
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
