@@ -65,6 +65,7 @@ type DataNeed =
   | "topo_inventory"
   | "sentinel_anomalies"
   | "sentinel_timeseries"
+  | "deep_investigation"
   | "dimension_timeseries";
 
 type Dimension1Type =
