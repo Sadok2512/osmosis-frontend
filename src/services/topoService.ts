@@ -260,7 +260,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
 
   let baseSites: SiteSummary[] | null = null;
 
-  // 1) Try local Express server (capped at 50k to avoid OOM)
+  // 1) Try local Express/VPS server (capped at 50k to avoid OOM)
   const LEGACY_CAP = 50000;
   try {
     const json = await topoApi.list(LEGACY_CAP);
@@ -275,8 +275,8 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
     console.warn('[TopoService] VPS/LOCAL fetch failed, falling back to embedded data', err);
   }
 
-  // 3) Fallback to embedded static data
-  if (!baseSites) {
+  // 2) VPS/local may return rows without coordinates; ensure we still have usable sites
+  if (!baseSites || baseSites.length === 0) {
     baseSites = buildSitesFromLocalTopo();
     console.log(`[TopoService] FALLBACK: Built ${baseSites.length} sites from embedded data`);
   }
