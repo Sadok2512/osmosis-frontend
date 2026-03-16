@@ -33,6 +33,7 @@ type Intent =
   | "distribution"
   | "list_dimension_values"
   | "param_audit"
+  | "deep_investigation"
   | "other";
 
 type Scope =
