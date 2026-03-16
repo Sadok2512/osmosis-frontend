@@ -377,21 +377,92 @@ export const topoApi = {
       return fetchJsonSignal<BboxCellsResponse>(localUrl(`topo/sites?${bboxQs}`), signal);
     }
 
+    // VPS strategy: merge /topo/sites (has coordinates) with /topo/cells (has per-cell band/techno)
+    // because /topo/cells alone lacks coordinates & azimut
     try {
-      const data = await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal);
-      const cells = Array.isArray(data?.cells) ? data.cells : (Array.isArray(data) ? data : []);
-      return { cells, total: Number(data?.total) || cells.length };
-    } catch {
-      const qs = new URLSearchParams({ limit: String(limit) });
-      if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
-      if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
-      if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
-      if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
-      if (filters?.q) qs.set('search', filters.q);
+      // 1) Fetch sites in bbox (for coordinates)
+      const sitesData = await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal);
+      const rawSites = Array.isArray(sitesData) ? sitesData : (sitesData?.sites || sitesData?.rows || []);
+      
+      // Build a coordinate lookup by site_name
+      const siteCoords = new Map<string, { lat: number; lng: number; plaque: string; dor: string; region: string }>();
+      for (const s of rawSites) {
+        const lat = Number(s.latitude ?? s.lat);
+        const lng = Number(s.longitude ?? s.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        const name = s.site_name || s.nom_site || s.code_nidt;
+        if (name) siteCoords.set(name, { lat, lng, plaque: s.plaque || '', dor: s.dor || s.region || '', region: s.region || '' });
+      }
 
-      const data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
-      const cells = Array.isArray(data) ? data : (data.rows || data.cells || []);
-      return { cells, total: data.total ?? cells.length };
+      if (siteCoords.size === 0) {
+        return { cells: [], total: 0 };
+      }
+
+      // 2) Fetch all cells (no bbox filter on cells endpoint, we filter client-side by matching site names)
+      const cellsQs = new URLSearchParams({ limit: '50000' });
+      if (filters?.plaque && filters.plaque !== 'ALL') cellsQs.set('plaque', filters.plaque);
+      if (filters?.dor && filters.dor !== 'ALL') cellsQs.set('dor', filters.dor);
+      if (filters?.techno && filters.techno !== 'ALL') cellsQs.set('techno', filters.techno);
+      if (filters?.bande && filters.bande !== 'ALL') cellsQs.set('band', filters.bande);
+      if (filters?.q) cellsQs.set('search', filters.q);
+
+      const cellsData = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${cellsQs}`), signal);
+      const rawCells = Array.isArray(cellsData) ? cellsData : (cellsData?.rows || cellsData?.cells || []);
+
+      // 3) Merge: attach site coordinates to each cell, auto-distribute azimuts per site
+      const cellsBySite = new Map<string, any[]>();
+      for (const c of rawCells) {
+        const siteName = c.site_name || c.nom_site;
+        if (!siteName || !siteCoords.has(siteName)) continue;
+        if (!cellsBySite.has(siteName)) cellsBySite.set(siteName, []);
+        cellsBySite.get(siteName)!.push(c);
+      }
+
+      const mergedCells: any[] = [];
+      for (const [siteName, cells] of cellsBySite) {
+        const coords = siteCoords.get(siteName)!;
+        // Group cells by sector (infer from last char of cell_name: 1, 2, 3)
+        const sectorGroups = new Map<number, any[]>();
+        for (const c of cells) {
+          const cellName = c.cell_name || c.nom_cellule || '';
+          const lastChar = cellName.slice(-1);
+          const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+          if (!sectorGroups.has(sectorIdx)) sectorGroups.set(sectorIdx, []);
+          sectorGroups.get(sectorIdx)!.push(c);
+        }
+        const numSectors = Math.max(sectorGroups.size, 1);
+        const sectorKeys = Array.from(sectorGroups.keys()).sort();
+
+        for (let i = 0; i < sectorKeys.length; i++) {
+          const sectorCells = sectorGroups.get(sectorKeys[i])!;
+          const azimut = Math.round((360 / numSectors) * i);
+          for (const c of sectorCells) {
+            mergedCells.push({
+              code_nidt: siteName,
+              nom_site: siteName,
+              nom_cellule: c.cell_name || c.nom_cellule || `${siteName}_cell`,
+              latitude: coords.lat,
+              longitude: coords.lng,
+              techno: c.techno || '4g',
+              bande: c.band || c.bande || '',
+              constructeur: c.vendor || c.constructeur || null,
+              azimut,
+              hba: 30,
+              plaque: c.plaque || coords.plaque,
+              dor: c.dor || coords.dor,
+              region: coords.region,
+              tac: null,
+            });
+          }
+        }
+      }
+
+      console.log(`[TopoApi] BBOX cells merged: ${mergedCells.length} cells from ${cellsBySite.size} sites`);
+      return { cells: mergedCells, total: mergedCells.length };
+    } catch (err: any) {
+      if (err?.name === 'AbortError') throw err;
+      console.warn('[TopoApi] BBOX cells merge failed', err);
+      return { cells: [], total: 0 };
     }
   },
 };
