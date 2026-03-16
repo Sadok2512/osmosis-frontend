@@ -146,7 +146,7 @@ const TopologiePage: React.FC = () => {
   const [cnxStatus, setCnxStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
   const [cnxMessage, setCnxMessage] = useState('');
   const [backendReachable, setBackendReachable] = useState<boolean | null>(null);
-  const [dataSource, setDataSource] = useState<'local' | 'cloud'>(getPreferredDataSource());
+  const [dataSource, setDataSource] = useState<'local' | 'cloud' | 'vps'>(getPreferredDataSource());
   const shouldUseLocal = dataSource === 'local';
   const [chartMode, setChartMode] = useState<ChartMode>('stacked');
   const [showLabels, setShowLabels] = useState(true);
