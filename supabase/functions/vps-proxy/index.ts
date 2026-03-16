@@ -50,11 +50,6 @@ Deno.serve(async (req) => {
     if (apiKey) {
       upstreamHeaders['x-api-key'] = apiKey;
     }
-    // Forward authorization header
-    const authHeader = req.headers.get('x-vps-authorization');
-    if (authHeader) {
-      upstreamHeaders['Authorization'] = authHeader;
-    }
 
     // Forward the request
     const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await req.text();
