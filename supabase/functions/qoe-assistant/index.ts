@@ -1737,6 +1737,8 @@ function isParmyQuery(query: string): boolean {
 
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
+  // Deep investigation → PULSE as lead orchestrator (will call all agents)
+  if (isDeepInvestigationQuery(query)) return "PULSE";
   // Parameter-focused queries with known prefixes → PARMY FIRST (before anything else)
   if (extractParamName(query)) return "PARMY";
   // Topo inventory queries (nombre de cellules, combien de sites) → TOPO always first
