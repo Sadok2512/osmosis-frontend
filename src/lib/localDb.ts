@@ -4,17 +4,23 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { getPreferredDataSource } from './apiConfig';
+import { getPreferredDataSource, VPS_ENDPOINTS } from './apiConfig';
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
 function url(path: string) {
-  return `${LOCAL_API}/api/${path.replace(/^\/?(api\/)?/, '')}`;
+  const clean = path.replace(/^\/?(api\/)?/, '');
+  const source = getPreferredDataSource();
+  if (source === 'vps') {
+    return `${VPS_ENDPOINTS.kpi}/api/${clean}`;
+  }
+  return `${LOCAL_API}/api/${clean}`;
 }
 
-/** Detect if we should use local or cloud */
+/** Detect if we should use local or cloud (not VPS) */
 function useLocal(): boolean {
-  return getPreferredDataSource() === 'local';
+  const src = getPreferredDataSource();
+  return src === 'local' || src === 'vps';
 }
 
 async function get<T = any>(path: string): Promise<T> {
