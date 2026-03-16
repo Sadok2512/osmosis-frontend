@@ -2938,7 +2938,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   );
                 })}
                 {/* Site name label at zoom >= 14 */}
-                {viewport.zoom >= 14 && (
+                {viewport.zoom >= 13 && (
                   <Marker
                     position={site.coordinates}
                     icon={L.divIcon({
@@ -3043,7 +3043,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   mouseout: () => setHoveredSiteId(null),
                 }}
               >
-                {viewport.zoom >= 14 && (
+                {viewport.zoom >= 13 && (
                   <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
                     <span style={{
                       fontSize: '8px',
