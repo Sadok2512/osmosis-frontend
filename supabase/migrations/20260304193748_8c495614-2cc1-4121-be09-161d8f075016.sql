@@ -1,0 +1,1 @@
+ALTER TABLE public.topo ALTER COLUMN tilt TYPE double precision;

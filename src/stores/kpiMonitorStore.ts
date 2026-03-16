@@ -1,0 +1,97 @@
+import { create } from 'zustand';
+import { KpiSelection, DynamicFilter, SplitDimension, KpiMonitorView, GraphType } from '../components/kpi-monitor/types';
+
+export interface Milestone {
+  id: string;
+  date: string;
+  label: string;
+  color: string;
+}
+
+interface KpiMonitorState {
+  // KPI selections
+  selectedKpis: KpiSelection[];
+  addKpi: (kpi: KpiSelection) => void;
+  removeKpi: (kpiKey: string) => void;
+  updateKpi: (kpiKey: string, updates: Partial<KpiSelection>) => void;
+
+  // Split
+  splitBy: SplitDimension | null;
+  setSplitBy: (s: SplitDimension | null) => void;
+  topN: number;
+  setTopN: (n: number) => void;
+  includeOthers: boolean;
+  setIncludeOthers: (b: boolean) => void;
+
+  // View
+  viewMode: KpiMonitorView;
+  setViewMode: (v: KpiMonitorView) => void;
+
+  // Dynamic filters (local to KPI Monitor)
+  localFilters: DynamicFilter[];
+  addFilter: (f: DynamicFilter) => void;
+  removeFilter: (id: string) => void;
+  updateFilter: (id: string, updates: Partial<DynamicFilter>) => void;
+  clearFilters: () => void;
+
+  // Milestones
+  milestones: Milestone[];
+  showMilestones: boolean;
+  setShowMilestones: (v: boolean) => void;
+  addMilestone: (m: Milestone) => void;
+  updateMilestone: (id: string, updates: Partial<Milestone>) => void;
+  removeMilestone: (id: string) => void;
+
+  // Selected widget
+  selectedWidgetId: string | null;
+  setSelectedWidgetId: (id: string | null) => void;
+
+  // Active editing widget (only one at a time — Option A)
+  activeEditingWidgetId: string | null;
+  setActiveEditingWidgetId: (id: string | null) => void;
+}
+
+export const useKpiMonitorStore = create<KpiMonitorState>((set) => ({
+  selectedKpis: [],
+  addKpi: (kpi) => set((s) => ({ selectedKpis: [...s.selectedKpis, kpi] })),
+  removeKpi: (key) => set((s) => ({ selectedKpis: s.selectedKpis.filter(k => k.kpi_key !== key) })),
+  updateKpi: (key, updates) => set((s) => ({
+    selectedKpis: s.selectedKpis.map(k => k.kpi_key === key ? { ...k, ...updates } : k),
+  })),
+
+  splitBy: null,
+  setSplitBy: (s) => set({ splitBy: s }),
+  topN: 5,
+  setTopN: (n) => set({ topN: n }),
+  includeOthers: true,
+  setIncludeOthers: (b) => set({ includeOthers: b }),
+
+  viewMode: 'graph',
+  setViewMode: (v) => set({ viewMode: v }),
+
+  localFilters: [],
+  addFilter: (f) => set((s) => ({ localFilters: [...s.localFilters, f] })),
+  removeFilter: (id) => set((s) => ({ localFilters: s.localFilters.filter(f => f.id !== id) })),
+  updateFilter: (id, updates) => set((s) => ({
+    localFilters: s.localFilters.map(f => f.id === id ? { ...f, ...updates } : f),
+  })),
+  clearFilters: () => set({ localFilters: [] }),
+
+  // Milestones
+  milestones: [],
+  showMilestones: true,
+  setShowMilestones: (v) => set({ showMilestones: v }),
+  addMilestone: (m) => set((s) => ({ milestones: [...s.milestones, m] })),
+  updateMilestone: (id, updates) => set((s) => ({
+    milestones: s.milestones.map(m => m.id === id ? { ...m, ...updates } : m),
+  })),
+  removeMilestone: (id) => set((s) => ({ milestones: s.milestones.filter(m => m.id !== id) })),
+
+  // Selected widget
+  selectedWidgetId: null,
+  setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
+
+  // Active editing widget
+  activeEditingWidgetId: null,
+  setActiveEditingWidgetId: (id) => set({ activeEditingWidgetId: id }),
+}));
