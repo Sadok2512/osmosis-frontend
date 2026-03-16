@@ -668,18 +668,7 @@ async function fetchTopoMetricByDimension(
 
 async function searchTopoForSite(siteName: string): Promise<string> {
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data, error } = await supabase
-      .from("topo")
-      .select("code_nidt, nom_site, nom_cellule, techno, bande, constructeur, region, plaque, azimut, latitude, longitude, hba, tac, tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes, date_fn8, dor")
-      .ilike("nom_site", `%${siteName}%`)
-      .order("nom_cellule")
-      .limit(100);
-
-    if (error) { console.error("Topo search error:", error); return ""; }
+    const data = await fetchVpsTopo(`/api/v1/topo/cells?site_name=${encodeURIComponent(siteName)}&limit=100`);
     if (!data?.length) return "";
 
     const header = "nom_cellule | techno | bande | azimut | tilt | hba | pci | tac | etat | constructeur | dor | lat | lng";
