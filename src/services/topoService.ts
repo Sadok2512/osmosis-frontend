@@ -330,8 +330,9 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
   const lng = Number(dto.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
-  const vendor = dto.vendor
-    ? dto.vendor.charAt(0).toUpperCase() + dto.vendor.slice(1)
+  const rawVendor = dto.vendor;
+  const vendor = rawVendor
+    ? rawVendor.charAt(0).toUpperCase() + rawVendor.slice(1)
     : 'Unknown';
   const siteId = dto.code_nidt;
   return {
@@ -342,13 +343,13 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     plaque: dto.plaque || '',
     department: (dto.plaque || '').replace('DEPT_', ''),
     cell_count: Number(dto.nb_cells) || 0,
-    qoe_score_avg: seededRand(siteId + 'qoe', 55, 98),
-    p50_thr_dn_mbps: seededRand(siteId + 'thr', 8, 120),
-    p50_thr_up_mbps: seededRand(siteId + 'thrup', 5, 40),
-    dms_dl_3: seededRand(siteId + 'dms3', 75, 99),
-    dms_dl_8: seededRand(siteId + 'dms8', 55, 95),
-    dms_dl_30: seededRand(siteId + 'dms30', 15, 55),
-    dms_ul_3: seededRand(siteId + 'ul3', 65, 95),
+    qoe_score_avg: 0,
+    p50_thr_dn_mbps: 0,
+    p50_thr_up_mbps: 0,
+    dms_dl_3: 0,
+    dms_dl_8: 0,
+    dms_dl_30: 0,
+    dms_ul_3: 0,
     coordinates: [lat, lng] as [number, number],
     cells: [], // cells loaded on-demand when zoomed in
   };
