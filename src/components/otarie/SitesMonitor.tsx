@@ -2142,6 +2142,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (selectedSiteId) {
       const loadDetail = async () => {
         setDetailLoading(true);
+        // First: try to use the already-loaded bbox site (which has cells from VPS merge)
+        const bboxSite = sites.find(s => s.site_id === selectedSiteId || s.site_name === selectedSiteId);
+        if (bboxSite && bboxSite.cells && bboxSite.cells.length > 0) {
+          const detail: SiteDetail = {
+            ...bboxSite,
+            traffic_dn_bytes: bboxSite.cells.reduce((sum, c) => sum + (c.traffic_dn_bytes || 0), 0),
+            traffic_up_bytes: bboxSite.cells.reduce((sum, c) => sum + (c.traffic_up_bytes || 0), 0),
+            p95_rtt_ms: bboxSite.cells.length > 0
+              ? bboxSite.cells.reduce((sum, c) => sum + (c.p95_rtt_ms || 0), 0) / bboxSite.cells.length
+              : 0,
+          };
+          setSiteDetail(detail);
+          setDetailLoading(false);
+          return;
+        }
+        // Fallback: legacy full-load detail
         const data = await fetchSiteDetails(selectedSiteId);
         setSiteDetail(data);
         setDetailLoading(false);
@@ -2150,7 +2166,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     } else {
       setSiteDetail(null);
     }
-  }, [selectedSiteId]);
+  }, [selectedSiteId, sites]);
 
   // Fetch LTE config from parameter_dump when a cell is focused
   useEffect(() => {
