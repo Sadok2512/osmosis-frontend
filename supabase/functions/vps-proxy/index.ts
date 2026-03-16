@@ -14,6 +14,34 @@ const SERVICE_PORTS: Record<string, number> = {
   agent: 1000,
 };
 
+function buildSafeFallback(service: string, path: string, message: string) {
+  const base = {
+    unavailable: true,
+    service,
+    path,
+    error: message,
+    total: 0,
+  };
+
+  if (path.includes('/topo/sites')) {
+    return { ...base, sites: [], cells: [], rows: [] };
+  }
+  if (path.includes('/topo/cells')) {
+    return { ...base, cells: [], rows: [] };
+  }
+  if (path.includes('/qoe/metrics')) {
+    return { ...base, items: [], data: [], rows: [] };
+  }
+  if (path.includes('/topo/distinct')) {
+    return [];
+  }
+  if (path.includes('/topo/hierarchy')) {
+    return { ...base, items: [], rows: [] };
+  }
+
+  return { ...base, items: [], data: [], rows: [] };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -32,26 +60,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build target URL preserving extra query params
     const targetUrl = new URL(`http://${VPS_HOST}:${port}${path}`);
-    // Forward all query params except 'service' and 'path'
     for (const [key, value] of url.searchParams.entries()) {
       if (key !== 'service' && key !== 'path') {
         targetUrl.searchParams.set(key, value);
       }
     }
 
-    // Build headers for the upstream request
     const upstreamHeaders: Record<string, string> = {
       'Content-Type': req.headers.get('content-type') || 'application/json',
     };
-    // Forward x-api-key for agent service
     const apiKey = req.headers.get('x-api-key');
     if (apiKey) {
       upstreamHeaders['x-api-key'] = apiKey;
     }
 
-    // Forward the request
     const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await req.text();
 
     const upstreamRes = await fetch(targetUrl.toString(), {
@@ -72,6 +95,19 @@ Deno.serve(async (req) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[vps-proxy] Error:', message);
+
+    const url = new URL(req.url);
+    const service = url.searchParams.get('service') || 'kpi';
+    const path = url.searchParams.get('path') || '/health';
+    const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
+
+    if (isSafeRead) {
+      return new Response(JSON.stringify(buildSafeFallback(service, path, message)), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     return new Response(JSON.stringify({ error: message }), {
       status: 502,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
