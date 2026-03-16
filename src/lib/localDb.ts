@@ -243,7 +243,7 @@ async function getCachedCells(filters?: BboxFilters, signal?: AbortSignal): Prom
   return cells;
 }
 
-
+export const topoApi = {
   /**
    * List cells from VPS: GET /api/v1/topo/cells
    * Note: VPS endpoint is a search endpoint with search, plaque, dor, band, techno, limit params.
