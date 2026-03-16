@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.agent-discussion]
 verify_jwt = false
+
+[functions.vps-proxy]
+verify_jwt = false
