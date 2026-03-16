@@ -105,23 +105,23 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     bande,
     azimut,
     hba,
-    qoe_score_avg: seededRand(cellName + 'qoe', 55, 98),
-    p95_rtt_ms: seededRand(cellName + 'rtt', 15, 180),
-    traffic_up_bytes: seededRand(cellName + 'traf', 1e9, 5e10),
-    traffic_dn_bytes: seededRand(cellName + 'trafd', 5e9, 1e11),
-    dms_dl_3: seededRand(cellName + 'dms3', 75, 99),
-    dms_dl_8: seededRand(cellName + 'dms8', 55, 95),
-    dms_dl_30: seededRand(cellName + 'dms30', 15, 55),
-    dms_ul_3: seededRand(cellName + 'ul3', 65, 95),
-    p50_thr_dn_mbps: seededRand(cellName + 'thr', 8, 120),
-    p50_thr_up_mbps: seededRand(cellName + 'thrup', 2, 40),
-    sessions: Math.floor(seededRand(cellName + 'ses', 500, 50000)),
-    window_full_ratio: seededRand(cellName + 'wfr', 20, 95),
-    retransmission_rate: seededRand(cellName + 'retr', 0.5, 15),
-    tcp_loss_rate: seededRand(cellName + 'tcpl', 0.1, 8),
-    out_of_order_ratio: seededRand(cellName + 'ooo', 0.05, 5),
-    p25_rtt_ms: seededRand(cellName + 'rtt25', 5, 60),
-    p75_rtt_ms: seededRand(cellName + 'rtt75', 30, 120),
+    qoe_score_avg: 0,
+    p95_rtt_ms: 0,
+    traffic_up_bytes: 0,
+    traffic_dn_bytes: 0,
+    dms_dl_3: 0,
+    dms_dl_8: 0,
+    dms_dl_30: 0,
+    dms_ul_3: 0,
+    p50_thr_dn_mbps: 0,
+    p50_thr_up_mbps: 0,
+    sessions: 0,
+    window_full_ratio: 0,
+    retransmission_rate: 0,
+    tcp_loss_rate: 0,
+    out_of_order_ratio: 0,
+    p25_rtt_ms: 0,
+    p75_rtt_ms: 0,
   };
   if (extra) {
     const ext = base as any;
@@ -206,9 +206,9 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       plaque: first.plaque || '',
       department: (first.plaque || '').replace('DEPT_', ''),
       cell_count: cells.length,
-      qoe_score_avg: avg(cells.map(c => c.qoe_score_avg)),
-      p50_thr_dn_mbps: avg(cells.map(c => c.p50_thr_dn_mbps)),
-      p50_thr_up_mbps: seededRand(siteId + 'thrup', 5, 40),
+      qoe_score_avg: cells.length > 0 ? avg(cells.map(c => c.qoe_score_avg)) : 0,
+      p50_thr_dn_mbps: cells.length > 0 ? avg(cells.map(c => c.p50_thr_dn_mbps)) : 0,
+      p50_thr_up_mbps: cells.length > 0 ? avg(cells.map(c => c.p50_thr_up_mbps)) : 0,
       dms_dl_3: avg(cells.map(c => c.dms_dl_3)),
       dms_dl_8: avg(cells.map(c => c.dms_dl_8)),
       dms_dl_30: avg(cells.map(c => c.dms_dl_30)),
@@ -330,8 +330,9 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
   const lng = Number(dto.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
-  const vendor = dto.vendor
-    ? dto.vendor.charAt(0).toUpperCase() + dto.vendor.slice(1)
+  const rawVendor = dto.vendor;
+  const vendor = rawVendor
+    ? rawVendor.charAt(0).toUpperCase() + rawVendor.slice(1)
     : 'Unknown';
   const siteId = dto.code_nidt;
   return {
@@ -342,13 +343,13 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     plaque: dto.plaque || '',
     department: (dto.plaque || '').replace('DEPT_', ''),
     cell_count: Number(dto.nb_cells) || 0,
-    qoe_score_avg: seededRand(siteId + 'qoe', 55, 98),
-    p50_thr_dn_mbps: seededRand(siteId + 'thr', 8, 120),
-    p50_thr_up_mbps: seededRand(siteId + 'thrup', 5, 40),
-    dms_dl_3: seededRand(siteId + 'dms3', 75, 99),
-    dms_dl_8: seededRand(siteId + 'dms8', 55, 95),
-    dms_dl_30: seededRand(siteId + 'dms30', 15, 55),
-    dms_ul_3: seededRand(siteId + 'ul3', 65, 95),
+    qoe_score_avg: 0,
+    p50_thr_dn_mbps: 0,
+    p50_thr_up_mbps: 0,
+    dms_dl_3: 0,
+    dms_dl_8: 0,
+    dms_dl_30: 0,
+    dms_ul_3: 0,
     coordinates: [lat, lng] as [number, number],
     cells: [], // cells loaded on-demand when zoomed in
   };
