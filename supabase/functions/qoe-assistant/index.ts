@@ -720,24 +720,34 @@ async function fetchTopoInventory(filters?: AssistantFilters): Promise<string> {
     result += `Total sites distincts: ${totalSites}\n`;
     result += `Moyenne cellules/site: ${totalSites ? (totalCells / totalSites).toFixed(1) : "?"}\n\n`;
 
-    if (stats.by_techno) {
-      const technoEntries = Object.entries(stats.by_techno).sort(([,a],[,b]) => (b as number) - (a as number));
-      result += `Par Technologie:\n${technoEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+    // Aggregate by techno
+    const byTechno = new Map<string, number>();
+    const byBande = new Map<string, number>();
+    const byConstructeur = new Map<string, number>();
+    const byDor = new Map<string, number>();
+    for (const r of data) {
+      const techno = (r as any).techno || (r as any).technos || 'Inconnu';
+      const bande = (r as any).bande || 'Inconnu';
+      const constructeur = (r as any).constructeur || (r as any).vendor || 'Inconnu';
+      const dor = (r as any).dor || 'Inconnu';
+      byTechno.set(techno, (byTechno.get(techno) || 0) + 1);
+      byBande.set(bande, (byBande.get(bande) || 0) + 1);
+      byConstructeur.set(constructeur, (byConstructeur.get(constructeur) || 0) + 1);
+      byDor.set(dor, (byDor.get(dor) || 0) + 1);
     }
-    if (stats.by_bande) {
-      const bandeEntries = Object.entries(stats.by_bande).sort(([,a],[,b]) => (b as number) - (a as number));
-      result += `Par Bande:\n${bandeEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
-      // Add chart instruction
-      const chartData = bandeEntries.slice(0, 15).map(([k, v]) => ({ label: k, value: v }));
-      result += `INSTRUCTION: Présente ces données dans un tableau Markdown ET inclus ce chart:\n\`\`\`chart\n${JSON.stringify({ type: "bar", title: "Cellules par Bande", xKey: "label", yKeys: ["value"], data: chartData })}\n\`\`\`\n\n`;
-    }
-    if (stats.by_constructeur) {
-      result += `Par Constructeur:\n${Object.entries(stats.by_constructeur).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
-    }
-    if (stats.by_dor) {
-      const dorEntries = Object.entries(stats.by_dor).sort(([,a],[,b]) => (b as number) - (a as number));
-      result += `Par DOR:\n${dorEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
-    }
+
+    const sortedEntries = (m: Map<string, number>) => [...m.entries()].sort(([,a],[,b]) => b - a);
+
+    const technoEntries = sortedEntries(byTechno);
+    result += `Par Technologie:\n${technoEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+
+    const bandeEntries = sortedEntries(byBande);
+    result += `Par Bande:\n${bandeEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+    const chartData = bandeEntries.slice(0, 15).map(([k, v]) => ({ label: k, value: v }));
+    result += `INSTRUCTION: Présente ces données dans un tableau Markdown ET inclus ce chart:\n\`\`\`chart\n${JSON.stringify({ type: "bar", title: "Cellules par Bande", xKey: "label", yKeys: ["value"], data: chartData })}\n\`\`\`\n\n`;
+
+    result += `Par Constructeur:\n${sortedEntries(byConstructeur).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+    result += `Par DOR:\n${sortedEntries(byDor).map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
 
     return result;
   } catch (e) {
