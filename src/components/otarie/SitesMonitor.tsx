@@ -2083,11 +2083,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Initial load + filter changes → refetch for current viewport
   useEffect(() => {
-    if (!mountedRef.current) {
-      invalidateSitesCache();
-      invalidateBboxCache();
-      mountedRef.current = true;
-    }
+    mountedRef.current = true;
     // If we have viewport bounds, fetch by bbox; otherwise load legacy
     if (viewport.bounds) {
       fetchForViewport(viewport.bounds, currentBboxFilters);
