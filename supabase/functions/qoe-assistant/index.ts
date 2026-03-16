@@ -2616,6 +2616,22 @@ serve(async (req) => {
       session_id,
     } = body;
 
+    // Normalize messages: accept string, array, or undefined
+    let normalizedMessages: { role: string; content: string }[] = [];
+    if (Array.isArray(messages)) {
+      normalizedMessages = messages;
+    } else if (typeof messages === "string") {
+      normalizedMessages = [{ role: "user", content: messages }];
+    } else if (body.query) {
+      normalizedMessages = [{ role: "user", content: body.query }];
+    } else if (body.message) {
+      normalizedMessages = [{ role: "user", content: body.message }];
+    }
+
+    if (normalizedMessages.length === 0) {
+      throw new Error("No messages provided. Send { messages: [{ role: 'user', content: '...' }] }");
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const OPENROUTER_API_KEY = openrouter_key || Deno.env.get("OPENROUTER_API_KEY");
     const useLovable = !!LOVABLE_API_KEY && !OPENROUTER_API_KEY;
@@ -2624,7 +2640,7 @@ serve(async (req) => {
       throw new Error("No AI API key configured");
     }
 
-    const lastUserMessage = [...messages].reverse().find((m: { role: string }) => m.role === "user")?.content || "";
+    const lastUserMessage = [...normalizedMessages].reverse().find((m: { role: string }) => m.role === "user")?.content || "";
 
     const plan = buildContextPlan(lastUserMessage, uiScope, filters);
 
