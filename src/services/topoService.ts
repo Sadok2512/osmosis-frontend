@@ -277,7 +277,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
   // 1) Try local Express/VPS server (capped at 50k to avoid OOM)
   const LEGACY_CAP = 50000;
   try {
-    const json = await topoApi.list(LEGACY_CAP);
+    const json = await topoApi.listFull(LEGACY_CAP);
     const rows: TopoRow[] = json.rows ?? [];
     const total: number = json.total ?? rows.length;
     console.log(`[TopoService] LOCAL: received ${rows.length}/${total} cells (cap=${LEGACY_CAP})`);
