@@ -2938,7 +2938,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   );
                 })}
                 {/* Site name label at zoom >= 14 */}
-                {viewport.zoom >= 14 && (
+                {viewport.zoom >= 13 && (
                   <Marker
                     position={site.coordinates}
                     icon={L.divIcon({
