@@ -109,8 +109,14 @@ export function getApiUrl(functionName: string): string {
     return `${getLocalApiBase()}/api/${clean}`;
   }
   if (source === 'vps') {
+    // Cloud-only Edge Functions — always route to Supabase Cloud
+    const cloudOnlyFunctions = ['qoe-assistant', 'bi-assistant', 'agent-discussion', 'rag-embed', 'qoe-map-extract', 'admin-auth', 'backend-admin', 'import-dump', 'import-topo'];
+    const isCloudOnly = cloudOnlyFunctions.some(f => clean.startsWith(f));
+    if (isCloudOnly) {
+      return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
+    }
     // Topo/data endpoints → Parser :8000 with /api/v1/ prefix
-    const parserPrefixes = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range', 'import-topo'];
+    const parserPrefixes = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range'];
     const isParser = parserPrefixes.some(p => clean.startsWith(p));
     if (isParser) {
       return getVpsProxyUrl('parser', `/api/v1/${clean}`);
