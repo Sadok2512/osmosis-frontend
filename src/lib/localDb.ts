@@ -305,7 +305,7 @@ export const topoApi = {
           lat: Number(site.lat ?? site.latitude),
           lng: Number(site.lng ?? site.longitude),
           nb_cells: Number(site.nb_cells ?? site.cell_count ?? 0),
-          vendor: site.vendor ?? site.constructeur ?? null,
+          vendor: (Array.isArray(site.vendors) ? site.vendors[0] : site.vendor) ?? site.constructeur ?? null,
           plaque: site.plaque ?? null,
           dor: site.dor ?? null,
           region: site.region ?? null,
