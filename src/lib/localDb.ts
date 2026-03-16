@@ -235,7 +235,7 @@ export const topoApi = {
     });
   },
 
-  listFull: (limit = 100000) => {
+  listFull: async (limit = 100000) => {
     if (isLocalExpress()) {
       return fetchJson<{ rows: any[]; total: number }>(localUrl(`topo?limit=${limit}&full=1`));
     }
