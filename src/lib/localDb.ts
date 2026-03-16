@@ -277,43 +277,71 @@ export const topoApi = {
     return fetchJson<any>(parserUrl(`/topo/distinct?field=${field}`));
   },
 
-  listSitesByBbox: (
+  listSitesByBbox: async (
     bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number },
     filters?: BboxFilters,
     limit = 8000,
     signal?: AbortSignal,
   ): Promise<BboxSitesResponse> => {
-    if (isLocalExpress()) {
-      const qs = new URLSearchParams();
-      qs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
-      qs.set('limit', String(limit));
-      if (filters) {
-        Object.entries(filters).forEach(([k, v]) => {
-          if (v && v !== 'ALL') qs.set(k, v);
-        });
-      }
-      return fetchJsonSignal<BboxSitesResponse>(localUrl(`topo/sites?${qs}`), signal);
+    const bboxQs = new URLSearchParams();
+    bboxQs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
+    bboxQs.set('limit', String(limit));
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v && v !== 'ALL') bboxQs.set(k, v);
+      });
     }
-    // VPS: no bbox endpoint, use /api/v1/topo/cells with filters
-    const qs = new URLSearchParams({ limit: String(limit) });
-    if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
-    if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
-    if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
-    if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
-    if (filters?.q) qs.set('search', filters.q);
-    return fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal).then((data: any) => {
+
+    if (isLocalExpress()) {
+      return fetchJsonSignal<BboxSitesResponse>(localUrl(`topo/sites?${bboxQs}`), signal);
+    }
+
+    const normalizeSites = (data: any): BboxSitesResponse => {
+      const rawSites = Array.isArray(data?.sites) ? data.sites : (Array.isArray(data) ? data : []);
+      const sites = rawSites
+        .map((site: any) => ({
+          code_nidt: site.code_nidt || site.site_id || site.nom_site || site.site_name,
+          nom_site: site.nom_site || site.site_name || site.code_nidt || site.site_id,
+          lat: Number(site.lat ?? site.latitude),
+          lng: Number(site.lng ?? site.longitude),
+          nb_cells: Number(site.nb_cells ?? site.cell_count ?? 0),
+          vendor: site.vendor ?? site.constructeur ?? null,
+          plaque: site.plaque ?? null,
+          dor: site.dor ?? null,
+          region: site.region ?? null,
+        }))
+        .filter((site: BboxSiteDTO) => Number.isFinite(site.lat) && Number.isFinite(site.lng));
+
+      return { sites, total: Number(data?.total) || sites.length };
+    };
+
+    try {
+      return normalizeSites(await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal));
+    } catch {
+      const qs = new URLSearchParams({ limit: String(limit) });
+      if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
+      if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
+      if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
+      if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
+      if (filters?.q) qs.set('search', filters.q);
+
+      const data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
       const rows = Array.isArray(data) ? data : (data.rows || data.cells || []);
-      // Transform cell rows into site DTOs by grouping
-      const siteMap = new Map<string, any>();
+      const siteMap = new Map<string, BboxSiteDTO>();
       for (const row of rows) {
+        const lat = Number(row.latitude ?? row.lat);
+        const lng = Number(row.longitude ?? row.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
         const key = row.code_nidt || row.site_name || row.nom_site;
         if (!key) continue;
+
         if (!siteMap.has(key)) {
           siteMap.set(key, {
             code_nidt: row.code_nidt || key,
             nom_site: row.nom_site || row.site_name || key,
-            lat: row.latitude ?? row.lat,
-            lng: row.longitude ?? row.lng,
+            lat,
+            lng,
             nb_cells: 0,
             vendor: row.constructeur || row.vendor || null,
             plaque: row.plaque || null,
@@ -321,41 +349,50 @@ export const topoApi = {
             region: row.region || null,
           });
         }
-        siteMap.get(key)!.nb_cells++;
+        siteMap.get(key)!.nb_cells += 1;
       }
+
       const sites = Array.from(siteMap.values());
       return { sites, total: sites.length };
-    });
+    }
   },
 
-  listCellsByBbox: (
+  listCellsByBbox: async (
     bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number },
     filters?: BboxFilters,
     limit = 8000,
     signal?: AbortSignal,
   ): Promise<BboxCellsResponse> => {
-    if (isLocalExpress()) {
-      const qs = new URLSearchParams();
-      qs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
-      qs.set('limit', String(limit));
-      qs.set('include_cells', '1');
-      if (filters) {
-        Object.entries(filters).forEach(([k, v]) => {
-          if (v && v !== 'ALL') qs.set(k, v);
-        });
-      }
-      return fetchJsonSignal<BboxCellsResponse>(localUrl(`topo/sites?${qs}`), signal);
+    const bboxQs = new URLSearchParams();
+    bboxQs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
+    bboxQs.set('limit', String(limit));
+    bboxQs.set('include_cells', '1');
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v && v !== 'ALL') bboxQs.set(k, v);
+      });
     }
-    // VPS: use /api/v1/topo/cells with filters
-    const qs = new URLSearchParams({ limit: String(limit) });
-    if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
-    if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
-    if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
-    if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
-    return fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal).then((data: any) => {
+
+    if (isLocalExpress()) {
+      return fetchJsonSignal<BboxCellsResponse>(localUrl(`topo/sites?${bboxQs}`), signal);
+    }
+
+    try {
+      const data = await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal);
+      const cells = Array.isArray(data?.cells) ? data.cells : (Array.isArray(data) ? data : []);
+      return { cells, total: Number(data?.total) || cells.length };
+    } catch {
+      const qs = new URLSearchParams({ limit: String(limit) });
+      if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
+      if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
+      if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
+      if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
+      if (filters?.q) qs.set('search', filters.q);
+
+      const data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
       const cells = Array.isArray(data) ? data : (data.rows || data.cells || []);
       return { cells, total: data.total ?? cells.length };
-    });
+    }
   },
 };
 
