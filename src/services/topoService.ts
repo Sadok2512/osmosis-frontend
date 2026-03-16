@@ -272,20 +272,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
       console.log(`[TopoService] LOCAL: Built ${baseSites.length} sites`);
     }
   } catch (err) {
-    console.warn('[TopoService] LOCAL fetch failed, trying Cloud...', err);
-  }
-
-  // 2) Try Cloud (Supabase) topo table
-  if (!baseSites) {
-    try {
-      const cloudRows = await fetchFromCloud();
-      if (cloudRows.length > 0) {
-        baseSites = buildSitesFromRows(cloudRows);
-        console.log(`[TopoService] CLOUD: Built ${baseSites.length} sites from ${cloudRows.length} cells`);
-      }
-    } catch (err) {
-      console.warn('[TopoService] CLOUD fetch failed, falling back to embedded data', err);
-    }
+    console.warn('[TopoService] VPS/LOCAL fetch failed, falling back to embedded data', err);
   }
 
   // 3) Fallback to embedded static data
