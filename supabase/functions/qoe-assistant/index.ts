@@ -546,6 +546,22 @@ function extractSiteName(query: string): string | null {
   return null;
 }
 
+const VPS_HOST = '151.242.147.49';
+const VPS_PARSER_PORT = 8000;
+
+async function fetchVpsTopo(path: string): Promise<any[]> {
+  const url = `http://${VPS_HOST}:${VPS_PARSER_PORT}${path}`;
+  const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+  if (!resp.ok) { console.error(`VPS topo fetch failed: ${resp.status}`); return []; }
+  const json = await resp.json();
+  // VPS may return array directly or { items: [...] } or { cells: [...] }
+  if (Array.isArray(json)) return json;
+  if (json.items) return json.items;
+  if (json.cells) return json.cells;
+  if (json.rows) return json.rows;
+  return [];
+}
+
 async function fetchTopoMetricByDimension(
   metric: string,
   dimension: string,
@@ -553,7 +569,6 @@ async function fetchTopoMetricByDimension(
   dimension2?: string
 ): Promise<string> {
   try {
-    const supabase = getSupabase();
     const dimColMap: Record<string, string> = {
       DOR: "dor", Vendor: "constructeur", Bande: "bande", Plaque: "plaque",
       Site: "nom_site", ARCEP: "zone_arcep", Cellule: "nom_cellule",
@@ -562,17 +577,7 @@ async function fetchTopoMetricByDimension(
     const groupCol = dimColMap[dimension] || "dor";
     const groupCol2 = dimension2 ? (dimColMap[dimension2] || null) : null;
 
-    const selectCols = groupCol2 && groupCol2 !== groupCol
-      ? `${groupCol}, ${groupCol2}, ${metric}`
-      : `${groupCol}, ${metric}`;
-
-    const { data, error } = await supabase
-      .from("topo")
-      .select(selectCols)
-      .not(metric, "is", null)
-      .limit(50000);
-
-    if (error) { console.error("fetchTopoMetricByDimension error:", error); return ""; }
+    const data = await fetchVpsTopo(`/api/v1/topo/cells?limit=50000`);
     if (!data?.length) return `Aucune donnée topo pour ${metric}.`;
 
     // Dual-dimension grouping
@@ -663,18 +668,7 @@ async function fetchTopoMetricByDimension(
 
 async function searchTopoForSite(siteName: string): Promise<string> {
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data, error } = await supabase
-      .from("topo")
-      .select("code_nidt, nom_site, nom_cellule, techno, bande, constructeur, region, plaque, azimut, latitude, longitude, hba, tac, tilt, pci, eci, nci, cid, etat_cellule, zone_arcep, essentiel, date_mes, date_fn8, dor")
-      .ilike("nom_site", `%${siteName}%`)
-      .order("nom_cellule")
-      .limit(100);
-
-    if (error) { console.error("Topo search error:", error); return ""; }
+    const data = await fetchVpsTopo(`/api/v1/topo/cells?site_name=${encodeURIComponent(siteName)}&limit=100`);
     if (!data?.length) return "";
 
     const header = "nom_cellule | techno | bande | azimut | tilt | hba | pci | tac | etat | constructeur | dor | lat | lng";
@@ -714,40 +708,46 @@ async function searchTopoForSite(siteName: string): Promise<string> {
 
 async function fetchTopoInventory(filters?: AssistantFilters): Promise<string> {
   try {
-    const supabase = getSupabase();
+    const data = await fetchVpsTopo(`/api/v1/topo/cells?limit=50000`);
+    if (!data?.length) return "";
 
-    // Use the RPC function for accurate counts (no 1000-row limit)
-    const { data, error } = await supabase.rpc("topo_inventory_stats");
-    if (error) {
-      console.error("topo_inventory_stats RPC error:", error);
-      return "";
-    }
-    if (!data) return "";
+    const siteSet = new Set(data.map((r: any) => r.nom_site || r.site_name).filter(Boolean));
+    const totalCells = data.length;
+    const totalSites = siteSet.size;
 
-    const stats = data as any;
-    let result = `INVENTAIRE TOPOLOGIQUE (données exactes de la table topo)\n`;
-    result += `Total cellules: ${stats.total_cells}\n`;
-    result += `Total sites distincts: ${stats.total_sites}\n`;
-    result += `Moyenne cellules/site: ${stats.total_sites ? (stats.total_cells / stats.total_sites).toFixed(1) : "?"}\n\n`;
+    let result = `INVENTAIRE TOPOLOGIQUE (données VPS)\n`;
+    result += `Total cellules: ${totalCells}\n`;
+    result += `Total sites distincts: ${totalSites}\n`;
+    result += `Moyenne cellules/site: ${totalSites ? (totalCells / totalSites).toFixed(1) : "?"}\n\n`;
 
-    if (stats.by_techno) {
-      const technoEntries = Object.entries(stats.by_techno).sort(([,a],[,b]) => (b as number) - (a as number));
-      result += `Par Technologie:\n${technoEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+    // Aggregate by techno
+    const byTechno = new Map<string, number>();
+    const byBande = new Map<string, number>();
+    const byConstructeur = new Map<string, number>();
+    const byDor = new Map<string, number>();
+    for (const r of data) {
+      const techno = (r as any).techno || (r as any).technos || 'Inconnu';
+      const bande = (r as any).bande || 'Inconnu';
+      const constructeur = (r as any).constructeur || (r as any).vendor || 'Inconnu';
+      const dor = (r as any).dor || 'Inconnu';
+      byTechno.set(techno, (byTechno.get(techno) || 0) + 1);
+      byBande.set(bande, (byBande.get(bande) || 0) + 1);
+      byConstructeur.set(constructeur, (byConstructeur.get(constructeur) || 0) + 1);
+      byDor.set(dor, (byDor.get(dor) || 0) + 1);
     }
-    if (stats.by_bande) {
-      const bandeEntries = Object.entries(stats.by_bande).sort(([,a],[,b]) => (b as number) - (a as number));
-      result += `Par Bande:\n${bandeEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
-      // Add chart instruction
-      const chartData = bandeEntries.slice(0, 15).map(([k, v]) => ({ label: k, value: v }));
-      result += `INSTRUCTION: Présente ces données dans un tableau Markdown ET inclus ce chart:\n\`\`\`chart\n${JSON.stringify({ type: "bar", title: "Cellules par Bande", xKey: "label", yKeys: ["value"], data: chartData })}\n\`\`\`\n\n`;
-    }
-    if (stats.by_constructeur) {
-      result += `Par Constructeur:\n${Object.entries(stats.by_constructeur).sort(([,a],[,b]) => (b as number) - (a as number)).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
-    }
-    if (stats.by_dor) {
-      const dorEntries = Object.entries(stats.by_dor).sort(([,a],[,b]) => (b as number) - (a as number));
-      result += `Par DOR:\n${dorEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
-    }
+
+    const sortedEntries = (m: Map<string, number>) => [...m.entries()].sort(([,a],[,b]) => b - a);
+
+    const technoEntries = sortedEntries(byTechno);
+    result += `Par Technologie:\n${technoEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+
+    const bandeEntries = sortedEntries(byBande);
+    result += `Par Bande:\n${bandeEntries.map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+    const chartData = bandeEntries.slice(0, 15).map(([k, v]) => ({ label: k, value: v }));
+    result += `INSTRUCTION: Présente ces données dans un tableau Markdown ET inclus ce chart:\n\`\`\`chart\n${JSON.stringify({ type: "bar", title: "Cellules par Bande", xKey: "label", yKeys: ["value"], data: chartData })}\n\`\`\`\n\n`;
+
+    result += `Par Constructeur:\n${sortedEntries(byConstructeur).map(([k,v]) => `  ${k}: ${v}`).join("\n")}\n\n`;
+    result += `Par DOR:\n${sortedEntries(byDor).map(([k,v]) => `  ${k}: ${v}`).join("\n")}`;
 
     return result;
   } catch (e) {
