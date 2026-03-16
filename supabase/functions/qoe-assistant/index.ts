@@ -1763,6 +1763,8 @@ function classifyAgent(query: string): AgentId {
 
 function classifyIntent(query: string, scope: Scope): Intent {
   const n = query.toLowerCase();
+  // Deep investigation → highest priority
+  if (isDeepInvestigationQuery(query)) return "deep_investigation";
   // Parameter name detected → always param_audit
   if (extractParamName(query)) return "param_audit";
   // Top/worst/best queries take HIGHEST priority (even if "par DOR" is present)
