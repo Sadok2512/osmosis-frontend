@@ -8,11 +8,18 @@ import { getPreferredDataSource, getVpsProxyUrl, getVpsProxyHeaders } from './ap
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
+// Paths that live on the Parser service (:8000) with /api/v1/ prefix
+const PARSER_PREFIXES = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range'];
+
 function url(path: string) {
   const clean = path.replace(/^\/?(api\/)?/, '');
   const source = getPreferredDataSource();
   if (source === 'vps') {
-    return getVpsProxyUrl('kpi', `/api/${clean}`);
+    const isParser = PARSER_PREFIXES.some(p => clean.startsWith(p));
+    if (isParser) {
+      return getVpsProxyUrl('parser', `/api/v1/${clean}`);
+    }
+    return getVpsProxyUrl('kpi', `/${clean}`);
   }
   return `${LOCAL_API}/api/${clean}`;
 }
