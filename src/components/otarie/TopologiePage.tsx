@@ -239,7 +239,7 @@ const TopologiePage: React.FC = () => {
       JSON.stringify({ p: rawAppliedParams, v: rawAppliedVendor, d: rawAppliedDor, pl: rawAppliedPlaque, n: rawAppliedNetact, b: rawAppliedBande, z: rawAppliedZoneArcep, s: rawAppliedSite, c: rawAppliedCell });
   }, [rawPendingParams, rawPendingVendor, rawPendingDor, rawPendingPlaque, rawPendingNetact, rawPendingBande, rawPendingZoneArcep, rawPendingSite, rawPendingCell, rawAppliedParams, rawAppliedVendor, rawAppliedDor, rawAppliedPlaque, rawAppliedNetact, rawAppliedBande, rawAppliedZoneArcep, rawAppliedSite, rawAppliedCell]);
 
-  const switchDataSource = (next: 'local' | 'cloud') => { setDataSource(next); setPreferredDataSource(next); };
+  const switchDataSource = (next: 'local' | 'cloud' | 'vps') => { setDataSource(next); setPreferredDataSource(next); };
 
   // ─── Data helpers ───
   const fetchDistinctCloud = async (col: string, extra?: Record<string, string>): Promise<string[]> => {
