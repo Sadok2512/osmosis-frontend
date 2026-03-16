@@ -2063,6 +2063,30 @@ async function buildContextFromPlan(
     const met = plan.metric || detectMetric(query);
     promises.sentinelTs = fetchSentinelTimeSeries(filters, plan.scope, met, plan.limits.maxDays || 15);
   }
+  if (plan.needs.includes("deep_investigation")) {
+    // Chemin 2: call Agent Layer or local fallback with all agents in parallel
+    const deepResult = await callAgentLayer(query, plan.scope, filters, ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"]);
+    const deepContext = `🔬 INVESTIGATION PROFONDE (Chemin 2) — ${deepResult.results.length} agents mobilisés\n\n` +
+      deepResult.results.map(r => {
+        let block = `### 🤖 Agent ${r.agent} [${r.status}]\n${r.analysis?.slice(0, 3000) || "Pas de données"}`;
+        if (r.recommendations?.length) {
+          block += `\n\n**Recommandations ${r.agent}:**\n${r.recommendations.map(rec => `- ${rec}`).join("\n")}`;
+        }
+        if (r.timeline?.length) {
+          block += `\n\n**Timeline ${r.agent}:**\n${r.timeline.map(t => `- ${t.date}: ${t.event} → ${t.impact}`).join("\n")}`;
+        }
+        return block;
+      }).join("\n\n---\n\n") +
+      `\n\n---\n\n**INSTRUCTION SYNTHÈSE:** Tu as reçu les analyses de ${deepResult.results.length} agents spécialisés (${deepResult.results.map(r => r.agent).join(", ")}). ` +
+      `Produis une SYNTHÈSE RCA structurée avec:\n` +
+      `1. 🎯 **Constat principal** (1-2 phrases)\n` +
+      `2. 🔍 **Causes racines identifiées** (par ordre de probabilité)\n` +
+      `3. 📊 **Corrélations croisées** entre domaines (KPI ↔ Topo ↔ Paramètres ↔ Changements)\n` +
+      `4. 📅 **Timeline des événements** (chronologique)\n` +
+      `5. ✅ **Actions recommandées** (priorisées)\n` +
+      `6. Inclus un bloc \`\`\`kpi avec les indicateurs clés de l'investigation.`;
+    sections.push(deepContext);
+  }
 
   const keys = Object.keys(promises);
   const results = await Promise.all(Object.values(promises));
