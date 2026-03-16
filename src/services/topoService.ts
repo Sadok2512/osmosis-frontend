@@ -424,6 +424,11 @@ export async function fetchCellsByBbox(
       topoApi.listCellsByBbox(bbox, filters, 8000, signal),
       getQoeMapData(),
     ]);
+
+    if ((resp as any)?.unavailable) {
+      throw new Error((resp as any).error || 'VPS parser unavailable');
+    }
+
     const rows = (resp.cells || []) as TopoRow[];
     const sites = buildSitesFromRows(rows);
     return sites.map(s => applyQoeData(s, qoeData));
