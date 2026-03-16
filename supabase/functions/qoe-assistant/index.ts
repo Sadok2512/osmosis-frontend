@@ -2805,7 +2805,7 @@ serve(async (req) => {
       systemContent += learningContext;
     }
 
-    const budgeted = enforceBudgets(systemContent, "", messages);
+    const budgeted = enforceBudgets(systemContent, "", normalizedMessages);
     systemContent = budgeted.systemContent;
     const finalMessages = budgeted.messages;
 
