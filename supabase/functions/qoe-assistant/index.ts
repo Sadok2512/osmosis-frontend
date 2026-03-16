@@ -546,6 +546,22 @@ function extractSiteName(query: string): string | null {
   return null;
 }
 
+const VPS_HOST = '151.242.147.49';
+const VPS_PARSER_PORT = 8000;
+
+async function fetchVpsTopo(path: string): Promise<any[]> {
+  const url = `http://${VPS_HOST}:${VPS_PARSER_PORT}${path}`;
+  const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+  if (!resp.ok) { console.error(`VPS topo fetch failed: ${resp.status}`); return []; }
+  const json = await resp.json();
+  // VPS may return array directly or { items: [...] } or { cells: [...] }
+  if (Array.isArray(json)) return json;
+  if (json.items) return json.items;
+  if (json.cells) return json.cells;
+  if (json.rows) return json.rows;
+  return [];
+}
+
 async function fetchTopoMetricByDimension(
   metric: string,
   dimension: string,
@@ -553,7 +569,6 @@ async function fetchTopoMetricByDimension(
   dimension2?: string
 ): Promise<string> {
   try {
-    const supabase = getSupabase();
     const dimColMap: Record<string, string> = {
       DOR: "dor", Vendor: "constructeur", Bande: "bande", Plaque: "plaque",
       Site: "nom_site", ARCEP: "zone_arcep", Cellule: "nom_cellule",
@@ -562,17 +577,7 @@ async function fetchTopoMetricByDimension(
     const groupCol = dimColMap[dimension] || "dor";
     const groupCol2 = dimension2 ? (dimColMap[dimension2] || null) : null;
 
-    const selectCols = groupCol2 && groupCol2 !== groupCol
-      ? `${groupCol}, ${groupCol2}, ${metric}`
-      : `${groupCol}, ${metric}`;
-
-    const { data, error } = await supabase
-      .from("topo")
-      .select(selectCols)
-      .not(metric, "is", null)
-      .limit(50000);
-
-    if (error) { console.error("fetchTopoMetricByDimension error:", error); return ""; }
+    const data = await fetchVpsTopo(`/api/v1/topo/cells?limit=50000`);
     if (!data?.length) return `Aucune donnée topo pour ${metric}.`;
 
     // Dual-dimension grouping
