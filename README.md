@@ -1,45 +1,73 @@
-# QOEBIT Frontend Adapter
+# Welcome to your Lovable project
 
-This package is a frontend scaffold adapted to the QOEBIT backend services:
+## Project info
 
-- QOEBIT Parser: `:8000/api/v1`
-- KPI Engine: `:8001`
-- Agent Layer: `:1000`
+**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
 
-## Included pages
+## How can I edit this code?
 
-- Dashboard
-- Topology
-- FM Alarms
-- CM History
-- PM Counters
-- HO Neighbors
-- KPI Monitor
-- Anomalies
-- Agent Chat
-- Config
+There are several ways of editing your application.
 
-## Environment
+**Use Lovable**
 
-Create a `.env` file from the example below:
+Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
 
-```env
-VITE_PARSER_API_BASE=http://151.242.147.49:8000/api/v1
-VITE_KPI_API_BASE=http://151.242.147.49:8001
-VITE_AGENT_API_BASE=http://151.242.147.49:1000
-VITE_AGENT_API_KEY=
+Changes made via Lovable will be committed automatically to this repo.
+
+**Use your preferred IDE**
+
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+
+The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+
+Follow these steps:
+
+```sh
+# Step 1: Clone the repository using the project's Git URL.
+git clone <YOUR_GIT_URL>
+
+# Step 2: Navigate to the project directory.
+cd <YOUR_PROJECT_NAME>
+
+# Step 3: Install the necessary dependencies.
+npm i
+
+# Step 4: Start the development server with auto-reloading and an instant preview.
+npm run dev
 ```
 
-## Auth
+**Edit a file directly in GitHub**
 
-The frontend uses `POST /auth/token` and stores the returned bearer token in local storage.
+- Navigate to the desired file(s).
+- Click the "Edit" button (pencil icon) at the top right of the file view.
+- Make your changes and commit the changes.
 
-## Notes
+**Use GitHub Codespaces**
 
-This adapter intentionally avoids direct Supabase usage in the active app shell.
-Legacy prototype files are still present in the repository, but the routed app now uses the QOEBIT API layer under:
+- Navigate to the main page of your repository.
+- Click on the "Code" button (green button) near the top right.
+- Select the "Codespaces" tab.
+- Click on "New codespace" to launch a new Codespace environment.
+- Edit files directly within the Codespace and commit and push your changes once you're done.
 
-- `src/api`
-- `src/context/AuthContext.tsx`
-- `src/components/layout/AppLayout.tsx`
-- `src/pages/qoebit/*`
+## What technologies are used for this project?
+
+This project is built with:
+
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
+
+## How can I deploy this project?
+
+Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+
+## Can I connect a custom domain to my Lovable project?
+
+Yes, you can!
+
+To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+
+Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
