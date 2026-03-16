@@ -1840,8 +1840,15 @@ function buildContextPlan(
   let metric: string | undefined;
   let resultLimit = 30;
 
-  // Handle dimension-based intents FIRST
-  if (intent === "distribution") {
+  // Handle deep investigation FIRST (Chemin 2)
+  if (intent === "deep_investigation") {
+    needs.push("deep_investigation", "documents_rag");
+    limits.maxDays = 15;
+    limits.maxSites = 30;
+    console.log(`🔬 CHEMIN 2 activé — Investigation profonde multi-agents`);
+  }
+  // Handle dimension-based intents
+  else if (intent === "distribution") {
     const allDims = detectAllDimensions(query);
     const dim1 = allDims[0];
     const dim2 = allDims.length > 1 ? allDims[1] : undefined;
