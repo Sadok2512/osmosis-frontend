@@ -383,6 +383,11 @@ export async function fetchSitesByBbox(
       topoApi.listSitesByBbox(bbox, filters, 8000, signal),
       getQoeMapData(),
     ]);
+
+    if ((resp as any)?.unavailable) {
+      throw new Error((resp as any).error || 'VPS parser unavailable');
+    }
+
     const sites = (resp.sites || [])
       .map(dtoToSiteSummary)
       .filter((site): site is SiteSummary => site !== null)
