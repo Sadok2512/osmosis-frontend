@@ -311,7 +311,11 @@ export interface BboxQuery {
 }
 
 /** Convert server DTO to lightweight SiteSummary (no cells for circle rendering) */
-function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary {
+function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
+  const lat = Number(dto.lat);
+  const lng = Number(dto.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
   const vendor = dto.vendor
     ? dto.vendor.charAt(0).toUpperCase() + dto.vendor.slice(1)
     : 'Unknown';
@@ -331,7 +335,7 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary {
     dms_dl_8: seededRand(siteId + 'dms8', 55, 95),
     dms_dl_30: seededRand(siteId + 'dms30', 15, 55),
     dms_ul_3: seededRand(siteId + 'ul3', 65, 95),
-    coordinates: [Number(dto.lat), Number(dto.lng)] as [number, number],
+    coordinates: [lat, lng] as [number, number],
     cells: [], // cells loaded on-demand when zoomed in
   };
 }
@@ -364,14 +368,19 @@ export async function fetchSitesByBbox(
       topoApi.listSitesByBbox(bbox, filters, 8000, signal),
       getQoeMapData(),
     ]);
-    const sites = (resp.sites || []).map(dto => {
-      const site = dtoToSiteSummary(dto);
-      return applyQoeData(site, qoeData);
-    });
-    bboxCache = { key, sites, total: resp.total };
+    const sites = (resp.sites || [])
+      .map(dtoToSiteSummary)
+      .filter((site): site is SiteSummary => site !== null)
+      .map(site => applyQoeData(site, qoeData));
+
+    if (sites.length === 0 && resp.total > 0) {
+      throw new Error('BBOX returned only invalid site coordinates');
+    }
+
+    bboxCache = { key, sites, total: sites.length };
     const withQoe = sites.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
     console.log(`[TopoService] BBOX: ${sites.length}/${resp.total} sites (${withQoe} with live QoE)`);
-    return { sites, total: resp.total };
+    return { sites, total: sites.length };
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
     console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
