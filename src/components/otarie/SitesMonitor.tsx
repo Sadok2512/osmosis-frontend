@@ -178,7 +178,7 @@ const getSectorCoords = (
 const FlyToSite = ({ coords, onFlyStart, onFlyEnd, onDone }: { coords: [number, number] | null; onFlyStart?: () => void; onFlyEnd?: () => void; onDone?: () => void }) => {
   const map = useMap();
   useEffect(() => {
-    if (coords) {
+    if (coords && isFinite(coords.lat) && isFinite(coords.lng)) {
       const currentZoom = map.getZoom();
       const targetZoom = Math.max(currentZoom, 14); // never zoom out below current level, min 14
       const currentCenter = map.getCenter();
