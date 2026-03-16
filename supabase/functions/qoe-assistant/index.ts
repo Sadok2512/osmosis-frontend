@@ -708,21 +708,17 @@ async function searchTopoForSite(siteName: string): Promise<string> {
 
 async function fetchTopoInventory(filters?: AssistantFilters): Promise<string> {
   try {
-    const supabase = getSupabase();
+    const data = await fetchVpsTopo(`/api/v1/topo/cells?limit=50000`);
+    if (!data?.length) return "";
 
-    // Use the RPC function for accurate counts (no 1000-row limit)
-    const { data, error } = await supabase.rpc("topo_inventory_stats");
-    if (error) {
-      console.error("topo_inventory_stats RPC error:", error);
-      return "";
-    }
-    if (!data) return "";
+    const siteSet = new Set(data.map((r: any) => r.nom_site || r.site_name).filter(Boolean));
+    const totalCells = data.length;
+    const totalSites = siteSet.size;
 
-    const stats = data as any;
-    let result = `INVENTAIRE TOPOLOGIQUE (données exactes de la table topo)\n`;
-    result += `Total cellules: ${stats.total_cells}\n`;
-    result += `Total sites distincts: ${stats.total_sites}\n`;
-    result += `Moyenne cellules/site: ${stats.total_sites ? (stats.total_cells / stats.total_sites).toFixed(1) : "?"}\n\n`;
+    let result = `INVENTAIRE TOPOLOGIQUE (données VPS)\n`;
+    result += `Total cellules: ${totalCells}\n`;
+    result += `Total sites distincts: ${totalSites}\n`;
+    result += `Moyenne cellules/site: ${totalSites ? (totalCells / totalSites).toFixed(1) : "?"}\n\n`;
 
     if (stats.by_techno) {
       const technoEntries = Object.entries(stats.by_techno).sort(([,a],[,b]) => (b as number) - (a as number));
