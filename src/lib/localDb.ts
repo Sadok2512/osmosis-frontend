@@ -215,8 +215,35 @@ export interface BboxFilters {
   zone_arcep?: string;
   q?: string;
 }
+// ── Module-level cells cache (avoids re-fetching 50k cells on every zoom/pan) ──
+let _cellsCache: { key: string; cells: any[]; ts: number } | null = null;
+const CELLS_CACHE_TTL = 10 * 60 * 1000; // 10 min
 
-export const topoApi = {
+function cellsCacheKey(filters?: BboxFilters): string {
+  if (!filters) return 'all';
+  return Object.entries(filters).filter(([, v]) => v && v !== 'ALL').map(([k, v]) => `${k}=${v}`).sort().join('&') || 'all';
+}
+
+async function getCachedCells(filters?: BboxFilters, signal?: AbortSignal): Promise<any[]> {
+  const key = cellsCacheKey(filters);
+  if (_cellsCache && _cellsCache.key === key && (Date.now() - _cellsCache.ts) < CELLS_CACHE_TTL) {
+    return _cellsCache.cells;
+  }
+  const qs = new URLSearchParams({ limit: '50000' });
+  if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
+  if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
+  if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
+  if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
+  if (filters?.q) qs.set('search', filters.q);
+
+  const data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
+  const cells = Array.isArray(data) ? data : (data?.rows || data?.cells || []);
+  _cellsCache = { key, cells, ts: Date.now() };
+  console.log(`[TopoApi] Cells cached: ${cells.length} cells`);
+  return cells;
+}
+
+
   /**
    * List cells from VPS: GET /api/v1/topo/cells
    * Note: VPS endpoint is a search endpoint with search, plaque, dor, band, techno, limit params.
