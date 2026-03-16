@@ -147,6 +147,15 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
   return base;
 }
 
+/**
+ * Extract sector index (1-9) from cell name suffix for azimut heuristic.
+ * E.g. "SITE_F1" → 1, "SITE_H2" → 2, "SITE_X3" → 3
+ */
+function extractSectorIndex(cellName: string): number {
+  const lastChar = cellName.slice(-1);
+  return /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+}
+
 export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
   const siteMap = new Map<string, Array<TopoRow & Record<string, any>>>();
   let autoIdx = 0;
@@ -182,16 +191,40 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
     const avgLat = avg(validRows.map(r => Number(r.latitude)));
     const avgLng = avg(validRows.map(r => Number(r.longitude)));
 
-    const cells = siteRows.map((r, index) =>
-      buildCellProperties(
-        r.nom_cellule || r.cell_name || `${siteId}_cell_${index + 1}`,
+    // Detect if any row has a real azimut (non-zero, non-null)
+    const hasRealAzimut = siteRows.some(r => r.azimut != null && r.azimut !== 0);
+
+    // If no real azimut data, compute heuristic azimut per sector
+    let sectorAzimutMap: Map<number, number> | null = null;
+    if (!hasRealAzimut) {
+      const sectorIndices = new Set<number>();
+      for (const r of siteRows) {
+        const cellName = r.nom_cellule || r.cell_name || '';
+        sectorIndices.add(extractSectorIndex(cellName));
+      }
+      const numSectors = Math.max(sectorIndices.size, 1);
+      const sorted = Array.from(sectorIndices).sort((a, b) => a - b);
+      sectorAzimutMap = new Map();
+      sorted.forEach((idx, i) => {
+        sectorAzimutMap!.set(idx, Math.round((360 / numSectors) * i));
+      });
+    }
+
+    const cells = siteRows.map((r, index) => {
+      const cellName = r.nom_cellule || r.cell_name || `${siteId}_cell_${index + 1}`;
+      let azimut = r.azimut || 0;
+      if (!hasRealAzimut && sectorAzimutMap) {
+        azimut = sectorAzimutMap.get(extractSectorIndex(cellName)) ?? 0;
+      }
+      return buildCellProperties(
+        cellName,
         (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
         r.bande || r.band || '',
-        r.azimut || 0,
-        r.hba || 0,
+        azimut,
+        r.hba || 30,
         r,
-      )
-    );
+      );
+    });
 
     const rawVendor = first.constructeur || first.vendor;
     const vendor = rawVendor
