@@ -1,18 +1,25 @@
-// ── Sentinel API Service — calls FastAPI at localhost:8000 ──
+// ── Sentinel API Service — calls Agent Layer on VPS or local ──
 
 import {
   DashboardOverviewData, Anomaly, AnomalySummary,
   KPIHistoryData, KPICompareData, ClusterData, ClusterMember,
   AnomalyFilters, SentinelDimension
 } from './types';
+import { VPS_ENDPOINTS, isLocalMode } from '@/lib/apiConfig';
 
-const BASE = import.meta.env.VITE_SENTINEL_API_URL || 'http://localhost:1000';
+const getBase = () => {
+  if (isLocalMode()) return import.meta.env.VITE_SENTINEL_API_URL || 'http://localhost:1000';
+  return VPS_ENDPOINTS.agent;
+};
 
 async function fetchJson<T>(url: string): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120000);
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'x-api-key': 'agent_secret_key' },
+    });
     if (!res.ok) throw new Error(`Sentinel API ${res.status}: ${res.statusText}`);
     return res.json();
   } finally {
@@ -21,18 +28,16 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export async function fetchDates(): Promise<string[]> {
-  const raw = await fetchJson<any>(`${BASE}/api/dates`);
-  // Handle both array and wrapped object responses
+  const raw = await fetchJson<any>(`${getBase()}/api/dates`);
   if (Array.isArray(raw)) return raw;
   if (raw?.dates && Array.isArray(raw.dates)) return raw.dates;
   return [];
 }
 
 export async function fetchOverview(date: string): Promise<DashboardOverviewData> {
-  const raw = await fetchJson<any>(`${BASE}/api/dashboard/overview?date=${date}`);
+  const raw = await fetchJson<any>(`${getBase()}/api/dashboard/overview?date=${date}`);
   console.log('[Sentinel] fetchOverview raw:', JSON.stringify(raw).slice(0, 500));
   const d = raw?.data || raw?.overview || raw;
-  // Normalize with safe defaults
   return {
     date: d?.date || date,
     total_anomalies: d?.total_anomalies ?? 0,
@@ -54,7 +59,7 @@ export async function fetchAnomalies(filters: AnomalyFilters): Promise<Anomaly[]
   if (filters.search) params.set('search', filters.search);
   if (filters.page) params.set('page', String(filters.page));
   if (filters.per_page) params.set('per_page', String(filters.per_page));
-  const raw = await fetchJson<any>(`${BASE}/api/anomalies?${params}`);
+  const raw = await fetchJson<any>(`${getBase()}/api/anomalies?${params}`);
   console.log('[Sentinel] fetchAnomalies raw:', JSON.stringify(raw).slice(0, 500));
   if (Array.isArray(raw)) return raw;
   if (raw?.anomalies && Array.isArray(raw.anomalies)) return raw.anomalies;
@@ -64,7 +69,7 @@ export async function fetchAnomalies(filters: AnomalyFilters): Promise<Anomaly[]
 }
 
 export async function fetchAnomalySummary(date: string): Promise<AnomalySummary[]> {
-  const raw = await fetchJson<any>(`${BASE}/api/anomalies/summary?date=${date}`);
+  const raw = await fetchJson<any>(`${getBase()}/api/anomalies/summary?date=${date}`);
   if (Array.isArray(raw)) return raw;
   if (raw?.summary && Array.isArray(raw.summary)) return raw.summary;
   return [];
@@ -74,18 +79,18 @@ export async function fetchKPIHistory(
   dimension_1: string, dimension_2: string, kpi: string, days = 15
 ): Promise<KPIHistoryData> {
   return fetchJson<KPIHistoryData>(
-    `${BASE}/api/kpi/history?dimension_1=${encodeURIComponent(dimension_1)}&dimension_2=${encodeURIComponent(dimension_2)}&kpi=${kpi}&days=${days}`
+    `${getBase()}/api/kpi/history?dimension_1=${encodeURIComponent(dimension_1)}&dimension_2=${encodeURIComponent(dimension_2)}&kpi=${kpi}&days=${days}`
   );
 }
 
 export async function fetchKPICompare(dimension_2: string, date: string): Promise<KPICompareData> {
   return fetchJson<KPICompareData>(
-    `${BASE}/api/kpi/compare?dimension_2=${encodeURIComponent(dimension_2)}&date=${date}`
+    `${getBase()}/api/kpi/compare?dimension_2=${encodeURIComponent(dimension_2)}&date=${date}`
   );
 }
 
 export async function fetchClusters(date: string, dimension: SentinelDimension = 'Cellule'): Promise<ClusterData[]> {
-  const raw = await fetchJson<any>(`${BASE}/api/clusters?date=${date}&dimension=${dimension}`);
+  const raw = await fetchJson<any>(`${getBase()}/api/clusters?date=${date}&dimension=${dimension}`);
   if (Array.isArray(raw)) return raw;
   if (raw?.clusters && Array.isArray(raw.clusters)) return raw.clusters;
   return [];
@@ -95,7 +100,7 @@ export async function fetchClusterMembers(
   clusterId: number, date: string, dimension: SentinelDimension = 'Cellule'
 ): Promise<ClusterMember[]> {
   const raw = await fetchJson<any>(
-    `${BASE}/api/clusters/${clusterId}/members?date=${date}&dimension=${dimension}`
+    `${getBase()}/api/clusters/${clusterId}/members?date=${date}&dimension=${dimension}`
   );
   if (Array.isArray(raw)) return raw;
   if (raw?.members && Array.isArray(raw.members)) return raw.members;
@@ -107,5 +112,5 @@ export async function fetchDimensionValues(
 ): Promise<string[]> {
   const params = new URLSearchParams({ dimension });
   if (search) params.set('search', search);
-  return fetchJson<string[]>(`${BASE}/api/dimensions/values?${params}`);
+  return fetchJson<string[]>(`${getBase()}/api/dimensions/values?${params}`);
 }
