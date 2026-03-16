@@ -148,45 +148,59 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
 }
 
 export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
-  const siteMap = new Map<string, TopoRow[]>();
+  const siteMap = new Map<string, Array<TopoRow & Record<string, any>>>();
   let autoIdx = 0;
-  rows.forEach(row => {
+
+  rows.forEach((rawRow) => {
+    const row = rawRow as TopoRow & Record<string, any>;
+    const lat = Number(row.latitude ?? row.lat);
+    const lng = Number(row.longitude ?? row.lng);
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
     const key = row.code_nidt && row.code_nidt.trim() !== ''
       ? row.code_nidt
-      : (row.latitude != null && row.longitude != null
-          ? `auto_${row.latitude.toFixed(6)}_${row.longitude.toFixed(6)}`
-          : `orphan_${autoIdx++}`);
+      : (hasCoords ? `auto_${lat.toFixed(6)}_${lng.toFixed(6)}` : `orphan_${autoIdx++}`);
+
     if (!siteMap.has(key)) siteMap.set(key, []);
-    siteMap.get(key)!.push(row);
+    siteMap.get(key)!.push({
+      ...row,
+      code_nidt: row.code_nidt || key,
+      nom_site: row.nom_site || row.site_name || key,
+      nom_cellule: row.nom_cellule || row.cell_name || `${key}_cell_${siteMap.get(key)!.length + 1}`,
+      bande: row.bande || row.band || '',
+      constructeur: row.constructeur || row.vendor || null,
+      latitude: hasCoords ? lat : null,
+      longitude: hasCoords ? lng : null,
+    });
   });
 
   const sites: SiteSummary[] = [];
   siteMap.forEach((siteRows, siteId) => {
     const first = siteRows[0];
-    const validRows = siteRows.filter(r => r.latitude != null && r.longitude != null);
+    const validRows = siteRows.filter(r => Number.isFinite(r.latitude) && Number.isFinite(r.longitude));
     if (validRows.length === 0) return;
 
-    const avgLat = avg(validRows.map(r => r.latitude!));
-    const avgLng = avg(validRows.map(r => r.longitude!));
+    const avgLat = avg(validRows.map(r => Number(r.latitude)));
+    const avgLng = avg(validRows.map(r => Number(r.longitude)));
 
-    const cells = siteRows.map(r =>
+    const cells = siteRows.map((r, index) =>
       buildCellProperties(
-        r.nom_cellule,
+        r.nom_cellule || r.cell_name || `${siteId}_cell_${index + 1}`,
         (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
-        r.bande || '',
+        r.bande || r.band || '',
         r.azimut || 0,
         r.hba || 0,
-        r
+        r,
       )
     );
 
-    const vendor = first.constructeur
-      ? first.constructeur.charAt(0).toUpperCase() + first.constructeur.slice(1)
+    const rawVendor = first.constructeur || first.vendor;
+    const vendor = rawVendor
+      ? rawVendor.charAt(0).toUpperCase() + rawVendor.slice(1)
       : 'Unknown';
 
     sites.push({
-      site_id: siteId,
-      site_name: first.nom_site,
+      site_id: first.code_nidt || siteId,
+      site_name: first.nom_site || first.site_name || first.code_nidt || siteId,
       vendor,
       dor: first.dor || DOR_MAP[first.region || ''] || 'DOR IDF',
       plaque: first.plaque || '',
