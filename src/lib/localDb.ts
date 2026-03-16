@@ -1,6 +1,14 @@
 /**
  * Local database client — routes through VPS proxy edge function.
  * Every component should import from here instead of supabase client.
+ *
+ * VPS Parser (:8000) endpoints:
+ *   /api/v1/topo/cells, /api/v1/topo/hierarchy, /api/v1/topo/distinct, /api/v1/topo/resolve-cells
+ *   /api/v1/qoe/metrics, /api/v1/qoe/dates, /api/v1/qoe/dimensions, /api/v1/qoe/summary, /api/v1/qoe/kpi-columns
+ *   /api/v1/pm/nokia/...
+ *   /api/v1/cm/...
+ *   /api/v1/fm/...
+ *   /api/v1/config/...
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -8,19 +16,21 @@ import { getPreferredDataSource, getVpsProxyUrl, getVpsProxyHeaders } from './ap
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
-// Paths that live on the Parser service (:8000) with /api/v1/ prefix
-const PARSER_PREFIXES = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range'];
+/** Build a VPS proxy URL for Parser :8000 */
+function parserUrl(path: string) {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return getVpsProxyUrl('parser', `/api/v1${cleanPath}`);
+}
 
-function url(path: string) {
+/** Build a VPS proxy URL for KPI Engine :8001 */
+function kpiUrl(path: string) {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return getVpsProxyUrl('kpi', cleanPath);
+}
+
+/** Legacy url() for local Express mode only */
+function localUrl(path: string) {
   const clean = path.replace(/^\/?(api\/)?/, '');
-  const source = getPreferredDataSource();
-  if (source === 'vps') {
-    const isParser = PARSER_PREFIXES.some(p => clean.startsWith(p));
-    if (isParser) {
-      return getVpsProxyUrl('parser', `/api/v1/${clean}`);
-    }
-    return getVpsProxyUrl('kpi', `/${clean}`);
-  }
   return `${LOCAL_API}/api/${clean}`;
 }
 
@@ -32,55 +42,37 @@ function getHeaders(): Record<string, string> {
   return { 'Content-Type': 'application/json' };
 }
 
+function isVps(): boolean {
+  return getPreferredDataSource() === 'vps';
+}
+
+function isLocalExpress(): boolean {
+  return getPreferredDataSource() === 'local';
+}
+
 /** Detect if we should use local or VPS (not cloud) */
 function useLocal(): boolean {
   const src = getPreferredDataSource();
   return src === 'local' || src === 'vps';
 }
 
-async function get<T = any>(path: string): Promise<T> {
-  const resp = await fetch(url(path), { headers: getHeaders() });
+async function fetchJson<T = any>(fetchUrl: string, init?: RequestInit): Promise<T> {
+  const resp = await fetch(fetchUrl, { headers: getHeaders(), ...init });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.json();
 }
 
-async function fetchWithSignal<T = any>(path: string, signal?: AbortSignal): Promise<T> {
-  const resp = await fetch(url(path), { signal, headers: getHeaders() });
+async function fetchJsonSignal<T = any>(fetchUrl: string, signal?: AbortSignal): Promise<T> {
+  const resp = await fetch(fetchUrl, { signal, headers: getHeaders() });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.json();
 }
 
-async function post<T = any>(path: string, body: any): Promise<T> {
-  const resp = await fetch(url(path), {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json();
-}
-
-async function del<T = any>(path: string): Promise<T> {
-  const resp = await fetch(url(path), { method: 'DELETE', headers: getHeaders() });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json();
-}
-
-async function put<T = any>(path: string, body: any): Promise<T> {
-  const resp = await fetch(url(path), {
-    method: 'PUT',
-    headers: getHeaders(),
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json();
-}
-
-// ─── Dashboards (with Cloud fallback) ───
+// ─── Dashboards — always Cloud (Supabase), never VPS ───
 export const dashboardsApi = {
   list: async (): Promise<any[]> => {
-    if (useLocal()) {
-      return get<any[]>('dashboards');
+    if (isLocalExpress()) {
+      return fetchJson<any[]>(localUrl('dashboards'));
     }
     const { data, error } = await supabase
       .from('dashboards')
@@ -91,8 +83,8 @@ export const dashboardsApi = {
     return data || [];
   },
   upsert: async (dashboard: { id: string; name: string; description?: string; widgets: any; is_shared?: boolean; dashboard_type?: string; visibility?: string; owner_username?: string; shared_with?: string[] }) => {
-    if (useLocal()) {
-      return post('dashboards', dashboard);
+    if (isLocalExpress()) {
+      return fetchJson(localUrl('dashboards'), { method: 'POST', body: JSON.stringify(dashboard) });
     }
     const payload: Record<string, any> = {
       id: dashboard.id,
@@ -115,8 +107,8 @@ export const dashboardsApi = {
     return data;
   },
   update: async (id: string, updates: Record<string, any>) => {
-    if (useLocal()) {
-      return put(`dashboards/${id}`, updates);
+    if (isLocalExpress()) {
+      return fetchJson(localUrl(`dashboards/${id}`), { method: 'PUT', body: JSON.stringify(updates) });
     }
     const { data, error } = await supabase
       .from('dashboards')
@@ -128,8 +120,8 @@ export const dashboardsApi = {
     return data;
   },
   remove: async (id: string) => {
-    if (useLocal()) {
-      return del(`dashboards/${id}`);
+    if (isLocalExpress()) {
+      return fetchJson(localUrl(`dashboards/${id}`), { method: 'DELETE' });
     }
     const { error } = await supabase
       .from('dashboards')
@@ -140,11 +132,11 @@ export const dashboardsApi = {
   },
 };
 
-// ─── Map Views ───
+// ─── Map Views — always Cloud (Supabase), never VPS ───
 export const mapViewsApi = {
   list: async () => {
-    if (useLocal()) {
-      return get<any[]>('map-views');
+    if (isLocalExpress()) {
+      return fetchJson<any[]>(localUrl('map-views'));
     }
     const { data, error } = await supabase
       .from('map_views')
@@ -154,8 +146,8 @@ export const mapViewsApi = {
     return data;
   },
   create: async (view: { name: string; settings: any; description?: string }) => {
-    if (useLocal()) {
-      return post('map-views', view);
+    if (isLocalExpress()) {
+      return fetchJson(localUrl('map-views'), { method: 'POST', body: JSON.stringify(view) });
     }
     const { data, error } = await supabase
       .from('map_views')
@@ -166,8 +158,8 @@ export const mapViewsApi = {
     return data;
   },
   update: async (id: string, updates: Record<string, any>) => {
-    if (useLocal()) {
-      return put(`map-views/${id}`, updates);
+    if (isLocalExpress()) {
+      return fetchJson(localUrl(`map-views/${id}`), { method: 'PUT', body: JSON.stringify(updates) });
     }
     const { data, error } = await supabase
       .from('map_views')
@@ -179,8 +171,8 @@ export const mapViewsApi = {
     return data;
   },
   remove: async (id: string) => {
-    if (useLocal()) {
-      return del(`map-views/${id}`);
+    if (isLocalExpress()) {
+      return fetchJson(localUrl(`map-views/${id}`), { method: 'DELETE' });
     }
     const { error } = await supabase
       .from('map_views')
@@ -191,7 +183,7 @@ export const mapViewsApi = {
   },
 };
 
-// ─── Topo ───
+// ─── Topo — VPS Parser :8000 ───
 export interface BboxSiteDTO {
   code_nidt: string;
   nom_site: string;
@@ -225,15 +217,65 @@ export interface BboxFilters {
 }
 
 export const topoApi = {
-  list: (limit = 100000, offset = 0) =>
-    get<{ rows: any[]; total: number }>(`topo?limit=${limit}&offset=${offset}`),
-  listFull: (limit = 100000) =>
-    get<{ rows: any[]; total: number }>(`topo?limit=${limit}&full=1`),
-  count: async () => {
-    const res = await get<{ rows: any[]; total: number }>('topo?limit=1');
-    return res.total;
+  /**
+   * List cells from VPS: GET /api/v1/topo/cells
+   * Note: VPS endpoint is a search endpoint with search, plaque, dor, band, techno, limit params.
+   * For full list, use large limit.
+   */
+  list: (limit = 100000, _offset = 0) => {
+    if (isLocalExpress()) {
+      return fetchJson<{ rows: any[]; total: number }>(localUrl(`topo?limit=${limit}&offset=${_offset}`));
+    }
+    // VPS: /api/v1/topo/cells?limit=N
+    const qs = new URLSearchParams({ limit: String(limit) });
+    return fetchJson<any>(parserUrl(`/topo/cells?${qs}`)).then((data: any) => {
+      // Normalize response to { rows, total } format
+      const rows = Array.isArray(data) ? data : (data.rows || data.cells || []);
+      return { rows, total: data.total ?? rows.length };
+    });
   },
-  remove: () => post('topo/clear', {}),
+
+  listFull: (limit = 100000) => {
+    if (isLocalExpress()) {
+      return fetchJson<{ rows: any[]; total: number }>(localUrl(`topo?limit=${limit}&full=1`));
+    }
+    const qs = new URLSearchParams({ limit: String(limit) });
+    return fetchJson<any>(parserUrl(`/topo/cells?${qs}`)).then((data: any) => {
+      const rows = Array.isArray(data) ? data : (data.rows || data.cells || []);
+      return { rows, total: data.total ?? rows.length };
+    });
+  },
+
+  count: async () => {
+    if (isLocalExpress()) {
+      const res = await fetchJson<{ rows: any[]; total: number }>(localUrl('topo?limit=1'));
+      return res.total;
+    }
+    const data = await fetchJson<any>(parserUrl('/topo/cells?limit=1'));
+    const rows = Array.isArray(data) ? data : (data.rows || []);
+    return data.total ?? rows.length;
+  },
+
+  remove: () => {
+    if (isLocalExpress()) {
+      return fetchJson(localUrl('topo/clear'), { method: 'POST', body: '{}' });
+    }
+    return Promise.resolve({ ok: true }); // No clear on VPS
+  },
+
+  hierarchy: () => {
+    if (isLocalExpress()) {
+      return fetchJson<any>(localUrl('topo/hierarchy'));
+    }
+    return fetchJson<any>(parserUrl('/topo/hierarchy'));
+  },
+
+  distinct: (field: string) => {
+    if (isLocalExpress()) {
+      return fetchJson<any>(localUrl(`topo/distinct?field=${field}`));
+    }
+    return fetchJson<any>(parserUrl(`/topo/distinct?field=${field}`));
+  },
 
   listSitesByBbox: (
     bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number },
@@ -241,15 +283,49 @@ export const topoApi = {
     limit = 8000,
     signal?: AbortSignal,
   ): Promise<BboxSitesResponse> => {
-    const qs = new URLSearchParams();
-    qs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
-    qs.set('limit', String(limit));
-    if (filters) {
-      Object.entries(filters).forEach(([k, v]) => {
-        if (v && v !== 'ALL') qs.set(k, v);
-      });
+    if (isLocalExpress()) {
+      const qs = new URLSearchParams();
+      qs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
+      qs.set('limit', String(limit));
+      if (filters) {
+        Object.entries(filters).forEach(([k, v]) => {
+          if (v && v !== 'ALL') qs.set(k, v);
+        });
+      }
+      return fetchJsonSignal<BboxSitesResponse>(localUrl(`topo/sites?${qs}`), signal);
     }
-    return fetchWithSignal<BboxSitesResponse>(`topo/sites?${qs}`, signal);
+    // VPS: no bbox endpoint, use /api/v1/topo/cells with filters
+    const qs = new URLSearchParams({ limit: String(limit) });
+    if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
+    if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
+    if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
+    if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
+    if (filters?.q) qs.set('search', filters.q);
+    return fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal).then((data: any) => {
+      const rows = Array.isArray(data) ? data : (data.rows || data.cells || []);
+      // Transform cell rows into site DTOs by grouping
+      const siteMap = new Map<string, any>();
+      for (const row of rows) {
+        const key = row.code_nidt || row.site_name || row.nom_site;
+        if (!key) continue;
+        if (!siteMap.has(key)) {
+          siteMap.set(key, {
+            code_nidt: row.code_nidt || key,
+            nom_site: row.nom_site || row.site_name || key,
+            lat: row.latitude ?? row.lat,
+            lng: row.longitude ?? row.lng,
+            nb_cells: 0,
+            vendor: row.constructeur || row.vendor || null,
+            plaque: row.plaque || null,
+            dor: row.dor || null,
+            region: row.region || null,
+          });
+        }
+        siteMap.get(key)!.nb_cells++;
+      }
+      const sites = Array.from(siteMap.values());
+      return { sites, total: sites.length };
+    });
   },
 
   listCellsByBbox: (
@@ -258,70 +334,123 @@ export const topoApi = {
     limit = 8000,
     signal?: AbortSignal,
   ): Promise<BboxCellsResponse> => {
-    const qs = new URLSearchParams();
-    qs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
-    qs.set('limit', String(limit));
-    qs.set('include_cells', '1');
-    if (filters) {
-      Object.entries(filters).forEach(([k, v]) => {
-        if (v && v !== 'ALL') qs.set(k, v);
-      });
+    if (isLocalExpress()) {
+      const qs = new URLSearchParams();
+      qs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
+      qs.set('limit', String(limit));
+      qs.set('include_cells', '1');
+      if (filters) {
+        Object.entries(filters).forEach(([k, v]) => {
+          if (v && v !== 'ALL') qs.set(k, v);
+        });
+      }
+      return fetchJsonSignal<BboxCellsResponse>(localUrl(`topo/sites?${qs}`), signal);
     }
-    return fetchWithSignal<BboxCellsResponse>(`topo/sites?${qs}`, signal);
+    // VPS: use /api/v1/topo/cells with filters
+    const qs = new URLSearchParams({ limit: String(limit) });
+    if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
+    if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
+    if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
+    if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
+    return fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal).then((data: any) => {
+      const cells = Array.isArray(data) ? data : (data.rows || data.cells || []);
+      return { cells, total: data.total ?? cells.length };
+    });
   },
 };
 
-// ─── QoE Metrics ───
+// ─── QoE Metrics — VPS Parser :8000 at /api/v1/qoe/metrics ───
 export const qoeMetricsApi = {
   query: (params: { site_id?: string; cell_ids?: string[]; limit?: number }) => {
-    const qs = new URLSearchParams();
-    if (params.site_id) qs.set('site_id', params.site_id);
-    if (params.cell_ids?.length) qs.set('cell_ids', params.cell_ids.join(','));
+    if (isLocalExpress()) {
+      const qs = new URLSearchParams();
+      if (params.site_id) qs.set('site_id', params.site_id);
+      if (params.cell_ids?.length) qs.set('cell_ids', params.cell_ids.join(','));
+      if (params.limit) qs.set('limit', String(params.limit));
+      return fetchJson<any[]>(localUrl(`qoe-metrics?${qs}`));
+    }
+    // VPS: /api/v1/qoe/metrics?table=qoe_metric&dimension_value=SITE_NAME
+    const qs = new URLSearchParams({ table: 'qoe_metric' });
+    if (params.site_id) qs.set('dimension_value', params.site_id);
     if (params.limit) qs.set('limit', String(params.limit));
-    return get<any[]>(`qoe-metrics?${qs}`);
+    return fetchJson<any>(parserUrl(`/qoe/metrics?${qs}`)).then((data: any) => {
+      return Array.isArray(data) ? data : (data.rows || data.data || []);
+    });
   },
 };
 
 // ─── RAG ───
 export const ragApi = {
-  list: () => post<{ files: any[] }>('rag-embed', { action: 'list' }),
+  list: () => {
+    if (isLocalExpress()) {
+      return fetchJson<{ files: any[] }>(localUrl('rag-embed'), { method: 'POST', body: JSON.stringify({ action: 'list' }) });
+    }
+    return fetchJson<{ files: any[] }>(localUrl('rag-embed'), { method: 'POST', body: JSON.stringify({ action: 'list' }) });
+  },
   index: (filename: string, content?: string, base64?: string) =>
-    post('rag-embed', base64 ? { filename, base64 } : { filename, content }),
+    fetchJson(localUrl('rag-embed'), { method: 'POST', body: JSON.stringify(base64 ? { filename, base64 } : { filename, content }) }),
   remove: (filename: string) =>
-    post('rag-embed', { action: 'delete', filename }),
+    fetchJson(localUrl('rag-embed'), { method: 'POST', body: JSON.stringify({ action: 'delete', filename }) }),
 };
 
 // ─── Dump Parameter ───
 export const dumpParameterApi = {
   distinct: (col: string, extra?: Record<string, string>) => {
-    const qs = new URLSearchParams({ distinct_col: col, ...extra });
-    return get<any[]>(`dump-parameter?${qs}`);
+    if (isLocalExpress()) {
+      const qs = new URLSearchParams({ distinct_col: col, ...extra });
+      return fetchJson<any[]>(localUrl(`dump-parameter?${qs}`));
+    }
+    // VPS: use /api/v1/cm/... or /api/v1/topo/distinct
+    return fetchJson<any[]>(parserUrl(`/topo/distinct?field=${col}`));
   },
   query: (filters: Record<string, string>, cols?: string, limit = 100000) => {
+    if (isLocalExpress()) {
+      const qs = new URLSearchParams({ limit: String(limit), ...filters });
+      if (cols) qs.set('select', cols);
+      return fetchJson<any[]>(localUrl(`dump-parameter?${qs}`));
+    }
+    // VPS: try cm endpoint
     const qs = new URLSearchParams({ limit: String(limit), ...filters });
     if (cols) qs.set('select', cols);
-    return get<any[]>(`dump-parameter?${qs}`);
+    return fetchJson<any[]>(parserUrl(`/cm/dump?${qs}`)).catch(() => []);
   },
   aggregate: (filters: Record<string, string>, groupBy: string, colorBy: string) => {
+    if (isLocalExpress()) {
+      const qs = new URLSearchParams({ group_by: groupBy, color_by: colorBy, ...filters });
+      return fetchJson<any[]>(localUrl(`dump-parameter/aggregate?${qs}`));
+    }
     const qs = new URLSearchParams({ group_by: groupBy, color_by: colorBy, ...filters });
-    return get<any[]>(`dump-parameter/aggregate?${qs}`);
+    return fetchJson<any[]>(parserUrl(`/cm/dump/aggregate?${qs}`)).catch(() => []);
   },
 };
 
 // ─── Parameter Changes ───
 export const parameterChangesApi = {
   list: (filters?: { site_name?: string; param_name?: string; change_type?: string; limit?: number }) => {
+    if (isLocalExpress()) {
+      const qs = new URLSearchParams();
+      if (filters?.site_name) qs.set('site_name', filters.site_name);
+      if (filters?.param_name) qs.set('param_name', filters.param_name);
+      if (filters?.change_type) qs.set('change_type', filters.change_type);
+      if (filters?.limit) qs.set('limit', String(filters.limit));
+      return fetchJson<any[]>(localUrl(`parameter-changes?${qs}`));
+    }
+    // VPS: try cm/changes endpoint
     const qs = new URLSearchParams();
     if (filters?.site_name) qs.set('site_name', filters.site_name);
     if (filters?.param_name) qs.set('param_name', filters.param_name);
-    if (filters?.change_type) qs.set('change_type', filters.change_type);
     if (filters?.limit) qs.set('limit', String(filters.limit));
-    return get<any[]>(`parameter-changes?${qs}`);
+    return fetchJson<any[]>(parserUrl(`/cm/changes?${qs}`)).catch(() => []);
   },
-  create: (change: Record<string, any>) => post<any>('parameter-changes', change),
+  create: (change: Record<string, any>) => {
+    if (isLocalExpress()) {
+      return fetchJson<any>(localUrl('parameter-changes'), { method: 'POST', body: JSON.stringify(change) });
+    }
+    return fetchJson<any>(parserUrl('/cm/changes'), { method: 'POST', body: JSON.stringify(change) }).catch(() => ({}));
+  },
 };
 
-// ─── BI Query ───
+// ─── BI Query — VPS Parser uses /api/v1/qoe/metrics ───
 export const biQueryApi = {
   query: async (params: {
     kpis: string[];
@@ -335,9 +464,27 @@ export const biQueryApi = {
     xAxisType?: string;
     xAxisDimension?: string;
   }): Promise<{ rows: any[]; total: number }> => {
-    if (useLocal()) {
-      return post<{ rows: any[]; total: number }>('bi-query', params);
+    if (isLocalExpress()) {
+      return fetchJson<{ rows: any[]; total: number }>(localUrl('bi-query'), { method: 'POST', body: JSON.stringify(params) });
     }
+    if (isVps()) {
+      // VPS: use /api/v1/qoe/metrics
+      const qs = new URLSearchParams({ table: 'qoe_metric', limit: '1000' });
+      if (params.kpis?.length) qs.set('kpi', params.kpis[0]);
+      if (params.dateStart) qs.set('date', params.dateStart);
+      if (params.filters) {
+        for (const f of params.filters) {
+          if (f.values.length > 0 && f.dimension === 'dimension_1') {
+            qs.set('dimension', f.dimension);
+            qs.set('dimension_value', f.values[0]);
+          }
+        }
+      }
+      const data = await fetchJson<any>(parserUrl(`/qoe/metrics?${qs}`));
+      const rows = Array.isArray(data) ? data : (data.rows || data.data || []);
+      return { rows, total: rows.length };
+    }
+    // Cloud fallback
     try {
       let query = supabase.from('kpi_qoe_aggregated').select('*');
       if (params.dateStart) query = query.gte('date_part', params.dateStart);
@@ -366,8 +513,13 @@ export const biQueryApi = {
   },
 
   distinct: async (dimension: string): Promise<string[]> => {
-    if (useLocal()) {
-      return get<string[]>(`bi-distinct?dimension=${encodeURIComponent(dimension)}`);
+    if (isLocalExpress()) {
+      return fetchJson<string[]>(localUrl(`bi-distinct?dimension=${encodeURIComponent(dimension)}`));
+    }
+    if (isVps()) {
+      return fetchJson<any>(parserUrl(`/qoe/dimensions?table=qoe_metric`)).then((data: any) => {
+        return Array.isArray(data) ? data : (data.values || []);
+      }).catch(() => []);
     }
     try {
       const { data, error } = await supabase.from('kpi_qoe_aggregated').select(dimension).limit(1000);
@@ -377,8 +529,16 @@ export const biQueryApi = {
   },
 
   dateRange: async (): Promise<{ min_date: string | null; max_date: string | null }> => {
-    if (useLocal()) {
-      return get<{ min_date: string | null; max_date: string | null }>('bi-date-range');
+    if (isLocalExpress()) {
+      return fetchJson<{ min_date: string | null; max_date: string | null }>(localUrl('bi-date-range'));
+    }
+    if (isVps()) {
+      return fetchJson<any>(parserUrl('/qoe/dates?table=qoe_metric')).then((data: any) => {
+        const dates = Array.isArray(data) ? data : (data.dates || []);
+        if (dates.length === 0) return { min_date: null, max_date: null };
+        dates.sort();
+        return { min_date: dates[0], max_date: dates[dates.length - 1] };
+      }).catch(() => ({ min_date: null, max_date: null }));
     }
     try {
       const { data: minData } = await supabase.from('kpi_qoe_aggregated').select('date_part').order('date_part', { ascending: true }).limit(1);
@@ -388,7 +548,7 @@ export const biQueryApi = {
   },
 };
 
-// ─── QoE Map ───
+// ─── QoE Map — VPS Parser :8000 at /api/v1/qoe/metrics ───
 export interface QoeMapSiteData {
   qoe_index: number | null;
   debit_dl: number | null;
@@ -416,20 +576,67 @@ export interface QoeMapResponse {
 
 export const qoeMapApi = {
   fetch: (dimension?: string, date?: string) => {
-    const qs = new URLSearchParams();
+    if (isLocalExpress()) {
+      const qs = new URLSearchParams();
+      if (dimension) qs.set('dimension', dimension);
+      if (date) qs.set('date', date);
+      return fetchJson<QoeMapResponse>(localUrl(`qoe-map?${qs}`));
+    }
+    // VPS: use /api/v1/qoe/metrics to get per-site data
+    const qs = new URLSearchParams({ table: 'qoe_metric', limit: '5000' });
     if (dimension) qs.set('dimension', dimension);
     if (date) qs.set('date', date);
-    return get<QoeMapResponse>(`qoe-map?${qs}`);
+    return fetchJson<any>(parserUrl(`/qoe/metrics?${qs}`)).then((data: any) => {
+      // Transform array of rows into { sites: {siteName: data}, date, dimension } format
+      const rows = Array.isArray(data) ? data : (data.rows || data.data || []);
+      const sites: Record<string, QoeMapSiteData> = {};
+      for (const row of rows) {
+        const key = row.Dimension_2 || row.dimension_2 || row.site_name || row.nom_site;
+        if (!key) continue;
+        sites[key] = {
+          qoe_index: row.qoe_index ?? null,
+          debit_dl: row.debit_dl ?? null,
+          debit_ul: row.debit_ul ?? null,
+          rtt_data_avg: row.rtt_data_avg ?? null,
+          rtt_setup_avg: row.rtt_setup_avg ?? null,
+          dms_dl_3: row.dms_debit_dl_3 ?? row.dms_dl_3 ?? null,
+          dms_dl_8: row.dms_debit_dl_8 ?? row.dms_dl_8 ?? null,
+          dms_dl_30: row.dms_debit_dl_30 ?? row.dms_dl_30 ?? null,
+          dms_ul_3: row.dms_debit_ul_3 ?? row.dms_ul_3 ?? null,
+          sessions: row.session_nbr ?? row.sessions ?? null,
+          tcp_retr_rate_dl: row.tcp_retr_rate_dl ?? null,
+          loss_dl_rate: row.loss_dl_rate ?? null,
+          session_dcr: row.session_dcr ?? null,
+          wind_full_rate: row.wind_full_rate ?? null,
+          volume_dl: row.volume_totale_dl ?? row.volume_dl ?? null,
+          volume_ul: row.volume_totale_ul ?? row.volume_ul ?? null,
+        };
+      }
+      return { sites, date: date || null, dimension: dimension || 'Site' } as QoeMapResponse;
+    });
   },
 };
 
-// ─── Streaming (qoe-assistant) ───
+// ─── Streaming (qoe-assistant) — Edge Function ───
 export function streamAssistant(body: any): Promise<Response> {
-  return fetch(url('qoe-assistant'), {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+  return fetch(`${supabaseUrl}/functions/v1/qoe-assistant`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': anonKey,
+      'Authorization': `Bearer ${anonKey}`,
+    },
     body: JSON.stringify(body),
   });
 }
 
-export { url as getLocalApiUrl };
+/** Legacy helper — kept for backward compat */
+export function getLocalApiUrl(path: string): string {
+  if (isVps()) {
+    const clean = path.replace(/^\/?(api\/)?/, '');
+    return parserUrl(`/${clean}`);
+  }
+  return localUrl(path);
+}
