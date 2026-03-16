@@ -1,23 +1,20 @@
 /**
- * API URL helper — routes to VPS public services or Cloud fallback.
+ * API URL helper — routes through VPS proxy edge function (HTTPS→HTTP relay).
  *
  * VPS Services:
  *   QOEBIT Parser  → http://151.242.147.49:8000
  *   KPI Engine     → http://151.242.147.49:8001
  *   Agent Layer    → http://151.242.147.49:1000
  *
- * Source selection priority:
- * 1) URL query param: ?source=local|cloud
- * 2) localStorage key: qoebit_data_source
- * 3) Default: VPS (remote)
+ * All calls go through the vps-proxy edge function to avoid mixed-content blocking.
  */
 
 const VPS_HOST = '151.242.147.49';
 
 export const VPS_ENDPOINTS = {
-  parser:  `http://${VPS_HOST}:8000`,   // QOEBIT Parser
-  kpi:     `http://${VPS_HOST}:8001`,   // KPI Engine
-  agent:   `http://${VPS_HOST}:1000`,   // Agent Layer
+  parser:  `http://${VPS_HOST}:8000`,
+  kpi:     `http://${VPS_HOST}:8001`,
+  agent:   `http://${VPS_HOST}:1000`,
 } as const;
 
 const LOCAL_API_ENV = import.meta.env.VITE_LOCAL_API;
@@ -51,7 +48,6 @@ export const getPreferredDataSource = (): DataSource => {
   if (isDataSource(urlSource)) return urlSource;
   const stored = window.localStorage.getItem(DATA_SOURCE_KEY);
   if (isDataSource(stored)) return stored;
-  // Default: use VPS when deployed, local when running locally
   return isBrowserRunningLocally() ? 'local' : 'vps';
 };
 
@@ -63,11 +59,48 @@ export const setPreferredDataSource = (source: DataSource): void => {
 export const isLocalMode = (): boolean => getPreferredDataSource() === 'local';
 export const isVpsMode = (): boolean => getPreferredDataSource() === 'vps';
 
+// ── VPS Proxy via Edge Function ──
+
+const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'nmblfljpqiyxayaswmwn';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+
+/**
+ * Build a URL that goes through the vps-proxy edge function.
+ * @param service - 'kpi' | 'parser' | 'agent'
+ * @param path - e.g. '/api/topo' or '/health'
+ * @param extraParams - additional query params to forward
+ */
+export function getVpsProxyUrl(
+  service: keyof typeof VPS_ENDPOINTS,
+  path: string,
+  extraParams?: Record<string, string>,
+): string {
+  const base = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/vps-proxy`;
+  const params = new URLSearchParams();
+  params.set('service', service);
+  params.set('path', path.startsWith('/') ? path : `/${path}`);
+  if (extraParams) {
+    for (const [k, v] of Object.entries(extraParams)) {
+      params.set(k, v);
+    }
+  }
+  return `${base}?${params}`;
+}
+
+/**
+ * Headers for calling the vps-proxy edge function.
+ */
+export function getVpsProxyHeaders(extraHeaders?: Record<string, string>): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    ...extraHeaders,
+  };
+}
+
 /**
  * Get the base URL for an edge function / API endpoint.
- * - local  → http://localhost:3001/api/{name}
- * - vps    → http://151.242.147.49:8001/api/{name}  (KPI Engine default)
- * - cloud  → https://xxx.supabase.co/functions/v1/{name}
  */
 export function getApiUrl(functionName: string): string {
   const clean = functionName.replace(/^\/?(api\/)?/, '');
@@ -76,13 +109,14 @@ export function getApiUrl(functionName: string): string {
     return `${getLocalApiBase()}/api/${clean}`;
   }
   if (source === 'vps') {
-    return `${VPS_ENDPOINTS.kpi}/${clean}`;
+    // Route through proxy
+    return getVpsProxyUrl('kpi', `/api/${clean}`);
   }
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
 }
 
 /**
- * Get URL for a specific VPS service.
+ * Get URL for a specific VPS service (direct — use only from local).
  */
 export function getVpsUrl(service: keyof typeof VPS_ENDPOINTS, path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
@@ -93,10 +127,13 @@ export function getVpsUrl(service: keyof typeof VPS_ENDPOINTS, path: string): st
  * Get auth headers for API calls.
  */
 export function getApiHeaders(): Record<string, string> {
+  const source = getPreferredDataSource();
+  if (source === 'vps') {
+    return getVpsProxyHeaders();
+  }
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  const source = getPreferredDataSource();
   if (source === 'cloud') {
     headers['Authorization'] = `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
   }
@@ -104,9 +141,16 @@ export function getApiHeaders(): Record<string, string> {
 }
 
 /**
- * Get auth headers for Agent Layer calls.
+ * Get auth headers for Agent Layer calls (through proxy).
  */
 export function getAgentHeaders(): Record<string, string> {
+  const source = getPreferredDataSource();
+  if (source === 'vps') {
+    return {
+      ...getVpsProxyHeaders(),
+      'x-api-key': 'agent_secret_key',
+    };
+  }
   return {
     'Content-Type': 'application/json',
     'x-api-key': 'agent_secret_key',

@@ -1,10 +1,10 @@
 /**
- * Local database client — tries local Express first, falls back to Supabase Cloud.
+ * Local database client — routes through VPS proxy edge function.
  * Every component should import from here instead of supabase client.
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { getPreferredDataSource, VPS_ENDPOINTS } from './apiConfig';
+import { getPreferredDataSource, getVpsProxyUrl, getVpsProxyHeaders } from './apiConfig';
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
@@ -12,25 +12,33 @@ function url(path: string) {
   const clean = path.replace(/^\/?(api\/)?/, '');
   const source = getPreferredDataSource();
   if (source === 'vps') {
-    return `${VPS_ENDPOINTS.kpi}/api/${clean}`;
+    return getVpsProxyUrl('kpi', `/api/${clean}`);
   }
   return `${LOCAL_API}/api/${clean}`;
 }
 
-/** Detect if we should use local or cloud (not VPS) */
+function getHeaders(): Record<string, string> {
+  const source = getPreferredDataSource();
+  if (source === 'vps') {
+    return getVpsProxyHeaders();
+  }
+  return { 'Content-Type': 'application/json' };
+}
+
+/** Detect if we should use local or VPS (not cloud) */
 function useLocal(): boolean {
   const src = getPreferredDataSource();
   return src === 'local' || src === 'vps';
 }
 
 async function get<T = any>(path: string): Promise<T> {
-  const resp = await fetch(url(path));
+  const resp = await fetch(url(path), { headers: getHeaders() });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.json();
 }
 
 async function fetchWithSignal<T = any>(path: string, signal?: AbortSignal): Promise<T> {
-  const resp = await fetch(url(path), { signal });
+  const resp = await fetch(url(path), { signal, headers: getHeaders() });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.json();
 }
@@ -38,7 +46,7 @@ async function fetchWithSignal<T = any>(path: string, signal?: AbortSignal): Pro
 async function post<T = any>(path: string, body: any): Promise<T> {
   const resp = await fetch(url(path), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getHeaders(),
     body: JSON.stringify(body),
   });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -46,7 +54,7 @@ async function post<T = any>(path: string, body: any): Promise<T> {
 }
 
 async function del<T = any>(path: string): Promise<T> {
-  const resp = await fetch(url(path), { method: 'DELETE' });
+  const resp = await fetch(url(path), { method: 'DELETE', headers: getHeaders() });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.json();
 }
@@ -54,7 +62,7 @@ async function del<T = any>(path: string): Promise<T> {
 async function put<T = any>(path: string, body: any): Promise<T> {
   const resp = await fetch(url(path), {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getHeaders(),
     body: JSON.stringify(body),
   });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -67,7 +75,6 @@ export const dashboardsApi = {
     if (useLocal()) {
       return get<any[]>('dashboards');
     }
-    // Cloud fallback: use Supabase dashboards table
     const { data, error } = await supabase
       .from('dashboards')
       .select('*')
@@ -117,7 +124,6 @@ export const dashboardsApi = {
     if (useLocal()) {
       return del(`dashboards/${id}`);
     }
-    // Soft delete
     const { error } = await supabase
       .from('dashboards')
       .update({ is_archived: true })
@@ -222,7 +228,6 @@ export const topoApi = {
   },
   remove: () => post('topo/clear', {}),
 
-  /** Fetch aggregated sites within a bounding box */
   listSitesByBbox: (
     bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number },
     filters?: BboxFilters,
@@ -240,7 +245,6 @@ export const topoApi = {
     return fetchWithSignal<BboxSitesResponse>(`topo/sites?${qs}`, signal);
   },
 
-  /** Fetch cell-level rows within a bounding box (for sector rendering) */
   listCellsByBbox: (
     bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number },
     filters?: BboxFilters,
@@ -310,7 +314,7 @@ export const parameterChangesApi = {
   create: (change: Record<string, any>) => post<any>('parameter-changes', change),
 };
 
-// ─── BI Query (local first, Cloud fallback via kpi_qoe_aggregated) ───
+// ─── BI Query ───
 export const biQueryApi = {
   query: async (params: {
     kpis: string[];
@@ -327,43 +331,26 @@ export const biQueryApi = {
     if (useLocal()) {
       return post<{ rows: any[]; total: number }>('bi-query', params);
     }
-    // Cloud fallback: query kpi_qoe_aggregated from Supabase
     try {
       let query = supabase.from('kpi_qoe_aggregated').select('*');
-
       if (params.dateStart) query = query.gte('date_part', params.dateStart);
       if (params.dateEnd) query = query.lte('date_part', params.dateEnd);
-
-      // Apply filters
       if (params.filters) {
         for (const f of params.filters) {
           if (f.values.length > 0) {
-            if (f.dimension === 'dimension_1') {
-              query = query.in('dimension_1', f.values);
-            } else if (f.dimension === 'dimension_2') {
-              query = query.in('dimension_2', f.values);
-            }
+            if (f.dimension === 'dimension_1') query = query.in('dimension_1', f.values);
+            else if (f.dimension === 'dimension_2') query = query.in('dimension_2', f.values);
           }
         }
       }
-
       query = query.order('date_part', { ascending: true }).limit(1000);
-
       const { data, error } = await query;
       if (error) throw error;
-
       const rows = (data || []).map((row: any) => {
-        const mapped: Record<string, any> = {
-          x: row.date_part,
-          dimension_1: row.dimension_1,
-          dimension_2: row.dimension_2,
-        };
-        for (const kpi of params.kpis) {
-          mapped[kpi] = row[kpi] ?? null;
-        }
+        const mapped: Record<string, any> = { x: row.date_part, dimension_1: row.dimension_1, dimension_2: row.dimension_2 };
+        for (const kpi of params.kpis) mapped[kpi] = row[kpi] ?? null;
         return mapped;
       });
-
       return { rows, total: rows.length };
     } catch (err) {
       console.warn('[BI Cloud fallback] failed:', err);
@@ -375,47 +362,26 @@ export const biQueryApi = {
     if (useLocal()) {
       return get<string[]>(`bi-distinct?dimension=${encodeURIComponent(dimension)}`);
     }
-    // Cloud fallback
     try {
-      const { data, error } = await supabase
-        .from('kpi_qoe_aggregated')
-        .select(dimension)
-        .limit(1000);
+      const { data, error } = await supabase.from('kpi_qoe_aggregated').select(dimension).limit(1000);
       if (error) throw error;
-      const unique = [...new Set((data || []).map((r: any) => r[dimension]).filter(Boolean))];
-      return unique as string[];
-    } catch {
-      return [];
-    }
+      return [...new Set((data || []).map((r: any) => r[dimension]).filter(Boolean))] as string[];
+    } catch { return []; }
   },
 
   dateRange: async (): Promise<{ min_date: string | null; max_date: string | null }> => {
     if (useLocal()) {
       return get<{ min_date: string | null; max_date: string | null }>('bi-date-range');
     }
-    // Cloud fallback
     try {
-      const { data: minData } = await supabase
-        .from('kpi_qoe_aggregated')
-        .select('date_part')
-        .order('date_part', { ascending: true })
-        .limit(1);
-      const { data: maxData } = await supabase
-        .from('kpi_qoe_aggregated')
-        .select('date_part')
-        .order('date_part', { ascending: false })
-        .limit(1);
-      return {
-        min_date: minData?.[0]?.date_part || null,
-        max_date: maxData?.[0]?.date_part || null,
-      };
-    } catch {
-      return { min_date: null, max_date: null };
-    }
+      const { data: minData } = await supabase.from('kpi_qoe_aggregated').select('date_part').order('date_part', { ascending: true }).limit(1);
+      const { data: maxData } = await supabase.from('kpi_qoe_aggregated').select('date_part').order('date_part', { ascending: false }).limit(1);
+      return { min_date: minData?.[0]?.date_part || null, max_date: maxData?.[0]?.date_part || null };
+    } catch { return { min_date: null, max_date: null }; }
   },
 };
 
-// ─── QoE Map (site-level QoE scores for map coloring) ───
+// ─── QoE Map ───
 export interface QoeMapSiteData {
   qoe_index: number | null;
   debit_dl: number | null;
@@ -454,7 +420,7 @@ export const qoeMapApi = {
 export function streamAssistant(body: any): Promise<Response> {
   return fetch(url('qoe-assistant'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getHeaders(),
     body: JSON.stringify(body),
   });
 }
