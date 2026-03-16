@@ -239,11 +239,76 @@ export const topoApi = {
     if (isLocalExpress()) {
       return fetchJson<{ rows: any[]; total: number }>(localUrl(`topo?limit=${limit}&full=1`));
     }
-    const qs = new URLSearchParams({ limit: String(limit) });
-    return fetchJson<any>(parserUrl(`/topo/cells?${qs}`)).then((data: any) => {
-      const rows = Array.isArray(data) ? data : (data.rows || data.cells || []);
-      return { rows, total: data.total ?? rows.length };
-    });
+
+    // VPS: /topo/cells lacks coordinates → merge with /topo/sites for lat/lng
+    const cellsQs = new URLSearchParams({ limit: String(limit) });
+    const sitesQs = new URLSearchParams({ bbox: '-180,-90,180,90', limit: '50000' });
+
+    const [cellsData, sitesData] = await Promise.all([
+      fetchJson<any>(parserUrl(`/topo/cells?${cellsQs}`)),
+      fetchJson<any>(parserUrl(`/topo/sites?${sitesQs}`)),
+    ]);
+
+    const rawCells = Array.isArray(cellsData) ? cellsData : (cellsData.rows || cellsData.cells || []);
+    const rawSites = Array.isArray(sitesData?.sites) ? sitesData.sites : (Array.isArray(sitesData) ? sitesData : []);
+
+    // Build coordinate lookup from sites
+    const siteCoords = new Map<string, { lat: number; lng: number; plaque: string; dor: string; region: string }>();
+    for (const s of rawSites) {
+      const lat = Number(s.latitude ?? s.lat);
+      const lng = Number(s.longitude ?? s.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const name = s.site_name || s.nom_site || s.code_nidt;
+      if (name) siteCoords.set(name, { lat, lng, plaque: s.plaque || '', dor: s.dor || s.region || '', region: s.region || '' });
+    }
+
+    // Merge: attach coordinates to each cell, auto-distribute azimuts
+    const cellsBySite = new Map<string, any[]>();
+    for (const c of rawCells) {
+      const siteName = c.site_name || c.nom_site;
+      if (!siteName || !siteCoords.has(siteName)) continue;
+      if (!cellsBySite.has(siteName)) cellsBySite.set(siteName, []);
+      cellsBySite.get(siteName)!.push(c);
+    }
+
+    const rows: any[] = [];
+    for (const [siteName, cells] of cellsBySite) {
+      const coords = siteCoords.get(siteName)!;
+      const sectorGroups = new Map<number, any[]>();
+      for (const c of cells) {
+        const cellName = c.cell_name || c.nom_cellule || '';
+        const lastChar = cellName.slice(-1);
+        const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+        if (!sectorGroups.has(sectorIdx)) sectorGroups.set(sectorIdx, []);
+        sectorGroups.get(sectorIdx)!.push(c);
+      }
+      const numSectors = Math.max(sectorGroups.size, 1);
+      const sectorKeys = Array.from(sectorGroups.keys()).sort();
+      for (let i = 0; i < sectorKeys.length; i++) {
+        const sectorCells = sectorGroups.get(sectorKeys[i])!;
+        const azimut = Math.round((360 / numSectors) * i);
+        for (const c of sectorCells) {
+          rows.push({
+            code_nidt: siteName,
+            nom_site: siteName,
+            nom_cellule: c.cell_name || c.nom_cellule || `${siteName}_cell`,
+            latitude: coords.lat,
+            longitude: coords.lng,
+            techno: c.techno || '4g',
+            bande: c.band || c.bande || '',
+            constructeur: c.vendor || c.constructeur || null,
+            azimut,
+            hba: 30,
+            plaque: c.plaque || coords.plaque,
+            dor: c.dor || coords.dor,
+            region: coords.region,
+            tac: null,
+          });
+        }
+      }
+    }
+
+    return { rows, total: cellsData.total ?? rows.length };
   },
 
   count: async () => {
