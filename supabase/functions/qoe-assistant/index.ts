@@ -33,6 +33,7 @@ type Intent =
   | "distribution"
   | "list_dimension_values"
   | "param_audit"
+  | "deep_investigation"
   | "other";
 
 type Scope =
@@ -64,6 +65,7 @@ type DataNeed =
   | "topo_inventory"
   | "sentinel_anomalies"
   | "sentinel_timeseries"
+  | "deep_investigation"
   | "dimension_timeseries";
 
 type Dimension1Type =
@@ -1551,6 +1553,174 @@ function isSentinelQuery(query: string): boolean {
   ].some(h => n.includes(h));
 }
 
+function isDeepInvestigationQuery(query: string): boolean {
+  const n = query.toLowerCase();
+  // Multi-domain RCA, cross-agent investigation, complex correlation
+  const deepHints = [
+    "investigation", "investiguer", "investigate", "enquête", "enquete",
+    "analyse approfondie", "deep analysis", "analyse profonde",
+    "corrélation", "correlation", "multi-kpi", "multi kpi",
+    "diagnostic complet", "full diagnostic", "diagnostic global",
+    "pourquoi", "why", "cause root", "root cause analysis",
+    "impact", "régression", "regression",
+    "investigation profonde", "chemin 2", "path 2",
+    "analyse croisée", "cross analysis", "cross-domain",
+    "tous les agents", "all agents", "multi-agent",
+    "timeline", "chronologie", "séquence événements",
+  ];
+  // Require at least one deep hint
+  const hasDeep = deepHints.some(h => n.includes(h));
+  if (!hasDeep) return false;
+  // Also check for complexity indicators (site + KPI + parameter mentions)
+  const complexityScore =
+    (extractSiteName(query) ? 1 : 0) +
+    (extractParamName(query) ? 1 : 0) +
+    (isSentinelQuery(query) ? 1 : 0) +
+    (isChangeHistoryQuery(query) ? 1 : 0);
+  // Deep investigation if explicit hint OR complex multi-domain query
+  return hasDeep || complexityScore >= 3;
+}
+
+const VPS_AGENT_PORT = 1000;
+
+interface AgentLayerResponse {
+  agent: string;
+  status: string;
+  analysis: string;
+  data?: any;
+  recommendations?: string[];
+  timeline?: { date: string; event: string; impact: string }[];
+}
+
+async function callAgentLayer(
+  query: string,
+  scope: Scope,
+  filters?: AssistantFilters,
+  agents: string[] = ["PULSE", "TOPO", "PARMY", "TRACE"]
+): Promise<{ results: AgentLayerResponse[]; synthesis: string }> {
+  const url = `http://${VPS_HOST}:${VPS_AGENT_PORT}/api/investigate`;
+  console.log(`🔬 Deep Investigation → Agent Layer :${VPS_AGENT_PORT} | agents=[${agents.join(",")}]`);
+
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "agent_secret_key",
+      },
+      body: JSON.stringify({
+        query,
+        scope,
+        filters: filters || {},
+        agents,
+        mode: "parallel_investigation",
+      }),
+    });
+
+    if (!resp.ok) {
+      console.warn(`Agent Layer returned ${resp.status}, falling back to local investigation`);
+      return await localDeepInvestigation(query, scope, filters, agents);
+    }
+
+    const json = await resp.json();
+    console.log(`🔬 Agent Layer responded: ${json.results?.length || 0} agent results`);
+    return json;
+  } catch (err) {
+    console.warn(`Agent Layer :${VPS_AGENT_PORT} unreachable, using local fallback:`, err);
+    return await localDeepInvestigation(query, scope, filters, agents);
+  }
+}
+
+async function localDeepInvestigation(
+  query: string,
+  scope: Scope,
+  filters?: AssistantFilters,
+  agents: string[] = ["PULSE", "TOPO", "PARMY", "TRACE"]
+): Promise<{ results: AgentLayerResponse[]; synthesis: string }> {
+  console.log(`🔬 Local deep investigation fallback — ${agents.length} agents`);
+
+  const siteName = scope.level === "site" ? (scope as any).siteName : extractSiteName(query);
+  const results: AgentLayerResponse[] = [];
+
+  // Run all agent-specific data fetches in parallel
+  const tasks: Promise<void>[] = [];
+
+  if (agents.includes("PULSE")) {
+    tasks.push((async () => {
+      const [agg, worst] = await Promise.all([
+        fetchAggStats(filters, 7),
+        fetchWorstSites(filters, 15),
+      ]);
+      const snapshot = siteName ? await fetchSiteSnapshot(siteName) : "";
+      results.push({
+        agent: "PULSE",
+        status: "ok",
+        analysis: [agg, worst, snapshot].filter(Boolean).join("\n\n"),
+        recommendations: [],
+      });
+    })());
+  }
+
+  if (agents.includes("TOPO")) {
+    tasks.push((async () => {
+      const topo = siteName ? await searchTopoForSite(siteName) : "";
+      const inv = await fetchTopoInventory(filters);
+      results.push({
+        agent: "TOPO",
+        status: "ok",
+        analysis: [topo, inv].filter(Boolean).join("\n\n"),
+        recommendations: [],
+      });
+    })());
+  }
+
+  if (agents.includes("PARMY")) {
+    tasks.push((async () => {
+      const params = await searchDumpParameters(query);
+      const parmySql = await generateAndExecuteParmySql(query, filters);
+      results.push({
+        agent: "PARMY",
+        status: "ok",
+        analysis: [params, parmySql].filter(Boolean).join("\n\n"),
+        recommendations: [],
+      });
+    })());
+  }
+
+  if (agents.includes("TRACE")) {
+    tasks.push((async () => {
+      const changes = await searchParameterChanges(query);
+      results.push({
+        agent: "TRACE",
+        status: "ok",
+        analysis: changes || "Aucun changement trouvé.",
+        recommendations: [],
+        timeline: [],
+      });
+    })());
+  }
+
+  if (agents.includes("SENTINEL")) {
+    tasks.push((async () => {
+      const anomalies = await fetchSentinelAnomalies(filters, scope);
+      results.push({
+        agent: "SENTINEL",
+        status: "ok",
+        analysis: anomalies || "Aucune anomalie ML détectée.",
+        recommendations: [],
+      });
+    })());
+  }
+
+  await Promise.all(tasks);
+
+  const synthesis = results.map(r =>
+    `### Agent ${r.agent}\n${r.analysis?.slice(0, 2000) || "Pas de données"}`
+  ).join("\n\n---\n\n");
+
+  return { results, synthesis };
+}
+
 function isParmyQuery(query: string): boolean {
   const n = query.toLowerCase();
   return ["audit", "auditer", "vérifier", "verifier", "check", "contrôle", "controle",
@@ -1568,6 +1738,8 @@ function isParmyQuery(query: string): boolean {
 
 function classifyAgent(query: string): AgentId {
   const n = query.toLowerCase();
+  // Deep investigation → PULSE as lead orchestrator (will call all agents)
+  if (isDeepInvestigationQuery(query)) return "PULSE";
   // Parameter-focused queries with known prefixes → PARMY FIRST (before anything else)
   if (extractParamName(query)) return "PARMY";
   // Topo inventory queries (nombre de cellules, combien de sites) → TOPO always first
@@ -1592,6 +1764,8 @@ function classifyAgent(query: string): AgentId {
 
 function classifyIntent(query: string, scope: Scope): Intent {
   const n = query.toLowerCase();
+  // Deep investigation → highest priority
+  if (isDeepInvestigationQuery(query)) return "deep_investigation";
   // Parameter name detected → always param_audit
   if (extractParamName(query)) return "param_audit";
   // Top/worst/best queries take HIGHEST priority (even if "par DOR" is present)
@@ -1666,8 +1840,15 @@ function buildContextPlan(
   let metric: string | undefined;
   let resultLimit = 30;
 
-  // Handle dimension-based intents FIRST
-  if (intent === "distribution") {
+  // Handle deep investigation FIRST (Chemin 2)
+  if (intent === "deep_investigation") {
+    needs.push("deep_investigation", "documents_rag");
+    limits.maxDays = 15;
+    limits.maxSites = 30;
+    console.log(`🔬 CHEMIN 2 activé — Investigation profonde multi-agents`);
+  }
+  // Handle dimension-based intents
+  else if (intent === "distribution") {
     const allDims = detectAllDimensions(query);
     const dim1 = allDims[0];
     const dim2 = allDims.length > 1 ? allDims[1] : undefined;
@@ -1881,6 +2062,30 @@ async function buildContextFromPlan(
   if (plan.needs.includes("sentinel_timeseries")) {
     const met = plan.metric || detectMetric(query);
     promises.sentinelTs = fetchSentinelTimeSeries(filters, plan.scope, met, plan.limits.maxDays || 15);
+  }
+  if (plan.needs.includes("deep_investigation")) {
+    // Chemin 2: call Agent Layer or local fallback with all agents in parallel
+    const deepResult = await callAgentLayer(query, plan.scope, filters, ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"]);
+    const deepContext = `🔬 INVESTIGATION PROFONDE (Chemin 2) — ${deepResult.results.length} agents mobilisés\n\n` +
+      deepResult.results.map(r => {
+        let block = `### 🤖 Agent ${r.agent} [${r.status}]\n${r.analysis?.slice(0, 3000) || "Pas de données"}`;
+        if (r.recommendations?.length) {
+          block += `\n\n**Recommandations ${r.agent}:**\n${r.recommendations.map(rec => `- ${rec}`).join("\n")}`;
+        }
+        if (r.timeline?.length) {
+          block += `\n\n**Timeline ${r.agent}:**\n${r.timeline.map(t => `- ${t.date}: ${t.event} → ${t.impact}`).join("\n")}`;
+        }
+        return block;
+      }).join("\n\n---\n\n") +
+      `\n\n---\n\n**INSTRUCTION SYNTHÈSE:** Tu as reçu les analyses de ${deepResult.results.length} agents spécialisés (${deepResult.results.map(r => r.agent).join(", ")}). ` +
+      `Produis une SYNTHÈSE RCA structurée avec:\n` +
+      `1. 🎯 **Constat principal** (1-2 phrases)\n` +
+      `2. 🔍 **Causes racines identifiées** (par ordre de probabilité)\n` +
+      `3. 📊 **Corrélations croisées** entre domaines (KPI ↔ Topo ↔ Paramètres ↔ Changements)\n` +
+      `4. 📅 **Timeline des événements** (chronologique)\n` +
+      `5. ✅ **Actions recommandées** (priorisées)\n` +
+      `6. Inclus un bloc \`\`\`kpi avec les indicateurs clés de l'investigation.`;
+    sections.push(deepContext);
   }
 
   const keys = Object.keys(promises);
