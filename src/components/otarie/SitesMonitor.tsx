@@ -2313,7 +2313,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     let candidates = mapFilteredSites;
     // Viewport culling
     if (viewport.bounds) {
-      candidates = candidates.filter(s => viewport.bounds!.contains(L.latLng(s.coordinates[0], s.coordinates[1])));
+      candidates = candidates.filter(s => {
+        const lat = s.coordinates?.[0];
+        const lng = s.coordinates?.[1];
+        if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) return false;
+        return viewport.bounds!.contains(L.latLng(lat, lng));
+      });
     }
     // If still too many, sample evenly to keep the map responsive
     if (candidates.length > MAX_RENDER_SITES) {
