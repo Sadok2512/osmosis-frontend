@@ -1834,6 +1834,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const [selectedSiteSnapshot, setSelectedSiteSnapshot] = useState<SiteSummary | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -2737,16 +2738,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds]);
 
+  const renderSites = useMemo(() => {
+    if (!selectedSiteId || !selectedSiteSnapshot) return visibleSites;
+    if (visibleSites.some(site => site.site_id === selectedSiteId)) return visibleSites;
+    if (viewport.bounds && !viewport.bounds.contains(L.latLng(selectedSiteSnapshot.coordinates[0], selectedSiteSnapshot.coordinates[1]))) {
+      return visibleSites;
+    }
+    return [selectedSiteSnapshot, ...visibleSites];
+  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds]);
+
   const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
 
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
     if (mapDisplayMode !== 'heatmap') return [];
-    return visibleSites.map(s => {
+    return renderSites.map(s => {
       const val = s.cells.length > 0 ? getCellKpiValue(s.cells[0]) : (s.qoe_score_avg ?? 0);
       return [s.coordinates[0], s.coordinates[1], val / 100] as [number, number, number];
     });
-  }, [mapFilteredSites, mapDisplayMode, mapKpi]);
+  }, [renderSites, mapDisplayMode, mapKpi]);
 
   // Compute highlighted cell coordinates for map display
   const highlightedCellData = useMemo(() => {
@@ -2900,6 +2910,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       handleBackToGlobal();
       return;
     }
+    setSelectedSiteSnapshot(site);
     setFlyTarget(site.coordinates);
     setSelectedSiteId(site.site_id);
     setFocusMode('site');
@@ -2924,6 +2935,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const handleBackToGlobal = () => {
     setSelectedSiteId(null);
+    setSelectedSiteSnapshot(null);
     setFocusMode('global');
     setFocusCellId(null);
     setDetailFullscreen(false);
@@ -3031,7 +3043,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         )}
 
         {/* Points mode — individual cell markers colored by KPI threshold */}
-        {!paramMode && mapDisplayMode === 'points' && visibleSites.map(site => {
+        {!paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells.filter(c => {
               const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
@@ -3096,7 +3108,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
-        {!paramMode && mapDisplayMode === 'sites' && !showSectors && visibleSites.map(site => {
+        {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
           const has5G = site.cells.length > 0 ? site.cells.some(c => (c.techno || '').toUpperCase().includes('5G')) : site.site_name.toUpperCase().includes('5G');
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
@@ -3236,7 +3248,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {!paramMode && showSectors && visibleSites.map(site => {
+        {!paramMode && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * (0.5 + 0.5 * (beamVisibility / 100));
