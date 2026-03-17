@@ -2435,11 +2435,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return base;
   }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
 
-  // Core bbox fetch function — switches to cell-level fetch at sector zoom
+  // Core bbox fetch function — uses zoom hysteresis to stabilize site/cell switching
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
 
-    // Cancel any in-flight request
+    const effectiveZoom = zoom ?? viewport.zoom;
+    const displayMode = getDisplayMode(effectiveZoom);
+    const needCells = displayMode === 'cells';
+
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -2451,45 +2454,49 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       maxLat: bounds.getNorth(),
     };
 
-    const needCells = (zoom ?? viewport.zoom) >= SECTOR_ZOOM_THRESHOLD;
-
     setBboxLoading(true);
-    // Keep previous sites visible during fetch to avoid flickering
+
     try {
       if (needCells) {
-        // Fetch cell-level data for sector polygon rendering
         const cellSites = await fetchCellsByBbox(bbox, bboxFilters, controller.signal);
-        if (!controller.signal.aborted) {
+
+        if (controller.signal.aborted) return;
+
+        if (Array.isArray(cellSites) && cellSites.length > 0) {
           setSites(cellSites);
           setBboxTotal(cellSites.length);
-          setBboxLoading(false);
-          setLoading(false);
           console.log(`[SitesMonitor] CELLS mode: ${cellSites.length} sites with cells`);
+        } else {
+          console.warn('[SitesMonitor] CELLS mode returned empty result - keeping previous sites');
         }
-      } else {
-        // Fetch aggregated site-level data (no cells)
-        const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
-        if (!controller.signal.aborted) {
-          setSites(newSites);
-          setBboxTotal(total);
-          setBboxLoading(false);
-          setLoading(false);
-        }
+
+        setBboxLoading(false);
+        setLoading(false);
+        return;
       }
+
+      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
+
+      if (controller.signal.aborted) return;
+
+      setSites(newSites || []);
+      setBboxTotal(total || 0);
+      setBboxLoading(false);
+      setLoading(false);
     } catch (err: any) {
-      if (err.name === 'AbortError') return; // expected
+      if (err?.name === 'AbortError') return;
       console.warn('[SitesMonitor] bbox fetch failed', err);
       setBboxLoading(false);
       setLoading(false);
     }
-  }, [viewport.zoom]);
+  }, [viewport.zoom, getDisplayMode]);
 
   // Debounced viewport change handler
   const handleViewportForFetch = useCallback((v: ViewportState) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
-    }, 300);
+    }, 450);
   }, [fetchForViewport, currentBboxFilters]);
 
   // Initial load + filter changes → refetch for current viewport
