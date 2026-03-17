@@ -3043,7 +3043,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         )}
 
         {/* Points mode — individual cell markers colored by KPI threshold */}
-        {!paramMode && mapDisplayMode === 'points' && visibleSites.map(site => {
+        {!paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells.filter(c => {
               const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
