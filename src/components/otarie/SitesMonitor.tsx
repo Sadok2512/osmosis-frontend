@@ -2274,12 +2274,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
-    // Only refetch if bounds actually changed meaningfully
+    if (!dashboardActive) return; // Don't fetch if no dashboard active
     const prev = prevViewportRef.current;
     if (prev.bounds && v.bounds) {
       const prevBounds = prev.bounds;
       const newBounds = v.bounds;
-      const threshold = 0.001; // ~100m
+      const threshold = 0.001;
       const moved = Math.abs(prevBounds.getWest() - newBounds.getWest()) > threshold ||
                     Math.abs(prevBounds.getSouth() - newBounds.getSouth()) > threshold ||
                     Math.abs(prevBounds.getEast() - newBounds.getEast()) > threshold ||
@@ -2288,7 +2288,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     prevViewportRef.current = v;
     handleViewportForFetch(v);
-  }, [handleViewportForFetch]);
+  }, [handleViewportForFetch, dashboardActive]);
 
   // Cleanup
   useEffect(() => {
