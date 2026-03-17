@@ -954,6 +954,17 @@ export interface SiteScope {
   value?: string;
 }
 
+// New multi-filter type for dashboard creation
+export interface DashboardSiteFilters {
+  dor?: string[];
+  constructeur?: string[];
+  plaque?: string[];
+  techno?: string[];
+  bande?: string[];
+  zone_arcep?: string[];
+  saisonnier?: string[];
+}
+
 interface DashboardInventoryTabProps {
   onApplyView?: (settings: any) => void;
   onDashboardActiveChange?: (active: boolean, scope?: SiteScope | null) => void;
