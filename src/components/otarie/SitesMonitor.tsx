@@ -4513,8 +4513,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (settings.center && Array.isArray(settings.center)) {
                       setFlyTarget(settings.center as [number, number]);
                     }
-                    // Apply scope filter from dashboard
-                    if (settings.siteScope) {
+                    // Apply site filters from dashboard
+                    if (settings.siteFilters && Object.keys(settings.siteFilters).length > 0) {
+                      const sf = settings.siteFilters as DashboardSiteFilters;
+                      if (sf.dor?.length) setLocalDor(sf.dor[0]);
+                      if (sf.constructeur?.length) setLocalVendor(sf.constructeur[0]);
+                      if (sf.plaque?.length) setLocalPlaque(sf.plaque[0]);
+                      if (sf.techno?.length) setLocalTechno(sf.techno[0] as any);
+                      if (sf.bande?.length) setLocalBande(sf.bande[0]);
+                      if (sf.zone_arcep?.length) setLocalZoneArcep(sf.zone_arcep[0]);
+                    } else if (settings.siteScope) {
                       setActiveSiteScope(settings.siteScope);
                       const scope = settings.siteScope as SiteScope;
                       if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
