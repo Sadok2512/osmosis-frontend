@@ -1041,7 +1041,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       const db = dashboards.find(d => d.id === pendingSwitchId);
       if (db) {
         onApplyView(getDashboardSettings(db));
-        onDashboardActiveChange?.(true, extractScope(db));
+        onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
       }
     }
     setShowSwitchConfirm(false);
