@@ -2534,23 +2534,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
-    if (!dashboardActive) return; // Don't fetch if no dashboard active
-    // Skip fetching during fly animation to avoid flickering
+
+    if (!dashboardActive) return;
     if (isFlyingRef.current) return;
+
     const prev = prevViewportRef.current;
+
     if (prev.bounds && v.bounds) {
-      const prevBounds = prev.bounds;
-      const newBounds = v.bounds;
       const threshold = 0.001;
-      const moved = Math.abs(prevBounds.getWest() - newBounds.getWest()) > threshold ||
-                    Math.abs(prevBounds.getSouth() - newBounds.getSouth()) > threshold ||
-                    Math.abs(prevBounds.getEast() - newBounds.getEast()) > threshold ||
-                    Math.abs(prevBounds.getNorth() - newBounds.getNorth()) > threshold;
-      if (!moved && prev.zoom === v.zoom) return;
+
+      const moved =
+        Math.abs(prev.bounds.getWest() - v.bounds.getWest()) > threshold ||
+        Math.abs(prev.bounds.getSouth() - v.bounds.getSouth()) > threshold ||
+        Math.abs(prev.bounds.getEast() - v.bounds.getEast()) > threshold ||
+        Math.abs(prev.bounds.getNorth() - v.bounds.getNorth()) > threshold;
+
+      const zoomChanged = prev.zoom !== v.zoom;
+
+      if (!moved && !zoomChanged) return;
     }
+
     prevViewportRef.current = v;
     handleViewportForFetch(v);
-  }, [handleViewportForFetch, dashboardActive]);
+  }, [dashboardActive, handleViewportForFetch]);
 
   // Cleanup
   useEffect(() => {
