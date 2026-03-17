@@ -2734,6 +2734,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
+      {/* Empty state — no dashboard selected */}
+      {!dashboardActive && !loading && (
+        <div className="absolute inset-0 z-[1100] flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-4 px-10 py-8 rounded-2xl bg-card/90 backdrop-blur-md border border-border shadow-2xl pointer-events-auto max-w-xs text-center">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <LayoutGrid size={28} className="text-primary" />
+            </div>
+            <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wider">Aucun Dashboard Actif</h3>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Créez ou sélectionnez un dashboard dans l'onglet <strong>Dashboard</strong> du panneau latéral pour charger les sites sur la carte.
+            </p>
+            <button
+              onClick={() => { setInventoryTab('dashboard'); setPanelCollapsed(false); }}
+              className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors shadow-lg"
+            >
+              <Plus size={12} className="inline mr-1.5" />
+              Créer un Dashboard
+            </button>
+          </div>
+        </div>
+      )}
       {/* Bbox loading indicator */}
       {bboxLoading && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1001] px-3 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-lg flex items-center gap-2">
