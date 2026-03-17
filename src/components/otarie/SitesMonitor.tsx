@@ -1837,6 +1837,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   });
 
   // ── Active Dashboard selector ──
+  const [dashboardActive, setDashboardActive] = useState(false);
+  const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   const [activeDashboardId, setActiveDashboardId] = useState<string | null>(() => localStorage.getItem('qoebit_active_dashboard'));
   const [dashboardList, setDashboardList] = useState<{ id: string; name: string; widgets: any }[]>([]);
   const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
