@@ -2935,26 +2935,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         onApply={handleFilterModalApply}
       />
       {/* Empty state — no dashboard, modal closed */}
-      {!dashboardActive && !loading && !showFilterModal && (
-        <div className="absolute inset-0 z-[1100] flex items-center justify-center pointer-events-none">
-          <div className="flex flex-col items-center gap-4 px-10 py-8 rounded-2xl bg-card/90 backdrop-blur-md border border-border shadow-2xl pointer-events-auto max-w-xs text-center">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Filter size={28} className="text-primary" />
-            </div>
-            <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wider">Aucun Filtre Actif</h3>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Définissez les filtres pour charger les sites sur la carte.
-            </p>
-            <button
-              onClick={() => setShowFilterModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors shadow-lg"
-            >
-              <Filter size={12} className="inline mr-1.5" />
-              Ouvrir les filtres
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Empty overlay removed — message now in sidebar */}
       {/* Bbox loading indicator */}
       {bboxLoading && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1001] px-3 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-lg flex items-center gap-2">
@@ -4620,7 +4601,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Site List (sites tab) ── */}
               {inventoryTab === 'sites' && (
               <div className="flex-1 overflow-y-auto px-4 pb-4">
-                {filteredSites.length === 0 ? (
+                {!dashboardActive && !loading ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Filter size={18} className="text-primary" />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">No Dashboard</span>
+                    <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
+                      Sélectionnez ou créez un dashboard pour charger les sites.
+                    </p>
+                    <button
+                      onClick={() => setShowFilterModal(true)}
+                      className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors shadow-md"
+                    >
+                      <Filter size={10} className="inline mr-1" />
+                      Ouvrir les filtres
+                    </button>
+                  </div>
+                ) : filteredSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <Search size={28} className="mb-3 opacity-20" />
                     <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
