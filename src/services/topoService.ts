@@ -385,6 +385,9 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     dms_ul_3: 0,
     coordinates: [lat, lng] as [number, number],
     cells: [], // cells loaded on-demand when zoomed in
+    zone_arcep: (dto as any).zone_arcep || null,
+    techno: (dto as any).techno || null,
+    bande: (dto as any).bande || null,
   };
 }
 
