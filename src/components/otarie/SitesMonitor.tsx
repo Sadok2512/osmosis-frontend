@@ -1960,12 +1960,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [dashboardSaveFlash, setDashboardSaveFlash] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
 
-  // Auto-show filter modal when no dashboard is active
-  useEffect(() => {
-    if (!dashboardActive) {
-      setShowFilterModal(true);
-    }
-  }, [dashboardActive]);
+  // No auto-show filter modal — user must create a dashboard first
 
   const handleFilterModalApply = useCallback(async (siteFilters: ModalSiteFilters) => {
     setShowFilterModal(false);
