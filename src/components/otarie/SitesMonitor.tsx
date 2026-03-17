@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { dashboardsApi, mapViewsApi, qoeMetricsApi } from '@/lib/localDb';
+import { dashboardsApi, mapViewsApi, qoeMetricsApi, topoApi } from '@/lib/localDb';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import MarkerClusterGroup from 'react-leaflet-cluster';
@@ -948,15 +948,22 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
   );
 };
 
+export type SiteScopeType = 'ALL' | 'DOR' | 'DR' | 'Plaque';
+export interface SiteScope {
+  type: SiteScopeType;
+  value?: string;
+}
+
 interface DashboardInventoryTabProps {
   onApplyView?: (settings: any) => void;
+  onDashboardActiveChange?: (active: boolean, scope?: SiteScope | null) => void;
   beamVisibility?: number;
   onBeamVisChange?: (v: number) => void;
   onSaveDashboard?: (dbId: string) => void;
   onLoadDashboard?: (dbId: string) => void;
   isSaving?: boolean;
 }
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -977,11 +984,28 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
+  // Scope selection for new dashboard creation
+  const [createStep, setCreateStep] = useState<'name' | 'scope_type' | 'scope_value'>('name');
+  const [scopeType, setScopeType] = useState<SiteScopeType>('ALL');
+  const [scopeValue, setScopeValue] = useState('');
+  const [scopeOptions, setScopeOptions] = useState<string[]>([]);
+  const [scopeLoading, setScopeLoading] = useState(false);
+
+  const extractScope = (db: any): SiteScope | null => {
+    const s = getDashboardSettings(db);
+    return s?.siteScope || null;
+  };
+
   const requestDashboardSwitch = (newId: string | null) => {
     setExpandedDashboardId(newId);
     if (newId && onApplyView) {
       const db = dashboards.find(d => d.id === newId);
-      if (db) onApplyView(getDashboardSettings(db));
+      if (db) {
+        onApplyView(getDashboardSettings(db));
+        onDashboardActiveChange?.(true, extractScope(db));
+      }
+    } else {
+      onDashboardActiveChange?.(false, null);
     }
   };
 
@@ -990,7 +1014,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setExpandedDashboardId(pendingSwitchId);
     if (pendingSwitchId && onApplyView) {
       const db = dashboards.find(d => d.id === pendingSwitchId);
-      if (db) onApplyView(getDashboardSettings(db));
+      if (db) {
+        onApplyView(getDashboardSettings(db));
+        onDashboardActiveChange?.(true, extractScope(db));
+      }
     }
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
@@ -1000,7 +1027,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setExpandedDashboardId(pendingSwitchId);
     if (pendingSwitchId && onApplyView) {
       const db = dashboards.find(d => d.id === pendingSwitchId);
-      if (db) onApplyView(getDashboardSettings(db));
+      if (db) {
+        onApplyView(getDashboardSettings(db));
+        onDashboardActiveChange?.(true, extractScope(db));
+      }
     }
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
@@ -1055,10 +1085,40 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
   };
 
-  const handleCreateDashboard = async () => {
+  const loadScopeOptions = async (type: SiteScopeType) => {
+    if (type === 'ALL') return;
+    setScopeLoading(true);
+    const fieldMap: Record<string, string> = { DOR: 'dor', DR: 'region', Plaque: 'plaque' };
+    try {
+      const result = await topoApi.distinct(fieldMap[type]);
+      const values = Array.isArray(result) ? result : (result?.values || result?.data || []);
+      setScopeOptions(values.filter(Boolean).sort());
+    } catch (e) {
+      console.warn('[DashboardCreate] Failed to load scope options:', e);
+      setScopeOptions([]);
+    }
+    setScopeLoading(false);
+  };
+
+  const handleScopeTypeSelect = async (type: SiteScopeType) => {
+    setScopeType(type);
+    if (type === 'ALL') {
+      // Skip value selection, go straight to create
+      handleCreateDashboardFinal(type);
+    } else {
+      await loadScopeOptions(type);
+      setCreateStep('scope_value');
+    }
+  };
+
+  const handleCreateDashboardFinal = async (overrideType?: SiteScopeType, overrideValue?: string) => {
     if (!newDashName.trim()) return;
     setCreatingDash(true);
     const id = crypto.randomUUID();
+    const finalScope: SiteScope = {
+      type: overrideType || scopeType,
+      value: (overrideType || scopeType) === 'ALL' ? undefined : (overrideValue || scopeValue),
+    };
     try {
       const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
       await dashboardsApi.upsert({
@@ -1066,15 +1126,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         name: newDashName.trim(),
         description: '',
         is_shared: true,
-        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '' }],
+        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope }],
         owner_username: session?.username,
       });
       setNewDashName('');
       setShowCreateDash(false);
+      setCreateStep('name');
+      setScopeType('ALL');
+      setScopeValue('');
+      setScopeOptions([]);
       await fetchAll();
       setExpandedDashboardId(id);
+      onDashboardActiveChange?.(true, finalScope);
     } catch {}
     setCreatingDash(false);
+  };
+
+  const handleCreateDashboard = async () => {
+    handleCreateDashboardFinal();
   };
 
   const handleDeleteDashboard = async (dbId: string) => {
@@ -1218,25 +1287,112 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         ) : null;
       })()}
 
-      {/* Create dashboard form */}
+      {/* Create dashboard form — multi-step */}
       {showCreateDash && (
-        <div className="mb-2 flex items-center gap-1.5 px-1">
-          <input
-            autoFocus
-            value={newDashName}
-            onChange={e => setNewDashName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleCreateDashboard()}
-            placeholder="Nom du dashboard..."
-            className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
-          />
-          <button onClick={handleCreateDashboard} disabled={creatingDash || !newDashName.trim()}
-            className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
-            {creatingDash ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
-          </button>
-          <button onClick={() => { setShowCreateDash(false); setNewDashName(''); }}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-            <X size={12} />
-          </button>
+        <div className="mb-2 px-1">
+          <div className="border border-border rounded-xl bg-card p-3 space-y-2">
+            {/* Step 1: Name */}
+            {createStep === 'name' && (
+              <>
+                <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Étape 1 — Nom</label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    value={newDashName}
+                    onChange={e => setNewDashName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && newDashName.trim()) setCreateStep('scope_type'); }}
+                    placeholder="Nom du dashboard..."
+                    className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
+                  />
+                  <button onClick={() => { if (newDashName.trim()) setCreateStep('scope_type'); }} disabled={!newDashName.trim()}
+                    className="px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 disabled:opacity-40 transition-colors">
+                    Suivant →
+                  </button>
+                  <button onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateStep('name'); }}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                    <X size={12} />
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 2: Scope type */}
+            {createStep === 'scope_type' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Étape 2 — Périmètre sites</label>
+                  <button onClick={() => setCreateStep('name')} className="text-[9px] text-primary font-bold hover:underline">← Retour</button>
+                </div>
+                <p className="text-[9px] text-muted-foreground">Sélectionnez le filtre de sites à afficher sur la carte</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {([
+                    { type: 'ALL' as SiteScopeType, label: 'TOUS', desc: 'Tous les sites', icon: '🌍' },
+                    { type: 'DOR' as SiteScopeType, label: 'DOR', desc: 'Par Direction Opérationnelle', icon: '🏢' },
+                    { type: 'DR' as SiteScopeType, label: 'DR', desc: 'Par Direction Régionale', icon: '📍' },
+                    { type: 'Plaque' as SiteScopeType, label: 'PLAQUE', desc: 'Par Plaque Régionale', icon: '🗺️' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.type}
+                      onClick={() => handleScopeTypeSelect(opt.type)}
+                      disabled={creatingDash}
+                      className="flex flex-col items-center gap-1 px-2 py-3 rounded-xl border-2 border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-center"
+                    >
+                      <span className="text-lg">{opt.icon}</span>
+                      <span className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">{opt.label}</span>
+                      <span className="text-[8px] text-muted-foreground leading-tight">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                {creatingDash && (
+                  <div className="flex items-center justify-center py-2">
+                    <RefreshCw size={14} className="text-primary animate-spin" />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Step 3: Scope value */}
+            {createStep === 'scope_value' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Étape 3 — Valeur {scopeType}
+                  </label>
+                  <button onClick={() => { setCreateStep('scope_type'); setScopeValue(''); }} className="text-[9px] text-primary font-bold hover:underline">← Retour</button>
+                </div>
+                {scopeLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <RefreshCw size={14} className="text-primary animate-spin" />
+                    <span className="ml-2 text-[10px] text-muted-foreground">Chargement des valeurs...</span>
+                  </div>
+                ) : scopeOptions.length === 0 ? (
+                  <div className="text-center py-3 text-[10px] text-muted-foreground">Aucune valeur trouvée</div>
+                ) : (
+                  <div className="max-h-[200px] overflow-y-auto space-y-0.5">
+                    {scopeOptions.map(val => (
+                      <button
+                        key={val}
+                        onClick={() => {
+                          setScopeValue(val);
+                          handleCreateDashboardFinal(scopeType, val);
+                        }}
+                        disabled={creatingDash}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold text-foreground hover:bg-primary/5 hover:text-primary transition-all text-left"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-primary/40 shrink-0" />
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {creatingDash && (
+                  <div className="flex items-center justify-center py-2">
+                    <RefreshCw size={14} className="text-primary animate-spin" />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -1681,6 +1837,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   });
 
   // ── Active Dashboard selector ──
+  const [dashboardActive, setDashboardActive] = useState(false);
+  const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   const [activeDashboardId, setActiveDashboardId] = useState<string | null>(() => localStorage.getItem('qoebit_active_dashboard'));
   const [dashboardList, setDashboardList] = useState<{ id: string; name: string; widgets: any }[]>([]);
   const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
@@ -2082,8 +2240,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [fetchForViewport, currentBboxFilters]);
 
   // Initial load + filter changes → refetch for current viewport
+  // GATED: only load when a dashboard is active
   useEffect(() => {
     mountedRef.current = true;
+    if (!dashboardActive) {
+      setSites([]);
+      setLoading(false);
+      return;
+    }
     // If we have viewport bounds, fetch by bbox; otherwise load legacy
     if (viewport.bounds) {
       fetchForViewport(viewport.bounds, currentBboxFilters);
@@ -2104,18 +2268,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [currentBboxFilters, filters]);
+  }, [currentBboxFilters, filters, dashboardActive]);
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
-    // Only refetch if bounds actually changed meaningfully
+    if (!dashboardActive) return; // Don't fetch if no dashboard active
     const prev = prevViewportRef.current;
     if (prev.bounds && v.bounds) {
       const prevBounds = prev.bounds;
       const newBounds = v.bounds;
-      const threshold = 0.001; // ~100m
+      const threshold = 0.001;
       const moved = Math.abs(prevBounds.getWest() - newBounds.getWest()) > threshold ||
                     Math.abs(prevBounds.getSouth() - newBounds.getSouth()) > threshold ||
                     Math.abs(prevBounds.getEast() - newBounds.getEast()) > threshold ||
@@ -2124,7 +2288,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     prevViewportRef.current = v;
     handleViewportForFetch(v);
-  }, [handleViewportForFetch]);
+  }, [handleViewportForFetch, dashboardActive]);
 
   // Cleanup
   useEffect(() => {
@@ -2570,6 +2734,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
+      {/* Empty state — no dashboard selected */}
+      {!dashboardActive && !loading && (
+        <div className="absolute inset-0 z-[1100] flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-4 px-10 py-8 rounded-2xl bg-card/90 backdrop-blur-md border border-border shadow-2xl pointer-events-auto max-w-xs text-center">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <LayoutGrid size={28} className="text-primary" />
+            </div>
+            <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wider">Aucun Dashboard Actif</h3>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Créez ou sélectionnez un dashboard dans l'onglet <strong>Dashboard</strong> du panneau latéral pour charger les sites sur la carte.
+            </p>
+            <button
+              onClick={() => { setInventoryTab('dashboard'); setPanelCollapsed(false); }}
+              className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors shadow-lg"
+            >
+              <Plus size={12} className="inline mr-1.5" />
+              Créer un Dashboard
+            </button>
+          </div>
+        </div>
+      )}
       {/* Bbox loading indicator */}
       {bboxLoading && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1001] px-3 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-lg flex items-center gap-2">
@@ -4329,12 +4514,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (settings.center && Array.isArray(settings.center)) {
                       setFlyTarget(settings.center as [number, number]);
                     }
+                    // Apply scope filter from dashboard
+                    if (settings.siteScope) {
+                      setActiveSiteScope(settings.siteScope);
+                      const scope = settings.siteScope as SiteScope;
+                      if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
+                      else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
+                    }
                     // Apply view filters (topo + qoe)
-                    console.log('[onApplyView] settings.viewFilters:', JSON.stringify(settings.viewFilters));
                     if (Array.isArray(settings.viewFilters)) {
-                      console.log('[onApplyView] Setting activeViewFilters:', settings.viewFilters.length, 'filters');
                       setActiveViewFilters(settings.viewFilters);
-                      // Apply topo filters to local state
                       for (const f of settings.viewFilters) {
                         if (f.mode === 'topo') {
                           if (f.tech) {
@@ -4348,6 +4537,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       }
                     } else {
                       setActiveViewFilters([]);
+                    }
+                  }}
+                  onDashboardActiveChange={(active, scope) => {
+                    setDashboardActive(active);
+                    setActiveSiteScope(scope || null);
+                    if (!active) {
+                      setSites([]);
+                      setLocalDor('ALL');
+                      setLocalPlaque('ALL');
+                    } else if (scope) {
+                      if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
+                      else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
                     }
                   }}
                   beamVisibility={beamVisibility}
