@@ -1337,39 +1337,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 if (availableValues.length === 0 && !dim.values) return null;
 
                 return (
-                  <div key={dim.key} className="border border-border rounded-lg bg-muted/30">
-                    {/* Dimension header */}
-                    <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-border/50">
-                      <span className="text-[10px] font-bold text-foreground">{dim.label}</span>
-                      {selectedValues.length > 0 && (
-                        <button
-                          onClick={() => setCreateFilters(prev => ({ ...prev, [dim.key]: undefined }))}
-                          className="text-[8px] text-destructive font-semibold hover:underline"
-                        >
-                          ✕ {selectedValues.length}
-                        </button>
-                      )}
-                    </div>
-                    {/* Horizontal scrollable chips */}
-                    <div className="flex gap-1.5 px-2.5 py-2 overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                      {availableValues.map(val => {
-                        const isSelected = selectedValues.includes(val);
-                        return (
-                          <button
-                            key={val}
-                            onClick={() => toggleCreateFilterValue(dim.key, val)}
-                            className={`shrink-0 px-2.5 py-1 rounded-full text-[9px] font-semibold transition-all border whitespace-nowrap ${
-                              isSelected
-                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
-                            }`}
-                          >
-                            {val}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <CreateFilterDropdown
+                    key={dim.key}
+                    label={dim.label}
+                    values={availableValues}
+                    selected={selectedValues}
+                    onChange={(vals) => setCreateFilters(prev => ({ ...prev, [dim.key]: vals.length > 0 ? vals : undefined }))}
+                  />
                 );
               })}
             </div>
