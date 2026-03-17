@@ -2774,8 +2774,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
-    // Show loading when zooming in or out changes visible sites
-    if (v.zoom !== prevZoom && mapFilteredSites.length > 500) {
+    // Show loading when zooming changes visible sites — but NOT during fly animation
+    if (v.zoom !== prevZoom && mapFilteredSites.length > 500 && !isFlyingRef.current) {
       setMapRendering(true);
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
