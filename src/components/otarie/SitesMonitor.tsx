@@ -1996,7 +1996,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // Activate the newly created dashboard
       setActiveDashboardId(id);
       localStorage.setItem('qoebit_active_dashboard', id);
-      setDashboardList(prev => [...prev, { id, name: dashName, widgets }]);
+      // Re-fetch full list from backend to avoid duplicates
+      try {
+        const freshList = await dashboardsApi.list();
+        if (Array.isArray(freshList)) setDashboardList(freshList);
+        else setDashboardList(prev => prev.some(d => d.id === id) ? prev : [...prev, { id, name: dashName, widgets }]);
+      } catch {
+        setDashboardList(prev => prev.some(d => d.id === id) ? prev : [...prev, { id, name: dashName, widgets }]);
+      }
     } catch {}
   }, []);
 
