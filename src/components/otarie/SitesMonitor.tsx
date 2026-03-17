@@ -1983,14 +1983,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (siteFilters.dor?.length === 1) { finalScope.type = 'DOR'; finalScope.value = siteFilters.dor[0]; }
     try {
       const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
+      const dashName = `Filtre ${new Date().toLocaleDateString()}`;
+      const widgets = [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope, siteFilters: cleanFilters }];
       await dashboardsApi.upsert({
         id,
-        name: `Filtre ${new Date().toLocaleDateString()}`,
+        name: dashName,
         description: '',
         is_shared: true,
-        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope, siteFilters: cleanFilters }],
+        widgets,
         owner_username: session?.username,
       });
+      // Activate the newly created dashboard
+      setActiveDashboardId(id);
+      localStorage.setItem('qoebit_active_dashboard', id);
+      setDashboardList(prev => [...prev, { id, name: dashName, widgets }]);
     } catch {}
   }, []);
 
