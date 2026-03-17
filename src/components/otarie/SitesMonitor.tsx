@@ -2522,7 +2522,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   useEffect(() => {
     if (selectedSiteId) {
       const loadDetail = async () => {
-        setDetailLoading(true);
         // First: try to use the already-loaded bbox site (which has cells from VPS merge)
         const bboxSite = sites.find(s => s.site_id === selectedSiteId || s.site_name === selectedSiteId);
         if (bboxSite && bboxSite.cells && bboxSite.cells.length > 0) {
@@ -2538,6 +2537,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           setDetailLoading(false);
           return;
         }
+        // Only show loading if we don't already have detail for this site
+        if (!siteDetail || siteDetail.site_id !== selectedSiteId) {
+          setDetailLoading(true);
+        }
         // Fallback: legacy full-load detail
         const data = await fetchSiteDetails(selectedSiteId);
         setSiteDetail(data);
@@ -2547,7 +2550,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     } else {
       setSiteDetail(null);
     }
-  }, [selectedSiteId, sites]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSiteId]);
 
   // Fetch LTE config from parameter_dump when a cell is focused
   useEffect(() => {
