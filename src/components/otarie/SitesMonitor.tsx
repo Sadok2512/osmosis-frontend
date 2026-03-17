@@ -192,7 +192,9 @@ const FlyToSite = ({ coords, onFlyStart, onFlyEnd, onDone }: { coords: [number, 
       if (dist < 500 && Math.abs(currentZoom - targetZoom) < 1) {
         // Already very close — just pan smoothly without zoom animation
         map.panTo(coords, { duration: 0.4, animate: true });
-        setTimeout(() => { onFlyEnd?.(); onDone?.(); }, 450);
+        const handler = () => { onFlyEnd?.(); onDone?.(); };
+        map.once('moveend', handler);
+        return () => { map.off('moveend', handler); };
       } else {
         map.flyTo(coords, targetZoom, { duration: 1 });
         const handler = () => { onFlyEnd?.(); onDone?.(); };
