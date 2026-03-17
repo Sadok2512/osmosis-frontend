@@ -4882,6 +4882,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   onSaveDashboard={(dbId) => saveDashboardSettings(dbId)}
                   onLoadDashboard={(dbId) => loadDashboardSettings(dbId)}
                   isSaving={dashboardSaving}
+                  backendFilterDefs={backendFilterDefs}
                 />
               )}
             </div>
