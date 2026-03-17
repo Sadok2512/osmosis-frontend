@@ -1181,7 +1181,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setLdg(true);
     try {
       const dbData = await dashboardsApi.list();
-      if (Array.isArray(dbData)) setDashboards(dbData.filter((d: any) => !d.is_archived));
+      if (Array.isArray(dbData)) {
+        setDashboards(dedupeAutoFilterDashboards(dbData.filter((d: any) => !d.is_archived)));
+      }
     } catch (e) {
       console.warn('[SitesMonitor] fetchAll dashboards failed:', e);
     }
