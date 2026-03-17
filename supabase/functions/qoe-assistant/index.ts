@@ -1002,7 +1002,7 @@ async function generateAndExecuteParmySql(
     let correctedQuery = userQuery;
 
     if (extractedParam) {
-      const resolved = await resolveParameterName(extractedParam, supabase);
+      const resolved = await resolveParameterName(extractedParam);
       if (resolved.wasFixed) {
         correctedQuery = userQuery.replace(
           new RegExp(extractedParam.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
