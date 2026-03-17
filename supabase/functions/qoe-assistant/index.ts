@@ -2699,12 +2699,13 @@ serve(async (req) => {
 
     const plan = buildContextPlan(lastUserMessage, uiScope, filters);
 
-    // Override agent if user forced selection — rebuild plan with forced agent
+    // Override agent if user forced selection — but ALWAYS keep deep_investigation (Chemin 2)
     if (forcedAgent && ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"].includes(forcedAgent)) {
       const originalAgent = plan.agent;
       plan.agent = forcedAgent as AgentId;
-      // Rebuild needs for the forced agent
-      plan.needs = ["documents_rag"];
+      // Rebuild needs: ALWAYS include deep_investigation + agent-specific extras
+      plan.needs = ["deep_investigation", "documents_rag"];
+      plan.intent = "deep_investigation";
       const q = lastUserMessage.toLowerCase();
       switch (forcedAgent) {
         case "PARMY":
@@ -2712,7 +2713,6 @@ serve(async (req) => {
           if (isParameterFocusedQuery(lastUserMessage)) plan.needs.push("param_dump");
           if (plan.scope.level === "site") plan.needs.push("topology", "kpi_snapshot");
           if (isChangeHistoryQuery(lastUserMessage)) plan.needs.push("change_history");
-          plan.intent = "param_audit";
           break;
         case "PULSE":
           plan.needs.push("agg_stats", "worst_sites");
@@ -2736,7 +2736,7 @@ serve(async (req) => {
           plan.needs.push("worst_sites");
           break;
       }
-      console.log(`🎯 Agent FORCÉ: ${originalAgent} → ${forcedAgent} | needs=[${plan.needs.join(",")}]`);
+      console.log(`🎯 Agent FORCÉ (Chemin 2): ${originalAgent} → ${forcedAgent} | needs=[${plan.needs.join(",")}]`);
     }
 
     console.log(`🧠 QOEBIT → ${plan.agent} | intent=${plan.intent} | scope=${JSON.stringify(plan.scope)}`);
