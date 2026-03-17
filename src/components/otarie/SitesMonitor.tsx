@@ -21,9 +21,8 @@ import CoverageCanvasOverlay from './CoverageCanvasOverlay';
 import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
-import SiteFilterModal, { DashboardSiteFilters as ModalSiteFilters } from './SiteFilterModal';
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
-import { useSitesFilters } from '@/hooks/useSitesFilters';
+import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
 
 // Heatmap layer component using leaflet.heat
 const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
