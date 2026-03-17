@@ -960,7 +960,123 @@ export interface SiteScope {
   value?: string;
 }
 
-// New multi-filter type for dashboard creation
+/* ── Multi-select dropdown for dashboard creation filters ── */
+const CreateFilterDropdown: React.FC<{
+  label: string;
+  values: string[];
+  selected: string[];
+  onChange: (vals: string[]) => void;
+}> = ({ label, values, selected, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSearch(''); }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return values;
+    const q = search.toLowerCase();
+    return values.filter(v => v.toLowerCase().includes(q));
+  }, [values, search]);
+
+  const toggle = (val: string) => {
+    onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
+  };
+
+  if (values.length === 0) return null;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left transition-all ${
+          open
+            ? 'border-primary bg-primary/5 shadow-md'
+            : selected.length > 0
+              ? 'border-primary/40 bg-primary/5'
+              : 'border-border bg-muted/30 hover:border-primary/30 hover:bg-muted/50'
+        }`}
+      >
+        <div className="flex-1 min-w-0">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">{label}</span>
+          {selected.length === 0 ? (
+            <span className="text-[10px] text-muted-foreground/60">Tout</span>
+          ) : selected.length <= 2 ? (
+            <span className="text-[10px] font-semibold text-foreground truncate block">{selected.join(', ')}</span>
+          ) : (
+            <span className="text-[10px] font-semibold text-foreground">{selected.length} sélectionné{selected.length > 1 ? 's' : ''}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {selected.length > 0 && (
+            <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[8px] font-bold flex items-center justify-center">
+              {selected.length}
+            </span>
+          )}
+          <ChevronDown size={12} className={`text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-card rounded-lg border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
+          {values.length > 5 && (
+            <div className="px-2.5 pt-2 pb-1">
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 border border-border">
+                <Search size={11} className="text-muted-foreground shrink-0" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Rechercher..."
+                  className="flex-1 bg-transparent text-[10px] text-foreground placeholder:text-muted-foreground/50 outline-none"
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-1 px-2.5 py-1.5 border-b border-border/40">
+            <button onClick={() => onChange([...values])} className="text-[9px] font-semibold text-primary hover:underline">Tout sélectionner</button>
+            <span className="text-muted-foreground/40">·</span>
+            <button onClick={() => onChange([])} className="text-[9px] font-semibold text-destructive hover:underline">Effacer</button>
+          </div>
+          <div className="max-h-[180px] overflow-y-auto py-0.5">
+            {filtered.length === 0 ? (
+              <p className="text-[9px] text-muted-foreground/50 text-center py-3 italic">Aucun résultat</p>
+            ) : (
+              filtered.map(val => {
+                const isSelected = selected.includes(val);
+                return (
+                  <button
+                    key={val}
+                    onClick={() => toggle(val)}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-[10px] transition-colors ${
+                      isSelected ? 'bg-primary/10 text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }`}
+                  >
+                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                      isSelected ? 'bg-primary border-primary' : 'border-border'
+                    }`}>
+                      {isSelected && <Check size={9} className="text-primary-foreground" />}
+                    </div>
+                    <span className="truncate font-medium">{val}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 export interface DashboardSiteFilters {
   dor?: string[];
   constructeur?: string[];
