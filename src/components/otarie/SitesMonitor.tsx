@@ -2240,8 +2240,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [fetchForViewport, currentBboxFilters]);
 
   // Initial load + filter changes → refetch for current viewport
+  // GATED: only load when a dashboard is active
   useEffect(() => {
     mountedRef.current = true;
+    if (!dashboardActive) {
+      setSites([]);
+      setLoading(false);
+      return;
+    }
     // If we have viewport bounds, fetch by bbox; otherwise load legacy
     if (viewport.bounds) {
       fetchForViewport(viewport.bounds, currentBboxFilters);
@@ -2262,7 +2268,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [currentBboxFilters, filters]);
+  }, [currentBboxFilters, filters, dashboardActive]);
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
