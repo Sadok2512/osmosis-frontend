@@ -2119,8 +2119,11 @@ async function buildContextFromPlan(
     promises.sentinelTs = fetchSentinelTimeSeries(filters, plan.scope, met, plan.limits.maxDays || 15);
   }
   if (plan.needs.includes("deep_investigation")) {
-    // Chemin 2: call Agent Layer or local fallback with all agents in parallel
-    const deepResult = await callAgentLayer(query, plan.scope, filters, ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"]);
+    // Chemin 2: call Agent Layer or local fallback — use only active agents from Orchestrator
+    const agentsToInvestigate = _activeAgentsForCurrentRequest.length > 0
+      ? _activeAgentsForCurrentRequest
+      : ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"];
+    const deepResult = await callAgentLayer(query, plan.scope, filters, agentsToInvestigate);
     const deepContext = `🔬 INVESTIGATION PROFONDE (Chemin 2) — ${deepResult.results.length} agents mobilisés\n\n` +
       deepResult.results.map(r => {
         let block = `### 🤖 Agent ${r.agent} [${r.status}]\n${r.analysis?.slice(0, 3000) || "Pas de données"}`;
