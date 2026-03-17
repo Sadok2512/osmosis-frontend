@@ -4538,13 +4538,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setActiveViewFilters([]);
                     }
                   }}
-                  onDashboardActiveChange={(active, scope) => {
+                  onDashboardActiveChange={(active, scope, siteFilters) => {
                     setDashboardActive(active);
                     setActiveSiteScope(scope || null);
                     if (!active) {
                       setSites([]);
                       setLocalDor('ALL');
                       setLocalPlaque('ALL');
+                      setLocalVendor('ALL');
+                      setLocalBande('ALL');
+                      setLocalZoneArcep('ALL');
+                      setLocalTechno('ALL');
+                    } else if (siteFilters && Object.keys(siteFilters).length > 0) {
+                      // Apply multi-filters from dashboard
+                      if (siteFilters.dor?.length === 1) setLocalDor(siteFilters.dor[0]);
+                      else if (siteFilters.dor?.length) setLocalDor(siteFilters.dor[0]); // first for bbox
+                      if (siteFilters.constructeur?.length === 1) setLocalVendor(siteFilters.constructeur[0]);
+                      if (siteFilters.plaque?.length === 1) setLocalPlaque(siteFilters.plaque[0]);
+                      if (siteFilters.techno?.length === 1) setLocalTechno(siteFilters.techno[0] as any);
+                      if (siteFilters.bande?.length === 1) setLocalBande(siteFilters.bande[0]);
+                      if (siteFilters.zone_arcep?.length === 1) setLocalZoneArcep(siteFilters.zone_arcep[0]);
                     } else if (scope) {
                       if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
                       else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
