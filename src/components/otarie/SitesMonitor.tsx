@@ -179,31 +179,51 @@ const getSectorCoords = (
   return points;
 };
 
-// Fly to a site when selected — smart zoom: don't zoom out if already close
-const FlyToSite = ({ coords, onFlyStart, onFlyEnd, onDone }: { coords: [number, number] | null; onFlyStart?: () => void; onFlyEnd?: () => void; onDone?: () => void }) => {
+// Fly to a site when selected — progressive zoom to avoid forcing cell mode too early
+const FlyToSite = ({
+  coords,
+  onFlyStart,
+  onFlyEnd,
+  onDone,
+}: {
+  coords: [number, number] | null;
+  onFlyStart?: () => void;
+  onFlyEnd?: () => void;
+  onDone?: () => void;
+}) => {
   const map = useMap();
-  useEffect(() => {
-    if (coords && isFinite(coords[0]) && isFinite(coords[1])) {
-      const currentZoom = map.getZoom();
-      const targetZoom = Math.max(currentZoom, 14); // never zoom out below current level, min 14
-      const currentCenter = map.getCenter();
-      const dist = map.distance(currentCenter, coords);
 
-      onFlyStart?.();
-      if (dist < 500 && Math.abs(currentZoom - targetZoom) < 1) {
-        // Already very close — just pan smoothly without zoom animation
-        map.panTo(coords, { duration: 0.4, animate: true });
-        const handler = () => { onFlyEnd?.(); onDone?.(); };
-        map.once('moveend', handler);
-        return () => { map.off('moveend', handler); };
-      } else {
-        map.flyTo(coords, targetZoom, { duration: 1 });
-        const handler = () => { onFlyEnd?.(); onDone?.(); };
-        map.once('moveend', handler);
-        return () => { map.off('moveend', handler); };
-      }
+  useEffect(() => {
+    if (!coords || !isFinite(coords[0]) || !isFinite(coords[1])) return;
+
+    const currentZoom = map.getZoom();
+    const targetZoom = currentZoom < 13 ? 13 : currentZoom;
+    const currentCenter = map.getCenter();
+    const dist = map.distance(currentCenter, coords);
+
+    onFlyStart?.();
+
+    const handler = () => {
+      onFlyEnd?.();
+      onDone?.();
+    };
+
+    if (dist < 500 && Math.abs(currentZoom - targetZoom) < 1) {
+      map.panTo(coords, { duration: 0.4, animate: true });
+      map.once('moveend', handler);
+      return () => {
+        map.off('moveend', handler);
+      };
     }
-  }, [coords, map]);
+
+    map.flyTo(coords, targetZoom, { duration: 0.8 });
+    map.once('moveend', handler);
+
+    return () => {
+      map.off('moveend', handler);
+    };
+  }, [coords, map, onFlyStart, onFlyEnd, onDone]);
+
   return null;
 };
 
