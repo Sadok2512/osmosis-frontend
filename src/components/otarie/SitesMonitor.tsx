@@ -996,16 +996,17 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
-  // Scope selection for new dashboard creation
-  const [createStep, setCreateStep] = useState<'name' | 'scope_type' | 'scope_value'>('name');
-  const [scopeType, setScopeType] = useState<SiteScopeType>('ALL');
-  const [scopeValue, setScopeValue] = useState('');
-  const [scopeOptions, setScopeOptions] = useState<string[]>([]);
-  const [scopeLoading, setScopeLoading] = useState(false);
+  // Create filter state for dashboard creation
+  const [createFilters, setCreateFilters] = useState<DashboardSiteFilters>({});
 
   const extractScope = (db: any): SiteScope | null => {
     const s = getDashboardSettings(db);
     return s?.siteScope || null;
+  };
+
+  const extractSiteFilters = (db: any): DashboardSiteFilters | null => {
+    const s = getDashboardSettings(db);
+    return s?.siteFilters || null;
   };
 
   const requestDashboardSwitch = (newId: string | null) => {
