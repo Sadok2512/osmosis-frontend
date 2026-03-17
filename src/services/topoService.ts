@@ -485,6 +485,7 @@ export async function fetchCellsByBbox(
     if (filters?.bande && filters.bande !== 'ALL') query = query.eq('bande', filters.bande);
     if (filters?.dor && filters.dor !== 'ALL') query = query.eq('dor', filters.dor);
     if (filters?.plaque && filters.plaque !== 'ALL') query = query.eq('plaque', filters.plaque);
+    if (filters?.zone_arcep && filters.zone_arcep !== 'ALL') query = query.eq('zone_arcep', filters.zone_arcep);
 
     // Paginate to get up to 80000 rows (cells)
     const PAGE_SIZE = 1000;

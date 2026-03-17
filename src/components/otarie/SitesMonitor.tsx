@@ -1422,81 +1422,91 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       })()}
 
       {/* Create dashboard popup */}
-      <Dialog open={showCreateDash} onOpenChange={(open) => { if (!open) { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); } }}>
-        <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto p-0 gap-0">
-          <DialogHeader className="px-6 pt-6 pb-3">
-            <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
-              <Plus size={16} className="text-primary" />
-              Créer un Dashboard
-            </DialogTitle>
-            <DialogDescription className="text-[11px] text-muted-foreground">
-              Définissez le nom et les filtres de sites pour votre nouveau dashboard.
-            </DialogDescription>
-          </DialogHeader>
+      {showCreateDash && (
+        <Dialog open={true} onOpenChange={(open) => { if (!open) { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); } }}>
+          <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto p-0 gap-0" onPointerDownOutside={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); }}>
+            <DialogHeader className="px-6 pt-6 pb-3">
+              <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                <Plus size={16} className="text-primary" />
+                Créer un Dashboard
+              </DialogTitle>
+              <DialogDescription className="text-[11px] text-muted-foreground">
+                Définissez le nom et les filtres de sites pour votre nouveau dashboard.
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="px-6 pb-6 space-y-4">
-            {/* Name */}
-            <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Nom du dashboard</label>
-              <input
-                autoFocus
-                value={newDashName}
-                onChange={e => setNewDashName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && newDashName.trim()) handleCreateDashboard(); }}
-                placeholder="Nom du dashboard..."
-                className="w-full bg-muted border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary transition-colors"
-              />
-            </div>
-
-            {/* Filter dimensions */}
-            <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">Filtres de sites</label>
-              <p className="text-[9px] text-primary/70 italic mb-3">Sélectionnez les critères pour filtrer les sites affichés sur la carte</p>
-              <div className="space-y-2">
-                {FILTER_DIMENSIONS.map(dim => {
-                  const availableValues = resolveAvailableValues(dim.key, createActiveFilters);
-                  const selectedValues = createFilters[dim.key as keyof DashboardSiteFilters] || [];
-                  if (availableValues.length === 0 && !dim.values) return null;
-
-                  return (
-                    <CreateFilterDropdown
-                      key={dim.key}
-                      label={dim.label}
-                      values={availableValues}
-                      selected={selectedValues}
-                      onChange={(vals) => setCreateFilters(prev => ({ ...prev, [dim.key]: vals.length > 0 ? vals : undefined }))}
-                    />
-                  );
-                })}
+            <div className="px-6 pb-6 space-y-4">
+              {/* Name */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Nom du dashboard</label>
+                <input
+                  autoFocus
+                  value={newDashName}
+                  onChange={e => setNewDashName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && newDashName.trim()) { handleCreateDashboard(); } }}
+                  placeholder="Nom du dashboard..."
+                  className="w-full bg-muted border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary transition-colors"
+                />
               </div>
-            </div>
 
-            {/* Active filter summary */}
-            {hasAnyCreateFilter && (
-              <div className="border border-primary/20 rounded-xl bg-primary/5 p-3">
-                <span className="text-[9px] font-bold text-primary uppercase tracking-wider">Filtres actifs</span>
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {Object.entries(createFilters).filter(([, v]) => v && v.length > 0).map(([key, vals]) => (
-                    <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
-                      {FILTER_DIMENSIONS.find(d => d.key === key)?.label}: {vals!.join(', ')}
-                    </span>
-                  ))}
+              {/* Filter dimensions */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">Filtres de sites</label>
+                <p className="text-[9px] text-primary/70 italic mb-3">Sélectionnez les critères pour filtrer les sites affichés sur la carte</p>
+                <div className="space-y-2">
+                  {FILTER_DIMENSIONS.map(dim => {
+                    const availableValues = resolveAvailableValues(dim.key, createActiveFilters);
+                    const selectedValues = createFilters[dim.key as keyof DashboardSiteFilters] || [];
+                    if (availableValues.length === 0 && !dim.values) return null;
+
+                    return (
+                      <CreateFilterDropdown
+                        key={dim.key}
+                        label={dim.label}
+                        values={availableValues}
+                        selected={selectedValues}
+                        onChange={(vals) => setCreateFilters(prev => ({ ...prev, [dim.key]: vals.length > 0 ? vals : undefined }))}
+                      />
+                    );
+                  })}
                 </div>
               </div>
-            )}
 
-            {/* Create button */}
-            <button
-              onClick={() => { handleCreateDashboard(); setShowCreateDash(false); }}
-              disabled={!newDashName.trim() || creatingDash}
-              className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-2 shadow-sm"
-            >
-              {creatingDash ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
-              {hasAnyCreateFilter ? 'Créer avec filtres' : 'Créer (tous les sites)'}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
+              {/* Active filter summary */}
+              {hasAnyCreateFilter && (
+                <div className="border border-primary/20 rounded-xl bg-primary/5 p-3">
+                  <span className="text-[9px] font-bold text-primary uppercase tracking-wider">Filtres actifs</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {Object.entries(createFilters).filter(([, v]) => v && v.length > 0).map(([key, vals]) => (
+                      <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
+                        {FILTER_DIMENSIONS.find(d => d.key === key)?.label}: {vals!.join(', ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); }}
+                  className="flex-1 py-3 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => { handleCreateDashboard(); }}
+                  disabled={!newDashName.trim() || creatingDash}
+                  className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                >
+                  {creatingDash ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                  {hasAnyCreateFilter ? 'Créer' : 'Créer'}
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Load dashboard picker */}
       {showLoadPicker && (
@@ -2324,8 +2334,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     dor: localDor !== 'ALL' ? localDor : undefined,
     vendor: localVendor !== 'ALL' ? localVendor : undefined,
     plaque: localPlaque !== 'ALL' ? localPlaque : undefined,
+    zone_arcep: localZoneArcep !== 'ALL' ? localZoneArcep : undefined,
+    techno: localTechno !== 'ALL' ? localTechno : undefined,
+    bande: localBande !== 'ALL' ? localBande : undefined,
     q: localSearch || undefined,
-  }), [localDor, localVendor, localPlaque, localSearch]);
+  }), [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch]);
 
   // Core bbox fetch function — switches to cell-level fetch at sector zoom
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
