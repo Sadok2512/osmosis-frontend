@@ -295,19 +295,23 @@ const MapViewportTracker = ({ onViewportChange }: { onViewportChange: (v: Viewpo
   return null;
 };
 
-// Create a custom cluster icon
-const createClusterCustomIcon = (_cluster: any) => {
-  const dim = 14;
+// Create a custom cluster icon with site count
+const createClusterCustomIcon = (cluster: any) => {
+  const count = cluster.getChildCount();
+  const size = count > 100 ? 40 : count > 30 ? 34 : count > 10 ? 28 : 22;
   return L.divIcon({
     html: `<div style="
       background: hsl(220 60% 30%);
-      width: ${dim}px; height: ${dim}px;
+      width: ${size}px; height: ${size}px;
       border-radius: 50%;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
       border: 2px solid hsl(var(--background));
-    "></div>`,
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: ${size > 30 ? 11 : 9}px; font-weight: 800;
+      letter-spacing: -0.03em;
+    ">${count}</div>`,
     className: 'custom-cluster-icon',
-    iconSize: L.point(dim, dim, true),
+    iconSize: L.point(size, size, true),
   });
 };
 
@@ -1737,6 +1741,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
   const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
+  const [showSiteLabels, setShowSiteLabels] = useState(true);
+  const [showBeamSectors, setShowBeamSectors] = useState(true);
 
   const TILE_URLS: Record<typeof mapLayer, { url: string; attribution: string }> = {
     light: {
@@ -2553,7 +2559,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds]);
 
-  const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD && mapDisplayMode === 'sites' && !isFlying;
+  const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
 
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
@@ -2928,7 +2934,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           );
         })}
 
-        {/* Sites mode — Circle markers when sectors not visible */}
+        {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
         {!paramMode && mapDisplayMode === 'sites' && !showSectors && visibleSites.map(site => {
           const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
           const has5G = site.cells.length > 0 ? site.cells.some(c => (c.techno || '').toUpperCase().includes('5G')) : site.site_name.toUpperCase().includes('5G');
@@ -2936,24 +2942,111 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const color = sectorColorMode === 'topo' ? topoColor : kpiColor;
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
-          const isFocusFaded = false;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
-          const radius = viewport.zoom >= 10 ? (isHovered ? 7 : (isSelectedSite ? 7 : 5)) : (isHovered ? 5 : 3);
+          const showMiniSectors = showBeamSectors && viewport.zoom >= 9 && site.cells.length > 0 && !isIndoor;
 
           if (isIndoor) {
             const iconSize = viewport.zoom >= 10 ? 20 : 14;
             return (
-              <Marker
-                key={site.site_id}
-                position={site.coordinates}
-                icon={L.divIcon({
-                  className: '',
-                  iconSize: [iconSize, iconSize],
-                  iconAnchor: [iconSize / 2, iconSize / 2],
-                  html: `<div style="width:${iconSize}px;height:${iconSize}px;border-radius:50%;background:${isFocusFaded ? FADED_COLOR : color};border:2px solid ${isSelectedSite || isHovered ? '#fff' : '#555'};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.3);">
-                    <span style="color:#fff;font-weight:900;font-size:${iconSize * 0.55}px;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,0.5);">I</span>
-                  </div>`,
+              <React.Fragment key={site.site_id}>
+                <Marker
+                  position={site.coordinates}
+                  icon={L.divIcon({
+                    className: '',
+                    iconSize: [iconSize, iconSize],
+                    iconAnchor: [iconSize / 2, iconSize / 2],
+                    html: `<div style="width:${iconSize}px;height:${iconSize}px;border-radius:50%;background:${color};border:2px solid ${isSelectedSite || isHovered ? '#fff' : '#555'};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.3);">
+                      <span style="color:#fff;font-weight:900;font-size:${iconSize * 0.55}px;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,0.5);">I</span>
+                    </div>`,
+                  })}
+                  eventHandlers={{
+                    click: () => handleSiteClick(site),
+                    mouseover: () => setHoveredSiteId(site.site_id),
+                    mouseout: () => setHoveredSiteId(null),
+                  }}
+                >
+                  <Popup>
+                    <div className="p-1">
+                      <div className="font-bold text-sm">{site.site_name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{site.site_id} • Indoor</div>
+                    </div>
+                  </Popup>
+                </Marker>
+                {showSiteLabels && viewport.zoom >= 10 && (
+                  <Marker position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
+                    <Tooltip direction="bottom" offset={[0, 8]} permanent className="site-name-label-clean">
+                      <span style={{ fontSize: viewport.zoom >= 12 ? '9px' : '7px', fontWeight: 700, color: '#1a1a1a', textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff' }}>{site.site_name}</span>
+                    </Tooltip>
+                  </Marker>
+                )}
+              </React.Fragment>
+            );
+          }
+
+          // Mini sector triangles at medium zoom
+          if (showMiniSectors) {
+            const miniRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * 0.7;
+            const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
+            const azimuths = [...new Set(site.cells.map(c => c.azimut ?? 0))];
+            return (
+              <React.Fragment key={site.site_id}>
+                {azimuths.map(az => {
+                  const sectorCoords = getSectorCoords(site.coordinates, az, miniRadius, 60);
+                  return (
+                    <Polygon
+                      key={`${site.site_id}_mini_${az}`}
+                      positions={sectorCoords}
+                      pane={has5G ? 'pane5G' : 'pane4G'}
+                      pathOptions={{
+                        color: isHovered ? '#fff' : deriveStrokeColor(color),
+                        fillColor: color,
+                        fillOpacity: isHovered ? 0.5 : miniOpacity,
+                        weight: isHovered ? 1.5 : 0.8,
+                        opacity: isHovered ? 1 : 0.65,
+                      }}
+                      eventHandlers={{
+                        click: () => handleSiteClick(site),
+                        mouseover: () => setHoveredSiteId(site.site_id),
+                        mouseout: () => setHoveredSiteId(null),
+                      }}
+                    >
+                      <Popup>
+                        <div className="p-1">
+                          <div className="font-bold text-sm">{site.site_name}</div>
+                          <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                          <div className="text-sm font-bold mt-2" style={{ color }}>
+                            {selectedKpiLabel}: {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                          </div>
+                        </div>
+                      </Popup>
+                    </Polygon>
+                  );
                 })}
+                {showSiteLabels && (
+                  <Marker position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
+                    <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
+                      <span style={{ fontSize: viewport.zoom >= 12 ? '9px' : '7px', fontWeight: 700, color: '#1a1a1a', textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff' }}>{site.site_name}</span>
+                    </Tooltip>
+                  </Marker>
+                )}
+              </React.Fragment>
+            );
+          }
+
+          // Dot markers at low zoom
+          const radius = viewport.zoom >= 10 ? (isHovered ? 7 : (isSelectedSite ? 7 : 5)) : (isHovered ? 5 : 3);
+          return (
+            <React.Fragment key={site.site_id}>
+              <CircleMarker
+                center={site.coordinates}
+                radius={radius}
+                pane={has5G ? 'pane5G' : 'pane4G'}
+                pathOptions={{
+                  color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
+                  fillColor: color,
+                  fillOpacity: 0.85,
+                  weight: isSelectedSite ? 2 : (isHovered ? 2 : 1),
+                }}
                 eventHandlers={{
                   click: () => handleSiteClick(site),
                   mouseover: () => setHoveredSiteId(site.site_id),
@@ -2963,46 +3056,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <Popup>
                   <div className="p-1">
                     <div className="font-bold text-sm">{site.site_name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor} • Indoor</div>
+                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
                     <div className="text-sm font-bold mt-2" style={{ color }}>
                       {selectedKpiLabel}: {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
                     </div>
-                    <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
                   </div>
                 </Popup>
-              </Marker>
-            );
-          }
-
-          return (
-            <CircleMarker
-              key={site.site_id}
-              center={site.coordinates}
-              radius={radius}
-              pane={has5G ? 'pane5G' : 'pane4G'}
-              pathOptions={{
-                color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
-                fillColor: isFocusFaded ? FADED_COLOR : color,
-                fillOpacity: isFocusFaded ? 0.25 : 0.85,
-                weight: isSelectedSite ? 2 : (isHovered ? 2 : 1),
-              }}
-              eventHandlers={{
-                click: () => handleSiteClick(site),
-                mouseover: () => setHoveredSiteId(site.site_id),
-                mouseout: () => setHoveredSiteId(null),
-              }}
-            >
-              <Popup>
-                <div className="p-1">
-                  <div className="font-bold text-sm">{site.site_name}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                  <div className="text-sm font-bold mt-2" style={{ color }}>
-                    {selectedKpiLabel}: {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
-                  </div>
-                  <div className="text-xs mt-1">{site.cell_count} cells • {site.dor}</div>
-                </div>
-              </Popup>
-            </CircleMarker>
+              </CircleMarker>
+              {showSiteLabels && viewport.zoom >= 10 && (
+                <Marker position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
+                  <Tooltip direction="bottom" offset={[0, 6]} permanent className="site-name-label-clean">
+                    <span style={{ fontSize: '7px', fontWeight: 700, color: '#1a1a1a', textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff' }}>{site.site_name}</span>
+                  </Tooltip>
+                </Marker>
+              )}
+            </React.Fragment>
           );
         })}
 
@@ -3170,8 +3238,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Polygon>
                   );
                 })}
-                {/* Site name label at zoom >= 14 */}
-                {viewport.zoom >= 13 && (
+                {/* Site name label */}
+                {showSiteLabels && (
                   <Marker
                     position={site.coordinates}
                     icon={L.divIcon({
@@ -3276,7 +3344,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   mouseout: () => setHoveredSiteId(null),
                 }}
               >
-                {viewport.zoom >= 13 && (
+                {showSiteLabels && (
                   <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
                     <span style={{
                       fontSize: '8px',
@@ -3621,6 +3689,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: showSectors ? '#10b981' : 'hsl(var(--primary))' }}>
                 {showSectors ? `${visibleSites.length} visible • Sectors` : 'Clusters'}
               </span>
+              <span className="w-px h-4 bg-border" />
+              {/* Toggle: site names */}
+              <button
+                onClick={() => setShowSiteLabels(v => !v)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                  showSiteLabels
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {showSiteLabels ? '☑' : '☐'} Noms
+              </button>
+              {/* Toggle: beams */}
+              <button
+                onClick={() => setShowBeamSectors(v => !v)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                  showBeamSectors
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {showBeamSectors ? '☑' : '☐'} Beams
+              </button>
             </>
           )}
         </div>
