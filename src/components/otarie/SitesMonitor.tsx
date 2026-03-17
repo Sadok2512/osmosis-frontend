@@ -2941,12 +2941,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     </div>
   ) : null;
 
-  if (selectedSiteId && detailLoading) return (
-    <div className="flex-1 flex flex-col items-center justify-center h-full gap-4 bg-background">
-      <RefreshCw className="w-12 h-12 text-primary animate-spin" />
-      <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Loading site detail...</p>
-    </div>
-  );
+  // Detail loading is now handled inline — no full-screen takeover
 
   // No early return for siteDetail — rendered as right panel inside the main view
 
