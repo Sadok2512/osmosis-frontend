@@ -2987,7 +2987,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           url={(TILE_URLS[mapLayer] || TILE_URLS.light).url}
           attribution={(TILE_URLS[mapLayer] || TILE_URLS.light).attribution}
         />
-        <FlyToSite coords={flyTarget} onFlyStart={() => setIsFlying(true)} onFlyEnd={() => setIsFlying(false)} onDone={() => setFlyTarget(null)} />
+        <FlyToSite coords={flyTarget} onFlyStart={() => { setIsFlying(true); isFlyingRef.current = true; }} onFlyEnd={() => { setIsFlying(false); isFlyingRef.current = false; }} onDone={() => setFlyTarget(null)} />
         <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
