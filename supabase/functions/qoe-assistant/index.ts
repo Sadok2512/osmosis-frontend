@@ -428,10 +428,10 @@ async function fetchMetricTimeSeriesByDimension(
     // Group by dimension_2, then by date
     const series = new Map<string, Map<string, number[]>>();
     for (const r of data) {
-      const dim2 = r.dimension_2 || "N/A";
+      const dim2 = (r as any).dimension_2 || "N/A";
       if (!series.has(dim2)) series.set(dim2, new Map());
       const dateMap = series.get(dim2)!;
-      const date = r.date_part;
+      const date = (r as any).date_part;
       if (!dateMap.has(date)) dateMap.set(date, []);
       const val = (r as any)[metric];
       if (val != null) dateMap.get(date)!.push(Number(val));
