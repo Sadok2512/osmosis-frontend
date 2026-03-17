@@ -2028,6 +2028,9 @@ function buildContextPlan(
 //  CONTEXT BUILDER — fetch only what the plan requires
 // ═══════════════════════════════════════════════════════════════
 
+// Module-level variable set by the main handler for Orchestrator-filtered agents
+let _activeAgentsForCurrentRequest: string[] = [];
+
 async function buildContextFromPlan(
   plan: ContextPlan,
   query: string,
@@ -2119,8 +2122,11 @@ async function buildContextFromPlan(
     promises.sentinelTs = fetchSentinelTimeSeries(filters, plan.scope, met, plan.limits.maxDays || 15);
   }
   if (plan.needs.includes("deep_investigation")) {
-    // Chemin 2: call Agent Layer or local fallback with all agents in parallel
-    const deepResult = await callAgentLayer(query, plan.scope, filters, ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"]);
+    // Chemin 2: call Agent Layer or local fallback — use only active agents from Orchestrator
+    const agentsToInvestigate = _activeAgentsForCurrentRequest.length > 0
+      ? _activeAgentsForCurrentRequest
+      : ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"];
+    const deepResult = await callAgentLayer(query, plan.scope, filters, agentsToInvestigate);
     const deepContext = `🔬 INVESTIGATION PROFONDE (Chemin 2) — ${deepResult.results.length} agents mobilisés\n\n` +
       deepResult.results.map(r => {
         let block = `### 🤖 Agent ${r.agent} [${r.status}]\n${r.analysis?.slice(0, 3000) || "Pas de données"}`;
@@ -2648,6 +2654,114 @@ async function summarizeSession(
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  🎛️ ORCHESTRATOR — Dynamic agent config from admin_agents DB
+// ═══════════════════════════════════════════════════════════════
+
+interface OrchestratorAgentConfig {
+  id: string;
+  name: string;
+  is_active: boolean;
+  base_prompt: string | null;
+  model_config_id: string | null;
+  description: string | null;
+}
+
+interface OrchestratorModelConfig {
+  id: string;
+  provider: string;
+  model_name: string;
+  temperature: number;
+  top_p: number;
+  max_tokens: number;
+  system_prompt_prefix: string | null;
+}
+
+interface OrchestratorConfig {
+  agents: Map<string, OrchestratorAgentConfig>;
+  activeAgentNames: string[];
+  modelConfigs: Map<string, OrchestratorModelConfig>;
+}
+
+let _orchestratorCache: { config: OrchestratorConfig; fetchedAt: number } | null = null;
+const ORCHESTRATOR_CACHE_TTL = 60_000; // 1 minute cache
+
+async function fetchOrchestratorConfig(): Promise<OrchestratorConfig> {
+  // Return cached if fresh
+  if (_orchestratorCache && (Date.now() - _orchestratorCache.fetchedAt) < ORCHESTRATOR_CACHE_TTL) {
+    return _orchestratorCache.config;
+  }
+
+  const supabase = getSupabase();
+  const agents = new Map<string, OrchestratorAgentConfig>();
+  const modelConfigs = new Map<string, OrchestratorModelConfig>();
+
+  try {
+    // Fetch all agents
+    const { data: agentsData, error: agentsErr } = await supabase
+      .from("admin_agents")
+      .select("id, name, is_active, base_prompt, model_config_id, description");
+
+    if (agentsErr) {
+      console.warn("⚠️ Orchestrator: failed to load agents:", agentsErr.message);
+    } else if (agentsData) {
+      for (const a of agentsData) {
+        agents.set(a.name.toUpperCase(), a as OrchestratorAgentConfig);
+      }
+    }
+
+    // Fetch model configs
+    const { data: modelsData, error: modelsErr } = await supabase
+      .from("llm_model_configs")
+      .select("id, provider, model_name, temperature, top_p, max_tokens, system_prompt_prefix");
+
+    if (modelsErr) {
+      console.warn("⚠️ Orchestrator: failed to load model configs:", modelsErr.message);
+    } else if (modelsData) {
+      for (const m of modelsData) {
+        modelConfigs.set(m.id, m as OrchestratorModelConfig);
+      }
+    }
+  } catch (e) {
+    console.warn("⚠️ Orchestrator config fetch error:", e);
+  }
+
+  const activeAgentNames = Array.from(agents.entries())
+    .filter(([_, a]) => a.is_active)
+    .map(([name]) => name);
+
+  const config: OrchestratorConfig = { agents, activeAgentNames, modelConfigs };
+  _orchestratorCache = { config, fetchedAt: Date.now() };
+
+  console.log(`🎛️ Orchestrator loaded: ${agents.size} agents (${activeAgentNames.length} active), ${modelConfigs.size} model configs`);
+  return config;
+}
+
+async function logAgentRun(
+  agentId: string,
+  userId: string | null,
+  startedAt: number,
+  status: string,
+  notes?: string
+): Promise<void> {
+  try {
+    const supabase = getSupabase();
+    const finishedAt = new Date().toISOString();
+    const latencyMs = Date.now() - startedAt;
+    await supabase.from("agent_runs").insert({
+      agent_id: agentId,
+      user_id: userId || null,
+      started_at: new Date(startedAt).toISOString(),
+      finished_at: finishedAt,
+      latency_ms: latencyMs,
+      status,
+      notes: notes?.slice(0, 500),
+    });
+  } catch (e) {
+    console.warn("Failed to log agent run:", e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════
 
@@ -2695,7 +2809,13 @@ serve(async (req) => {
       throw new Error("No AI API key configured");
     }
 
+    const runStartedAt = Date.now();
     const lastUserMessage = [...normalizedMessages].reverse().find((m: { role: string }) => m.role === "user")?.content || "";
+
+    // ═══════════════════════════════════════════════════════
+    //  🎛️ ORCHESTRATOR: Load agent configs from DB
+    // ═══════════════════════════════════════════════════════
+    const orchestrator = await fetchOrchestratorConfig();
 
     const plan = buildContextPlan(lastUserMessage, uiScope, filters);
 
@@ -2738,6 +2858,25 @@ serve(async (req) => {
       }
       console.log(`🎯 Agent FORCÉ (Chemin 2): ${originalAgent} → ${forcedAgent} | needs=[${plan.needs.join(",")}]`);
     }
+
+    // ═══════════════════════════════════════════════════════
+    //  🎛️ ORCHESTRATOR: Validate agent is active
+    // ═══════════════════════════════════════════════════════
+    const orchestratorAgent = orchestrator.agents.get(plan.agent);
+    if (orchestratorAgent && !orchestratorAgent.is_active) {
+      console.warn(`⚠️ Orchestrator: Agent ${plan.agent} is DISABLED in admin. Falling back to PULSE.`);
+      plan.agent = "PULSE" as AgentId;
+    }
+
+    // Filter agents for deep_investigation to only active ones
+    const activeAgentsForInvestigation = ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"]
+      .filter(a => {
+        const cfg = orchestrator.agents.get(a);
+        return !cfg || cfg.is_active; // If not in DB, consider active (backward compat)
+      });
+    console.log(`🎛️ Orchestrator: active agents for investigation = [${activeAgentsForInvestigation.join(",")}]`);
+    // Set module-level variable for buildContextFromPlan to use
+    _activeAgentsForCurrentRequest = activeAgentsForInvestigation;
 
     console.log(`🧠 QOEBIT → ${plan.agent} | intent=${plan.intent} | scope=${JSON.stringify(plan.scope)}`);
 
@@ -2846,7 +2985,22 @@ serve(async (req) => {
       console.warn('Learning context fetch failed:', learningErr);
     }
 
-    let systemContent = `[AGENT:${plan.agent}]\n\n` + getAgentPrompt(plan.agent);
+    // 🎛️ ORCHESTRATOR: Use DB prompt if available, fallback to hardcoded
+    const dbAgent = orchestrator.agents.get(plan.agent);
+    const dbPrompt = dbAgent?.base_prompt?.trim();
+    const hardcodedPrompt = getAgentPrompt(plan.agent);
+    // DB prompt takes priority if it exists and is non-empty
+    const agentPrompt = dbPrompt && dbPrompt.length > 50 ? dbPrompt : hardcodedPrompt;
+    let systemContent = `[AGENT:${plan.agent}]\n\n` + agentPrompt;
+
+    // Add model config prefix if set in orchestrator
+    if (dbAgent?.model_config_id) {
+      const modelCfg = orchestrator.modelConfigs.get(dbAgent.model_config_id);
+      if (modelCfg?.system_prompt_prefix) {
+        systemContent = modelCfg.system_prompt_prefix + "\n\n" + systemContent;
+      }
+    }
+    console.log(`🎛️ Orchestrator: agent=${plan.agent}, promptSource=${dbPrompt && dbPrompt.length > 50 ? "DB" : "hardcoded"}, promptLen=${agentPrompt.length}`);
 
     if (kpiMonitorContext) {
       systemContent += `\n\n📊 KPI MONITOR CONTEXT:\n${kpiMonitorContext}`;
@@ -2880,7 +3034,18 @@ serve(async (req) => {
       aiHeaders["X-Title"] = `QOEBIT ${plan.agent}`;
     }
 
-    let aiModel = requestedModel || (useLovable ? "google/gemini-3-flash-preview" : "google/gemini-2.5-flash-preview-05-20");
+    // 🎛️ ORCHESTRATOR: Dynamic model selection from DB config
+    let aiModel = requestedModel || "";
+    if (!aiModel && dbAgent?.model_config_id) {
+      const modelCfg = orchestrator.modelConfigs.get(dbAgent.model_config_id);
+      if (modelCfg?.model_name) {
+        aiModel = `${modelCfg.provider}/${modelCfg.model_name}`;
+        console.log(`🎛️ Orchestrator: model from DB config = ${aiModel}`);
+      }
+    }
+    if (!aiModel) {
+      aiModel = useLovable ? "google/gemini-3-flash-preview" : "google/gemini-2.5-flash-preview-05-20";
+    }
 
     if (useLovable) {
       const modelAliases: Record<string, string> = {
@@ -2993,6 +3158,17 @@ serve(async (req) => {
         );
       } catch (learnErr) {
         console.warn('Post-stream learning failed:', learnErr);
+      }
+
+      // 🎛️ ORCHESTRATOR: Log agent run
+      if (dbAgent?.id) {
+        await logAgentRun(
+          dbAgent.id,
+          user_id || null,
+          runStartedAt,
+          "completed",
+          `intent=${plan.intent} scope=${JSON.stringify(plan.scope)} model=${aiModel}`
+        );
       }
     })();
 
