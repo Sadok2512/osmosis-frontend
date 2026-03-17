@@ -2491,6 +2491,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
     if (!dashboardActive) return; // Don't fetch if no dashboard active
+    // Skip fetching during fly animation to avoid flickering
+    if (isFlyingRef.current) return;
     const prev = prevViewportRef.current;
     if (prev.bounds && v.bounds) {
       const prevBounds = prev.bounds;
