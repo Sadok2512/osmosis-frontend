@@ -305,17 +305,19 @@ interface ViewportState {
 const MapViewportTracker = ({ onViewportChange }: { onViewportChange: (v: ViewportState) => void }) => {
   const map = useMapEvents({
     moveend: () => {
-      onViewportChange({ bounds: map.getBounds(), zoom: map.getZoom() });
-    },
-    zoomend: () => {
-      onViewportChange({ bounds: map.getBounds(), zoom: map.getZoom() });
+      onViewportChange({
+        bounds: map.getBounds(),
+        zoom: map.getZoom(),
+      });
     },
   });
 
-  // Initial viewport
   useEffect(() => {
-    onViewportChange({ bounds: map.getBounds(), zoom: map.getZoom() });
-  }, []);
+    onViewportChange({
+      bounds: map.getBounds(),
+      zoom: map.getZoom(),
+    });
+  }, [map, onViewportChange]);
 
   return null;
 };
