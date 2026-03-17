@@ -2110,7 +2110,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const fetchDashboards = async () => {
       try {
         const data = await dashboardsApi.list();
-        if (Array.isArray(data)) setDashboardList(data);
+        if (Array.isArray(data)) setDashboardList(dedupeAutoFilterDashboards(data));
       } catch {}
     };
     fetchDashboards();
