@@ -76,8 +76,8 @@ interface SitesMonitorProps {
 }
 
 // Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
-const SITES_TO_CELLS_ZOOM = 14;
-const CELLS_TO_SITES_ZOOM = 12;
+const SITES_TO_CELLS_ZOOM = 12;
+const CELLS_TO_SITES_ZOOM = 10;
 
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
