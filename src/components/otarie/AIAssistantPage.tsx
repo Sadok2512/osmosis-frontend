@@ -222,14 +222,9 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       ...(forcedAgent ? { forcedAgent } : {}),
     });
 
-    // Route PARMY directly through VPS orchestrator :1000
-    const isParmyDirect = forcedAgent === 'PARMY';
-    const url = isParmyDirect
-      ? getVpsProxyUrl('agent', '/parmy/stream')
-      : getApiUrl('qoe-assistant');
-    const headers = isParmyDirect
-      ? getVpsProxyHeaders()
-      : getApiHeaders();
+    // All queries go through VPS orchestrator :1000
+    const url = getVpsProxyUrl('agent', '/orchestrator/stream');
+    const headers = getVpsProxyHeaders();
 
     addDebugLog(`Mode: ${isLocalMode() ? 'LOCAL' : 'CLOUD'}`);
     addDebugLog(`URL: ${url}`);
