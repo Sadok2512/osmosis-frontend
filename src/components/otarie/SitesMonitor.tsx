@@ -2420,6 +2420,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const needCells = (zoom ?? viewport.zoom) >= SECTOR_ZOOM_THRESHOLD;
 
     setBboxLoading(true);
+    // Keep previous sites visible during fetch to avoid flickering
     try {
       if (needCells) {
         // Fetch cell-level data for sector polygon rendering
