@@ -3344,7 +3344,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   mouseout: () => setHoveredSiteId(null),
                 }}
               >
-                {viewport.zoom >= 13 && (
+                {showSiteLabels && (
                   <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
                     <span style={{
                       fontSize: '8px',
