@@ -2977,7 +2977,22 @@ serve(async (req) => {
       console.warn('Learning context fetch failed:', learningErr);
     }
 
-    let systemContent = `[AGENT:${plan.agent}]\n\n` + getAgentPrompt(plan.agent);
+    // 🎛️ ORCHESTRATOR: Use DB prompt if available, fallback to hardcoded
+    const dbAgent = orchestrator.agents.get(plan.agent);
+    const dbPrompt = dbAgent?.base_prompt?.trim();
+    const hardcodedPrompt = getAgentPrompt(plan.agent);
+    // DB prompt takes priority if it exists and is non-empty
+    const agentPrompt = dbPrompt && dbPrompt.length > 50 ? dbPrompt : hardcodedPrompt;
+    let systemContent = `[AGENT:${plan.agent}]\n\n` + agentPrompt;
+
+    // Add model config prefix if set in orchestrator
+    if (dbAgent?.model_config_id) {
+      const modelCfg = orchestrator.modelConfigs.get(dbAgent.model_config_id);
+      if (modelCfg?.system_prompt_prefix) {
+        systemContent = modelCfg.system_prompt_prefix + "\n\n" + systemContent;
+      }
+    }
+    console.log(`🎛️ Orchestrator: agent=${plan.agent}, promptSource=${dbPrompt && dbPrompt.length > 50 ? "DB" : "hardcoded"}, promptLen=${agentPrompt.length}`);
 
     if (kpiMonitorContext) {
       systemContent += `\n\n📊 KPI MONITOR CONTEXT:\n${kpiMonitorContext}`;
