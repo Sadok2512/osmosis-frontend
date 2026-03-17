@@ -2738,6 +2738,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds]);
 
+  const renderSites = useMemo(() => {
+    if (!selectedSiteId || !selectedSiteSnapshot) return visibleSites;
+    if (visibleSites.some(site => site.site_id === selectedSiteId)) return visibleSites;
+    if (viewport.bounds && !viewport.bounds.contains(L.latLng(selectedSiteSnapshot.coordinates[0], selectedSiteSnapshot.coordinates[1]))) {
+      return visibleSites;
+    }
+    return [selectedSiteSnapshot, ...visibleSites];
+  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds]);
+
   const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
 
   // Heatmap data points: [lat, lng, intensity]
