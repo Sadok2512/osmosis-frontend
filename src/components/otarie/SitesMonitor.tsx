@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallba
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { dashboardsApi, mapViewsApi, qoeMetricsApi, topoApi } from '@/lib/localDb';
-import { FILTER_DIMENSIONS, REF_DOR_TREE, REF_TECHNO_BANDE, resolveAvailableValues, ActiveFilter } from '@/config/filterDimensions';
+import { ActiveFilter } from '@/config/filterDimensions';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import MarkerClusterGroup from 'react-leaflet-cluster';
@@ -21,9 +21,8 @@ import CoverageCanvasOverlay from './CoverageCanvasOverlay';
 import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
-import SiteFilterModal, { DashboardSiteFilters as ModalSiteFilters } from './SiteFilterModal';
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
-import { useSitesFilters } from '@/hooks/useSitesFilters';
+import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
 
 // Heatmap layer component using leaflet.heat
 const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
@@ -65,7 +64,7 @@ import {
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
-import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
+import { getQoEColor } from '../../constants';
 
 interface SitesMonitorProps {
   filters: Filters;
@@ -1098,6 +1097,7 @@ interface DashboardInventoryTabProps {
   onSaveDashboard?: (dbId: string) => void;
   onLoadDashboard?: (dbId: string) => void;
   isSaving?: boolean;
+  backendFilterDefs?: FilterDefinition[];
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
@@ -1109,7 +1109,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -1233,12 +1233,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
   };
 
-  // Build ActiveFilter[] from createFilters for resolveAvailableValues
-  const createActiveFilters = useMemo((): ActiveFilter[] => {
-    return Object.entries(createFilters)
-      .filter(([, vals]) => vals && vals.length > 0)
-      .map(([key, vals]) => ({ id: key, dimension: key, op: 'IN' as const, values: vals! }));
-  }, [createFilters]);
+  // Use backend filter defs for dashboard creation
+  const filterDimensions = backendFilterDefs || [];
 
   const toggleCreateFilterValue = (dimKey: string, val: string) => {
     setCreateFilters(prev => {
@@ -1465,27 +1461,28 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 />
               </div>
 
-              {/* Filter dimensions */}
+              {/* Filter dimensions from backend */}
               <div>
                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">Filtres de sites</label>
                 <p className="text-[9px] text-primary/70 italic mb-3">Sélectionnez les critères pour filtrer les sites affichés sur la carte</p>
-                <div className="space-y-2">
-                  {FILTER_DIMENSIONS.map(dim => {
-                    const availableValues = resolveAvailableValues(dim.key, createActiveFilters);
-                    const selectedValues = createFilters[dim.key as keyof DashboardSiteFilters] || [];
-                    if (availableValues.length === 0 && !dim.values) return null;
-
-                    return (
-                      <CreateFilterDropdown
-                        key={dim.key}
-                        label={dim.label}
-                        values={availableValues}
-                        selected={selectedValues}
-                        onChange={(vals) => setCreateFilters(prev => ({ ...prev, [dim.key]: vals.length > 0 ? vals : undefined }))}
-                      />
-                    );
-                  })}
-                </div>
+                {filterDimensions.length === 0 ? (
+                  <div className="text-[10px] text-muted-foreground/60 text-center py-3">Chargement des filtres...</div>
+                ) : (
+                  <div className="space-y-2">
+                    {filterDimensions.map(dim => {
+                      const selectedValues = createFilters[dim.id as keyof DashboardSiteFilters] || [];
+                      return (
+                        <CreateFilterDropdown
+                          key={dim.id}
+                          label={dim.label}
+                          values={dim.values}
+                          selected={selectedValues}
+                          onChange={(vals) => setCreateFilters(prev => ({ ...prev, [dim.id]: vals.length > 0 ? vals : undefined }))}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Active filter summary */}
@@ -1495,7 +1492,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {Object.entries(createFilters).filter(([, v]) => v && v.length > 0).map(([key, vals]) => (
                       <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
-                        {FILTER_DIMENSIONS.find(d => d.key === key)?.label}: {vals!.join(', ')}
+                        {filterDimensions.find(d => d.id === key)?.label || key}: {vals!.join(', ')}
                       </span>
                     ))}
                   </div>
@@ -1986,35 +1983,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
   const [dashboardSaving, setDashboardSaving] = useState(false);
   const [dashboardSaveFlash, setDashboardSaveFlash] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-
-  // No auto-show filter modal — user must create a dashboard first
-
-  const handleFilterModalApply = useCallback((siteFilters: ModalSiteFilters) => {
-    setShowFilterModal(false);
-    if (siteFilters.dor?.length) setLocalDor(siteFilters.dor[0]); else setLocalDor('ALL');
-    if (siteFilters.constructeur?.length) setLocalVendor(siteFilters.constructeur[0]); else setLocalVendor('ALL');
-    if (siteFilters.plaque?.length) setLocalPlaque(siteFilters.plaque[0]); else setLocalPlaque('ALL');
-    if (siteFilters.techno?.length) setLocalTechno(siteFilters.techno[0] as any); else setLocalTechno('ALL');
-    if (siteFilters.bande?.length) setLocalBande(siteFilters.bande[0]); else setLocalBande('ALL');
-    if (siteFilters.zone_arcep?.length) setLocalZoneArcep(siteFilters.zone_arcep[0]); else setLocalZoneArcep('ALL');
-    setDashboardActive(true);
-
-    const cleanFilters: DashboardSiteFilters = {};
-    for (const [k, v] of Object.entries(siteFilters)) {
-      if (v && v.length > 0) (cleanFilters as any)[k] = v;
-    }
-
-    const finalScope: SiteScope = { type: 'ALL' };
-    if (siteFilters.dor?.length === 1) {
-      finalScope.type = 'DOR';
-      finalScope.value = siteFilters.dor[0];
-    }
-
-    setActiveSiteScope(finalScope);
-    setActiveDashboardId(null);
-    localStorage.removeItem('qoebit_active_dashboard');
-  }, []);
 
   // ── Right settings bar (removed) ──
 
@@ -2981,13 +2949,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
-      {/* Empty state — no dashboard selected */}
-      {/* Filter modal — shown automatically when no dashboard is active */}
-      <SiteFilterModal
-        open={showFilterModal}
-        onClose={() => { if (dashboardActive) setShowFilterModal(false); }}
-        onApply={handleFilterModalApply}
-      />
       {/* Empty state — no dashboard, modal closed */}
       {/* Empty overlay removed — message now in sidebar */}
       {/* Bbox loading indicator */}
@@ -4662,15 +4623,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                     <span className="text-[11px] font-bold uppercase tracking-wider">No Dashboard</span>
                     <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
-                      Sélectionnez ou créez un dashboard pour charger les sites.
+                      Sélectionnez ou créez un dashboard dans l'onglet Dashboard pour charger les sites.
                     </p>
-                    <button
-                      onClick={() => setShowFilterModal(true)}
-                      className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors shadow-md"
-                    >
-                      <Filter size={10} className="inline mr-1" />
-                      Ouvrir les filtres
-                    </button>
                   </div>
                 ) : filteredSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -4928,6 +4882,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   onSaveDashboard={(dbId) => saveDashboardSettings(dbId)}
                   onLoadDashboard={(dbId) => loadDashboardSettings(dbId)}
                   isSaving={dashboardSaving}
+                  backendFilterDefs={backendFilterDefs}
                 />
               )}
             </div>
