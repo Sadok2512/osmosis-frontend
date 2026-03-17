@@ -192,7 +192,9 @@ const FlyToSite = ({ coords, onFlyStart, onFlyEnd, onDone }: { coords: [number, 
       if (dist < 500 && Math.abs(currentZoom - targetZoom) < 1) {
         // Already very close — just pan smoothly without zoom animation
         map.panTo(coords, { duration: 0.4, animate: true });
-        setTimeout(() => { onFlyEnd?.(); onDone?.(); }, 450);
+        const handler = () => { onFlyEnd?.(); onDone?.(); };
+        map.once('moveend', handler);
+        return () => { map.off('moveend', handler); };
       } else {
         map.flyTo(coords, targetZoom, { duration: 1 });
         const handler = () => { onFlyEnd?.(); onDone?.(); };
@@ -1840,6 +1842,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [hoveredSiteId, setHoveredSiteId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [isFlying, setIsFlying] = useState(false);
+  const isFlyingRef = useRef(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [panelMinimized, setPanelMinimized] = useState(false);
@@ -2490,6 +2493,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
     if (!dashboardActive) return; // Don't fetch if no dashboard active
+    // Skip fetching during fly animation to avoid flickering
+    if (isFlyingRef.current) return;
     const prev = prevViewportRef.current;
     if (prev.bounds && v.bounds) {
       const prevBounds = prev.bounds;
@@ -2986,7 +2991,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           url={(TILE_URLS[mapLayer] || TILE_URLS.light).url}
           attribution={(TILE_URLS[mapLayer] || TILE_URLS.light).attribution}
         />
-        <FlyToSite coords={flyTarget} onFlyStart={() => setIsFlying(true)} onFlyEnd={() => setIsFlying(false)} onDone={() => setFlyTarget(null)} />
+        <FlyToSite coords={flyTarget} onFlyStart={() => { setIsFlying(true); isFlyingRef.current = true; }} onFlyEnd={() => { setIsFlying(false); isFlyingRef.current = false; }} onDone={() => setFlyTarget(null)} />
         <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
