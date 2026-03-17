@@ -2556,9 +2556,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesLocalVendor = localVendor === 'ALL' || s.vendor === localVendor;
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
-      const matchesLocalBande = localBande === 'ALL' || siteCells.length === 0 || siteCells.some(c => c.bande === localBande);
-      const matchesLocalZoneArcep = localZoneArcep === 'ALL' || siteCells.length === 0 || siteCells.some(c => (c as any).zone_arcep === localZoneArcep);
-      const matchesLocalTechno = localTechno === 'ALL' || siteCells.length === 0 || siteCells.some(c => c.techno === localTechno);
+      const matchesLocalBande = localBande === 'ALL' || (siteCells.length > 0 ? siteCells.some(c => c.bande === localBande) : !(s as any).bande || (s as any).bande === localBande);
+      const matchesLocalZoneArcep = localZoneArcep === 'ALL' || (siteCells.length > 0 ? siteCells.some(c => (c as any).zone_arcep === localZoneArcep) : !(s as any).zone_arcep || (s as any).zone_arcep === localZoneArcep);
+      const matchesLocalTechno = localTechno === 'ALL' || (siteCells.length > 0 ? siteCells.some(c => c.techno === localTechno) : !(s as any).techno || (s as any).techno === localTechno);
       
       // Apply QOE view filters
       const matchesQoeFilters = activeViewFilters

@@ -401,6 +401,9 @@ export const topoApi = {
           plaque: site.plaque ?? null,
           dor: site.dor ?? null,
           region: site.region ?? null,
+          zone_arcep: site.zone_arcep ?? null,
+          techno: site.techno ?? null,
+          bande: site.bande ?? null,
         }))
         .filter((site: BboxSiteDTO) => Number.isFinite(site.lat) && Number.isFinite(site.lng));
 
