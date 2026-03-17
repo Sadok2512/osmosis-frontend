@@ -163,7 +163,7 @@ async function searchRAGDocuments(query: string, maxChunks = 3): Promise<string>
 
     const normalizedLikeQuery = normalizeQueryForLike(cleanedQuery);
     const terms = extractSearchTerms(cleanedQuery);
-    const lexicalQueries: Promise<any>[] = [];
+    const lexicalQueries: any[] = [];
     if (normalizedLikeQuery) {
       lexicalQueries.push(
         supabase.from("rag_documents").select("filename, content, chunk_index").ilike("filename", `%${normalizedLikeQuery}%`).order("created_at", { ascending: false }).limit(4),
