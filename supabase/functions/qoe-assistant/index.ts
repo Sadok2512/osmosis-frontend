@@ -3159,6 +3159,17 @@ serve(async (req) => {
       } catch (learnErr) {
         console.warn('Post-stream learning failed:', learnErr);
       }
+
+      // 🎛️ ORCHESTRATOR: Log agent run
+      if (dbAgent?.id) {
+        await logAgentRun(
+          dbAgent.id,
+          user_id || null,
+          runStartedAt,
+          "completed",
+          `intent=${plan.intent} scope=${JSON.stringify(plan.scope)} model=${aiModel}`
+        );
+      }
     })();
 
     return new Response(readable, {
