@@ -1990,16 +1990,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // No auto-show filter modal — user must create a dashboard first
 
-  const handleFilterModalApply = useCallback(async (siteFilters: ModalSiteFilters) => {
+  const handleFilterModalApply = useCallback((siteFilters: ModalSiteFilters) => {
     setShowFilterModal(false);
-    // Apply filters directly to local states
     if (siteFilters.dor?.length) setLocalDor(siteFilters.dor[0]); else setLocalDor('ALL');
     if (siteFilters.constructeur?.length) setLocalVendor(siteFilters.constructeur[0]); else setLocalVendor('ALL');
     if (siteFilters.plaque?.length) setLocalPlaque(siteFilters.plaque[0]); else setLocalPlaque('ALL');
     if (siteFilters.techno?.length) setLocalTechno(siteFilters.techno[0] as any); else setLocalTechno('ALL');
     if (siteFilters.bande?.length) setLocalBande(siteFilters.bande[0]); else setLocalBande('ALL');
     if (siteFilters.zone_arcep?.length) setLocalZoneArcep(siteFilters.zone_arcep[0]); else setLocalZoneArcep('ALL');
-    // Mark dashboard as active so sites load
     setDashboardActive(true);
 
     const cleanFilters: DashboardSiteFilters = {};
@@ -2008,39 +2006,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
 
     const finalScope: SiteScope = { type: 'ALL' };
-    if (siteFilters.dor?.length === 1) { finalScope.type = 'DOR'; finalScope.value = siteFilters.dor[0]; }
+    if (siteFilters.dor?.length === 1) {
+      finalScope.type = 'DOR';
+      finalScope.value = siteFilters.dor[0];
+    }
 
-    try {
-      const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
-      const dashName = `Filtre ${new Date().toLocaleDateString()}`;
-      const existingQuickDashboard = dashboardList.find((d) => d.name === dashName);
-      const id = existingQuickDashboard?.id ?? crypto.randomUUID();
-      const widgets = [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope, siteFilters: cleanFilters }];
-
-      await dashboardsApi.upsert({
-        id,
-        name: dashName,
-        description: '',
-        is_shared: true,
-        widgets,
-        owner_username: session?.username,
-      });
-
-      setActiveDashboardId(id);
-      localStorage.setItem('qoebit_active_dashboard', id);
-
-      try {
-        const freshList = await dashboardsApi.list();
-        if (Array.isArray(freshList)) {
-          setDashboardList(dedupeAutoFilterDashboards(freshList));
-        } else {
-          setDashboardList(prev => prev.some(d => d.id === id) ? prev.map(d => d.id === id ? { ...d, name: dashName, widgets } : d) : [...prev, { id, name: dashName, widgets }]);
-        }
-      } catch {
-        setDashboardList(prev => prev.some(d => d.id === id) ? prev.map(d => d.id === id ? { ...d, name: dashName, widgets } : d) : [...prev, { id, name: dashName, widgets }]);
-      }
-    } catch {}
-  }, [dashboardList]);
+    setActiveSiteScope(finalScope);
+    setActiveDashboardId(null);
+    localStorage.removeItem('qoebit_active_dashboard');
+  }, []);
 
   // ── Right settings bar (removed) ──
 
