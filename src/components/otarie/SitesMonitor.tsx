@@ -1461,27 +1461,28 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 />
               </div>
 
-              {/* Filter dimensions */}
+              {/* Filter dimensions from backend */}
               <div>
                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">Filtres de sites</label>
                 <p className="text-[9px] text-primary/70 italic mb-3">Sélectionnez les critères pour filtrer les sites affichés sur la carte</p>
-                <div className="space-y-2">
-                  {FILTER_DIMENSIONS.map(dim => {
-                    const availableValues = resolveAvailableValues(dim.key, createActiveFilters);
-                    const selectedValues = createFilters[dim.key as keyof DashboardSiteFilters] || [];
-                    if (availableValues.length === 0 && !dim.values) return null;
-
-                    return (
-                      <CreateFilterDropdown
-                        key={dim.key}
-                        label={dim.label}
-                        values={availableValues}
-                        selected={selectedValues}
-                        onChange={(vals) => setCreateFilters(prev => ({ ...prev, [dim.key]: vals.length > 0 ? vals : undefined }))}
-                      />
-                    );
-                  })}
-                </div>
+                {filterDimensions.length === 0 ? (
+                  <div className="text-[10px] text-muted-foreground/60 text-center py-3">Chargement des filtres...</div>
+                ) : (
+                  <div className="space-y-2">
+                    {filterDimensions.map(dim => {
+                      const selectedValues = createFilters[dim.id as keyof DashboardSiteFilters] || [];
+                      return (
+                        <CreateFilterDropdown
+                          key={dim.id}
+                          label={dim.label}
+                          values={dim.values}
+                          selected={selectedValues}
+                          onChange={(vals) => setCreateFilters(prev => ({ ...prev, [dim.id]: vals.length > 0 ? vals : undefined }))}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Active filter summary */}
@@ -1491,7 +1492,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {Object.entries(createFilters).filter(([, v]) => v && v.length > 0).map(([key, vals]) => (
                       <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
-                        {FILTER_DIMENSIONS.find(d => d.key === key)?.label}: {vals!.join(', ')}
+                        {filterDimensions.find(d => d.id === key)?.label || key}: {vals!.join(', ')}
                       </span>
                     ))}
                   </div>
