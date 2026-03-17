@@ -4514,12 +4514,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (settings.center && Array.isArray(settings.center)) {
                       setFlyTarget(settings.center as [number, number]);
                     }
+                    // Apply scope filter from dashboard
+                    if (settings.siteScope) {
+                      setActiveSiteScope(settings.siteScope);
+                      const scope = settings.siteScope as SiteScope;
+                      if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
+                      else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
+                    }
                     // Apply view filters (topo + qoe)
-                    console.log('[onApplyView] settings.viewFilters:', JSON.stringify(settings.viewFilters));
                     if (Array.isArray(settings.viewFilters)) {
-                      console.log('[onApplyView] Setting activeViewFilters:', settings.viewFilters.length, 'filters');
                       setActiveViewFilters(settings.viewFilters);
-                      // Apply topo filters to local state
                       for (const f of settings.viewFilters) {
                         if (f.mode === 'topo') {
                           if (f.tech) {
@@ -4533,6 +4537,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       }
                     } else {
                       setActiveViewFilters([]);
+                    }
+                  }}
+                  onDashboardActiveChange={(active, scope) => {
+                    setDashboardActive(active);
+                    setActiveSiteScope(scope || null);
+                    if (!active) {
+                      setSites([]);
+                      setLocalDor('ALL');
+                      setLocalPlaque('ALL');
+                    } else if (scope) {
+                      if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
+                      else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
                     }
                   }}
                   beamVisibility={beamVisibility}
