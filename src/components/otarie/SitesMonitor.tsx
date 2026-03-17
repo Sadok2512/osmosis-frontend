@@ -1991,18 +1991,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (siteFilters.zone_arcep?.length) setLocalZoneArcep(siteFilters.zone_arcep[0]); else setLocalZoneArcep('ALL');
     // Mark dashboard as active so sites load
     setDashboardActive(true);
-    // Auto-create a quick dashboard
-    const id = crypto.randomUUID();
+
     const cleanFilters: DashboardSiteFilters = {};
     for (const [k, v] of Object.entries(siteFilters)) {
       if (v && v.length > 0) (cleanFilters as any)[k] = v;
     }
+
     const finalScope: SiteScope = { type: 'ALL' };
     if (siteFilters.dor?.length === 1) { finalScope.type = 'DOR'; finalScope.value = siteFilters.dor[0]; }
+
     try {
       const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
       const dashName = `Filtre ${new Date().toLocaleDateString()}`;
+      const existingQuickDashboard = dashboardList.find((d) => d.name === dashName);
+      const id = existingQuickDashboard?.id ?? crypto.randomUUID();
       const widgets = [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope, siteFilters: cleanFilters }];
+
       await dashboardsApi.upsert({
         id,
         name: dashName,
@@ -2011,19 +2015,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         widgets,
         owner_username: session?.username,
       });
-      // Activate the newly created dashboard
+
       setActiveDashboardId(id);
       localStorage.setItem('qoebit_active_dashboard', id);
-      // Re-fetch full list from backend to avoid duplicates
+
       try {
         const freshList = await dashboardsApi.list();
-        if (Array.isArray(freshList)) setDashboardList(freshList);
-        else setDashboardList(prev => prev.some(d => d.id === id) ? prev : [...prev, { id, name: dashName, widgets }]);
+        if (Array.isArray(freshList)) {
+          setDashboardList(dedupeAutoFilterDashboards(freshList));
+        } else {
+          setDashboardList(prev => prev.some(d => d.id === id) ? prev.map(d => d.id === id ? { ...d, name: dashName, widgets } : d) : [...prev, { id, name: dashName, widgets }]);
+        }
       } catch {
-        setDashboardList(prev => prev.some(d => d.id === id) ? prev : [...prev, { id, name: dashName, widgets }]);
+        setDashboardList(prev => prev.some(d => d.id === id) ? prev.map(d => d.id === id ? { ...d, name: dashName, widgets } : d) : [...prev, { id, name: dashName, widgets }]);
       }
     } catch {}
-  }, []);
+  }, [dashboardList]);
 
   // ── Right settings bar (removed) ──
 
