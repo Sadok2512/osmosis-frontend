@@ -1287,25 +1287,112 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         ) : null;
       })()}
 
-      {/* Create dashboard form */}
+      {/* Create dashboard form — multi-step */}
       {showCreateDash && (
-        <div className="mb-2 flex items-center gap-1.5 px-1">
-          <input
-            autoFocus
-            value={newDashName}
-            onChange={e => setNewDashName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleCreateDashboard()}
-            placeholder="Nom du dashboard..."
-            className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
-          />
-          <button onClick={handleCreateDashboard} disabled={creatingDash || !newDashName.trim()}
-            className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
-            {creatingDash ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
-          </button>
-          <button onClick={() => { setShowCreateDash(false); setNewDashName(''); }}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-            <X size={12} />
-          </button>
+        <div className="mb-2 px-1">
+          <div className="border border-border rounded-xl bg-card p-3 space-y-2">
+            {/* Step 1: Name */}
+            {createStep === 'name' && (
+              <>
+                <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Étape 1 — Nom</label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    value={newDashName}
+                    onChange={e => setNewDashName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && newDashName.trim()) setCreateStep('scope_type'); }}
+                    placeholder="Nom du dashboard..."
+                    className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
+                  />
+                  <button onClick={() => { if (newDashName.trim()) setCreateStep('scope_type'); }} disabled={!newDashName.trim()}
+                    className="px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 disabled:opacity-40 transition-colors">
+                    Suivant →
+                  </button>
+                  <button onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateStep('name'); }}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                    <X size={12} />
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 2: Scope type */}
+            {createStep === 'scope_type' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Étape 2 — Périmètre sites</label>
+                  <button onClick={() => setCreateStep('name')} className="text-[9px] text-primary font-bold hover:underline">← Retour</button>
+                </div>
+                <p className="text-[9px] text-muted-foreground">Sélectionnez le filtre de sites à afficher sur la carte</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {([
+                    { type: 'ALL' as SiteScopeType, label: 'TOUS', desc: 'Tous les sites', icon: '🌍' },
+                    { type: 'DOR' as SiteScopeType, label: 'DOR', desc: 'Par Direction Opérationnelle', icon: '🏢' },
+                    { type: 'DR' as SiteScopeType, label: 'DR', desc: 'Par Direction Régionale', icon: '📍' },
+                    { type: 'Plaque' as SiteScopeType, label: 'PLAQUE', desc: 'Par Plaque Régionale', icon: '🗺️' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.type}
+                      onClick={() => handleScopeTypeSelect(opt.type)}
+                      disabled={creatingDash}
+                      className="flex flex-col items-center gap-1 px-2 py-3 rounded-xl border-2 border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-center"
+                    >
+                      <span className="text-lg">{opt.icon}</span>
+                      <span className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">{opt.label}</span>
+                      <span className="text-[8px] text-muted-foreground leading-tight">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                {creatingDash && (
+                  <div className="flex items-center justify-center py-2">
+                    <RefreshCw size={14} className="text-primary animate-spin" />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Step 3: Scope value */}
+            {createStep === 'scope_value' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Étape 3 — Valeur {scopeType}
+                  </label>
+                  <button onClick={() => { setCreateStep('scope_type'); setScopeValue(''); }} className="text-[9px] text-primary font-bold hover:underline">← Retour</button>
+                </div>
+                {scopeLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <RefreshCw size={14} className="text-primary animate-spin" />
+                    <span className="ml-2 text-[10px] text-muted-foreground">Chargement des valeurs...</span>
+                  </div>
+                ) : scopeOptions.length === 0 ? (
+                  <div className="text-center py-3 text-[10px] text-muted-foreground">Aucune valeur trouvée</div>
+                ) : (
+                  <div className="max-h-[200px] overflow-y-auto space-y-0.5">
+                    {scopeOptions.map(val => (
+                      <button
+                        key={val}
+                        onClick={() => {
+                          setScopeValue(val);
+                          handleCreateDashboardFinal(scopeType, val);
+                        }}
+                        disabled={creatingDash}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold text-foreground hover:bg-primary/5 hover:text-primary transition-all text-left"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-primary/40 shrink-0" />
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {creatingDash && (
+                  <div className="flex items-center justify-center py-2">
+                    <RefreshCw size={14} className="text-primary animate-spin" />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
