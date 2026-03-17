@@ -2028,6 +2028,9 @@ function buildContextPlan(
 //  CONTEXT BUILDER — fetch only what the plan requires
 // ═══════════════════════════════════════════════════════════════
 
+// Module-level variable set by the main handler for Orchestrator-filtered agents
+let _activeAgentsForCurrentRequest: string[] = [];
+
 async function buildContextFromPlan(
   plan: ContextPlan,
   query: string,
