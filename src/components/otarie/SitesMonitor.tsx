@@ -1983,35 +1983,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
   const [dashboardSaving, setDashboardSaving] = useState(false);
   const [dashboardSaveFlash, setDashboardSaveFlash] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-
-  // No auto-show filter modal — user must create a dashboard first
-
-  const handleFilterModalApply = useCallback((siteFilters: ModalSiteFilters) => {
-    setShowFilterModal(false);
-    if (siteFilters.dor?.length) setLocalDor(siteFilters.dor[0]); else setLocalDor('ALL');
-    if (siteFilters.constructeur?.length) setLocalVendor(siteFilters.constructeur[0]); else setLocalVendor('ALL');
-    if (siteFilters.plaque?.length) setLocalPlaque(siteFilters.plaque[0]); else setLocalPlaque('ALL');
-    if (siteFilters.techno?.length) setLocalTechno(siteFilters.techno[0] as any); else setLocalTechno('ALL');
-    if (siteFilters.bande?.length) setLocalBande(siteFilters.bande[0]); else setLocalBande('ALL');
-    if (siteFilters.zone_arcep?.length) setLocalZoneArcep(siteFilters.zone_arcep[0]); else setLocalZoneArcep('ALL');
-    setDashboardActive(true);
-
-    const cleanFilters: DashboardSiteFilters = {};
-    for (const [k, v] of Object.entries(siteFilters)) {
-      if (v && v.length > 0) (cleanFilters as any)[k] = v;
-    }
-
-    const finalScope: SiteScope = { type: 'ALL' };
-    if (siteFilters.dor?.length === 1) {
-      finalScope.type = 'DOR';
-      finalScope.value = siteFilters.dor[0];
-    }
-
-    setActiveSiteScope(finalScope);
-    setActiveDashboardId(null);
-    localStorage.removeItem('qoebit_active_dashboard');
-  }, []);
 
   // ── Right settings bar (removed) ──
 
