@@ -52,6 +52,8 @@ Deno.serve(async (req) => {
     const service = url.searchParams.get('service') || 'kpi';
     const path = url.searchParams.get('path') || '/health';
 
+    console.log(`[vps-proxy] ${req.method} service=${service} path=${path}`);
+
     const port = SERVICE_PORTS[service];
     if (!port) {
       return new Response(JSON.stringify({ error: `Unknown service: ${service}` }), {
@@ -75,13 +77,47 @@ Deno.serve(async (req) => {
       upstreamHeaders['x-api-key'] = apiKey;
     }
 
-    const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await req.text();
+    let body: string | undefined;
+    if (!['GET', 'HEAD'].includes(req.method)) {
+      try {
+        body = await req.text();
+        console.log(`[vps-proxy] Body size: ${(body.length / 1024).toFixed(1)} KB`);
+      } catch (bodyErr) {
+        console.error(`[vps-proxy] Failed to read body:`, bodyErr);
+        return new Response(JSON.stringify({ error: 'Failed to read request body' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
-    const upstreamRes = await fetch(targetUrl.toString(), {
-      method: req.method,
-      headers: upstreamHeaders,
-      body,
-    });
+    console.log(`[vps-proxy] Fetching: ${targetUrl.toString()}`);
+
+    let upstreamRes: Response;
+    try {
+      upstreamRes = await fetch(targetUrl.toString(), {
+        method: req.method,
+        headers: upstreamHeaders,
+        body,
+      });
+    } catch (fetchErr) {
+      const msg = fetchErr instanceof Error ? fetchErr.message : 'Connection failed';
+      console.error(`[vps-proxy] Upstream fetch failed:`, msg);
+
+      const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
+      if (isSafeRead) {
+        return new Response(JSON.stringify(buildSafeFallback(service, path, msg)), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: `VPS unreachable: ${msg}` }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`[vps-proxy] Upstream responded: ${upstreamRes.status}`);
 
     const contentType = upstreamRes.headers.get('content-type') || 'application/json';
 
