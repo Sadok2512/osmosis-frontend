@@ -4601,7 +4601,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Site List (sites tab) ── */}
               {inventoryTab === 'sites' && (
               <div className="flex-1 overflow-y-auto px-4 pb-4">
-                {filteredSites.length === 0 ? (
+                {!dashboardActive && !loading ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Filter size={18} className="text-primary" />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">No Dashboard</span>
+                    <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
+                      Sélectionnez ou créez un dashboard pour charger les sites.
+                    </p>
+                    <button
+                      onClick={() => setShowFilterModal(true)}
+                      className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors shadow-md"
+                    >
+                      <Filter size={10} className="inline mr-1" />
+                      Ouvrir les filtres
+                    </button>
+                  </div>
+                ) : filteredSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <Search size={28} className="mb-3 opacity-20" />
                     <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
