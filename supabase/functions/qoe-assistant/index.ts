@@ -1763,33 +1763,11 @@ function classifyAgent(query: string): AgentId {
 }
 
 function classifyIntent(query: string, scope: Scope): Intent {
-  const n = query.toLowerCase();
-  // Deep investigation → highest priority
-  if (isDeepInvestigationQuery(query)) return "deep_investigation";
-  // Parameter name detected → always param_audit
-  if (extractParamName(query)) return "param_audit";
-  // Top/worst/best queries take HIGHEST priority (even if "par DOR" is present)
-  const topHints = ["top", "pire", "worst", "meilleur", "best", "classement", "ranking", "dégradé", "degradé", "degraded"];
-  if (topHints.some(h => n.includes(h))) return "top_degradations";
-  // Dimension queries
-  const { isDim, isList } = isDimensionQuery(query);
-  if (isList) return "list_dimension_values";
-  if (isDim) return "distribution";
-  if (isChangeHistoryQuery(query)) return "trace_change";
-  if (isParmyQuery(query)) return "param_audit";
-  if (scope.level === "cell") return "cell_analysis";
-  if (scope.level === "site") return "site_analysis";
-
-  const compareHints = ["compare", "comparer", "comparaison", "vs", "versus", "différence"];
-  if (compareHints.some(h => n.includes(h))) return "compare";
-
-  const defHints = ["définition", "definition", "c'est quoi", "qu'est-ce que", "explique", "explain"];
-  if (defHints.some(h => n.includes(h))) return "definition";
-
-  const summaryHints = ["résumé", "resume", "summary", "état", "etat", "overview", "global", "bilan"];
-  if (summaryHints.some(h => n.includes(h))) return "global_summary";
-
-  return "other";
+  // ═══════════════════════════════════════════════════════════
+  // CHEMIN 2 FORCÉ: Toutes les requêtes passent par deep_investigation
+  // L'Agent Layer (:1000) orchestre les 5 agents en parallèle
+  // ═══════════════════════════════════════════════════════════
+  return "deep_investigation";
 }
 
 function resolveScope(
