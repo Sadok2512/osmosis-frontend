@@ -1327,12 +1327,12 @@ async function fetchSentinelTimeSeries(
     // Group by dimension_2 then by date
     const series = new Map<string, Map<string, number[]>>();
     for (const r of data) {
-      const dim2 = r.dimension_2 || "N/A";
+      const dim2 = (r as any).dimension_2 || "N/A";
       if (!series.has(dim2)) series.set(dim2, new Map());
       const dateMap = series.get(dim2)!;
-      if (!dateMap.has(r.date_part)) dateMap.set(r.date_part, []);
+      if (!dateMap.has((r as any).date_part)) dateMap.set((r as any).date_part, []);
       const val = (r as any)[metric];
-      if (val != null) dateMap.get(r.date_part)!.push(Number(val));
+      if (val != null) dateMap.get((r as any).date_part)!.push(Number(val));
     }
 
     const allDates = [...new Set(data.map((r: any) => r.date_part))].sort();
