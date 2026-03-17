@@ -968,7 +968,7 @@ export interface DashboardSiteFilters {
 
 interface DashboardInventoryTabProps {
   onApplyView?: (settings: any) => void;
-  onDashboardActiveChange?: (active: boolean, scope?: SiteScope | null) => void;
+  onDashboardActiveChange?: (active: boolean, scope?: SiteScope | null, siteFilters?: DashboardSiteFilters | null) => void;
   beamVisibility?: number;
   onBeamVisChange?: (v: number) => void;
   onSaveDashboard?: (dbId: string) => void;
