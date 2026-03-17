@@ -2875,6 +2875,8 @@ serve(async (req) => {
         return !cfg || cfg.is_active; // If not in DB, consider active (backward compat)
       });
     console.log(`🎛️ Orchestrator: active agents for investigation = [${activeAgentsForInvestigation.join(",")}]`);
+    // Set module-level variable for buildContextFromPlan to use
+    _activeAgentsForCurrentRequest = activeAgentsForInvestigation;
 
     console.log(`🧠 QOEBIT → ${plan.agent} | intent=${plan.intent} | scope=${JSON.stringify(plan.scope)}`);
 
