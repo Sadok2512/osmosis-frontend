@@ -760,32 +760,17 @@ async function fetchTopoInventory(filters?: AssistantFilters): Promise<string> {
 
 async function searchDumpParameters(query: string): Promise<string> {
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const tableCandidates = ["dump_parametre", "dump_parameter", "parameter_dump"];
-    let activeDumpTable: string | null = null;
-    for (const tableName of tableCandidates) {
-      const probe = await supabase.from(tableName).select("parameter").limit(1);
-      if (!probe.error) { activeDumpTable = tableName; break; }
-      const msg = probe.error?.message?.toLowerCase() || "";
-      if (!msg.includes("does not exist") && !msg.includes("relation") && !msg.includes("could not find")) {
-        activeDumpTable = tableName; break;
-      }
-    }
-    if (!activeDumpTable) return "AUCUNE TABLE de paramètres trouvée.";
-
     const paramName = extractParamName(query);
     const isDistrib = isDistributionQuery(query);
     const siteName = extractSiteName(query);
     const plaqueName = extractPlaqueName(query);
 
     if (plaqueName && !isDistrib) {
-      let q = supabase.from(activeDumpTable).select("cell_name, site_name, parameter, value, vendor, bande, plaque").ilike("plaque", `%${plaqueName}%`);
-      if (paramName) q = q.ilike("parameter", `%${paramName}%`);
-      const { data, error } = await q.order("cell_name").limit(200);
-      if (error) console.error(`${activeDumpTable} plaque search error:`, error);
+      let sql = `SELECT cell_name, site_name, parameter, value, vendor, bande, plaque FROM parameter_dump WHERE plaque ILIKE '%${plaqueName.replace(/'/g, "''")}%'`;
+      if (paramName) sql += ` AND parameter ILIKE '%${paramName.replace(/'/g, "''")}%'`;
+      sql += ` ORDER BY cell_name LIMIT 200`;
+      const { data, error } = await executeVpsParmySql(sql);
+      if (error) console.error(`parameter_dump plaque search error:`, error);
       if (!data?.length) return `AUCUNE DONNÉE pour plaque "${plaqueName}"${paramName ? ` / param "${paramName}"` : ""}.`;
       const header = "cell_name | site_name | parameter | value | vendor | bande";
       const lines = data.map((r: any) => `${r.cell_name || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""} | ${r.vendor || ""} | ${r.bande || ""}`);
@@ -793,20 +778,20 @@ async function searchDumpParameters(query: string): Promise<string> {
     }
 
     if (paramName && siteName && !isDistrib) {
-      const { data, error } = await supabase.from(activeDumpTable)
-        .select("dn, cell_name, site_name, parameter, value, version, vendor, bande, plaque")
-        .ilike("parameter", `%${paramName}%`).ilike("site_name", `%${siteName}%`).order("cell_name").limit(200);
-      if (error) console.error(`${activeDumpTable} site search error:`, error);
+      const sql = `SELECT dn, cell_name, site_name, parameter, value, vendor, bande, plaque FROM parameter_dump WHERE parameter ILIKE '%${paramName.replace(/'/g, "''")}%' AND site_name ILIKE '%${siteName.replace(/'/g, "''")}%' ORDER BY cell_name LIMIT 200`;
+      const { data, error } = await executeVpsParmySql(sql);
+      if (error) console.error(`parameter_dump site search error:`, error);
       if (!data?.length) return `AUCUNE DONNÉE pour "${paramName}" sur "${siteName}".`;
-      const header = "dn | cell_name | site_name | parameter | value | version | vendor | bande";
-      const lines = data.map((r: any) => `${r.dn || ""} | ${r.cell_name || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""} | ${r.version || ""} | ${r.vendor || ""} | ${r.bande || ""}`);
+      const header = "dn | cell_name | site_name | parameter | value | vendor | bande";
+      const lines = data.map((r: any) => `${r.dn || ""} | ${r.cell_name || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""} | ${r.vendor || ""} | ${r.bande || ""}`);
       return `${paramName} sur ${siteName} (${data.length}):\n${header}\n${lines.join("\n")}`;
     }
 
     if (isDistrib && paramName) {
       const groupCol = extractGroupByColumn(query);
-      const { data, error } = await supabase.from(activeDumpTable).select(`${groupCol}, value, parameter`).ilike("parameter", `%${paramName}%`).limit(1000);
-      if (error) console.error(`${activeDumpTable} aggregation error:`, error);
+      const sql = `SELECT ${groupCol}, value, parameter FROM parameter_dump WHERE parameter ILIKE '%${paramName.replace(/'/g, "''")}%' LIMIT 500`;
+      const { data, error } = await executeVpsParmySql(sql);
+      if (error) console.error(`parameter_dump aggregation error:`, error);
       if (!data?.length) return `AUCUNE DONNÉE pour "${paramName}".`;
       const agg = new Map<string, number>();
       const dimTotals = new Map<string, number>();
@@ -830,23 +815,22 @@ async function searchDumpParameters(query: string): Promise<string> {
     const terms = extractSearchTerms(query);
     if (terms.length === 0) return "";
     const queries = terms.slice(0, 3).map((term) =>
-      supabase.from(activeDumpTable!).select("dn, cell_name, vendor, site_name, parameter, version, value")
-        .or(`parameter.ilike.%${term}%,site_name.ilike.%${term}%`).limit(30)
+      executeVpsParmySql(`SELECT dn, cell_name, vendor, site_name, parameter, value FROM parameter_dump WHERE parameter ILIKE '%${term.replace(/'/g, "''")}%' OR site_name ILIKE '%${term.replace(/'/g, "''")}%' LIMIT 30`)
     );
     const results = await Promise.all(queries);
     const mergedRows = new Map<string, any>();
     for (const r of results) {
-      if (r.error) continue;
-      for (const row of r.data || []) {
+      if (r.error || !r.data) continue;
+      for (const row of r.data) {
         const key = `${row.dn}::${row.parameter}`;
         if (!mergedRows.has(key)) mergedRows.set(key, row);
       }
     }
     const rows = Array.from(mergedRows.values());
     if (rows.length === 0) return `AUCUNE DONNÉE pour: ${terms.join(", ")}`;
-    const header = "dn | cell_name | vendor | site_name | parameter | version | value";
+    const header = "dn | cell_name | vendor | site_name | parameter | value";
     const lines = rows.slice(0, 50).map((r: any) =>
-      `${r.dn || ""} | ${r.cell_name || ""} | ${r.vendor || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.version || ""} | ${r.value || ""}`
+      `${r.dn || ""} | ${r.cell_name || ""} | ${r.vendor || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""}`
     );
     return `Paramètres (${rows.length}):\n${header}\n${lines.join("\n")}`;
   } catch (e) {
@@ -857,29 +841,52 @@ async function searchDumpParameters(query: string): Promise<string> {
 
 // ═══════════════════════════════════════════════════════════════
 //  PARMY SQL ENGINE — AI-powered SQL generation for parameter_dump
+//  Queries are routed to VPS qoebit-parser /api/v1/parmy/sql
 // ═══════════════════════════════════════════════════════════════
 
+async function executeVpsParmySql(query_sql: string): Promise<{ data: any[] | null; error: string | null }> {
+  try {
+    const url = `http://${VPS_HOST}:${VPS_PARSER_PORT}/api/v1/parmy/sql`;
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query_sql }),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error(`VPS PARMY SQL error ${resp.status}: ${errText}`);
+      return { data: null, error: errText };
+    }
+    const data = await resp.json();
+    return { data: Array.isArray(data) ? data : [], error: null };
+  } catch (e) {
+    console.error(`VPS PARMY SQL fetch error: ${e}`);
+    return { data: null, error: String(e) };
+  }
+}
+
 const PARMY_SQL_SCHEMA = `
-Table: parameter_dump
+Table: parameter_dump (view joining param_nokia_dump + node_ref + topo_data)
 Columns:
-  - site_name (text) — site identifier
-  - cell_name (text) — cell identifier  
-  - cell_dn (text) — cell distinguished name
+  - mrbts_id (integer) — MRBTS identifier (node_id)
+  - enodeb_id (integer) — eNodeB identifier (bts_id)
+  - cell_id (integer) — cell identifier
   - dn (text) — distinguished name (MO path)
-  - parameter (text) — parameter name (e.g. LNCEL.pMax, NRCELL.dlMimoMode)
+  - parameter (text) — parameter name (e.g. MRBTS.blockingState, LNCEL.pMax, NRCELL.dlMimoMode)
   - value (text) — parameter value (as text, cast to numeric if needed)
-  - version (text) — software version
-  - vendor (text) — equipment vendor (Nokia, Ericsson, etc.)
-  - bande (text) — frequency band (NR_3500, LTE2100, etc.)
-  - plaque (text) — regional plaque
-  - dor (text) — DOR region
+  - vendor (text) — equipment vendor (Nokia, etc.)
+  - site_name (text) — site name (from node_ref + topo_data join)
+  - cell_name (text) — cell name (from topo_data)
+  - plaque (text) — regional plaque (e.g. NANTES, ST_NAZAIRE, AUTRES44)
+  - dor (text) — DOR region (e.g. UPR Ouest)
   - zone_arcep (text) — ARCEP zone classification
-  - netact (text) — network management system
-  - mrbts_id (integer) — MRBTS identifier
-  - enodeb_id (integer) — eNodeB identifier
-  - gnodeb_id (integer) — gNodeB identifier
+  - bande (text) — frequency band
+  - techno_topo (text) — technology from topo
   - latitude (double precision)
   - longitude (double precision)
+  - object_type_normalized (text) — NODE, CELL, etc.
+  - source_file (text) — dump source file
+  - snapshot_time (timestamp) — snapshot time
 
 IMPORTANT RULES:
 - ONLY generate SELECT queries on parameter_dump
@@ -917,14 +924,14 @@ function similarityScore(a: string, b: string): number {
 
 async function resolveParameterName(
   userParamName: string,
-  supabase: ReturnType<typeof createClient>
+  _supabase?: ReturnType<typeof createClient>
 ): Promise<{ corrected: string; original: string; wasFixed: boolean }> {
   const original = userParamName;
   try {
     // 1. Try exact match first (case-insensitive)
-    const { data: exactData } = await supabase.rpc("execute_parmy_sql", {
-      query_sql: `SELECT DISTINCT parameter FROM parameter_dump WHERE parameter ILIKE '${userParamName.replace(/'/g, "''")}' LIMIT 1`,
-    });
+    const { data: exactData } = await executeVpsParmySql(
+      `SELECT DISTINCT parameter FROM parameter_dump WHERE parameter ILIKE '${userParamName.replace(/'/g, "''")}' LIMIT 1`
+    );
     if (exactData && (exactData as any[]).length > 0) {
       const exact = (exactData as any[])[0].parameter;
       console.log(`✅ PARMY param exact match: "${userParamName}" → "${exact}"`);
@@ -938,9 +945,9 @@ async function resolveParameterName(
       ? `${prefix}.%${suffix}%`
       : `${prefix}%`;
 
-    const { data: candidates } = await supabase.rpc("execute_parmy_sql", {
-      query_sql: `SELECT DISTINCT parameter FROM parameter_dump WHERE parameter ILIKE '${searchPattern.replace(/'/g, "''")}' LIMIT 50`,
-    });
+    const { data: candidates } = await executeVpsParmySql(
+      `SELECT DISTINCT parameter FROM parameter_dump WHERE parameter ILIKE '${searchPattern.replace(/'/g, "''")}' LIMIT 50`
+    );
 
     if (!candidates || (candidates as any[]).length === 0) {
       console.warn(`⚠️ PARMY param: no candidates found for "${userParamName}"`);
@@ -1075,11 +1082,11 @@ Generate the SQL now:`;
 
     console.log(`⚙️ PARMY SQL generated: ${generatedSql.slice(0, 200)}`);
 
-    const { data, error } = await supabase.rpc("execute_parmy_sql", { query_sql: generatedSql });
+    const { data, error } = await executeVpsParmySql(generatedSql);
 
     if (error) {
       console.error("PARMY SQL execution error:", error);
-      return `⚠️ SQL EXECUTION ERROR: ${error.message}\nGenerated SQL: ${generatedSql}${paramCorrection}`;
+      return `⚠️ SQL EXECUTION ERROR: ${error}\nGenerated SQL: ${generatedSql}${paramCorrection}`;
     }
 
     const rows = data as any[];
@@ -2415,7 +2422,7 @@ Tu disposes d'un **moteur SQL** qui génère et exécute automatiquement des req
 6. **Requêtes SQL avancées** : Agrégations, distributions, cross-tabs, filtres combinés sur parameter_dump
 
 ## DONNÉES SOURCES
-- Table **parameter_dump** : colonnes dn, cell_dn, cell_name, site_name, parameter, value, version, vendor, bande, plaque, dor, zone_arcep, netact, latitude, longitude, mrbts_id, enodeb_id, gnodeb_id
+- Table **parameter_dump** (view) : colonnes mrbts_id, enodeb_id, cell_id, dn, parameter, value, vendor, site_name, cell_name, plaque, dor, zone_arcep, bande, techno_topo, latitude, longitude, object_type_normalized, source_file, snapshot_time
 - Table **parameter_changes** : historique des modifications (change_date, param_name, old_value, new_value, change_type, change_scope)
 - Table **topo** : données topologiques pour corrélation
 
