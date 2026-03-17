@@ -2752,11 +2752,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
     if (mapDisplayMode !== 'heatmap') return [];
-    return visibleSites.map(s => {
+    return renderSites.map(s => {
       const val = s.cells.length > 0 ? getCellKpiValue(s.cells[0]) : (s.qoe_score_avg ?? 0);
       return [s.coordinates[0], s.coordinates[1], val / 100] as [number, number, number];
     });
-  }, [mapFilteredSites, mapDisplayMode, mapKpi]);
+  }, [renderSites, mapDisplayMode, mapKpi]);
 
   // Compute highlighted cell coordinates for map display
   const highlightedCellData = useMemo(() => {
