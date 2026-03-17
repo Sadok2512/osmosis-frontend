@@ -20,6 +20,7 @@ import CoverageCanvasOverlay from './CoverageCanvasOverlay';
 import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
+import SiteFilterModal, { DashboardSiteFilters as ModalSiteFilters } from './SiteFilterModal';
 
 // Heatmap layer component using leaflet.heat
 const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
@@ -1844,6 +1845,46 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
   const [dashboardSaving, setDashboardSaving] = useState(false);
   const [dashboardSaveFlash, setDashboardSaveFlash] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+
+  // Auto-show filter modal when no dashboard is active
+  useEffect(() => {
+    if (!dashboardActive) {
+      setShowFilterModal(true);
+    }
+  }, [dashboardActive]);
+
+  const handleFilterModalApply = useCallback(async (siteFilters: ModalSiteFilters) => {
+    setShowFilterModal(false);
+    // Apply filters directly to local states
+    if (siteFilters.dor?.length) setLocalDor(siteFilters.dor[0]); else setLocalDor('ALL');
+    if (siteFilters.constructeur?.length) setLocalVendor(siteFilters.constructeur[0]); else setLocalVendor('ALL');
+    if (siteFilters.plaque?.length) setLocalPlaque(siteFilters.plaque[0]); else setLocalPlaque('ALL');
+    if (siteFilters.techno?.length) setLocalTechno(siteFilters.techno[0] as any); else setLocalTechno('ALL');
+    if (siteFilters.bande?.length) setLocalBande(siteFilters.bande[0]); else setLocalBande('ALL');
+    if (siteFilters.zone_arcep?.length) setLocalZoneArcep(siteFilters.zone_arcep[0]); else setLocalZoneArcep('ALL');
+    // Mark dashboard as active so sites load
+    setDashboardActive(true);
+    // Auto-create a quick dashboard
+    const id = crypto.randomUUID();
+    const cleanFilters: DashboardSiteFilters = {};
+    for (const [k, v] of Object.entries(siteFilters)) {
+      if (v && v.length > 0) (cleanFilters as any)[k] = v;
+    }
+    const finalScope: SiteScope = { type: 'ALL' };
+    if (siteFilters.dor?.length === 1) { finalScope.type = 'DOR'; finalScope.value = siteFilters.dor[0]; }
+    try {
+      const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
+      await dashboardsApi.upsert({
+        id,
+        name: `Filtre ${new Date().toLocaleDateString()}`,
+        description: '',
+        is_shared: true,
+        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope, siteFilters: cleanFilters }],
+        owner_username: session?.username,
+      });
+    } catch {}
+  }, []);
 
   // ── Right settings bar (removed) ──
 
@@ -2735,22 +2776,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
       {/* Empty state — no dashboard selected */}
-      {!dashboardActive && !loading && (
+      {/* Filter modal — shown automatically when no dashboard is active */}
+      <SiteFilterModal
+        open={showFilterModal}
+        onClose={() => { if (dashboardActive) setShowFilterModal(false); }}
+        onApply={handleFilterModalApply}
+      />
+      {/* Empty state — no dashboard, modal closed */}
+      {!dashboardActive && !loading && !showFilterModal && (
         <div className="absolute inset-0 z-[1100] flex items-center justify-center pointer-events-none">
           <div className="flex flex-col items-center gap-4 px-10 py-8 rounded-2xl bg-card/90 backdrop-blur-md border border-border shadow-2xl pointer-events-auto max-w-xs text-center">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <LayoutGrid size={28} className="text-primary" />
+              <Filter size={28} className="text-primary" />
             </div>
-            <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wider">Aucun Dashboard Actif</h3>
+            <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wider">Aucun Filtre Actif</h3>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Créez ou sélectionnez un dashboard dans l'onglet <strong>Dashboard</strong> du panneau latéral pour charger les sites sur la carte.
+              Définissez les filtres pour charger les sites sur la carte.
             </p>
             <button
-              onClick={() => { setInventoryTab('dashboard'); setPanelCollapsed(false); }}
+              onClick={() => setShowFilterModal(true)}
               className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors shadow-lg"
             >
-              <Plus size={12} className="inline mr-1.5" />
-              Créer un Dashboard
+              <Filter size={12} className="inline mr-1.5" />
+              Ouvrir les filtres
             </button>
           </div>
         </div>
