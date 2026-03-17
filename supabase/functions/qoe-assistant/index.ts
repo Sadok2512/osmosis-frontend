@@ -2648,6 +2648,114 @@ async function summarizeSession(
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  🎛️ ORCHESTRATOR — Dynamic agent config from admin_agents DB
+// ═══════════════════════════════════════════════════════════════
+
+interface OrchestratorAgentConfig {
+  id: string;
+  name: string;
+  is_active: boolean;
+  base_prompt: string | null;
+  model_config_id: string | null;
+  description: string | null;
+}
+
+interface OrchestratorModelConfig {
+  id: string;
+  provider: string;
+  model_name: string;
+  temperature: number;
+  top_p: number;
+  max_tokens: number;
+  system_prompt_prefix: string | null;
+}
+
+interface OrchestratorConfig {
+  agents: Map<string, OrchestratorAgentConfig>;
+  activeAgentNames: string[];
+  modelConfigs: Map<string, OrchestratorModelConfig>;
+}
+
+let _orchestratorCache: { config: OrchestratorConfig; fetchedAt: number } | null = null;
+const ORCHESTRATOR_CACHE_TTL = 60_000; // 1 minute cache
+
+async function fetchOrchestratorConfig(): Promise<OrchestratorConfig> {
+  // Return cached if fresh
+  if (_orchestratorCache && (Date.now() - _orchestratorCache.fetchedAt) < ORCHESTRATOR_CACHE_TTL) {
+    return _orchestratorCache.config;
+  }
+
+  const supabase = getSupabase();
+  const agents = new Map<string, OrchestratorAgentConfig>();
+  const modelConfigs = new Map<string, OrchestratorModelConfig>();
+
+  try {
+    // Fetch all agents
+    const { data: agentsData, error: agentsErr } = await supabase
+      .from("admin_agents")
+      .select("id, name, is_active, base_prompt, model_config_id, description");
+
+    if (agentsErr) {
+      console.warn("⚠️ Orchestrator: failed to load agents:", agentsErr.message);
+    } else if (agentsData) {
+      for (const a of agentsData) {
+        agents.set(a.name.toUpperCase(), a as OrchestratorAgentConfig);
+      }
+    }
+
+    // Fetch model configs
+    const { data: modelsData, error: modelsErr } = await supabase
+      .from("llm_model_configs")
+      .select("id, provider, model_name, temperature, top_p, max_tokens, system_prompt_prefix");
+
+    if (modelsErr) {
+      console.warn("⚠️ Orchestrator: failed to load model configs:", modelsErr.message);
+    } else if (modelsData) {
+      for (const m of modelsData) {
+        modelConfigs.set(m.id, m as OrchestratorModelConfig);
+      }
+    }
+  } catch (e) {
+    console.warn("⚠️ Orchestrator config fetch error:", e);
+  }
+
+  const activeAgentNames = Array.from(agents.entries())
+    .filter(([_, a]) => a.is_active)
+    .map(([name]) => name);
+
+  const config: OrchestratorConfig = { agents, activeAgentNames, modelConfigs };
+  _orchestratorCache = { config, fetchedAt: Date.now() };
+
+  console.log(`🎛️ Orchestrator loaded: ${agents.size} agents (${activeAgentNames.length} active), ${modelConfigs.size} model configs`);
+  return config;
+}
+
+async function logAgentRun(
+  agentId: string,
+  userId: string | null,
+  startedAt: number,
+  status: string,
+  notes?: string
+): Promise<void> {
+  try {
+    const supabase = getSupabase();
+    const finishedAt = new Date().toISOString();
+    const latencyMs = Date.now() - startedAt;
+    await supabase.from("agent_runs").insert({
+      agent_id: agentId,
+      user_id: userId || null,
+      started_at: new Date(startedAt).toISOString(),
+      finished_at: finishedAt,
+      latency_ms: latencyMs,
+      status,
+      notes: notes?.slice(0, 500),
+    });
+  } catch (e) {
+    console.warn("Failed to log agent run:", e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════
 
@@ -2695,7 +2803,13 @@ serve(async (req) => {
       throw new Error("No AI API key configured");
     }
 
+    const runStartedAt = Date.now();
     const lastUserMessage = [...normalizedMessages].reverse().find((m: { role: string }) => m.role === "user")?.content || "";
+
+    // ═══════════════════════════════════════════════════════
+    //  🎛️ ORCHESTRATOR: Load agent configs from DB
+    // ═══════════════════════════════════════════════════════
+    const orchestrator = await fetchOrchestratorConfig();
 
     const plan = buildContextPlan(lastUserMessage, uiScope, filters);
 
