@@ -2901,6 +2901,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       handleBackToGlobal();
       return;
     }
+    setSelectedSiteSnapshot(site);
     setFlyTarget(site.coordinates);
     setSelectedSiteId(site.site_id);
     setFocusMode('site');
@@ -2925,6 +2926,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const handleBackToGlobal = () => {
     setSelectedSiteId(null);
+    setSelectedSiteSnapshot(null);
     setFocusMode('global');
     setFocusCellId(null);
     setDetailFullscreen(false);
