@@ -1097,6 +1097,7 @@ interface DashboardInventoryTabProps {
   onSaveDashboard?: (dbId: string) => void;
   onLoadDashboard?: (dbId: string) => void;
   isSaving?: boolean;
+  backendFilterDefs?: FilterDefinition[];
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
