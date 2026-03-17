@@ -2324,8 +2324,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     dor: localDor !== 'ALL' ? localDor : undefined,
     vendor: localVendor !== 'ALL' ? localVendor : undefined,
     plaque: localPlaque !== 'ALL' ? localPlaque : undefined,
+    zone_arcep: localZoneArcep !== 'ALL' ? localZoneArcep : undefined,
+    techno: localTechno !== 'ALL' ? localTechno : undefined,
+    bande: localBande !== 'ALL' ? localBande : undefined,
     q: localSearch || undefined,
-  }), [localDor, localVendor, localPlaque, localSearch]);
+  }), [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch]);
 
   // Core bbox fetch function — switches to cell-level fetch at sector zoom
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
