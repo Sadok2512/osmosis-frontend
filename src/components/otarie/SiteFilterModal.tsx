@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, RotateCcw, Check, Filter } from 'lucide-react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { X, ChevronLeft, ChevronRight, RotateCcw, Check, Filter, ChevronDown, Target, MinusCircle, Plus, Eraser } from 'lucide-react';
 import { FILTER_DIMENSIONS, resolveAvailableValues, ActiveFilter } from '@/config/filterDimensions';
 import { cn } from '@/lib/utils';
 
@@ -20,61 +20,156 @@ interface SiteFilterModalProps {
   initialFilters?: DashboardSiteFilters;
 }
 
-/* ── Scrollable pill row with arrows ── */
-const ScrollablePillRow: React.FC<{
+type DropdownAction = 'select_only' | 'exclude' | 'add' | 'clear';
+
+/* ── Split button with dropdown ── */
+const SplitFilterChip: React.FC<{
+  label: string;
+  active: boolean;
+  dimKey: string;
+  allValues: string[];
+  onToggle: () => void;
+  onAction: (action: DropdownAction, val: string) => void;
+}> = ({ label, active, dimKey, allValues, onToggle, onAction }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const chipRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (chipRef.current && !chipRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
+  return (
+    <div ref={chipRef} className="relative shrink-0">
+      <div
+        className={cn(
+          'flex items-stretch rounded-full border transition-all',
+          active
+            ? 'bg-primary border-primary shadow-md'
+            : 'bg-muted/40 border-border hover:border-primary/30'
+        )}
+      >
+        {/* Main label area */}
+        <button
+          onClick={onToggle}
+          className={cn(
+            'flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-[11px] font-semibold whitespace-nowrap transition-colors rounded-l-full',
+            active
+              ? 'text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          {active && <Check size={10} className="shrink-0" />}
+          {label}
+        </button>
+
+        {/* Divider */}
+        <div className={cn('w-px my-1.5', active ? 'bg-primary-foreground/25' : 'bg-border')} />
+
+        {/* Dropdown arrow */}
+        <button
+          onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+          className={cn(
+            'flex items-center justify-center px-1.5 rounded-r-full transition-colors',
+            active
+              ? 'text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary/80'
+              : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted'
+          )}
+        >
+          <ChevronDown size={11} className={cn('transition-transform', menuOpen && 'rotate-180')} />
+        </button>
+      </div>
+
+      {/* Dropdown menu */}
+      {menuOpen && (
+        <div className="absolute top-full left-0 mt-1.5 z-50 min-w-[160px] bg-card rounded-xl border border-border shadow-xl py-1 animate-in fade-in-0 zoom-in-95 duration-150">
+          <button
+            onClick={() => { onAction('select_only', label); setMenuOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+          >
+            <Target size={12} className="text-primary shrink-0" />
+            Sélectionner uniquement
+          </button>
+          <button
+            onClick={() => { onAction('add', label); setMenuOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+          >
+            <Plus size={12} className="text-primary shrink-0" />
+            Ajouter à la sélection
+          </button>
+          <button
+            onClick={() => { onAction('exclude', label); setMenuOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-medium text-destructive hover:bg-destructive/5 transition-colors"
+          >
+            <MinusCircle size={12} className="shrink-0" />
+            Exclure
+          </button>
+          <div className="border-t border-border my-1" />
+          <button
+            onClick={() => { onAction('clear', label); setMenuOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+          >
+            <Eraser size={12} className="shrink-0" />
+            Effacer le groupe
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Scrollable split-button row ── */
+const ScrollableSplitRow: React.FC<{
+  dimKey: string;
   values: string[];
   selected: string[];
   onToggle: (val: string) => void;
-}> = ({ values, selected, onToggle }) => {
+  onAction: (action: DropdownAction, val: string) => void;
+}> = ({ dimKey, values, selected, onToggle, onAction }) => {
   const ref = useRef<HTMLDivElement>(null);
 
   const scroll = (dir: 'left' | 'right') => {
     if (!ref.current) return;
-    ref.current.scrollBy({ left: dir === 'left' ? -160 : 160, behavior: 'smooth' });
+    ref.current.scrollBy({ left: dir === 'left' ? -180 : 180, behavior: 'smooth' });
   };
 
   if (values.length === 0) return <p className="text-[10px] text-muted-foreground/50 italic px-3 py-2">Aucune valeur disponible</p>;
 
   return (
     <div className="relative flex items-center group">
-      {/* Left arrow */}
       <button
         onClick={() => scroll('left')}
-        className="absolute left-0 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-card/90 border border-border shadow-md text-muted-foreground hover:text-foreground hover:bg-muted transition-all opacity-0 group-hover:opacity-100"
+        className="absolute left-0 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-card/95 border border-border shadow-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all opacity-0 group-hover:opacity-100"
         style={{ transform: 'translateX(-30%)' }}
       >
         <ChevronLeft size={14} />
       </button>
 
-      {/* Scrollable container */}
       <div
         ref={ref}
         className="flex gap-2 px-4 py-2.5 overflow-x-auto scrollbar-none scroll-smooth"
       >
-        {values.map(val => {
-          const active = selected.includes(val);
-          return (
-            <button
-              key={val}
-              onClick={() => onToggle(val)}
-              className={cn(
-                'shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all border whitespace-nowrap',
-                active
-                  ? 'bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]'
-                  : 'bg-muted/50 text-muted-foreground border-border hover:border-primary/40 hover:text-foreground hover:bg-muted'
-              )}
-            >
-              {active && <Check size={10} className="inline mr-1 -mt-[1px]" />}
-              {val}
-            </button>
-          );
-        })}
+        {values.map(val => (
+          <SplitFilterChip
+            key={val}
+            label={val}
+            active={selected.includes(val)}
+            dimKey={dimKey}
+            allValues={values}
+            onToggle={() => onToggle(val)}
+            onAction={(action) => onAction(action, val)}
+          />
+        ))}
       </div>
 
-      {/* Right arrow */}
       <button
         onClick={() => scroll('right')}
-        className="absolute right-0 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-card/90 border border-border shadow-md text-muted-foreground hover:text-foreground hover:bg-muted transition-all opacity-0 group-hover:opacity-100"
+        className="absolute right-0 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-card/95 border border-border shadow-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all opacity-0 group-hover:opacity-100"
         style={{ transform: 'translateX(30%)' }}
       >
         <ChevronRight size={14} />
@@ -86,7 +181,6 @@ const ScrollablePillRow: React.FC<{
 const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onApply, initialFilters }) => {
   const [filters, setFilters] = useState<DashboardSiteFilters>(initialFilters || {});
 
-  // Build ActiveFilter[] for cascading
   const activeFilters = useMemo((): ActiveFilter[] => {
     return Object.entries(filters)
       .filter(([, vals]) => vals && vals.length > 0)
@@ -98,6 +192,31 @@ const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onAppl
       const current = prev[dimKey as keyof DashboardSiteFilters] || [];
       const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
       return { ...prev, [dimKey]: next.length > 0 ? next : undefined };
+    });
+  }, []);
+
+  const handleAction = useCallback((dimKey: string, action: DropdownAction, val: string, allValues: string[]) => {
+    setFilters(prev => {
+      const copy = { ...prev };
+      switch (action) {
+        case 'select_only':
+          (copy as any)[dimKey] = [val];
+          break;
+        case 'add': {
+          const cur = copy[dimKey as keyof DashboardSiteFilters] || [];
+          if (!cur.includes(val)) (copy as any)[dimKey] = [...cur, val];
+          break;
+        }
+        case 'exclude': {
+          const all = allValues.filter(v => v !== val);
+          (copy as any)[dimKey] = all.length > 0 ? all : undefined;
+          break;
+        }
+        case 'clear':
+          (copy as any)[dimKey] = undefined;
+          break;
+      }
+      return copy;
     });
   }, []);
 
@@ -146,7 +265,7 @@ const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onAppl
           </button>
         </div>
 
-        {/* Body — scrollable */}
+        {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           {FILTER_DIMENSIONS.map(dim => {
             const availableValues = resolveAvailableValues(dim.key, activeFilters);
@@ -154,8 +273,7 @@ const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onAppl
             if (availableValues.length === 0 && !dim.values) return null;
 
             return (
-              <div key={dim.key} className="border border-border rounded-xl bg-muted/20 overflow-hidden">
-                {/* Dimension header */}
+              <div key={dim.key} className="border border-border rounded-xl bg-muted/20 overflow-visible">
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
                   <span className="text-xs font-bold text-foreground tracking-wide">{dim.label}</span>
                   {selectedValues.length > 0 && (
@@ -167,11 +285,12 @@ const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onAppl
                     </button>
                   )}
                 </div>
-                {/* Pills */}
-                <ScrollablePillRow
+                <ScrollableSplitRow
+                  dimKey={dim.key}
                   values={availableValues}
                   selected={selectedValues}
                   onToggle={(val) => toggleValue(dim.key, val)}
+                  onAction={(action, val) => handleAction(dim.key, action, val, availableValues)}
                 />
               </div>
             );
