@@ -3041,6 +3041,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         zoom={sites.length > 0 ? 12 : 6}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
+        zoomSnap={1}
+        zoomDelta={1}
         closePopupOnClick={true}
       >
         <CustomZoomControl />
