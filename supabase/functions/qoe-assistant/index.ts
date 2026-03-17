@@ -2853,6 +2853,23 @@ serve(async (req) => {
       console.log(`🎯 Agent FORCÉ (Chemin 2): ${originalAgent} → ${forcedAgent} | needs=[${plan.needs.join(",")}]`);
     }
 
+    // ═══════════════════════════════════════════════════════
+    //  🎛️ ORCHESTRATOR: Validate agent is active
+    // ═══════════════════════════════════════════════════════
+    const orchestratorAgent = orchestrator.agents.get(plan.agent);
+    if (orchestratorAgent && !orchestratorAgent.is_active) {
+      console.warn(`⚠️ Orchestrator: Agent ${plan.agent} is DISABLED in admin. Falling back to PULSE.`);
+      plan.agent = "PULSE" as AgentId;
+    }
+
+    // Filter agents for deep_investigation to only active ones
+    const activeAgentsForInvestigation = ["PULSE", "TOPO", "PARMY", "TRACE", "SENTINEL"]
+      .filter(a => {
+        const cfg = orchestrator.agents.get(a);
+        return !cfg || cfg.is_active; // If not in DB, consider active (backward compat)
+      });
+    console.log(`🎛️ Orchestrator: active agents for investigation = [${activeAgentsForInvestigation.join(",")}]`);
+
     console.log(`🧠 QOEBIT → ${plan.agent} | intent=${plan.intent} | scope=${JSON.stringify(plan.scope)}`);
 
     if (plan.clarificationNeeded && plan.clarificationQuestion) {
