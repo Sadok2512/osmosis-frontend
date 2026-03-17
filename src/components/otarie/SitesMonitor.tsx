@@ -1085,10 +1085,40 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
   };
 
-  const handleCreateDashboard = async () => {
+  const loadScopeOptions = async (type: SiteScopeType) => {
+    if (type === 'ALL') return;
+    setScopeLoading(true);
+    const fieldMap: Record<string, string> = { DOR: 'dor', DR: 'region', Plaque: 'plaque' };
+    try {
+      const result = await topoApi.distinct(fieldMap[type]);
+      const values = Array.isArray(result) ? result : (result?.values || result?.data || []);
+      setScopeOptions(values.filter(Boolean).sort());
+    } catch (e) {
+      console.warn('[DashboardCreate] Failed to load scope options:', e);
+      setScopeOptions([]);
+    }
+    setScopeLoading(false);
+  };
+
+  const handleScopeTypeSelect = async (type: SiteScopeType) => {
+    setScopeType(type);
+    if (type === 'ALL') {
+      // Skip value selection, go straight to create
+      handleCreateDashboardFinal(type);
+    } else {
+      await loadScopeOptions(type);
+      setCreateStep('scope_value');
+    }
+  };
+
+  const handleCreateDashboardFinal = async (overrideType?: SiteScopeType, overrideValue?: string) => {
     if (!newDashName.trim()) return;
     setCreatingDash(true);
     const id = crypto.randomUUID();
+    const finalScope: SiteScope = {
+      type: overrideType || scopeType,
+      value: (overrideType || scopeType) === 'ALL' ? undefined : (overrideValue || scopeValue),
+    };
     try {
       const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
       await dashboardsApi.upsert({
@@ -1096,15 +1126,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         name: newDashName.trim(),
         description: '',
         is_shared: true,
-        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '' }],
+        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope }],
         owner_username: session?.username,
       });
       setNewDashName('');
       setShowCreateDash(false);
+      setCreateStep('name');
+      setScopeType('ALL');
+      setScopeValue('');
+      setScopeOptions([]);
       await fetchAll();
       setExpandedDashboardId(id);
+      onDashboardActiveChange?.(true, finalScope);
     } catch {}
     setCreatingDash(false);
+  };
+
+  const handleCreateDashboard = async () => {
+    handleCreateDashboardFinal();
   };
 
   const handleDeleteDashboard = async (dbId: string) => {
