@@ -3034,7 +3034,18 @@ serve(async (req) => {
       aiHeaders["X-Title"] = `QOEBIT ${plan.agent}`;
     }
 
-    let aiModel = requestedModel || (useLovable ? "google/gemini-3-flash-preview" : "google/gemini-2.5-flash-preview-05-20");
+    // 🎛️ ORCHESTRATOR: Dynamic model selection from DB config
+    let aiModel = requestedModel || "";
+    if (!aiModel && dbAgent?.model_config_id) {
+      const modelCfg = orchestrator.modelConfigs.get(dbAgent.model_config_id);
+      if (modelCfg?.model_name) {
+        aiModel = `${modelCfg.provider}/${modelCfg.model_name}`;
+        console.log(`🎛️ Orchestrator: model from DB config = ${aiModel}`);
+      }
+    }
+    if (!aiModel) {
+      aiModel = useLovable ? "google/gemini-3-flash-preview" : "google/gemini-2.5-flash-preview-05-20";
+    }
 
     if (useLovable) {
       const modelAliases: Record<string, string> = {
