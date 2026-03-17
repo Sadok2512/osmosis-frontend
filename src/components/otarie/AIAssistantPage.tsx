@@ -13,7 +13,7 @@ import { SiteSummary } from '@/types';
 import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizationBlocks';
 import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
-import { getApiUrl, getApiHeaders, isLocalMode, getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
+import { getAgentHeaders, isLocalMode, getVpsProxyUrl } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore';
 import { useAgentLearningStore } from '@/stores/agentLearningStore';
 import { dashboardsApi } from '@/lib/localDb';
@@ -186,15 +186,20 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   // ─── Streaming logic (unchanged) ───
   const streamChat = async (allMessages: Msg[]): Promise<string> => {
     let openrouterKey = '';
-    let llmModel = '';
+    let configuredModel = '';
     try {
       const saved = localStorage.getItem('qoebit_llm_config');
       if (saved) {
         const cfg = JSON.parse(saved);
         openrouterKey = cfg.apiKey || '';
-        llmModel = cfg.model || '';
+        configuredModel = cfg.model || '';
       }
     } catch { /* ignore */ }
+
+    const isOpenRouterModel = /^(deepseek|anthropic|meta-llama|qwen|mistralai|openai)\//.test(configuredModel);
+    const effectiveModel = openrouterKey || !isOpenRouterModel
+      ? configuredModel
+      : 'google/gemini-3-flash-preview';
 
     const MAX_RECENT_MESSAGES = 4;
     const MAX_USER_CHARS = 1200;
@@ -213,13 +218,15 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     };
 
     const recentMessages = allMessages.slice(-MAX_RECENT_MESSAGES);
-    const trimmedMessages = recentMessages.map((m) => ({
-      role: m.role,
-      content: compactText(
-        m.content,
-        m.role === 'user' ? MAX_USER_CHARS : MAX_ASSISTANT_CHARS,
-      ),
-    }));
+    const trimmedMessages = recentMessages
+      .filter((message) => !(message.role === 'assistant' && /Server error \(500\): Internal Server Error/i.test(message.content)))
+      .map((m) => ({
+        role: m.role,
+        content: compactText(
+          m.content,
+          m.role === 'user' ? MAX_USER_CHARS : MAX_ASSISTANT_CHARS,
+        ),
+      }));
 
     let totalChars = trimmedMessages.reduce((sum, message) => sum + message.content.length, 0);
     while (trimmedMessages.length > 1 && totalChars > MAX_TOTAL_CHARS) {
@@ -236,7 +243,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       uiScope,
       filters: assistantFilters,
       openrouter_key: openrouterKey,
-      model: llmModel,
+      model: effectiveModel,
       user_id: userId,
       session_id: activeSessionId,
       ...(forcedAgent ? { forcedAgent } : {}),
@@ -244,12 +251,13 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
 
     // All queries go through VPS orchestrator :1000
     const url = getVpsProxyUrl('agent', '/orchestrator/stream');
-    const headers = getVpsProxyHeaders();
+    const headers = getAgentHeaders();
 
     addDebugLog(`Mode: ${isLocalMode() ? 'LOCAL' : 'CLOUD'}`);
     addDebugLog(`URL: ${url}`);
     addDebugLog(`Payload size: ${(payload.length / 1024).toFixed(1)} KB`);
-    addDebugLog(`Model: ${llmModel || '(default)'}`);
+    addDebugLog(`Model: ${effectiveModel || '(default)'}`);
+    if (effectiveModel !== configuredModel) addDebugLog(`Model fallback: ${configuredModel || '(none)'} → ${effectiveModel}`);
 
     const controller = new AbortController();
     const timeoutMs = 300000; // 5 min for PARMY fuzzy + SQL
