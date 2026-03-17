@@ -1303,7 +1303,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setLoadingAll(true);
     try {
       const dbData = await dashboardsApi.list();
-      if (Array.isArray(dbData)) setAllDashboards(dbData.filter((d: any) => !d.is_archived));
+      if (Array.isArray(dbData)) {
+        setAllDashboards(dedupeAutoFilterDashboards(dbData.filter((d: any) => !d.is_archived)));
+      }
     } catch {}
     setLoadingAll(false);
   };
