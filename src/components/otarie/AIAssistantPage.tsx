@@ -13,7 +13,7 @@ import { SiteSummary } from '@/types';
 import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizationBlocks';
 import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
-import { getApiUrl, getApiHeaders, isLocalMode, getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
+import { getAgentHeaders, isLocalMode, getVpsProxyUrl } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore';
 import { useAgentLearningStore } from '@/stores/agentLearningStore';
 import { dashboardsApi } from '@/lib/localDb';
