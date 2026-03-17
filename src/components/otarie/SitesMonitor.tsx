@@ -1840,6 +1840,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [hoveredSiteId, setHoveredSiteId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [isFlying, setIsFlying] = useState(false);
+  const isFlyingRef = useRef(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [panelMinimized, setPanelMinimized] = useState(false);
