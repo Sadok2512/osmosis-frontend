@@ -75,8 +75,9 @@ interface SitesMonitorProps {
   onLaunchAI?: (siteName: string) => void;
 }
 
-// Zoom threshold: above this we show sectors, below we show clusters
-const SECTOR_ZOOM_THRESHOLD = 13;
+// Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
+const SITES_TO_CELLS_ZOOM = 14;
+const CELLS_TO_SITES_ZOOM = 12;
 
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
