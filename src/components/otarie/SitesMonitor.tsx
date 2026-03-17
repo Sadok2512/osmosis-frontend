@@ -2089,12 +2089,60 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const paramUniqueValues = useMemo(() => {
     return [...new Set(paramPoints.map(p => p.value || '(vide)'))].sort();
   }, [paramPoints]);
-  // Fetch dashboards list
+  // Fetch dashboards list & auto-activate saved dashboard
   useEffect(() => {
     const fetchDashboards = async () => {
       try {
         const data = await dashboardsApi.list();
-        if (Array.isArray(data)) setDashboardList(dedupeAutoFilterDashboards(data));
+        if (Array.isArray(data)) {
+          const cleaned = dedupeAutoFilterDashboards(data);
+          setDashboardList(cleaned);
+
+          // Auto-activate saved dashboard
+          const savedId = localStorage.getItem('qoebit_active_dashboard');
+          if (savedId) {
+            const saved = cleaned.find((d: any) => d.id === savedId);
+            if (saved) {
+              setDashboardActive(true);
+              setActiveDashboardId(savedId);
+              // Load settings from saved dashboard
+              const widgets = Array.isArray(saved.widgets) ? saved.widgets : [];
+              const settings = widgets.find((w: any) => w?._type === 'dashboard_settings');
+              if (settings) {
+                if (settings.mapLayer) setMapLayer(settings.mapLayer);
+                if (settings.mapKpi) setMapKpi(settings.mapKpi);
+                if (settings.mapTechnoFilter) setMapTechnoFilter(settings.mapTechnoFilter);
+                if (settings.enabledBands) setEnabledBands(new Set(settings.enabledBands));
+                if (settings.sectorColorMode) setSectorColorMode(settings.sectorColorMode);
+                if (settings.mapDisplayMode) setMapDisplayMode(settings.mapDisplayMode);
+                if (settings.localVendor) setLocalVendor(settings.localVendor);
+                if (settings.localDor) setLocalDor(settings.localDor);
+                if (settings.localPlaque) setLocalPlaque(settings.localPlaque);
+                if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
+                if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
+                if (settings.siteFilters) {
+                  const sf = settings.siteFilters;
+                  if (sf.dor?.length) setLocalDor(sf.dor[0]);
+                  if (sf.constructeur?.length) setLocalVendor(sf.constructeur[0]);
+                  if (sf.plaque?.length) setLocalPlaque(sf.plaque[0]);
+                  if (sf.techno?.length) setLocalTechno(sf.techno[0]);
+                  if (sf.bande?.length) setLocalBande(sf.bande[0]);
+                  if (sf.zone_arcep?.length) setLocalZoneArcep(sf.zone_arcep[0]);
+                }
+                if (settings.siteScope) setActiveSiteScope(settings.siteScope);
+                if (settings.bandColors) {
+                  setBandColors(settings.bandColors);
+                  localStorage.setItem('qoebit_band_colors', JSON.stringify(settings.bandColors));
+                }
+                if (settings.center) setFlyTarget(settings.center);
+                if (settings.beamVisibility != null) {
+                  setBeamVisibility(settings.beamVisibility);
+                  localStorage.setItem('qoebit_beam_visibility', String(settings.beamVisibility));
+                }
+              }
+            }
+          }
+        }
       } catch {}
     };
     fetchDashboards();
