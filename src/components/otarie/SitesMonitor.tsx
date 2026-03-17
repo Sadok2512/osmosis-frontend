@@ -948,15 +948,22 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
   );
 };
 
+export type SiteScopeType = 'ALL' | 'DOR' | 'DR' | 'Plaque';
+export interface SiteScope {
+  type: SiteScopeType;
+  value?: string;
+}
+
 interface DashboardInventoryTabProps {
   onApplyView?: (settings: any) => void;
+  onDashboardActiveChange?: (active: boolean, scope?: SiteScope | null) => void;
   beamVisibility?: number;
   onBeamVisChange?: (v: number) => void;
   onSaveDashboard?: (dbId: string) => void;
   onLoadDashboard?: (dbId: string) => void;
   isSaving?: boolean;
 }
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -976,6 +983,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [pendingSwitchId, setPendingSwitchId] = useState<string | null>(null);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
+  // Scope selection for new dashboard creation
+  const [createStep, setCreateStep] = useState<'name' | 'scope_type' | 'scope_value'>('name');
+  const [scopeType, setScopeType] = useState<SiteScopeType>('ALL');
+  const [scopeValue, setScopeValue] = useState('');
+  const [scopeOptions, setScopeOptions] = useState<string[]>([]);
+  const [scopeLoading, setScopeLoading] = useState(false);
 
   const requestDashboardSwitch = (newId: string | null) => {
     setExpandedDashboardId(newId);
