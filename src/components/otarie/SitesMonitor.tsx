@@ -22,6 +22,8 @@ import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 import SiteFilterModal, { DashboardSiteFilters as ModalSiteFilters } from './SiteFilterModal';
+import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
+import { useSitesFilters } from '@/hooks/useSitesFilters';
 
 // Heatmap layer component using leaflet.heat
 const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
@@ -1832,6 +1834,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [panelMinimized, setPanelMinimized] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [showAllSites, setShowAllSites] = useState(false);
+  // ── Dynamic backend filters ──
+  const {
+    filterDefs: backendFilterDefs,
+    activeFilters: backendActiveFilters,
+    availableToAdd: backendAvailableToAdd,
+    addFilter: backendAddFilter,
+    toggleValue: backendToggleValue,
+    removeFilter: backendRemoveFilter,
+    clearAll: backendClearAll,
+    buildQueryParams: backendBuildQueryParams,
+  } = useSitesFilters();
+
   const [localVendor, setLocalVendor] = useState('ALL');
   const [localDor, setLocalDor] = useState('ALL');
   const [localPlaque, setLocalPlaque] = useState('ALL');
@@ -2337,16 +2351,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [bboxTotal, setBboxTotal] = useState<number>(0);
   const [bboxLoading, setBboxLoading] = useState(false);
 
-  // Derive current bbox filters from local filter state
-  const currentBboxFilters = useMemo((): BboxFilters => ({
-    dor: localDor !== 'ALL' ? localDor : undefined,
-    vendor: localVendor !== 'ALL' ? localVendor : undefined,
-    plaque: localPlaque !== 'ALL' ? localPlaque : undefined,
-    zone_arcep: localZoneArcep !== 'ALL' ? localZoneArcep : undefined,
-    techno: localTechno !== 'ALL' ? localTechno : undefined,
-    bande: localBande !== 'ALL' ? localBande : undefined,
-    q: localSearch || undefined,
-  }), [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch]);
+  // Derive current bbox filters from local filter state + backend filter bar
+  const backendQueryStr = backendBuildQueryParams();
+  const currentBboxFilters = useMemo((): BboxFilters => {
+    const base: BboxFilters = {
+      dor: localDor !== 'ALL' ? localDor : undefined,
+      vendor: localVendor !== 'ALL' ? localVendor : undefined,
+      plaque: localPlaque !== 'ALL' ? localPlaque : undefined,
+      zone_arcep: localZoneArcep !== 'ALL' ? localZoneArcep : undefined,
+      techno: localTechno !== 'ALL' ? localTechno : undefined,
+      bande: localBande !== 'ALL' ? localBande : undefined,
+      q: localSearch || undefined,
+    };
+    // Merge backend filter bar selections (override local if set)
+    if (backendQueryStr) {
+      const bp = new URLSearchParams(backendQueryStr);
+      if (bp.get('dor')) base.dor = bp.get('dor')!;
+      if (bp.get('constructeur')) base.vendor = bp.get('constructeur')!;
+      if (bp.get('plaque')) base.plaque = bp.get('plaque')!;
+      if (bp.get('zone_arcep')) base.zone_arcep = bp.get('zone_arcep')!;
+      if (bp.get('techno')) base.techno = bp.get('techno')!;
+      if (bp.get('bande')) base.bande = bp.get('bande')!;
+    }
+    return base;
+  }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
 
   // Core bbox fetch function — switches to cell-level fetch at sector zoom
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
@@ -2932,6 +2960,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1001] px-3 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-lg flex items-center gap-2">
           <RefreshCw size={12} className="text-primary animate-spin" />
           <span className="text-[10px] font-semibold text-muted-foreground">Chargement {bboxTotal > 0 ? `(${bboxTotal} sites)` : ''}...</span>
+        </div>
+      )}
+      {/* Dynamic filter bar from backend */}
+      {dashboardActive && backendFilterDefs.length > 0 && (
+        <div className="absolute top-0 left-0 right-0 z-[1002]">
+          <SitesFilterBar
+            filterDefs={backendFilterDefs}
+            activeFilters={backendActiveFilters}
+            availableToAdd={backendAvailableToAdd}
+            onAdd={backendAddFilter}
+            onToggle={backendToggleValue}
+            onRemove={backendRemoveFilter}
+            onClearAll={backendClearAll}
+          />
         </div>
       )}
       {/* FULL SCREEN MAP */}

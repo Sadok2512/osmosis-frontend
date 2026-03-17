@@ -549,6 +549,22 @@ export const topoApi = {
       return { cells: [], total: 0 };
     }
   },
+  /** Fetch available filter dimensions from VPS: GET /api/v1/topo/filters */
+  filters: async (): Promise<{ filters: { id: string; label: string; values: string[] }[] }> => {
+    if (isLocalExpress()) {
+      return fetchJson<any>(localUrl('topo/filters'));
+    }
+    return fetchJson<any>(parserUrl('/topo/filters'));
+  },
+
+  /** Fetch sites with dynamic filters: GET /api/v1/topo/sites?dor=X&techno=Y */
+  filteredSites: async (queryParams: string): Promise<any[]> => {
+    const url = queryParams
+      ? parserUrl(`/topo/sites?${queryParams}`)
+      : parserUrl('/topo/sites');
+    const data = await fetchJson<any>(url);
+    return Array.isArray(data) ? data : (data?.sites || data?.rows || []);
+  },
 };
 
 // ─── QoE Metrics — VPS Parser :8000 at /api/v1/qoe/metrics ───
