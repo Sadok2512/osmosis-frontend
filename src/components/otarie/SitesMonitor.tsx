@@ -1896,12 +1896,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
+  const displayModeRef = useRef<'sites' | 'cells'>('sites');
   const [mapRendering, setMapRendering] = useState(false);
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
   const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
   const [showSiteLabels, setShowSiteLabels] = useState(true);
   const [showBeamSectors, setShowBeamSectors] = useState(true);
+
+  const getDisplayMode = useCallback((zoom: number) => {
+    if (zoom >= SITES_TO_CELLS_ZOOM) {
+      displayModeRef.current = 'cells';
+    } else if (zoom <= CELLS_TO_SITES_ZOOM) {
+      displayModeRef.current = 'sites';
+    }
+    return displayModeRef.current;
+  }, []);
 
   const TILE_URLS: Record<typeof mapLayer, { url: string; attribution: string }> = {
     light: {
