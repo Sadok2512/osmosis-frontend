@@ -295,19 +295,23 @@ const MapViewportTracker = ({ onViewportChange }: { onViewportChange: (v: Viewpo
   return null;
 };
 
-// Create a custom cluster icon
-const createClusterCustomIcon = (_cluster: any) => {
-  const dim = 14;
+// Create a custom cluster icon with site count
+const createClusterCustomIcon = (cluster: any) => {
+  const count = cluster.getChildCount();
+  const size = count > 100 ? 40 : count > 30 ? 34 : count > 10 ? 28 : 22;
   return L.divIcon({
     html: `<div style="
       background: hsl(220 60% 30%);
-      width: ${dim}px; height: ${dim}px;
+      width: ${size}px; height: ${size}px;
       border-radius: 50%;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
       border: 2px solid hsl(var(--background));
-    "></div>`,
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: ${size > 30 ? 11 : 9}px; font-weight: 800;
+      letter-spacing: -0.03em;
+    ">${count}</div>`,
     className: 'custom-cluster-icon',
-    iconSize: L.point(dim, dim, true),
+    iconSize: L.point(size, size, true),
   });
 };
 
