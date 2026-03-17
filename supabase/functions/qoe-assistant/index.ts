@@ -550,7 +550,6 @@ function extractSiteName(query: string): string | null {
 
 const VPS_HOST = '151.242.147.49';
 const VPS_PARSER_PORT = 8000;
-const VPS_AGENT_PORT = 1000;
 
 async function fetchVpsTopo(path: string): Promise<any[]> {
   const url = `http://${VPS_HOST}:${VPS_PARSER_PORT}${path}`;
@@ -847,7 +846,7 @@ async function searchDumpParameters(query: string): Promise<string> {
 
 async function executeVpsParmySql(query_sql: string): Promise<{ data: any[] | null; error: string | null }> {
   try {
-    const url = `http://${VPS_HOST}:${VPS_AGENT_PORT}/parmy/sql`;
+    const url = `http://${VPS_HOST}:${VPS_PARSER_PORT}/api/v1/parmy/sql`;
     const resp = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1588,6 +1587,8 @@ function isDeepInvestigationQuery(query: string): boolean {
   // Deep investigation if explicit hint OR complex multi-domain query
   return hasDeep || complexityScore >= 3;
 }
+
+const VPS_AGENT_PORT = 1000;
 
 interface AgentLayerResponse {
   agent: string;
