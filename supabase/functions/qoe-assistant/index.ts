@@ -1623,8 +1623,85 @@ async function callAgentLayer(
     }
 
     const json = await resp.json();
-    console.log(`🔬 Agent Layer responded: ${json.results?.length || 0} agent results`);
-    return json;
+    console.log(`🔬 Agent Layer raw response keys: ${Object.keys(json).join(", ")}`);
+
+    // ── Normalize VPS response format ──
+    // VPS returns: {status, response, data: {sites_count, cells_count, topo_stats, breakdown}, investigation}
+    // We need: {results: AgentLayerResponse[], synthesis: string}
+    
+    if (json.results?.length) {
+      // Already in expected format
+      console.log(`🔬 Agent Layer responded: ${json.results.length} agent results`);
+      return json;
+    }
+
+    // Transform VPS format into our AgentLayerResponse format
+    const results: AgentLayerResponse[] = [];
+    const vpsData = json.data || {};
+    const investigation = json.investigation || {};
+
+    // Build a comprehensive TOPO agent result from VPS data
+    if (vpsData.sites_count || vpsData.cells_count || vpsData.rows_count) {
+      let analysis = `📊 Données VPS (Agent Layer :${VPS_AGENT_PORT}):\n`;
+      analysis += `- Sites distincts: ${vpsData.sites_count?.toLocaleString() || "N/A"}\n`;
+      analysis += `- Cellules: ${vpsData.cells_count?.toLocaleString() || "N/A"}\n`;
+      analysis += `- Lignes totales: ${vpsData.rows_count?.toLocaleString() || "N/A"}\n`;
+      if (vpsData.cells_count && vpsData.sites_count) {
+        analysis += `- Moyenne cellules/site: ${(vpsData.cells_count / vpsData.sites_count).toFixed(1)}\n`;
+      }
+
+      // Add topo_stats breakdown if available
+      if (vpsData.topo_stats && typeof vpsData.topo_stats === "object") {
+        for (const [key, val] of Object.entries(vpsData.topo_stats)) {
+          if (val && typeof val === "object") {
+            analysis += `\nPar ${key}:\n`;
+            for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+              analysis += `  ${k}: ${v}\n`;
+            }
+          }
+        }
+      }
+
+      // Add breakdown if available
+      if (vpsData.breakdown && typeof vpsData.breakdown === "object") {
+        for (const [key, val] of Object.entries(vpsData.breakdown)) {
+          if (Array.isArray(val) && val.length > 0) {
+            analysis += `\nPar ${key}:\n`;
+            for (const item of val.slice(0, 20)) {
+              if (typeof item === "object" && item !== null) {
+                const entries = Object.entries(item);
+                analysis += `  ${entries.map(([k, v]) => `${k}: ${v}`).join(" | ")}\n`;
+              } else {
+                analysis += `  ${item}\n`;
+              }
+            }
+          }
+        }
+      }
+
+      results.push({
+        agent: "TOPO",
+        status: "success",
+        analysis,
+        recommendations: investigation.recommendations || [],
+        timeline: investigation.timeline || [],
+      });
+    }
+
+    // Add response text as a generic agent result if present
+    if (json.response && !results.length) {
+      results.push({
+        agent: "PULSE",
+        status: "success",
+        analysis: typeof json.response === "string" ? json.response : JSON.stringify(json.response, null, 2),
+        recommendations: investigation.recommendations || [],
+        timeline: investigation.timeline || [],
+      });
+    }
+
+    const synthesis = json.response || json.synthesis || "";
+    console.log(`🔬 Agent Layer responded (VPS format): ${results.length} results, data keys: [${Object.keys(vpsData).join(", ")}]`);
+    return { results, synthesis: typeof synthesis === "string" ? synthesis : JSON.stringify(synthesis) };
   } catch (err) {
     console.warn(`Agent Layer :${VPS_AGENT_PORT} unreachable, using local fallback:`, err);
     return await localDeepInvestigation(query, scope, filters, agents);
