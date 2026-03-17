@@ -3238,8 +3238,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Polygon>
                   );
                 })}
-                {/* Site name label at zoom >= 14 */}
-                {viewport.zoom >= 13 && (
+                {/* Site name label */}
+                {showSiteLabels && (
                   <Marker
                     position={site.coordinates}
                     icon={L.divIcon({
