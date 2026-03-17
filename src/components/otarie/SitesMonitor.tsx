@@ -64,7 +64,7 @@ import {
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
-import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES, RATS } from '../../constants';
+import { getQoEColor } from '../../constants';
 
 interface SitesMonitorProps {
   filters: Filters;
