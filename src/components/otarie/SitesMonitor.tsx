@@ -3248,7 +3248,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {!paramMode && showSectors && visibleSites.map(site => {
+        {!paramMode && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * (0.5 + 0.5 * (beamVisibility / 100));
