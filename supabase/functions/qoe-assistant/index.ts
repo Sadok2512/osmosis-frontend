@@ -163,7 +163,7 @@ async function searchRAGDocuments(query: string, maxChunks = 3): Promise<string>
 
     const normalizedLikeQuery = normalizeQueryForLike(cleanedQuery);
     const terms = extractSearchTerms(cleanedQuery);
-    const lexicalQueries: Promise<any>[] = [];
+    const lexicalQueries: any[] = [];
     if (normalizedLikeQuery) {
       lexicalQueries.push(
         supabase.from("rag_documents").select("filename, content, chunk_index").ilike("filename", `%${normalizedLikeQuery}%`).order("created_at", { ascending: false }).limit(4),
@@ -428,10 +428,10 @@ async function fetchMetricTimeSeriesByDimension(
     // Group by dimension_2, then by date
     const series = new Map<string, Map<string, number[]>>();
     for (const r of data) {
-      const dim2 = r.dimension_2 || "N/A";
+      const dim2 = (r as any).dimension_2 || "N/A";
       if (!series.has(dim2)) series.set(dim2, new Map());
       const dateMap = series.get(dim2)!;
-      const date = r.date_part;
+      const date = (r as any).date_part;
       if (!dateMap.has(date)) dateMap.set(date, []);
       const val = (r as any)[metric];
       if (val != null) dateMap.get(date)!.push(Number(val));
@@ -1002,7 +1002,7 @@ async function generateAndExecuteParmySql(
     let correctedQuery = userQuery;
 
     if (extractedParam) {
-      const resolved = await resolveParameterName(extractedParam, supabase);
+      const resolved = await resolveParameterName(extractedParam);
       if (resolved.wasFixed) {
         correctedQuery = userQuery.replace(
           new RegExp(extractedParam.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
@@ -1327,12 +1327,12 @@ async function fetchSentinelTimeSeries(
     // Group by dimension_2 then by date
     const series = new Map<string, Map<string, number[]>>();
     for (const r of data) {
-      const dim2 = r.dimension_2 || "N/A";
+      const dim2 = (r as any).dimension_2 || "N/A";
       if (!series.has(dim2)) series.set(dim2, new Map());
       const dateMap = series.get(dim2)!;
-      if (!dateMap.has(r.date_part)) dateMap.set(r.date_part, []);
+      if (!dateMap.has((r as any).date_part)) dateMap.set((r as any).date_part, []);
       const val = (r as any)[metric];
-      if (val != null) dateMap.get(r.date_part)!.push(Number(val));
+      if (val != null) dateMap.get((r as any).date_part)!.push(Number(val));
     }
 
     const allDates = [...new Set(data.map((r: any) => r.date_part))].sort();
