@@ -1233,12 +1233,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
   };
 
-  // Build ActiveFilter[] from createFilters for resolveAvailableValues
-  const createActiveFilters = useMemo((): ActiveFilter[] => {
-    return Object.entries(createFilters)
-      .filter(([, vals]) => vals && vals.length > 0)
-      .map(([key, vals]) => ({ id: key, dimension: key, op: 'IN' as const, values: vals! }));
-  }, [createFilters]);
+  // Use backend filter defs for dashboard creation
+  const filterDimensions = backendFilterDefs || [];
 
   const toggleCreateFilterValue = (dimKey: string, val: string) => {
     setCreateFilters(prev => {
