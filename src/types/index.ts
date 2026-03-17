@@ -254,6 +254,9 @@ export interface SiteSummary {
   dms_ul_3: number;
   coordinates: [number, number];
   cells: CellProperties[];
+  zone_arcep?: string | null;
+  techno?: string | null;
+  bande?: string | null;
 }
 
 export interface SiteDetail extends SiteSummary {
