@@ -3689,6 +3689,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: showSectors ? '#10b981' : 'hsl(var(--primary))' }}>
                 {showSectors ? `${visibleSites.length} visible • Sectors` : 'Clusters'}
               </span>
+              <span className="w-px h-4 bg-border" />
+              {/* Toggle: site names */}
+              <button
+                onClick={() => setShowSiteLabels(v => !v)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                  showSiteLabels
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {showSiteLabels ? '☑' : '☐'} Noms
+              </button>
+              {/* Toggle: beams */}
+              <button
+                onClick={() => setShowBeamSectors(v => !v)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                  showBeamSectors
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {showBeamSectors ? '☑' : '☐'} Beams
+              </button>
             </>
           )}
         </div>
