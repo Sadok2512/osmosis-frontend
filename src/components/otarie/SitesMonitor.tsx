@@ -1097,40 +1097,43 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
   };
 
-  const loadScopeOptions = async (type: SiteScopeType) => {
-    if (type === 'ALL') return;
-    setScopeLoading(true);
-    const fieldMap: Record<string, string> = { DOR: 'dor', DR: 'region', Plaque: 'plaque' };
-    try {
-      const result = await topoApi.distinct(fieldMap[type]);
-      const values = Array.isArray(result) ? result : (result?.values || result?.data || []);
-      setScopeOptions(values.filter(Boolean).sort());
-    } catch (e) {
-      console.warn('[DashboardCreate] Failed to load scope options:', e);
-      setScopeOptions([]);
-    }
-    setScopeLoading(false);
+  // Build ActiveFilter[] from createFilters for resolveAvailableValues
+  const createActiveFilters = useMemo((): ActiveFilter[] => {
+    return Object.entries(createFilters)
+      .filter(([, vals]) => vals && vals.length > 0)
+      .map(([key, vals]) => ({ id: key, dimension: key, op: 'IN' as const, values: vals! }));
+  }, [createFilters]);
+
+  const toggleCreateFilterValue = (dimKey: string, val: string) => {
+    setCreateFilters(prev => {
+      const current = prev[dimKey as keyof DashboardSiteFilters] || [];
+      const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
+      return { ...prev, [dimKey]: next.length > 0 ? next : undefined };
+    });
   };
 
-  const handleScopeTypeSelect = async (type: SiteScopeType) => {
-    setScopeType(type);
-    if (type === 'ALL') {
-      // Skip value selection, go straight to create
-      handleCreateDashboardFinal(type);
-    } else {
-      await loadScopeOptions(type);
-      setCreateStep('scope_value');
-    }
-  };
+  const hasAnyCreateFilter = useMemo(() => {
+    return Object.values(createFilters).some(v => v && v.length > 0);
+  }, [createFilters]);
 
-  const handleCreateDashboardFinal = async (overrideType?: SiteScopeType, overrideValue?: string) => {
+  const handleCreateDashboardWithFilters = async () => {
     if (!newDashName.trim()) return;
     setCreatingDash(true);
     const id = crypto.randomUUID();
-    const finalScope: SiteScope = {
-      type: overrideType || scopeType,
-      value: (overrideType || scopeType) === 'ALL' ? undefined : (overrideValue || scopeValue),
-    };
+    // Build a legacy scope for backward compat
+    const finalScope: SiteScope = { type: 'ALL' };
+    if (createFilters.dor && createFilters.dor.length === 1) {
+      finalScope.type = 'DOR';
+      finalScope.value = createFilters.dor[0];
+    } else if (createFilters.plaque && createFilters.plaque.length === 1) {
+      finalScope.type = 'Plaque';
+      finalScope.value = createFilters.plaque[0];
+    }
+    // Clean filters (remove empty arrays)
+    const cleanFilters: DashboardSiteFilters = {};
+    for (const [k, v] of Object.entries(createFilters)) {
+      if (v && v.length > 0) (cleanFilters as any)[k] = v;
+    }
     try {
       const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
       await dashboardsApi.upsert({
@@ -1138,24 +1141,21 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         name: newDashName.trim(),
         description: '',
         is_shared: true,
-        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope }],
+        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope, siteFilters: cleanFilters }],
         owner_username: session?.username,
       });
       setNewDashName('');
       setShowCreateDash(false);
-      setCreateStep('name');
-      setScopeType('ALL');
-      setScopeValue('');
-      setScopeOptions([]);
+      setCreateFilters({});
       await fetchAll();
       setExpandedDashboardId(id);
-      onDashboardActiveChange?.(true, finalScope);
+      onDashboardActiveChange?.(true, finalScope, cleanFilters);
     } catch {}
     setCreatingDash(false);
   };
 
   const handleCreateDashboard = async () => {
-    handleCreateDashboardFinal();
+    handleCreateDashboardWithFilters();
   };
 
   const handleDeleteDashboard = async (dbId: string) => {
