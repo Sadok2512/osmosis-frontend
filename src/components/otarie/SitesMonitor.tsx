@@ -75,8 +75,9 @@ interface SitesMonitorProps {
   onLaunchAI?: (siteName: string) => void;
 }
 
-// Zoom threshold: above this we show sectors, below we show clusters
-const SECTOR_ZOOM_THRESHOLD = 13;
+// Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
+const SITES_TO_CELLS_ZOOM = 14;
+const CELLS_TO_SITES_ZOOM = 12;
 
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
@@ -178,31 +179,51 @@ const getSectorCoords = (
   return points;
 };
 
-// Fly to a site when selected — smart zoom: don't zoom out if already close
-const FlyToSite = ({ coords, onFlyStart, onFlyEnd, onDone }: { coords: [number, number] | null; onFlyStart?: () => void; onFlyEnd?: () => void; onDone?: () => void }) => {
+// Fly to a site when selected — progressive zoom to avoid forcing cell mode too early
+const FlyToSite = ({
+  coords,
+  onFlyStart,
+  onFlyEnd,
+  onDone,
+}: {
+  coords: [number, number] | null;
+  onFlyStart?: () => void;
+  onFlyEnd?: () => void;
+  onDone?: () => void;
+}) => {
   const map = useMap();
-  useEffect(() => {
-    if (coords && isFinite(coords[0]) && isFinite(coords[1])) {
-      const currentZoom = map.getZoom();
-      const targetZoom = Math.max(currentZoom, 14); // never zoom out below current level, min 14
-      const currentCenter = map.getCenter();
-      const dist = map.distance(currentCenter, coords);
 
-      onFlyStart?.();
-      if (dist < 500 && Math.abs(currentZoom - targetZoom) < 1) {
-        // Already very close — just pan smoothly without zoom animation
-        map.panTo(coords, { duration: 0.4, animate: true });
-        const handler = () => { onFlyEnd?.(); onDone?.(); };
-        map.once('moveend', handler);
-        return () => { map.off('moveend', handler); };
-      } else {
-        map.flyTo(coords, targetZoom, { duration: 1 });
-        const handler = () => { onFlyEnd?.(); onDone?.(); };
-        map.once('moveend', handler);
-        return () => { map.off('moveend', handler); };
-      }
+  useEffect(() => {
+    if (!coords || !isFinite(coords[0]) || !isFinite(coords[1])) return;
+
+    const currentZoom = map.getZoom();
+    const targetZoom = currentZoom < 13 ? 13 : currentZoom;
+    const currentCenter = map.getCenter();
+    const dist = map.distance(currentCenter, coords);
+
+    onFlyStart?.();
+
+    const handler = () => {
+      onFlyEnd?.();
+      onDone?.();
+    };
+
+    if (dist < 500 && Math.abs(currentZoom - targetZoom) < 1) {
+      map.panTo(coords, { duration: 0.4, animate: true });
+      map.once('moveend', handler);
+      return () => {
+        map.off('moveend', handler);
+      };
     }
-  }, [coords, map]);
+
+    map.flyTo(coords, targetZoom, { duration: 0.8 });
+    map.once('moveend', handler);
+
+    return () => {
+      map.off('moveend', handler);
+    };
+  }, [coords, map, onFlyStart, onFlyEnd, onDone]);
+
   return null;
 };
 
@@ -284,17 +305,19 @@ interface ViewportState {
 const MapViewportTracker = ({ onViewportChange }: { onViewportChange: (v: ViewportState) => void }) => {
   const map = useMapEvents({
     moveend: () => {
-      onViewportChange({ bounds: map.getBounds(), zoom: map.getZoom() });
-    },
-    zoomend: () => {
-      onViewportChange({ bounds: map.getBounds(), zoom: map.getZoom() });
+      onViewportChange({
+        bounds: map.getBounds(),
+        zoom: map.getZoom(),
+      });
     },
   });
 
-  // Initial viewport
   useEffect(() => {
-    onViewportChange({ bounds: map.getBounds(), zoom: map.getZoom() });
-  }, []);
+    onViewportChange({
+      bounds: map.getBounds(),
+      zoom: map.getZoom(),
+    });
+  }, [map, onViewportChange]);
 
   return null;
 };
@@ -1873,12 +1896,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
+  const displayModeRef = useRef<'sites' | 'cells'>('sites');
   const [mapRendering, setMapRendering] = useState(false);
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
   const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
   const [showSiteLabels, setShowSiteLabels] = useState(true);
   const [showBeamSectors, setShowBeamSectors] = useState(true);
+
+  const getDisplayMode = useCallback((zoom: number) => {
+    if (zoom >= SITES_TO_CELLS_ZOOM) {
+      displayModeRef.current = 'cells';
+    } else if (zoom <= CELLS_TO_SITES_ZOOM) {
+      displayModeRef.current = 'sites';
+    }
+    return displayModeRef.current;
+  }, []);
 
   const TILE_URLS: Record<typeof mapLayer, { url: string; attribution: string }> = {
     light: {
@@ -2402,11 +2435,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return base;
   }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
 
-  // Core bbox fetch function — switches to cell-level fetch at sector zoom
+  // Core bbox fetch function — uses zoom hysteresis to stabilize site/cell switching
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
 
-    // Cancel any in-flight request
+    const effectiveZoom = zoom ?? viewport.zoom;
+    const displayMode = getDisplayMode(effectiveZoom);
+    const needCells = displayMode === 'cells';
+
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -2418,45 +2454,49 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       maxLat: bounds.getNorth(),
     };
 
-    const needCells = (zoom ?? viewport.zoom) >= SECTOR_ZOOM_THRESHOLD;
-
     setBboxLoading(true);
-    // Keep previous sites visible during fetch to avoid flickering
+
     try {
       if (needCells) {
-        // Fetch cell-level data for sector polygon rendering
         const cellSites = await fetchCellsByBbox(bbox, bboxFilters, controller.signal);
-        if (!controller.signal.aborted) {
+
+        if (controller.signal.aborted) return;
+
+        if (Array.isArray(cellSites) && cellSites.length > 0) {
           setSites(cellSites);
           setBboxTotal(cellSites.length);
-          setBboxLoading(false);
-          setLoading(false);
           console.log(`[SitesMonitor] CELLS mode: ${cellSites.length} sites with cells`);
+        } else {
+          console.warn('[SitesMonitor] CELLS mode returned empty result - keeping previous sites');
         }
-      } else {
-        // Fetch aggregated site-level data (no cells)
-        const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
-        if (!controller.signal.aborted) {
-          setSites(newSites);
-          setBboxTotal(total);
-          setBboxLoading(false);
-          setLoading(false);
-        }
+
+        setBboxLoading(false);
+        setLoading(false);
+        return;
       }
+
+      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
+
+      if (controller.signal.aborted) return;
+
+      setSites(newSites || []);
+      setBboxTotal(total || 0);
+      setBboxLoading(false);
+      setLoading(false);
     } catch (err: any) {
-      if (err.name === 'AbortError') return; // expected
+      if (err?.name === 'AbortError') return;
       console.warn('[SitesMonitor] bbox fetch failed', err);
       setBboxLoading(false);
       setLoading(false);
     }
-  }, [viewport.zoom]);
+  }, [viewport.zoom, getDisplayMode]);
 
   // Debounced viewport change handler
   const handleViewportForFetch = useCallback((v: ViewportState) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
-    }, 300);
+    }, 450);
   }, [fetchForViewport, currentBboxFilters]);
 
   // Initial load + filter changes → refetch for current viewport
@@ -2494,23 +2534,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
-    if (!dashboardActive) return; // Don't fetch if no dashboard active
-    // Skip fetching during fly animation to avoid flickering
+
+    if (!dashboardActive) return;
     if (isFlyingRef.current) return;
+
     const prev = prevViewportRef.current;
+
     if (prev.bounds && v.bounds) {
-      const prevBounds = prev.bounds;
-      const newBounds = v.bounds;
       const threshold = 0.001;
-      const moved = Math.abs(prevBounds.getWest() - newBounds.getWest()) > threshold ||
-                    Math.abs(prevBounds.getSouth() - newBounds.getSouth()) > threshold ||
-                    Math.abs(prevBounds.getEast() - newBounds.getEast()) > threshold ||
-                    Math.abs(prevBounds.getNorth() - newBounds.getNorth()) > threshold;
-      if (!moved && prev.zoom === v.zoom) return;
+
+      const moved =
+        Math.abs(prev.bounds.getWest() - v.bounds.getWest()) > threshold ||
+        Math.abs(prev.bounds.getSouth() - v.bounds.getSouth()) > threshold ||
+        Math.abs(prev.bounds.getEast() - v.bounds.getEast()) > threshold ||
+        Math.abs(prev.bounds.getNorth() - v.bounds.getNorth()) > threshold;
+
+      const zoomChanged = prev.zoom !== v.zoom;
+
+      if (!moved && !zoomChanged) return;
     }
+
     prevViewportRef.current = v;
     handleViewportForFetch(v);
-  }, [handleViewportForFetch, dashboardActive]);
+  }, [dashboardActive, handleViewportForFetch]);
 
   // Cleanup
   useEffect(() => {
@@ -2747,7 +2793,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return [selectedSiteSnapshot, ...visibleSites];
   }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds]);
 
-  const showSectors = viewport.zoom >= SECTOR_ZOOM_THRESHOLD && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
+  const showSectors = displayModeRef.current === 'cells' && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
 
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
