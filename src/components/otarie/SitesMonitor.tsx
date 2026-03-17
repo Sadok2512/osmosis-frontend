@@ -991,11 +991,21 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [scopeOptions, setScopeOptions] = useState<string[]>([]);
   const [scopeLoading, setScopeLoading] = useState(false);
 
+  const extractScope = (db: any): SiteScope | null => {
+    const s = getDashboardSettings(db);
+    return s?.siteScope || null;
+  };
+
   const requestDashboardSwitch = (newId: string | null) => {
     setExpandedDashboardId(newId);
     if (newId && onApplyView) {
       const db = dashboards.find(d => d.id === newId);
-      if (db) onApplyView(getDashboardSettings(db));
+      if (db) {
+        onApplyView(getDashboardSettings(db));
+        onDashboardActiveChange?.(true, extractScope(db));
+      }
+    } else {
+      onDashboardActiveChange?.(false, null);
     }
   };
 
@@ -1004,7 +1014,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setExpandedDashboardId(pendingSwitchId);
     if (pendingSwitchId && onApplyView) {
       const db = dashboards.find(d => d.id === pendingSwitchId);
-      if (db) onApplyView(getDashboardSettings(db));
+      if (db) {
+        onApplyView(getDashboardSettings(db));
+        onDashboardActiveChange?.(true, extractScope(db));
+      }
     }
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
@@ -1014,7 +1027,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setExpandedDashboardId(pendingSwitchId);
     if (pendingSwitchId && onApplyView) {
       const db = dashboards.find(d => d.id === pendingSwitchId);
-      if (db) onApplyView(getDashboardSettings(db));
+      if (db) {
+        onApplyView(getDashboardSettings(db));
+        onDashboardActiveChange?.(true, extractScope(db));
+      }
     }
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
