@@ -1015,10 +1015,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       const db = dashboards.find(d => d.id === newId);
       if (db) {
         onApplyView(getDashboardSettings(db));
-        onDashboardActiveChange?.(true, extractScope(db));
+        onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
       }
     } else {
-      onDashboardActiveChange?.(false, null);
+      onDashboardActiveChange?.(false, null, null);
     }
   };
 
