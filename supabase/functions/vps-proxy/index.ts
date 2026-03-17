@@ -83,13 +83,28 @@ Deno.serve(async (req) => {
       body,
     });
 
+    const contentType = upstreamRes.headers.get('content-type') || 'application/json';
+
+    // Stream SSE responses directly (don't buffer)
+    if (contentType.includes('text/event-stream') && upstreamRes.body) {
+      return new Response(upstreamRes.body, {
+        status: upstreamRes.status,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'X-Accel-Buffering': 'no',
+        },
+      });
+    }
+
     const responseBody = await upstreamRes.text();
 
     return new Response(responseBody, {
       status: upstreamRes.status,
       headers: {
         ...corsHeaders,
-        'Content-Type': upstreamRes.headers.get('content-type') || 'application/json',
+        'Content-Type': contentType,
       },
     });
   } catch (err: unknown) {
