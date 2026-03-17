@@ -1099,6 +1099,28 @@ interface DashboardInventoryTabProps {
   onLoadDashboard?: (dbId: string) => void;
   isSaving?: boolean;
 }
+
+const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
+
+const dedupeAutoFilterDashboards = (items: any[]) => {
+  const seenAutoNames = new Set<string>();
+
+  return items.filter((item) => {
+    const name = typeof item?.name === 'string' ? item.name.trim() : '';
+
+    if (!AUTO_FILTER_DASHBOARD_NAME.test(name)) {
+      return true;
+    }
+
+    if (seenAutoNames.has(name)) {
+      return false;
+    }
+
+    seenAutoNames.add(name);
+    return true;
+  });
+};
+
 const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
