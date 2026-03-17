@@ -196,16 +196,36 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       }
     } catch { /* ignore */ }
 
-    const MAX_RECENT = 6;
-    const MAX_OLD_ASSISTANT_CHARS = 500;
-    const trimmedMessages = allMessages.map((m, i) => {
-      const isRecent = i >= allMessages.length - MAX_RECENT;
-      if (isRecent || m.role === 'user') return { role: m.role, content: m.content };
-      if (m.content.length > MAX_OLD_ASSISTANT_CHARS) {
-        return { role: m.role, content: m.content.slice(0, MAX_OLD_ASSISTANT_CHARS) + '\n[... réponse tronquée pour optimisation ...]' };
-      }
-      return { role: m.role, content: m.content };
-    });
+    const MAX_RECENT_MESSAGES = 4;
+    const MAX_USER_CHARS = 1200;
+    const MAX_ASSISTANT_CHARS = 320;
+    const MAX_TOTAL_CHARS = 3500;
+
+    const compactText = (text: string, maxChars: number) => {
+      const normalized = text
+        .replace(/```[\s\S]*?```/g, '[code block omitted]')
+        .replace(/<!--\s*CREATE_DASHBOARD:[\s\S]*?-->/g, '[dashboard spec omitted]')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+      if (normalized.length <= maxChars) return normalized;
+      return `${normalized.slice(0, maxChars)}\n[... contexte tronqué ...]`;
+    };
+
+    const recentMessages = allMessages.slice(-MAX_RECENT_MESSAGES);
+    const trimmedMessages = recentMessages.map((m) => ({
+      role: m.role,
+      content: compactText(
+        m.content,
+        m.role === 'user' ? MAX_USER_CHARS : MAX_ASSISTANT_CHARS,
+      ),
+    }));
+
+    let totalChars = trimmedMessages.reduce((sum, message) => sum + message.content.length, 0);
+    while (trimmedMessages.length > 1 && totalChars > MAX_TOTAL_CHARS) {
+      trimmedMessages.shift();
+      totalChars = trimmedMessages.reduce((sum, message) => sum + message.content.length, 0);
+    }
 
     // Get user_id from admin session
     const session = getStoredSession();
