@@ -1301,97 +1301,98 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
       {/* Create dashboard form — name + filters */}
       {showCreateDash && (
-        <div className="mb-2 px-1">
-          <div className="border border-border rounded-xl bg-card p-3 space-y-3">
-            {/* Dashboard name */}
-            <div>
+        <div className="mb-2 px-1 space-y-2">
+          {/* Name box */}
+          <div className="border border-border rounded-xl bg-card p-3">
+            <div className="flex items-center justify-between mb-1">
               <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Nom du dashboard</label>
-              <div className="flex items-center gap-1.5 mt-1">
-                <input
-                  autoFocus
-                  value={newDashName}
-                  onChange={e => setNewDashName(e.target.value)}
-                  placeholder="Nom du dashboard..."
-                  className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
-                />
-                <button onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); }}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                  <X size={12} />
-                </button>
-              </div>
+              <button onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); }}
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <X size={12} />
+              </button>
             </div>
-
-            {/* Filter dimensions */}
-            <div>
-              <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Filtres de sites</label>
-              <p className="text-[8px] text-muted-foreground mb-2">Sélectionnez les critères pour filtrer les sites affichés sur la carte</p>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {FILTER_DIMENSIONS.map(dim => {
-                  const availableValues = resolveAvailableValues(dim.key, createActiveFilters);
-                  const selectedValues = createFilters[dim.key as keyof DashboardSiteFilters] || [];
-                  if (availableValues.length === 0 && !dim.values) return null;
-
-                  return (
-                    <div key={dim.key} className="border border-border/50 rounded-lg p-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-foreground">{dim.label}</span>
-                        {selectedValues.length > 0 && (
-                          <button
-                            onClick={() => setCreateFilters(prev => ({ ...prev, [dim.key]: undefined }))}
-                            className="text-[8px] text-destructive hover:underline"
-                          >
-                            Effacer ({selectedValues.length})
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {availableValues.map(val => {
-                          const isSelected = selectedValues.includes(val);
-                          return (
-                            <button
-                              key={val}
-                              onClick={() => toggleCreateFilterValue(dim.key, val)}
-                              className={`px-2 py-0.5 rounded-md text-[9px] font-semibold transition-all border ${
-                                isSelected
-                                  ? 'bg-primary text-primary-foreground border-primary'
-                                  : 'bg-muted/50 text-muted-foreground border-border hover:border-primary/30 hover:bg-primary/5'
-                              }`}
-                            >
-                              {val}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Active filter summary */}
-            {hasAnyCreateFilter && (
-              <div className="bg-primary/5 rounded-lg p-2">
-                <span className="text-[8px] font-bold text-primary uppercase tracking-wider">Filtres actifs</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {Object.entries(createFilters).filter(([, v]) => v && v.length > 0).map(([key, vals]) => (
-                    <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-[8px] font-semibold text-primary">
-                      {FILTER_DIMENSIONS.find(d => d.key === key)?.label}: {vals!.join(', ')}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Create button */}
-            <button
-              onClick={handleCreateDashboard}
-              disabled={!newDashName.trim() || creatingDash}
-              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
-            >
-              {creatingDash ? <RefreshCw size={12} className="animate-spin" /> : <Plus size={12} />}
-              {hasAnyCreateFilter ? 'Créer avec filtres' : 'Créer (tous les sites)'}
-            </button>
+            <input
+              autoFocus
+              value={newDashName}
+              onChange={e => setNewDashName(e.target.value)}
+              placeholder="Nom du dashboard..."
+              className="w-full bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
+            />
           </div>
+
+          {/* Filter dimensions — each in its own box */}
+          <div className="border border-border rounded-xl bg-card p-3">
+            <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">Filtres de sites</label>
+            <p className="text-[8px] text-primary/70 italic mb-2">Sélectionnez les critères pour filtrer les sites affichés sur la carte</p>
+
+            <div className="space-y-2">
+              {FILTER_DIMENSIONS.map(dim => {
+                const availableValues = resolveAvailableValues(dim.key, createActiveFilters);
+                const selectedValues = createFilters[dim.key as keyof DashboardSiteFilters] || [];
+                if (availableValues.length === 0 && !dim.values) return null;
+
+                return (
+                  <div key={dim.key} className="border border-border rounded-lg bg-muted/30">
+                    {/* Dimension header */}
+                    <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-border/50">
+                      <span className="text-[10px] font-bold text-foreground">{dim.label}</span>
+                      {selectedValues.length > 0 && (
+                        <button
+                          onClick={() => setCreateFilters(prev => ({ ...prev, [dim.key]: undefined }))}
+                          className="text-[8px] text-destructive font-semibold hover:underline"
+                        >
+                          ✕ {selectedValues.length}
+                        </button>
+                      )}
+                    </div>
+                    {/* Horizontal scrollable chips */}
+                    <div className="flex gap-1.5 px-2.5 py-2 overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                      {availableValues.map(val => {
+                        const isSelected = selectedValues.includes(val);
+                        return (
+                          <button
+                            key={val}
+                            onClick={() => toggleCreateFilterValue(dim.key, val)}
+                            className={`shrink-0 px-2.5 py-1 rounded-full text-[9px] font-semibold transition-all border whitespace-nowrap ${
+                              isSelected
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+                            }`}
+                          >
+                            {val}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Active filter summary */}
+          {hasAnyCreateFilter && (
+            <div className="border border-primary/20 rounded-xl bg-primary/5 p-2.5">
+              <span className="text-[8px] font-bold text-primary uppercase tracking-wider">Filtres actifs</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {Object.entries(createFilters).filter(([, v]) => v && v.length > 0).map(([key, vals]) => (
+                  <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-[8px] font-semibold text-primary">
+                    {FILTER_DIMENSIONS.find(d => d.key === key)?.label}: {vals!.join(', ')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Create button */}
+          <button
+            onClick={handleCreateDashboard}
+            disabled={!newDashName.trim() || creatingDash}
+            className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-2 shadow-sm"
+          >
+            {creatingDash ? <RefreshCw size={12} className="animate-spin" /> : <Plus size={12} />}
+            {hasAnyCreateFilter ? 'Créer avec filtres' : 'Créer (tous les sites)'}
+          </button>
         </div>
       )}
 
