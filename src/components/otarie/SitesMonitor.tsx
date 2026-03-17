@@ -1845,6 +1845,46 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
   const [dashboardSaving, setDashboardSaving] = useState(false);
   const [dashboardSaveFlash, setDashboardSaveFlash] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+
+  // Auto-show filter modal when no dashboard is active
+  useEffect(() => {
+    if (!dashboardActive) {
+      setShowFilterModal(true);
+    }
+  }, [dashboardActive]);
+
+  const handleFilterModalApply = useCallback(async (siteFilters: ModalSiteFilters) => {
+    setShowFilterModal(false);
+    // Apply filters directly to local states
+    if (siteFilters.dor?.length) setLocalDor(siteFilters.dor[0]); else setLocalDor('ALL');
+    if (siteFilters.constructeur?.length) setLocalVendor(siteFilters.constructeur[0]); else setLocalVendor('ALL');
+    if (siteFilters.plaque?.length) setLocalPlaque(siteFilters.plaque[0]); else setLocalPlaque('ALL');
+    if (siteFilters.techno?.length) setLocalTechno(siteFilters.techno[0] as any); else setLocalTechno('ALL');
+    if (siteFilters.bande?.length) setLocalBande(siteFilters.bande[0]); else setLocalBande('ALL');
+    if (siteFilters.zone_arcep?.length) setLocalZoneArcep(siteFilters.zone_arcep[0]); else setLocalZoneArcep('ALL');
+    // Mark dashboard as active so sites load
+    setDashboardActive(true);
+    // Auto-create a quick dashboard
+    const id = crypto.randomUUID();
+    const cleanFilters: DashboardSiteFilters = {};
+    for (const [k, v] of Object.entries(siteFilters)) {
+      if (v && v.length > 0) (cleanFilters as any)[k] = v;
+    }
+    const finalScope: SiteScope = { type: 'ALL' };
+    if (siteFilters.dor?.length === 1) { finalScope.type = 'DOR'; finalScope.value = siteFilters.dor[0]; }
+    try {
+      const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
+      await dashboardsApi.upsert({
+        id,
+        name: `Filtre ${new Date().toLocaleDateString()}`,
+        description: '',
+        is_shared: true,
+        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope, siteFilters: cleanFilters }],
+        owner_username: session?.username,
+      });
+    } catch {}
+  }, []);
 
   // ── Right settings bar (removed) ──
 
