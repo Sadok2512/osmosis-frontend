@@ -2949,13 +2949,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
-      {/* Empty state — no dashboard selected */}
-      {/* Filter modal — shown automatically when no dashboard is active */}
-      <SiteFilterModal
-        open={showFilterModal}
-        onClose={() => { if (dashboardActive) setShowFilterModal(false); }}
-        onApply={handleFilterModalApply}
-      />
       {/* Empty state — no dashboard, modal closed */}
       {/* Empty overlay removed — message now in sidebar */}
       {/* Bbox loading indicator */}
