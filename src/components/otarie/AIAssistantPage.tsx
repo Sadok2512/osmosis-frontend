@@ -290,6 +290,24 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     let textBuffer = '';
     let assistantSoFar = '';
     let streamDone = false;
+    let lastFlush = 0;
+    const FLUSH_INTERVAL = 80; // ms — throttle UI updates
+
+    const flushToUI = (force = false) => {
+      const now = performance.now();
+      if (!force && now - lastFlush < FLUSH_INTERVAL) return;
+      lastFlush = now;
+      const { agent, cleanContent } = extractAgent(assistantSoFar);
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.role === 'assistant') {
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...last, content: cleanContent, agent: agent || last.agent };
+          return updated;
+        }
+        return [...prev, { role: 'assistant', content: cleanContent, agent: agent || undefined }];
+      });
+    };
 
     while (!streamDone) {
       const { done, value } = await reader.read();
@@ -309,18 +327,13 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (content) {
             assistantSoFar += content;
-            const { agent, cleanContent } = extractAgent(assistantSoFar);
-            setMessages(prev => {
-              const last = prev[prev.length - 1];
-              if (last?.role === 'assistant') {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: cleanContent, agent: agent || m.agent } : m);
-              }
-              return [...prev, { role: 'assistant', content: cleanContent, agent: agent || undefined }];
-            });
+            flushToUI();
           }
         } catch { textBuffer = line + '\n' + textBuffer; break; }
       }
     }
+    // Force final flush
+    flushToUI(true);
 
     // Final flush
     if (textBuffer.trim()) {
