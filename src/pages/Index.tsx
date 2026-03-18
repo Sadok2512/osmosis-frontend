@@ -21,7 +21,7 @@ import ParametersPage from '../components/otarie/ParametersPage';
 
 import AgentHubPage from '../components/otarie/AgentHubPage';
 import KPIMonitorPage from '../components/kpi-monitor/KPIMonitorPage';
-import KpiEngineConfig from '../components/otarie/KpiEngineConfig';
+
 import PmDashboardPage from '../components/pm-dashboard/PmDashboardPage';
 import SentinelPage from '../components/sentinel/SentinelPage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
@@ -149,7 +149,17 @@ const Index: React.FC = () => {
       case 'kpi_monitor':
         return <KPIMonitorPage />;
       case 'kpi_engine_config':
-        return <KpiEngineConfig />;
+        return (
+          <div className="flex-1 flex items-center justify-center bg-background">
+            <div className="text-center space-y-4">
+              <p className="text-muted-foreground">KPI Engine Config is managed on the backend admin panel.</p>
+              <a href="http://151.242.147.49:8000/admin/kpi" target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
+                Open Backend Admin
+              </a>
+            </div>
+          </div>
+        );
       case 'pm_dashboard':
         return <PmDashboardPage />;
       case 'parameters':
