@@ -1213,6 +1213,7 @@ const MarkdownBlock: React.FC<{ content: string }> = React.memo(({ content }) =>
   >
     {content}
   </ReactMarkdown>
-);
+));
+MarkdownBlock.displayName = 'MarkdownBlock';
 
 export default AIAssistantPage;
