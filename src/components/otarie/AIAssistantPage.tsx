@@ -973,7 +973,7 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
-const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
+const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
   const cleaned = useMemo(() => {
     let text = content;
     text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
