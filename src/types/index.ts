@@ -323,4 +323,4 @@ export interface DetectorConfig {
   last_run?: string;
 }
 
-export type AppTab = 'list' | 'sites' | 'analytics' | 'bi' | 'radio' | 'traffic' | 'subscriber' | 'alerts' | 'detector' | 'settings' | 'docs' | 'ai_assistant' | 'dashboard_overview' | 'rag' | 'radio_profile' | 'backend_admin' | 'topologie' | 'kpi_monitor' | 'parameters' | 'pulse_report' | 'agent_hub' | 'sentinel';
+export type AppTab = 'list' | 'sites' | 'analytics' | 'bi' | 'radio' | 'traffic' | 'subscriber' | 'alerts' | 'detector' | 'settings' | 'docs' | 'ai_assistant' | 'dashboard_overview' | 'rag' | 'radio_profile' | 'backend_admin' | 'topologie' | 'kpi_monitor' | 'kpi_engine_config' | 'parameters' | 'pulse_report' | 'agent_hub' | 'sentinel';

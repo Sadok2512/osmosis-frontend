@@ -21,6 +21,7 @@ import ParametersPage from '../components/otarie/ParametersPage';
 
 import AgentHubPage from '../components/otarie/AgentHubPage';
 import KPIMonitorPage from '../components/kpi-monitor/KPIMonitorPage';
+import KpiEngineConfig from '../components/otarie/KpiEngineConfig';
 import SentinelPage from '../components/sentinel/SentinelPage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
@@ -49,7 +50,7 @@ const Index: React.FC = () => {
     return {
       dashboard_overview: true, list: true, sites: true, traffic: true,
       alerts: true, detector: true, ai_assistant: true, radio_profile: true,
-      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, parameters: true, pulse_report: true, sentinel: true,
+      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, kpi_engine_config: true, parameters: true, pulse_report: true, sentinel: true,
     };
   });
 
@@ -146,6 +147,8 @@ const Index: React.FC = () => {
         return <TopologiePage />;
       case 'kpi_monitor':
         return <KPIMonitorPage />;
+      case 'kpi_engine_config':
+        return <KpiEngineConfig />;
       case 'parameters':
         return <ParametersPage />;
       case 'agent_hub':

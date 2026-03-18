@@ -28,6 +28,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'sites', label: 'Network Topology', icon: <Network className="w-5 h-5" /> },
   { id: 'traffic', label: 'Analytic QOE', icon: <BarChart2 className="w-5 h-5" /> },
   { id: 'kpi_monitor', label: 'KPI Monitor', icon: <LineChart className="w-5 h-5" /> },
+  { id: 'kpi_engine_config', label: 'KPI Engine Config', icon: <Settings className="w-5 h-5" /> },
   { id: 'alerts', label: 'Alerts & RCA Monitor', icon: <Bell className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
   { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
