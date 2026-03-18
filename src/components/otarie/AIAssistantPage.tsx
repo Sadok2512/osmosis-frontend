@@ -335,7 +335,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     // Force final flush
     flushToUI(true);
 
-    // Final flush
+    // Final flush remaining buffer
     if (textBuffer.trim()) {
       for (let raw of textBuffer.split('\n')) {
         if (!raw) continue;
@@ -347,18 +347,10 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
         try {
           const parsed = JSON.parse(jsonStr);
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-          if (content) {
-            assistantSoFar += content;
-            setMessages(prev => {
-              const last = prev[prev.length - 1];
-              if (last?.role === 'assistant') {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-              }
-              return [...prev, { role: 'assistant', content: assistantSoFar }];
-            });
-          }
+          if (content) assistantSoFar += content;
         } catch { /* ignore */ }
       }
+      flushToUI(true);
     }
     addDebugLog(`✅ Complete. ${assistantSoFar.length} chars`);
     return assistantSoFar;
