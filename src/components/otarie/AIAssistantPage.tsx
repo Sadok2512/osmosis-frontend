@@ -1131,7 +1131,8 @@ const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }
   if (/^[\d\s.]+$/.test(text)) return <td ref={tdRef} className={`${baseCls} font-medium text-foreground`}>{children}</td>;
 
   return <td ref={tdRef} className={`${baseCls} text-foreground/85`}>{children}</td>;
-};
+});
+KpiTd.displayName = 'KpiTd';
 
 const MarkdownBlock: React.FC<{ content: string }> = React.memo(({ content }) => (
   <ReactMarkdown
