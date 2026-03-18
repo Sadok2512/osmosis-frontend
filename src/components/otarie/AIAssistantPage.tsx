@@ -1071,7 +1071,7 @@ const KpiColorTable: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   );
 };
 
-const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => {
+const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = React.memo(({ children, style }) => {
   const headers = React.useContext(TableHeadersContext);
   const text = String(children ?? '');
   const baseCls = "px-3 py-2.5 text-xs border-b border-border/30";
