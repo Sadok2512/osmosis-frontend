@@ -1127,7 +1127,7 @@ const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }
   return <td ref={tdRef} className={`${baseCls} text-foreground/85`}>{children}</td>;
 };
 
-const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
+const MarkdownBlock: React.FC<{ content: string }> = React.memo(({ content }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm]}
     components={{
