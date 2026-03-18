@@ -290,6 +290,24 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     let textBuffer = '';
     let assistantSoFar = '';
     let streamDone = false;
+    let lastFlush = 0;
+    const FLUSH_INTERVAL = 80; // ms — throttle UI updates
+
+    const flushToUI = (force = false) => {
+      const now = performance.now();
+      if (!force && now - lastFlush < FLUSH_INTERVAL) return;
+      lastFlush = now;
+      const { agent, cleanContent } = extractAgent(assistantSoFar);
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.role === 'assistant') {
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...last, content: cleanContent, agent: agent || last.agent };
+          return updated;
+        }
+        return [...prev, { role: 'assistant', content: cleanContent, agent: agent || undefined }];
+      });
+    };
 
     while (!streamDone) {
       const { done, value } = await reader.read();
@@ -309,20 +327,15 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
           if (content) {
             assistantSoFar += content;
-            const { agent, cleanContent } = extractAgent(assistantSoFar);
-            setMessages(prev => {
-              const last = prev[prev.length - 1];
-              if (last?.role === 'assistant') {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: cleanContent, agent: agent || m.agent } : m);
-              }
-              return [...prev, { role: 'assistant', content: cleanContent, agent: agent || undefined }];
-            });
+            flushToUI();
           }
         } catch { textBuffer = line + '\n' + textBuffer; break; }
       }
     }
+    // Force final flush
+    flushToUI(true);
 
-    // Final flush
+    // Final flush remaining buffer
     if (textBuffer.trim()) {
       for (let raw of textBuffer.split('\n')) {
         if (!raw) continue;
@@ -334,18 +347,10 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
         try {
           const parsed = JSON.parse(jsonStr);
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-          if (content) {
-            assistantSoFar += content;
-            setMessages(prev => {
-              const last = prev[prev.length - 1];
-              if (last?.role === 'assistant') {
-                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-              }
-              return [...prev, { role: 'assistant', content: assistantSoFar }];
-            });
-          }
+          if (content) assistantSoFar += content;
         } catch { /* ignore */ }
       }
+      flushToUI(true);
     }
     addDebugLog(`✅ Complete. ${assistantSoFar.length} chars`);
     return assistantSoFar;
@@ -973,7 +978,7 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
-const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
+const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
   const cleaned = useMemo(() => {
     let text = content;
     text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
@@ -1003,7 +1008,8 @@ const AssistantMessage: React.FC<{ content: string }> = ({ content }) => {
       )}
     </div>
   );
-};
+});
+AssistantMessage.displayName = 'AssistantMessage';
 
 // ─── KPI Color Map ───
 const KPI_HEADER_COLOR_MAP: { pattern: RegExp; color: string }[] = [
@@ -1065,7 +1071,7 @@ const KpiColorTable: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   );
 };
 
-const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => {
+const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = React.memo(({ children, style }) => {
   const headers = React.useContext(TableHeadersContext);
   const text = String(children ?? '');
   const baseCls = "px-3 py-2.5 text-xs border-b border-border/30";
@@ -1125,9 +1131,10 @@ const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }
   if (/^[\d\s.]+$/.test(text)) return <td ref={tdRef} className={`${baseCls} font-medium text-foreground`}>{children}</td>;
 
   return <td ref={tdRef} className={`${baseCls} text-foreground/85`}>{children}</td>;
-};
+});
+KpiTd.displayName = 'KpiTd';
 
-const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
+const MarkdownBlock: React.FC<{ content: string }> = React.memo(({ content }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm]}
     components={{
@@ -1213,6 +1220,7 @@ const MarkdownBlock: React.FC<{ content: string }> = ({ content }) => (
   >
     {content}
   </ReactMarkdown>
-);
+));
+MarkdownBlock.displayName = 'MarkdownBlock';
 
 export default AIAssistantPage;
