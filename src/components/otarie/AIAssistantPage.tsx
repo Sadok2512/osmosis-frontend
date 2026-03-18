@@ -1003,7 +1003,8 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
       )}
     </div>
   );
-};
+});
+AssistantMessage.displayName = 'AssistantMessage';
 
 // ─── KPI Color Map ───
 const KPI_HEADER_COLOR_MAP: { pattern: RegExp; color: string }[] = [
