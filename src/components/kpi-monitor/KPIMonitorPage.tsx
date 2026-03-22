@@ -7,9 +7,9 @@ import 'react-resizable/css/styles.css';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
-import { fetchKpiCatalogFromDB, buildCatalogMap } from './kpiCatalog';
+import { buildCatalogMap } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
-import { useTimeseriesQuery, useSummaryQuery, useTableQuery, type TimeseriesRequest, type MonitorFilter } from './api/kpiMonitorApi';
+import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, type TimeseriesRequest, type MonitorFilter, type MonitorKpiCatalogEntry } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
 import KPIExplainPanel from './KPIExplainPanel';
 import EChartsTimeSeries from './EChartsTimeSeries';
@@ -167,14 +167,29 @@ const KPIMonitorInner: React.FC = () => {
   const widgets = dm.activeTab?.widgets || [];
   const setWidgets = dm.updateActiveWidgets;
 
-  // KPI catalog — fetched from Supabase kpi_catalog table
+  // KPI catalog — fetched from backend /api/monitor/catalog/kpis
   const queryClient = useQueryClient();
-  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
-  const catalogMap = useMemo(() => buildCatalogMap(catalog), [catalog]);
+  const { data: backendCatalog } = useKpiCatalog();
 
-  useEffect(() => {
-    fetchKpiCatalogFromDB().then(entries => setCatalog(entries));
-  }, []);
+  const catalog: KpiCatalogEntry[] = useMemo(() => {
+    if (!backendCatalog || backendCatalog.length === 0) return [];
+    return backendCatalog.map((e: MonitorKpiCatalogEntry): KpiCatalogEntry => ({
+      kpi_id: e.kpi_key,
+      kpi_key: e.kpi_key,
+      display_name: e.display_name,
+      description: e.description || '',
+      techno_scope: 'both',
+      unit: e.unit || '',
+      value_type: (e.value_type as any) || 'gauge',
+      default_agg: 'avg',
+      allowed_aggs: ['avg', 'min', 'max', 'sum'],
+      is_map_supported: false,
+      thresholds: e.threshold_warning != null ? { warning: e.threshold_warning, critical: e.threshold_critical ?? e.threshold_warning * 0.8 } : undefined,
+      category: (e.category as any) || 'Other',
+      color: '#3b82f6',
+    }));
+  }, [backendCatalog]);
+  const catalogMap = useMemo(() => buildCatalogMap(catalog), [catalog]);
 
   // BI state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -285,7 +300,7 @@ const KPIMonitorInner: React.FC = () => {
   const [explainKpiKey, setExplainKpiKey] = useState<string | null>(null);
 
   const refreshCatalog = () => {
-    fetchKpiCatalogFromDB().then(entries => setCatalog(entries));
+    queryClient.invalidateQueries({ queryKey: ['monitor', 'catalog'] });
   };
 
   // BI helpers
