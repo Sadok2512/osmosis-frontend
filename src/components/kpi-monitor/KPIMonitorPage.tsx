@@ -291,7 +291,7 @@ const KPIMonitorInner: React.FC = () => {
     const entries = await fetchKpiCatalogFromDB();
     setCatalog(entries);
     setCatalogMap(buildCatalogMap(entries));
-    setCatalogSource(entries.length > KPI_CATALOG_STATIC.length ? 'db' : 'static');
+    setCatalogSource(entries.length > 0 ? 'db' : 'static');
   };
 
   // BI helpers
