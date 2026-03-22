@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Search, Check, RotateCcw, ChevronRight, BarChart3, Hash } from 'lucide-react';
+import { X, Search, Check, RotateCcw, ChevronRight, BarChart3 } from 'lucide-react';
 import { KpiCatalogEntry } from './types';
 
 interface KpiSelectorModalProps {
@@ -24,7 +24,6 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState<'kpi' | 'counter'>('kpi');
 
   // Reset state when opening
   React.useEffect(() => {
@@ -46,10 +45,8 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     return cats;
   }, [catalog]);
 
-  // Separate KPIs (ratios + gauges) and Counters
-  const kpis = useMemo(() => catalog.filter(k => k.value_type === 'ratio' || k.value_type === 'gauge'), [catalog]);
-  const counters = useMemo(() => catalog.filter(k => k.value_type === 'counter'), [catalog]);
-  const activeList = tab === 'kpi' ? kpis : counters;
+  // All KPIs in a single list — no ratio/counter split
+  const activeList = catalog;
 
   // Filtered list
   const filteredItems = useMemo(() => {
@@ -120,24 +117,10 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
           </button>
         </div>
 
-        {/* Tab bar: KPI / Counters */}
-        <div className="flex items-center gap-0 px-5 border-b border-border bg-card">
-          <button
-            onClick={() => { setTab('kpi'); setActiveCategory(null); }}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold border-b-2 transition-colors ${
-              tab === 'kpi' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" /> KPI
-          </button>
-          <button
-            onClick={() => { setTab('counter'); setActiveCategory(null); }}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold border-b-2 transition-colors ${
-              tab === 'counter' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Hash className="w-3.5 h-3.5" /> Compteurs
-          </button>
+        {/* Category count bar */}
+        <div className="flex items-center gap-2 px-5 py-2 border-b border-border bg-card">
+          <BarChart3 className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-semibold text-foreground">{catalog.length} KPIs disponibles</span>
         </div>
 
         {/* Body: 2-panel layout */}
@@ -146,7 +129,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
           <div className="w-[220px] shrink-0 border-r border-border bg-muted/20 overflow-y-auto">
             <div className="p-2">
               <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
-                {tab === 'kpi' ? 'KPIs par catégorie' : 'Compteurs par catégorie'}
+                KPIs par catégorie
               </p>
               {/* All */}
               <button
