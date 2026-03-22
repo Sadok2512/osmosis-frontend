@@ -167,16 +167,28 @@ const KPIMonitorInner: React.FC = () => {
   const widgets = dm.activeTab?.widgets || [];
   const setWidgets = dm.updateActiveWidgets;
 
-  // KPI catalog — DB with static fallback so KPIs are always visible
+  // KPI catalog — fetched from backend API
   const queryClient = useQueryClient();
-  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>(KPI_CATALOG_STATIC);
+  const { data: backendCatalogRaw } = useKpiCatalog();
+  const catalog = useMemo<KpiCatalogEntry[]>(() => {
+    if (!backendCatalogRaw || backendCatalogRaw.length === 0) return KPI_CATALOG_STATIC;
+    return backendCatalogRaw.map((e: MonitorKpiCatalogEntry): KpiCatalogEntry => ({
+      kpi_id: e.kpi_key,
+      kpi_key: e.kpi_key,
+      display_name: e.display_name,
+      description: e.description || '',
+      techno_scope: 'both',
+      unit: e.unit || '',
+      value_type: (e.value_type as any) || 'gauge',
+      default_agg: 'avg',
+      allowed_aggs: ['avg', 'min', 'max', 'sum'],
+      is_map_supported: false,
+      thresholds: e.threshold_warning ? { warning: e.threshold_warning, critical: e.threshold_critical || e.threshold_warning * 0.8 } : undefined,
+      category: (e.category as any) || 'Other',
+      color: '#3b82f6',
+    }));
+  }, [backendCatalogRaw]);
   const catalogMap = useMemo(() => buildCatalogMap(catalog), [catalog]);
-
-  useEffect(() => {
-    fetchKpiCatalogFromDB().then(entries => {
-      if (entries.length > 0) setCatalog(entries);
-    });
-  }, []);
 
   // BI state
   const [editingId, setEditingId] = useState<string | null>(null);
