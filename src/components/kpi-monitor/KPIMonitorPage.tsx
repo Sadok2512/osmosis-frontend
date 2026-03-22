@@ -623,9 +623,9 @@ const KPIMonitorInner: React.FC = () => {
                           >{renderWidget(w)}</div>
                         ))}
                       </GridLayout>
-                    ) : widgets.length > 0 ? (
-                      <FreeLayoutCanvas items={widgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
-                        {widgets.map(w => (
+                    ) : validWidgets.length > 0 ? (
+                      <FreeLayoutCanvas items={validWidgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
+                        {validWidgets.map(w => (
                           <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
                             store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                           }`}
