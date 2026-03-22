@@ -7,7 +7,7 @@ import 'react-resizable/css/styles.css';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
-import { KPI_CATALOG_STATIC, buildCatalogMap } from './kpiCatalog';
+import { fetchKpiCatalogFromDB, buildCatalogMap } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
 import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, type TimeseriesRequest, type MonitorFilter } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
@@ -173,7 +173,7 @@ const KPIMonitorInner: React.FC = () => {
 
   // Map backend catalog → KpiCatalogEntry format used by existing components
   const catalog: KpiCatalogEntry[] = useMemo(() => {
-    if (!backendCatalog || backendCatalog.length === 0) return KPI_CATALOG_STATIC;
+    if (!backendCatalog || backendCatalog.length === 0) return [];
     return backendCatalog.map((k, i) => ({
       kpi_id: String(i + 1),
       kpi_key: k.kpi_key,
