@@ -128,27 +128,20 @@ export interface ExplainResponse {
 }
 
 // ── Fetch helpers ──
-// Monitor endpoints live on the local Express server (port 3001)
-// Always use local base URL to avoid VPS routing issues
-
-const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
-
-function getMonitorUrl(path: string): string {
-  return `${LOCAL_API}/api/monitor/${path}`;
-}
+// Monitor endpoints route through VPS proxy → KPI Engine (:8001)
 
 async function monitorGet<T>(path: string): Promise<T> {
-  const url = getMonitorUrl(path);
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+  const url = getApiUrl(`monitor/${path}`);
+  const res = await fetch(url, { headers: getApiHeaders() });
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
 async function monitorPost<T>(path: string, body: any): Promise<T> {
-  const url = getMonitorUrl(path);
+  const url = getApiUrl(`monitor/${path}`);
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getApiHeaders(),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
