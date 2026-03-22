@@ -167,31 +167,15 @@ const KPIMonitorInner: React.FC = () => {
   const widgets = dm.activeTab?.widgets || [];
   const setWidgets = dm.updateActiveWidgets;
 
-  // KPI catalog — fetched from backend /api/monitor/catalog/kpis
+  // KPI catalog — fetched from database kpi_catalog table
   const queryClient = useQueryClient();
-  const { data: backendCatalog } = useKpiCatalog();
+  const [dbCatalog, setDbCatalog] = useState<KpiCatalogEntry[]>([]);
+  useEffect(() => {
+    fetchKpiCatalogFromDB().then(setDbCatalog);
+  }, []);
 
-  // Map backend catalog → KpiCatalogEntry format used by existing components
-  const catalog: KpiCatalogEntry[] = useMemo(() => {
-    if (!backendCatalog || backendCatalog.length === 0) return [];
-    return backendCatalog.map((k, i) => ({
-      kpi_id: String(i + 1),
-      kpi_key: k.kpi_key,
-      display_name: k.display_name,
-      description: k.description,
-      techno_scope: 'both' as const,
-      unit: k.unit,
-      value_type: (k.value_type || 'gauge') as KpiCatalogEntry['value_type'],
-      default_agg: 'avg' as const,
-      allowed_aggs: ['avg' as const, 'min' as const, 'max' as const, 'sum' as const],
-      is_map_supported: false,
-      thresholds: k.threshold_warning != null ? { warning: k.threshold_warning, critical: k.threshold_critical ?? k.threshold_warning * 0.8 } : undefined,
-      category: (k.category || 'Other') as KpiCatalogEntry['category'],
-      color: '#64748b',
-    }));
-  }, [backendCatalog]);
+  const catalog = dbCatalog;
   const catalogMap = useMemo(() => buildCatalogMap(catalog), [catalog]);
-  const catalogSource = backendCatalog && backendCatalog.length > 0 ? 'api' : 'static';
 
   // BI state
   const [editingId, setEditingId] = useState<string | null>(null);
