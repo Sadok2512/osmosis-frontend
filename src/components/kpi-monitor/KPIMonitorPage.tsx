@@ -7,7 +7,7 @@ import 'react-resizable/css/styles.css';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
-import { fetchKpiCatalogFromDB, buildCatalogMap } from './kpiCatalog';
+import { fetchKpiCatalogFromDB, buildCatalogMap, KPI_CATALOG_STATIC } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
 import { useTimeseriesQuery, useSummaryQuery, useTableQuery, type TimeseriesRequest, type MonitorFilter } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
@@ -167,15 +167,16 @@ const KPIMonitorInner: React.FC = () => {
   const widgets = dm.activeTab?.widgets || [];
   const setWidgets = dm.updateActiveWidgets;
 
-  // KPI catalog — fetched from database kpi_catalog table
+  // KPI catalog — DB with static fallback so KPIs are always visible
   const queryClient = useQueryClient();
-  const [dbCatalog, setDbCatalog] = useState<KpiCatalogEntry[]>([]);
-  useEffect(() => {
-    fetchKpiCatalogFromDB().then(setDbCatalog);
-  }, []);
-
-  const catalog = dbCatalog;
+  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>(KPI_CATALOG_STATIC);
   const catalogMap = useMemo(() => buildCatalogMap(catalog), [catalog]);
+
+  useEffect(() => {
+    fetchKpiCatalogFromDB().then(entries => {
+      if (entries.length > 0) setCatalog(entries);
+    });
+  }, []);
 
   // BI state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -286,7 +287,9 @@ const KPIMonitorInner: React.FC = () => {
   const [explainKpiKey, setExplainKpiKey] = useState<string | null>(null);
 
   const refreshCatalog = () => {
-    fetchKpiCatalogFromDB().then(setDbCatalog);
+    fetchKpiCatalogFromDB().then(entries => {
+      if (entries.length > 0) setCatalog(entries);
+    });
   };
 
   // BI helpers
