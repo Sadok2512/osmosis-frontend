@@ -7,7 +7,7 @@ import 'react-resizable/css/styles.css';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
-import { buildCatalogMap } from './kpiCatalog';
+import { buildCatalogMap, fetchKpiCatalogFromDB } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
 import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, type TimeseriesRequest, type MonitorFilter, type MonitorKpiCatalogEntry } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
