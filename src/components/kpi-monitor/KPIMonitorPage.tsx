@@ -167,9 +167,9 @@ const KPIMonitorInner: React.FC = () => {
   const setWidgets = dm.updateActiveWidgets;
 
   // KPI catalog
-  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>(KPI_CATALOG_STATIC);
-  const [catalogMap, setCatalogMap] = useState(buildCatalogMap(KPI_CATALOG_STATIC));
-  const [catalogSource, setCatalogSource] = useState<'static' | 'db'>('static');
+  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
+  const [catalogMap, setCatalogMap] = useState<Record<string, KpiCatalogEntry>>({});
+  const [catalogSource, setCatalogSource] = useState<'static' | 'db'>('db');
 
   // BI state
   const [editingId, setEditingId] = useState<string | null>(null);
