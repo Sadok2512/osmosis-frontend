@@ -611,7 +611,7 @@ const KPIMonitorInner: React.FC = () => {
                         isDraggable={editMode}
                         margin={[12, 12]}
                       >
-                        {widgets.map(w => (
+                        {validWidgets.map(w => (
                           <div key={getId(w)}
                             onClickCapture={() => {
                               const wId = getId(w);
