@@ -384,7 +384,7 @@ const KPIMonitorInner: React.FC = () => {
     }
   };
 
-  const getMaxY = () => widgets.reduce((max, w) => Math.max(max, w.layout.y + w.layout.h), 0);
+  const getMaxY = () => widgets.reduce((max, w) => w.layout ? Math.max(max, w.layout.y + w.layout.h) : max, 0);
 
   const addChart = () => {
     const id = `chart_${Date.now()}`;
