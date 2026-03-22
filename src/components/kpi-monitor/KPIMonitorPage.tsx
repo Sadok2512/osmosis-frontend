@@ -553,7 +553,7 @@ const KPIMonitorInner: React.FC = () => {
                         data={tsData}
                         catalogMap={catalogMap}
                         title={isMonoView ? monoTitle : store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
-                        badge={tsLoading ? 'Loading...' : catalogSource === 'api' ? 'Live' : 'Static'}
+                        badge={tsLoading ? 'Loading...' : catalog.length > 0 ? 'Live' : 'Empty'}
                         granularity={tsGranularity}
                         height={isMonoView ? 600 : chartHeight}
                         onRefresh={() => queryClient.invalidateQueries({ queryKey: ['monitor'] })}
