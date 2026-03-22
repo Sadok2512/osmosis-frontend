@@ -173,20 +173,24 @@ const KPIMonitorInner: React.FC = () => {
 
   const catalog: KpiCatalogEntry[] = useMemo(() => {
     if (!backendCatalog || backendCatalog.length === 0) return [];
-    return backendCatalog.map((e: MonitorKpiCatalogEntry): KpiCatalogEntry => ({
+    return backendCatalog.map((e: any): KpiCatalogEntry => ({
       kpi_id: e.kpi_key,
       kpi_key: e.kpi_key,
       display_name: e.display_name,
       description: e.description || '',
-      techno_scope: 'both',
+      techno_scope: (e.techno === 'LTE' || e.techno === '4G') ? '4G' : (e.techno === 'NR' || e.techno === '5G') ? '5G' : 'both',
       unit: e.unit || '',
       value_type: (e.value_type as any) || 'gauge',
       default_agg: 'avg',
       allowed_aggs: ['avg', 'min', 'max', 'sum'],
       is_map_supported: false,
       thresholds: e.threshold_warning != null ? { warning: e.threshold_warning, critical: e.threshold_critical ?? e.threshold_warning * 0.8 } : undefined,
-      category: (e.category as any) || 'Other',
+      category: e.category || 'Other',
       color: '#3b82f6',
+      vendor: e.vendor || '',
+      techno: e.techno || '',
+      supported_levels: e.supported_levels || [],
+      is_normalized: !e.vendor,
     }));
   }, [backendCatalog]);
   const catalogMap = useMemo(() => buildCatalogMap(catalog), [catalog]);

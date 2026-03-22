@@ -24,8 +24,12 @@ export interface KpiCatalogEntry {
   formula_sql?: string;
   is_map_supported: boolean;
   thresholds?: { warning: number; critical: number };
-  category: 'Access' | 'Throughput' | 'Latency' | 'Retainability' | 'Traffic' | 'TCP' | 'Other';
+  category: string;
   color: string;
+  vendor?: string;
+  techno?: string;
+  supported_levels?: string[];
+  is_normalized?: boolean;
 }
 
 export type GraphType = 'line' | 'area' | 'bar' | 'stacked_area' | 'scatter';
