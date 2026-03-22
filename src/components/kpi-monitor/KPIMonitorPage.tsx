@@ -173,7 +173,7 @@ const KPIMonitorInner: React.FC = () => {
 
   // Map backend catalog → KpiCatalogEntry format used by existing components
   const catalog: KpiCatalogEntry[] = useMemo(() => {
-    if (!backendCatalog || backendCatalog.length === 0) return KPI_CATALOG_STATIC;
+    if (!backendCatalog || backendCatalog.length === 0) return [];
     return backendCatalog.map((k, i) => ({
       kpi_id: String(i + 1),
       kpi_key: k.kpi_key,
