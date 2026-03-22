@@ -133,7 +133,11 @@ export interface ExplainResponse {
 async function monitorGet<T>(path: string): Promise<T> {
   const url = getApiUrl(`monitor/${path}`);
   const res = await fetch(url, { headers: getApiHeaders() });
-  if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const body = await res.text();
+    console.warn(`[monitorGet] ${path} → ${res.status}`, body);
+    throw new Error(`API error ${res.status}: ${body}`);
+  }
   return res.json();
 }
 
