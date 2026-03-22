@@ -299,9 +299,7 @@ const KPIMonitorInner: React.FC = () => {
   const [explainKpiKey, setExplainKpiKey] = useState<string | null>(null);
 
   const refreshCatalog = () => {
-    fetchKpiCatalogFromDB().then(entries => {
-      if (entries.length > 0) setCatalog(entries);
-    });
+    queryClient.invalidateQueries({ queryKey: ['monitor', 'catalog', 'kpis'] });
   };
 
   // BI helpers
