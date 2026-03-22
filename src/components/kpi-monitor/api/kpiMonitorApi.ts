@@ -172,9 +172,16 @@ export const fetchExplain = (kpiKey: string) =>
 export function useKpiCatalog() {
   return useQuery({
     queryKey: ['monitor', 'catalog', 'kpis'],
-    queryFn: fetchKpiCatalog,
+    queryFn: async () => {
+      try {
+        return await fetchKpiCatalog();
+      } catch (err) {
+        console.warn('[useKpiCatalog] Backend unavailable, returning empty:', err);
+        return [] as MonitorKpiCatalogEntry[];
+      }
+    },
     staleTime: 5 * 60 * 1000,
-    retry: 2,
+    retry: 1,
   });
 }
 
