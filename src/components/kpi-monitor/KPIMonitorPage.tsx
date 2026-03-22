@@ -196,8 +196,6 @@ const KPIMonitorInner: React.FC = () => {
   const [widgetAxisConfigs, setWidgetAxisConfigs] = useState<Record<string, WidgetAxisConfig>>({});
   const [widgetGraphConfigs, setWidgetGraphConfigs] = useState<Record<string, WidgetGraphConfig>>({});
 
-  // Catalog is now loaded via useKpiCatalog() React Query hook above
-
   // Build merged filters for API
   const mergedFilters: MonitorFilter[] = useMemo(() => [
     ...store.localFilters.filter(f => f.values.length > 0).map(f => ({
@@ -288,7 +286,7 @@ const KPIMonitorInner: React.FC = () => {
   const [explainKpiKey, setExplainKpiKey] = useState<string | null>(null);
 
   const refreshCatalog = () => {
-    queryClient.invalidateQueries({ queryKey: ['monitor', 'catalog', 'kpis'] });
+    fetchKpiCatalogFromDB().then(setDbCatalog);
   };
 
   // BI helpers
@@ -556,7 +554,7 @@ const KPIMonitorInner: React.FC = () => {
                         badge={tsLoading ? 'Loading...' : catalog.length > 0 ? 'Live' : 'Empty'}
                         granularity={tsGranularity}
                         height={isMonoView ? 600 : chartHeight}
-                        onRefresh={() => queryClient.invalidateQueries({ queryKey: ['monitor'] })}
+                        onRefresh={() => { queryClient.invalidateQueries({ queryKey: ['monitor'] }); refreshCatalog(); }}
                         onDuplicate={() => {}}
                         onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
                         graphConfig={widgetGraphConfigs['__kpi_main__']}
