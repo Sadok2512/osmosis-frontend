@@ -6,7 +6,7 @@ import 'react-resizable/css/styles.css';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
-import { KPI_CATALOG_STATIC, fetchKpiCatalogFromDB, buildCatalogMap } from './kpiCatalog';
+import { fetchKpiCatalogFromDB, buildCatalogMap } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
 import { useTimeseriesQuery, useSummaryQuery, useTableQuery, type TimeseriesRequest, type MonitorFilter } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
@@ -167,9 +167,9 @@ const KPIMonitorInner: React.FC = () => {
   const setWidgets = dm.updateActiveWidgets;
 
   // KPI catalog
-  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>(KPI_CATALOG_STATIC);
-  const [catalogMap, setCatalogMap] = useState(buildCatalogMap(KPI_CATALOG_STATIC));
-  const [catalogSource, setCatalogSource] = useState<'static' | 'db'>('static');
+  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
+  const [catalogMap, setCatalogMap] = useState<Record<string, KpiCatalogEntry>>({});
+  const [catalogSource, setCatalogSource] = useState<'static' | 'db'>('db');
 
   // BI state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -194,7 +194,7 @@ const KPIMonitorInner: React.FC = () => {
     fetchKpiCatalogFromDB().then(entries => {
       setCatalog(entries);
       setCatalogMap(buildCatalogMap(entries));
-      setCatalogSource(entries.length > KPI_CATALOG_STATIC.length ? 'db' : 'static');
+      setCatalogSource(entries.length > 0 ? 'db' : 'static');
     });
   }, []);
 
@@ -291,7 +291,7 @@ const KPIMonitorInner: React.FC = () => {
     const entries = await fetchKpiCatalogFromDB();
     setCatalog(entries);
     setCatalogMap(buildCatalogMap(entries));
-    setCatalogSource(entries.length > KPI_CATALOG_STATIC.length ? 'db' : 'static');
+    setCatalogSource(entries.length > 0 ? 'db' : 'static');
   };
 
   // BI helpers
