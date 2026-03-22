@@ -46,9 +46,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     return cats;
   }, [catalog]);
 
-  // Separate KPIs (ratios) and Counters
-  const kpis = useMemo(() => catalog.filter(k => k.value_type === 'ratio'), [catalog]);
-  const counters = useMemo(() => catalog.filter(k => k.value_type !== 'ratio'), [catalog]);
+  // Separate KPIs (ratios + gauges) and Counters
+  const kpis = useMemo(() => catalog.filter(k => k.value_type === 'ratio' || k.value_type === 'gauge'), [catalog]);
+  const counters = useMemo(() => catalog.filter(k => k.value_type === 'counter'), [catalog]);
   const activeList = tab === 'kpi' ? kpis : counters;
 
   // Filtered list
