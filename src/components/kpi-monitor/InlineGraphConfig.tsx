@@ -5,9 +5,8 @@ import { Switch } from '../ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   X, Plus, TrendingUp, AreaChart, BarChart, Layers2, CircleDot,
-  ChevronDown, Trash2,
+  ChevronDown, ChevronRight, Trash2,
   BarChart3, Axis3D, Settings2, AlertTriangle, Save,
-  CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
