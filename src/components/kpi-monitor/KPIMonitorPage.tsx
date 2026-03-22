@@ -9,13 +9,14 @@ import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
 import { buildCatalogMap, fetchKpiCatalogFromDB } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
-import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, type TimeseriesRequest, type MonitorFilter, type MonitorKpiCatalogEntry } from './api/kpiMonitorApi';
+import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, useCounterCatalog, type TimeseriesRequest, type MonitorFilter, type MonitorKpiCatalogEntry } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
 import KPIExplainPanel from './KPIExplainPanel';
 import EChartsTimeSeries from './EChartsTimeSeries';
 import KPITableView from './KPITableView';
 import KPICatalogImport from './KPICatalogImport';
 import KpiSelectorModal from './KpiSelectorModal';
+import CounterSelectorModal from './CounterSelectorModal';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
 import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode } from '../bi/dashboardTypes';
@@ -216,6 +217,11 @@ const KPIMonitorInner: React.FC = () => {
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
   const [showKpiSelector, setShowKpiSelector] = useState(false);
+  const [showCounterSelector, setShowCounterSelector] = useState(false);
+  const [selectedCounters, setSelectedCounters] = useState<string[]>([]);
+
+  // Counter catalog from backend
+  const { data: counterCatalog } = useCounterCatalog();
   const [editMode, setEditMode] = useState(true);
   const [quickSection, setQuickSection] = useState<QuickSettingsSection>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);
@@ -668,6 +674,8 @@ const KPIMonitorInner: React.FC = () => {
               <HorizontalConfigPanel
                 catalogMap={catalogMap}
                 onOpenKpiSelector={() => setShowKpiSelector(true)}
+                onOpenCounterSelector={() => setShowCounterSelector(true)}
+                selectedCounterCount={selectedCounters.length}
                 title={monoTitle}
                 onClose={closeEdit}
                 onSave={() => {
@@ -738,6 +746,15 @@ const KPIMonitorInner: React.FC = () => {
             }
           }
         }}
+      />
+
+      {/* ── Counter Selector Modal ── */}
+      <CounterSelectorModal
+        open={showCounterSelector}
+        onClose={() => setShowCounterSelector(false)}
+        counters={counterCatalog || []}
+        selectedIds={selectedCounters}
+        onConfirm={(ids) => setSelectedCounters(ids)}
       />
 
       {/* Name dialog */}

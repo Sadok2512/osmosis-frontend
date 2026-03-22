@@ -154,7 +154,17 @@ async function monitorPost<T>(path: string, body: any): Promise<T> {
 
 // ── API functions ──
 
+export interface CounterCatalogEntry {
+  counter_id: string;
+  counter_name: string;
+  family: string;
+  techno: string;
+  vendor: string;
+  is_active: boolean;
+}
+
 export const fetchKpiCatalog = () => monitorGet<MonitorKpiCatalogEntry[]>('catalog/kpis');
+export const fetchCounterCatalog = () => monitorGet<CounterCatalogEntry[]>('catalog/counters');
 export const fetchFilterCatalog = () => monitorGet<MonitorFilterDef[]>('catalog/filters');
 export const fetchFilterValues = (dimensions: string[], filters?: MonitorFilter[]) =>
   monitorPost<Record<string, string[]>>('filters/values', { dimensions, filters });
@@ -178,6 +188,22 @@ export function useKpiCatalog() {
       } catch (err) {
         console.warn('[useKpiCatalog] Backend unavailable, returning empty:', err);
         return [] as MonitorKpiCatalogEntry[];
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useCounterCatalog() {
+  return useQuery({
+    queryKey: ['monitor', 'catalog', 'counters'],
+    queryFn: async () => {
+      try {
+        return await fetchCounterCatalog();
+      } catch (err) {
+        console.warn('[useCounterCatalog] Backend unavailable:', err);
+        return [] as CounterCatalogEntry[];
       }
     },
     staleTime: 5 * 60 * 1000,

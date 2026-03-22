@@ -4,7 +4,7 @@ import { KpiCatalogEntry, SplitDimension, GraphType } from './types';
 import { Switch } from '../ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  X, Plus, TrendingUp, AreaChart, BarChart, Layers2, CircleDot,
+  X, Plus, TrendingUp, AreaChart, BarChart, Layers2, CircleDot, Hash,
   ChevronDown, ChevronRight, Trash2,
   BarChart3, Axis3D, Settings2, AlertTriangle, Save,
 } from 'lucide-react';
@@ -102,6 +102,8 @@ export type QuickSettingsSection = 'kpis' | 'style' | 'full' | null;
 export interface ConfigPanelProps {
   catalogMap: Record<string, KpiCatalogEntry>;
   onOpenKpiSelector: () => void;
+  onOpenCounterSelector?: () => void;
+  selectedCounterCount?: number;
   axisConfig?: WidgetAxisConfig;
   onAxisConfigChange?: (c: WidgetAxisConfig) => void;
   graphConfig?: WidgetGraphConfig;
@@ -116,7 +118,7 @@ export interface ConfigPanelProps {
 }
 
 export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
-  catalogMap, onOpenKpiSelector,
+  catalogMap, onOpenKpiSelector, onOpenCounterSelector, selectedCounterCount,
   axisConfig: externalAxis, onAxisConfigChange,
   graphConfig: externalGraph, onGraphConfigChange,
   thresholds, onThresholdsChange, thresholdsEnabled, onThresholdsEnabledChange,
@@ -276,6 +278,31 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             )}
           </>)}
         </div>
+
+        {/* ── COMPTEURS SÉLECTIONNÉS ── */}
+        {onOpenCounterSelector && (
+          <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Hash className="w-3.5 h-3.5" /> Compteurs
+              <span className="ml-auto text-[9px] font-medium text-muted-foreground">{selectedCounterCount || 0}</span>
+            </div>
+            <button
+              onClick={onOpenCounterSelector}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors group"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+                  <Plus className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="text-left min-w-0">
+                  <div className="text-[11px] font-semibold text-emerald-600">Sélectionner des Compteurs</div>
+                  <div className="text-[9px] text-muted-foreground">{selectedCounterCount || 0} compteur(s) actif(s)</div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-emerald-500/60 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        )}
 
         {/* ── AXES ── */}
         <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
