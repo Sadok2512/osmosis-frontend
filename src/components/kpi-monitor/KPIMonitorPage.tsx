@@ -331,12 +331,16 @@ const KPIMonitorInner: React.FC = () => {
   React.useEffect(() => {
     const node = containerNodeRef.current;
     if (!node) return;
+    let rafId: number;
     const ro = new ResizeObserver(entries => {
-      for (const entry of entries) setContainerWidth(entry.contentRect.width);
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        for (const entry of entries) setContainerWidth(entry.contentRect.width);
+      });
     });
     ro.observe(node);
-    return () => ro.disconnect();
-  });
+    return () => { cancelAnimationFrame(rafId); ro.disconnect(); };
+  }, []);
 
   const getId = (w: WidgetItem) => w?.config?.id ?? 'unknown';
   const validWidgets = widgets.filter(w => w?.config?.id && w?.layout);
