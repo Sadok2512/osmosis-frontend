@@ -190,7 +190,7 @@ const KPIMonitorInner: React.FC = () => {
       vendor: e.vendor || '',
       techno: e.techno || '',
       supported_levels: e.supported_levels || [],
-      is_normalized: !e.vendor,
+      is_normalized: e.is_vendor_specific === false,
     }));
   }, [backendCatalog]);
   const catalogMap = useMemo(() => buildCatalogMap(catalog), [catalog]);

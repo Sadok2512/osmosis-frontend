@@ -94,8 +94,8 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
 
     if (filterVendor) items = items.filter(k => k.vendor === filterVendor);
     if (filterTechno) items = items.filter(k => k.techno === filterTechno);
-    if (filterNormalized === 'yes') items = items.filter(k => k.is_normalized);
-    if (filterNormalized === 'no') items = items.filter(k => !k.is_normalized);
+    if (filterNormalized === 'normalized') items = items.filter(k => k.is_normalized);
+    if (filterNormalized === 'vendor-specific') items = items.filter(k => !k.is_normalized);
     if (filterLevel) items = items.filter(k => k.supported_levels?.includes(filterLevel));
     if (filterFamily) items = items.filter(k => k.category === filterFamily);
     if (activeCategory) items = items.filter(k => k.category === activeCategory);
@@ -116,8 +116,8 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     let items = catalog;
     if (filterVendor) items = items.filter(k => k.vendor === filterVendor);
     if (filterTechno) items = items.filter(k => k.techno === filterTechno);
-    if (filterNormalized === 'yes') items = items.filter(k => k.is_normalized);
-    if (filterNormalized === 'no') items = items.filter(k => !k.is_normalized);
+    if (filterNormalized === 'normalized') items = items.filter(k => k.is_normalized);
+    if (filterNormalized === 'vendor-specific') items = items.filter(k => !k.is_normalized);
     if (filterLevel) items = items.filter(k => k.supported_levels?.includes(filterLevel));
     if (filterFamily) items = items.filter(k => k.category === filterFamily);
 
@@ -209,9 +209,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
             <FilterDropdown label="Vendor" value={filterVendor} options={filterOptions.vendors} onChange={setFilterVendor} />
             <FilterDropdown label="Techno" value={filterTechno} options={filterOptions.technos} onChange={setFilterTechno} />
             <FilterDropdown
-              label="Normalized"
+              label="Type"
               value={filterNormalized}
-              options={['yes', 'no']}
+              options={['vendor-specific', 'normalized']}
               onChange={setFilterNormalized}
             />
             <FilterDropdown label="Level" value={filterLevel} options={filterOptions.levels} onChange={setFilterLevel} />
