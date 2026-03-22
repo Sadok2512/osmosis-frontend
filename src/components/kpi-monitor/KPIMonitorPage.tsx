@@ -9,7 +9,7 @@ import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
 import { buildCatalogMap, KPI_CATALOG_STATIC } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
-import { useTimeseriesQuery, useSummaryQuery, useTableQuery, type TimeseriesRequest, type MonitorFilter } from './api/kpiMonitorApi';
+import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, type TimeseriesRequest, type MonitorFilter, type MonitorKpiCatalogEntry } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
 import KPIExplainPanel from './KPIExplainPanel';
 import EChartsTimeSeries from './EChartsTimeSeries';
