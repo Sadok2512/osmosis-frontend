@@ -1,14 +1,15 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
-import { fetchKpiCatalogFromDB, buildCatalogMap } from './kpiCatalog';
+import { KPI_CATALOG_STATIC, buildCatalogMap } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
-import { useTimeseriesQuery, useSummaryQuery, useTableQuery, type TimeseriesRequest, type MonitorFilter } from './api/kpiMonitorApi';
+import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, type TimeseriesRequest, type MonitorFilter } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
 import KPIExplainPanel from './KPIExplainPanel';
 import EChartsTimeSeries from './EChartsTimeSeries';
@@ -166,10 +167,31 @@ const KPIMonitorInner: React.FC = () => {
   const widgets = dm.activeTab?.widgets || [];
   const setWidgets = dm.updateActiveWidgets;
 
-  // KPI catalog
-  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
-  const [catalogMap, setCatalogMap] = useState<Record<string, KpiCatalogEntry>>({});
-  const [catalogSource, setCatalogSource] = useState<'static' | 'db'>('db');
+  // KPI catalog — fetched from backend /api/monitor/catalog/kpis
+  const queryClient = useQueryClient();
+  const { data: backendCatalog } = useKpiCatalog();
+
+  // Map backend catalog → KpiCatalogEntry format used by existing components
+  const catalog: KpiCatalogEntry[] = useMemo(() => {
+    if (!backendCatalog || backendCatalog.length === 0) return KPI_CATALOG_STATIC;
+    return backendCatalog.map((k, i) => ({
+      kpi_id: String(i + 1),
+      kpi_key: k.kpi_key,
+      display_name: k.display_name,
+      description: k.description,
+      techno_scope: 'both' as const,
+      unit: k.unit,
+      value_type: (k.value_type || 'gauge') as KpiCatalogEntry['value_type'],
+      default_agg: 'avg' as const,
+      allowed_aggs: ['avg' as const, 'min' as const, 'max' as const, 'sum' as const],
+      is_map_supported: false,
+      thresholds: k.threshold_warning != null ? { warning: k.threshold_warning, critical: k.threshold_critical ?? k.threshold_warning * 0.8 } : undefined,
+      category: (k.category || 'Other') as KpiCatalogEntry['category'],
+      color: '#64748b',
+    }));
+  }, [backendCatalog]);
+  const catalogMap = useMemo(() => buildCatalogMap(catalog), [catalog]);
+  const catalogSource = backendCatalog && backendCatalog.length > 0 ? 'api' : 'static';
 
   // BI state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -190,13 +212,7 @@ const KPIMonitorInner: React.FC = () => {
   const [widgetAxisConfigs, setWidgetAxisConfigs] = useState<Record<string, WidgetAxisConfig>>({});
   const [widgetGraphConfigs, setWidgetGraphConfigs] = useState<Record<string, WidgetGraphConfig>>({});
 
-  useEffect(() => {
-    fetchKpiCatalogFromDB().then(entries => {
-      setCatalog(entries);
-      setCatalogMap(buildCatalogMap(entries));
-      setCatalogSource(entries.length > 0 ? 'db' : 'static');
-    });
-  }, []);
+  // Catalog is now loaded via useKpiCatalog() React Query hook above
 
   // Build merged filters for API
   const mergedFilters: MonitorFilter[] = useMemo(() => [
@@ -287,11 +303,8 @@ const KPIMonitorInner: React.FC = () => {
   // Explain panel state
   const [explainKpiKey, setExplainKpiKey] = useState<string | null>(null);
 
-  const refreshCatalog = async () => {
-    const entries = await fetchKpiCatalogFromDB();
-    setCatalog(entries);
-    setCatalogMap(buildCatalogMap(entries));
-    setCatalogSource(entries.length > 0 ? 'db' : 'static');
+  const refreshCatalog = () => {
+    queryClient.invalidateQueries({ queryKey: ['monitor', 'catalog', 'kpis'] });
   };
 
   // BI helpers
@@ -556,10 +569,10 @@ const KPIMonitorInner: React.FC = () => {
                         data={tsData}
                         catalogMap={catalogMap}
                         title={isMonoView ? monoTitle : store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
-                        badge={tsLoading ? 'Loading...' : catalogSource === 'db' ? 'DB' : 'Live'}
+                        badge={tsLoading ? 'Loading...' : catalogSource === 'api' ? 'Live' : 'Static'}
                         granularity={tsGranularity}
                         height={isMonoView ? 600 : chartHeight}
-                        onRefresh={() => {}}
+                        onRefresh={() => queryClient.invalidateQueries({ queryKey: ['monitor'] })}
                         onDuplicate={() => {}}
                         onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
                         graphConfig={widgetGraphConfigs['__kpi_main__']}
