@@ -8,7 +8,9 @@ import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
 import { KPI_CATALOG_STATIC, fetchKpiCatalogFromDB, buildCatalogMap } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
-import { generateMockTimeSeries, generateMockSummary } from './mockKpiData';
+import { useTimeseriesQuery, useSummaryQuery, useTableQuery, type TimeseriesRequest, type MonitorFilter } from './api/kpiMonitorApi';
+import SummaryTilesRow from './SummaryTilesRow';
+import KPIExplainPanel from './KPIExplainPanel';
 import EChartsTimeSeries from './EChartsTimeSeries';
 import KPITableView from './KPITableView';
 import KPICatalogImport from './KPICatalogImport';
@@ -196,25 +198,94 @@ const KPIMonitorInner: React.FC = () => {
     });
   }, []);
 
-  const queryRequest = useMemo(() => ({
-    date_from: globalFilter.dateFrom,
-    date_to: globalFilter.dateTo,
-    granularity: globalFilter.granularity,
-    kpis: store.selectedKpis,
-    filters: [
-      ...store.localFilters,
-      ...globalFilter.globalFilters.filter(f => f.values.length > 0).map(f => ({
-        id: f.id, dimension: f.dimension, op: f.op, values: f.values,
-      })),
-      ...(globalFilter.crossFilter ? [{ id: 'cross', dimension: globalFilter.crossFilter.dimension, op: 'EQ' as const, values: [globalFilter.crossFilter.value] }] : []),
-    ],
-    split_by: store.splitBy,
-    top_n: store.topN,
-    include_others: store.includeOthers,
-  }), [globalFilter.dateFrom, globalFilter.dateTo, globalFilter.granularity, globalFilter.globalFilters, globalFilter.crossFilter, store.selectedKpis, store.localFilters, store.splitBy, store.topN, store.includeOthers]);
+  // Build merged filters for API
+  const mergedFilters: MonitorFilter[] = useMemo(() => [
+    ...store.localFilters.filter(f => f.values.length > 0).map(f => ({
+      dimension: f.dimension, op: f.op, values: f.values,
+    })),
+    ...globalFilter.globalFilters.filter(f => f.values.length > 0).map(f => ({
+      dimension: f.dimension, op: f.op, values: f.values,
+    })),
+    ...(globalFilter.crossFilter ? [{ dimension: globalFilter.crossFilter.dimension, op: 'EQ' as const, values: [globalFilter.crossFilter.value] }] : []),
+  ], [store.localFilters, globalFilter.globalFilters, globalFilter.crossFilter]);
 
-  const tsResponse = useMemo(() => generateMockTimeSeries(queryRequest), [queryRequest]);
-  const summaryRows = useMemo(() => generateMockSummary(queryRequest), [queryRequest]);
+  // Timeseries API request
+  const tsRequest: TimeseriesRequest | null = useMemo(() => {
+    if (store.selectedKpis.length === 0) return null;
+    return {
+      date_from: globalFilter.dateFrom,
+      date_to: globalFilter.dateTo,
+      granularity: globalFilter.granularity,
+      filters: mergedFilters,
+      selections: store.selectedKpis.map(k => ({
+        kpi_key: k.kpi_key,
+        visualization: k.graphType || 'line',
+        axis: k.axis,
+      })),
+      split_by: store.splitBy,
+      top_n: store.topN,
+    };
+  }, [globalFilter.dateFrom, globalFilter.dateTo, globalFilter.granularity, mergedFilters, store.selectedKpis, store.splitBy, store.topN]);
+
+  const { data: tsApiResponse, isLoading: tsLoading } = useTimeseriesQuery(tsRequest);
+  const tsData = tsApiResponse?.series || [];
+  const tsGranularity = tsApiResponse?.meta?.granularity_applied || (globalFilter.granularity === 'auto' ? '1d' : globalFilter.granularity);
+  const tsTotalSeries = tsApiResponse?.meta?.total_series || 0;
+
+  // Summary API request
+  const summaryRequest = useMemo(() => {
+    if (store.selectedKpis.length === 0) return null;
+    return {
+      date_from: globalFilter.dateFrom,
+      date_to: globalFilter.dateTo,
+      filters: mergedFilters,
+      kpi_keys: store.selectedKpis.map(k => k.kpi_key),
+    };
+  }, [globalFilter.dateFrom, globalFilter.dateTo, mergedFilters, store.selectedKpis]);
+
+  const { data: summaryItems, isLoading: summaryLoading } = useSummaryQuery(summaryRequest);
+
+  // Table API request
+  const tableRequest = useMemo(() => {
+    if (store.selectedKpis.length === 0 || store.viewMode !== 'table') return null;
+    return {
+      date_from: globalFilter.dateFrom,
+      date_to: globalFilter.dateTo,
+      filters: mergedFilters,
+      kpi_keys: store.selectedKpis.map(k => k.kpi_key),
+      split_by: store.splitBy,
+      top_n: store.topN,
+      page: 1,
+      page_size: 50,
+    };
+  }, [globalFilter.dateFrom, globalFilter.dateTo, mergedFilters, store.selectedKpis, store.splitBy, store.topN, store.viewMode]);
+
+  const { data: tableResponse, isLoading: tableLoading } = useTableQuery(tableRequest);
+
+  // Transform table response to KpiSummaryRow format for KPITableView
+  const tableRows = useMemo(() => {
+    if (!tableResponse?.rows) return [];
+    const rows: any[] = [];
+    for (const row of tableResponse.rows) {
+      for (const kpiKey of store.selectedKpis.map(k => k.kpi_key)) {
+        const kpiData = row[kpiKey];
+        if (!kpiData) continue;
+        rows.push({
+          split_value: row.split_value,
+          kpi_key: kpiKey,
+          avg: kpiData.avg,
+          min: kpiData.min,
+          max: kpiData.max,
+          last: kpiData.avg, // table endpoint doesn't return last separately
+          delta_pct: 0,
+        });
+      }
+    }
+    return rows;
+  }, [tableResponse, store.selectedKpis]);
+
+  // Explain panel state
+  const [explainKpiKey, setExplainKpiKey] = useState<string | null>(null);
 
   const refreshCatalog = async () => {
     const entries = await fetchKpiCatalogFromDB();
@@ -407,9 +478,9 @@ const KPIMonitorInner: React.FC = () => {
         editMode={editMode}
         onToggleEditMode={() => setEditMode(!editMode)}
         seriesInfo={{
-          total: tsResponse.total_series,
-          granularity: tsResponse.granularity_used,
-          truncated: tsResponse.truncated,
+          total: tsTotalSeries,
+          granularity: tsGranularity,
+          truncated: false,
         }}
       />
 
@@ -461,6 +532,15 @@ const KPIMonitorInner: React.FC = () => {
                 className="flex-1 overflow-auto p-4"
                 style={canvasBg ? { backgroundColor: canvasBg } : undefined}
               >
+                {/* ── Summary Tiles ── */}
+                {store.selectedKpis.length > 0 && !isMonoView && (
+                  <SummaryTilesRow
+                    items={summaryItems || []}
+                    loading={summaryLoading}
+                    onKpiClick={(key) => setExplainKpiKey(key)}
+                  />
+                )}
+
                 {/* ── Main KPI Chart (always mounted — never destroyed on view switch) ── */}
                 {store.selectedKpis.length > 0 && store.viewMode === 'graph' && (isEditingMain || !isMonoView) && (
                   <MainChartResizable
@@ -469,11 +549,11 @@ const KPIMonitorInner: React.FC = () => {
                   >
                     {(chartHeight) => (
                       <EChartsTimeSeries
-                        data={tsResponse.data}
+                        data={tsData}
                         catalogMap={catalogMap}
                         title={isMonoView ? monoTitle : store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
-                        badge={catalogSource === 'db' ? 'DB' : 'Static'}
-                        granularity={tsResponse.granularity_used}
+                        badge={tsLoading ? 'Loading...' : catalogSource === 'db' ? 'DB' : 'Live'}
+                        granularity={tsGranularity}
                         height={isMonoView ? 600 : chartHeight}
                         onRefresh={() => {}}
                         onDuplicate={() => {}}
@@ -493,7 +573,7 @@ const KPIMonitorInner: React.FC = () => {
 
                 {/* Table view */}
                 {store.selectedKpis.length > 0 && store.viewMode === 'table' && !isMonoView && (
-                  <KPITableView rows={summaryRows} />
+                  <KPITableView rows={tableRows} />
                 )}
 
                 {/* Editing a BI widget (not main chart) */}
@@ -603,6 +683,11 @@ const KPIMonitorInner: React.FC = () => {
         />
       )}
       {showCSVPanel && <CSVDataPanel onClose={() => setShowCSVPanel(false)} />}
+
+      {/* ── KPI Explain Panel ── */}
+      {explainKpiKey && (
+        <KPIExplainPanel kpiKey={explainKpiKey} onClose={() => setExplainKpiKey(null)} />
+      )}
 
       {/* ── AI Floating Modal ── */}
       <AIFloatingModal open={showAI} onClose={() => setShowAI(false)} />

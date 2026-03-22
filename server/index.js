@@ -3747,6 +3747,422 @@ app.get('/api/qoe-map', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+// ─── KPI MONITOR API ENDPOINTS ───────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── KPI Catalog (static + DB) ──
+const KPI_MONITOR_CATALOG = [
+  { kpi_key: 'debit_dl', display_name: 'Débit DL', description: 'Débit moyen descendant', category: 'Throughput', unit: 'Mbps', value_type: 'gauge', formula_type: 'direct', default_chart_type: 'line', default_axis: 'left', threshold_warning: 10, threshold_critical: 5, supported_levels: ['REGION','PLAQUE','SITE','CELL'], supports_split: true, supports_table: true, source_column: 'debit_dl', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'debit_ul', display_name: 'Débit UL', description: 'Débit moyen montant', category: 'Throughput', unit: 'Mbps', value_type: 'gauge', formula_type: 'direct', default_chart_type: 'line', default_axis: 'left', threshold_warning: 5, threshold_critical: 2, supported_levels: ['REGION','PLAQUE','SITE','CELL'], supports_split: true, supports_table: true, source_column: 'debit_ul', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'debit_dl_max', display_name: 'Débit DL Max', description: 'Débit max descendant', category: 'Throughput', unit: 'Mbps', value_type: 'gauge', formula_type: 'direct', default_chart_type: 'line', default_axis: 'left', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE','CELL'], supports_split: true, supports_table: true, source_column: 'debit_dl_max', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'rtt_setup_avg', display_name: 'RTT Setup Avg', description: 'Latence moyenne de setup TCP', category: 'Latency', unit: 'ms', value_type: 'gauge', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 80, threshold_critical: 150, supported_levels: ['REGION','PLAQUE','SITE','CELL'], supports_split: true, supports_table: true, source_column: 'rtt_setup_avg', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'rtt_data_avg', display_name: 'RTT Data Avg', description: 'Latence moyenne data TCP', category: 'Latency', unit: 'ms', value_type: 'gauge', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 80, threshold_critical: 150, supported_levels: ['REGION','PLAQUE','SITE','CELL'], supports_split: true, supports_table: true, source_column: 'rtt_data_avg', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'volume_totale_dl', display_name: 'Volume DL', description: 'Volume total descendant', category: 'Traffic', unit: 'GB', value_type: 'counter', formula_type: 'direct', default_chart_type: 'bar', default_axis: 'left', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'volume_totale_dl', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'volume_totale_ul', display_name: 'Volume UL', description: 'Volume total montant', category: 'Traffic', unit: 'GB', value_type: 'counter', formula_type: 'direct', default_chart_type: 'bar', default_axis: 'left', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'volume_totale_ul', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'volume_totale_totale', display_name: 'Volume Total', description: 'Volume total DL+UL', category: 'Traffic', unit: 'GB', value_type: 'counter', formula_type: 'direct', default_chart_type: 'bar', default_axis: 'left', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'volume_totale_totale', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'session_nbr', display_name: 'Sessions', description: 'Nombre total de sessions', category: 'Traffic', unit: '', value_type: 'counter', formula_type: 'direct', default_chart_type: 'bar', default_axis: 'left', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'session_nbr', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'session_dcr', display_name: 'Session DCR', description: 'Taux de coupure de session', category: 'Retainability', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 2, threshold_critical: 5, supported_levels: ['REGION','PLAQUE','SITE','CELL'], supports_split: true, supports_table: true, source_column: 'session_dcr', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'loss_dl_rate', display_name: 'Loss DL Rate', description: 'Taux de perte paquets DL', category: 'TCP', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 1, threshold_critical: 3, supported_levels: ['REGION','PLAQUE','SITE','CELL'], supports_split: true, supports_table: true, source_column: 'loss_dl_rate', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'loss_ul_rate', display_name: 'Loss UL Rate', description: 'Taux de perte paquets UL', category: 'TCP', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 1, threshold_critical: 3, supported_levels: ['REGION','PLAQUE','SITE','CELL'], supports_split: true, supports_table: true, source_column: 'loss_ul_rate', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'tcp_retr_rate_dl', display_name: 'TCP Retrans DL', description: 'Taux de retransmission TCP DL', category: 'TCP', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 3, threshold_critical: 5, supported_levels: ['REGION','PLAQUE','SITE','CELL'], supports_split: true, supports_table: true, source_column: 'tcp_retr_rate_dl', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'tcp_retr_rate_ul', display_name: 'TCP Retrans UL', description: 'Taux de retransmission TCP UL', category: 'TCP', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 3, threshold_critical: 5, supported_levels: ['REGION','PLAQUE','SITE','CELL'], supports_split: true, supports_table: true, source_column: 'tcp_retr_rate_ul', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'qoe_index', display_name: 'QoE Index', description: 'Index qualité d\'expérience composite', category: 'Other', unit: '', value_type: 'gauge', formula_type: 'composite', default_chart_type: 'line', default_axis: 'left', threshold_warning: 70, threshold_critical: 50, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'qoe_index', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'dms_debit_dl_3', display_name: 'DMS DL <3Mbps', description: '% sessions débit DL < 3 Mbps', category: 'Throughput', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'area', default_axis: 'left', threshold_warning: 20, threshold_critical: 40, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'dms_debit_dl_3', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'dms_debit_dl_8', display_name: 'DMS DL <8Mbps', description: '% sessions débit DL < 8 Mbps', category: 'Throughput', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'area', default_axis: 'left', threshold_warning: 30, threshold_critical: 50, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'dms_debit_dl_8', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'dms_debit_dl_30', display_name: 'DMS DL <30Mbps', description: '% sessions débit DL < 30 Mbps', category: 'Throughput', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'area', default_axis: 'left', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'dms_debit_dl_30', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'session_dur_moy', display_name: 'Durée Session Moy', description: 'Durée moyenne de session', category: 'Traffic', unit: 's', value_type: 'gauge', formula_type: 'direct', default_chart_type: 'line', default_axis: 'left', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'session_dur_moy', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'out_of_order_rate', display_name: 'Out of Order Rate', description: 'Taux de paquets hors séquence', category: 'TCP', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 1, threshold_critical: 3, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'out_of_order_rate', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'wind_full_rate', display_name: 'Window Full Rate', description: 'Taux window full TCP', category: 'TCP', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'wind_full_rate', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'instability_rate', display_name: 'Instability Rate', description: 'Taux d\'instabilité réseau', category: 'Retainability', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 5, threshold_critical: 10, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'instability_rate', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'Mauvaise_Session_Rate', display_name: 'Bad Session Rate', description: 'Taux de mauvaises sessions', category: 'Retainability', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 5, threshold_critical: 10, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: '"Mauvaise_Session_Rate"', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'time_rat_5g_pct', display_name: '5G Time %', description: '% du temps en 5G', category: 'Other', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'area', default_axis: 'left', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'time_rat_5g_pct', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'time_rat_4g_pct', display_name: '4G Time %', description: '% du temps en 4G', category: 'Other', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'area', default_axis: 'left', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: 'time_rat_4g_pct', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: 'fallback_5G_to_4G_rate', display_name: 'Fallback 5G→4G', description: 'Taux de fallback 5G vers 4G', category: 'Retainability', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'right', threshold_warning: 10, threshold_critical: 20, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: '"fallback_5G_to_4G_rate"', source_table: 'qoe_metric', is_active: true },
+  { kpi_key: '5G_capable_rate', display_name: '5G Capable Rate', description: 'Taux de terminaux 5G', category: 'Other', unit: '%', value_type: 'ratio', formula_type: 'direct', default_chart_type: 'line', default_axis: 'left', threshold_warning: null, threshold_critical: null, supported_levels: ['REGION','PLAQUE','SITE'], supports_split: true, supports_table: true, source_column: '"5G_capable_rate"', source_table: 'qoe_metric', is_active: true },
+];
+
+// Build catalog map for quick lookup
+const KPI_CATALOG_MAP = Object.fromEntries(KPI_MONITOR_CATALOG.map(k => [k.kpi_key, k]));
+
+// ── Helper: resolve granularity ──
+function resolveGranularity(gran, dateFrom, dateTo) {
+  if (gran && gran !== 'auto') return gran;
+  const diffMs = new Date(dateTo) - new Date(dateFrom);
+  const diffDays = diffMs / 86400000;
+  if (diffDays <= 1) return '15m';
+  if (diffDays <= 7) return '1h';
+  return '1d';
+}
+
+// ── Helper: build WHERE clause from filters ──
+function buildMonitorWhere(filters, params, pi) {
+  const clauses = [];
+  if (!filters || !filters.length) return { clauses, params, pi };
+  for (const f of filters) {
+    if (!f.values || f.values.length === 0) continue;
+    const dim = f.dimension;
+    const op = f.op === 'NOT_IN' ? 'NOT IN' : 'IN';
+    const placeholders = f.values.map((_, j) => `$${pi + j}`);
+    // Dimension-based filter: check both Dimension_1 and Dimension_2
+    clauses.push(`(
+      ("Dimension_1" = $${pi + f.values.length} AND "Dimension_2" ${op} (${placeholders.join(',')}))
+    )`);
+    params.push(...f.values, dim);
+    pi += f.values.length + 1;
+  }
+  return { clauses, params, pi };
+}
+
+// ── Helper: safe column reference ──
+function safeCol(kpiKey) {
+  const entry = KPI_CATALOG_MAP[kpiKey];
+  if (entry && entry.source_column) return entry.source_column;
+  // If column name needs quoting (starts with number or has special chars)
+  if (/^[0-9"]/.test(kpiKey) || kpiKey.includes(' ')) return `"${kpiKey}"`;
+  return `"${kpiKey}"`;
+}
+
+// ── 1. KPI Catalog ──
+app.get('/api/monitor/catalog/kpis', (_req, res) => {
+  res.json(KPI_MONITOR_CATALOG);
+});
+
+// ── 2. Filter Catalog ──
+app.get('/api/monitor/catalog/filters', (_req, res) => {
+  const filters = [
+    { dimension_key: 'DOR', display_name: 'Région', multi_select: true, searchable: true, depends_on: [], is_active: true },
+    { dimension_key: 'Plaque', display_name: 'Plaque', multi_select: true, searchable: true, depends_on: ['DOR'], is_active: true },
+    { dimension_key: 'Vendor', display_name: 'Constructeur', multi_select: true, searchable: false, depends_on: [], is_active: true },
+    { dimension_key: 'Bande', display_name: 'Bande', multi_select: true, searchable: false, depends_on: ['RAT'], is_active: true },
+    { dimension_key: 'RAT', display_name: 'Techno', multi_select: true, searchable: false, depends_on: [], is_active: true },
+    { dimension_key: 'ARCEP', display_name: 'Zone ARCEP', multi_select: true, searchable: false, depends_on: [], is_active: true },
+    { dimension_key: 'Site', display_name: 'Site', multi_select: true, searchable: true, depends_on: ['DOR','Plaque'], is_active: true },
+    { dimension_key: 'Cellule', display_name: 'Cellule', multi_select: true, searchable: true, depends_on: ['Site'], is_active: true },
+  ];
+  res.json(filters);
+});
+
+// ── 3. Filter Values ──
+app.post('/api/monitor/filters/values', async (req, res) => {
+  try {
+    const { dimensions, filters } = req.body;
+    if (!dimensions || !dimensions.length) return res.status(400).json({ error: 'dimensions required' });
+
+    const result = {};
+    for (const dim of dimensions) {
+      // Try dim table first
+      const dimTable = qoeDimTableMap[dim];
+      if (dimTable) {
+        try {
+          const r = await sharedPool.query(`SELECT value FROM ${dimTable} ORDER BY value`);
+          if (r.rows.length > 0) {
+            result[dim] = r.rows.map(row => row.value);
+            continue;
+          }
+        } catch { /* fallback */ }
+      }
+      // Fallback: DISTINCT from qoe_metric
+      const sql = `
+        SELECT DISTINCT val FROM (
+          SELECT "Dimension_2" AS val FROM qoe_metric WHERE "Dimension_1" = $1
+          UNION
+          SELECT "Dimension_1" AS val FROM qoe_metric WHERE "Dimension_2" = $1
+        ) sub WHERE val IS NOT NULL AND val != $1 ORDER BY val LIMIT 500
+      `;
+      const r = await sharedPool.query(sql, [dim]);
+      result[dim] = r.rows.map(row => row.val);
+    }
+    res.json(result);
+  } catch (e) {
+    console.error('[monitor/filters/values]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 4. KPI Timeseries Query ──
+app.post('/api/monitor/query/timeseries', async (req, res) => {
+  try {
+    const { date_from, date_to, granularity, filters, selections, split_by, top_n } = req.body;
+    if (!selections || !selections.length) return res.status(400).json({ error: 'selections required' });
+
+    const gran = resolveGranularity(granularity, date_from, date_to);
+
+    // Date expression based on granularity
+    let dateExpr;
+    if (gran === '15m') dateExpr = `date_trunc('hour', date_part::timestamp) + INTERVAL '15 min' * FLOOR(EXTRACT(minute FROM date_part::timestamp) / 15)`;
+    else if (gran === '1h') dateExpr = `date_trunc('hour', date_part::timestamp)`;
+    else dateExpr = `date_part::date`;
+
+    // KPI columns
+    const kpiKeys = selections.map(s => s.kpi_key);
+    const kpiSelect = kpiKeys.map(k => `AVG(${safeCol(k)}) AS "${k}"`).join(', ');
+
+    const where = [];
+    const params = [];
+    let pi = 1;
+
+    // Date filters
+    if (date_from) { where.push(`date_part >= $${pi++}`); params.push(date_from); }
+    if (date_to) { where.push(`date_part <= $${pi++}`); params.push(date_to); }
+
+    // Dimension filters
+    const fResult = buildMonitorWhere(filters, params, pi);
+    where.push(...fResult.clauses);
+    params.push(...fResult.params.slice(params.length));
+    pi = fResult.pi;
+
+    const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+    // Split handling
+    let splitSelect = '';
+    let groupBy = `GROUP BY ts`;
+    let orderBy = `ORDER BY ts`;
+
+    if (split_by) {
+      // When splitting, group by Dimension_2 where Dimension_1 = split_by
+      splitSelect = `, "Dimension_2" AS split_value`;
+      groupBy = `GROUP BY ts, "Dimension_2"`;
+      orderBy = `ORDER BY ts, "Dimension_2"`;
+      where.push(`"Dimension_1" = $${pi++}`);
+      params.push(split_by);
+    }
+
+    // Rebuild whereSQL with split filter
+    const finalWhere = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+    const sql = `
+      SELECT (${dateExpr})::text AS ts ${splitSelect}, ${kpiSelect}
+      FROM qoe_metric
+      ${finalWhere}
+      ${groupBy}
+      ${orderBy}
+    `;
+
+    console.log(`[monitor/timeseries] SQL: ${sql.substring(0, 300)}... params=${JSON.stringify(params).substring(0, 100)}`);
+    const result = await sharedPool.query(sql, params);
+
+    // Transform to flat series format
+    const series = [];
+    for (const row of result.rows) {
+      for (const kpiKey of kpiKeys) {
+        if (row[kpiKey] != null) {
+          series.push({
+            ts: row.ts,
+            kpi_key: kpiKey,
+            split_value: row.split_value || 'ALL',
+            value: parseFloat(row[kpiKey]),
+          });
+        }
+      }
+    }
+
+    // Apply top_n if splitting
+    if (split_by && top_n) {
+      const splitTotals = {};
+      for (const p of series) {
+        if (p.split_value === 'ALL') continue;
+        splitTotals[p.split_value] = (splitTotals[p.split_value] || 0) + Math.abs(p.value);
+      }
+      const topSplits = Object.entries(splitTotals)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, top_n)
+        .map(e => e[0]);
+      const topSet = new Set(topSplits);
+      const filtered = series.filter(p => p.split_value === 'ALL' || topSet.has(p.split_value));
+      return res.json({
+        series: filtered,
+        meta: { granularity_applied: gran, total_series: topSplits.length },
+      });
+    }
+
+    res.json({
+      series,
+      meta: { granularity_applied: gran, total_series: new Set(series.map(s => s.split_value)).size },
+    });
+  } catch (e) {
+    console.error('[monitor/timeseries]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 5. KPI Table Query ──
+app.post('/api/monitor/query/table', async (req, res) => {
+  try {
+    const { date_from, date_to, filters, kpi_keys, split_by, top_n, page, page_size } = req.body;
+    if (!kpi_keys || !kpi_keys.length) return res.status(400).json({ error: 'kpi_keys required' });
+
+    const limit = Math.min(page_size || 50, 500);
+    const offset = ((page || 1) - 1) * limit;
+
+    const kpiSelect = kpi_keys.map(k =>
+      `AVG(${safeCol(k)}) AS "${k}_avg", MIN(${safeCol(k)}) AS "${k}_min", MAX(${safeCol(k)}) AS "${k}_max"`
+    ).join(', ');
+
+    const where = [];
+    const params = [];
+    let pi = 1;
+
+    if (date_from) { where.push(`date_part >= $${pi++}`); params.push(date_from); }
+    if (date_to) { where.push(`date_part <= $${pi++}`); params.push(date_to); }
+
+    const fResult = buildMonitorWhere(filters, params, pi);
+    where.push(...fResult.clauses);
+    params.push(...fResult.params.slice(params.length));
+    pi = fResult.pi;
+
+    let groupCol = `'ALL'`;
+    let groupByClause = '';
+    if (split_by) {
+      where.push(`"Dimension_1" = $${pi++}`);
+      params.push(split_by);
+      groupCol = `"Dimension_2"`;
+      groupByClause = `GROUP BY "Dimension_2"`;
+    } else {
+      groupByClause = '';
+    }
+
+    const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const orderKpi = kpi_keys[0];
+
+    const sql = split_by
+      ? `SELECT ${groupCol} AS split_value, ${kpiSelect} FROM qoe_metric ${whereSQL} ${groupByClause} ORDER BY "${orderKpi}_avg" DESC NULLS LAST LIMIT ${limit} OFFSET ${offset}`
+      : `SELECT 'ALL' AS split_value, ${kpiSelect} FROM qoe_metric ${whereSQL}`;
+
+    console.log(`[monitor/table] SQL: ${sql.substring(0, 300)}...`);
+    const result = await sharedPool.query(sql, params);
+
+    // Transform rows
+    const rows = result.rows.map(row => {
+      const entry = { split_value: row.split_value };
+      for (const k of kpi_keys) {
+        entry[k] = {
+          avg: row[`${k}_avg`] != null ? parseFloat(row[`${k}_avg`]) : null,
+          min: row[`${k}_min`] != null ? parseFloat(row[`${k}_min`]) : null,
+          max: row[`${k}_max`] != null ? parseFloat(row[`${k}_max`]) : null,
+        };
+      }
+      return entry;
+    });
+
+    res.json({ rows, total: rows.length, page: page || 1, page_size: limit });
+  } catch (e) {
+    console.error('[monitor/table]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 6. KPI Summary Query ──
+app.post('/api/monitor/query/summary', async (req, res) => {
+  try {
+    const { date_from, date_to, filters, kpi_keys } = req.body;
+    if (!kpi_keys || !kpi_keys.length) return res.status(400).json({ error: 'kpi_keys required' });
+
+    const where = [];
+    const params = [];
+    let pi = 1;
+
+    if (date_from) { where.push(`date_part >= $${pi++}`); params.push(date_from); }
+    if (date_to) { where.push(`date_part <= $${pi++}`); params.push(date_to); }
+
+    const fResult = buildMonitorWhere(filters, params, pi);
+    where.push(...fResult.clauses);
+    params.push(...fResult.params.slice(params.length));
+    pi = fResult.pi;
+
+    const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+    // Current period
+    const kpiAggs = kpi_keys.map(k =>
+      `AVG(${safeCol(k)}) AS "${k}_avg", MIN(${safeCol(k)}) AS "${k}_min", MAX(${safeCol(k)}) AS "${k}_max"`
+    ).join(', ');
+    const currentSql = `SELECT ${kpiAggs} FROM qoe_metric ${whereSQL}`;
+    const current = await sharedPool.query(currentSql, params);
+
+    // Previous period (same duration, shifted back)
+    let prevRow = null;
+    if (date_from && date_to) {
+      const diffMs = new Date(date_to) - new Date(date_from);
+      const prevFrom = new Date(new Date(date_from).getTime() - diffMs).toISOString().slice(0, 10);
+      const prevTo = new Date(new Date(date_from).getTime() - 1).toISOString().slice(0, 10);
+      const prevParams = [prevFrom, prevTo, ...params.slice(2)];
+      const prevWhere = whereSQL.replace(`$1`, `$1`).replace(`$2`, `$2`);
+      try {
+        const prevSql = `SELECT ${kpiAggs} FROM qoe_metric WHERE date_part >= $1 AND date_part <= $2 ${where.slice(2).length ? ' AND ' + where.slice(2).join(' AND ') : ''}`;
+        const prev = await sharedPool.query(prevSql, prevParams);
+        prevRow = prev.rows[0];
+      } catch { /* no prev data */ }
+    }
+
+    const summaries = kpi_keys.map(k => {
+      const cur = current.rows[0];
+      const catalogEntry = KPI_CATALOG_MAP[k];
+      const val = cur ? parseFloat(cur[`${k}_avg`]) : null;
+      const prevVal = prevRow ? parseFloat(prevRow[`${k}_avg`]) : null;
+      const trend = (val != null && prevVal != null && prevVal !== 0)
+        ? ((val - prevVal) / Math.abs(prevVal)) * 100
+        : null;
+
+      let threshold_state = 'normal';
+      if (catalogEntry && val != null) {
+        if (catalogEntry.threshold_critical != null) {
+          // For rates like DCR, loss — higher is worse
+          if (catalogEntry.value_type === 'ratio' && catalogEntry.category !== 'Other') {
+            if (val >= catalogEntry.threshold_critical) threshold_state = 'critical';
+            else if (val >= catalogEntry.threshold_warning) threshold_state = 'warning';
+          } else {
+            // For throughput — lower is worse
+            if (val <= catalogEntry.threshold_critical) threshold_state = 'critical';
+            else if (val <= catalogEntry.threshold_warning) threshold_state = 'warning';
+          }
+        }
+      }
+
+      return {
+        kpi_key: k,
+        display_name: catalogEntry?.display_name || k,
+        unit: catalogEntry?.unit || '',
+        value: val,
+        min: cur ? parseFloat(cur[`${k}_min`]) : null,
+        max: cur ? parseFloat(cur[`${k}_max`]) : null,
+        trend_pct: trend,
+        threshold_state,
+      };
+    });
+
+    res.json(summaries);
+  } catch (e) {
+    console.error('[monitor/summary]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── 7. KPI Explainability ──
+app.get('/api/monitor/explain/kpi/:kpi_key', (req, res) => {
+  const { kpi_key } = req.params;
+  const entry = KPI_CATALOG_MAP[kpi_key];
+  if (!entry) return res.status(404).json({ error: `KPI "${kpi_key}" not found` });
+
+  res.json({
+    kpi_key: entry.kpi_key,
+    display_name: entry.display_name,
+    description: entry.description,
+    category: entry.category,
+    unit: entry.unit,
+    value_type: entry.value_type,
+    formula_type: entry.formula_type,
+    source_table: entry.source_table,
+    source_column: entry.source_column,
+    supported_levels: entry.supported_levels,
+    supports_split: entry.supports_split,
+    supports_table: entry.supports_table,
+    threshold_warning: entry.threshold_warning,
+    threshold_critical: entry.threshold_critical,
+    default_chart_type: entry.default_chart_type,
+    default_axis: entry.default_axis,
+  });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🚀 QOEBIT Local Server running on http://localhost:${PORT}`);
