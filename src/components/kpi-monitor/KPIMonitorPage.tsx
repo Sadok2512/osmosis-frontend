@@ -199,7 +199,7 @@ const KPIMonitorInner: React.FC = () => {
         vendor: e.vendor || '',
         techno: e.techno || '',
         supported_levels: e.supported_levels || [],
-        is_normalized: e.is_vendor_specific === false,
+        is_normalized: !!e.is_normalized,
       }));
     }
     return dbCatalog;
