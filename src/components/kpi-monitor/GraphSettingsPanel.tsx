@@ -152,7 +152,7 @@ const DEFAULT_GRAPH: WidgetGraphConfig = {
   smooth: true, lineWidth: 2.5, showSymbols: false,
   gridIntensity: 'light', showVerticalGrid: false,
   backgroundColor: 'transparent', transparentBg: true,
-  showLegend: false, legendPosition: 'bottom',
+  showLegend: true, legendPosition: 'bottom',
   grid: { ...DEFAULT_GRID },
   calendar: { ...DEFAULT_CALENDAR },
 };
