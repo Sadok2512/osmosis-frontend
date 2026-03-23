@@ -138,11 +138,16 @@ const DEFAULT_AXIS: WidgetAxisConfig = {
   xMode: 'date', xFormat: 'short', xShowGrid: false,
 };
 
+export const DEFAULT_GRID: GridConfig = { enabled: true, opacity: 20, type: 'both' };
+export const DEFAULT_CALENDAR: CalendarConfig = { highlightWeekends: true, weekendColor: '#E5E7EB', weekendOpacity: 10 };
+
 const DEFAULT_GRAPH: WidgetGraphConfig = {
   smooth: true, lineWidth: 2.5, showSymbols: false,
   gridIntensity: 'light', showVerticalGrid: false,
   backgroundColor: 'transparent', transparentBg: true,
   showLegend: false, legendPosition: 'bottom',
+  grid: { ...DEFAULT_GRID },
+  calendar: { ...DEFAULT_CALENDAR },
 };
 
 /* ── Small input helper ── */
