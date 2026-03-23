@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useKpiMonitorStore } from '@/stores/kpiMonitorStore';
 import { KpiCatalogEntry, SplitDimension, GraphType } from './types';
 import { Switch } from '../ui/switch';
+import { Slider } from '../ui/slider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   X, Plus, TrendingUp, AreaChart, BarChart, Layers2, CircleDot, Hash,
   ChevronDown, ChevronRight, Trash2, Filter, GitBranch,
-  BarChart3, Axis3D, Settings2, AlertTriangle, Save,
+  BarChart3, Axis3D, Settings2, AlertTriangle, Save, Grid3X3, Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
