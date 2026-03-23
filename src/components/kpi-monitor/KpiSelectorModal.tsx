@@ -270,12 +270,19 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
               </div>
             </div>
 
-            {/* KPI items */}
+            {/* KPI items (capped at 200 for performance) */}
             <div className="flex-1 overflow-y-auto px-3 py-1">
               {filteredCatalog.length === 0 ? (
                 <div className="flex items-center justify-center h-32 text-xs text-muted-foreground">Aucun résultat</div>
-              ) : (
-                filteredCatalog.map(k => {
+              ) : (<>
+                {filteredCatalog.length > 200 && !search && (
+                  <div className="flex items-center justify-center py-3 mb-1 rounded-lg bg-muted/30 border border-border/30">
+                    <p className="text-[10px] text-muted-foreground">
+                      {filteredCatalog.length} KPIs — <span className="font-semibold text-foreground">tapez pour rechercher</span> ou filtrez par catégorie/vendor
+                    </p>
+                  </div>
+                )}
+                {(filteredCatalog.length > 200 && !search ? filteredCatalog.slice(0, 200) : filteredCatalog).map(k => {
                   const isSelected = selected.has(k.kpi_key);
                   return (
                     <button
@@ -306,7 +313,12 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                     </button>
                   );
                 })
-              )}
+                {filteredCatalog.length > 200 && !search && (
+                  <div className="text-center py-2 text-[9px] text-muted-foreground">
+                    Affichage limité à 200 — utilisez la recherche pour trouver un KPI spécifique
+                  </div>
+                )}
+              </>)}
             </div>
           </div>
         </div>
