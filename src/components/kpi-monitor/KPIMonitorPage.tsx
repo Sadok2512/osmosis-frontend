@@ -351,8 +351,8 @@ const KPIMonitorInner: React.FC = () => {
     ...validWidgets.map(w => ({
       i: getId(w),
       x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h,
-      minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : w.kind === 'image' ? 2 : w.kind === 'table' ? 4 : 3,
-      minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : w.kind === 'image' ? 2 : w.kind === 'table' ? 3 : 2,
+      minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : w.kind === 'image' ? 2 : w.kind === 'table' ? 4 : w.kind === 'kpicard' ? 2 : 3,
+      minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : w.kind === 'image' ? 2 : w.kind === 'table' ? 3 : w.kind === 'kpicard' ? 2 : 2,
     })),
   ];
 
