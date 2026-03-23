@@ -19,7 +19,7 @@ import KpiSelectorModal from './KpiSelectorModal';
 import CounterSelectorModal from './CounterSelectorModal';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
-import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode } from '../bi/dashboardTypes';
+import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode, WidgetLayout } from '../bi/dashboardTypes';
 import BIChartCardECharts from '../bi/BIChartCardECharts';
 import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/BITextWidget';
 import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../bi/BIImageWidget';
