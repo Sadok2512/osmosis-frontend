@@ -209,63 +209,66 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
               transition: isActive ? 'none' : 'box-shadow 0.2s ease',
             }}
           >
-            {/* Drag handle - full top area */}
-            <div
-              className="absolute inset-x-0 top-0 h-8 cursor-grab active:cursor-grabbing z-20 drag-handle"
-              onMouseDown={e => handleDragStart(e, item.id)}
-            />
+            {editable && (
+              <>
+                {/* Drag handle - full top area */}
+                <div
+                  className="absolute inset-x-0 top-0 h-8 cursor-grab active:cursor-grabbing z-20 drag-handle"
+                  onMouseDown={e => handleDragStart(e, item.id)}
+                />
+              </>
+            )}
 
             {/* Content */}
             <div className="w-full h-full overflow-hidden rounded-xl">
               {child}
             </div>
 
-            {/* Resize corners */}
-            {/* SE */}
-            <div
-              className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
-              onMouseDown={e => handleResizeStart(e, item.id, 'se')}
-            >
-              <div className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-primary/50 rounded-br-sm" />
-            </div>
-            {/* SW */}
-            <div
-              className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
-              onMouseDown={e => handleResizeStart(e, item.id, 'sw')}
-            >
-              <div className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-primary/50 rounded-bl-sm" />
-            </div>
-            {/* NE */}
-            <div
-              className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
-              onMouseDown={e => handleResizeStart(e, item.id, 'ne')}
-            >
-              <div className="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-primary/50 rounded-tr-sm" />
-            </div>
-            {/* NW */}
-            <div
-              className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
-              onMouseDown={e => handleResizeStart(e, item.id, 'nw')}
-            >
-              <div className="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-primary/50 rounded-tl-sm" />
-            </div>
-            {/* Edge resize handles */}
-            <div
-              className="absolute top-4 bottom-4 right-0 w-2 cursor-e-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
-              onMouseDown={e => handleResizeStart(e, item.id, 'e')}
-            />
-            <div
-              className="absolute top-4 bottom-4 left-0 w-2 cursor-w-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
-              onMouseDown={e => handleResizeStart(e, item.id, 'w')}
-            />
-            <div
-              className="absolute left-4 right-4 bottom-0 h-2 cursor-s-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
-              onMouseDown={e => handleResizeStart(e, item.id, 's')}
-            />
-            <div
-              className="absolute left-4 right-4 top-0 h-2 cursor-n-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
-              onMouseDown={e => handleResizeStart(e, item.id, 'n')}
-            />
+            {editable && (
+              <>
+                {/* Resize corners */}
+                <div
+                  className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
+                  onMouseDown={e => handleResizeStart(e, item.id, 'se')}
+                >
+                  <div className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-primary/50 rounded-br-sm" />
+                </div>
+                <div
+                  className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
+                  onMouseDown={e => handleResizeStart(e, item.id, 'sw')}
+                >
+                  <div className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-primary/50 rounded-bl-sm" />
+                </div>
+                <div
+                  className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
+                  onMouseDown={e => handleResizeStart(e, item.id, 'ne')}
+                >
+                  <div className="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-primary/50 rounded-tr-sm" />
+                </div>
+                <div
+                  className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
+                  onMouseDown={e => handleResizeStart(e, item.id, 'nw')}
+                >
+                  <div className="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-primary/50 rounded-tl-sm" />
+                </div>
+                <div
+                  className="absolute top-4 bottom-4 right-0 w-2 cursor-e-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
+                  onMouseDown={e => handleResizeStart(e, item.id, 'e')}
+                />
+                <div
+                  className="absolute top-4 bottom-4 left-0 w-2 cursor-w-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
+                  onMouseDown={e => handleResizeStart(e, item.id, 'w')}
+                />
+                <div
+                  className="absolute left-4 right-4 bottom-0 h-2 cursor-s-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
+                  onMouseDown={e => handleResizeStart(e, item.id, 's')}
+                />
+                <div
+                  className="absolute left-4 right-4 top-0 h-2 cursor-n-resize z-30 opacity-0 group-hover/widget:opacity-100 transition-opacity"
+                  onMouseDown={e => handleResizeStart(e, item.id, 'n')}
+                />
+              </>
+            )}
           </div>
         );
       })}

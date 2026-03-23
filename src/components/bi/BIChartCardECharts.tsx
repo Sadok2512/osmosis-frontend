@@ -109,14 +109,16 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
   const headerContent = (isFs: boolean) => (
     <div className={cn('flex items-center justify-between border-b border-border/40', isFs ? 'px-6 py-4' : 'px-4 py-3')}>
       <div className={cn('flex items-center gap-2 min-w-0 flex-1', !isFs && 'drag-handle cursor-grab active:cursor-grabbing')}>
-        <button
-          onClick={e => { e.stopPropagation(); onEdit(); }}
-          className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-primary transition-colors shrink-0"
-          title="Settings"
-          onMouseDown={stopDrag}
-        >
-          <Settings className="w-4 h-4" />
-        </button>
+        {onEdit && (
+          <button
+            onClick={e => { e.stopPropagation(); onEdit(); }}
+            className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-primary transition-colors shrink-0"
+            title="Settings"
+            onMouseDown={stopDrag}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        )}
         <h3 className={cn('font-semibold text-foreground truncate tracking-tight', isFs ? 'text-sm' : 'text-[13px]')}
           style={config.advanced.headerTextColor ? { color: config.advanced.headerTextColor } : undefined}>
           {titleLabel} <span className="font-normal" style={{ color: config.advanced.headerTextColor || undefined }}>{unitLabel}</span>
