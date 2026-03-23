@@ -114,12 +114,12 @@ const BIKpiCardWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
     )}>
       {/* Edit/Delete actions */}
       {onChange && (
-        <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={() => setEditing(true)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+        <div className="absolute top-2 right-2 z-50 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setEditing(true); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
             <Settings className="w-3 h-3" />
           </button>
           {onDelete && (
-            <button onClick={onDelete} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-destructive">
+            <button onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onDelete(); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-destructive">
               <Trash2 className="w-3 h-3" />
             </button>
           )}
