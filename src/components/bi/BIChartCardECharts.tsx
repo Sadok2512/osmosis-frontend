@@ -108,7 +108,7 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
   /* ── Header ── */
   const headerContent = (isFs: boolean) => (
     <div className={cn('flex items-center justify-between border-b border-border/40', isFs ? 'px-6 py-4' : 'px-4 py-3')}>
-      <div className={cn('flex items-center gap-2 min-w-0 flex-1', !isFs && 'drag-handle cursor-grab active:cursor-grabbing')}>
+      <div className={cn('flex items-center gap-2 min-w-0 flex-1', !isFs && (onEdit || onDuplicate || onDelete) && 'drag-handle cursor-grab active:cursor-grabbing')}>
         {onEdit && (
           <button
             onClick={e => { e.stopPropagation(); onEdit(); }}
