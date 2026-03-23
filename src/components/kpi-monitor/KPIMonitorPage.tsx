@@ -146,16 +146,18 @@ const MainChartResizable: React.FC<{
       onClickCapture={onSelect}
     >
       {children(height)}
-      {/* Resize handle */}
-      <div
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onClick={e => e.stopPropagation()}
-        className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center group z-10 hover:bg-primary/5 transition-colors rounded-b-xl"
-      >
-        <div className="w-12 h-1 rounded-full bg-border group-hover:bg-primary/40 transition-colors" />
-      </div>
+      {/* Resize handle — only in edit mode */}
+      {editMode && (
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onClick={e => e.stopPropagation()}
+          className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center group z-10 hover:bg-primary/5 transition-colors rounded-b-xl"
+        >
+          <div className="w-12 h-1 rounded-full bg-border group-hover:bg-primary/40 transition-colors" />
+        </div>
+      )}
     </div>
   );
 };
