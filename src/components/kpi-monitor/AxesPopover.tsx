@@ -52,14 +52,7 @@ export const AxesCard: React.FC<AxesPopoverProps> = ({ axisConfig: ext, onAxisCo
         <span className="text-[11px] text-muted-foreground">Inverser</span>
         <Switch checked={axis.yInvert} onCheckedChange={v => set({ yInvert: v })} className="h-4 w-7 data-[state=checked]:bg-primary" />
       </div>
-      <div className="pt-2 border-t border-border/30">
-        <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider mb-1.5">Axe X</p>
-        <FieldRow label="Format"><SmallSelect value={axis.xFormat} options={[{ value: 'short', label: 'Court' }, { value: 'full', label: 'Complet' }, { value: 'date', label: 'Date' }, { value: 'datetime', label: 'Date+H' }]} onChange={v => set({ xFormat: v as any })} /></FieldRow>
-        <div className="flex items-center justify-between min-h-[32px]">
-          <span className="text-[11px] text-muted-foreground">Grille V</span>
-          <Switch checked={axis.xShowGrid} onCheckedChange={v => set({ xShowGrid: v })} className="h-4 w-7 data-[state=checked]:bg-primary" />
-        </div>
-      </div>
+      {/* Axe X removed — date controlled from top bar */}
     </div>
   );
 };

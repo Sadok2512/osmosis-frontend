@@ -336,16 +336,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             </FieldRow>
             <SmallToggle label="Inverser" checked={axis.yInvert} onChange={v => setAxisD({ yInvert: v })} />
 
-            <div className="pt-2.5 mt-1 border-t border-border/30">
-              <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-2">Axe X</p>
-              <FieldRow label="Format">
-                <SmallSelect value={axis.xFormat} options={[
-                  { value: 'short', label: 'Court' }, { value: 'full', label: 'Complet' },
-                  { value: 'date', label: 'Date' }, { value: 'datetime', label: 'Date+H' },
-                ]} onChange={v => setAxisD({ xFormat: v as any })} className="w-[80px]" />
-              </FieldRow>
-              <SmallToggle label="Grille V" checked={axis.xShowGrid} onChange={v => setAxisD({ xShowGrid: v })} />
-            </div>
+            {/* Axe X removed — date controlled from top bar */}
           </>)}
         </div>
 
