@@ -106,59 +106,8 @@ const PrintPreviewModal: React.FC<{
   );
 };
 
-/* ── Resizable wrapper for the main KPI chart ── */
-const MainChartResizable: React.FC<{
-  isSelected: boolean;
-  onSelect: () => void;
-  editMode?: boolean;
-  children: (height: number) => React.ReactNode;
-}> = ({ isSelected, onSelect, editMode = false, children }) => {
-  const [height, setHeight] = useState(460);
-  const dragging = useRef(false);
-  const startY = useRef(0);
-  const startH = useRef(460);
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragging.current = true;
-    startY.current = e.clientY;
-    startH.current = height;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging.current) return;
-    const delta = e.clientY - startY.current;
-    setHeight(Math.max(200, Math.min(1200, startH.current + delta)));
-  };
-
-  const onPointerUp = (e: React.PointerEvent) => {
-    dragging.current = false;
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-
-  return (
-    <div
-      className={`mb-4 cursor-pointer transition-all duration-200 rounded-xl relative ${
-        isSelected ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : 'hover:ring-1 hover:ring-border'
-      }`}
-      onClickCapture={onSelect}
-    >
-      {children(height)}
-      {/* Resize handle — always visible so user can resize the main chart */}
-      <div
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onClick={e => e.stopPropagation()}
-        className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center group z-10 hover:bg-primary/5 transition-colors rounded-b-xl"
-      >
-        <div className="w-12 h-1 rounded-full bg-border group-hover:bg-primary/40 transition-colors" />
-      </div>
-    </div>
-  );
-};
+const MAIN_CHART_ID = '__kpi_main__';
+const DEFAULT_MAIN_CHART_LAYOUT = { x: 0, y: 0, w: 12, h: 6 };
 
 const KPIMonitorInner: React.FC = () => {
   const store = useKpiMonitorStore();
