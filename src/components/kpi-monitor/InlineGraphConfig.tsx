@@ -501,7 +501,38 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
           )}
         </div>
 
-      </div>
+        {/* ── SPLIT ── */}
+        <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+          <button onClick={() => setSplitOpen(!splitOpen)} className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
+            {splitOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+            <GitBranch className="w-3.5 h-3.5" />
+            Split
+            {store.splitBy && <span className="ml-auto text-[9px] font-medium text-primary">{store.splitBy}</span>}
+          </button>
+          {splitOpen && (
+            <div className="space-y-2.5">
+              <FieldRow label="Dimension">
+                <SmallSelect
+                  value={store.splitBy || ''}
+                  options={[
+                    { value: '', label: 'Aucun' },
+                    ...SPLIT_OPTIONS.map(s => ({ value: s.value, label: s.label })),
+                  ]}
+                  onChange={v => store.setSplitBy((v || null) as SplitDimension | null)}
+                  className="w-[110px]"
+                />
+              </FieldRow>
+              {store.splitBy && (
+                <>
+                  <FieldRow label="Top N">
+                    <SmallInput type="number" value={String(store.topN)} min="1" max="50"
+                      onChange={e => store.setTopN(Number(e.target.value) || 5)} className="w-[60px]" />
+                  </FieldRow>
+                  <SmallToggle label="Inclure Autres" checked={store.includeOthers} onChange={v => store.setIncludeOthers(v)} />
+                </>
+              )}
+            </div>
+          )}
 
       {/* ─── Footer ─── */}
       <div className="px-5 py-4 border-t border-border/40 bg-card/50">
