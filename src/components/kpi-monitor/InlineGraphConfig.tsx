@@ -472,6 +472,68 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
           </>)}
         </div>
 
+        {/* ── GRID & CALENDAR ── */}
+        <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+          <button onClick={() => setGridCalOpen(!gridCalOpen)} className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
+            {gridCalOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+            <Grid3X3 className="w-3.5 h-3.5" /> Grille & Weekends
+          </button>
+          {gridCalOpen && (
+            <div className="space-y-3">
+              {/* Grid */}
+              <div className="space-y-2">
+                <SmallToggle label="Afficher la grille" checked={gridCfg.enabled} onChange={v => setGridCfg({ enabled: v })} />
+                {gridCfg.enabled && (
+                  <div className="space-y-2 pl-1">
+                    <FieldRow label="Opacité">
+                      <div className="flex items-center gap-1.5">
+                        <Slider min={0} max={100} step={5} value={[gridCfg.opacity]} onValueChange={([v]) => setGridCfg({ opacity: v })} className="w-[80px]" />
+                        <span className="text-[9px] text-muted-foreground w-[28px] text-right">{gridCfg.opacity}%</span>
+                      </div>
+                    </FieldRow>
+                    <FieldRow label="Type">
+                      <SmallSelect value={gridCfg.type} options={[
+                        { value: 'horizontal', label: 'Horizontal' },
+                        { value: 'vertical', label: 'Vertical' },
+                        { value: 'both', label: 'Les deux' },
+                      ]} onChange={v => setGridCfg({ type: v as any })} className="w-[90px]" />
+                    </FieldRow>
+                  </div>
+                )}
+              </div>
+
+              {/* Calendar / Weekends */}
+              <div className="h-px bg-border/40" />
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Weekends</span>
+                </div>
+                <SmallToggle label="Highlight weekends" checked={calCfg.highlightWeekends} onChange={v => setCalCfg({ highlightWeekends: v })} />
+                {calCfg.highlightWeekends && (
+                  <div className="space-y-2 pl-1">
+                    <FieldRow label="Opacité">
+                      <div className="flex items-center gap-1.5">
+                        <Slider min={0} max={50} step={2} value={[calCfg.weekendOpacity]} onValueChange={([v]) => setCalCfg({ weekendOpacity: v })} className="w-[80px]" />
+                        <span className="text-[9px] text-muted-foreground w-[28px] text-right">{calCfg.weekendOpacity}%</span>
+                      </div>
+                    </FieldRow>
+                    <FieldRow label="Couleur">
+                      <div className="flex items-center gap-1">
+                        {['#E5E7EB', '#DBEAFE', '#FEF3C7', '#D1FAE5'].map(c => (
+                          <button key={c} onClick={() => setCalCfg({ weekendColor: c })}
+                            className={cn('w-4 h-4 rounded border transition-all', calCfg.weekendColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border')}
+                            style={{ backgroundColor: c }} />
+                        ))}
+                      </div>
+                    </FieldRow>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* ── FILTERS ── */}
         <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
           <button onClick={() => setMilestoneOpen(!milestoneOpen)} className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
