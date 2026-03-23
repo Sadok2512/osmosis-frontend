@@ -1,7 +1,8 @@
-import React from 'react';
-import { InvestigationState, Dimension, Granularity, SplitOption } from './types';
+import React, { useState, useRef, useEffect } from 'react';
+import { InvestigationState, Dimension, SplitOption } from './types';
 import { KPIS, KPI_MAP } from './mockData';
-import { Search, Filter, Calendar, Layers, GitBranch, Play, X } from 'lucide-react';
+import { Filter, Calendar, X, Plus, ChevronDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Props {
   state: InvestigationState;
@@ -10,143 +11,262 @@ interface Props {
 }
 
 const DIMENSIONS: Dimension[] = ['Cell', 'Site', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
-const GRANULARITIES: Granularity[] = ['Hourly', 'Daily', 'Weekly'];
 const SPLITS: SplitOption[] = ['None', 'Vendor', 'Technology', 'Band', 'DOR', 'DR'];
+const TIME_RANGES = ['Last 24h', 'Last 7 Days', 'Last 14 Days', 'Last 30 Days', 'Custom'];
+const FILTER_DIMENSIONS = ['Vendor', 'Technology', 'Band', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
+const FILTER_VALUES: Record<string, string[]> = {
+  Vendor: ['Ericsson', 'Nokia', 'Huawei'],
+  Technology: ['2G', '3G', '4G', '5G'],
+  Band: ['700', '800', '1800', '2100', '2600', '3500'],
+  DOR: ['DOR Nord', 'DOR Sud', 'DOR Est', 'DOR Ouest', 'DOR IDF'],
+  DR: ['DR Paris', 'DR Lyon', 'DR Marseille', 'DR Bordeaux'],
+  Plaque: ['PQ Nord', 'PQ Sud', 'PQ Est', 'PQ Ouest'],
+  'Zone ARCEP': ['ZTD', 'ZMD', 'AMII', 'RIP'],
+};
 
-const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
-  const toggleKpi = (id: string) => {
-    setState(prev => ({
-      ...prev,
-      selectedKpis: prev.selectedKpis.includes(id)
-        ? prev.selectedKpis.filter(k => k !== id)
-        : [...prev.selectedKpis, id],
-    }));
+/* ── KPI Multi-Select Dropdown ── */
+const KpiDropdown: React.FC<{ selected: string[]; onChange: (ids: string[]) => void }> = ({ selected, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (id: string) => {
+    onChange(selected.includes(id) ? selected.filter(k => k !== id) : [...selected, id]);
   };
 
-  const categories = [...new Set(KPIS.map(k => k.category))];
+  const displayText = selected.length === 0
+    ? 'Select KPIs...'
+    : selected.map(id => KPI_MAP[id]?.label || id).join(', ');
+
+  return (
+    <div ref={ref} className="relative flex-1 min-w-[280px]">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-xs font-medium hover:border-primary/40 transition-colors"
+      >
+        <span className="truncate text-left">{displayText}</span>
+        <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-card border border-border rounded-xl shadow-xl max-h-[320px] overflow-y-auto p-2">
+          {[...new Set(KPIS.map(k => k.category))].map(cat => (
+            <div key={cat} className="mb-2 last:mb-0">
+              <div className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider px-2 py-1">{cat}</div>
+              {KPIS.filter(k => k.category === cat).map(kpi => {
+                const isSelected = selected.includes(kpi.id);
+                return (
+                  <button
+                    key={kpi.id}
+                    onClick={() => toggle(kpi.id)}
+                    className={cn(
+                      'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-all',
+                      isSelected ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/50'
+                    )}
+                  >
+                    <div className={cn(
+                      'w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors',
+                      isSelected ? 'bg-primary border-primary' : 'border-border'
+                    )}>
+                      {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                    </div>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: kpi.color }} />
+                    <span className="truncate">{kpi.label}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">{kpi.unit}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Add Filter Dropdown ── */
+const AddFilterDropdown: React.FC<{
+  existingKeys: string[];
+  onAdd: (dim: string, val: string) => void;
+}> = ({ existingKeys, onAdd }) => {
+  const [open, setOpen] = useState(false);
+  const [selectedDim, setSelectedDim] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSelectedDim(null); } };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => { setOpen(!open); setSelectedDim(null); }}
+        className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+      >
+        <Filter className="w-3 h-3" /> Add Filter
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-xl shadow-xl min-w-[180px] p-1.5">
+          {!selectedDim ? (
+            FILTER_DIMENSIONS.map(dim => (
+              <button
+                key={dim}
+                onClick={() => setSelectedDim(dim)}
+                className="w-full text-left px-3 py-1.5 rounded-md text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
+              >
+                {dim}
+              </button>
+            ))
+          ) : (
+            <>
+              <button onClick={() => setSelectedDim(null)} className="w-full text-left px-3 py-1 text-[10px] text-muted-foreground hover:text-foreground">
+                ← {selectedDim}
+              </button>
+              <div className="border-t border-border/40 mt-1 pt-1">
+                {(FILTER_VALUES[selectedDim] || []).map(val => (
+                  <button
+                    key={val}
+                    onClick={() => { onAdd(selectedDim, val); setOpen(false); setSelectedDim(null); }}
+                    className="w-full text-left px-3 py-1.5 rounded-md text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Main Control Panel ── */
+const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
+  const [timeRange, setTimeRange] = useState('Last 7 Days');
+
+  const addFilter = (dim: string, val: string) => {
+    setState(prev => {
+      const existing = prev.filters[dim] || [];
+      if (existing.includes(val)) return prev;
+      return { ...prev, filters: { ...prev.filters, [dim]: [...existing, val] } };
+    });
+  };
+
+  const removeFilter = (dim: string, val: string) => {
+    setState(prev => {
+      const existing = (prev.filters[dim] || []).filter(v => v !== val);
+      const newFilters = { ...prev.filters };
+      if (existing.length === 0) delete newFilters[dim];
+      else newFilters[dim] = existing;
+      return { ...prev, filters: newFilters };
+    });
+  };
+
+  const filterChips = Object.entries(state.filters).flatMap(([dim, vals]) =>
+    vals.map(val => ({ dim, val }))
+  );
 
   return (
     <div className="border-b border-border bg-card/50 backdrop-blur-sm">
-      <div className="max-w-[1600px] mx-auto px-6 py-4 space-y-4">
-        {/* Row 1: Dimension, Dates, Granularity, Split */}
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-              <Search className="w-3 h-3" /> Dimension
-            </label>
+      {/* Row 1: Main controls */}
+      <div className="max-w-[1600px] mx-auto px-6 py-3">
+        <div className="flex items-end gap-3">
+          {/* Dimension */}
+          <div className="space-y-1 shrink-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Dimension</label>
             <select
               value={state.dimension}
               onChange={e => setState(prev => ({ ...prev, dimension: e.target.value as Dimension }))}
-              className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium"
+              className="px-3 py-2 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-[110px]"
             >
               {DIMENSIONS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-              <Calendar className="w-3 h-3" /> Start
+          {/* KPIs */}
+          <div className="space-y-1 flex-1 min-w-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              KPIs ({state.selectedKpis.length}/{KPIS.length})
             </label>
-            <input
-              type="date"
-              value={state.startDate.slice(0, 10)}
-              onChange={e => setState(prev => ({ ...prev, startDate: e.target.value }))}
-              className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium"
+            <KpiDropdown
+              selected={state.selectedKpis}
+              onChange={ids => setState(prev => ({ ...prev, selectedKpis: ids }))}
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-              <Calendar className="w-3 h-3" /> End
-            </label>
-            <input
-              type="date"
-              value={state.endDate.slice(0, 10)}
-              onChange={e => setState(prev => ({ ...prev, endDate: e.target.value }))}
-              className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-              <Layers className="w-3 h-3" /> Granularity
-            </label>
-            <select
-              value={state.granularity}
-              onChange={e => setState(prev => ({ ...prev, granularity: e.target.value as Granularity }))}
-              className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium"
-            >
-              {GRANULARITIES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-              <GitBranch className="w-3 h-3" /> Split By
-            </label>
+          {/* Split By */}
+          <div className="space-y-1 shrink-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Split By</label>
             <select
               value={state.splitBy}
               onChange={e => setState(prev => ({ ...prev, splitBy: e.target.value as SplitOption }))}
-              className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium"
+              className="px-3 py-2 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-[110px]"
             >
               {SPLITS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Top N</label>
-            <input
-              type="number"
-              value={state.topLimit}
-              min={5}
-              max={50}
-              onChange={e => setState(prev => ({ ...prev, topLimit: Number(e.target.value) }))}
-              className="px-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-16"
-            />
+          {/* Time Range */}
+          <div className="space-y-1 shrink-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Time Range</label>
+            <div className="relative">
+              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <select
+                value={timeRange}
+                onChange={e => setTimeRange(e.target.value)}
+                className="pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-[140px] appearance-none"
+              >
+                {TIME_RANGES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+            </div>
           </div>
 
+          {/* Apply */}
           <button
             onClick={onApply}
-            className="flex items-center gap-2 px-5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
+            className="shrink-0 px-6 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
           >
-            <Play className="w-3.5 h-3.5" /> Apply
+            Appliquer
           </button>
         </div>
+      </div>
 
-        {/* Row 2: KPI Selector */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Filter className="w-3 h-3 text-muted-foreground" />
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">KPIs</span>
-            {state.selectedKpis.length > 0 && (
-              <span className="text-[10px] font-medium text-primary">{state.selectedKpis.length} selected</span>
-            )}
+      {/* Row 2: Filter chips */}
+      <div className="max-w-[1600px] mx-auto px-6 pb-2.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Filter className="w-3 h-3" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Filters:</span>
           </div>
-          <div className="space-y-2">
-            {categories.map(cat => (
-              <div key={cat} className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[9px] font-bold text-muted-foreground/70 uppercase w-20 shrink-0">{cat}</span>
-                {KPIS.filter(k => k.category === cat).map(kpi => {
-                  const isSelected = state.selectedKpis.includes(kpi.id);
-                  return (
-                    <button
-                      key={kpi.id}
-                      onClick={() => toggleKpi(kpi.id)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all border ${
-                        isSelected
-                          ? 'border-primary/40 bg-primary/10 text-primary shadow-sm'
-                          : 'border-border/60 bg-card text-muted-foreground hover:border-border hover:bg-muted/50'
-                      }`}
-                    >
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: kpi.color }} />
-                      {kpi.label}
-                      {isSelected && <X className="w-2.5 h-2.5" />}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+
+          {filterChips.map(({ dim, val }) => (
+            <span
+              key={`${dim}-${val}`}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20"
+            >
+              <span className="text-muted-foreground">{dim}:</span>
+              <span className="font-bold">{val}</span>
+              <button
+                onClick={() => removeFilter(dim, val)}
+                className="ml-0.5 hover:text-destructive transition-colors"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          ))}
+
+          <AddFilterDropdown
+            existingKeys={Object.keys(state.filters)}
+            onAdd={addFilter}
+          />
         </div>
       </div>
     </div>
