@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import { KpiTimeSeriesPoint, KpiCatalogEntry, GraphType } from './types';
 import { KPI_CATALOG_MAP } from './kpiCatalog';
 import { useKpiMonitorStore, Milestone } from '../../stores/kpiMonitorStore';
-import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
+import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold, GridConfig, CalendarConfig, DEFAULT_GRID, DEFAULT_CALENDAR } from './GraphSettingsPanel';
 import { getAxisSideConfig } from './normalizeConfig';
 
 interface Props {
