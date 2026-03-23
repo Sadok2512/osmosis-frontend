@@ -290,7 +290,7 @@ export function useTableQuery(req: TableRequest | null) {
         return await fetchTable(req!);
       } catch (err) {
         console.warn('[useTableQuery] Backend unavailable:', err);
-        return { columns: [], rows: [], total_rows: 0 } as TableResponse;
+        return { rows: [], total: 0, page: 1, page_size: 50 } as TableResponse;
       }
     },
     enabled: !!req && req.kpi_keys.length > 0,
