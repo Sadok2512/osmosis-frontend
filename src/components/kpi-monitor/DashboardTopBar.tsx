@@ -326,9 +326,9 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
         <div className="flex-1" />
 
         {/* RIGHT: Actions */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {editMode && (
-            <div className="flex items-center gap-0 rounded-md border border-border bg-muted/30 p-0.5">
+            <div className="flex items-center gap-0 rounded-lg border border-border bg-muted/30 p-1">
               {[
                 { icon: Plus, label: 'Chart', onClick: onAddChart },
                 { icon: MapIcon, label: 'Map', onClick: onAddMap },
@@ -338,31 +338,31 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
                 { icon: ImageIcon, label: 'Img', onClick: onAddImage },
               ].map(btn => (
                 <button key={btn.label} onClick={btn.onClick}
-                  className="flex items-center gap-0.5 px-2 py-1 rounded text-[10px] font-medium text-muted-foreground hover:bg-card hover:text-foreground transition-all"
-                ><btn.icon className="w-3 h-3" /> {btn.label}</button>
+                  className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-card hover:text-foreground transition-all"
+                ><btn.icon className="w-4 h-4" /> {btn.label}</button>
               ))}
             </div>
           )}
           <button onClick={onToggleEditMode}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
               editMode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
             }`}
           >
-            {editMode ? <><Pencil className="w-3 h-3" /> Edit</> : <><EyeIcon className="w-3 h-3" /> View</>}
+            {editMode ? <><Pencil className="w-4 h-4" /> Edit</> : <><EyeIcon className="w-4 h-4" /> View</>}
           </button>
           <button onClick={onToggleAI}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               showAI ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-primary/10 text-primary hover:bg-primary/20'
             }`}
-          ><Sparkles className="w-3 h-3" /> AI</button>
+          ><Sparkles className="w-4 h-4" /> AI</button>
           {editMode && (
-            <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5">
+            <div className="flex items-center rounded-lg border border-border bg-muted/30 p-1">
               <button onClick={() => layoutMode !== 'grid' && onToggleLayout()}
-                className={`p-1 rounded transition-all ${layoutMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              ><Grid3X3 className="w-3 h-3" /></button>
+                className={`p-1.5 rounded-md transition-all ${layoutMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              ><Grid3X3 className="w-4 h-4" /></button>
               <button onClick={() => layoutMode !== 'free' && onToggleLayout()}
-                className={`p-1 rounded transition-all ${layoutMode === 'free' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              ><Move className="w-3 h-3" /></button>
+                className={`p-1.5 rounded-md transition-all ${layoutMode === 'free' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              ><Move className="w-4 h-4" /></button>
             </div>
           )}
           <DropdownMenu>
