@@ -521,6 +521,7 @@ const KPIMonitorInner: React.FC = () => {
         onCreateNew={handleCreateNew}
         editMode={editMode}
         onToggleEditMode={() => setEditMode(!editMode)}
+        onApplyConfig={() => queryClient.invalidateQueries({ queryKey: ['monitor'] })}
         seriesInfo={{
           total: tsTotalSeries,
           granularity: tsGranularity,

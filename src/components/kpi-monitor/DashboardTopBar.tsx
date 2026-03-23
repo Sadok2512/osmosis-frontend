@@ -226,6 +226,7 @@ interface DashboardTopBarProps {
   editMode: boolean;
   onToggleEditMode: () => void;
   seriesInfo?: { total: number; granularity: string; truncated: boolean };
+  onApplyConfig?: () => void;
 }
 
 const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
@@ -234,7 +235,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
   onAddChart, onAddMap, onAddText, onAddImage, onAddTable,
   layoutMode, onToggleLayout, onCreateNew,
   editMode, onToggleEditMode,
-  seriesInfo,
+  seriesInfo, onApplyConfig,
 }) => {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
@@ -548,7 +549,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           </button>
         )}
         <button
-          onClick={() => toast.success('Configuration appliquée')}
+          onClick={() => { onApplyConfig?.(); toast.success('Configuration appliquée'); }}
           className={cn(CTL_H, 'px-3 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-all flex items-center gap-1 shrink-0')}
         >
           <Check className="w-3 h-3" /> Appliquer
