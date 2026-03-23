@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { KpiSelection, DynamicFilter, SplitDimension, KpiMonitorView, GraphType } from '../components/kpi-monitor/types';
 import { normalizeKpiSelection, getDefaultSeriesColor } from '../components/kpi-monitor/normalizeConfig';
 
