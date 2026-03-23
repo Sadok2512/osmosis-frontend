@@ -523,7 +523,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           ROW 3: Active filter chips — green highlighted
          ══════════════════════════════════════════════ */}
       {(gf.globalFilters.length > 0 || gf.crossFilter) && (
-        <div className="flex items-center gap-2.5 px-4 py-1.5 border-t border-[hsl(160_40%_50%/0.12)] bg-[hsl(160_50%_50%/0.03)]">
+        <div className="flex items-center gap-2.5 px-5 py-2 border-t border-[hsl(160_40%_50%/0.12)] bg-[hsl(160_50%_50%/0.03)] rounded-b-xl">
           <span className="text-[9px] text-[hsl(160_50%_35%)] font-semibold uppercase tracking-wider shrink-0 flex items-center gap-1.5">
             <Filter className="w-3 h-3" />
             Filtres actifs
