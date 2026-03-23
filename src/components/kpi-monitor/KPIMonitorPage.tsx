@@ -107,7 +107,7 @@ const PrintPreviewModal: React.FC<{
 };
 
 const MAIN_CHART_ID = '__kpi_main__';
-const DEFAULT_MAIN_CHART_LAYOUT = { x: 0, y: 0, w: 12, h: 6 };
+const DEFAULT_MAIN_CHART_LAYOUT: WidgetLayout = { x: 0, y: 0, w: 12, h: 6 };
 
 const KPIMonitorInner: React.FC = () => {
   const store = useKpiMonitorStore();
