@@ -271,7 +271,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
          ══════════════════════════════════════════════ */}
       <div className="flex items-center gap-3 px-5 py-2.5">
         {/* LEFT: Identity */}
-        <div className="flex items-center gap-2 min-w-0 shrink-0">
+        <div className="flex items-center gap-3 min-w-0 shrink-0 rounded-lg border border-border/30 bg-muted/20 px-3 py-1.5">
           <BarChart3 className="w-4 h-4 text-primary shrink-0" />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
