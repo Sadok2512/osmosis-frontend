@@ -358,7 +358,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
             <Settings2 className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Graph</span>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Ligne</p>
             <SmallToggle label="Lissage" checked={graph.smooth} onChange={v => setGraph({ smooth: v })} />
             <SmallSelect label="Épaisseur" value={String(graph.lineWidth)} options={[
