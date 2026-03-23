@@ -389,8 +389,8 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
               icon={<Hash className="w-4 h-4" />}
               title="Compteurs"
               badge={selectedCounterCount || 0}
-              open={false}
-              onToggle={() => {}}
+              open={counterOpen}
+              onToggle={() => setCounterOpen(!counterOpen)}
             >
               <button
                 onClick={onOpenCounterSelector}
