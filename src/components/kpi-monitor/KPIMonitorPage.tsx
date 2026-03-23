@@ -14,7 +14,7 @@ import SummaryTilesRow from './SummaryTilesRow';
 import KPIExplainPanel from './KPIExplainPanel';
 import WidgetExplainPanel from './WidgetExplainPanel';
 import EChartsTimeSeries from './EChartsTimeSeries';
-import KPICatalogImport from './KPICatalogImport';
+import KPITableView from './KPITableView';
 import KpiSelectorModal from './KpiSelectorModal';
 import CounterSelectorModal from './CounterSelectorModal';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
