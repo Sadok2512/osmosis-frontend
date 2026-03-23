@@ -1,0 +1,47 @@
+export type Dimension = 'Cell' | 'Site' | 'DOR' | 'DR' | 'Plaque' | 'Zone ARCEP';
+export type Granularity = 'Hourly' | 'Daily' | 'Weekly';
+export type GraphTab = 'TimeSeries' | 'Histogram' | 'Breakdown';
+export type SplitOption = 'None' | 'Vendor' | 'Technology' | 'Band' | 'DOR' | 'DR';
+
+export interface InvestigationState {
+  dimension: Dimension;
+  selectedKpis: string[];
+  splitBy: SplitOption;
+  startDate: string;
+  endDate: string;
+  granularity: Granularity;
+  filters: Record<string, string[]>;
+  topLimit: number;
+  sortBy: string;
+  graphLayout: 1 | 2 | 4;
+  activeGraphTab: GraphTab;
+}
+
+export interface DataPoint {
+  timestamp: string;
+  kpi: string;
+  value: number;
+  splitValue?: string;
+}
+
+export interface WorstElement {
+  id: string;
+  name: string;
+  dimension: string;
+  kpiValues: Record<string, number>;
+  trend: 'up' | 'down' | 'stable';
+  severity: 'critical' | 'warning' | 'ok';
+  region?: string;
+  vendor?: string;
+  technology?: string;
+}
+
+export interface KpiDefinition {
+  id: string;
+  label: string;
+  unit: string;
+  category: string;
+  color: string;
+  thresholds: { warning: number; critical: number };
+  higherIsBetter: boolean;
+}
