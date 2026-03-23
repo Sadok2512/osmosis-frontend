@@ -217,15 +217,12 @@ const KPIMonitorInner: React.FC = () => {
   const [dateRangeSynced, setDateRangeSynced] = useState(false);
   useEffect(() => {
     if (dateRange?.min_date && dateRange?.max_date && !dateRangeSynced) {
+      const minDate = dateRange.min_date.replace(/[T ].*/,'');
       const maxDate = dateRange.max_date.replace(/[T ].*/,'');
-      // Default: last 14 days of available data
-      const maxD = new Date(maxDate);
-      const fromD = new Date(maxD.getTime() - 14 * 86400000);
-      const minDate = fromD.toISOString().slice(0, 10);
       if (minDate && maxDate) {
         globalFilter.setDateRange(minDate, maxDate);
         setDateRangeSynced(true);
-        console.log(`[KPI Monitor] Date range synced: ${minDate} → ${maxDate} (last 14 days)`);
+        console.log(`[KPI Monitor] Date range synced: ${minDate} → ${maxDate}`);
       }
     }
   }, [dateRange, dateRangeSynced]);
