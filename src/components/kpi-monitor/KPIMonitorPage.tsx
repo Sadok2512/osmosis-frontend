@@ -424,10 +424,13 @@ const KPIMonitorInner: React.FC = () => {
 
   const toggleLayoutMode = () => {
     if (layoutMode === 'grid') {
-      setWidgets(prev => prev.map(w => ({
-        ...w,
-        layout: { ...w.layout, freeX: w.layout.freeX ?? w.layout.x * colWidth, freeY: w.layout.freeY ?? w.layout.y * ROW_HEIGHT, freeW: w.layout.freeW ?? w.layout.w * colWidth, freeH: w.layout.freeH ?? w.layout.h * ROW_HEIGHT },
-      })));
+      setWidgets(prev => prev.map(w => {
+        if (!w.layout) return w;
+        return {
+          ...w,
+          layout: { ...w.layout, freeX: w.layout.freeX ?? w.layout.x * colWidth, freeY: w.layout.freeY ?? w.layout.y * ROW_HEIGHT, freeW: w.layout.freeW ?? w.layout.w * colWidth, freeH: w.layout.freeH ?? w.layout.h * ROW_HEIGHT },
+        };
+      }));
       setLayoutMode('free');
     } else {
       setLayoutMode('grid');
