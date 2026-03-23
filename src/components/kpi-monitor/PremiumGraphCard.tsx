@@ -76,7 +76,10 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 drag-handle cursor-grab">
+      <div className={cn(
+        "flex items-center justify-between px-4 py-2.5 border-b border-border/40",
+        onToggleEditMode ? "drag-handle cursor-grab" : ""
+      )}>
         <div className="flex items-center gap-2.5 min-w-0">
           <h3 className="text-[13px] font-semibold text-foreground truncate tracking-tight">{title}</h3>
           {badge && (
@@ -87,7 +90,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
 
         <div className="flex items-center gap-0.5">
-          {/* Edit toggle */}
+          {/* Edit toggle — only when edit callbacks exist */}
           {onToggleEditMode && (
             <button
               onClick={(e) => { e.stopPropagation(); onToggleEditMode(); }}
@@ -104,58 +107,60 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
             </button>
           )}
 
-          {/* ⋯ Actions menu */}
-          <div className={cn('transition-opacity duration-150', isHovered || editMode ? 'opacity-100' : 'opacity-0')}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  onClick={(e) => e.stopPropagation()}
-                  className="p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <MoreHorizontal className="w-3.5 h-3.5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                {onToggleEditMode && (
-                  <DropdownMenuItem onClick={onToggleEditMode} className="gap-2 text-xs">
-                    <Settings className="w-3.5 h-3.5" /> Configure
-                  </DropdownMenuItem>
-                )}
-                {onToggleEditMode && <DropdownMenuSeparator />}
-                {onExportPNG && (
-                  <DropdownMenuItem onClick={onExportPNG} className="gap-2 text-xs">
-                    <Download className="w-3.5 h-3.5" /> Download PNG
-                  </DropdownMenuItem>
-                )}
-                {onExportCSV && (
-                  <DropdownMenuItem onClick={onExportCSV} className="gap-2 text-xs">
-                    <FileSpreadsheet className="w-3.5 h-3.5" /> Export CSV
-                  </DropdownMenuItem>
-                )}
-                {onRefresh && (
-                  <DropdownMenuItem onClick={onRefresh} className="gap-2 text-xs">
-                    <RefreshCw className="w-3.5 h-3.5" /> Refresh
-                  </DropdownMenuItem>
-                )}
-                {onExpand && (
-                  <DropdownMenuItem onClick={onExpand} className="gap-2 text-xs">
-                    <Maximize2 className="w-3.5 h-3.5" /> Fullscreen
-                  </DropdownMenuItem>
-                )}
-                {(onDuplicate || onDelete) && <DropdownMenuSeparator />}
-                {onDuplicate && (
-                  <DropdownMenuItem onClick={onDuplicate} className="gap-2 text-xs">
-                    <Copy className="w-3.5 h-3.5" /> Duplicate
-                  </DropdownMenuItem>
-                )}
-                {onDelete && (
-                  <DropdownMenuItem onClick={onDelete} className="gap-2 text-xs text-destructive focus:text-destructive">
-                    <Trash2 className="w-3.5 h-3.5" /> Remove
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          {/* ⋯ Actions menu — show view-safe items always, edit items only with callbacks */}
+          {(onExportPNG || onExportCSV || onRefresh || onExpand || onDuplicate || onDelete || onToggleEditMode) && (
+            <div className={cn('transition-opacity duration-150', isHovered || editMode ? 'opacity-100' : 'opacity-0')}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <MoreHorizontal className="w-3.5 h-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  {onToggleEditMode && (
+                    <DropdownMenuItem onClick={onToggleEditMode} className="gap-2 text-xs">
+                      <Settings className="w-3.5 h-3.5" /> Configure
+                    </DropdownMenuItem>
+                  )}
+                  {onToggleEditMode && <DropdownMenuSeparator />}
+                  {onExportPNG && (
+                    <DropdownMenuItem onClick={onExportPNG} className="gap-2 text-xs">
+                      <Download className="w-3.5 h-3.5" /> Download PNG
+                    </DropdownMenuItem>
+                  )}
+                  {onExportCSV && (
+                    <DropdownMenuItem onClick={onExportCSV} className="gap-2 text-xs">
+                      <FileSpreadsheet className="w-3.5 h-3.5" /> Export CSV
+                    </DropdownMenuItem>
+                  )}
+                  {onRefresh && (
+                    <DropdownMenuItem onClick={onRefresh} className="gap-2 text-xs">
+                      <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                    </DropdownMenuItem>
+                  )}
+                  {onExpand && (
+                    <DropdownMenuItem onClick={onExpand} className="gap-2 text-xs">
+                      <Maximize2 className="w-3.5 h-3.5" /> Fullscreen
+                    </DropdownMenuItem>
+                  )}
+                  {(onDuplicate || onDelete) && <DropdownMenuSeparator />}
+                  {onDuplicate && (
+                    <DropdownMenuItem onClick={onDuplicate} className="gap-2 text-xs">
+                      <Copy className="w-3.5 h-3.5" /> Duplicate
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && (
+                    <DropdownMenuItem onClick={onDelete} className="gap-2 text-xs text-destructive focus:text-destructive">
+                      <Trash2 className="w-3.5 h-3.5" /> Remove
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </div>
       </div>
 
