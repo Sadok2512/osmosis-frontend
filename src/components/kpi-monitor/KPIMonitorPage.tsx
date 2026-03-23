@@ -571,10 +571,10 @@ const KPIMonitorInner: React.FC = () => {
 
       {/* ── Dashboard Canvas + Right Config Sidebar ── */}
       {(() => {
-        const isEditingMain = store.activeEditingWidgetId === '__kpi_main__';
-        const editingWidgetId = store.activeEditingWidgetId && store.activeEditingWidgetId !== '__kpi_main__' ? store.activeEditingWidgetId : null;
+        const isEditingMain = store.activeEditingWidgetId === MAIN_CHART_ID;
+        const editingWidgetId = store.activeEditingWidgetId && store.activeEditingWidgetId !== MAIN_CHART_ID ? store.activeEditingWidgetId : null;
         const editingWidget = editingWidgetId ? widgets.find(w => getId(w) === editingWidgetId) : null;
-        const isMonoView = !!(isEditingMain || editingWidget);
+        const isMonoView = !!editingWidget;
 
         const closeEdit = () => {
           store.setActiveEditingWidgetId(null);
@@ -588,14 +588,11 @@ const KPIMonitorInner: React.FC = () => {
             ? (editingWidget.config as ChartConfig).title || 'Chart'
             : editingWidgetId || 'Widget';
 
-        const configKey = isEditingMain ? '__kpi_main__' : editingWidgetId!;
+        const configKey = isEditingMain ? MAIN_CHART_ID : editingWidgetId!;
 
         return (
           <div className="flex-1 min-h-0 flex overflow-hidden">
-            {/* ── Main content area ── */}
             <div className="flex-1 overflow-auto flex flex-col min-w-0">
-
-              {/* Mono header bar — only visible during edit */}
               {isMonoView && (
                 <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
                   <button onClick={closeEdit}
@@ -607,13 +604,11 @@ const KPIMonitorInner: React.FC = () => {
                 </div>
               )}
 
-              {/* Canvas area */}
               <div
                 ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }}
                 className="flex-1 overflow-auto p-4"
                 style={canvasBg ? { backgroundColor: canvasBg } : undefined}
               >
-                {/* ── Summary Tiles ── */}
                 {store.selectedKpis.length > 0 && !isMonoView && (
                   <SummaryTilesRow
                     items={summaryItems || []}
@@ -622,49 +617,16 @@ const KPIMonitorInner: React.FC = () => {
                   />
                 )}
 
-                {/* ── Main KPI Chart (always mounted — never destroyed on view switch) ── */}
-                {store.selectedKpis.length > 0 && store.viewMode === 'graph' && (isEditingMain || !isMonoView) && (
-                  <MainChartResizable
-                    isSelected={store.selectedWidgetId === '__kpi_main__'}
-                    onSelect={() => {}}
-                  >
-                    {(chartHeight) => (
-                      <EChartsTimeSeries
-                        data={tsData}
-                        catalogMap={catalogMap}
-                        title={isMonoView ? monoTitle : store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
-                        badge={tsLoading ? 'Loading...' : catalog.length > 0 ? 'Live' : 'Empty'}
-                        granularity={tsGranularity}
-                        height={isMonoView ? 600 : chartHeight}
-                        onRefresh={() => { queryClient.invalidateQueries({ queryKey: ['monitor'] }); refreshCatalog(); }}
-                        onDuplicate={() => {}}
-                        onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
-                        graphConfig={widgetGraphConfigs['__kpi_main__']}
-                        axisConfig={widgetAxisConfigs['__kpi_main__']}
-                        thresholds={widgetThresholds['__kpi_main__']}
-                        thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
-                        editMode={isEditingMain}
-                        onToggleEditMode={editMode ? () => store.setActiveEditingWidgetId('__kpi_main__') : undefined}
-                        onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                        onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                      />
-                    )}
-                  </MainChartResizable>
-                )}
-
-                {/* Table view */}
                 {store.selectedKpis.length > 0 && store.viewMode === 'table' && !isMonoView && (
                   <KPITableView rows={tableRows} />
                 )}
 
-                {/* Editing a BI widget (not main chart) */}
                 {editingWidget && (
                   <div className="h-full min-h-[500px]">
                     {renderWidget(editingWidget)}
                   </div>
                 )}
 
-                {/* ── Dashboard grid/free widgets (hidden during mono edit) ── */}
                 {!isMonoView && (
                   <>
                     {widgets.length === 0 && store.selectedKpis.length === 0 ? (
@@ -685,7 +647,7 @@ const KPIMonitorInner: React.FC = () => {
                           <Plus className="w-5 h-5" /> Sélectionner des KPIs
                         </button>
                       </div>
-                    ) : widgets.length > 0 && layoutMode === 'grid' ? (
+                    ) : layoutMode === 'grid' ? (
                       <GridLayout
                         className="layout"
                         layout={layout}
@@ -699,6 +661,17 @@ const KPIMonitorInner: React.FC = () => {
                         isDraggable={editMode}
                         margin={[12, 12]}
                       >
+                        {hasMainChart && (
+                          <div
+                            key={MAIN_CHART_ID}
+                            onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === MAIN_CHART_ID ? null : MAIN_CHART_ID)}
+                            className={`cursor-pointer transition-all duration-200 rounded-xl ${
+                              store.selectedWidgetId === MAIN_CHART_ID ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                            }`}
+                          >
+                            {renderMainChart(getChartPixelHeight(mainChartLayout.h))}
+                          </div>
+                        )}
                         {validWidgets.map(w => (
                           <div key={getId(w)}
                             onClickCapture={() => {
@@ -711,8 +684,26 @@ const KPIMonitorInner: React.FC = () => {
                           >{renderWidget(w)}</div>
                         ))}
                       </GridLayout>
-                    ) : validWidgets.length > 0 ? (
-                      <FreeLayoutCanvas items={validWidgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
+                    ) : (
+                      <FreeLayoutCanvas
+                        items={[
+                          ...(mainChartRect ? [mainChartRect] : []),
+                          ...validWidgets.map(toFreeRect),
+                        ]}
+                        onLayoutChange={onFreeLayoutChange}
+                        editable={editMode}
+                      >
+                        {mainChartRect && (
+                          <div
+                            key={MAIN_CHART_ID}
+                            className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
+                              store.selectedWidgetId === MAIN_CHART_ID ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                            }`}
+                            onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === MAIN_CHART_ID ? null : MAIN_CHART_ID)}
+                          >
+                            {renderMainChart(Math.max(280, mainChartRect.h - 16))}
+                          </div>
+                        )}
                         {validWidgets.map(w => (
                           <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
                             store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
@@ -721,14 +712,14 @@ const KPIMonitorInner: React.FC = () => {
                           >{renderWidget(w)}</div>
                         ))}
                       </FreeLayoutCanvas>
-                    ) : null}
+                    )}
                   </>
                 )}
               </div>
             </div>
 
             {/* ── Right Config Sidebar — only visible during edit ── */}
-            {isMonoView && (
+            {(isMonoView || isEditingMain) && (
               <HorizontalConfigPanel
                 catalogMap={catalogMap}
                 onOpenKpiSelector={() => setShowKpiSelector(true)}
