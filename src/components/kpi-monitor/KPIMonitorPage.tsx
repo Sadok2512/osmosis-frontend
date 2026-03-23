@@ -392,7 +392,7 @@ const KPIMonitorInner: React.FC = () => {
   const skipLayoutChangeRef = useRef(false);
 
   // Manual double-click tracker (react-grid-layout eats native dblclick)
-  const lastClickRef = useRef<{ id: string; time: number }>({ id: '', time: 0 });
+  const lastClickRef = useRef<{ id: string; time: number; x: number; y: number }>({ id: '', time: 0, x: 0, y: 0 });
   const handleWidgetClick = useCallback((widgetId: string, e: React.MouseEvent, kind?: string) => {
     if (!editMode) return;
     // Selection logic
@@ -401,9 +401,15 @@ const KPIMonitorInner: React.FC = () => {
     } else {
       store.toggleWidgetSelection(widgetId, false);
     }
-    // Double-click detection (300ms window)
+    // Double-click detection (400ms window, within 20px)
     const now = Date.now();
-    if (lastClickRef.current.id === widgetId && now - lastClickRef.current.time < 400) {
+    const dx = Math.abs(e.clientX - lastClickRef.current.x);
+    const dy = Math.abs(e.clientY - lastClickRef.current.y);
+    if (
+      lastClickRef.current.id === widgetId &&
+      now - lastClickRef.current.time < 500 &&
+      dx < 30 && dy < 30
+    ) {
       // Double click detected — open config
       if (kind === 'table') {
         setEditingId(widgetId);
@@ -411,9 +417,9 @@ const KPIMonitorInner: React.FC = () => {
         store.setActiveEditingWidgetId(widgetId);
         setShowAI(false);
       }
-      lastClickRef.current = { id: '', time: 0 };
+      lastClickRef.current = { id: '', time: 0, x: 0, y: 0 };
     } else {
-      lastClickRef.current = { id: widgetId, time: now };
+      lastClickRef.current = { id: widgetId, time: now, x: e.clientX, y: e.clientY };
     }
   }, [editMode, store]);
 
@@ -743,7 +749,7 @@ const KPIMonitorInner: React.FC = () => {
                         {hasMainChart && (
                           <div
                             key={MAIN_CHART_ID}
-                            onClickCapture={(e) => handleWidgetClick(MAIN_CHART_ID, e, 'chart')}
+                            onMouseUpCapture={(e) => { if (e.button === 0) handleWidgetClick(MAIN_CHART_ID, e, 'chart'); }}
                             className={`cursor-pointer transition-all duration-200 rounded-xl ${
                               store.selectedWidgetIds.includes(MAIN_CHART_ID) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
@@ -753,7 +759,7 @@ const KPIMonitorInner: React.FC = () => {
                         )}
                         {validWidgets.map(w => (
                           <div key={getId(w)}
-                            onClickCapture={(e) => handleWidgetClick(getId(w), e, w.kind)}
+                            onMouseUpCapture={(e) => { if (e.button === 0) handleWidgetClick(getId(w), e, w.kind); }}
                             className={`cursor-pointer transition-all duration-200 rounded-xl ${
                               store.selectedWidgetIds.includes(getId(w)) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
@@ -777,7 +783,7 @@ const KPIMonitorInner: React.FC = () => {
                             className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
                               store.selectedWidgetIds.includes(MAIN_CHART_ID) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
-                            onClickCapture={(e) => handleWidgetClick(MAIN_CHART_ID, e, 'chart')}
+                            onMouseUpCapture={(e) => { if (e.button === 0) handleWidgetClick(MAIN_CHART_ID, e, 'chart'); }}
                           >
                             {renderMainChart(Math.max(280, mainChartRect.h - 16))}
                           </div>
@@ -786,7 +792,7 @@ const KPIMonitorInner: React.FC = () => {
                           <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
                             store.selectedWidgetIds.includes(getId(w)) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                           }`}
-                            onClickCapture={(e) => handleWidgetClick(getId(w), e, w.kind)}
+                            onMouseUpCapture={(e) => { if (e.button === 0) handleWidgetClick(getId(w), e, w.kind); }}
                           >{renderWidget(w)}</div>
                         ))}
                       </FreeLayoutCanvas>
