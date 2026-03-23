@@ -402,13 +402,16 @@ const KPIMonitorInner: React.FC = () => {
   };
 
   const colWidth = containerWidth / COLS;
-  const toFreeRect = (w: WidgetItem) => ({
-    id: getId(w),
-    x: w.layout.freeX ?? w.layout.x * colWidth,
-    y: w.layout.freeY ?? w.layout.y * ROW_HEIGHT,
-    w: w.layout.freeW ?? w.layout.w * colWidth,
-    h: w.layout.freeH ?? w.layout.h * ROW_HEIGHT,
-  });
+  const toFreeRect = (w: WidgetItem) => {
+    const layout = w.layout || { x: 0, y: 0, w: 6, h: 4, freeX: undefined, freeY: undefined, freeW: undefined, freeH: undefined };
+    return {
+      id: getId(w),
+      x: layout.freeX ?? layout.x * colWidth,
+      y: layout.freeY ?? layout.y * ROW_HEIGHT,
+      w: layout.freeW ?? layout.w * colWidth,
+      h: layout.freeH ?? layout.h * ROW_HEIGHT,
+    };
+  };
 
   const onFreeLayoutChange = useCallback((id: string, rect: Partial<{ x: number; y: number; w: number; h: number }>) => {
     setWidgets(prev => prev.map(w => {
