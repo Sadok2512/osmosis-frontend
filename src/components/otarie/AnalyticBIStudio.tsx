@@ -514,6 +514,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             <FreeLayoutCanvas
               items={widgets.map(toFreeRect)}
               onLayoutChange={onFreeLayoutChange}
+              editable={isEditMode}
             >
               {widgets.map(w => (
                 <div key={getId(w)} className="w-full h-full">
