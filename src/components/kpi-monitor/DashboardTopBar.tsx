@@ -308,11 +308,15 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
                 className="text-[10px] text-muted-foreground bg-transparent border-none outline-none w-[140px] placeholder:text-muted-foreground/40"
               />
               <button onClick={() => dm.activeTab && dm.toggleShared(dm.activeTab.id)}
-                className="flex items-center gap-0.5 text-[9px] font-semibold hover:bg-muted px-1 py-0.5 rounded transition-colors"
+                className={`inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${
+                  dm.activeTab?.isShared
+                    ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
+                    : 'bg-muted/50 text-muted-foreground border-border/50 hover:bg-muted'
+                }`}
               >
                 {dm.activeTab?.isShared
-                  ? <><Globe className="w-2.5 h-2.5 text-primary" /><span className="text-primary">Public</span></>
-                  : <><Lock className="w-2.5 h-2.5 text-muted-foreground" /><span className="text-muted-foreground">Privé</span></>
+                  ? <><Globe className="w-2.5 h-2.5" /> Public</>
+                  : <><Lock className="w-2.5 h-2.5" /> Privé</>
                 }
               </button>
             </div>
