@@ -131,7 +131,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const setGraph = (u: Partial<WidgetGraphConfig>) => onGraphConfigChange?.({ ...graph, ...u });
 
   const [kpiOpen, setKpiOpen] = useState(true);
-  const [axeOpen, setAxeOpen] = useState(true);
+  const [axeOpen, setAxeOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
   const [seuilOpen, setSeuilOpen] = useState(false);
   const [milestoneOpen, setMilestoneOpen] = useState(false);
