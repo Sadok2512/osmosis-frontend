@@ -23,6 +23,8 @@ interface FreeLayoutCanvasProps {
   children: React.ReactNode;
   allowOverlap?: boolean;
   editable?: boolean;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 /** Collect all edge positions from sibling rects */
@@ -51,13 +53,28 @@ function snapTo(val: number, edges: number[]): { snapped: number; guide: number 
   return best !== null ? { snapped: best, guide: best } : { snapped: val, guide: null };
 }
 
-const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChange, children, allowOverlap = false, editable = true }) => {
+/** Check if two rectangles intersect */
+function rectsIntersect(
+  a: { x: number; y: number; w: number; h: number },
+  b: { x: number; y: number; w: number; h: number },
+) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({
+  items, onLayoutChange, children, allowOverlap = false, editable = true,
+  selectedIds = [], onSelectionChange,
+}) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [guides, setGuides] = useState<GuideLine[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [interactionType, setInteractionType] = useState<'drag' | 'resize' | null>(null);
   const [resizeCorner, setResizeCorner] = useState<string | null>(null);
   const dragStart = useRef<{ mx: number; my: number; rect: FreeRect } | null>(null);
+
+  // Rubber-band (marquee) selection state
+  const [marquee, setMarquee] = useState<{ startX: number; startY: number; x: number; y: number; w: number; h: number } | null>(null);
+  const marqueeStart = useRef<{ mx: number; my: number; scrollLeft: number; scrollTop: number } | null>(null);
 
   const clearGuides = useCallback(() => setGuides([]), []);
 
@@ -84,6 +101,30 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
     setResizeCorner(corner);
   }, [items, editable]);
 
+  // Marquee selection: start on mousedown on empty canvas area
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!editable || !canvasRef.current) return;
+    // Only start marquee on the canvas background itself
+    if (e.target !== canvasRef.current) return;
+    if (e.button !== 0) return;
+
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    const scrollParent = canvasRef.current.closest('.overflow-auto') || canvasRef.current.parentElement;
+    const scrollLeft = scrollParent?.scrollLeft || 0;
+    const scrollTop = scrollParent?.scrollTop || 0;
+    const startX = e.clientX - canvasRect.left + scrollLeft;
+    const startY = e.clientY - canvasRect.top + scrollTop;
+
+    marqueeStart.current = { mx: e.clientX, my: e.clientY, scrollLeft, scrollTop };
+    setMarquee({ startX, startY, x: startX, y: startY, w: 0, h: 0 });
+
+    // Clear selection if not holding Ctrl/Meta
+    if (!e.ctrlKey && !e.metaKey) {
+      onSelectionChange?.([]);
+    }
+  }, [editable, onSelectionChange]);
+
+  // Drag/resize mouse events
   useEffect(() => {
     if (!activeId || !interactionType) return;
 
@@ -99,7 +140,6 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
         let newX = rect.x + dx;
         let newY = rect.y + dy;
 
-        // Snap all edges of the dragged widget
         const leftSnap = snapTo(newX, vEdges);
         const rightSnap = snapTo(newX + rect.w, vEdges);
         const centerXSnap = snapTo(newX + rect.w / 2, vEdges);
@@ -107,17 +147,14 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
         const bottomSnap = snapTo(newY + rect.h, hEdges);
         const centerYSnap = snapTo(newY + rect.h / 2, hEdges);
 
-        // Pick best vertical snap
         if (leftSnap.guide !== null) { newX = leftSnap.snapped; newGuides.push({ orientation: 'v', position: leftSnap.guide }); }
         else if (rightSnap.guide !== null) { newX = rightSnap.snapped - rect.w; newGuides.push({ orientation: 'v', position: rightSnap.guide }); }
         else if (centerXSnap.guide !== null) { newX = centerXSnap.snapped - rect.w / 2; newGuides.push({ orientation: 'v', position: centerXSnap.guide }); }
 
-        // Pick best horizontal snap
         if (topSnap.guide !== null) { newY = topSnap.snapped; newGuides.push({ orientation: 'h', position: topSnap.guide }); }
         else if (bottomSnap.guide !== null) { newY = bottomSnap.snapped - rect.h; newGuides.push({ orientation: 'h', position: bottomSnap.guide }); }
         else if (centerYSnap.guide !== null) { newY = centerYSnap.snapped - rect.h / 2; newGuides.push({ orientation: 'h', position: centerYSnap.guide }); }
 
-        // Clamp to canvas
         const canvas = canvasRef.current!;
         newX = Math.max(0, Math.min(newX, canvas.scrollWidth - rect.w));
         newY = Math.max(0, newY);
@@ -132,7 +169,6 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
         if (corner.includes('w')) { const newW = Math.max(MIN_WIDTH, w - dx); x = x + (w - newW); w = newW; }
         if (corner.includes('n')) { const newH = Math.max(MIN_HEIGHT, h - dy); y = y + (h - newH); h = newH; }
 
-        // Snap resize edges
         if (corner.includes('e')) {
           const rSnap = snapTo(x + w, vEdges);
           if (rSnap.guide !== null) { w = rSnap.snapped - x; newGuides.push({ orientation: 'v', position: rSnap.guide }); }
@@ -164,6 +200,56 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
     };
   }, [activeId, interactionType, resizeCorner, items, onLayoutChange, clearGuides]);
 
+  // Marquee mouse events
+  useEffect(() => {
+    if (!marquee || !marqueeStart.current) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!canvasRef.current || !marqueeStart.current) return;
+      const canvasRect = canvasRef.current.getBoundingClientRect();
+      const scrollParent = canvasRef.current.closest('.overflow-auto') || canvasRef.current.parentElement;
+      const scrollLeft = scrollParent?.scrollLeft || 0;
+      const scrollTop = scrollParent?.scrollTop || 0;
+
+      const currentX = e.clientX - canvasRect.left + scrollLeft;
+      const currentY = e.clientY - canvasRect.top + scrollTop;
+      const { startX, startY } = marquee;
+
+      const x = Math.min(startX, currentX);
+      const y = Math.min(startY, currentY);
+      const w = Math.abs(currentX - startX);
+      const h = Math.abs(currentY - startY);
+
+      setMarquee(prev => prev ? { ...prev, x, y, w, h } : null);
+    };
+
+    const handleMouseUp = () => {
+      if (!marquee || marquee.w < 5 || marquee.h < 5) {
+        setMarquee(null);
+        marqueeStart.current = null;
+        return;
+      }
+
+      // Find all items intersecting the marquee rect
+      const marqueeRect = { x: marquee.x, y: marquee.y, w: marquee.w, h: marquee.h };
+      const intersecting = items.filter(item => rectsIntersect(item, marqueeRect)).map(item => item.id);
+
+      if (intersecting.length > 0) {
+        onSelectionChange?.(intersecting);
+      }
+
+      setMarquee(null);
+      marqueeStart.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [marquee, items, onSelectionChange]);
+
   // Calculate canvas height based on widget positions
   const canvasHeight = Math.max(
     600,
@@ -177,6 +263,7 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
       ref={canvasRef}
       className="relative w-full select-none"
       style={{ minHeight: canvasHeight }}
+      onMouseDown={handleCanvasMouseDown}
     >
       {/* Alignment guides */}
       {guides.map((g, i) => (
@@ -191,16 +278,29 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
         />
       ))}
 
+      {/* Marquee selection rectangle */}
+      {marquee && marquee.w > 3 && marquee.h > 3 && (
+        <div
+          className="absolute z-[60] pointer-events-none border-2 border-primary/50 bg-primary/10 rounded-sm"
+          style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
+        />
+      )}
+
       {/* Widgets */}
       {items.map((item, idx) => {
         const child = childArray[idx];
         if (!child) return null;
         const isActive = activeId === item.id;
+        const isSelected = selectedIds.includes(item.id);
 
         return (
           <div
             key={item.id}
-            className={`absolute group/widget transition-shadow duration-200 ${isActive ? 'z-40 shadow-2xl ring-2 ring-primary/30' : 'z-10 shadow-md hover:shadow-lg'}`}
+            className={`absolute group/widget transition-shadow duration-200 ${
+              isActive ? 'z-40 shadow-2xl ring-2 ring-primary/30' :
+              isSelected ? 'z-30 shadow-lg ring-2 ring-primary/40' :
+              'z-10 shadow-md hover:shadow-lg'
+            }`}
             style={{
               left: item.x,
               top: item.y,
@@ -268,6 +368,13 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
                   onMouseDown={e => handleResizeStart(e, item.id, 'n')}
                 />
               </>
+            )}
+
+            {/* Selection badge */}
+            {isSelected && selectedIds.length > 1 && (
+              <div className="absolute -top-2 -left-2 z-50 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold shadow-sm pointer-events-none">
+                {selectedIds.indexOf(item.id) + 1}
+              </div>
             )}
           </div>
         );
