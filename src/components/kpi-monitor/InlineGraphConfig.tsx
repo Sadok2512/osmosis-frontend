@@ -135,6 +135,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const [graphOpen, setGraphOpen] = useState(false);
   const [seuilOpen, setSeuilOpen] = useState(false);
   const [milestoneOpen, setMilestoneOpen] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(false);
   const [expandedKpi, setExpandedKpi] = useState<string | null>(null);
 
   const [dirty, setDirty] = useState(false);
