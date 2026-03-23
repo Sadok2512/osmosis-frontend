@@ -391,6 +391,32 @@ const KPIMonitorInner: React.FC = () => {
   // Guard: skip layout changes right after returning from mono-edit view
   const skipLayoutChangeRef = useRef(false);
 
+  // Manual double-click tracker (react-grid-layout eats native dblclick)
+  const lastClickRef = useRef<{ id: string; time: number }>({ id: '', time: 0 });
+  const handleWidgetClick = useCallback((widgetId: string, e: React.MouseEvent, kind?: string) => {
+    if (!editMode) return;
+    // Selection logic
+    if (e.ctrlKey || e.metaKey) {
+      store.toggleWidgetSelection(widgetId, true);
+    } else {
+      store.toggleWidgetSelection(widgetId, false);
+    }
+    // Double-click detection (300ms window)
+    const now = Date.now();
+    if (lastClickRef.current.id === widgetId && now - lastClickRef.current.time < 400) {
+      // Double click detected — open config
+      if (kind === 'table') {
+        setEditingId(widgetId);
+      } else {
+        store.setActiveEditingWidgetId(widgetId);
+        setShowAI(false);
+      }
+      lastClickRef.current = { id: '', time: 0 };
+    } else {
+      lastClickRef.current = { id: widgetId, time: now };
+    }
+  }, [editMode, store]);
+
   const onLayoutChange = (newLayout: any[]) => {
     if (skipLayoutChangeRef.current) {
       skipLayoutChangeRef.current = false;
