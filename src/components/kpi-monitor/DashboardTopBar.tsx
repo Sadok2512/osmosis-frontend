@@ -385,66 +385,61 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           ROW 2: Time + Filter controls (wraps if needed)
          ══════════════════════════════════════════════ */}
       <div className="flex items-center gap-1.5 px-4 py-1 border-t border-border/30 flex-wrap">
-        {/* Date range */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button className={cn(CTL_H, 'px-2 rounded-md border border-border/50 bg-background text-[10px] font-medium text-foreground hover:border-primary/40 transition-all flex items-center gap-1')}>
-              <Calendar className="w-3 h-3 text-muted-foreground/50" />
-              <span className="tabular-nums">{fmtShort(gf.dateFrom)}</span>
-              <span className="text-muted-foreground/30">→</span>
-              <span className="tabular-nums">{fmtShort(gf.dateTo)}</span>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-3" align="start" sideOffset={6}>
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Période</p>
-              <div className="flex items-center gap-2">
-                <input type="date" value={gf.dateFrom}
-                  onChange={e => gf.setDateRange(e.target.value, gf.dateTo)}
-                  className="h-[28px] px-2 rounded-md border border-border/50 bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/20"
-                />
-                <span className="text-xs text-muted-foreground/40">→</span>
-                <input type="date" value={gf.dateTo}
-                  onChange={e => gf.setDateRange(gf.dateFrom, e.target.value)}
-                  className="h-[28px] px-2 rounded-md border border-border/50 bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/20"
-                />
-              </div>
+        {/* Date range — both inputs visible */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <div className="flex flex-col gap-0">
+              <span className="text-[9px] text-muted-foreground font-medium leading-tight">Début</span>
+              <input type="date" value={gf.dateFrom}
+                onChange={e => gf.setDateRange(e.target.value, gf.dateTo)}
+                className="h-[28px] px-2 rounded-md border border-border/50 bg-background text-[11px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 tabular-nums w-[130px]"
+              />
             </div>
-          </PopoverContent>
-        </Popover>
-
-        {/* Presets segmented */}
-        <div className={cn('flex items-center rounded-md border border-border/40 bg-muted/30 overflow-hidden shrink-0', CTL_H)}>
-          {PRESETS.map((p, i) => (
-            <button key={p.label} onClick={() => applyPreset(p.days)}
-              className={cn(
-                'px-1.5 text-[9px] font-semibold transition-all h-full',
-                i > 0 && 'border-l border-border/30',
-                'text-muted-foreground hover:bg-primary hover:text-primary-foreground'
-              )}
-            >{p.label}</button>
-          ))}
-          <div className="w-px h-3 bg-border/50" />
-          {WEEK_PRESETS.map(wp => (
-            <button key={wp.label} onClick={() => applyWeekPreset(wp.offset)}
-              className="px-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all h-full border-l border-border/30"
-            >{wp.label}</button>
-          ))}
+            <span className="text-muted-foreground/40 mt-3">→</span>
+            <div className="flex flex-col gap-0">
+              <span className="text-[9px] text-muted-foreground font-medium leading-tight">Fin</span>
+              <input type="date" value={gf.dateTo}
+                onChange={e => gf.setDateRange(gf.dateFrom, e.target.value)}
+                className="h-[28px] px-2 rounded-md border border-border/50 bg-background text-[11px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 tabular-nums w-[130px]"
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Granularity segmented */}
-        <div className={cn('flex items-center rounded-md border border-border/40 bg-muted/30 overflow-hidden shrink-0', CTL_H)}>
-          {GRANULARITIES.map((g, i) => (
-            <button key={g.value} onClick={() => gf.setGranularity(g.value as any)}
-              className={cn(
-                'px-2 text-[9px] font-semibold transition-all h-full',
-                i > 0 && 'border-l border-border/30',
-                gf.granularity === g.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-              )}
-            >{g.label}</button>
-          ))}
+        {/* Presets stacked: period + week + granularity */}
+        <div className="flex flex-col gap-0.5 shrink-0">
+          {/* Period presets row */}
+          <div className="flex items-center rounded-md border border-border/40 bg-muted/30 overflow-hidden h-[22px]">
+            {PRESETS.map((p, i) => (
+              <button key={p.label} onClick={() => applyPreset(p.days)}
+                className={cn(
+                  'px-2 text-[9px] font-semibold transition-all h-full',
+                  i > 0 && 'border-l border-border/30',
+                  'text-muted-foreground hover:bg-primary hover:text-primary-foreground'
+                )}
+              >{p.label}</button>
+            ))}
+            <div className="w-px h-2.5 bg-border/50" />
+            {WEEK_PRESETS.map(wp => (
+              <button key={wp.label} onClick={() => applyWeekPreset(wp.offset)}
+                className="px-2 text-[9px] font-semibold text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all h-full border-l border-border/30"
+              >{wp.label}</button>
+            ))}
+          </div>
+          {/* Granularity row */}
+          <div className="flex items-center rounded-md border border-border/40 bg-muted/30 overflow-hidden h-[22px]">
+            {GRANULARITIES.map((g, i) => (
+              <button key={g.value} onClick={() => gf.setGranularity(g.value as any)}
+                className={cn(
+                  'px-2 text-[9px] font-semibold transition-all h-full flex-1 text-center',
+                  i > 0 && 'border-l border-border/30',
+                  gf.granularity === g.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                )}
+              >{g.label}</button>
+            ))}
+          </div>
         </div>
 
         {/* Milestones */}
