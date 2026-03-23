@@ -159,17 +159,17 @@ const DEFAULT_GRAPH: WidgetGraphConfig = {
 
 /* ── Small input helper ── */
 const SmallInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string }> = ({ label, className, ...props }) => (
-  <div className="flex items-center justify-between gap-1">
-    <span className="text-[9px] text-muted-foreground whitespace-nowrap">{label}</span>
-    <input {...props} className={`px-1.5 py-0.5 rounded border border-border bg-card text-[9px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 ${className || 'w-[60px]'}`} />
+  <div className="flex items-center justify-between gap-2 h-6">
+    <span className="text-[9px] text-muted-foreground whitespace-nowrap min-w-[42px]">{label}</span>
+    <input {...props} className={`px-1.5 py-0 h-5 rounded border border-border/60 bg-card text-[9px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 ${className || 'w-[60px]'}`} />
   </div>
 );
 
 const SmallSelect: React.FC<{ label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void }> = ({ label, value, options, onChange }) => (
-  <div className="flex items-center justify-between gap-1">
-    <span className="text-[9px] text-muted-foreground whitespace-nowrap">{label}</span>
+  <div className="flex items-center justify-between gap-2 h-6">
+    <span className="text-[9px] text-muted-foreground whitespace-nowrap min-w-[42px]">{label}</span>
     <select value={value} onChange={e => onChange(e.target.value)}
-      className="px-1 py-0.5 rounded border border-border bg-card text-[8px] text-foreground outline-none w-[70px]"
+      className="px-1 py-0 h-5 rounded border border-border/60 bg-card text-[8px] text-foreground outline-none w-[70px]"
     >
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -177,7 +177,7 @@ const SmallSelect: React.FC<{ label: string; value: string; options: { value: st
 );
 
 const SmallToggle: React.FC<{ label: string; checked: boolean; onChange: (v: boolean) => void }> = ({ label, checked, onChange }) => (
-  <div className="flex items-center justify-between">
+  <div className="flex items-center justify-between h-6">
     <span className="text-[9px] text-muted-foreground">{label}</span>
     <Switch checked={checked} onCheckedChange={onChange} className="h-3.5 w-7 data-[state=checked]:bg-primary" />
   </div>
@@ -211,22 +211,22 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
   };
 
   return (
-    <div className="border-b border-primary/30 bg-card/80 backdrop-blur-sm animate-in slide-in-from-top-2 duration-200">
+    <div className="border-b border-primary/20 bg-card/90 backdrop-blur-sm animate-in slide-in-from-top-2 duration-200">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/50">
+      <div className="flex items-center justify-between px-3 py-1 border-b border-border/40">
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-5 rounded-full bg-primary" />
+          <div className="w-1 h-4 rounded-full bg-primary" />
           <span className="text-[11px] font-bold text-foreground">{widgetTitle || 'Graph Settings'}</span>
-          <Badge variant="outline" className="text-[8px] h-4 px-1.5">Widget</Badge>
+          <Badge variant="outline" className="text-[7px] h-3.5 px-1">Widget</Badge>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <button className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                 <MoreHorizontal className="w-3.5 h-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem onClick={onExportPNG} className="gap-2 text-xs"><Download className="w-3.5 h-3.5" /> Export PNG</DropdownMenuItem>
               <DropdownMenuItem onClick={onExportCSV} className="gap-2 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" /> Export CSV</DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -236,17 +236,17 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
               <DropdownMenuItem onClick={onDelete} className="gap-2 text-xs text-destructive focus:text-destructive"><Trash2 className="w-3.5 h-3.5" /> Supprimer</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onClose} className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* ── Content: 5 sections ── */}
-      <div className="px-4 py-2.5 flex gap-3 overflow-x-auto">
+      {/* ── Content: compact horizontal sections ── */}
+      <div className="px-3 py-1.5 flex gap-2 overflow-x-auto">
 
         {/* ─── 1: KPI Config ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[260px] flex-1">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-1 min-w-[240px] flex-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <BarChart3 className="w-3 h-3 text-primary" />
@@ -321,12 +321,12 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
         </div>
 
         {/* ─── 2: Axis Configuration ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[180px]">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-0.5 min-w-[165px]">
           <div className="flex items-center gap-1.5">
             <Axis3D className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Axes</span>
           </div>
-          <div className="space-y-1">
+           <div className="space-y-0.5">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Axe Y</p>
             <SmallInput label="Titre" value={axis.yTitle} onChange={e => setAxis({ yTitle: (e.target as HTMLInputElement).value })} className="w-[80px]" />
             <SmallInput label="Min" value={axis.yMin === 'auto' ? '' : String(axis.yMin)} placeholder="Auto"
@@ -342,7 +342,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
             ]} onChange={v => setAxis({ yDecimals: Number(v) })} />
             <SmallToggle label="Inverser" checked={axis.yInvert} onChange={v => setAxis({ yInvert: v })} />
           </div>
-          <div className="space-y-1 pt-1 border-t border-border/40">
+          <div className="space-y-0.5 pt-0.5 border-t border-border/30">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Axe X</p>
             <SmallSelect label="Format" value={axis.xFormat} options={[
               { value: 'short', label: 'Court' }, { value: 'full', label: 'Complet' },
@@ -353,12 +353,12 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
         </div>
 
         {/* ─── 3: Graph Configuration ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[160px]">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-0.5 min-w-[150px]">
           <div className="flex items-center gap-1.5">
             <Settings2 className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Graph</span>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Ligne</p>
             <SmallToggle label="Lissage" checked={graph.smooth} onChange={v => setGraph({ smooth: v })} />
             <SmallSelect label="Épaisseur" value={String(graph.lineWidth)} options={[
@@ -367,14 +367,14 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
             ]} onChange={v => setGraph({ lineWidth: Number(v) })} />
             <SmallToggle label="Symboles" checked={graph.showSymbols} onChange={v => setGraph({ showSymbols: v })} />
           </div>
-          <div className="space-y-1 pt-1 border-t border-border/40">
+          <div className="space-y-0.5 pt-0.5 border-t border-border/30">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Grille</p>
             <SmallSelect label="Intensité" value={graph.gridIntensity} options={[
               { value: 'light', label: 'Light' }, { value: 'medium', label: 'Medium' },
             ]} onChange={v => setGraph({ gridIntensity: v as any })} />
             <SmallToggle label="Grille V" checked={graph.showVerticalGrid} onChange={v => setGraph({ showVerticalGrid: v })} />
           </div>
-          <div className="space-y-1 pt-1 border-t border-border/40">
+          <div className="space-y-0.5 pt-0.5 border-t border-border/30">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Fond</p>
             <div className="flex items-center justify-between">
               <span className="text-[9px] text-muted-foreground">Couleur</span>
@@ -388,7 +388,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
               </div>
             </div>
           </div>
-          <div className="space-y-1 pt-1 border-t border-border/40">
+          <div className="space-y-0.5 pt-0.5 border-t border-border/30">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Légende</p>
             <SmallToggle label="Afficher" checked={graph.showLegend} onChange={v => setGraph({ showLegend: v })} />
             {graph.showLegend && (
@@ -400,50 +400,50 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
         </div>
 
         {/* ─── 4: Grid & Calendar ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[170px]">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-0.5 min-w-[155px]">
           <div className="flex items-center gap-1.5">
             <Grid3X3 className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Grille</span>
           </div>
           <SmallToggle label="Afficher" checked={gridCfg.enabled} onChange={v => setGridCfg({ enabled: v })} />
           {gridCfg.enabled && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[9px] text-muted-foreground whitespace-nowrap">Opacité</span>
-                <div className="flex items-center gap-1.5 flex-1 max-w-[100px]">
+            <div className="space-y-0.5">
+              <div className="flex items-center justify-between gap-1 h-6">
+                <span className="text-[9px] text-muted-foreground whitespace-nowrap min-w-[42px]">Opacité</span>
+                <div className="flex items-center gap-1 flex-1 max-w-[90px]">
                   <Slider min={0} max={100} step={5} value={[gridCfg.opacity]} onValueChange={([v]) => setGridCfg({ opacity: v })} className="flex-1" />
-                  <span className="text-[8px] text-muted-foreground w-[28px] text-right">{gridCfg.opacity}%</span>
+                  <span className="text-[8px] text-muted-foreground w-[24px] text-right">{gridCfg.opacity}%</span>
                 </div>
               </div>
               <SmallSelect label="Type" value={gridCfg.type} options={[
-                { value: 'horizontal', label: 'Horizontal' },
-                { value: 'vertical', label: 'Vertical' },
-                { value: 'both', label: 'Les deux' },
+                { value: 'horizontal', label: 'H' },
+                { value: 'vertical', label: 'V' },
+                { value: 'both', label: 'H+V' },
               ]} onChange={v => setGridCfg({ type: v as any })} />
             </div>
           )}
 
-          <div className="pt-1.5 border-t border-border/40">
-            <div className="flex items-center gap-1.5 mb-1">
+          <div className="pt-0.5 border-t border-border/30">
+            <div className="flex items-center gap-1.5">
               <Calendar className="w-3 h-3 text-primary" />
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Weekends</span>
             </div>
             <SmallToggle label="Highlight" checked={calCfg.highlightWeekends} onChange={v => setCalCfg({ highlightWeekends: v })} />
             {calCfg.highlightWeekends && (
-              <div className="space-y-1.5 mt-1">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[9px] text-muted-foreground whitespace-nowrap">Opacité</span>
-                  <div className="flex items-center gap-1.5 flex-1 max-w-[100px]">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-between gap-1 h-6">
+                  <span className="text-[9px] text-muted-foreground whitespace-nowrap min-w-[42px]">Opacité</span>
+                  <div className="flex items-center gap-1 flex-1 max-w-[90px]">
                     <Slider min={0} max={50} step={2} value={[calCfg.weekendOpacity]} onValueChange={([v]) => setCalCfg({ weekendOpacity: v })} className="flex-1" />
-                    <span className="text-[8px] text-muted-foreground w-[28px] text-right">{calCfg.weekendOpacity}%</span>
+                    <span className="text-[8px] text-muted-foreground w-[24px] text-right">{calCfg.weekendOpacity}%</span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between h-6">
                   <span className="text-[9px] text-muted-foreground">Couleur</span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
                     {['#E5E7EB', '#DBEAFE', '#FEF3C7', '#D1FAE5'].map(c => (
                       <button key={c} onClick={() => setCalCfg({ weekendColor: c })}
-                        className={`w-4 h-4 rounded border transition-all ${calCfg.weekendColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border'}`}
+                        className={`w-3.5 h-3.5 rounded border transition-all ${calCfg.weekendColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border'}`}
                         style={{ backgroundColor: c }} />
                     ))}
                   </div>
@@ -454,16 +454,16 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
         </div>
 
         {/* ─── 4: Levels ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[200px]">
-          <div className="flex items-center gap-1.5 mb-1">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-0.5 min-w-[170px]">
+          <div className="flex items-center gap-1.5">
             <Layers className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Levels</span>
           </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] text-muted-foreground">Primary</span>
+          <div className="space-y-0.5">
+            <div className="flex items-center justify-between h-6">
+              <span className="text-[9px] text-muted-foreground min-w-[42px]">Primary</span>
               <select value={levelsCfg.primary || ''} onChange={e => setLevels({ primary: e.target.value || null })}
-                className="px-2 py-0.5 rounded border border-border bg-card text-[10px] text-foreground outline-none w-[100px]"
+                className="px-1 py-0 h-5 rounded border border-border/60 bg-card text-[9px] text-foreground outline-none w-[90px]"
               >
                 <option value="">Aucun</option>
                 <option value="REGION">Région</option>
@@ -477,11 +477,11 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
                 <option value="ARCEP">Zone ARCEP</option>
               </select>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] text-muted-foreground">Secondary</span>
+            <div className="flex items-center justify-between h-6">
+              <span className="text-[9px] text-muted-foreground min-w-[42px]">Secondary</span>
               <select value={levelsCfg.secondary || ''} onChange={e => setLevels({ secondary: e.target.value || null })}
                 disabled={!levelsCfg.primary}
-                className="px-2 py-0.5 rounded border border-border bg-card text-[10px] text-foreground outline-none w-[100px] disabled:opacity-40"
+                className="px-1 py-0 h-5 rounded border border-border/60 bg-card text-[9px] text-foreground outline-none w-[90px] disabled:opacity-40"
               >
                 <option value="">Aucun</option>
                 <option value="SITE">Site</option>
@@ -496,7 +496,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
         </div>
 
         {/* ─── 5: Seuils Y (Thresholds) ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[200px]">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-0.5 min-w-[180px]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <AlertTriangle className="w-3 h-3 text-primary" />

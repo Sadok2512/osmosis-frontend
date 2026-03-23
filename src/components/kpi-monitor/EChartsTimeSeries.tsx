@@ -5,6 +5,7 @@ import { useKpiMonitorStore, Milestone } from '../../stores/kpiMonitorStore';
 import PremiumGraphCard from './PremiumGraphCard';
 import D3TimeSeries from './D3TimeSeries';
 import { BarChart3 } from 'lucide-react';
+import D3EmptyState from './D3EmptyState';
 import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
 
 interface Props {
@@ -94,14 +95,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
       onGraphConfigChange={onGraphConfigChange}
     >
       {data.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3">
-          <div className="flex flex-col items-center gap-2 text-muted-foreground/50">
-            <BarChart3 className="w-10 h-10 stroke-[1.2]" />
-            <p className="text-xs font-medium">
-              Aucune donnée — ajustez les filtres ou la période
-            </p>
-          </div>
-        </div>
+        <D3EmptyState height={height - 80} gc={gc} />
       ) : (
         <div className="d3-ts-container">
           <D3TimeSeries
