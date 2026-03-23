@@ -396,13 +396,11 @@ const KPIMonitorInner: React.FC = () => {
   const lastClickRef = useRef<{ id: string; time: number; x: number; y: number }>({ id: '', time: 0, x: 0, y: 0 });
   const handleWidgetClick = useCallback((widgetId: string, e: React.MouseEvent, kind?: string) => {
     if (!editMode) return;
-    // Selection logic
     if (e.ctrlKey || e.metaKey) {
       store.toggleWidgetSelection(widgetId, true);
     } else {
       store.toggleWidgetSelection(widgetId, false);
     }
-    // Double-click detection (400ms window, within 20px)
     const now = Date.now();
     const dx = Math.abs(e.clientX - lastClickRef.current.x);
     const dy = Math.abs(e.clientY - lastClickRef.current.y);
@@ -411,13 +409,8 @@ const KPIMonitorInner: React.FC = () => {
       now - lastClickRef.current.time < 500 &&
       dx < 30 && dy < 30
     ) {
-      // Double click detected — open config
-      if (kind === 'table') {
-        setEditingId(widgetId);
-      } else {
-        store.setActiveEditingWidgetId(widgetId);
-        setShowAI(false);
-      }
+      setExplainWidgetId(widgetId);
+      setShowAI(false);
       lastClickRef.current = { id: '', time: 0, x: 0, y: 0 };
     } else {
       lastClickRef.current = { id: widgetId, time: now, x: e.clientX, y: e.clientY };
