@@ -664,7 +664,11 @@ const KPIMonitorInner: React.FC = () => {
 
                 {editingWidget && (
                   <div className="h-full min-h-[500px]">
-                    {renderWidget(editingWidget)}
+                    {editingWidget.kind === 'chart' ? (
+                      renderMainChart(480, monoTitle)
+                    ) : (
+                      renderWidget(editingWidget)
+                    )}
                   </div>
                 )}
 
