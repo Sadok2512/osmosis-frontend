@@ -387,78 +387,66 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
       </div>
 
       {/* ══════════════════════════════════════════════
-          ROW 2: Time + Filter controls (wraps if needed)
+          ROW 2: Time controls + Split + Actions
          ══════════════════════════════════════════════ */}
-      <div className="flex items-center gap-2.5 px-4 py-1.5 border-t border-border/30 flex-wrap">
-        {/* Date range — both inputs visible */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] text-muted-foreground font-medium leading-tight">Début</span>
-              <input type="date" value={gf.dateFrom}
-                onChange={e => gf.setDateRange(e.target.value, gf.dateTo)}
-                className="h-[36px] px-3 rounded-md border border-border/50 bg-background text-[14px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 tabular-nums w-[160px]"
-              />
-            </div>
-            <span className="text-muted-foreground/40 mt-4 text-base">→</span>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] text-muted-foreground font-medium leading-tight">Fin</span>
-              <input type="date" value={gf.dateTo}
-                onChange={e => gf.setDateRange(gf.dateFrom, e.target.value)}
-                className="h-[36px] px-3 rounded-md border border-border/50 bg-background text-[14px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 tabular-nums w-[160px]"
-              />
-            </div>
+      <div className="flex items-end gap-3 px-4 py-2 border-t border-border/20 bg-muted/10">
+        {/* ── A. Date Range ── */}
+        <div className="flex items-end gap-2 shrink-0">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Début</span>
+            <input type="date" value={gf.dateFrom}
+              onChange={e => gf.setDateRange(e.target.value, gf.dateTo)}
+              className="h-[34px] px-3 rounded-lg border border-border/40 bg-background text-[13px] text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 tabular-nums w-[148px] transition-all"
+            />
+          </div>
+          <span className="text-muted-foreground/30 pb-1.5 text-sm font-medium">→</span>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Fin</span>
+            <input type="date" value={gf.dateTo}
+              onChange={e => gf.setDateRange(gf.dateFrom, e.target.value)}
+              className="h-[34px] px-3 rounded-lg border border-border/40 bg-background text-[13px] text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 tabular-nums w-[148px] transition-all"
+            />
           </div>
         </div>
 
-        {/* Period dropdown */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] text-muted-foreground font-medium leading-tight">Période</span>
+        {/* ── B. Time Settings (grouped card) ── */}
+        <div className="rounded-xl border border-border/30 bg-card/60 px-3 py-1.5 shrink-0">
+          <div className="text-[9px] text-muted-foreground/60 font-bold uppercase tracking-widest mb-1">Time Settings</div>
+          <div className="flex items-center gap-2">
             <select
-              onChange={e => {
-                const v = e.target.value;
-                if (v.startsWith('d')) applyPreset(parseInt(v.slice(1)));
-                else if (v.startsWith('w')) applyWeekPreset(parseInt(v.slice(1)));
-              }}
-              className="h-[36px] px-3 rounded-md border border-border/50 bg-background text-[13px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer appearance-none pr-8 w-[150px]"
+              onChange={e => { const v = e.target.value; if (v.startsWith('d')) applyPreset(parseInt(v.slice(1))); else if (v.startsWith('w')) applyWeekPreset(parseInt(v.slice(1))); }}
+              className="h-[30px] px-2.5 rounded-lg border border-border/30 bg-background text-[12px] text-foreground outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer w-[130px] transition-all"
               defaultValue=""
             >
-              <option value="" disabled>Sélectionner...</option>
+              <option value="" disabled>Période...</option>
               <option value="d7">7 jours</option>
               <option value="d14">14 jours</option>
               <option value="d30">30 jours</option>
               <option value="d90">90 jours</option>
-              <option disabled>──────</option>
+              <option disabled>─────</option>
               <option value="w0">Cette semaine</option>
               <option value="w1">Semaine -1</option>
               <option value="w2">Semaine -2</option>
             </select>
-          </div>
-
-          {/* Granularity dropdown */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] text-muted-foreground font-medium leading-tight">Granularité</span>
+            <div className="w-px h-5 bg-border/30" />
             <select
               value={gf.granularity}
               onChange={e => gf.setGranularity(e.target.value as any)}
-              className="h-[36px] px-3 rounded-md border border-border/50 bg-background text-[13px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer appearance-none pr-8 w-[120px]"
+              className="h-[30px] px-2.5 rounded-lg border border-border/30 bg-background text-[12px] text-foreground outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer w-[100px] transition-all"
             >
-              {GRANULARITIES.map(g => (
-                <option key={g.value} value={g.value}>{g.label}</option>
-              ))}
+              {GRANULARITIES.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
             </select>
           </div>
         </div>
 
-        {/* Split By */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] text-muted-foreground font-medium leading-tight">Split</span>
+        {/* ── C. Split Settings (grouped card) ── */}
+        <div className="rounded-xl border border-border/30 bg-card/60 px-3 py-1.5 shrink-0">
+          <div className="text-[9px] text-muted-foreground/60 font-bold uppercase tracking-widest mb-1">Split</div>
+          <div className="flex items-center gap-2">
             <select
               value={store.splitBy || ''}
               onChange={e => store.setSplitBy(e.target.value ? e.target.value as any : null)}
-              className="h-[36px] px-3 rounded-md border border-border/50 bg-background text-[13px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer appearance-none pr-8 w-[120px]"
+              className="h-[30px] px-2.5 rounded-lg border border-border/30 bg-background text-[12px] text-foreground outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer w-[110px] transition-all"
             >
               <option value="">Aucun</option>
               <option value="SITE">Site</option>
@@ -470,80 +458,79 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
               <option value="BAND">Bande</option>
               <option value="ARCEP">Zone ARCEP</option>
             </select>
-          </div>
-          {store.splitBy && (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] text-muted-foreground font-medium leading-tight">Top N</span>
-              <select
-                value={store.topN}
-                onChange={e => store.setTopN(Number(e.target.value))}
-                className="h-[36px] px-3 rounded-md border border-border/50 bg-background text-[13px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer appearance-none pr-8 w-[80px]"
-              >
-                {[3, 5, 10, 15, 20, 50].map(n => <option key={n} value={n}>Top {n}</option>)}
-              </select>
-            </div>
-          )}
-        </div>
-
-        <div className="w-px h-8 bg-border/30 shrink-0" />
-
-        {/* Filter controls */}
-        <div className="flex items-center gap-1 shrink-0">
-          <Filter className="w-3 h-3 text-muted-foreground/40" />
-          <AddFilterButton />
-          {filterCount > 0 && (
-            <span className="text-[9px] font-bold text-primary bg-primary/10 rounded-full px-1.5 py-0 leading-4">{filterCount}</span>
-          )}
-        </div>
-
-        {/* Series info */}
-        {seriesInfo && (
-          <>
-            <span className="text-[8px] text-muted-foreground/40 tabular-nums shrink-0">
-              {seriesInfo.total}s • {seriesInfo.granularity}
-            </span>
-            {seriesInfo.truncated && (
-              <Badge variant="destructive" className="text-[7px] h-3 px-1 py-0">Tronqué</Badge>
+            {store.splitBy && (
+              <>
+                <div className="w-px h-5 bg-border/30" />
+                <select
+                  value={store.topN}
+                  onChange={e => store.setTopN(Number(e.target.value))}
+                  className="h-[30px] px-2.5 rounded-lg border border-border/30 bg-background text-[12px] text-foreground outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer w-[75px] transition-all"
+                >
+                  {[3, 5, 10, 15, 20, 50].map(n => <option key={n} value={n}>Top {n}</option>)}
+                </select>
+              </>
             )}
-          </>
-        )}
+          </div>
+        </div>
 
-        <div className="flex-1 min-w-0" />
+        {/* ── D. Filters + Actions ── */}
+        <div className="flex items-end gap-2 ml-auto shrink-0">
+          {/* Filter trigger */}
+          <div className="flex items-center gap-1.5">
+            <AddFilterButton />
+            {filterCount > 0 && (
+              <span className="text-[10px] font-bold text-primary bg-primary/10 rounded-full px-2 py-0.5">{filterCount}</span>
+            )}
+          </div>
 
-        {/* Reset + Apply aligned right */}
-        {hasActiveFilters && (
+          {/* Series info badge */}
+          {seriesInfo && seriesInfo.total > 0 && (
+            <span className="text-[9px] text-muted-foreground/50 tabular-nums px-2 py-1 rounded-lg bg-muted/30 border border-border/20">
+              {seriesInfo.total}s · {seriesInfo.granularity}
+            </span>
+          )}
+
+          {/* Reset */}
+          {hasActiveFilters && (
+            <button
+              onClick={gf.clearGlobalFilters}
+              className="h-[34px] flex items-center gap-1.5 px-3 rounded-lg border border-border/40 text-[11px] text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/5 transition-all font-medium"
+            >
+              <RotateCcw className="w-3 h-3" /> Reset
+            </button>
+          )}
+
+          {/* Apply */}
           <button
-            onClick={gf.clearGlobalFilters}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors font-medium shrink-0"
+            onClick={() => { onApplyConfig?.(); toast.success('Configuration appliquée'); }}
+            className="h-[34px] flex items-center gap-1.5 px-4 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
           >
-            <RotateCcw className="w-2.5 h-2.5" /> Reset
+            <Check className="w-3.5 h-3.5" /> Appliquer
           </button>
-        )}
-        <button
-          onClick={() => { onApplyConfig?.(); toast.success('Configuration appliquée'); }}
-          className={cn(CTL_H, 'px-3 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-all flex items-center gap-1 shrink-0')}
-        >
-          <Check className="w-3 h-3" /> Appliquer
-        </button>
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════
-          ROW 4: Active filter chips display
+          ROW 3: Active filter chips (dedicated strip)
          ══════════════════════════════════════════════ */}
       {(gf.globalFilters.length > 0 || gf.crossFilter) && (
-        <div className="flex items-center gap-1.5 px-4 py-1 border-t border-border/30 flex-wrap">
-          {gf.globalFilters.map(f => (
-            <FilterChip key={f.id} filter={f} allFilters={gf.globalFilters} />
-          ))}
-          {gf.crossFilter && (
-            <button
-              onClick={() => gf.setCrossFilter(null)}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent/60 text-accent-foreground text-[9px] font-medium hover:bg-accent transition-colors shrink-0"
-            >
-              🔗 {gf.crossFilter.dimension}: {gf.crossFilter.value}
-              <X className="w-2.5 h-2.5" />
-            </button>
-          )}
+        <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border/15 bg-primary/[0.02]">
+          <span className="text-[9px] text-muted-foreground/50 font-semibold uppercase tracking-wider shrink-0">Filtres actifs</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {gf.globalFilters.map(f => (
+              <FilterChip key={f.id} filter={f} allFilters={gf.globalFilters} />
+            ))}
+            {gf.crossFilter && (
+              <button
+                onClick={() => gf.setCrossFilter(null)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-semibold hover:bg-violet-500/20 transition-colors shrink-0"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                {gf.crossFilter.dimension}: {gf.crossFilter.value}
+                <X className="w-3 h-3 ml-0.5" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
