@@ -17,10 +17,10 @@ const InlineMap = lazy(() => import('../otarie/chat-visualizations/InlineMap'));
 type Msg = { role: 'user' | 'assistant'; content: string };
 
 const QUICK_ACTIONS = [
-  { icon: TrendingDown, label: 'Top 10 pires KPIs', prompt: 'Donne-moi les 10 pires valeurs pour les KPIs sélectionnés avec leur tendance' },
-  { icon: BarChart3, label: 'Comparer vendors', prompt: 'Compare les performances des vendors Ericsson vs Nokia sur les KPIs actuels' },
-  { icon: Zap, label: 'Détecter anomalies', prompt: 'Détecte les anomalies et dégradations récentes sur les KPIs sélectionnés' },
-  { icon: FileText, label: 'Résumé exécutif', prompt: 'Génère un résumé exécutif de la performance réseau avec les KPIs affichés' },
+  { icon: TrendingDown, label: 'Analyse des KPIs', prompt: 'Analyse les KPIs sélectionnés avec les données réelles. Identifie les tendances, les valeurs anormales et les sites/cellules les plus dégradés.' },
+  { icon: BarChart3, label: 'Comparer dimensions', prompt: 'Compare les performances par dimension de split actuelle. Identifie les meilleures et pires valeurs avec des chiffres réels.' },
+  { icon: Zap, label: 'Détecter anomalies', prompt: 'Détecte les anomalies dans les données réelles affichées. Identifie les dégradations soudaines, les valeurs hors seuils et les tendances préoccupantes.' },
+  { icon: FileText, label: 'Résumé exécutif', prompt: 'Génère un résumé exécutif de la performance réseau basé sur les données réelles actuelles. Inclus un tableau avec avg/min/max par KPI et les recommandations.' },
 ];
 
 interface KPIMonitorAIPanelProps {
@@ -63,22 +63,93 @@ const KPIMonitorAIPanel: React.FC<KPIMonitorAIPanelProps> = ({ onClose }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  // Build KPI context for the AI
+  // Build KPI context for the AI — includes real data from backend
+  const [dataContext, setDataContext] = useState<string>('');
+
+  // Fetch real data summary when KPIs change
+  useEffect(() => {
+    if (kpiStore.selectedKpis.length === 0) { setDataContext(''); return; }
+    const fetchDataContext = async () => {
+      try {
+        const { fetchSummary, fetchTimeseries } = await import('./api/kpiMonitorApi');
+        const kpiKeys = kpiStore.selectedKpis.map(k => k.kpi_key);
+        const filters = globalFilter.globalFilters
+          .filter(f => f.values.length > 0)
+          .map(f => ({ dimension: f.dimension, op: f.op, values: f.values }));
+
+        // Fetch summary (avg/min/max)
+        const summary = await fetchSummary({
+          date_from: globalFilter.dateFrom,
+          date_to: globalFilter.dateTo,
+          filters,
+          kpi_keys: kpiKeys,
+        });
+
+        // Fetch latest timeseries (last 10 points)
+        const ts = await fetchTimeseries({
+          date_from: globalFilter.dateFrom,
+          date_to: globalFilter.dateTo,
+          granularity: globalFilter.granularity === 'auto' ? '1d' : globalFilter.granularity,
+          filters,
+          selections: kpiKeys.map(k => ({ kpi_key: k })),
+          split_by: kpiStore.splitBy,
+          top_n: kpiStore.topN,
+        });
+
+        let ctx = '\n--- DONNÉES RÉELLES (Backend) ---\n';
+        if (summary && summary.length > 0) {
+          ctx += 'Résumé KPI:\n';
+          summary.forEach((s: any) => {
+            ctx += `  ${s.kpi_key}: avg=${s.value?.toFixed(2) ?? 'N/A'} min=${s.min?.toFixed(2) ?? 'N/A'} max=${s.max?.toFixed(2) ?? 'N/A'} trend=${s.trend_pct != null ? s.trend_pct.toFixed(1) + '%' : 'N/A'} state=${s.threshold_state}\n`;
+          });
+        }
+        if (ts?.series && ts.series.length > 0) {
+          const lastPoints = ts.series.slice(-20);
+          ctx += `\nDerniers points (${ts.meta.granularity_applied}):\n`;
+          lastPoints.forEach((p: any) => {
+            ctx += `  ${p.ts} | ${p.kpi_key} | ${p.split_value} | ${p.value?.toFixed(2)}\n`;
+          });
+          ctx += `Total séries: ${ts.meta.total_series}\n`;
+        }
+        setDataContext(ctx);
+      } catch (e) {
+        setDataContext('\n[Données non disponibles — backend indisponible]\n');
+      }
+    };
+    fetchDataContext();
+  }, [kpiStore.selectedKpis, globalFilter.dateFrom, globalFilter.dateTo, globalFilter.granularity, globalFilter.globalFilters, kpiStore.splitBy, kpiStore.topN]);
+
   const kpiContext = useMemo(() => {
     const filters = globalFilter.globalFilters
       .filter(f => f.values.length > 0)
       .map(f => `${f.dimension} ${f.op} (${f.values.join(', ')})`)
       .join(' AND ');
 
-    return `Contexte KPI Monitor:
+    return `Tu es QORBIT, assistant IA expert en monitoring réseau télécom (4G/5G, Nokia, Ericsson).
+Tu as accès aux données réelles du réseau via le backend KPI Engine.
+
+Contexte KPI Monitor:
 - Période: ${globalFilter.dateFrom} → ${globalFilter.dateTo}
 - Granularité: ${globalFilter.granularity}
-- KPIs sélectionnés: ${kpiStore.selectedKpis.map(k => `${k.kpi_key} (${k.agg})`).join(', ')}
+- KPIs sélectionnés: ${kpiStore.selectedKpis.map(k => k.kpi_key).join(', ') || 'Aucun'}
 - Split by: ${kpiStore.splitBy || 'Aucun'}
 - Top N: ${kpiStore.topN}
 - Filtres actifs: ${filters || 'Aucun'}
-${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimension} = ${globalFilter.crossFilter.value}` : ''}`;
-  }, [globalFilter, kpiStore.selectedKpis, kpiStore.splitBy, kpiStore.topN]);
+${globalFilter.crossFilter ? `- Cross-filter: ${globalFilter.crossFilter.dimension} = ${globalFilter.crossFilter.value}` : ''}
+
+Dimensions disponibles: REGION, DOR, Plaque, Site, Cell, Vendor, Techno, Band, ARCEP, Country
+Tables backend: kpi.fact_kpi_cell_15min (4292 KPIs), fact_counters_15min (PM counters), cm_history_nokia, fm_alarms_nokia, topo_data
+
+${dataContext}
+
+Règles:
+- Réponds toujours en français
+- Base tes analyses sur les DONNÉES RÉELLES ci-dessus, pas des suppositions
+- Si aucune donnée n'est disponible, indique-le clairement
+- Utilise des tableaux markdown pour les comparaisons
+- Propose des actions concrètes (optimisation, escalade, investigation)
+- Si l'utilisateur demande un graphique, suggère les KPIs et filtres à appliquer`;
+  }, [globalFilter, kpiStore.selectedKpis, kpiStore.splitBy, kpiStore.topN, dataContext]);
 
   const streamChat = async (allMessages: Msg[]): Promise<string> => {
     let openrouterKey = '';
