@@ -313,7 +313,6 @@ const KPIMonitorInner: React.FC = () => {
 
   // Explain panel state
   const [explainKpiKey, setExplainKpiKey] = useState<string | null>(null);
-  const [explainWidgetId, setExplainWidgetId] = useState<string | null>(null);
 
   const refreshCatalog = () => {
     queryClient.invalidateQueries({ queryKey: ['monitor', 'catalog'] });

@@ -96,9 +96,9 @@ const WidgetExplainPanel: React.FC<Props> = ({ widget, title, onClose }) => {
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Capabilities</div>
           <div className="flex flex-wrap gap-2">
             <span className="px-2 py-1 rounded-md text-[10px] bg-primary/10 text-primary font-medium">Info</span>
-            {widget.kind === 'chart' && <span className="px-2 py-1 rounded-md text-[10px] bg-violet-500/10 text-violet-500 font-medium">Graph</span>}
-            {widget.kind === 'table' && <span className="px-2 py-1 rounded-md text-[10px] bg-blue-500/10 text-blue-500 font-medium">Table</span>}
-            {widget.kind === 'map' && <span className="px-2 py-1 rounded-md text-[10px] bg-emerald-500/10 text-emerald-500 font-medium">Map</span>}
+            {widget.kind === 'chart' && <span className="px-2 py-1 rounded-md text-[10px] bg-primary/10 text-primary font-medium">Graph</span>}
+            {widget.kind === 'table' && <span className="px-2 py-1 rounded-md text-[10px] bg-secondary text-secondary-foreground font-medium">Table</span>}
+            {widget.kind === 'map' && <span className="px-2 py-1 rounded-md text-[10px] bg-accent text-accent-foreground font-medium">Map</span>}
           </div>
         </div>
       </div>
