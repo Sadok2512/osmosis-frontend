@@ -10,8 +10,9 @@ import {
   TrendingUp, AreaChart, BarChart, Layers2, CircleDot,
   Download, FileSpreadsheet, RefreshCw, Copy, Trash2,
   AlertTriangle, Palette, Check, Axis3D, Settings2,
-  Eye, EyeOff,
+  Eye, EyeOff, Grid3X3, Calendar,
 } from 'lucide-react';
+import { Slider } from '../ui/slider';
 import { toast } from 'sonner';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,

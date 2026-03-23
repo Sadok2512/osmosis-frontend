@@ -441,7 +441,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
                     {selectedSite.cells.slice(0, 6).map((c, i) => (
                       <div key={i} className="flex items-center gap-1.5 py-0.5">
                         <span className="w-2 h-2 rounded-full" style={{ background: c.techno === '5G' ? '#a855f7' : '#3b82f6' }} />
-                        <span className="text-[9px] text-foreground truncate">{c.cell_name}</span>
+                        <span className="text-[9px] text-foreground truncate">{c.cell_id}</span>
                         <span className="text-[8px] text-muted-foreground ml-auto">{c.techno}</span>
                       </div>
                     ))}
