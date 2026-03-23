@@ -171,7 +171,6 @@ const KPIMonitorInner: React.FC = () => {
       const backendMin = dateRange.min_date.replace(/[T ].*/,'');
       const backendMax = dateRange.max_date.replace(/[T ].*/,'');
       if (backendMin && backendMax) {
-        // Check if current dates are outside backend range (stale/default)
         const curFrom = globalFilter.dateFrom;
         const curTo = globalFilter.dateTo;
         const isStale = curFrom < backendMin || curFrom > backendMax || curTo < backendMin || curTo > backendMax;
@@ -183,6 +182,18 @@ const KPIMonitorInner: React.FC = () => {
       }
     }
   }, [dateRange, dateRangeSynced]);
+
+  // Fallback: if date-range endpoint doesn't respond within 3s, allow queries anyway
+  useEffect(() => {
+    if (dateRangeSynced) return;
+    const timer = setTimeout(() => {
+      if (!dateRangeSynced) {
+        console.log('[KPI Monitor] Date range sync timeout — proceeding with current dates');
+        setDateRangeSynced(true);
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [dateRangeSynced]);
   const [editMode, setEditMode] = useState(false);
 
   // Ctrl+A to select all widgets
