@@ -469,6 +469,10 @@ const KPIMonitorInner: React.FC = () => {
     const id = `table_${Date.now()}`;
     setWidgets(prev => [...prev, { kind: 'table', config: createDefaultTableWidget(id), layout: { x: 0, y: getMaxY(), w: 8, h: 4 } }]);
   };
+  const addKpiCard = () => {
+    const id = `kpicard_${Date.now()}`;
+    setWidgets(prev => [...prev, { kind: 'kpicard', config: createDefaultKpiCardWidget(id), layout: { x: 0, y: getMaxY(), w: 3, h: 2 } }]);
+  };
 
   const duplicateWidget = (id: string) => {
     const source = widgets.find(w => getId(w) === id);
@@ -490,6 +494,7 @@ const KPIMonitorInner: React.FC = () => {
   const updateMapConfig = (id: string, config: MapWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'map' ? { ...w, config } : w));
   const updateImageConfig = (id: string, config: ImageWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'image' ? { ...w, config } : w));
   const updateTableConfig = (id: string, config: TableWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'table' ? { ...w, config } : w));
+  const updateKpiCardConfig = (id: string, config: KpiCardWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'kpicard' ? { ...w, config } : w));
 
   const editingTable = validWidgets.find(w => getId(w) === editingId && w.kind === 'table');
 
