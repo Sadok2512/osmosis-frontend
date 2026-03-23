@@ -613,8 +613,8 @@ const KPIMonitorInner: React.FC = () => {
                         granularity={tsGranularity}
                         height={isMonoView ? 600 : chartHeight}
                         onRefresh={() => { queryClient.invalidateQueries({ queryKey: ['monitor'] }); refreshCatalog(); }}
-                        onDuplicate={() => {}}
-                        onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
+                        onDuplicate={editMode ? () => {} : undefined}
+                        onDelete={editMode ? () => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key)) : undefined}
                         graphConfig={widgetGraphConfigs['__kpi_main__']}
                         axisConfig={widgetAxisConfigs['__kpi_main__']}
                         thresholds={widgetThresholds['__kpi_main__']}
