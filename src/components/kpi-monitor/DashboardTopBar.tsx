@@ -343,6 +343,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
               ))}
             </div>
           )}
+          {editMode && <div className="w-px h-6 bg-primary/60 mx-1" />}
           <button onClick={onToggleEditMode}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
               editMode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
