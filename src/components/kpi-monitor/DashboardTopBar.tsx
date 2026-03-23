@@ -336,6 +336,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
                 { icon: Plus, label: 'Chart', onClick: onAddChart },
                 { icon: MapIcon, label: 'Map', onClick: onAddMap },
                 { icon: Table2, label: 'Table', onClick: onAddTable },
+                { icon: Activity, label: 'KPI', onClick: onAddKpiCard },
                 { icon: Type, label: 'Txt', onClick: onAddText },
                 { icon: ImageIcon, label: 'Img', onClick: onAddImage },
               ].map(btn => (
