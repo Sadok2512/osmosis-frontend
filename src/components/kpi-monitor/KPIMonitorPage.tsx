@@ -779,6 +779,7 @@ const KPIMonitorInner: React.FC = () => {
                                 store.toggleWidgetSelection(MAIN_CHART_ID, false);
                               }
                             }}
+                            onDoubleClick={() => { if (editMode) { store.setActiveEditingWidgetId(MAIN_CHART_ID); setShowAI(false); } }}
                           >
                             {renderMainChart(Math.max(280, mainChartRect.h - 16))}
                           </div>
