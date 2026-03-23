@@ -246,7 +246,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
       <div className="px-3 py-1.5 flex gap-2 overflow-x-auto">
 
         {/* ─── 1: KPI Config ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[260px] flex-1">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-1 min-w-[240px] flex-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <BarChart3 className="w-3 h-3 text-primary" />
