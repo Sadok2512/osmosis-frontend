@@ -140,6 +140,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const [kpiOpen, setKpiOpen] = useState(true);
   const [axeOpen, setAxeOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
+  const [gridCalOpen, setGridCalOpen] = useState(false);
   const [seuilOpen, setSeuilOpen] = useState(false);
   const [milestoneOpen, setMilestoneOpen] = useState(false);
   
