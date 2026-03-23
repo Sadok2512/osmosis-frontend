@@ -353,7 +353,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
         </div>
 
         {/* ─── 3: Graph Configuration ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[160px]">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-0.5 min-w-[150px]">
           <div className="flex items-center gap-1.5">
             <Settings2 className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Graph</span>
