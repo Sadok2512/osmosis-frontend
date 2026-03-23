@@ -115,6 +115,22 @@ export const useKpiMonitorStore = create<KpiMonitorState>()(
       selectedWidgetId: null,
       setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
 
+      selectedWidgetIds: [],
+      toggleWidgetSelection: (id, additive = false) => set((s) => {
+        if (additive) {
+          return {
+            selectedWidgetIds: s.selectedWidgetIds.includes(id)
+              ? s.selectedWidgetIds.filter(x => x !== id)
+              : [...s.selectedWidgetIds, id],
+            selectedWidgetId: id,
+          };
+        }
+        return { selectedWidgetIds: [id], selectedWidgetId: id };
+      }),
+      selectAllWidgets: (ids) => set({ selectedWidgetIds: ids, selectedWidgetId: ids[0] || null }),
+      clearWidgetSelection: () => set({ selectedWidgetIds: [], selectedWidgetId: null }),
+      setSelectedWidgetIds: (ids) => set({ selectedWidgetIds: ids }),
+
       activeEditingWidgetId: null,
       setActiveEditingWidgetId: (id) => set({ activeEditingWidgetId: id }),
 
