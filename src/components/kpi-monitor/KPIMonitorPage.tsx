@@ -502,6 +502,7 @@ const KPIMonitorInner: React.FC = () => {
       height={height}
       onRefresh={() => { queryClient.invalidateQueries({ queryKey: ['monitor'] }); refreshCatalog(); }}
       onDelete={editMode ? () => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key)) : undefined}
+      onDuplicate={undefined}
       graphConfig={widgetGraphConfigs[MAIN_CHART_ID]}
       axisConfig={widgetAxisConfigs[MAIN_CHART_ID]}
       thresholds={widgetThresholds[MAIN_CHART_ID]}
