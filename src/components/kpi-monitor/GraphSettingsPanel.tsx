@@ -400,50 +400,50 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
         </div>
 
         {/* ─── 4: Grid & Calendar ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[170px]">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-0.5 min-w-[155px]">
           <div className="flex items-center gap-1.5">
             <Grid3X3 className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Grille</span>
           </div>
           <SmallToggle label="Afficher" checked={gridCfg.enabled} onChange={v => setGridCfg({ enabled: v })} />
           {gridCfg.enabled && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[9px] text-muted-foreground whitespace-nowrap">Opacité</span>
-                <div className="flex items-center gap-1.5 flex-1 max-w-[100px]">
+            <div className="space-y-0.5">
+              <div className="flex items-center justify-between gap-1 h-6">
+                <span className="text-[9px] text-muted-foreground whitespace-nowrap min-w-[42px]">Opacité</span>
+                <div className="flex items-center gap-1 flex-1 max-w-[90px]">
                   <Slider min={0} max={100} step={5} value={[gridCfg.opacity]} onValueChange={([v]) => setGridCfg({ opacity: v })} className="flex-1" />
-                  <span className="text-[8px] text-muted-foreground w-[28px] text-right">{gridCfg.opacity}%</span>
+                  <span className="text-[8px] text-muted-foreground w-[24px] text-right">{gridCfg.opacity}%</span>
                 </div>
               </div>
               <SmallSelect label="Type" value={gridCfg.type} options={[
-                { value: 'horizontal', label: 'Horizontal' },
-                { value: 'vertical', label: 'Vertical' },
-                { value: 'both', label: 'Les deux' },
+                { value: 'horizontal', label: 'H' },
+                { value: 'vertical', label: 'V' },
+                { value: 'both', label: 'H+V' },
               ]} onChange={v => setGridCfg({ type: v as any })} />
             </div>
           )}
 
-          <div className="pt-1.5 border-t border-border/40">
-            <div className="flex items-center gap-1.5 mb-1">
+          <div className="pt-0.5 border-t border-border/30">
+            <div className="flex items-center gap-1.5">
               <Calendar className="w-3 h-3 text-primary" />
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Weekends</span>
             </div>
             <SmallToggle label="Highlight" checked={calCfg.highlightWeekends} onChange={v => setCalCfg({ highlightWeekends: v })} />
             {calCfg.highlightWeekends && (
-              <div className="space-y-1.5 mt-1">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[9px] text-muted-foreground whitespace-nowrap">Opacité</span>
-                  <div className="flex items-center gap-1.5 flex-1 max-w-[100px]">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-between gap-1 h-6">
+                  <span className="text-[9px] text-muted-foreground whitespace-nowrap min-w-[42px]">Opacité</span>
+                  <div className="flex items-center gap-1 flex-1 max-w-[90px]">
                     <Slider min={0} max={50} step={2} value={[calCfg.weekendOpacity]} onValueChange={([v]) => setCalCfg({ weekendOpacity: v })} className="flex-1" />
-                    <span className="text-[8px] text-muted-foreground w-[28px] text-right">{calCfg.weekendOpacity}%</span>
+                    <span className="text-[8px] text-muted-foreground w-[24px] text-right">{calCfg.weekendOpacity}%</span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between h-6">
                   <span className="text-[9px] text-muted-foreground">Couleur</span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
                     {['#E5E7EB', '#DBEAFE', '#FEF3C7', '#D1FAE5'].map(c => (
                       <button key={c} onClick={() => setCalCfg({ weekendColor: c })}
-                        className={`w-4 h-4 rounded border transition-all ${calCfg.weekendColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border'}`}
+                        className={`w-3.5 h-3.5 rounded border transition-all ${calCfg.weekendColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border'}`}
                         style={{ backgroundColor: c }} />
                     ))}
                   </div>
