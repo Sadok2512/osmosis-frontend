@@ -27,6 +27,7 @@ interface Props {
   thresholdsEnabled?: boolean;
   editMode?: boolean;
   onToggleEditMode?: () => void;
+  onInfo?: () => void;
   configPanel?: React.ReactNode;
   bottomPanel?: React.ReactNode;
   onAxisConfigChange?: (c: WidgetAxisConfig) => void;
@@ -38,7 +39,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
   title, badge, granularity, onExportPNG: externalExportPNG,
   onExportCSV, onRefresh, onExpand, onDuplicate, onDelete,
   graphConfig: gc, axisConfig: ac, thresholds: thresholdList, thresholdsEnabled,
-  editMode, onToggleEditMode, configPanel, bottomPanel,
+  editMode, onToggleEditMode, onInfo, configPanel, bottomPanel,
   onAxisConfigChange, onGraphConfigChange,
 }) => {
   const { selectedKpis, milestones: storeMilestones, showMilestones: storeShowMilestones } = useKpiMonitorStore();
@@ -87,6 +88,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
       onDelete={onDelete}
       editMode={editMode}
       onToggleEditMode={onToggleEditMode}
+      onInfo={onInfo}
       configPanel={configPanel}
       bottomPanel={bottomPanel}
       axisConfig={ac}

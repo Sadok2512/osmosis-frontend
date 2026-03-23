@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Download, FileSpreadsheet, RefreshCw, Maximize2,
-  Copy, Trash2, MoreHorizontal, Pencil, PencilOff, Settings,
+  Copy, Trash2, MoreHorizontal, Pencil, PencilOff, Settings, Info,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -24,6 +24,7 @@ interface PremiumGraphCardProps {
   onDuplicate?: () => void;
   onDelete?: () => void;
   onExpand?: () => void;
+  onInfo?: () => void;
   editMode?: boolean;
   onToggleEditMode?: () => void;
   /** Config panel rendered above chart in edit mode (horizontal cards) */
@@ -52,6 +53,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
   onDuplicate,
   onDelete,
   onExpand,
+  onInfo,
   editMode = false,
   onToggleEditMode,
   configPanel,
@@ -90,6 +92,22 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
 
         <div className="flex items-center gap-0.5" onMouseDown={(e) => e.stopPropagation()}>
+          {/* Info button */}
+          {onInfo && (
+            <button
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onInfo(); }}
+              className={cn(
+                'flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-all',
+                'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                isHovered ? 'opacity-100' : 'opacity-0'
+              )}
+            >
+              <Info className="w-3 h-3" />
+              <span className="hidden sm:inline">Info</span>
+            </button>
+          )}
+
           {/* Edit toggle — only when edit callbacks exist */}
           {onToggleEditMode && (
             <button

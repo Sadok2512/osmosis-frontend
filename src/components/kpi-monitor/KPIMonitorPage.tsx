@@ -580,6 +580,7 @@ const KPIMonitorInner: React.FC = () => {
       thresholdsEnabled={widgetThresholdsEnabled[MAIN_CHART_ID]}
       editMode={store.activeEditingWidgetId === MAIN_CHART_ID}
       onToggleEditMode={editMode ? () => store.setActiveEditingWidgetId(MAIN_CHART_ID) : undefined}
+      onInfo={() => { setExplainWidgetId(MAIN_CHART_ID); setShowAI(false); }}
       onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [MAIN_CHART_ID]: c }))}
       onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [MAIN_CHART_ID]: c }))}
     />
