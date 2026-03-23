@@ -16,9 +16,9 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   config: ChartConfig;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
 }
 
 const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete }) => {

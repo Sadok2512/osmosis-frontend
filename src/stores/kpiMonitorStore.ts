@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { KpiSelection, DynamicFilter, SplitDimension, KpiMonitorView, GraphType } from '../components/kpi-monitor/types';
 import { normalizeKpiSelection, getDefaultSeriesColor } from '../components/kpi-monitor/normalizeConfig';
+import type { WidgetLayout } from '../components/bi/dashboardTypes';
 
 export interface Milestone {
   id: string;
@@ -53,6 +54,10 @@ interface KpiMonitorState {
   // Active editing widget (only one at a time — Option A)
   activeEditingWidgetId: string | null;
   setActiveEditingWidgetId: (id: string | null) => void;
+
+  // Main KPI chart layout
+  mainChartLayout: WidgetLayout | null;
+  setMainChartLayout: (layout: WidgetLayout | null) => void;
 }
 
 export const useKpiMonitorStore = create<KpiMonitorState>()(
@@ -105,6 +110,9 @@ export const useKpiMonitorStore = create<KpiMonitorState>()(
 
       activeEditingWidgetId: null,
       setActiveEditingWidgetId: (id) => set({ activeEditingWidgetId: id }),
+
+      mainChartLayout: null,
+      setMainChartLayout: (layout) => set({ mainChartLayout: layout }),
     }),
     {
       name: 'kpi-monitor-store',
@@ -117,6 +125,7 @@ export const useKpiMonitorStore = create<KpiMonitorState>()(
         localFilters: state.localFilters,
         milestones: state.milestones,
         showMilestones: state.showMilestones,
+        mainChartLayout: state.mainChartLayout,
       }),
     }
   )

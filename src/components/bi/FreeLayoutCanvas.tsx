@@ -51,7 +51,7 @@ function snapTo(val: number, edges: number[]): { snapped: number; guide: number 
   return best !== null ? { snapped: best, guide: best } : { snapped: val, guide: null };
 }
 
-const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChange, children, allowOverlap = false }) => {
+const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChange, children, allowOverlap = false, editable = true }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [guides, setGuides] = useState<GuideLine[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
