@@ -127,6 +127,7 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
   const [showSettings, setShowSettings] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(true);
   const dashboardRef = useRef<HTMLDivElement>(null);
 
   const handleExportDashboardPDF = async () => {
