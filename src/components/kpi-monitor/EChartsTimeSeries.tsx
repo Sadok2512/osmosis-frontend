@@ -4,6 +4,7 @@ import { KPI_CATALOG_MAP } from './kpiCatalog';
 import { useKpiMonitorStore, Milestone } from '../../stores/kpiMonitorStore';
 import PremiumGraphCard from './PremiumGraphCard';
 import D3TimeSeries from './D3TimeSeries';
+import { BarChart3 } from 'lucide-react';
 import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
 
 interface Props {
