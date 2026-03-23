@@ -616,7 +616,7 @@ const KPIMonitorInner: React.FC = () => {
                         thresholds={widgetThresholds['__kpi_main__']}
                         thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
                         editMode={isEditingMain}
-                        onToggleEditMode={() => store.setActiveEditingWidgetId('__kpi_main__')}
+                        onToggleEditMode={editMode ? () => store.setActiveEditingWidgetId('__kpi_main__') : undefined}
                         onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
                         onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
                       />
