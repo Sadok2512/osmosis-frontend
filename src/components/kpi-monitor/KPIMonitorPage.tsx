@@ -602,6 +602,7 @@ const KPIMonitorInner: React.FC = () => {
                   <MainChartResizable
                     isSelected={store.selectedWidgetId === '__kpi_main__'}
                     onSelect={() => {}}
+                    editMode={editMode}
                   >
                     {(chartHeight) => (
                       <EChartsTimeSeries
