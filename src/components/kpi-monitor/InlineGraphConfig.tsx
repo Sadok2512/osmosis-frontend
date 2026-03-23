@@ -342,7 +342,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                           <SelectTrigger className="h-6 w-[60px] text-[10px] px-1.5 border-border/30 bg-muted/30 rounded-md">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" className="z-[9999]">
                             {GRAPH_TYPES.map(g => (
                               <SelectItem key={g.value} value={g.value} className="text-[10px]">
                                 <div className="flex items-center gap-1.5"><g.icon className="w-3 h-3" /> {g.label}</div>
