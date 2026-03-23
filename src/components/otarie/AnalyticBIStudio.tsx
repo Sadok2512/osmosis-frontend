@@ -416,6 +416,9 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
             </div>
           )}
 
+          {/* Green divider */}
+          {isEditMode && layoutMode === 'grid' && <div className="w-px h-6 bg-primary/60 mx-1" />}
+
           {/* Edit / View toggle */}
           <button
             onClick={() => { setIsEditMode(!isEditMode); if (!isEditMode) { setEditingId(null); } }}
