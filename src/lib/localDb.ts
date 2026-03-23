@@ -273,7 +273,7 @@ export const topoApi = {
 
     const [cellsData, sitesData] = await Promise.all([
       fetchJson<any>(parserUrl(`/topo/cells?${cellsQs}`)),
-      fetchJson<any>(parserUrl(`/topo/sites?${sitesQs}`)),
+      fetchJson<any>(parserUrl(`/topo/sites?${sitesQs}`)).catch(() => []),
     ]);
 
     const rawCells = Array.isArray(cellsData) ? cellsData : (cellsData.rows || cellsData.cells || []);
