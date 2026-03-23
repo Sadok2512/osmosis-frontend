@@ -388,7 +388,14 @@ const KPIMonitorInner: React.FC = () => {
     })),
   ];
 
+  // Guard: skip layout changes right after returning from mono-edit view
+  const skipLayoutChangeRef = useRef(false);
+
   const onLayoutChange = (newLayout: any[]) => {
+    if (skipLayoutChangeRef.current) {
+      skipLayoutChangeRef.current = false;
+      return;
+    }
     const main = newLayout.find(n => n.i === MAIN_CHART_ID);
     if (main) {
       store.setMainChartLayout({
