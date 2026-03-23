@@ -47,9 +47,16 @@ interface KpiMonitorState {
   updateMilestone: (id: string, updates: Partial<Milestone>) => void;
   removeMilestone: (id: string) => void;
 
-  // Selected widget
+  // Selected widget (single — legacy)
   selectedWidgetId: string | null;
   setSelectedWidgetId: (id: string | null) => void;
+
+  // Multi-select
+  selectedWidgetIds: string[];
+  toggleWidgetSelection: (id: string, additive?: boolean) => void;
+  selectAllWidgets: (ids: string[]) => void;
+  clearWidgetSelection: () => void;
+  setSelectedWidgetIds: (ids: string[]) => void;
 
   // Active editing widget (only one at a time — Option A)
   activeEditingWidgetId: string | null;
