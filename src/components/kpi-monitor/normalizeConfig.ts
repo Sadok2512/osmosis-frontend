@@ -114,6 +114,20 @@ export function normalizeGraphConfig(raw?: Partial<WidgetGraphConfig>): WidgetGr
     transparentBg: raw?.transparentBg ?? true,
     showLegend: raw?.showLegend ?? true,
     legendPosition: raw?.legendPosition || 'top',
+    grid: {
+      enabled: raw?.grid?.enabled ?? true,
+      opacity: raw?.grid?.opacity ?? 20,
+      type: raw?.grid?.type || 'both',
+    },
+    calendar: {
+      highlightWeekends: raw?.calendar?.highlightWeekends ?? true,
+      weekendColor: raw?.calendar?.weekendColor || '#E5E7EB',
+      weekendOpacity: raw?.calendar?.weekendOpacity ?? 10,
+    },
+    levels: {
+      primary: raw?.levels?.primary ?? null,
+      secondary: raw?.levels?.secondary ?? null,
+    },
   };
 }
 

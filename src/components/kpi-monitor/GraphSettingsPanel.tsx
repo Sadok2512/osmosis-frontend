@@ -10,7 +10,7 @@ import {
   TrendingUp, AreaChart, BarChart, Layers2, CircleDot,
   Download, FileSpreadsheet, RefreshCw, Copy, Trash2,
   AlertTriangle, Palette, Check, Axis3D, Settings2,
-  Eye, EyeOff, Grid3X3, Calendar,
+  Eye, EyeOff, Grid3X3, Calendar, Layers,
 } from 'lucide-react';
 import { Slider } from '../ui/slider';
 import { toast } from 'sonner';
@@ -91,6 +91,11 @@ export interface CalendarConfig {
   weekendOpacity: number; // 0-100
 }
 
+export interface LevelsConfig {
+  primary: string | null;
+  secondary: string | null;
+}
+
 export interface WidgetGraphConfig {
   smooth: boolean;
   lineWidth: number;
@@ -103,6 +108,7 @@ export interface WidgetGraphConfig {
   legendPosition: 'top' | 'bottom';
   grid?: GridConfig;
   calendar?: CalendarConfig;
+  levels?: LevelsConfig;
 }
 
 export interface WidgetStyleConfig {
@@ -192,8 +198,10 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
   const setGraph = (updates: Partial<WidgetGraphConfig>) => onGraphConfigChange?.({ ...graph, ...updates });
   const gridCfg = graph.grid || DEFAULT_GRID;
   const calCfg = graph.calendar || DEFAULT_CALENDAR;
+  const levelsCfg = graph.levels || { primary: null, secondary: null };
   const setGridCfg = (u: Partial<GridConfig>) => setGraph({ grid: { ...gridCfg, ...u } });
   const setCalCfg = (u: Partial<CalendarConfig>) => setGraph({ calendar: { ...calCfg, ...u } });
+  const setLevels = (u: Partial<LevelsConfig>) => setGraph({ levels: { ...levelsCfg, ...u } });
 
   const addThreshold = () => {
     onThresholdsChange([
@@ -445,7 +453,49 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
           </div>
         </div>
 
-        {/* ─── 4: Seuils Y (Thresholds) ─── */}
+        {/* ─── 4: Levels ─── */}
+        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[200px]">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Layers className="w-3 h-3 text-primary" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Levels</span>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-muted-foreground">Primary</span>
+              <select value={levelsCfg.primary || ''} onChange={e => setLevels({ primary: e.target.value || null })}
+                className="px-2 py-0.5 rounded border border-border bg-card text-[10px] text-foreground outline-none w-[100px]"
+              >
+                <option value="">Aucun</option>
+                <option value="REGION">Région</option>
+                <option value="DOR">DOR</option>
+                <option value="PLAQUE">Plaque</option>
+                <option value="SITE">Site</option>
+                <option value="CELL">Cellule</option>
+                <option value="VENDOR">Vendor</option>
+                <option value="TECHNO">Techno</option>
+                <option value="BAND">Bande</option>
+                <option value="ARCEP">Zone ARCEP</option>
+              </select>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-muted-foreground">Secondary</span>
+              <select value={levelsCfg.secondary || ''} onChange={e => setLevels({ secondary: e.target.value || null })}
+                disabled={!levelsCfg.primary}
+                className="px-2 py-0.5 rounded border border-border bg-card text-[10px] text-foreground outline-none w-[100px] disabled:opacity-40"
+              >
+                <option value="">Aucun</option>
+                <option value="SITE">Site</option>
+                <option value="CELL">Cellule</option>
+                <option value="PLAQUE">Plaque</option>
+                <option value="VENDOR">Vendor</option>
+                <option value="TECHNO">Techno</option>
+                <option value="BAND">Bande</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── 5: Seuils Y (Thresholds) ─── */}
         <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[200px]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
