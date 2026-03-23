@@ -159,17 +159,17 @@ const DEFAULT_GRAPH: WidgetGraphConfig = {
 
 /* ── Small input helper ── */
 const SmallInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string }> = ({ label, className, ...props }) => (
-  <div className="flex items-center justify-between gap-1">
-    <span className="text-[9px] text-muted-foreground whitespace-nowrap">{label}</span>
-    <input {...props} className={`px-1.5 py-0.5 rounded border border-border bg-card text-[9px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 ${className || 'w-[60px]'}`} />
+  <div className="flex items-center justify-between gap-2 h-6">
+    <span className="text-[9px] text-muted-foreground whitespace-nowrap min-w-[42px]">{label}</span>
+    <input {...props} className={`px-1.5 py-0 h-5 rounded border border-border/60 bg-card text-[9px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 ${className || 'w-[60px]'}`} />
   </div>
 );
 
 const SmallSelect: React.FC<{ label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void }> = ({ label, value, options, onChange }) => (
-  <div className="flex items-center justify-between gap-1">
-    <span className="text-[9px] text-muted-foreground whitespace-nowrap">{label}</span>
+  <div className="flex items-center justify-between gap-2 h-6">
+    <span className="text-[9px] text-muted-foreground whitespace-nowrap min-w-[42px]">{label}</span>
     <select value={value} onChange={e => onChange(e.target.value)}
-      className="px-1 py-0.5 rounded border border-border bg-card text-[8px] text-foreground outline-none w-[70px]"
+      className="px-1 py-0 h-5 rounded border border-border/60 bg-card text-[8px] text-foreground outline-none w-[70px]"
     >
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -177,7 +177,7 @@ const SmallSelect: React.FC<{ label: string; value: string; options: { value: st
 );
 
 const SmallToggle: React.FC<{ label: string; checked: boolean; onChange: (v: boolean) => void }> = ({ label, checked, onChange }) => (
-  <div className="flex items-center justify-between">
+  <div className="flex items-center justify-between h-6">
     <span className="text-[9px] text-muted-foreground">{label}</span>
     <Switch checked={checked} onCheckedChange={onChange} className="h-3.5 w-7 data-[state=checked]:bg-primary" />
   </div>
