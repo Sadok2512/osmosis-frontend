@@ -374,7 +374,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
             ]} onChange={v => setGraph({ gridIntensity: v as any })} />
             <SmallToggle label="Grille V" checked={graph.showVerticalGrid} onChange={v => setGraph({ showVerticalGrid: v })} />
           </div>
-          <div className="space-y-1 pt-1 border-t border-border/40">
+          <div className="space-y-0.5 pt-0.5 border-t border-border/30">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Fond</p>
             <div className="flex items-center justify-between">
               <span className="text-[9px] text-muted-foreground">Couleur</span>
