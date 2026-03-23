@@ -12,9 +12,9 @@ import { KpiCatalogEntry, SplitDimension } from './types';
 import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, useCounterCatalog, useDateRange, type TimeseriesRequest, type MonitorFilter, type MonitorKpiCatalogEntry } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
 import KPIExplainPanel from './KPIExplainPanel';
+import WidgetExplainPanel from './WidgetExplainPanel';
 import EChartsTimeSeries from './EChartsTimeSeries';
 import KPITableView from './KPITableView';
-import KPICatalogImport from './KPICatalogImport';
 import KpiSelectorModal from './KpiSelectorModal';
 import CounterSelectorModal from './CounterSelectorModal';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
@@ -151,6 +151,7 @@ const KPIMonitorInner: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAI, setShowAI] = useState(false);
   const [containerWidth, setContainerWidth] = useState(1200);
+  const [explainWidgetId, setExplainWidgetId] = useState<string | null>(null);
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [newDashName, setNewDashName] = useState('');
   const [showCSVPanel, setShowCSVPanel] = useState(false);
@@ -395,13 +396,11 @@ const KPIMonitorInner: React.FC = () => {
   const lastClickRef = useRef<{ id: string; time: number; x: number; y: number }>({ id: '', time: 0, x: 0, y: 0 });
   const handleWidgetClick = useCallback((widgetId: string, e: React.MouseEvent, kind?: string) => {
     if (!editMode) return;
-    // Selection logic
     if (e.ctrlKey || e.metaKey) {
       store.toggleWidgetSelection(widgetId, true);
     } else {
       store.toggleWidgetSelection(widgetId, false);
     }
-    // Double-click detection (400ms window, within 20px)
     const now = Date.now();
     const dx = Math.abs(e.clientX - lastClickRef.current.x);
     const dy = Math.abs(e.clientY - lastClickRef.current.y);
@@ -410,13 +409,8 @@ const KPIMonitorInner: React.FC = () => {
       now - lastClickRef.current.time < 500 &&
       dx < 30 && dy < 30
     ) {
-      // Double click detected — open config
-      if (kind === 'table') {
-        setEditingId(widgetId);
-      } else {
-        store.setActiveEditingWidgetId(widgetId);
-        setShowAI(false);
-      }
+      setExplainWidgetId(widgetId);
+      setShowAI(false);
       lastClickRef.current = { id: '', time: 0, x: 0, y: 0 };
     } else {
       lastClickRef.current = { id: widgetId, time: now, x: e.clientX, y: e.clientY };
@@ -660,6 +654,7 @@ const KPIMonitorInner: React.FC = () => {
           skipLayoutChangeRef.current = true;
           store.setActiveEditingWidgetId(null);
           store.clearWidgetSelection();
+          setExplainWidgetId(null);
           toast({ title: 'Configuration appliquée', description: 'Retour au dashboard.' });
         };
 
@@ -883,6 +878,15 @@ const KPIMonitorInner: React.FC = () => {
       {/* ── KPI Explain Panel ── */}
       {explainKpiKey && (
         <KPIExplainPanel kpiKey={explainKpiKey} onClose={() => setExplainKpiKey(null)} />
+      )}
+
+      {/* ── Widget Explain Panel ── */}
+      {explainWidgetId && (
+        <WidgetExplainPanel
+          widget={explainWidgetId === MAIN_CHART_ID ? ({ kind: 'chart', config: { id: MAIN_CHART_ID, title: store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / '), description: '', xAxis: { type: 'date', value: 'date', granularity: globalFilter.granularity }, yMetrics: store.selectedKpis.map(k => ({ kpi: k.kpi_key, aggregation: 'AVG', axis: k.axis, chartType: k.graphType || 'line', color: 'hsl(var(--primary))', showMovingAvg: false, smoothCurve: true })), filters: [], groupBy: store.splitBy ? [store.splitBy as any] : [], advanced: { thresholds: [], milestones: [], highlightAnomalies: false, sortByValue: false, topN: store.topN, showLegend: true, legendPosition: 'bottom', backgroundColor: '', headerTextColor: '', showGrid: true, yAxisMode: 'auto', yAxisMin: null, yAxisMax: null } }, layout: store.mainChartLayout || DEFAULT_MAIN_CHART_LAYOUT } as any) : (widgets.find(w => getId(w) === explainWidgetId) || null)}
+          title={explainWidgetId === MAIN_CHART_ID ? 'Main Graph' : undefined}
+          onClose={() => setExplainWidgetId(null)}
+        />
       )}
 
       {/* ── AI Floating Modal ── */}
