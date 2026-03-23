@@ -286,7 +286,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
                 />
               ) : (
                 <h1
-                  className="text-sm font-bold cursor-pointer hover:text-primary transition-colors truncate max-w-[240px]"
+                  className="text-base font-bold cursor-pointer hover:text-primary transition-colors truncate max-w-[280px]"
                   style={{ color: currentSettings.theme.titleTextColor || undefined }}
                   onClick={startEditName}
                   title="Cliquez pour renommer"
