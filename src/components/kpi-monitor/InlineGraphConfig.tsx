@@ -572,8 +572,9 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                   <FieldRow label="Couleur">
                     <div className="flex items-center gap-1.5">
                       {['#E5E7EB', '#DBEAFE', '#FEF3C7', '#D1FAE5'].map(c => (
-                        <button key={c} onClick={() => setCalCfg({ weekendColor: c })}
-                          className={cn('w-5 h-5 rounded-md border transition-all', calCfg.weekendColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border/40')}
+                        <button type="button" key={c}
+                          onClick={(e) => { e.stopPropagation(); setCalCfg({ weekendColor: c }); }}
+                          className={cn('w-6 h-6 rounded-md border-2 transition-all cursor-pointer', calCfg.weekendColor === c ? 'ring-2 ring-primary ring-offset-1 border-primary' : 'border-border/40 hover:border-border')}
                           style={{ backgroundColor: c }} />
                       ))}
                     </div>
