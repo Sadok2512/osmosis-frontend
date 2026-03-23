@@ -76,7 +76,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* ── Header ── */}
-      <div className={cn("flex items-center justify-between px-4 py-2.5 border-b border-border/40", editMode && "drag-handle cursor-grab")}>
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 drag-handle cursor-grab">
         <div className="flex items-center gap-2.5 min-w-0">
           <h3 className="text-[13px] font-semibold text-foreground truncate tracking-tight">{title}</h3>
           {badge && (

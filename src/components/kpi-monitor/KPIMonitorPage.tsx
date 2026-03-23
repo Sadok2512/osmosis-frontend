@@ -146,18 +146,16 @@ const MainChartResizable: React.FC<{
       onClickCapture={onSelect}
     >
       {children(height)}
-      {/* Resize handle — only in edit mode */}
-      {editMode && (
-        <div
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onClick={e => e.stopPropagation()}
-          className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center group z-10 hover:bg-primary/5 transition-colors rounded-b-xl"
-        >
-          <div className="w-12 h-1 rounded-full bg-border group-hover:bg-primary/40 transition-colors" />
-        </div>
-      )}
+      {/* Resize handle — always visible so user can resize the main chart */}
+      <div
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onClick={e => e.stopPropagation()}
+        className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center group z-10 hover:bg-primary/5 transition-colors rounded-b-xl"
+      >
+        <div className="w-12 h-1 rounded-full bg-border group-hover:bg-primary/40 transition-colors" />
+      </div>
     </div>
   );
 };
@@ -602,7 +600,6 @@ const KPIMonitorInner: React.FC = () => {
                   <MainChartResizable
                     isSelected={store.selectedWidgetId === '__kpi_main__'}
                     onSelect={() => {}}
-                    editMode={editMode}
                   >
                     {(chartHeight) => (
                       <EChartsTimeSeries
@@ -613,8 +610,8 @@ const KPIMonitorInner: React.FC = () => {
                         granularity={tsGranularity}
                         height={isMonoView ? 600 : chartHeight}
                         onRefresh={() => { queryClient.invalidateQueries({ queryKey: ['monitor'] }); refreshCatalog(); }}
-                        onDuplicate={editMode ? () => {} : undefined}
-                        onDelete={editMode ? () => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key)) : undefined}
+                        onDuplicate={() => {}}
+                        onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
                         graphConfig={widgetGraphConfigs['__kpi_main__']}
                         axisConfig={widgetAxisConfigs['__kpi_main__']}
                         thresholds={widgetThresholds['__kpi_main__']}
