@@ -533,6 +533,9 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
               )}
             </div>
           )}
+        </div>
+
+      </div>
 
       {/* ─── Footer ─── */}
       <div className="px-5 py-4 border-t border-border/40 bg-card/50">
