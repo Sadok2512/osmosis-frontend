@@ -25,6 +25,7 @@ const PREMIUM_COLORS = [
 ];
 
 const MARGIN = { top: 20, right: 24, bottom: 36, left: 56 };
+const LEGEND_HEIGHT = 32;
 
 const DASH_MAP: Record<string, string> = { solid: '0', dashed: '6,4', dotted: '2,3' };
 
