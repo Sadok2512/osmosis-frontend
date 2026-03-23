@@ -3,7 +3,8 @@ import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
   Database, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
-  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin, LogOut
+  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin, LogOut,
+  Search
 } from 'lucide-react';
 import { clearSession } from '@/services/adminAuth';
 import { useNavigate } from 'react-router-dom';
