@@ -183,6 +183,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const setCalCfg = (u: Partial<typeof calCfg>) => setGraphD({ calendar: { ...calCfg, ...u } });
 
   const [kpiOpen, setKpiOpen] = useState(true);
+  const [counterOpen, setCounterOpen] = useState(false);
   const [axeOpen, setAxeOpen] = useState(false);
   const [gridCalOpen, setGridCalOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
