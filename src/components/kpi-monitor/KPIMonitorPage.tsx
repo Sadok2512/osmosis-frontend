@@ -560,6 +560,7 @@ const KPIMonitorInner: React.FC = () => {
         onAddText={addText}
         onAddImage={addImage}
         onAddTable={addTable}
+        onAddKpiCard={addKpiCard}
         layoutMode={layoutMode}
         onToggleLayout={toggleLayoutMode}
         onCreateNew={handleCreateNew}
