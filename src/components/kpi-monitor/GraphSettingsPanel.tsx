@@ -10,8 +10,9 @@ import {
   TrendingUp, AreaChart, BarChart, Layers2, CircleDot,
   Download, FileSpreadsheet, RefreshCw, Copy, Trash2,
   AlertTriangle, Palette, Check, Axis3D, Settings2,
-  Eye, EyeOff,
+  Eye, EyeOff, Grid3X3, Calendar,
 } from 'lucide-react';
+import { Slider } from '../ui/slider';
 import { toast } from 'sonner';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -78,6 +79,18 @@ export interface WidgetAxisConfig {
   rightAxis?: AxisSideConfig;
 }
 
+export interface GridConfig {
+  enabled: boolean;
+  opacity: number; // 0-100
+  type: 'horizontal' | 'vertical' | 'both';
+}
+
+export interface CalendarConfig {
+  highlightWeekends: boolean;
+  weekendColor: string;
+  weekendOpacity: number; // 0-100
+}
+
 export interface WidgetGraphConfig {
   smooth: boolean;
   lineWidth: number;
@@ -88,6 +101,8 @@ export interface WidgetGraphConfig {
   transparentBg: boolean;
   showLegend: boolean;
   legendPosition: 'top' | 'bottom';
+  grid?: GridConfig;
+  calendar?: CalendarConfig;
 }
 
 export interface WidgetStyleConfig {
@@ -124,11 +139,16 @@ const DEFAULT_AXIS: WidgetAxisConfig = {
   xMode: 'date', xFormat: 'short', xShowGrid: false,
 };
 
+export const DEFAULT_GRID: GridConfig = { enabled: true, opacity: 20, type: 'both' };
+export const DEFAULT_CALENDAR: CalendarConfig = { highlightWeekends: true, weekendColor: '#E5E7EB', weekendOpacity: 10 };
+
 const DEFAULT_GRAPH: WidgetGraphConfig = {
   smooth: true, lineWidth: 2.5, showSymbols: false,
   gridIntensity: 'light', showVerticalGrid: false,
   backgroundColor: 'transparent', transparentBg: true,
   showLegend: false, legendPosition: 'bottom',
+  grid: { ...DEFAULT_GRID },
+  calendar: { ...DEFAULT_CALENDAR },
 };
 
 /* ── Small input helper ── */
@@ -170,6 +190,10 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
   const graph = externalGraph || DEFAULT_GRAPH;
   const setAxis = (updates: Partial<WidgetAxisConfig>) => onAxisConfigChange?.({ ...axis, ...updates });
   const setGraph = (updates: Partial<WidgetGraphConfig>) => onGraphConfigChange?.({ ...graph, ...updates });
+  const gridCfg = graph.grid || DEFAULT_GRID;
+  const calCfg = graph.calendar || DEFAULT_CALENDAR;
+  const setGridCfg = (u: Partial<GridConfig>) => setGraph({ grid: { ...gridCfg, ...u } });
+  const setCalCfg = (u: Partial<CalendarConfig>) => setGraph({ calendar: { ...calCfg, ...u } });
 
   const addThreshold = () => {
     onThresholdsChange([
@@ -363,6 +387,60 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
               <SmallSelect label="Position" value={graph.legendPosition} options={[
                 { value: 'top', label: 'Haut' }, { value: 'bottom', label: 'Bas' },
               ]} onChange={v => setGraph({ legendPosition: v as any })} />
+            )}
+          </div>
+        </div>
+
+        {/* ─── 4: Grid & Calendar ─── */}
+        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[170px]">
+          <div className="flex items-center gap-1.5">
+            <Grid3X3 className="w-3 h-3 text-primary" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Grille</span>
+          </div>
+          <SmallToggle label="Afficher" checked={gridCfg.enabled} onChange={v => setGridCfg({ enabled: v })} />
+          {gridCfg.enabled && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[9px] text-muted-foreground whitespace-nowrap">Opacité</span>
+                <div className="flex items-center gap-1.5 flex-1 max-w-[100px]">
+                  <Slider min={0} max={100} step={5} value={[gridCfg.opacity]} onValueChange={([v]) => setGridCfg({ opacity: v })} className="flex-1" />
+                  <span className="text-[8px] text-muted-foreground w-[28px] text-right">{gridCfg.opacity}%</span>
+                </div>
+              </div>
+              <SmallSelect label="Type" value={gridCfg.type} options={[
+                { value: 'horizontal', label: 'Horizontal' },
+                { value: 'vertical', label: 'Vertical' },
+                { value: 'both', label: 'Les deux' },
+              ]} onChange={v => setGridCfg({ type: v as any })} />
+            </div>
+          )}
+
+          <div className="pt-1.5 border-t border-border/40">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Calendar className="w-3 h-3 text-primary" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Weekends</span>
+            </div>
+            <SmallToggle label="Highlight" checked={calCfg.highlightWeekends} onChange={v => setCalCfg({ highlightWeekends: v })} />
+            {calCfg.highlightWeekends && (
+              <div className="space-y-1.5 mt-1">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[9px] text-muted-foreground whitespace-nowrap">Opacité</span>
+                  <div className="flex items-center gap-1.5 flex-1 max-w-[100px]">
+                    <Slider min={0} max={50} step={2} value={[calCfg.weekendOpacity]} onValueChange={([v]) => setCalCfg({ weekendOpacity: v })} className="flex-1" />
+                    <span className="text-[8px] text-muted-foreground w-[28px] text-right">{calCfg.weekendOpacity}%</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-muted-foreground">Couleur</span>
+                  <div className="flex items-center gap-1">
+                    {['#E5E7EB', '#DBEAFE', '#FEF3C7', '#D1FAE5'].map(c => (
+                      <button key={c} onClick={() => setCalCfg({ weekendColor: c })}
+                        className={`w-4 h-4 rounded border transition-all ${calCfg.weekendColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border'}`}
+                        style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
