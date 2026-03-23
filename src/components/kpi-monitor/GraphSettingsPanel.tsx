@@ -190,6 +190,10 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
   const graph = externalGraph || DEFAULT_GRAPH;
   const setAxis = (updates: Partial<WidgetAxisConfig>) => onAxisConfigChange?.({ ...axis, ...updates });
   const setGraph = (updates: Partial<WidgetGraphConfig>) => onGraphConfigChange?.({ ...graph, ...updates });
+  const gridCfg = graph.grid || DEFAULT_GRID;
+  const calCfg = graph.calendar || DEFAULT_CALENDAR;
+  const setGridCfg = (u: Partial<GridConfig>) => setGraph({ grid: { ...gridCfg, ...u } });
+  const setCalCfg = (u: Partial<CalendarConfig>) => setGraph({ calendar: { ...calCfg, ...u } });
 
   const addThreshold = () => {
     onThresholdsChange([
