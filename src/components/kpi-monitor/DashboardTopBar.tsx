@@ -12,7 +12,7 @@ import {
   Plus, Save, FileDown, Copy, FolderOpen, Eye, Globe, Lock,
   MoreHorizontal, Sparkles, FileSpreadsheet, BarChart3, Map as MapIcon,
   Table2, Type, ImageIcon, Grid3X3, Move, ChevronDown, X, Filter,
-  RotateCcw, Search, Check, Pencil, EyeIcon, Settings, Calendar, Flag,
+  RotateCcw, Search, Check, Pencil, EyeIcon, Settings, Calendar,
 } from 'lucide-react';
 import DashboardSettingsPopup from './DashboardSettingsPopup';
 import { useDashboardSettingsStore } from '@/stores/dashboardSettingsStore';
