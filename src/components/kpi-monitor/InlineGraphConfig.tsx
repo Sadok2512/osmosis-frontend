@@ -478,9 +478,9 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             <div className="space-y-2">
               {store.localFilters.map(f => (
                 <div key={f.id} className="flex items-center gap-1.5 group">
-                  <span className="text-[9px] font-medium text-foreground truncate min-w-[50px]">{f.label || f.dimension}</span>
-                  <span className="text-[8px] text-muted-foreground">=</span>
-                  <span className="text-[9px] text-primary truncate flex-1 min-w-0">{f.selectedValues?.join(', ') || '—'}</span>
+                  <span className="text-[9px] font-medium text-foreground truncate min-w-[50px]">{f.dimension}</span>
+                  <span className="text-[8px] text-muted-foreground">{f.op || '='}</span>
+                  <span className="text-[9px] text-primary truncate flex-1 min-w-0">{f.values?.join(', ') || '—'}</span>
                   <button onClick={() => store.removeFilter(f.id)}
                     className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
                     <X className="w-2.5 h-2.5" />
@@ -491,7 +491,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                 <div className="text-[10px] text-muted-foreground italic py-2 text-center">Aucun filtre actif</div>
               )}
               <button
-                onClick={() => store.addFilter({ id: crypto.randomUUID(), dimension: 'DR', label: 'DR', selectedValues: [] })}
+                onClick={() => store.addFilter({ id: crypto.randomUUID(), dimension: 'DR', op: 'in', values: [] })}
                 className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed border-border/50 text-[10px] text-muted-foreground hover:text-foreground hover:border-border transition-colors"
               >
                 <Plus className="w-3 h-3" /> Ajouter un filtre
