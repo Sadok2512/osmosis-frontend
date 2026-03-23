@@ -342,7 +342,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
             ]} onChange={v => setAxis({ yDecimals: Number(v) })} />
             <SmallToggle label="Inverser" checked={axis.yInvert} onChange={v => setAxis({ yInvert: v })} />
           </div>
-          <div className="space-y-1 pt-1 border-t border-border/40">
+          <div className="space-y-0.5 pt-0.5 border-t border-border/30">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Axe X</p>
             <SmallSelect label="Format" value={axis.xFormat} options={[
               { value: 'short', label: 'Court' }, { value: 'full', label: 'Complet' },
