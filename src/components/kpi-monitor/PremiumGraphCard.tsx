@@ -53,6 +53,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
   onDuplicate,
   onDelete,
   onExpand,
+  onInfo,
   editMode = false,
   onToggleEditMode,
   configPanel,
