@@ -367,7 +367,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
             ]} onChange={v => setGraph({ lineWidth: Number(v) })} />
             <SmallToggle label="Symboles" checked={graph.showSymbols} onChange={v => setGraph({ showSymbols: v })} />
           </div>
-          <div className="space-y-1 pt-1 border-t border-border/40">
+          <div className="space-y-0.5 pt-0.5 border-t border-border/30">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Grille</p>
             <SmallSelect label="Intensité" value={graph.gridIntensity} options={[
               { value: 'light', label: 'Light' }, { value: 'medium', label: 'Medium' },
