@@ -500,8 +500,8 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
               onLayoutChange={onLayoutChange}
               draggableHandle=".drag-handle"
               compactType="vertical"
-              isResizable
-              isDraggable
+              isResizable={isEditMode}
+              isDraggable={isEditMode}
               margin={[12, 12]}
             >
               {widgets.map(w => (
