@@ -690,8 +690,7 @@ const KPIMonitorInner: React.FC = () => {
                 title={monoTitle}
                 onClose={closeEdit}
                 onSave={() => {
-                  toast({ title: 'Configuration enregistrée', description: 'Les paramètres du widget ont été sauvegardés.' });
-                  closeEdit();
+                  toast({ title: 'Configuration enregistrée', description: 'Cliquez Retour pour quitter le mode édition.' });
                 }}
                 axisConfig={widgetAxisConfigs[configKey]}
                 onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [configKey]: c }))}
