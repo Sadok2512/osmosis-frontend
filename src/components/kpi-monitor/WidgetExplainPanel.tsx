@@ -39,7 +39,7 @@ const WidgetExplainPanel: React.FC<Props> = ({ widget, title, onClose }) => {
   const groupCount = Array.isArray(cfg.groupBy) ? cfg.groupBy.length : 0;
 
   return (
-    <div className="fixed right-0 top-0 bottom-0 w-[360px] z-50 bg-card border-l border-border shadow-2xl flex flex-col">
+    <div className="fixed right-0 top-0 bottom-0 w-[360px] z-[9999] bg-card border-l border-border shadow-2xl flex flex-col">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-sidebar-background">
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-primary" />
