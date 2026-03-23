@@ -391,6 +391,32 @@ const KPIMonitorInner: React.FC = () => {
   // Guard: skip layout changes right after returning from mono-edit view
   const skipLayoutChangeRef = useRef(false);
 
+  // Manual double-click tracker (react-grid-layout eats native dblclick)
+  const lastClickRef = useRef<{ id: string; time: number }>({ id: '', time: 0 });
+  const handleWidgetClick = useCallback((widgetId: string, e: React.MouseEvent, kind?: string) => {
+    if (!editMode) return;
+    // Selection logic
+    if (e.ctrlKey || e.metaKey) {
+      store.toggleWidgetSelection(widgetId, true);
+    } else {
+      store.toggleWidgetSelection(widgetId, false);
+    }
+    // Double-click detection (300ms window)
+    const now = Date.now();
+    if (lastClickRef.current.id === widgetId && now - lastClickRef.current.time < 400) {
+      // Double click detected — open config
+      if (kind === 'table') {
+        setEditingId(widgetId);
+      } else {
+        store.setActiveEditingWidgetId(widgetId);
+        setShowAI(false);
+      }
+      lastClickRef.current = { id: '', time: 0 };
+    } else {
+      lastClickRef.current = { id: widgetId, time: now };
+    }
+  }, [editMode, store]);
+
   const onLayoutChange = (newLayout: any[]) => {
     if (skipLayoutChangeRef.current) {
       skipLayoutChangeRef.current = false;
@@ -717,14 +743,7 @@ const KPIMonitorInner: React.FC = () => {
                         {hasMainChart && (
                           <div
                             key={MAIN_CHART_ID}
-                            onClickCapture={(e) => {
-                              if (e.ctrlKey || e.metaKey) {
-                                store.toggleWidgetSelection(MAIN_CHART_ID, true);
-                              } else {
-                                store.toggleWidgetSelection(MAIN_CHART_ID, false);
-                              }
-                            }}
-                            onDoubleClick={() => { if (editMode) { store.setActiveEditingWidgetId(MAIN_CHART_ID); setShowAI(false); } }}
+                            onClickCapture={(e) => handleWidgetClick(MAIN_CHART_ID, e, 'chart')}
                             className={`cursor-pointer transition-all duration-200 rounded-xl ${
                               store.selectedWidgetIds.includes(MAIN_CHART_ID) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
@@ -734,21 +753,7 @@ const KPIMonitorInner: React.FC = () => {
                         )}
                         {validWidgets.map(w => (
                           <div key={getId(w)}
-                            onClickCapture={(e) => {
-                              const wId = getId(w);
-                              if (e.ctrlKey || e.metaKey) {
-                                store.toggleWidgetSelection(wId, true);
-                              } else {
-                                store.toggleWidgetSelection(wId, false);
-                              }
-                            }}
-                            onDoubleClick={() => {
-                              if (editMode) {
-                                const wId = getId(w);
-                                if (w.kind === 'chart') { store.setActiveEditingWidgetId(wId); setShowAI(false); }
-                                else if (w.kind === 'table') { setEditingId(wId); }
-                              }
-                            }}
+                            onClickCapture={(e) => handleWidgetClick(getId(w), e, w.kind)}
                             className={`cursor-pointer transition-all duration-200 rounded-xl ${
                               store.selectedWidgetIds.includes(getId(w)) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
@@ -772,14 +777,7 @@ const KPIMonitorInner: React.FC = () => {
                             className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
                               store.selectedWidgetIds.includes(MAIN_CHART_ID) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
-                            onClickCapture={(e) => {
-                              if (e.ctrlKey || e.metaKey) {
-                                store.toggleWidgetSelection(MAIN_CHART_ID, true);
-                              } else {
-                                store.toggleWidgetSelection(MAIN_CHART_ID, false);
-                              }
-                            }}
-                            onDoubleClick={() => { if (editMode) { store.setActiveEditingWidgetId(MAIN_CHART_ID); setShowAI(false); } }}
+                            onClickCapture={(e) => handleWidgetClick(MAIN_CHART_ID, e, 'chart')}
                           >
                             {renderMainChart(Math.max(280, mainChartRect.h - 16))}
                           </div>
@@ -788,21 +786,7 @@ const KPIMonitorInner: React.FC = () => {
                           <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
                             store.selectedWidgetIds.includes(getId(w)) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                           }`}
-                            onClickCapture={(e) => {
-                              const wId = getId(w);
-                              if (e.ctrlKey || e.metaKey) {
-                                store.toggleWidgetSelection(wId, true);
-                              } else {
-                                store.toggleWidgetSelection(wId, false);
-                              }
-                            }}
-                            onDoubleClick={() => {
-                              if (editMode) {
-                                const wId = getId(w);
-                                if (w.kind === 'chart') { store.setActiveEditingWidgetId(wId); setShowAI(false); }
-                                else if (w.kind === 'table') { setEditingId(wId); }
-                              }
-                            }}
+                            onClickCapture={(e) => handleWidgetClick(getId(w), e, w.kind)}
                           >{renderWidget(w)}</div>
                         ))}
                       </FreeLayoutCanvas>
