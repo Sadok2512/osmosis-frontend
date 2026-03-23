@@ -21,11 +21,11 @@ const Field: React.FC<{ icon: React.ReactNode; label: string; value: React.React
 
 const kindMeta = {
   chart: { icon: BarChart3, label: 'Chart', accent: 'bg-primary/10 text-primary' },
-  table: { icon: Table2, label: 'Table', accent: 'bg-blue-500/10 text-blue-500' },
-  map: { icon: MapIcon, label: 'Map', accent: 'bg-emerald-500/10 text-emerald-500' },
-  text: { icon: Type, label: 'Text', accent: 'bg-amber-500/10 text-amber-500' },
-  image: { icon: ImageIcon, label: 'Image', accent: 'bg-pink-500/10 text-pink-500' },
-  kpicard: { icon: Activity, label: 'KPI Card', accent: 'bg-violet-500/10 text-violet-500' },
+  table: { icon: Table2, label: 'Table', accent: 'bg-secondary text-secondary-foreground' },
+  map: { icon: MapIcon, label: 'Map', accent: 'bg-accent text-accent-foreground' },
+  text: { icon: Type, label: 'Text', accent: 'bg-muted text-muted-foreground' },
+  image: { icon: ImageIcon, label: 'Image', accent: 'bg-secondary text-secondary-foreground' },
+  kpicard: { icon: Activity, label: 'KPI Card', accent: 'bg-accent text-accent-foreground' },
 } as const;
 
 const WidgetExplainPanel: React.FC<Props> = ({ widget, title, onClose }) => {

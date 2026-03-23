@@ -13,7 +13,7 @@ import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, useC
 import SummaryTilesRow from './SummaryTilesRow';
 import KPIExplainPanel from './KPIExplainPanel';
 import WidgetExplainPanel from './WidgetExplainPanel';
-import KPITableView from './KPITableView';
+import EChartsTimeSeries from './EChartsTimeSeries';
 import KPICatalogImport from './KPICatalogImport';
 import KpiSelectorModal from './KpiSelectorModal';
 import CounterSelectorModal from './CounterSelectorModal';
