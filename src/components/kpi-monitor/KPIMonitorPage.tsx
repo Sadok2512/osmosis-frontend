@@ -25,6 +25,7 @@ import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/B
 import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../bi/BIImageWidget';
 import BIMapWidget from '../bi/BIMapWidget';
 import BITableWidget, { TableWidgetConfig, createDefaultTableWidget } from '../bi/BITableWidget';
+import BIKpiCardWidget, { KpiCardWidgetConfig, createDefaultKpiCardWidget } from '../bi/BIKpiCardWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
 import TableConfigPanel from '../bi/TableConfigPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
