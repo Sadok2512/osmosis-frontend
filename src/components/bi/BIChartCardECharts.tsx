@@ -59,7 +59,6 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
     await exportElementToPDF(el, titleLabel.replace(/\s+/g, '_'));
   };
 
-  /* ── Three-dot menu ── */
   const actionsMenu = (isFs: boolean) => (
     <div className="flex items-center gap-1" onMouseDown={stopDrag}>
       <DropdownMenu>
@@ -83,23 +82,24 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
           <DropdownMenuItem className="gap-2.5 text-xs">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="gap-2.5 text-xs">
-            <GitCompareArrows className="w-3.5 h-3.5" /> Compare previous period
-          </DropdownMenuItem>
-          <DropdownMenuItem className="gap-2.5 text-xs">
-            <AlertTriangle className="w-3.5 h-3.5" /> Add threshold
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onEdit} className="gap-2.5 text-xs">
-            <Settings className="w-3.5 h-3.5" /> Edit configuration
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onDuplicate} className="gap-2.5 text-xs">
-            <Copy className="w-3.5 h-3.5" /> Duplicate widget
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onDelete} className="gap-2.5 text-xs text-destructive focus:text-destructive">
-            <Trash2 className="w-3.5 h-3.5" /> Remove widget
-          </DropdownMenuItem>
+          {onEdit && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onEdit} className="gap-2.5 text-xs">
+                <Settings className="w-3.5 h-3.5" /> Edit configuration
+              </DropdownMenuItem>
+            </>
+          )}
+          {onDuplicate && (
+            <DropdownMenuItem onClick={onDuplicate} className="gap-2.5 text-xs">
+              <Copy className="w-3.5 h-3.5" /> Duplicate widget
+            </DropdownMenuItem>
+          )}
+          {onDelete && (
+            <DropdownMenuItem onClick={onDelete} className="gap-2.5 text-xs text-destructive focus:text-destructive">
+              <Trash2 className="w-3.5 h-3.5" /> Remove widget
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

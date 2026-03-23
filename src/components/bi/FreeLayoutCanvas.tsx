@@ -62,6 +62,7 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
   const clearGuides = useCallback(() => setGuides([]), []);
 
   const handleDragStart = useCallback((e: React.MouseEvent, id: string) => {
+    if (!editable) return;
     e.preventDefault();
     e.stopPropagation();
     const rect = items.find(i => i.id === id);
@@ -69,9 +70,10 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
     dragStart.current = { mx: e.clientX, my: e.clientY, rect: { ...rect } };
     setActiveId(id);
     setInteractionType('drag');
-  }, [items]);
+  }, [items, editable]);
 
   const handleResizeStart = useCallback((e: React.MouseEvent, id: string, corner: string) => {
+    if (!editable) return;
     e.preventDefault();
     e.stopPropagation();
     const rect = items.find(i => i.id === id);
@@ -80,7 +82,7 @@ const FreeLayoutCanvas: React.FC<FreeLayoutCanvasProps> = ({ items, onLayoutChan
     setActiveId(id);
     setInteractionType('resize');
     setResizeCorner(corner);
-  }, [items]);
+  }, [items, editable]);
 
   useEffect(() => {
     if (!activeId || !interactionType) return;
