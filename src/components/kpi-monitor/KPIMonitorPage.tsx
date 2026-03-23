@@ -694,9 +694,15 @@ const KPIMonitorInner: React.FC = () => {
                         {hasMainChart && (
                           <div
                             key={MAIN_CHART_ID}
-                            onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === MAIN_CHART_ID ? null : MAIN_CHART_ID)}
+                            onClickCapture={(e) => {
+                              if (e.ctrlKey || e.metaKey) {
+                                store.toggleWidgetSelection(MAIN_CHART_ID, true);
+                              } else {
+                                store.toggleWidgetSelection(MAIN_CHART_ID, false);
+                              }
+                            }}
                             className={`cursor-pointer transition-all duration-200 rounded-xl ${
-                              store.selectedWidgetId === MAIN_CHART_ID ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                              store.selectedWidgetIds.includes(MAIN_CHART_ID) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
                           >
                             {renderMainChart(getChartPixelHeight(mainChartLayout.h))}
