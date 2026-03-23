@@ -16,9 +16,9 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   config: ChartConfig;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
 }
 
 const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDelete }) => {
@@ -59,7 +59,6 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
     await exportElementToPDF(el, titleLabel.replace(/\s+/g, '_'));
   };
 
-  /* ── Three-dot menu ── */
   const actionsMenu = (isFs: boolean) => (
     <div className="flex items-center gap-1" onMouseDown={stopDrag}>
       <DropdownMenu>
@@ -83,23 +82,24 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
           <DropdownMenuItem className="gap-2.5 text-xs">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="gap-2.5 text-xs">
-            <GitCompareArrows className="w-3.5 h-3.5" /> Compare previous period
-          </DropdownMenuItem>
-          <DropdownMenuItem className="gap-2.5 text-xs">
-            <AlertTriangle className="w-3.5 h-3.5" /> Add threshold
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onEdit} className="gap-2.5 text-xs">
-            <Settings className="w-3.5 h-3.5" /> Edit configuration
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onDuplicate} className="gap-2.5 text-xs">
-            <Copy className="w-3.5 h-3.5" /> Duplicate widget
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onDelete} className="gap-2.5 text-xs text-destructive focus:text-destructive">
-            <Trash2 className="w-3.5 h-3.5" /> Remove widget
-          </DropdownMenuItem>
+          {onEdit && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onEdit} className="gap-2.5 text-xs">
+                <Settings className="w-3.5 h-3.5" /> Edit configuration
+              </DropdownMenuItem>
+            </>
+          )}
+          {onDuplicate && (
+            <DropdownMenuItem onClick={onDuplicate} className="gap-2.5 text-xs">
+              <Copy className="w-3.5 h-3.5" /> Duplicate widget
+            </DropdownMenuItem>
+          )}
+          {onDelete && (
+            <DropdownMenuItem onClick={onDelete} className="gap-2.5 text-xs text-destructive focus:text-destructive">
+              <Trash2 className="w-3.5 h-3.5" /> Remove widget
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -109,14 +109,16 @@ const BIChartCardECharts: React.FC<Props> = ({ config, onEdit, onDuplicate, onDe
   const headerContent = (isFs: boolean) => (
     <div className={cn('flex items-center justify-between border-b border-border/40', isFs ? 'px-6 py-4' : 'px-4 py-3')}>
       <div className={cn('flex items-center gap-2 min-w-0 flex-1', !isFs && 'drag-handle cursor-grab active:cursor-grabbing')}>
-        <button
-          onClick={e => { e.stopPropagation(); onEdit(); }}
-          className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-primary transition-colors shrink-0"
-          title="Settings"
-          onMouseDown={stopDrag}
-        >
-          <Settings className="w-4 h-4" />
-        </button>
+        {onEdit && (
+          <button
+            onClick={e => { e.stopPropagation(); onEdit(); }}
+            className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-primary transition-colors shrink-0"
+            title="Settings"
+            onMouseDown={stopDrag}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        )}
         <h3 className={cn('font-semibold text-foreground truncate tracking-tight', isFs ? 'text-sm' : 'text-[13px]')}
           style={config.advanced.headerTextColor ? { color: config.advanced.headerTextColor } : undefined}>
           {titleLabel} <span className="font-normal" style={{ color: config.advanced.headerTextColor || undefined }}>{unitLabel}</span>

@@ -19,7 +19,7 @@ import KpiSelectorModal from './KpiSelectorModal';
 import CounterSelectorModal from './CounterSelectorModal';
 import FreeLayoutCanvas from '../bi/FreeLayoutCanvas';
 import { ChartConfig, createDefaultChart } from '../bi/biTypes';
-import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode } from '../bi/dashboardTypes';
+import { WidgetItem, MapWidgetConfig, createDefaultMapWidget, LayoutMode, WidgetLayout } from '../bi/dashboardTypes';
 import BIChartCardECharts from '../bi/BIChartCardECharts';
 import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/BITextWidget';
 import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../bi/BIImageWidget';
@@ -106,59 +106,8 @@ const PrintPreviewModal: React.FC<{
   );
 };
 
-/* ── Resizable wrapper for the main KPI chart ── */
-const MainChartResizable: React.FC<{
-  isSelected: boolean;
-  onSelect: () => void;
-  editMode?: boolean;
-  children: (height: number) => React.ReactNode;
-}> = ({ isSelected, onSelect, editMode = false, children }) => {
-  const [height, setHeight] = useState(460);
-  const dragging = useRef(false);
-  const startY = useRef(0);
-  const startH = useRef(460);
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragging.current = true;
-    startY.current = e.clientY;
-    startH.current = height;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging.current) return;
-    const delta = e.clientY - startY.current;
-    setHeight(Math.max(200, Math.min(1200, startH.current + delta)));
-  };
-
-  const onPointerUp = (e: React.PointerEvent) => {
-    dragging.current = false;
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-
-  return (
-    <div
-      className={`mb-4 cursor-pointer transition-all duration-200 rounded-xl relative ${
-        isSelected ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : 'hover:ring-1 hover:ring-border'
-      }`}
-      onClickCapture={onSelect}
-    >
-      {children(height)}
-      {/* Resize handle — always visible so user can resize the main chart */}
-      <div
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onClick={e => e.stopPropagation()}
-        className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center group z-10 hover:bg-primary/5 transition-colors rounded-b-xl"
-      >
-        <div className="w-12 h-1 rounded-full bg-border group-hover:bg-primary/40 transition-colors" />
-      </div>
-    </div>
-  );
-};
+const MAIN_CHART_ID = '__kpi_main__';
+const DEFAULT_MAIN_CHART_LAYOUT: WidgetLayout = { x: 0, y: 0, w: 12, h: 6 };
 
 const KPIMonitorInner: React.FC = () => {
   const store = useKpiMonitorStore();
@@ -385,15 +334,39 @@ const KPIMonitorInner: React.FC = () => {
 
   const getId = (w: WidgetItem) => w?.config?.id ?? 'unknown';
   const validWidgets = widgets.filter(w => w?.config?.id && w?.layout);
+  const hasMainChart = store.selectedKpis.length > 0 && store.viewMode === 'graph';
+  const mainChartLayout = store.mainChartLayout || DEFAULT_MAIN_CHART_LAYOUT;
 
-  const layout = validWidgets.map(w => ({
-    i: getId(w),
-    x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h,
-    minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : w.kind === 'image' ? 2 : w.kind === 'table' ? 4 : 3,
-    minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : w.kind === 'image' ? 2 : w.kind === 'table' ? 3 : 2,
-  }));
+  const layout = [
+    ...(hasMainChart ? [{
+      i: MAIN_CHART_ID,
+      x: mainChartLayout.x,
+      y: mainChartLayout.y,
+      w: mainChartLayout.w,
+      h: mainChartLayout.h,
+      minW: 6,
+      minH: 4,
+    }] : []),
+    ...validWidgets.map(w => ({
+      i: getId(w),
+      x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h,
+      minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : w.kind === 'image' ? 2 : w.kind === 'table' ? 4 : 3,
+      minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : w.kind === 'image' ? 2 : w.kind === 'table' ? 3 : 2,
+    })),
+  ];
 
   const onLayoutChange = (newLayout: any[]) => {
+    const main = newLayout.find(n => n.i === MAIN_CHART_ID);
+    if (main) {
+      store.setMainChartLayout({
+        ...mainChartLayout,
+        x: main.x,
+        y: main.y,
+        w: main.w,
+        h: main.h,
+      });
+    }
+
     setWidgets(prev => prev.map(w => {
       if (!w.layout) return w;
       const l = newLayout.find(n => n.i === getId(w));
@@ -414,17 +387,47 @@ const KPIMonitorInner: React.FC = () => {
     };
   };
 
+  const mainChartRect = hasMainChart ? {
+    id: MAIN_CHART_ID,
+    x: mainChartLayout.freeX ?? mainChartLayout.x * colWidth,
+    y: mainChartLayout.freeY ?? mainChartLayout.y * ROW_HEIGHT,
+    w: mainChartLayout.freeW ?? mainChartLayout.w * colWidth,
+    h: mainChartLayout.freeH ?? mainChartLayout.h * ROW_HEIGHT,
+  } : null;
+
   const onFreeLayoutChange = useCallback((id: string, rect: Partial<{ x: number; y: number; w: number; h: number }>) => {
+    if (id === MAIN_CHART_ID) {
+      const cur = mainChartRect || { x: 0, y: 0, w: colWidth * 12, h: ROW_HEIGHT * 6 };
+      store.setMainChartLayout({
+        ...mainChartLayout,
+        freeX: rect.x ?? cur.x,
+        freeY: rect.y ?? cur.y,
+        freeW: rect.w ?? cur.w,
+        freeH: rect.h ?? cur.h,
+      });
+      return;
+    }
+
     setWidgets(prev => prev.map(w => {
       if (!w.layout) return w;
       if (getId(w) !== id) return w;
       const cur = toFreeRect(w);
       return { ...w, layout: { ...w.layout, freeX: rect.x ?? cur.x, freeY: rect.y ?? cur.y, freeW: rect.w ?? cur.w, freeH: rect.h ?? cur.h } };
     }));
-  }, [widgets, colWidth]);
+  }, [setWidgets, mainChartRect, mainChartLayout, colWidth, store]);
 
   const toggleLayoutMode = () => {
     if (layoutMode === 'grid') {
+      if (hasMainChart) {
+        store.setMainChartLayout({
+          ...mainChartLayout,
+          freeX: mainChartLayout.freeX ?? mainChartLayout.x * colWidth,
+          freeY: mainChartLayout.freeY ?? mainChartLayout.y * ROW_HEIGHT,
+          freeW: mainChartLayout.freeW ?? mainChartLayout.w * colWidth,
+          freeH: mainChartLayout.freeH ?? mainChartLayout.h * ROW_HEIGHT,
+        });
+      }
+
       setWidgets(prev => prev.map(w => {
         if (!w.layout) return w;
         return {
@@ -438,7 +441,12 @@ const KPIMonitorInner: React.FC = () => {
     }
   };
 
-  const getMaxY = () => widgets.reduce((max, w) => w.layout ? Math.max(max, w.layout.y + w.layout.h) : max, 0);
+  const getMaxY = () => {
+    const widgetsMax = widgets.reduce((max, w) => w.layout ? Math.max(max, w.layout.y + w.layout.h) : max, 0);
+    return hasMainChart ? Math.max(widgetsMax, mainChartLayout.y + mainChartLayout.h) : widgetsMax;
+  };
+
+  const getChartPixelHeight = (gridHeight: number) => Math.max(280, gridHeight * ROW_HEIGHT + Math.max(0, gridHeight - 1) * 12 - 24);
 
   const addChart = () => {
     const id = `chart_${Date.now()}`;
@@ -482,12 +490,31 @@ const KPIMonitorInner: React.FC = () => {
   const updateImageConfig = (id: string, config: ImageWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'image' ? { ...w, config } : w));
   const updateTableConfig = (id: string, config: TableWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'table' ? { ...w, config } : w));
 
-  const editingChart = validWidgets.find(w => getId(w) === editingId && w.kind === 'chart');
   const editingTable = validWidgets.find(w => getId(w) === editingId && w.kind === 'table');
+
+  const renderMainChart = (height: number, title?: string) => (
+    <EChartsTimeSeries
+      data={tsData}
+      catalogMap={catalogMap}
+      title={title || store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
+      badge={tsLoading ? 'Loading...' : catalog.length > 0 ? 'Live' : 'Empty'}
+      granularity={tsGranularity}
+      height={height}
+      onRefresh={() => { queryClient.invalidateQueries({ queryKey: ['monitor'] }); refreshCatalog(); }}
+      onDelete={editMode ? () => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key)) : undefined}
+      graphConfig={widgetGraphConfigs[MAIN_CHART_ID]}
+      axisConfig={widgetAxisConfigs[MAIN_CHART_ID]}
+      thresholds={widgetThresholds[MAIN_CHART_ID]}
+      thresholdsEnabled={widgetThresholdsEnabled[MAIN_CHART_ID]}
+      editMode={store.activeEditingWidgetId === MAIN_CHART_ID}
+      onToggleEditMode={editMode ? () => store.setActiveEditingWidgetId(MAIN_CHART_ID) : undefined}
+      onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, [MAIN_CHART_ID]: c }))}
+      onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, [MAIN_CHART_ID]: c }))}
+    />
+  );
 
   const renderWidget = (w: WidgetItem) => {
     const wId = getId(w);
-    const isSelected = store.selectedWidgetId === wId;
     if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={editMode ? () => { store.setActiveEditingWidgetId(wId); setShowAI(false); } : undefined} onDuplicate={editMode ? () => duplicateWidget(wId) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={editMode ? cfg => updateMapConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={editMode ? cfg => updateImageConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
@@ -544,10 +571,10 @@ const KPIMonitorInner: React.FC = () => {
 
       {/* ── Dashboard Canvas + Right Config Sidebar ── */}
       {(() => {
-        const isEditingMain = store.activeEditingWidgetId === '__kpi_main__';
-        const editingWidgetId = store.activeEditingWidgetId && store.activeEditingWidgetId !== '__kpi_main__' ? store.activeEditingWidgetId : null;
+        const isEditingMain = store.activeEditingWidgetId === MAIN_CHART_ID;
+        const editingWidgetId = store.activeEditingWidgetId && store.activeEditingWidgetId !== MAIN_CHART_ID ? store.activeEditingWidgetId : null;
         const editingWidget = editingWidgetId ? widgets.find(w => getId(w) === editingWidgetId) : null;
-        const isMonoView = !!(isEditingMain || editingWidget);
+        const isMonoView = !!editingWidget;
 
         const closeEdit = () => {
           store.setActiveEditingWidgetId(null);
@@ -561,14 +588,11 @@ const KPIMonitorInner: React.FC = () => {
             ? (editingWidget.config as ChartConfig).title || 'Chart'
             : editingWidgetId || 'Widget';
 
-        const configKey = isEditingMain ? '__kpi_main__' : editingWidgetId!;
+        const configKey = isEditingMain ? MAIN_CHART_ID : editingWidgetId!;
 
         return (
           <div className="flex-1 min-h-0 flex overflow-hidden">
-            {/* ── Main content area ── */}
             <div className="flex-1 overflow-auto flex flex-col min-w-0">
-
-              {/* Mono header bar — only visible during edit */}
               {isMonoView && (
                 <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
                   <button onClick={closeEdit}
@@ -580,13 +604,11 @@ const KPIMonitorInner: React.FC = () => {
                 </div>
               )}
 
-              {/* Canvas area */}
               <div
                 ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }}
                 className="flex-1 overflow-auto p-4"
                 style={canvasBg ? { backgroundColor: canvasBg } : undefined}
               >
-                {/* ── Summary Tiles ── */}
                 {store.selectedKpis.length > 0 && !isMonoView && (
                   <SummaryTilesRow
                     items={summaryItems || []}
@@ -595,49 +617,16 @@ const KPIMonitorInner: React.FC = () => {
                   />
                 )}
 
-                {/* ── Main KPI Chart (always mounted — never destroyed on view switch) ── */}
-                {store.selectedKpis.length > 0 && store.viewMode === 'graph' && (isEditingMain || !isMonoView) && (
-                  <MainChartResizable
-                    isSelected={store.selectedWidgetId === '__kpi_main__'}
-                    onSelect={() => {}}
-                  >
-                    {(chartHeight) => (
-                      <EChartsTimeSeries
-                        data={tsData}
-                        catalogMap={catalogMap}
-                        title={isMonoView ? monoTitle : store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')}
-                        badge={tsLoading ? 'Loading...' : catalog.length > 0 ? 'Live' : 'Empty'}
-                        granularity={tsGranularity}
-                        height={isMonoView ? 600 : chartHeight}
-                        onRefresh={() => { queryClient.invalidateQueries({ queryKey: ['monitor'] }); refreshCatalog(); }}
-                        onDuplicate={() => {}}
-                        onDelete={() => store.selectedKpis.forEach(k => store.removeKpi(k.kpi_key))}
-                        graphConfig={widgetGraphConfigs['__kpi_main__']}
-                        axisConfig={widgetAxisConfigs['__kpi_main__']}
-                        thresholds={widgetThresholds['__kpi_main__']}
-                        thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
-                        editMode={isEditingMain}
-                        onToggleEditMode={editMode ? () => store.setActiveEditingWidgetId('__kpi_main__') : undefined}
-                        onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                        onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
-                      />
-                    )}
-                  </MainChartResizable>
-                )}
-
-                {/* Table view */}
                 {store.selectedKpis.length > 0 && store.viewMode === 'table' && !isMonoView && (
                   <KPITableView rows={tableRows} />
                 )}
 
-                {/* Editing a BI widget (not main chart) */}
                 {editingWidget && (
                   <div className="h-full min-h-[500px]">
                     {renderWidget(editingWidget)}
                   </div>
                 )}
 
-                {/* ── Dashboard grid/free widgets (hidden during mono edit) ── */}
                 {!isMonoView && (
                   <>
                     {widgets.length === 0 && store.selectedKpis.length === 0 ? (
@@ -658,7 +647,7 @@ const KPIMonitorInner: React.FC = () => {
                           <Plus className="w-5 h-5" /> Sélectionner des KPIs
                         </button>
                       </div>
-                    ) : widgets.length > 0 && layoutMode === 'grid' ? (
+                    ) : layoutMode === 'grid' ? (
                       <GridLayout
                         className="layout"
                         layout={layout}
@@ -672,6 +661,17 @@ const KPIMonitorInner: React.FC = () => {
                         isDraggable={editMode}
                         margin={[12, 12]}
                       >
+                        {hasMainChart && (
+                          <div
+                            key={MAIN_CHART_ID}
+                            onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === MAIN_CHART_ID ? null : MAIN_CHART_ID)}
+                            className={`cursor-pointer transition-all duration-200 rounded-xl ${
+                              store.selectedWidgetId === MAIN_CHART_ID ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                            }`}
+                          >
+                            {renderMainChart(getChartPixelHeight(mainChartLayout.h))}
+                          </div>
+                        )}
                         {validWidgets.map(w => (
                           <div key={getId(w)}
                             onClickCapture={() => {
@@ -684,8 +684,26 @@ const KPIMonitorInner: React.FC = () => {
                           >{renderWidget(w)}</div>
                         ))}
                       </GridLayout>
-                    ) : validWidgets.length > 0 ? (
-                      <FreeLayoutCanvas items={validWidgets.map(toFreeRect)} onLayoutChange={onFreeLayoutChange}>
+                    ) : (
+                      <FreeLayoutCanvas
+                        items={[
+                          ...(mainChartRect ? [mainChartRect] : []),
+                          ...validWidgets.map(toFreeRect),
+                        ]}
+                        onLayoutChange={onFreeLayoutChange}
+                        editable={editMode}
+                      >
+                        {mainChartRect && (
+                          <div
+                            key={MAIN_CHART_ID}
+                            className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
+                              store.selectedWidgetId === MAIN_CHART_ID ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                            }`}
+                            onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === MAIN_CHART_ID ? null : MAIN_CHART_ID)}
+                          >
+                            {renderMainChart(Math.max(280, mainChartRect.h - 16))}
+                          </div>
+                        )}
                         {validWidgets.map(w => (
                           <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
                             store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
@@ -694,14 +712,14 @@ const KPIMonitorInner: React.FC = () => {
                           >{renderWidget(w)}</div>
                         ))}
                       </FreeLayoutCanvas>
-                    ) : null}
+                    )}
                   </>
                 )}
               </div>
             </div>
 
             {/* ── Right Config Sidebar — only visible during edit ── */}
-            {isMonoView && (
+            {(isMonoView || isEditingMain) && (
               <HorizontalConfigPanel
                 catalogMap={catalogMap}
                 onOpenKpiSelector={() => setShowKpiSelector(true)}
