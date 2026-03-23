@@ -743,14 +743,7 @@ const KPIMonitorInner: React.FC = () => {
                         {hasMainChart && (
                           <div
                             key={MAIN_CHART_ID}
-                            onClickCapture={(e) => {
-                              if (e.ctrlKey || e.metaKey) {
-                                store.toggleWidgetSelection(MAIN_CHART_ID, true);
-                              } else {
-                                store.toggleWidgetSelection(MAIN_CHART_ID, false);
-                              }
-                            }}
-                            onDoubleClick={() => { if (editMode) { store.setActiveEditingWidgetId(MAIN_CHART_ID); setShowAI(false); } }}
+                            onClickCapture={(e) => handleWidgetClick(MAIN_CHART_ID, e, 'chart')}
                             className={`cursor-pointer transition-all duration-200 rounded-xl ${
                               store.selectedWidgetIds.includes(MAIN_CHART_ID) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
@@ -760,21 +753,7 @@ const KPIMonitorInner: React.FC = () => {
                         )}
                         {validWidgets.map(w => (
                           <div key={getId(w)}
-                            onClickCapture={(e) => {
-                              const wId = getId(w);
-                              if (e.ctrlKey || e.metaKey) {
-                                store.toggleWidgetSelection(wId, true);
-                              } else {
-                                store.toggleWidgetSelection(wId, false);
-                              }
-                            }}
-                            onDoubleClick={() => {
-                              if (editMode) {
-                                const wId = getId(w);
-                                if (w.kind === 'chart') { store.setActiveEditingWidgetId(wId); setShowAI(false); }
-                                else if (w.kind === 'table') { setEditingId(wId); }
-                              }
-                            }}
+                            onClickCapture={(e) => handleWidgetClick(getId(w), e, w.kind)}
                             className={`cursor-pointer transition-all duration-200 rounded-xl ${
                               store.selectedWidgetIds.includes(getId(w)) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
