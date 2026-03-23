@@ -451,6 +451,42 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           </div>
         </div>
 
+        {/* Split By */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] text-muted-foreground font-medium leading-tight">Split</span>
+            <select
+              value={store.splitBy || ''}
+              onChange={e => store.setSplitBy(e.target.value ? e.target.value as any : null)}
+              className="h-[36px] px-3 rounded-md border border-border/50 bg-background text-[13px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer appearance-none pr-8 w-[120px]"
+            >
+              <option value="">Aucun</option>
+              <option value="SITE">Site</option>
+              <option value="CELL">Cellule</option>
+              <option value="PLAQUE">Plaque</option>
+              <option value="DOR">DOR</option>
+              <option value="VENDOR">Vendor</option>
+              <option value="TECHNO">Techno</option>
+              <option value="BAND">Bande</option>
+              <option value="ARCEP">Zone ARCEP</option>
+            </select>
+          </div>
+          {store.splitBy && (
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] text-muted-foreground font-medium leading-tight">Top N</span>
+              <select
+                value={store.topN}
+                onChange={e => store.setTopN(Number(e.target.value))}
+                className="h-[36px] px-3 rounded-md border border-border/50 bg-background text-[13px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer appearance-none pr-8 w-[80px]"
+              >
+                {[3, 5, 10, 15, 20, 50].map(n => <option key={n} value={n}>Top {n}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="w-px h-8 bg-border/30 shrink-0" />
+
         {/* Filter controls */}
         <div className="flex items-center gap-1 shrink-0">
           <Filter className="w-3 h-3 text-muted-foreground/40" />
