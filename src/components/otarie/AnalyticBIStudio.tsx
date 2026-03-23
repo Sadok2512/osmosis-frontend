@@ -334,9 +334,9 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
       return (
         <BIChartCard
           config={w.config as ChartConfig}
-          onEdit={() => { setEditingId(getId(w)); setShowAI(false); }}
-          onDuplicate={() => duplicateWidget(getId(w))}
-          onDelete={() => deleteWidget(getId(w))}
+          onEdit={isEditMode ? () => { setEditingId(getId(w)); setShowAI(false); } : undefined}
+          onDuplicate={isEditMode ? () => duplicateWidget(getId(w)) : undefined}
+          onDelete={isEditMode ? () => deleteWidget(getId(w)) : undefined}
         />
       );
     }
@@ -344,8 +344,8 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
       return (
         <BIMapWidget
           config={w.config as MapWidgetConfig}
-          onChange={cfg => updateMapConfig(getId(w), cfg)}
-          onDelete={() => deleteWidget(getId(w))}
+          onChange={isEditMode ? cfg => updateMapConfig(getId(w), cfg) : () => {}}
+          onDelete={isEditMode ? () => deleteWidget(getId(w)) : () => {}}
         />
       );
     }
@@ -353,8 +353,8 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
       return (
         <BIImageWidget
           config={w.config as ImageWidgetConfig}
-          onChange={cfg => updateImageConfig(getId(w), cfg)}
-          onDelete={() => deleteWidget(getId(w))}
+          onChange={isEditMode ? cfg => updateImageConfig(getId(w), cfg) : () => {}}
+          onDelete={isEditMode ? () => deleteWidget(getId(w)) : () => {}}
         />
       );
     }
@@ -362,17 +362,17 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
       return (
         <BITableWidget
           config={w.config as TableWidgetConfig}
-          onChange={cfg => updateTableConfig(getId(w), cfg)}
-          onDelete={() => deleteWidget(getId(w))}
-          onEdit={() => { setEditingId(getId(w)); setShowAI(false); }}
+          onChange={isEditMode ? cfg => updateTableConfig(getId(w), cfg) : () => {}}
+          onDelete={isEditMode ? () => deleteWidget(getId(w)) : () => {}}
+          onEdit={isEditMode ? () => { setEditingId(getId(w)); setShowAI(false); } : undefined}
         />
       );
     }
     return (
       <BITextWidget
         config={w.config as TextWidgetConfig}
-        onChange={cfg => updateTextConfig(getId(w), cfg)}
-        onDelete={() => deleteWidget(getId(w))}
+        onChange={isEditMode ? cfg => updateTextConfig(getId(w), cfg) : () => {}}
+        onDelete={isEditMode ? () => deleteWidget(getId(w)) : () => {}}
       />
     );
   };
