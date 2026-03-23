@@ -212,21 +212,27 @@ const KPIMonitorInner: React.FC = () => {
   // Counter catalog from backend
   const { data: counterCatalog } = useCounterCatalog();
 
-  // Sync date range from backend — set dates to available data range on first load
+  // Sync date range from backend — always set to available data range
   const { data: dateRange } = useDateRange();
   const [dateRangeSynced, setDateRangeSynced] = useState(false);
   useEffect(() => {
     if (dateRange?.min_date && dateRange?.max_date && !dateRangeSynced) {
-      const minDate = dateRange.min_date.replace(/[T ].*/,'');
-      const maxDate = dateRange.max_date.replace(/[T ].*/,'');
-      if (minDate && maxDate) {
-        globalFilter.setDateRange(minDate, maxDate);
+      const backendMin = dateRange.min_date.replace(/[T ].*/,'');
+      const backendMax = dateRange.max_date.replace(/[T ].*/,'');
+      if (backendMin && backendMax) {
+        // Check if current dates are outside backend range (stale/default)
+        const curFrom = globalFilter.dateFrom;
+        const curTo = globalFilter.dateTo;
+        const isStale = curFrom < backendMin || curFrom > backendMax || curTo < backendMin || curTo > backendMax;
+        if (isStale) {
+          globalFilter.setDateRange(backendMin, backendMax);
+          console.log(`[KPI Monitor] Date range synced: ${backendMin} → ${backendMax} (was stale: ${curFrom} → ${curTo})`);
+        }
         setDateRangeSynced(true);
-        console.log(`[KPI Monitor] Date range synced: ${minDate} → ${maxDate}`);
       }
     }
   }, [dateRange, dateRangeSynced]);
-  const [editMode, setEditMode] = useState(true);
+  const [editMode, setEditMode] = useState(false);
   const [quickSection, setQuickSection] = useState<QuickSettingsSection>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [widgetThresholds, setWidgetThresholds] = useState<Record<string, WidgetThreshold[]>>({});
