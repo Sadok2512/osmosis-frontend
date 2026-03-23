@@ -385,7 +385,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
       {/* ══════════════════════════════════════════════
           ROW 2: Grouped control sections (cards)
          ══════════════════════════════════════════════ */}
-      <div className="flex items-stretch gap-2.5 px-4 py-2 border-t border-border/20 bg-muted/5 overflow-x-auto">
+      <div className="flex items-stretch gap-2.5 px-5 py-2.5 border-t border-border/15 overflow-x-auto">
 
         {/* ── Section: Date Range ── */}
         <div className="rounded-xl border border-border/30 bg-card/80 px-3 py-2 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
