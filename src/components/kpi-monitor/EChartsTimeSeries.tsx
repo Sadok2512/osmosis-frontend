@@ -27,6 +27,7 @@ interface Props {
   thresholdsEnabled?: boolean;
   editMode?: boolean;
   onToggleEditMode?: () => void;
+  onInfo?: () => void;
   configPanel?: React.ReactNode;
   bottomPanel?: React.ReactNode;
   onAxisConfigChange?: (c: WidgetAxisConfig) => void;
