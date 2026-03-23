@@ -183,6 +183,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const setCalCfg = (u: Partial<typeof calCfg>) => setGraphD({ calendar: { ...calCfg, ...u } });
 
   const [kpiOpen, setKpiOpen] = useState(true);
+  const [counterOpen, setCounterOpen] = useState(false);
   const [axeOpen, setAxeOpen] = useState(false);
   const [gridCalOpen, setGridCalOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -342,7 +343,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                           <SelectTrigger className="h-6 w-[60px] text-[10px] px-1.5 border-border/30 bg-muted/30 rounded-md">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" className="z-[9999]">
                             {GRAPH_TYPES.map(g => (
                               <SelectItem key={g.value} value={g.value} className="text-[10px]">
                                 <div className="flex items-center gap-1.5"><g.icon className="w-3 h-3" /> {g.label}</div>
@@ -388,8 +389,8 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
               icon={<Hash className="w-4 h-4" />}
               title="Compteurs"
               badge={selectedCounterCount || 0}
-              open={false}
-              onToggle={() => {}}
+              open={counterOpen}
+              onToggle={() => setCounterOpen(!counterOpen)}
             >
               <button
                 onClick={onOpenCounterSelector}
