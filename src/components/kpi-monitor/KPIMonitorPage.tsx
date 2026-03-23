@@ -879,6 +879,15 @@ const KPIMonitorInner: React.FC = () => {
         <KPIExplainPanel kpiKey={explainKpiKey} onClose={() => setExplainKpiKey(null)} />
       )}
 
+      {/* ── Widget Explain Panel ── */}
+      {explainWidgetId && (
+        <WidgetExplainPanel
+          widget={explainWidgetId === MAIN_CHART_ID ? ({ kind: 'chart', config: { id: MAIN_CHART_ID, title: store.selectedKpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / '), description: '', xAxis: { type: 'date', value: 'date', granularity: globalFilter.granularity }, yMetrics: store.selectedKpis.map(k => ({ kpi: k.kpi_key, aggregation: 'AVG', axis: k.axis, chartType: k.graphType || 'line', color: 'hsl(var(--primary))', showMovingAvg: false, smoothCurve: true })), filters: [], groupBy: store.splitBy ? [store.splitBy as any] : [], advanced: { thresholds: [], milestones: [], highlightAnomalies: false, sortByValue: false, topN: store.topN, showLegend: true, legendPosition: 'bottom', backgroundColor: '', headerTextColor: '', showGrid: true, yAxisMode: 'auto', yAxisMin: null, yAxisMax: null } }, layout: store.mainChartLayout || DEFAULT_MAIN_CHART_LAYOUT } as any) : (widgets.find(w => getId(w) === explainWidgetId) || null)}
+          title={explainWidgetId === MAIN_CHART_ID ? 'Main Graph' : undefined}
+          onClose={() => setExplainWidgetId(null)}
+        />
+      )}
+
       {/* ── AI Floating Modal ── */}
       <AIFloatingModal open={showAI} onClose={() => setShowAI(false)} />
 
