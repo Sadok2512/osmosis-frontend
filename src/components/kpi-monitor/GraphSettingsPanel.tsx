@@ -211,22 +211,22 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
   };
 
   return (
-    <div className="border-b border-primary/30 bg-card/80 backdrop-blur-sm animate-in slide-in-from-top-2 duration-200">
+    <div className="border-b border-primary/20 bg-card/90 backdrop-blur-sm animate-in slide-in-from-top-2 duration-200">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/50">
+      <div className="flex items-center justify-between px-3 py-1 border-b border-border/40">
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-5 rounded-full bg-primary" />
+          <div className="w-1 h-4 rounded-full bg-primary" />
           <span className="text-[11px] font-bold text-foreground">{widgetTitle || 'Graph Settings'}</span>
-          <Badge variant="outline" className="text-[8px] h-4 px-1.5">Widget</Badge>
+          <Badge variant="outline" className="text-[7px] h-3.5 px-1">Widget</Badge>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+              <button className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                 <MoreHorizontal className="w-3.5 h-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem onClick={onExportPNG} className="gap-2 text-xs"><Download className="w-3.5 h-3.5" /> Export PNG</DropdownMenuItem>
               <DropdownMenuItem onClick={onExportCSV} className="gap-2 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" /> Export CSV</DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -236,14 +236,14 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
               <DropdownMenuItem onClick={onDelete} className="gap-2 text-xs text-destructive focus:text-destructive"><Trash2 className="w-3.5 h-3.5" /> Supprimer</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onClose} className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* ── Content: 5 sections ── */}
-      <div className="px-4 py-2.5 flex gap-3 overflow-x-auto">
+      {/* ── Content: compact horizontal sections ── */}
+      <div className="px-3 py-1.5 flex gap-2 overflow-x-auto">
 
         {/* ─── 1: KPI Config ─── */}
         <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[260px] flex-1">
