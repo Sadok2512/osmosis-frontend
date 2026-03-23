@@ -202,6 +202,71 @@ const GRANULARITIES = [
 ];
 
 /* ── Props ── */
+interface DashboardTopBarProps {
+  dm: ReturnType<typeof useDashboardManager>;
+  onSave: () => void;
+  onExportPDF: () => void;
+  onShowPrintPreview: () => void;
+  onToggleAI: () => void;
+  showAI: boolean;
+  onToggleCSV: () => void;
+  csvCount: number;
+  onAddChart: () => void;
+  onAddMap: () => void;
+  onAddText: () => void;
+  onAddImage: () => void;
+  onAddTable: () => void;
+  layoutMode: 'grid' | 'free';
+  onToggleLayout: () => void;
+  onCreateNew: () => void;
+  editMode: boolean;
+  onToggleEditMode: () => void;
+  seriesInfo?: { total: number; granularity: string; truncated: boolean };
+  onApplyConfig?: () => void;
+}
+
+const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
+  dm, onSave, onExportPDF, onShowPrintPreview, onToggleAI, showAI,
+  onToggleCSV, csvCount,
+  onAddChart, onAddMap, onAddText, onAddImage, onAddTable,
+  layoutMode, onToggleLayout, onCreateNew,
+  editMode, onToggleEditMode,
+  seriesInfo, onApplyConfig,
+}) => {
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const gf = useGlobalFilterStore();
+  const store = useKpiMonitorStore();
+  const dashSettings = useDashboardSettingsStore();
+  const currentSettings = dashSettings.getSettings(dm.activeTabId, dm.activeTab?.name);
+  const filterCount = gf.globalFilters.filter(f => f.values.length > 0).length + (gf.crossFilter ? 1 : 0);
+  const hasActiveFilters = filterCount > 0;
+
+  const startEditName = () => { setNameValue(dm.activeTab?.name || ''); setEditingName(true); };
+  const commitName = () => { if (nameValue.trim() && dm.activeTab) dm.renameTab(dm.activeTab.id, nameValue.trim()); setEditingName(false); };
+
+  const fmtShort = (iso: string) => {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+  };
+
+  const applyPreset = (days: number) => {
+    const to = new Date();
+    const from = new Date(to.getTime() - days * 86400000);
+    gf.setDateRange(from.toISOString().slice(0, 10), to.toISOString().slice(0, 10));
+  };
+
+  const applyWeekPreset = (offset: number) => {
+    const now = new Date();
+    const dow = now.getDay() || 7;
+    const mon = new Date(now.getTime() - (dow - 1) * 86400000 - offset * 7 * 86400000);
+    const sun = new Date(mon.getTime() + 6 * 86400000);
+    gf.setDateRange(
+      mon.toISOString().slice(0, 10),
+      offset === 0 ? now.toISOString().slice(0, 10) : sun.toISOString().slice(0, 10),
+    );
+  };
 
   return (
     <div className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-md">
