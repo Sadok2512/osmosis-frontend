@@ -460,62 +460,6 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           </div>
         </div>
 
-        {/* Milestones */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button className={cn(CTL_H, 'px-1.5 rounded-md border border-border/40 bg-muted/30 flex items-center gap-0.5 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all shrink-0')}>
-              <Flag className="w-3 h-3" />
-              {store.milestones.length > 0 && (
-                <span className="text-[8px] font-bold text-primary">{store.milestones.length}</span>
-              )}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72 p-3" align="end">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Jalons</p>
-                <Switch checked={store.showMilestones} onCheckedChange={store.setShowMilestones} className="h-3.5 w-7 data-[state=checked]:bg-primary" />
-              </div>
-              <button onClick={addMilestone}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-[10px] font-semibold w-full justify-center"
-              ><Plus className="w-3 h-3" /> Ajouter</button>
-              {store.milestones.length === 0 ? (
-                <p className="text-[9px] text-muted-foreground/50 italic text-center py-1">Aucun jalon</p>
-              ) : (
-                <div className="space-y-1 max-h-[160px] overflow-y-auto">
-                  {store.milestones.map(m => (
-                    <div key={m.id} className="flex items-center gap-1.5 px-1.5 py-1 rounded-md bg-muted/30 group">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button className="w-3 h-3 rounded-full shrink-0 border border-border hover:scale-110 transition-transform" style={{ backgroundColor: m.color }} />
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-2" align="start">
-                          <div className="flex gap-1">
-                            {MILESTONE_COLORS.map(c => (
-                              <button key={c} onClick={() => store.updateMilestone(m.id, { color: c })}
-                                className={`w-5 h-5 rounded-full transition-transform hover:scale-125 ${m.color === c ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-                                style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <input type="date" value={m.date} onChange={e => store.updateMilestone(m.id, { date: e.target.value })}
-                        className="px-1 py-0.5 rounded border border-border bg-card text-[9px] text-foreground outline-none w-[100px]" />
-                      <input type="text" value={m.label} onChange={e => store.updateMilestone(m.id, { label: e.target.value })}
-                        className="flex-1 px-1 py-0.5 rounded border border-border bg-card text-[9px] text-foreground outline-none min-w-0" placeholder="Label..." />
-                      <button onClick={() => store.removeMilestone(m.id)}
-                        className="p-0.5 rounded text-muted-foreground/40 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all shrink-0"
-                      ><X className="w-3 h-3" /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <div className="w-px h-4 bg-border/40 shrink-0" />
-
         {/* Filter controls */}
         <div className="flex items-center gap-1 shrink-0">
           <Filter className="w-3 h-3 text-muted-foreground/40" />
