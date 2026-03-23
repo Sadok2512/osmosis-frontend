@@ -258,9 +258,9 @@ const KPIMonitorInner: React.FC = () => {
     ...(globalFilter.crossFilter ? [{ dimension: globalFilter.crossFilter.dimension, op: 'EQ' as const, values: [globalFilter.crossFilter.value] }] : []),
   ], [store.localFilters, globalFilter.globalFilters, globalFilter.crossFilter]);
 
-  // Timeseries API request
+  // Timeseries API request (gated on date sync)
   const tsRequest: TimeseriesRequest | null = useMemo(() => {
-    if (store.selectedKpis.length === 0) return null;
+    if (store.selectedKpis.length === 0 || !dateRangeSynced) return null;
     return {
       date_from: globalFilter.dateFrom,
       date_to: globalFilter.dateTo,
@@ -283,7 +283,7 @@ const KPIMonitorInner: React.FC = () => {
 
   // Summary API request
   const summaryRequest = useMemo(() => {
-    if (store.selectedKpis.length === 0) return null;
+    if (store.selectedKpis.length === 0 || !dateRangeSynced) return null;
     return {
       date_from: globalFilter.dateFrom,
       date_to: globalFilter.dateTo,
@@ -296,7 +296,7 @@ const KPIMonitorInner: React.FC = () => {
 
   // Table API request
   const tableRequest = useMemo(() => {
-    if (store.selectedKpis.length === 0 || store.viewMode !== 'table') return null;
+    if (store.selectedKpis.length === 0 || store.viewMode !== 'table' || !dateRangeSynced) return null;
     return {
       date_from: globalFilter.dateFrom,
       date_to: globalFilter.dateTo,
