@@ -29,7 +29,11 @@ const LEGEND_HEIGHT = 32;
 
 const DASH_MAP: Record<string, string> = { solid: '0', dashed: '6,4', dotted: '2,3' };
 
-const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externalMap, gc, ac, thresholds, thresholdsEnabled, milestones, showMilestones }) => {
+const D3TimeSeries: React.FC<Props> = ({ data, height: rawHeight = 380, catalogMap: externalMap, gc, ac, thresholds, thresholdsEnabled, milestones, showMilestones }) => {
+  const showLegend = gc?.showLegend ?? true;
+  const legendPos = gc?.legendPosition ?? 'bottom';
+  const legendH = showLegend ? LEGEND_HEIGHT : 0;
+  const height = rawHeight - legendH;
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
