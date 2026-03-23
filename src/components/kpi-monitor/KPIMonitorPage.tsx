@@ -394,6 +394,7 @@ const KPIMonitorInner: React.FC = () => {
 
   const onLayoutChange = (newLayout: any[]) => {
     setWidgets(prev => prev.map(w => {
+      if (!w.layout) return w;
       const l = newLayout.find(n => n.i === getId(w));
       if (!l) return w;
       return { ...w, layout: { ...w.layout, x: l.x, y: l.y, w: l.w, h: l.h } };
@@ -401,16 +402,20 @@ const KPIMonitorInner: React.FC = () => {
   };
 
   const colWidth = containerWidth / COLS;
-  const toFreeRect = (w: WidgetItem) => ({
-    id: getId(w),
-    x: w.layout.freeX ?? w.layout.x * colWidth,
-    y: w.layout.freeY ?? w.layout.y * ROW_HEIGHT,
-    w: w.layout.freeW ?? w.layout.w * colWidth,
-    h: w.layout.freeH ?? w.layout.h * ROW_HEIGHT,
-  });
+  const toFreeRect = (w: WidgetItem) => {
+    const layout = w.layout || { x: 0, y: 0, w: 6, h: 4, freeX: undefined, freeY: undefined, freeW: undefined, freeH: undefined };
+    return {
+      id: getId(w),
+      x: layout.freeX ?? layout.x * colWidth,
+      y: layout.freeY ?? layout.y * ROW_HEIGHT,
+      w: layout.freeW ?? layout.w * colWidth,
+      h: layout.freeH ?? layout.h * ROW_HEIGHT,
+    };
+  };
 
   const onFreeLayoutChange = useCallback((id: string, rect: Partial<{ x: number; y: number; w: number; h: number }>) => {
     setWidgets(prev => prev.map(w => {
+      if (!w.layout) return w;
       if (getId(w) !== id) return w;
       const cur = toFreeRect(w);
       return { ...w, layout: { ...w.layout, freeX: rect.x ?? cur.x, freeY: rect.y ?? cur.y, freeW: rect.w ?? cur.w, freeH: rect.h ?? cur.h } };
@@ -419,10 +424,13 @@ const KPIMonitorInner: React.FC = () => {
 
   const toggleLayoutMode = () => {
     if (layoutMode === 'grid') {
-      setWidgets(prev => prev.map(w => ({
-        ...w,
-        layout: { ...w.layout, freeX: w.layout.freeX ?? w.layout.x * colWidth, freeY: w.layout.freeY ?? w.layout.y * ROW_HEIGHT, freeW: w.layout.freeW ?? w.layout.w * colWidth, freeH: w.layout.freeH ?? w.layout.h * ROW_HEIGHT },
-      })));
+      setWidgets(prev => prev.map(w => {
+        if (!w.layout) return w;
+        return {
+          ...w,
+          layout: { ...w.layout, freeX: w.layout.freeX ?? w.layout.x * colWidth, freeY: w.layout.freeY ?? w.layout.y * ROW_HEIGHT, freeW: w.layout.freeW ?? w.layout.w * colWidth, freeH: w.layout.freeH ?? w.layout.h * ROW_HEIGHT },
+        };
+      }));
       setLayoutMode('free');
     } else {
       setLayoutMode('grid');
