@@ -111,21 +111,56 @@ const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externa
       ? d3.scaleLinear().domain(rightCfg?.invert ? [yRightDomain[1], yRightDomain[0]] : yRightDomain).range([innerH, 0]).nice()
       : null;
 
-    // Grid lines
-    const gridIntensity = gc?.gridIntensity === 'medium' ? 0.12 : 0.06;
-    g.append('g')
-      .attr('class', 'grid-y')
-      .call(d3.axisLeft(yLeft).tickSize(-innerW).tickFormat(() => ''))
-      .call(g => g.selectAll('line').attr('stroke', `rgba(0,0,0,${gridIntensity})`).attr('stroke-dasharray', '4,4'))
-      .call(g => g.select('.domain').remove());
+    // ── 1. Weekend highlighting (behind everything) ──
+    const calCfg = gc?.calendar || DEFAULT_CALENDAR;
+    if (calCfg.highlightWeekends) {
+      const [xMin, xMax] = xScale.domain();
+      const weekendColor = calCfg.weekendColor || '#E5E7EB';
+      const weekendOpacity = (calCfg.weekendOpacity ?? 10) / 100;
+      // Find all weekend day boundaries in the range
+      const cur = new Date(xMin);
+      cur.setHours(0, 0, 0, 0);
+      while (cur <= xMax) {
+        const day = cur.getDay();
+        if (day === 0 || day === 6) { // Sunday=0, Saturday=6
+          const dayStart = new Date(cur);
+          const dayEnd = new Date(cur);
+          dayEnd.setDate(dayEnd.getDate() + 1);
+          const x1 = Math.max(0, xScale(dayStart));
+          const x2 = Math.min(innerW, xScale(dayEnd));
+          if (x2 > x1) {
+            g.append('rect')
+              .attr('x', x1).attr('y', 0)
+              .attr('width', x2 - x1).attr('height', innerH)
+              .attr('fill', weekendColor)
+              .attr('opacity', weekendOpacity)
+              .attr('pointer-events', 'none');
+          }
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
 
-    if (gc?.showVerticalGrid) {
-      g.append('g')
-        .attr('class', 'grid-x')
-        .attr('transform', `translate(0,${innerH})`)
-        .call(d3.axisBottom(xScale).tickSize(-innerH).tickFormat(() => ''))
-        .call(g => g.selectAll('line').attr('stroke', `rgba(0,0,0,${gridIntensity * 0.6})`).attr('stroke-dasharray', '2,4'))
-        .call(g => g.select('.domain').remove());
+    // ── 2. Grid lines ──
+    const gridCfg = gc?.grid || DEFAULT_GRID;
+    if (gridCfg.enabled) {
+      const gridOpacity = (gridCfg.opacity ?? 20) / 100;
+      const gridType = gridCfg.type || 'both';
+      if (gridType === 'horizontal' || gridType === 'both') {
+        g.append('g')
+          .attr('class', 'grid-y')
+          .call(d3.axisLeft(yLeft).tickSize(-innerW).tickFormat(() => ''))
+          .call(g => g.selectAll('line').attr('stroke', `rgba(128,128,128,${gridOpacity})`).attr('stroke-dasharray', '4,4'))
+          .call(g => g.select('.domain').remove());
+      }
+      if (gridType === 'vertical' || gridType === 'both') {
+        g.append('g')
+          .attr('class', 'grid-x')
+          .attr('transform', `translate(0,${innerH})`)
+          .call(d3.axisBottom(xScale).tickSize(-innerH).tickFormat(() => ''))
+          .call(g => g.selectAll('line').attr('stroke', `rgba(128,128,128,${gridOpacity * 0.7})`).attr('stroke-dasharray', '2,4'))
+          .call(g => g.select('.domain').remove());
+      }
     }
 
     // Axes formatters
