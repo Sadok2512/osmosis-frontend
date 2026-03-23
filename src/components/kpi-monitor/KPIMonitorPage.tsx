@@ -9,7 +9,7 @@ import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
 import { buildCatalogMap, fetchKpiCatalogFromDB } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
-import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, useCounterCatalog, type TimeseriesRequest, type MonitorFilter, type MonitorKpiCatalogEntry } from './api/kpiMonitorApi';
+import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, useCounterCatalog, useDateRange, type TimeseriesRequest, type MonitorFilter, type MonitorKpiCatalogEntry } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
 import KPIExplainPanel from './KPIExplainPanel';
 import EChartsTimeSeries from './EChartsTimeSeries';
@@ -222,6 +222,19 @@ const KPIMonitorInner: React.FC = () => {
 
   // Counter catalog from backend
   const { data: counterCatalog } = useCounterCatalog();
+
+  // Sync date range from backend — set dates to available data range on first load
+  const { data: dateRange } = useDateRange();
+  const [dateRangeSynced, setDateRangeSynced] = useState(false);
+  useEffect(() => {
+    if (dateRange?.min_date && dateRange?.max_date && !dateRangeSynced) {
+      const minDate = dateRange.min_date.split('T')[0].split('+')[0];
+      const maxDate = dateRange.max_date.split('T')[0].split('+')[0];
+      globalFilter.setDateRange(minDate, maxDate);
+      setDateRangeSynced(true);
+      console.log(`[KPI Monitor] Date range synced: ${minDate} → ${maxDate}`);
+    }
+  }, [dateRange, dateRangeSynced]);
   const [editMode, setEditMode] = useState(true);
   const [quickSection, setQuickSection] = useState<QuickSettingsSection>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);

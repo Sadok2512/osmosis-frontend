@@ -163,9 +163,23 @@ export interface CounterCatalogEntry {
   is_active: boolean;
 }
 
+export interface DateRangeResponse {
+  min_date: string | null;
+  max_date: string | null;
+  day_count: number;
+}
+
+export interface FilterValuesResponse {
+  dimension: string;
+  values: string[];
+}
+
 export const fetchKpiCatalog = () => monitorGet<MonitorKpiCatalogEntry[]>('catalog/kpis');
 export const fetchCounterCatalog = () => monitorGet<CounterCatalogEntry[]>('catalog/counters');
 export const fetchFilterCatalog = () => monitorGet<MonitorFilterDef[]>('catalog/filters');
+export const fetchDateRange = () => monitorGet<DateRangeResponse>('date-range');
+export const fetchDimensionValues = (dimension: string) =>
+  monitorGet<FilterValuesResponse>(`filters/values?dimension=${encodeURIComponent(dimension)}`);
 export const fetchFilterValues = (dimensions: string[], filters?: MonitorFilter[]) =>
   monitorPost<Record<string, string[]>>('filters/values', { dimensions, filters });
 export const fetchTimeseries = (req: TimeseriesRequest) =>
@@ -215,6 +229,29 @@ export function useFilterCatalog() {
   return useQuery({
     queryKey: ['monitor', 'catalog', 'filters'],
     queryFn: fetchFilterCatalog,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useDateRange() {
+  return useQuery({
+    queryKey: ['monitor', 'date-range'],
+    queryFn: async () => {
+      try {
+        return await fetchDateRange();
+      } catch {
+        return { min_date: null, max_date: null, day_count: 0 } as DateRangeResponse;
+      }
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useDimensionValues(dimension: string | null) {
+  return useQuery({
+    queryKey: ['monitor', 'dimension-values', dimension],
+    queryFn: () => fetchDimensionValues(dimension!),
+    enabled: !!dimension,
     staleTime: 5 * 60 * 1000,
   });
 }
