@@ -771,6 +771,34 @@ const KPIMonitorInner: React.FC = () => {
                   </>
                 )}
               </div>
+
+              {/* Floating multi-select indicator */}
+              {store.selectedWidgetIds.length > 1 && (
+                <div className="sticky bottom-4 mx-auto w-fit z-50 flex items-center gap-3 px-4 py-2 rounded-xl bg-card border border-primary/30 shadow-lg shadow-primary/10 backdrop-blur-md">
+                  <span className="text-xs font-semibold text-foreground">
+                    {store.selectedWidgetIds.length} widgets sélectionnés
+                  </span>
+                  <button
+                    onClick={() => store.clearWidgetSelection()}
+                    className="text-[10px] font-medium text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-muted transition-colors"
+                  >
+                    Désélectionner
+                  </button>
+                  {editMode && (
+                    <button
+                      onClick={() => {
+                        store.selectedWidgetIds.forEach(id => {
+                          if (id !== MAIN_CHART_ID) deleteWidget(id);
+                        });
+                        store.clearWidgetSelection();
+                      }}
+                      className="text-[10px] font-medium text-destructive hover:bg-destructive/10 px-2 py-1 rounded-md transition-colors"
+                    >
+                      Supprimer
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ── Right Config Sidebar — only visible during edit ── */}
