@@ -268,7 +268,14 @@ export function useFilterValues(dimensions: string[], filters?: MonitorFilter[])
 export function useTimeseriesQuery(req: TimeseriesRequest | null) {
   return useQuery({
     queryKey: ['monitor', 'timeseries', req],
-    queryFn: () => fetchTimeseries(req!),
+    queryFn: async () => {
+      try {
+        return await fetchTimeseries(req!);
+      } catch (err) {
+        console.warn('[useTimeseriesQuery] Backend unavailable:', err);
+        return { series: [], metadata: { total_series: 0, granularity: req?.granularity || '1d', truncated: false } } as TimeseriesResponse;
+      }
+    },
     enabled: !!req && req.selections.length > 0,
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
@@ -278,7 +285,14 @@ export function useTimeseriesQuery(req: TimeseriesRequest | null) {
 export function useTableQuery(req: TableRequest | null) {
   return useQuery({
     queryKey: ['monitor', 'table', req],
-    queryFn: () => fetchTable(req!),
+    queryFn: async () => {
+      try {
+        return await fetchTable(req!);
+      } catch (err) {
+        console.warn('[useTableQuery] Backend unavailable:', err);
+        return { columns: [], rows: [], total_rows: 0 } as TableResponse;
+      }
+    },
     enabled: !!req && req.kpi_keys.length > 0,
     staleTime: 30 * 1000,
   });
@@ -287,7 +301,14 @@ export function useTableQuery(req: TableRequest | null) {
 export function useSummaryQuery(req: SummaryRequest | null) {
   return useQuery({
     queryKey: ['monitor', 'summary', req],
-    queryFn: () => fetchSummary(req!),
+    queryFn: async () => {
+      try {
+        return await fetchSummary(req!);
+      } catch (err) {
+        console.warn('[useSummaryQuery] Backend unavailable:', err);
+        return [] as SummaryItem[];
+      }
+    },
     enabled: !!req && req.kpi_keys.length > 0,
     staleTime: 30 * 1000,
   });
