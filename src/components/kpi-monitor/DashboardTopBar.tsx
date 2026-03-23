@@ -264,12 +264,12 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
   };
 
   return (
-    <div className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-md">
+    <div className="sticky top-0 z-40 mx-3 mt-2 mb-1 rounded-xl border border-border/40 bg-card/95 backdrop-blur-md shadow-[0_2px_12px_hsl(var(--foreground)/0.04)]">
 
       {/* ══════════════════════════════════════════════
           ROW 1: Dashboard Header
          ══════════════════════════════════════════════ */}
-      <div className="flex items-center gap-3 px-4 py-1.5">
+      <div className="flex items-center gap-3 px-5 py-2.5">
         {/* LEFT: Identity */}
         <div className="flex items-center gap-2 min-w-0 shrink-0">
           <BarChart3 className="w-4 h-4 text-primary shrink-0" />
