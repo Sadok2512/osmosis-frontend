@@ -25,6 +25,7 @@ import BITextWidget, { TextWidgetConfig, createDefaultTextWidget } from '../bi/B
 import BIImageWidget, { ImageWidgetConfig, createDefaultImageWidget } from '../bi/BIImageWidget';
 import BIMapWidget from '../bi/BIMapWidget';
 import BITableWidget, { TableWidgetConfig, createDefaultTableWidget } from '../bi/BITableWidget';
+import BIKpiCardWidget, { KpiCardWidgetConfig, createDefaultKpiCardWidget } from '../bi/BIKpiCardWidget';
 import ChartConfigPanel from '../bi/ChartConfigPanel';
 import TableConfigPanel from '../bi/TableConfigPanel';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
@@ -350,8 +351,8 @@ const KPIMonitorInner: React.FC = () => {
     ...validWidgets.map(w => ({
       i: getId(w),
       x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h,
-      minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : w.kind === 'image' ? 2 : w.kind === 'table' ? 4 : 3,
-      minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : w.kind === 'image' ? 2 : w.kind === 'table' ? 3 : 2,
+      minW: w.kind === 'text' ? 2 : w.kind === 'map' ? 4 : w.kind === 'image' ? 2 : w.kind === 'table' ? 4 : w.kind === 'kpicard' ? 2 : 3,
+      minH: w.kind === 'text' ? 1 : w.kind === 'map' ? 3 : w.kind === 'image' ? 2 : w.kind === 'table' ? 3 : w.kind === 'kpicard' ? 2 : 2,
     })),
   ];
 
@@ -468,6 +469,10 @@ const KPIMonitorInner: React.FC = () => {
     const id = `table_${Date.now()}`;
     setWidgets(prev => [...prev, { kind: 'table', config: createDefaultTableWidget(id), layout: { x: 0, y: getMaxY(), w: 8, h: 4 } }]);
   };
+  const addKpiCard = () => {
+    const id = `kpicard_${Date.now()}`;
+    setWidgets(prev => [...prev, { kind: 'kpicard', config: createDefaultKpiCardWidget(id), layout: { x: 0, y: getMaxY(), w: 3, h: 2 } }]);
+  };
 
   const duplicateWidget = (id: string) => {
     const source = widgets.find(w => getId(w) === id);
@@ -489,6 +494,7 @@ const KPIMonitorInner: React.FC = () => {
   const updateMapConfig = (id: string, config: MapWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'map' ? { ...w, config } : w));
   const updateImageConfig = (id: string, config: ImageWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'image' ? { ...w, config } : w));
   const updateTableConfig = (id: string, config: TableWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'table' ? { ...w, config } : w));
+  const updateKpiCardConfig = (id: string, config: KpiCardWidgetConfig) => setWidgets(prev => prev.map(w => getId(w) === id && w.kind === 'kpicard' ? { ...w, config } : w));
 
   const editingTable = validWidgets.find(w => getId(w) === editingId && w.kind === 'table');
 
@@ -520,6 +526,7 @@ const KPIMonitorInner: React.FC = () => {
     if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={editMode ? cfg => updateMapConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={editMode ? cfg => updateImageConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={editMode ? cfg => updateTableConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} onEdit={editMode ? () => { setEditingId(wId); } : undefined} />;
+    if (w.kind === 'kpicard') return <BIKpiCardWidget config={w.config as KpiCardWidgetConfig} onChange={editMode ? cfg => updateKpiCardConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     return <BITextWidget config={w.config as TextWidgetConfig} onChange={editMode ? cfg => updateTextConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
   };
 
@@ -553,6 +560,7 @@ const KPIMonitorInner: React.FC = () => {
         onAddText={addText}
         onAddImage={addImage}
         onAddTable={addTable}
+        onAddKpiCard={addKpiCard}
         layoutMode={layoutMode}
         onToggleLayout={toggleLayoutMode}
         onCreateNew={handleCreateNew}

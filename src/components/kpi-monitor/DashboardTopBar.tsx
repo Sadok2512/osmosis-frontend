@@ -13,6 +13,7 @@ import {
   MoreHorizontal, Sparkles, FileSpreadsheet, BarChart3, Map as MapIcon,
   Table2, Type, ImageIcon, Grid3X3, Move, ChevronDown, X, Filter,
   RotateCcw, Search, Check, Pencil, EyeIcon, Settings, Calendar,
+  Activity,
 } from 'lucide-react';
 import DashboardSettingsPopup from './DashboardSettingsPopup';
 import { useDashboardSettingsStore } from '@/stores/dashboardSettingsStore';
@@ -216,6 +217,7 @@ interface DashboardTopBarProps {
   onAddText: () => void;
   onAddImage: () => void;
   onAddTable: () => void;
+  onAddKpiCard?: () => void;
   layoutMode: 'grid' | 'free';
   onToggleLayout: () => void;
   onCreateNew: () => void;
@@ -228,7 +230,7 @@ interface DashboardTopBarProps {
 const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
   dm, onSave, onExportPDF, onShowPrintPreview, onToggleAI, showAI,
   onToggleCSV, csvCount,
-  onAddChart, onAddMap, onAddText, onAddImage, onAddTable,
+  onAddChart, onAddMap, onAddText, onAddImage, onAddTable, onAddKpiCard,
   layoutMode, onToggleLayout, onCreateNew,
   editMode, onToggleEditMode,
   seriesInfo, onApplyConfig,
@@ -334,6 +336,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
                 { icon: Plus, label: 'Chart', onClick: onAddChart },
                 { icon: MapIcon, label: 'Map', onClick: onAddMap },
                 { icon: Table2, label: 'Table', onClick: onAddTable },
+                { icon: Activity, label: 'KPI', onClick: onAddKpiCard },
                 { icon: Type, label: 'Txt', onClick: onAddText },
                 { icon: ImageIcon, label: 'Img', onClick: onAddImage },
               ].map(btn => (
