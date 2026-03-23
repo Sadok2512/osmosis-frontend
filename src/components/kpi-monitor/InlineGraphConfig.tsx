@@ -400,135 +400,70 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             </>)}
 
             {/* Axe X removed — date controlled from top bar */}
-          </>)}
-        </div>
 
-        {/* ── GRAPH STYLE ── */}
-        <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
-          <button onClick={() => setGraphOpen(!graphOpen)} className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
-            {graphOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-            <Settings2 className="w-3.5 h-3.5" /> Affichage
-          </button>
-          {graphOpen && (<>
-            <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider">Ligne</p>
-            <SmallToggle label="Lissage" checked={graph.smooth} onChange={v => setGraphD({ smooth: v })} />
-            <FieldRow label="Épaisseur">
-              <SmallSelect value={String(graph.lineWidth)} options={[
-                { value: '1', label: '1px' }, { value: '1.5', label: '1.5px' },
-                { value: '2', label: '2px' }, { value: '2.5', label: '2.5px' }, { value: '3', label: '3px' },
-              ]} onChange={v => setGraphD({ lineWidth: Number(v) })} className="w-[80px]" />
-            </FieldRow>
-            <SmallToggle label="Symboles" checked={graph.showSymbols} onChange={v => setGraphD({ showSymbols: v })} />
-
-            <div className="pt-2 border-t border-border/30">
-              <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-2">Grille</p>
-              <FieldRow label="Intensité">
-                <SmallSelect value={graph.gridIntensity} options={[
-                  { value: 'light', label: 'Light' }, { value: 'medium', label: 'Medium' },
-                ]} onChange={v => setGraphD({ gridIntensity: v as any })} className="w-[80px]" />
-              </FieldRow>
-              <SmallToggle label="Grille V" checked={graph.showVerticalGrid} onChange={v => setGraphD({ showVerticalGrid: v })} />
-            </div>
-
-            <div className="pt-2 border-t border-border/30">
-              <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-2">Fond</p>
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] text-muted-foreground">Couleur</span>
-                <div className="flex gap-2">
-                  {['transparent', '#f8fafc', '#0f172a'].map(c => (
-                    <button key={c}
-                      onClick={() => setGraphD({ backgroundColor: c, transparentBg: c === 'transparent' })}
-                      className={cn(
-                        'w-7 h-7 rounded-lg border-2 transition-all',
-                        (graph.backgroundColor === c || (c === 'transparent' && graph.transparentBg))
-                          ? 'border-primary shadow-[0_0_0_2px_hsl(var(--primary)/0.2)]' : 'border-border/40'
-                      )}
-                      style={{ backgroundColor: c === 'transparent' ? undefined : c }}
-                    >
-                      {c === 'transparent' && <span className="text-[8px] text-muted-foreground">T</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-border/30">
-              <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-2">Légende</p>
-              <SmallToggle label="Afficher" checked={graph.showLegend} onChange={v => setGraphD({ showLegend: v })} />
-              {graph.showLegend && (
-                <FieldRow label="Position">
-                  <SmallSelect value={graph.legendPosition} options={[
-                    { value: 'top', label: 'Haut' }, { value: 'bottom', label: 'Bas' },
-                  ]} onChange={v => setGraphD({ legendPosition: v as any })} className="w-[80px]" />
-                </FieldRow>
-              )}
-            </div>
-          </>)}
-        </div>
-
-        {/* ── SEUILS Y ── */}
-        <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
-          <div className="flex items-center justify-between">
-            <button onClick={() => setSeuilOpen(!seuilOpen)} className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
-              {seuilOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              <AlertTriangle className="w-3.5 h-3.5" /> Seuils Y
-              {thresholdsEnabled && thresholds.length > 0 && (
-                <span className="ml-1 text-[9px] font-medium text-muted-foreground">{thresholds.length}</span>
-              )}
-            </button>
-            <button onClick={addThreshold}
-              className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 font-semibold">
-              <Plus className="w-3 h-3" /> Ajouter
-            </button>
-          </div>
-          {seuilOpen && (
+            {/* ── SEUILS Y (inside Axes) ── */}
+            <div className="h-px bg-border/40 my-1" />
             <div className="space-y-2">
-              <SmallToggle label="Activer" checked={thresholdsEnabled} onChange={v => { onThresholdsEnabledChange(v); markDirty(); }} />
-              {thresholdsEnabled && thresholds.map(t => (
-                <div key={t.id} className="flex items-center gap-1.5 group">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button className="w-3 h-3 rounded-full shrink-0 ring-1 ring-border/30" style={{ backgroundColor: t.color }} />
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-2" align="start">
-                      <div className="flex gap-1.5">
-                        {THRESHOLD_COLORS.map(c => (
-                          <button key={c}
-                            onClick={() => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, color: c } : th)); markDirty(); }}
-                            className={cn('w-5 h-5 rounded-full', t.color === c && 'ring-2 ring-primary ring-offset-1')}
-                            style={{ backgroundColor: c }} />
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <SmallInput type="number" value={t.value}
-                    onChange={e => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, value: Number(e.target.value) } : th)); markDirty(); }}
-                    className="w-14" />
-                  <SmallInput value={t.label}
-                    onChange={e => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, label: e.target.value } : th)); markDirty(); }}
-                    className="flex-1 min-w-0" />
-                  <SmallSelect value={t.style}
-                    onChange={v => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, style: v as any } : th)); markDirty(); }}
-                    options={[{ value: 'dashed', label: '- -' }, { value: 'solid', label: '──' }, { value: 'dotted', label: '···' }]}
-                    className="w-12" />
-                  <SmallSelect value={t.axis || 'left'}
-                    onChange={v => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, axis: v as any } : th)); markDirty(); }}
-                    options={[{ value: 'left', label: 'L' }, { value: 'right', label: 'R' }]}
-                    className="w-10" />
-                  <button onClick={() => { onThresholdsChange(thresholds.filter(th => th.id !== t.id)); markDirty(); }}
-                    className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
-                    <X className="w-2.5 h-2.5" />
-                  </button>
+              <div className="flex items-center justify-between">
+                <button onClick={() => setSeuilOpen(!seuilOpen)} className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
+                  {seuilOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  <AlertTriangle className="w-3 h-3" /> Seuils Y
+                  {thresholdsEnabled && thresholds.length > 0 && (
+                    <span className="ml-1 text-[9px] font-medium text-muted-foreground">{thresholds.length}</span>
+                  )}
+                </button>
+                <button onClick={addThreshold}
+                  className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 font-semibold">
+                  <Plus className="w-3 h-3" /> Ajouter
+                </button>
+              </div>
+              {seuilOpen && (
+                <div className="space-y-2">
+                  <SmallToggle label="Activer" checked={thresholdsEnabled} onChange={v => { onThresholdsEnabledChange(v); markDirty(); }} />
+                  {thresholdsEnabled && thresholds.map(t => (
+                    <div key={t.id} className="flex items-center gap-1.5 group">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="w-3 h-3 rounded-full shrink-0 ring-1 ring-border/30" style={{ backgroundColor: t.color }} />
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-2" align="start">
+                          <div className="flex gap-1.5">
+                            {THRESHOLD_COLORS.map(c => (
+                              <button key={c}
+                                onClick={() => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, color: c } : th)); markDirty(); }}
+                                className={cn('w-5 h-5 rounded-full', t.color === c && 'ring-2 ring-primary ring-offset-1')}
+                                style={{ backgroundColor: c }} />
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <SmallInput type="number" value={t.value}
+                        onChange={e => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, value: Number(e.target.value) } : th)); markDirty(); }}
+                        className="w-14" />
+                      <SmallInput value={t.label}
+                        onChange={e => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, label: e.target.value } : th)); markDirty(); }}
+                        className="flex-1 min-w-0" />
+                      <SmallSelect value={t.style}
+                        onChange={v => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, style: v as any } : th)); markDirty(); }}
+                        options={[{ value: 'dashed', label: '- -' }, { value: 'solid', label: '──' }, { value: 'dotted', label: '···' }]}
+                        className="w-12" />
+                      <SmallSelect value={t.axis || 'left'}
+                        onChange={v => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, axis: v as any } : th)); markDirty(); }}
+                        options={[{ value: 'left', label: 'L' }, { value: 'right', label: 'R' }]}
+                        className="w-10" />
+                      <button onClick={() => { onThresholdsChange(thresholds.filter(th => th.id !== t.id)); markDirty(); }}
+                        className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {thresholdsEnabled && thresholds.length === 0 && (
+                    <div className="text-[10px] text-muted-foreground italic py-2 text-center">Aucun seuil configuré</div>
+                  )}
                 </div>
-              ))}
-              {thresholdsEnabled && thresholds.length === 0 && (
-                <div className="text-[10px] text-muted-foreground italic py-2 text-center">Aucun seuil configuré</div>
               )}
             </div>
-          )}
-          {!seuilOpen && !thresholdsEnabled && (
-            <div className="text-[10px] text-muted-foreground italic text-center">Seuils désactivés</div>
-          )}
+          </>)}
         </div>
 
         {/* ── JALONS (Milestones) ── */}
