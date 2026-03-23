@@ -216,6 +216,7 @@ interface DashboardTopBarProps {
   onAddText: () => void;
   onAddImage: () => void;
   onAddTable: () => void;
+  onAddKpiCard?: () => void;
   layoutMode: 'grid' | 'free';
   onToggleLayout: () => void;
   onCreateNew: () => void;
@@ -228,7 +229,7 @@ interface DashboardTopBarProps {
 const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
   dm, onSave, onExportPDF, onShowPrintPreview, onToggleAI, showAI,
   onToggleCSV, csvCount,
-  onAddChart, onAddMap, onAddText, onAddImage, onAddTable,
+  onAddChart, onAddMap, onAddText, onAddImage, onAddTable, onAddKpiCard,
   layoutMode, onToggleLayout, onCreateNew,
   editMode, onToggleEditMode,
   seriesInfo, onApplyConfig,
