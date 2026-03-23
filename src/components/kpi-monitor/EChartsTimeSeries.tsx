@@ -39,7 +39,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
   title, badge, granularity, onExportPNG: externalExportPNG,
   onExportCSV, onRefresh, onExpand, onDuplicate, onDelete,
   graphConfig: gc, axisConfig: ac, thresholds: thresholdList, thresholdsEnabled,
-  editMode, onToggleEditMode, configPanel, bottomPanel,
+  editMode, onToggleEditMode, onInfo, configPanel, bottomPanel,
   onAxisConfigChange, onGraphConfigChange,
 }) => {
   const { selectedKpis, milestones: storeMilestones, showMilestones: storeShowMilestones } = useKpiMonitorStore();
