@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search, BookOpen, Database, BarChart3, Layers, Wifi, Cpu, Globe, Zap,
   ArrowDownUp, Timer, ShieldAlert, Activity, Signal, Gauge, Users,
-  Download, Filter, ChevronRight, Info
+  Download, Filter, ChevronRight, Info, Plus, Pencil, Trash2, X, Check, Save
 } from 'lucide-react';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { toast } from 'sonner';
 
 type DocTab = 'topo' | 'kpi' | 'dimensions';
 
@@ -30,56 +32,52 @@ const topoFields = [
   { name: 'Essentiel', desc: 'Indicateur site stratégique.', usage: 'Monitoring prioritaire', icon: <Gauge className="w-4 h-4" /> },
 ];
 
-/* ─────────── KPI DATA ─────────── */
+/* ─────────── KPI TYPE ─────────── */
 interface KPIEntry {
-  id: string; group: string; name: string; formula: string;
-  desc: string; unit: string; usage: string; type: 'active' | 'distribution';
+  kpi_key: string;
+  kpi_code: string;
+  display_name: string;
+  description: string;
+  category: string;
+  unit: string;
+  formula_type: string;
+  vendor: string;
+  techno: string;
+  is_normalized: boolean;
+  supported_levels: string[];
 }
 
-const kpiData: KPIEntry[] = [
-  // Sessions
-  { id: 'SESS_001', group: 'SESSIONS', name: 'session_nbr', formula: 'COUNT(session_id)', desc: 'Nombre total de sessions observées.', unit: 'COUNT', usage: 'Volumétrie/charge et dénominateur pour les taux.', type: 'active' },
-  // Traffic
-  { id: 'TRAF_001', group: 'TRAFFIC', name: 'volume_totale', formula: 'SUM(useful_dn + useful_up)', desc: 'Volume total data échangé (DL+UL).', unit: 'OCTETS', usage: 'Suivi charge réseau, dimensionnement capacité.', type: 'active' },
-  { id: 'TRAF_002', group: 'TRAFFIC', name: 'volume_dl_moy', formula: 'SUM(useful_dn) / session_nbr', desc: 'Volume moyen DL par session (octets).', unit: 'OCTETS', usage: "Profil d'usage DL par zone/app/RAT.", type: 'active' },
-  // Throughput
-  { id: 'THRP_001', group: 'THROUGHPUT', name: 'debit_dl', formula: 'AVG((useful_dn * 8) / useful_xfer_time_dn / 1e6)', desc: 'Débit moyen descendant (Mbps).', unit: 'MBPS', usage: 'Performance perçue, congestion radio/transport, benchmark 4G/5G.', type: 'active' },
-  { id: 'THRP_002', group: 'THROUGHPUT', name: 'debit_ul', formula: 'AVG((useful_up * 8) / useful_xfer_time_up / 1e6)', desc: 'Débit moyen montant (Mbps).', unit: 'MBPS', usage: 'Performance upload, visio/live, détection saturation UL.', type: 'active' },
-  { id: 'THRP_003', group: 'THROUGHPUT', name: 'dl_ul_ratio', formula: 'SUM(useful_dn)/SUM(useful_up)', desc: 'Ratio DL/UL.', unit: 'RATIO', usage: 'Analyse comportement trafic.', type: 'active' },
-  // RTT
-  { id: 'RTT_001', group: 'RTT', name: 'rtt_setup_avg', formula: 'AVG(delay_syn_synack + delay_synack_ack)', desc: 'Latence moyenne setup TCP.', unit: 'MS', usage: 'Performance TCP setup.', type: 'active' },
-  { id: 'RTT_002', group: 'RTT', name: 'rtt_setup_40', formula: 'PCT(rtt_setup_avg ≤ 40ms)', desc: 'Sessions avec latence setup excellente.', unit: '%', usage: 'Distribution latence setup.', type: 'distribution' },
-  { id: 'RTT_003', group: 'RTT', name: 'rtt_data_avg', formula: 'AVG(downstream_hrtt_mean)', desc: 'Latence moyenne données.', unit: 'MS', usage: 'Monitoring latence QoE.', type: 'active' },
-  { id: 'RTT_004', group: 'RTT', name: 'rtt_data_40', formula: 'PCT(rtt_data_avg ≤ 40ms)', desc: 'Sessions avec latence data excellente.', unit: '%', usage: 'Distribution latence data.', type: 'distribution' },
-  // Loss
-  { id: 'LOSS_001', group: 'LOSS', name: 'loss_dl_rate', formula: 'SUM(loss_dn)/SUM(n_packet_dn)', desc: 'Taux de perte DL.', unit: '%', usage: 'Monitoring perte DL.', type: 'active' },
-  { id: 'LOSS_002', group: 'LOSS', name: 'loss_ul_rate', formula: 'SUM(loss_up)/SUM(n_packet_up)', desc: 'Taux de perte UL.', unit: '%', usage: 'Monitoring perte UL.', type: 'active' },
-  { id: 'LOSS_003', group: 'LOSS', name: 'loss_dl_1', formula: 'PCT(loss_dl>1%)', desc: 'Sessions avec perte DL > 1%.', unit: '%', usage: 'Détection dégradation DL.', type: 'distribution' },
-  // TCP
-  { id: 'TCP_001', group: 'TCP', name: 'out_of_order_rate', formula: 'SUM(nb_out_of_order_dn>0)/session_nbr', desc: 'Taux de sessions avec paquets désordonnés.', unit: '%', usage: 'Santé transport.', type: 'active' },
-  { id: 'TCP_002', group: 'TCP', name: 'wind_full_rate', formula: 'SUM(nb_window_full_dn>0)/session_nbr', desc: 'Taux de sessions avec buffer TCP plein.', unit: '%', usage: 'Détection congestion.', type: 'active' },
-  { id: 'TCP_003', group: 'TCP', name: 'tcp_retr_rate_1', formula: 'PCT(retr>1%)', desc: 'Sessions avec retransmission > 1%.', unit: '%', usage: 'Retransmissions mineures.', type: 'distribution' },
-  // DMS
-  { id: 'DMS_001', group: 'DMS', name: 'dms_dl_3', formula: 'SUM(debit_dl≥3)/session_nbr', desc: 'Compliance débit DL ≥ 3 Mbps.', unit: '%', usage: 'Compliance baseline DL.', type: 'active' },
-  { id: 'DMS_002', group: 'DMS', name: 'dms_dl_8', formula: 'SUM(debit_dl≥8)/session_nbr', desc: 'Compliance débit DL ≥ 8 Mbps.', unit: '%', usage: 'Compliance mid DL.', type: 'active' },
-  { id: 'DMS_003', group: 'DMS', name: 'dms_dl_30', formula: 'SUM(debit_dl≥30)/session_nbr', desc: 'Compliance débit DL ≥ 30 Mbps.', unit: '%', usage: 'Compliance haute DL.', type: 'active' },
-  { id: 'DMS_004', group: 'DMS', name: 'dms_ul_3', formula: 'SUM(debit_ul≥3)/session_nbr', desc: 'Compliance débit UL ≥ 3 Mbps.', unit: '%', usage: 'Compliance mid UL.', type: 'active' },
-  // Mobility
-  { id: 'MOB_001', group: 'MOBILITY', name: 'fallback_5G_to_4G_rate', formula: 'nbr_fallback_5g_4g/session_5g_nbr', desc: 'Taux de fallback 5G vers 4G.', unit: '%', usage: 'Instabilité 5G.', type: 'active' },
-  { id: 'MOB_002', group: 'MOBILITY', name: 'instability_rate', formula: '(fallbacks)/session_nbr', desc: 'Taux instabilité globale.', unit: '%', usage: 'Instabilité globale.', type: 'active' },
-  { id: 'MOB_003', group: 'MOBILITY', name: 'time_rat_5g_%', formula: 'SUM(time_rat_5g)/SUM(total_time)', desc: 'Part du temps en 5G.', unit: '%', usage: '5G time share.', type: 'active' },
-  // QoE
-  { id: 'QOE_001', group: 'QOE', name: 'qoe_index', formula: '1 - bad_session_rate', desc: 'Score QoE global.', unit: 'INDEX', usage: 'QoE globale.', type: 'active' },
-  { id: 'QOE_002', group: 'QOE', name: 'bad_session_rate', formula: 'SUM(bad_session_flag)/session_nbr', desc: 'Taux de sessions dégradées.', unit: '%', usage: 'Dégradation QoE.', type: 'active' },
-  { id: 'QOE_003', group: 'QOE', name: '5G_capable_rate', formula: 'SUM(imsi_5g_capability=1)/session_nbr', desc: 'Taux de terminaux 5G capables.', unit: '%', usage: 'Base 5G capable.', type: 'active' },
-];
+/* ─────────── API HELPERS ─────────── */
+async function monitorGet<T>(path: string): Promise<T> {
+  const url = getApiUrl(`monitor/${path}`);
+  const res = await fetch(url, { headers: getApiHeaders() });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
 
-const KPI_GROUPS = [...new Set(kpiData.map(k => k.group))];
+async function monitorPost(path: string, body: any) {
+  const url = getApiUrl(`monitor/${path}`);
+  const res = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body) });
+  return res.json();
+}
+
+async function monitorPut(path: string, body: any) {
+  const url = getApiUrl(`monitor/${path}`);
+  const res = await fetch(url, { method: 'PUT', headers: getApiHeaders(), body: JSON.stringify(body) });
+  return res.json();
+}
+
+async function monitorDelete(path: string) {
+  const url = getApiUrl(`monitor/${path}`);
+  const res = await fetch(url, { method: 'DELETE', headers: getApiHeaders() });
+  return res.json();
+}
 
 const groupColors: Record<string, string> = {
-  SESSIONS: 'bg-blue-500', TRAFFIC: 'bg-emerald-500', THROUGHPUT: 'bg-violet-500',
-  RTT: 'bg-amber-500', LOSS: 'bg-rose-500', TCP: 'bg-orange-500',
-  DMS: 'bg-cyan-500', MOBILITY: 'bg-indigo-500', QOE: 'bg-teal-500',
+  Accessibility: 'bg-blue-500', Retainability: 'bg-rose-500', Throughput: 'bg-violet-500',
+  Traffic: 'bg-emerald-500', Mobility: 'bg-indigo-500', 'Radio Quality': 'bg-amber-500',
+  VoLTE: 'bg-orange-500', Corporate: 'bg-teal-500', Other: 'bg-gray-500',
+  'Carrier Aggregation': 'bg-cyan-500', NSA: 'bg-pink-500', VoNR: 'bg-fuchsia-500',
 };
 
 /* ─────────── DIMENSIONS DATA ─────────── */
@@ -90,7 +88,6 @@ const dimSections: DimSection[] = [
   {
     title: 'Radio Structure', icon: <Signal className="w-5 h-5" />,
     entries: [
-      { dimension: 'ORF_NETWORK', values: 'Orange France Network', description: 'Core and radio architecture (OFR routing domain)' },
       { dimension: 'Vendor', values: 'ericsson, nokia, ransharing, samsung', description: 'Radio equipment vendor' },
       { dimension: 'DOR', values: 'ILE_DE_FRANCE, NORD_EST, OUEST, SUD_EST, SUD_OUEST', description: 'Operational regional segmentation' },
       { dimension: 'Plaque', values: 'All operational plaques', description: 'Operational geographical grouping' },
@@ -98,35 +95,8 @@ const dimSections: DimSection[] = [
       { dimension: 'Bande', values: 'NR_3500, NR_700, LTE2600, LTE2100, LTE1800, LTE800, LTE700', description: 'Radio frequency band' },
     ]
   },
-  {
-    title: 'Device & Capability', icon: <Cpu className="w-5 h-5" />,
-    entries: [
-      { dimension: '5G_capability', values: '5G_capable, non_5G_capable', description: 'User Equipment 5G capability flag' },
-      { dimension: 'device_brand', values: 'iphone, samsung, other', description: 'Device manufacturer category' },
-      { dimension: 'os', values: 'android, ios, other', description: 'Operating system classification' },
-      { dimension: 'client', values: 'FWA, Mobile', description: 'Access type' },
-    ]
-  },
-  {
-    title: 'RAT', icon: <Wifi className="w-5 h-5" />,
-    entries: [{ dimension: 'RAT', values: '5G_SA, 5G_NSA, 4G, 3G, 2G, WiFi', description: 'Access technology used during the session' }]
-  },
-  {
-    title: 'ARCEP Zone', icon: <ShieldAlert className="w-5 h-5" />,
-    entries: [{ dimension: 'ARCEP', values: 'top15, Intermidiare, rural, AXE, TGV', description: 'Regulatory geographical classification' }]
-  },
-  {
-    title: 'Application', icon: <Layers className="w-5 h-5" />,
-    entries: [{ dimension: 'Application', values: 'Social, Streaming, WEB', description: 'Traffic classification by application type' }]
-  },
-  {
-    title: 'Service Provider / AS', icon: <Globe className="w-5 h-5" />,
-    entries: [{ dimension: 'Service_Provider', values: 'Google, Meta, Microsoft, Amazone, Other', description: 'Content provider / AS grouping' }]
-  },
-  {
-    title: 'POP', icon: <Database className="w-5 h-5" />,
-    entries: [{ dimension: 'POP', values: 'CNM, CNL', description: 'Core Network Point of Presence' }]
-  },
+  { title: 'RAT', icon: <Wifi className="w-5 h-5" />, entries: [{ dimension: 'RAT', values: '5G_SA, 5G_NSA, 4G, 3G, 2G', description: 'Access technology' }] },
+  { title: 'ARCEP Zone', icon: <ShieldAlert className="w-5 h-5" />, entries: [{ dimension: 'ARCEP', values: 'Top15, Intermidiare, rural, AXE, TGV', description: 'Regulatory classification' }] },
 ];
 
 /* ═══════════════════ MAIN COMPONENT ═══════════════════ */
@@ -134,6 +104,36 @@ const DocumentationPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<DocTab>('kpi');
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('ALL');
+
+  // Load KPI catalog from backend
+  const [kpiCatalog, setKpiCatalog] = useState<KPIEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadCatalog = useCallback(() => {
+    setLoading(true);
+    monitorGet<any[]>('catalog/kpis')
+      .then(data => {
+        setKpiCatalog(data.map((k: any) => ({
+          kpi_key: k.kpi_key,
+          kpi_code: k.kpi_key,
+          display_name: k.display_name || k.kpi_key,
+          description: k.description || '',
+          category: k.category || 'Other',
+          unit: k.unit || '',
+          formula_type: k.formula_type || 'ratio',
+          vendor: k.vendor || '',
+          techno: k.techno || '',
+          is_normalized: k.is_normalized || false,
+          supported_levels: k.supported_levels || [],
+        })));
+      })
+      .catch(() => toast.error('Erreur chargement KPI catalog'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { loadCatalog(); }, [loadCatalog]);
+
+  const kpiGroups = useMemo(() => [...new Set(kpiCatalog.map(k => k.category))].sort(), [kpiCatalog]);
 
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
@@ -154,22 +154,20 @@ const DocumentationPage: React.FC = () => {
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">QOEBIT Catalogue Officiel</p>
                 <h1 className="text-2xl font-black tracking-tight text-foreground">Référentiel KPI Réseau</h1>
-                <p className="text-xs text-muted-foreground mt-0.5">Nouveau Standard • Focus 4G/5G v2.5</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{kpiCatalog.length} KPIs • Backend Synchronized</p>
               </div>
             </div>
             <div className="flex items-center gap-3 mt-2">
-              {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Rechercher (ID, groupe, nom, formule, usage…"
+                  placeholder="Rechercher (code, groupe, nom, vendor…)"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="w-80 pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
-              {/* Group filter (KPI tab only) */}
               {activeTab === 'kpi' && (
                 <div className="relative">
                   <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -179,18 +177,16 @@ const DocumentationPage: React.FC = () => {
                     className="pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none cursor-pointer"
                   >
                     <option value="ALL">Tous les groupes</option>
-                    {KPI_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                    {kpiGroups.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
               )}
-              <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity">
-                <Download className="w-4 h-4" />
-                Export PDF/CSV
+              <button onClick={loadCatalog} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <Database className="w-4 h-4" /> Refresh
               </button>
             </div>
           </div>
 
-          {/* TABS */}
           <div className="flex gap-1 mt-6">
             {tabs.map(tab => (
               <button
@@ -210,11 +206,10 @@ const DocumentationPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── CONTENT ── */}
       <div className="flex-1 overflow-y-auto">
         <div className="px-8 py-6 max-w-7xl">
           {activeTab === 'topo' && <TopoSection search={search} />}
-          {activeTab === 'kpi' && <KPISection search={search} groupFilter={groupFilter} />}
+          {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={loadCatalog} />}
           {activeTab === 'dimensions' && <DimensionsSection search={search} />}
         </div>
       </div>
@@ -227,7 +222,6 @@ const TopoSection: React.FC<{ search: string }> = ({ search }) => {
   const filtered = topoFields.filter(f =>
     !search || f.name.toLowerCase().includes(search.toLowerCase()) || f.desc.toLowerCase().includes(search.toLowerCase()) || f.usage.toLowerCase().includes(search.toLowerCase())
   );
-
   return (
     <div>
       <div className="mb-6 flex items-center gap-2">
@@ -243,9 +237,7 @@ const TopoSection: React.FC<{ search: string }> = ({ search }) => {
               <div className="min-w-0">
                 <h3 className="text-sm font-bold text-foreground">{f.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{f.desc}</p>
-                <span className="inline-block mt-2.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-accent text-accent-foreground">
-                  {f.usage}
-                </span>
+                <span className="inline-block mt-2.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-accent text-accent-foreground">{f.usage}</span>
               </div>
             </div>
           </div>
@@ -255,75 +247,222 @@ const TopoSection: React.FC<{ search: string }> = ({ search }) => {
   );
 };
 
-/* ═══════════════════ KPI TAB (inspired by screenshot) ═══════════════════ */
-const KPISection: React.FC<{ search: string; groupFilter: string }> = ({ search, groupFilter }) => {
-  const filtered = useMemo(() => kpiData.filter(k => {
+/* ═══════════════════ KPI TAB — Connected to Backend ═══════════════════ */
+const KPISection: React.FC<{
+  kpis: KPIEntry[];
+  search: string;
+  groupFilter: string;
+  loading: boolean;
+  onRefresh: () => void;
+}> = ({ kpis, search, groupFilter, loading, onRefresh }) => {
+  const [editingKpi, setEditingKpi] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const filtered = useMemo(() => kpis.filter(k => {
+    const q = search.toLowerCase();
     const matchSearch = !search ||
-      k.id.toLowerCase().includes(search.toLowerCase()) ||
-      k.name.toLowerCase().includes(search.toLowerCase()) ||
-      k.formula.toLowerCase().includes(search.toLowerCase()) ||
-      k.group.toLowerCase().includes(search.toLowerCase()) ||
-      k.usage.toLowerCase().includes(search.toLowerCase());
-    const matchGroup = groupFilter === 'ALL' || k.group === groupFilter;
+      k.kpi_key.toLowerCase().includes(q) ||
+      k.kpi_code.toLowerCase().includes(q) ||
+      k.display_name.toLowerCase().includes(q) ||
+      k.category.toLowerCase().includes(q) ||
+      k.vendor.toLowerCase().includes(q) ||
+      k.description.toLowerCase().includes(q);
+    const matchGroup = groupFilter === 'ALL' || k.category === groupFilter;
     return matchSearch && matchGroup;
-  }), [search, groupFilter]);
+  }), [kpis, search, groupFilter]);
+
+  const handleDelete = async (kpiCode: string) => {
+    if (!confirm(`Supprimer ${kpiCode} ?`)) return;
+    const r = await monitorDelete(`catalog/kpis/${kpiCode}`);
+    if (r.status === 'deleted') { toast.success(`KPI ${kpiCode} supprimé`); onRefresh(); }
+    else toast.error(r.message || 'Erreur suppression');
+  };
+
+  const handleUpdate = async (kpiCode: string, updates: Record<string, any>) => {
+    const r = await monitorPut(`catalog/kpis/${kpiCode}`, updates);
+    if (r.status === 'updated') { toast.success(`KPI ${kpiCode} mis à jour`); setEditingKpi(null); onRefresh(); }
+    else toast.error(r.message || 'Erreur mise à jour');
+  };
+
+  const handleCreate = async (data: Record<string, any>) => {
+    const r = await monitorPost('catalog/kpis', data);
+    if (r.status === 'created') { toast.success(`KPI ${data.kpi_code} créé`); setShowAddForm(false); onRefresh(); }
+    else toast.error(r.message || 'Erreur création');
+  };
 
   return (
     <div>
-      <div className="mb-6 flex items-center gap-2">
-        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{filtered.length} KPIs</span>
+      <div className="mb-6 flex items-center justify-between">
+        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          {loading ? 'Chargement...' : `${filtered.length} / ${kpis.length} KPIs`}
+        </span>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity"
+        >
+          <Plus className="w-4 h-4" /> Ajouter KPI
+        </button>
       </div>
+
+      {/* Add Form */}
+      {showAddForm && (
+        <KpiAddForm onSubmit={handleCreate} onCancel={() => setShowAddForm(false)} />
+      )}
 
       {/* Column Headers */}
-      <div className="grid grid-cols-[80px_1fr_1fr_1fr] gap-4 px-5 pb-3 border-b border-border">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">KPI ID</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Identity & Group</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Logical Formula</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Monitoring Usage</span>
+      <div className="grid grid-cols-[100px_120px_1fr_1fr_1fr_80px] gap-3 px-5 pb-3 border-b border-border">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">KPI Code</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Category</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Identity</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Details</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Metadata</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Actions</span>
       </div>
 
-      {/* KPI Rows */}
+      {/* KPI Rows — capped at 200 */}
       <div className="divide-y divide-border">
-        {filtered.map((kpi) => (
-          <div key={kpi.id} className="group grid grid-cols-[80px_1fr_1fr_1fr] gap-4 px-5 py-5 hover:bg-muted/30 transition-colors items-start">
-            {/* ID */}
-            <div>
-              <span className="inline-block px-2.5 py-1 rounded-lg bg-muted text-[11px] font-mono font-bold text-muted-foreground">
-                {kpi.id}
-              </span>
-            </div>
-
-            {/* Identity & Group */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`w-2 h-2 rounded-full ${groupColors[kpi.group] || 'bg-primary'}`} />
-                <span className="text-[11px] font-bold uppercase tracking-wider text-primary">{kpi.group}</span>
-              </div>
-              <h3 className="text-sm font-bold text-foreground font-mono underline decoration-dotted underline-offset-4">{kpi.name}</h3>
-              <p className="text-xs text-muted-foreground mt-1">{kpi.desc}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-bold uppercase">Unit: {kpi.unit}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-foreground text-background font-bold uppercase">Standard V2.5</span>
-              </div>
-            </div>
-
-            {/* Formula */}
-            <div className="flex items-start pt-1">
-              <div className="px-4 py-2.5 rounded-xl bg-foreground text-background font-mono text-xs leading-relaxed max-w-full">
-                {kpi.formula}
-              </div>
-            </div>
-
-            {/* Usage */}
-            <div className="flex items-start gap-3 pt-1">
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                <Info className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed italic flex-1">{kpi.usage}</p>
-              <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0 mt-0.5" />
-            </div>
+        {filtered.length > 200 && !search && (
+          <div className="py-4 text-center text-xs text-muted-foreground bg-muted/20">
+            {filtered.length} KPIs — tapez pour rechercher ou filtrez par groupe
           </div>
+        )}
+        {(filtered.length > 200 && !search ? filtered.slice(0, 200) : filtered).map((kpi) => (
+          editingKpi === kpi.kpi_key ? (
+            <KpiEditRow key={kpi.kpi_key} kpi={kpi} onSave={handleUpdate} onCancel={() => setEditingKpi(null)} />
+          ) : (
+            <div key={kpi.kpi_key} className="group grid grid-cols-[100px_120px_1fr_1fr_1fr_80px] gap-3 px-5 py-4 hover:bg-muted/30 transition-colors items-start">
+              {/* KPI Code */}
+              <div>
+                <span className="inline-block px-2 py-1 rounded-lg bg-muted text-[10px] font-mono font-bold text-muted-foreground break-all">
+                  {kpi.kpi_code}
+                </span>
+              </div>
+
+              {/* Category */}
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${groupColors[kpi.category] || 'bg-gray-400'}`} />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary truncate">{kpi.category}</span>
+                </div>
+              </div>
+
+              {/* Identity */}
+              <div>
+                <h3 className="text-sm font-bold text-foreground">{kpi.display_name}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{kpi.description || '—'}</p>
+              </div>
+
+              {/* Details */}
+              <div className="flex flex-wrap gap-1.5">
+                {kpi.unit && <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-bold">{kpi.unit}</span>}
+                {kpi.vendor && <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">{kpi.vendor}</span>}
+                {kpi.techno && <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">{kpi.techno}</span>}
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{kpi.formula_type}</span>
+                {kpi.is_normalized && <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 font-bold">Normalized</span>}
+              </div>
+
+              {/* Metadata */}
+              <div className="flex flex-wrap gap-1">
+                {kpi.supported_levels.slice(0, 3).map(l => (
+                  <span key={l} className="text-[8px] px-1 py-0.5 rounded bg-muted/50 text-muted-foreground">{l}</span>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setEditingKpi(kpi.kpi_key)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-primary transition-colors" title="Edit">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => handleDelete(kpi.kpi_key)} className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )
         ))}
+        {filtered.length > 200 && !search && (
+          <div className="py-3 text-center text-[10px] text-muted-foreground">Affichage limité à 200 — utilisez la recherche</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ── Inline Edit Row ── */
+const KpiEditRow: React.FC<{
+  kpi: KPIEntry;
+  onSave: (code: string, updates: Record<string, any>) => void;
+  onCancel: () => void;
+}> = ({ kpi, onSave, onCancel }) => {
+  const [nom, setNom] = useState(kpi.display_name);
+  const [desc, setDesc] = useState(kpi.description);
+  const [fam, setFam] = useState(kpi.category);
+  const [unit, setUnit] = useState(kpi.unit);
+  const [vendor, setVendor] = useState(kpi.vendor);
+  const [techno, setTechno] = useState(kpi.techno);
+
+  return (
+    <div className="px-5 py-4 bg-primary/5 border-l-4 border-primary space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-primary">Modifier: {kpi.kpi_code}</span>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted transition-colors">Annuler</button>
+          <button onClick={() => onSave(kpi.kpi_key, { nom_ihm: nom, definition_courte: desc, famille: fam, unites: unit, vendor, techno })}
+            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90">
+            <Save className="w-3 h-3 inline mr-1" /> Sauvegarder
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Nom IHM</label><input value={nom} onChange={e => setNom(e.target.value)} className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Famille</label><input value={fam} onChange={e => setFam(e.target.value)} className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Unité</label><input value={unit} onChange={e => setUnit(e.target.value)} className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Vendor</label><input value={vendor} onChange={e => setVendor(e.target.value)} className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Techno</label><input value={techno} onChange={e => setTechno(e.target.value)} className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+        <div className="col-span-1"><label className="text-[9px] font-bold text-muted-foreground uppercase">Description</label><input value={desc} onChange={e => setDesc(e.target.value)} className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+      </div>
+    </div>
+  );
+};
+
+/* ── Add KPI Form ── */
+const KpiAddForm: React.FC<{
+  onSubmit: (data: Record<string, any>) => void;
+  onCancel: () => void;
+}> = ({ onSubmit, onCancel }) => {
+  const [code, setCode] = useState('');
+  const [nom, setNom] = useState('');
+  const [desc, setDesc] = useState('');
+  const [fam, setFam] = useState('');
+  const [unit, setUnit] = useState('');
+  const [vendor, setVendor] = useState('');
+  const [techno, setTechno] = useState('');
+  const [num, setNum] = useState('');
+  const [den, setDen] = useState('1');
+
+  return (
+    <div className="mb-6 p-5 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-primary">Nouveau KPI</span>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted transition-colors">Annuler</button>
+          <button onClick={() => onSubmit({ kpi_code: code, nom_ihm: nom, definition_courte: desc, famille: fam, unites: unit, vendor, techno, numerateur: num, denominateur: den })}
+            disabled={!code || !nom}
+            className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 disabled:opacity-40">
+            <Plus className="w-3 h-3 inline mr-1" /> Créer
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">KPI Code *</label><input value={code} onChange={e => setCode(e.target.value)} placeholder="my_kpi_code" className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-mono" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Nom IHM *</label><input value={nom} onChange={e => setNom(e.target.value)} placeholder="Display Name" className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Famille</label><input value={fam} onChange={e => setFam(e.target.value)} placeholder="Throughput" className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Unité</label><input value={unit} onChange={e => setUnit(e.target.value)} placeholder="%, Mbps" className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Vendor</label><input value={vendor} onChange={e => setVendor(e.target.value)} placeholder="nokia" className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Techno</label><input value={techno} onChange={e => setTechno(e.target.value)} placeholder="LTE" className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Numérateur</label><input value={num} onChange={e => setNum(e.target.value)} placeholder="`pmCounter1`" className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-mono" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Dénominateur</label><input value={den} onChange={e => setDen(e.target.value)} className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-mono" /></div>
+        <div><label className="text-[9px] font-bold text-muted-foreground uppercase">Description</label><input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Short description" className="w-full mt-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs" /></div>
       </div>
     </div>
   );
@@ -354,9 +493,7 @@ const DimensionsSection: React.FC<{ search: string }> = ({ search }) => {
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {e.values.split(', ').map((v, vi) => (
-                      <span key={vi} className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary">
-                        {v}
-                      </span>
+                      <span key={vi} className="text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary">{v}</span>
                     ))}
                   </div>
                 </div>
