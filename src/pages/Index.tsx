@@ -24,6 +24,7 @@ import KPIMonitorPage from '../components/kpi-monitor/KPIMonitorPage';
 
 import PmDashboardPage from '../components/pm-dashboard/PmDashboardPage';
 import SentinelPage from '../components/sentinel/SentinelPage';
+import InvestigatorPage from '../components/investigator/InvestigatorPage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
@@ -168,6 +169,8 @@ const Index: React.FC = () => {
         return <AgentHubPage onNavigate={setActiveTab} />;
       case 'sentinel':
         return <SentinelPage theme={theme} />;
+      case 'investigator':
+        return <InvestigatorPage />;
       default:
         return null;
     }

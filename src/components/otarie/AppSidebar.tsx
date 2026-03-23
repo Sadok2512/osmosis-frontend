@@ -3,7 +3,8 @@ import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
   Database, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
-  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin, LogOut
+  Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin, LogOut,
+  Search
 } from 'lucide-react';
 import { clearSession } from '@/services/adminAuth';
 import { useNavigate } from 'react-router-dom';
@@ -33,6 +34,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'alerts', label: 'Alerts & RCA Monitor', icon: <Bell className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
   { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
+  { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
   { id: 'topologie', label: 'Parameters HUB', icon: <Sliders className="w-5 h-5" /> },
   
   { id: 'docs', label: 'Documentation', icon: <BookOpen className="w-5 h-5" /> },
