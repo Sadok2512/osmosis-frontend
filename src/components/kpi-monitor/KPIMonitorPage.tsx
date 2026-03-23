@@ -12,7 +12,7 @@ import { KpiCatalogEntry, SplitDimension } from './types';
 import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, useCounterCatalog, useDateRange, type TimeseriesRequest, type MonitorFilter, type MonitorKpiCatalogEntry } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
 import KPIExplainPanel from './KPIExplainPanel';
-import EChartsTimeSeries from './EChartsTimeSeries';
+import WidgetExplainPanel from './WidgetExplainPanel';
 import KPITableView from './KPITableView';
 import KPICatalogImport from './KPICatalogImport';
 import KpiSelectorModal from './KpiSelectorModal';
