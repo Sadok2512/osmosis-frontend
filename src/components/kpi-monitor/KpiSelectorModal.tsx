@@ -160,7 +160,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
         <div className="flex items-center justify-between px-5 py-3 bg-primary text-primary-foreground">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-bold tracking-wide">Sélectionner des KPIs</h2>
-            <span className="text-[10px] opacity-70">{catalog.length} disponibles</span>
+            <span className="text-[10px] opacity-70">{catalog.length} KPIs{filteredCatalog.length !== catalog.length ? ` · ${filteredCatalog.length} filtrés` : ''}</span>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-primary-foreground/10 transition-colors">
             <X className="w-4 h-4" />
@@ -172,7 +172,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-foreground">{selected.size} sélectionné(s)</span>
             <span className="text-[10px] text-muted-foreground">
-              {filteredCatalog.length !== catalog.length && `${filteredCatalog.length} affiché(s)`}
+              {filteredCatalog.length !== catalog.length && `${filteredCatalog.length}/${catalog.length} affiché(s)`}
             </span>
           </div>
           <div className="flex items-center gap-2">
