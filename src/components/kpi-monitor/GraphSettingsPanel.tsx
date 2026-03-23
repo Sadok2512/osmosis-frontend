@@ -326,7 +326,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
             <Axis3D className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Axes</span>
           </div>
-          <div className="space-y-1">
+           <div className="space-y-0.5">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Axe Y</p>
             <SmallInput label="Titre" value={axis.yTitle} onChange={e => setAxis({ yTitle: (e.target as HTMLInputElement).value })} className="w-[80px]" />
             <SmallInput label="Min" value={axis.yMin === 'auto' ? '' : String(axis.yMin)} placeholder="Auto"
