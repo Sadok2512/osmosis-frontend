@@ -110,8 +110,9 @@ const PrintPreviewModal: React.FC<{
 const MainChartResizable: React.FC<{
   isSelected: boolean;
   onSelect: () => void;
+  editMode?: boolean;
   children: (height: number) => React.ReactNode;
-}> = ({ isSelected, onSelect, children }) => {
+}> = ({ isSelected, onSelect, editMode = false, children }) => {
   const [height, setHeight] = useState(460);
   const dragging = useRef(false);
   const startY = useRef(0);
@@ -145,7 +146,7 @@ const MainChartResizable: React.FC<{
       onClickCapture={onSelect}
     >
       {children(height)}
-      {/* Resize handle */}
+      {/* Resize handle — always visible so user can resize the main chart */}
       <div
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
