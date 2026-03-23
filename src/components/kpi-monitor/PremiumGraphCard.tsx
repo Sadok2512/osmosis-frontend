@@ -76,11 +76,11 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* ── Header ── */}
-      <div className={cn(
-        "flex items-center justify-between px-4 py-2.5 border-b border-border/40",
-        onToggleEditMode ? "drag-handle cursor-grab" : ""
-      )}>
-        <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
+        <div className={cn(
+          "flex items-center gap-2.5 min-w-0",
+          onToggleEditMode ? "drag-handle cursor-grab" : ""
+        )}>
           <h3 className="text-[13px] font-semibold text-foreground truncate tracking-tight">{title}</h3>
           {badge && (
             <span className="shrink-0 px-2 py-0.5 rounded-md bg-primary/8 text-primary text-[10px] font-semibold uppercase tracking-wider">
@@ -89,10 +89,11 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5" onMouseDown={(e) => e.stopPropagation()}>
           {/* Edit toggle — only when edit callbacks exist */}
           {onToggleEditMode && (
             <button
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onToggleEditMode(); }}
               className={cn(
                 'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all',
@@ -113,6 +114,7 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
+                    onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
                     className="p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
                   >
