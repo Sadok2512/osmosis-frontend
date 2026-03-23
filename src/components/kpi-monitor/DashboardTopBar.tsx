@@ -32,20 +32,20 @@ export const FilterChip: React.FC<{ filter: ActiveFilter; allFilters: ActiveFilt
   const dim = FILTER_DIMENSIONS.find(d => d.key === filter.dimension);
   const staticValues = useMemo(() => resolveAvailableValues(filter.dimension, allFilters), [filter.dimension, allFilters]);
 
-  // Fetch from backend for dimensions that need it (site, cell, zone_arcep, techno, vendor)
-  const needsBackend = dim?.value_source === 'backend' || ['site', 'cell', 'zone_arcep', 'techno', 'vendor'].includes(filter.dimension);
+  // Always fetch filter values from backend API
   const [backendValues, setBackendValues] = useState<string[]>([]);
   React.useEffect(() => {
-    if (needsBackend) {
-      const dimMap: Record<string, string> = { site: 'Site', cell: 'Cell', zone_arcep: 'ARCEP', techno: 'TECHNO', vendor: 'Vendor', dor: 'DOR', plaque: 'Plaque', bande: 'BAND' };
-      const dimKey = dimMap[filter.dimension] || filter.dimension;
-      import('./api/kpiMonitorApi').then(mod => {
-        mod.fetchDimensionValues(dimKey).then(d => { if (d.values) setBackendValues(d.values); }).catch(() => {});
-      });
-    }
-  }, [filter.dimension, needsBackend]);
+    const dimMap: Record<string, string> = {
+      dor: 'DOR', constructeur: 'Vendor', plaque: 'Plaque', site: 'Site', cell: 'Cell',
+      zone_arcep: 'ARCEP', techno: 'TECHNO', vendor: 'Vendor', bande: 'BAND',
+    };
+    const dimKey = dimMap[filter.dimension] || filter.dimension;
+    import('./api/kpiMonitorApi').then(mod => {
+      mod.fetchDimensionValues(dimKey).then(d => { if (d.values) setBackendValues(d.values); }).catch(() => {});
+    });
+  }, [filter.dimension]);
 
-  const availableValues = needsBackend && backendValues.length > 0 ? backendValues : staticValues;
+  const availableValues = backendValues.length > 0 ? backendValues : staticValues;
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const filtered = availableValues.filter(v => v.toLowerCase().includes(search.toLowerCase()));
