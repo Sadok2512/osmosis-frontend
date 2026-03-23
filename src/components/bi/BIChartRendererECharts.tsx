@@ -245,8 +245,17 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
 
   if (!firstMetric) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
-        Add a metric to display
+      <div className="relative flex items-center justify-center h-full text-muted-foreground text-xs overflow-hidden">
+        {/* Default grid background */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+          <defs>
+            <pattern id="bi-grid" width="60" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 60 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeOpacity="0.08" strokeDasharray="4,4" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#bi-grid)" />
+        </svg>
+        <span className="relative z-10">Add a metric to display</span>
       </div>
     );
   }
