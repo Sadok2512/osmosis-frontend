@@ -273,7 +273,7 @@ export function useTimeseriesQuery(req: TimeseriesRequest | null) {
         return await fetchTimeseries(req!);
       } catch (err) {
         console.warn('[useTimeseriesQuery] Backend unavailable:', err);
-        return { series: [], metadata: { total_series: 0, granularity: req?.granularity || '1d', truncated: false } } as TimeseriesResponse;
+        return { series: [], meta: { granularity_applied: req?.granularity || '1d', total_series: 0 } } as TimeseriesResponse;
       }
     },
     enabled: !!req && req.selections.length > 0,
