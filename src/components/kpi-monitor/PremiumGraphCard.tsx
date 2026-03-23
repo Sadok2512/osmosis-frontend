@@ -24,6 +24,7 @@ interface PremiumGraphCardProps {
   onDuplicate?: () => void;
   onDelete?: () => void;
   onExpand?: () => void;
+  onInfo?: () => void;
   editMode?: boolean;
   onToggleEditMode?: () => void;
   /** Config panel rendered above chart in edit mode (horizontal cards) */
