@@ -415,6 +415,7 @@ const KPIMonitorInner: React.FC = () => {
 
   const onFreeLayoutChange = useCallback((id: string, rect: Partial<{ x: number; y: number; w: number; h: number }>) => {
     setWidgets(prev => prev.map(w => {
+      if (!w.layout) return w;
       if (getId(w) !== id) return w;
       const cur = toFreeRect(w);
       return { ...w, layout: { ...w.layout, freeX: rect.x ?? cur.x, freeY: rect.y ?? cur.y, freeW: rect.w ?? cur.w, freeH: rect.h ?? cur.h } };
