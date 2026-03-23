@@ -184,6 +184,27 @@ const KPIMonitorInner: React.FC = () => {
     }
   }, [dateRange, dateRangeSynced]);
   const [editMode, setEditMode] = useState(false);
+
+  // Ctrl+A to select all widgets
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && editMode) {
+        e.preventDefault();
+        const allIds = [
+          ...(hasMainChart ? [MAIN_CHART_ID] : []),
+          ...validWidgets.map(w => getId(w)),
+        ];
+        store.selectAllWidgets(allIds);
+      }
+      // Escape to clear selection
+      if (e.key === 'Escape') {
+        store.clearWidgetSelection();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [editMode, widgets, store.selectedKpis]);
+
   const [quickSection, setQuickSection] = useState<QuickSettingsSection>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [widgetThresholds, setWidgetThresholds] = useState<Record<string, WidgetThreshold[]>>({});
