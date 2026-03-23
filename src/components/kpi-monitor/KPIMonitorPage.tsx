@@ -526,6 +526,7 @@ const KPIMonitorInner: React.FC = () => {
     if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={editMode ? cfg => updateMapConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={editMode ? cfg => updateImageConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={editMode ? cfg => updateTableConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} onEdit={editMode ? () => { setEditingId(wId); } : undefined} />;
+    if (w.kind === 'kpicard') return <BIKpiCardWidget config={w.config as KpiCardWidgetConfig} onChange={editMode ? cfg => updateKpiCardConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     return <BITextWidget config={w.config as TextWidgetConfig} onChange={editMode ? cfg => updateTextConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
   };
 
