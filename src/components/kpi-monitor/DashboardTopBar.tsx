@@ -411,39 +411,43 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
           </div>
         </div>
 
-        {/* Presets stacked: period + week + granularity */}
-        <div className="flex flex-col gap-1 shrink-0">
-          {/* Period presets row */}
-          <div className="flex items-center rounded-md border border-border/40 bg-muted/30 overflow-hidden h-[30px]">
-            {PRESETS.map((p, i) => (
-              <button key={p.label} onClick={() => applyPreset(p.days)}
-                className={cn(
-                  'px-3 text-[12px] font-semibold transition-all h-full',
-                  i > 0 && 'border-l border-border/30',
-                  'text-muted-foreground hover:bg-primary hover:text-primary-foreground'
-                )}
-              >{p.label}</button>
-            ))}
-            <div className="w-px h-3.5 bg-border/50" />
-            {WEEK_PRESETS.map(wp => (
-              <button key={wp.label} onClick={() => applyWeekPreset(wp.offset)}
-                className="px-3 text-[12px] font-semibold text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all h-full border-l border-border/30"
-              >{wp.label}</button>
-            ))}
+        {/* Period dropdown */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] text-muted-foreground font-medium leading-tight">Période</span>
+            <select
+              onChange={e => {
+                const v = e.target.value;
+                if (v.startsWith('d')) applyPreset(parseInt(v.slice(1)));
+                else if (v.startsWith('w')) applyWeekPreset(parseInt(v.slice(1)));
+              }}
+              className="h-[36px] px-3 rounded-md border border-border/50 bg-background text-[13px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer appearance-none pr-8 w-[150px]"
+              defaultValue=""
+            >
+              <option value="" disabled>Sélectionner...</option>
+              <option value="d7">7 jours</option>
+              <option value="d14">14 jours</option>
+              <option value="d30">30 jours</option>
+              <option value="d90">90 jours</option>
+              <option disabled>──────</option>
+              <option value="w0">Cette semaine</option>
+              <option value="w1">Semaine -1</option>
+              <option value="w2">Semaine -2</option>
+            </select>
           </div>
-          {/* Granularity row */}
-          <div className="flex items-center rounded-md border border-border/40 bg-muted/30 overflow-hidden h-[30px]">
-            {GRANULARITIES.map((g, i) => (
-              <button key={g.value} onClick={() => gf.setGranularity(g.value as any)}
-                className={cn(
-                  'px-3 text-[12px] font-semibold transition-all h-full flex-1 text-center',
-                  i > 0 && 'border-l border-border/30',
-                  gf.granularity === g.value
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                )}
-              >{g.label}</button>
-            ))}
+
+          {/* Granularity dropdown */}
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] text-muted-foreground font-medium leading-tight">Granularité</span>
+            <select
+              value={gf.granularity}
+              onChange={e => gf.setGranularity(e.target.value as any)}
+              className="h-[36px] px-3 rounded-md border border-border/50 bg-background text-[13px] text-foreground outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer appearance-none pr-8 w-[120px]"
+            >
+              {GRANULARITIES.map(g => (
+                <option key={g.value} value={g.value}>{g.label}</option>
+              ))}
+            </select>
           </div>
         </div>
 

@@ -37,7 +37,7 @@ import GraphSettingsPanel, { WidgetThreshold, WidgetStyleConfig, WidgetAxisConfi
 import { HorizontalConfigPanel, type QuickSettingsSection } from './InlineGraphConfig';
 import AIFloatingModal from './AIFloatingModal';
 import {
-  LayoutGrid, FileDown, Plus, Settings2, X, Check, ArrowLeft,
+  LayoutGrid, FileDown, Plus, Settings2, X, Check, ArrowLeft, BarChart3,
 } from 'lucide-react';
 
 const COLS = 12;
@@ -632,11 +632,22 @@ const KPIMonitorInner: React.FC = () => {
                 {!isMonoView && (
                   <>
                     {widgets.length === 0 && store.selectedKpis.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                          <LayoutGrid className="w-8 h-8 text-primary" />
+                      <div className="flex flex-col items-center justify-center h-full min-h-[50vh] gap-6">
+                        <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+                          <BarChart3 className="w-10 h-10 text-primary/60" />
                         </div>
-                        <p className="text-sm text-muted-foreground">Sélectionnez des KPIs ou cliquez <strong>Chart</strong>, <strong>Map</strong> ou <strong>Text</strong> pour commencer</p>
+                        <div className="text-center space-y-2">
+                          <h3 className="text-lg font-bold text-foreground">Ajouter un KPI pour commencer</h3>
+                          <p className="text-sm text-muted-foreground max-w-md">
+                            Sélectionnez un ou plusieurs KPIs pour visualiser les données dans le graphique.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setShowKpiSelector(true)}
+                          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
+                        >
+                          <Plus className="w-5 h-5" /> Sélectionner des KPIs
+                        </button>
                       </div>
                     ) : widgets.length > 0 && layoutMode === 'grid' ? (
                       <GridLayout

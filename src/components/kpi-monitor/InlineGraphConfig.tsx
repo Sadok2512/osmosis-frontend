@@ -275,15 +275,6 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                             ))}
                           </SelectContent>
                         </Select>
-                        {/* Aggregation */}
-                        <Select value={kpi.agg || 'avg'} onValueChange={v => updateThis({ agg: v })}>
-                          <SelectTrigger className="h-6 w-[52px] text-[9px] px-1 border-border/40 bg-background"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {['avg','sum','min','max','last','count'].map(a => (
-                              <SelectItem key={a} value={a} className="text-[10px]">{a.toUpperCase()}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
                         <button onClick={() => { store.removeKpi(kpiId); markDirty(); }}
                           className="p-0.5 rounded text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all shrink-0"
                         ><Trash2 className="w-3 h-3" /></button>
