@@ -131,6 +131,12 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const graph = externalGraph || DEFAULT_GRAPH;
   const setGraph = (u: Partial<WidgetGraphConfig>) => onGraphConfigChange?.({ ...graph, ...u });
 
+  // Grid & Calendar config helpers
+  const gridCfg = graph.grid || { enabled: true, opacity: 20, type: 'both' as const };
+  const calCfg = graph.calendar || { highlightWeekends: true, weekendColor: '#E5E7EB', weekendOpacity: 10 };
+  const setGridCfg = (u: Partial<typeof gridCfg>) => setGraphD({ grid: { ...gridCfg, ...u } });
+  const setCalCfg = (u: Partial<typeof calCfg>) => setGraphD({ calendar: { ...calCfg, ...u } });
+
   const [kpiOpen, setKpiOpen] = useState(true);
   const [axeOpen, setAxeOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
