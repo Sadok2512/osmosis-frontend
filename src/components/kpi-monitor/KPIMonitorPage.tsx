@@ -608,7 +608,7 @@ const KPIMonitorInner: React.FC = () => {
 
         const closeEdit = () => {
           store.setActiveEditingWidgetId(null);
-          store.setSelectedWidgetId(null);
+          store.clearWidgetSelection();
           toast({ title: 'Configuration appliquée', description: 'Retour au dashboard.' });
         };
 
