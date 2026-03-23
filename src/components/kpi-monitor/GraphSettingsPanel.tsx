@@ -454,16 +454,16 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
         </div>
 
         {/* ─── 4: Levels ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[200px]">
-          <div className="flex items-center gap-1.5 mb-1">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-0.5 min-w-[170px]">
+          <div className="flex items-center gap-1.5">
             <Layers className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Levels</span>
           </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] text-muted-foreground">Primary</span>
+          <div className="space-y-0.5">
+            <div className="flex items-center justify-between h-6">
+              <span className="text-[9px] text-muted-foreground min-w-[42px]">Primary</span>
               <select value={levelsCfg.primary || ''} onChange={e => setLevels({ primary: e.target.value || null })}
-                className="px-2 py-0.5 rounded border border-border bg-card text-[10px] text-foreground outline-none w-[100px]"
+                className="px-1 py-0 h-5 rounded border border-border/60 bg-card text-[9px] text-foreground outline-none w-[90px]"
               >
                 <option value="">Aucun</option>
                 <option value="REGION">Région</option>
@@ -477,11 +477,11 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
                 <option value="ARCEP">Zone ARCEP</option>
               </select>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] text-muted-foreground">Secondary</span>
+            <div className="flex items-center justify-between h-6">
+              <span className="text-[9px] text-muted-foreground min-w-[42px]">Secondary</span>
               <select value={levelsCfg.secondary || ''} onChange={e => setLevels({ secondary: e.target.value || null })}
                 disabled={!levelsCfg.primary}
-                className="px-2 py-0.5 rounded border border-border bg-card text-[10px] text-foreground outline-none w-[100px] disabled:opacity-40"
+                className="px-1 py-0 h-5 rounded border border-border/60 bg-card text-[9px] text-foreground outline-none w-[90px] disabled:opacity-40"
               >
                 <option value="">Aucun</option>
                 <option value="SITE">Site</option>
@@ -496,7 +496,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
         </div>
 
         {/* ─── 5: Seuils Y (Thresholds) ─── */}
-        <div className="rounded-lg border border-border bg-background p-2.5 space-y-1.5 min-w-[200px]">
+        <div className="rounded-md border border-border/60 bg-background p-2 space-y-0.5 min-w-[180px]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <AlertTriangle className="w-3 h-3 text-primary" />
