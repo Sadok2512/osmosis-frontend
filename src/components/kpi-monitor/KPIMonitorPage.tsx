@@ -394,6 +394,7 @@ const KPIMonitorInner: React.FC = () => {
 
   const onLayoutChange = (newLayout: any[]) => {
     setWidgets(prev => prev.map(w => {
+      if (!w.layout) return w;
       const l = newLayout.find(n => n.i === getId(w));
       if (!l) return w;
       return { ...w, layout: { ...w.layout, x: l.x, y: l.y, w: l.w, h: l.h } };
