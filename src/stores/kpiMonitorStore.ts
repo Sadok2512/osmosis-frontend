@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { KpiSelection, DynamicFilter, SplitDimension, KpiMonitorView, GraphType } from '../components/kpi-monitor/types';
 import { normalizeKpiSelection, getDefaultSeriesColor } from '../components/kpi-monitor/normalizeConfig';
 
@@ -54,55 +55,69 @@ interface KpiMonitorState {
   setActiveEditingWidgetId: (id: string | null) => void;
 }
 
-export const useKpiMonitorStore = create<KpiMonitorState>((set) => ({
-  selectedKpis: [],
-  addKpi: (kpi) => set((s) => {
-    const normalized = normalizeKpiSelection(kpi, s.selectedKpis.length);
-    return { selectedKpis: [...s.selectedKpis, normalized] };
-  }),
-  removeKpi: (keyOrId) => set((s) => ({
-    selectedKpis: s.selectedKpis.filter(k => k.id !== keyOrId && k.kpi_key !== keyOrId),
-  })),
-  updateKpi: (keyOrId, updates) => set((s) => ({
-    selectedKpis: s.selectedKpis.map(k =>
-      (k.id === keyOrId || k.kpi_key === keyOrId) ? { ...k, ...updates } : k
-    ),
-  })),
-  reorderKpis: (kpis) => set({ selectedKpis: kpis }),
+export const useKpiMonitorStore = create<KpiMonitorState>()(
+  persist(
+    (set) => ({
+      selectedKpis: [],
+      addKpi: (kpi) => set((s) => {
+        const normalized = normalizeKpiSelection(kpi, s.selectedKpis.length);
+        return { selectedKpis: [...s.selectedKpis, normalized] };
+      }),
+      removeKpi: (keyOrId) => set((s) => ({
+        selectedKpis: s.selectedKpis.filter(k => k.id !== keyOrId && k.kpi_key !== keyOrId),
+      })),
+      updateKpi: (keyOrId, updates) => set((s) => ({
+        selectedKpis: s.selectedKpis.map(k =>
+          (k.id === keyOrId || k.kpi_key === keyOrId) ? { ...k, ...updates } : k
+        ),
+      })),
+      reorderKpis: (kpis) => set({ selectedKpis: kpis }),
 
-  splitBy: null,
-  setSplitBy: (s) => set({ splitBy: s }),
-  topN: 5,
-  setTopN: (n) => set({ topN: n }),
-  includeOthers: true,
-  setIncludeOthers: (b) => set({ includeOthers: b }),
+      splitBy: null,
+      setSplitBy: (s) => set({ splitBy: s }),
+      topN: 5,
+      setTopN: (n) => set({ topN: n }),
+      includeOthers: true,
+      setIncludeOthers: (b) => set({ includeOthers: b }),
 
-  viewMode: 'graph',
-  setViewMode: (v) => set({ viewMode: v }),
+      viewMode: 'graph',
+      setViewMode: (v) => set({ viewMode: v }),
 
-  localFilters: [],
-  addFilter: (f) => set((s) => ({ localFilters: [...s.localFilters, f] })),
-  removeFilter: (id) => set((s) => ({ localFilters: s.localFilters.filter(f => f.id !== id) })),
-  updateFilter: (id, updates) => set((s) => ({
-    localFilters: s.localFilters.map(f => f.id === id ? { ...f, ...updates } : f),
-  })),
-  clearFilters: () => set({ localFilters: [] }),
+      localFilters: [],
+      addFilter: (f) => set((s) => ({ localFilters: [...s.localFilters, f] })),
+      removeFilter: (id) => set((s) => ({ localFilters: s.localFilters.filter(f => f.id !== id) })),
+      updateFilter: (id, updates) => set((s) => ({
+        localFilters: s.localFilters.map(f => f.id === id ? { ...f, ...updates } : f),
+      })),
+      clearFilters: () => set({ localFilters: [] }),
 
-  // Milestones
-  milestones: [],
-  showMilestones: true,
-  setShowMilestones: (v) => set({ showMilestones: v }),
-  addMilestone: (m) => set((s) => ({ milestones: [...s.milestones, m] })),
-  updateMilestone: (id, updates) => set((s) => ({
-    milestones: s.milestones.map(m => m.id === id ? { ...m, ...updates } : m),
-  })),
-  removeMilestone: (id) => set((s) => ({ milestones: s.milestones.filter(m => m.id !== id) })),
+      milestones: [],
+      showMilestones: true,
+      setShowMilestones: (v) => set({ showMilestones: v }),
+      addMilestone: (m) => set((s) => ({ milestones: [...s.milestones, m] })),
+      updateMilestone: (id, updates) => set((s) => ({
+        milestones: s.milestones.map(m => m.id === id ? { ...m, ...updates } : m),
+      })),
+      removeMilestone: (id) => set((s) => ({ milestones: s.milestones.filter(m => m.id !== id) })),
 
-  // Selected widget
-  selectedWidgetId: null,
-  setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
+      selectedWidgetId: null,
+      setSelectedWidgetId: (id) => set({ selectedWidgetId: id }),
 
-  // Active editing widget
-  activeEditingWidgetId: null,
-  setActiveEditingWidgetId: (id) => set({ activeEditingWidgetId: id }),
-}));
+      activeEditingWidgetId: null,
+      setActiveEditingWidgetId: (id) => set({ activeEditingWidgetId: id }),
+    }),
+    {
+      name: 'kpi-monitor-store',
+      partialize: (state) => ({
+        selectedKpis: state.selectedKpis,
+        splitBy: state.splitBy,
+        topN: state.topN,
+        includeOthers: state.includeOthers,
+        viewMode: state.viewMode,
+        localFilters: state.localFilters,
+        milestones: state.milestones,
+        showMilestones: state.showMilestones,
+      }),
+    }
+  )
+);
