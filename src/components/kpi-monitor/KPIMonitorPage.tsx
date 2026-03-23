@@ -228,11 +228,14 @@ const KPIMonitorInner: React.FC = () => {
   const [dateRangeSynced, setDateRangeSynced] = useState(false);
   useEffect(() => {
     if (dateRange?.min_date && dateRange?.max_date && !dateRangeSynced) {
-      const minDate = dateRange.min_date.split('T')[0].split('+')[0];
-      const maxDate = dateRange.max_date.split('T')[0].split('+')[0];
-      globalFilter.setDateRange(minDate, maxDate);
-      setDateRangeSynced(true);
-      console.log(`[KPI Monitor] Date range synced: ${minDate} → ${maxDate}`);
+      // Backend returns "2026-01-14 01:00:00+00" — extract YYYY-MM-DD
+      const minDate = dateRange.min_date.replace(/[T ].*/,'');
+      const maxDate = dateRange.max_date.replace(/[T ].*/,'');
+      if (minDate && maxDate) {
+        globalFilter.setDateRange(minDate, maxDate);
+        setDateRangeSynced(true);
+        console.log(`[KPI Monitor] Date range synced: ${minDate} → ${maxDate}`);
+      }
     }
   }, [dateRange, dateRangeSynced]);
   const [editMode, setEditMode] = useState(true);
