@@ -391,8 +391,8 @@ const AnalyticBIStudioInner: React.FC<{ filters: Filters }> = ({ filters }) => {
       />
 
       {/* Toolbar — always visible in edit mode, hidden in view mode */}
-      <div className="flex items-center justify-center px-4 py-2 border-b border-border/40 bg-card/80 backdrop-blur-sm">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-center px-4 py-2.5 bg-card/80 backdrop-blur-sm">
+        <div className="flex items-center gap-1.5 rounded-xl border-2 border-primary/60 bg-card px-3 py-1.5 shadow-sm">
           {isEditMode && layoutMode === 'grid' && (
             <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
               <button onClick={addChart} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
