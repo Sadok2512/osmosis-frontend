@@ -227,7 +227,8 @@ const CounterSelectorModal: React.FC<CounterSelectorModalProps> = ({ open, onClo
             <div className="flex-1 overflow-y-auto px-3 py-1">
               {filteredCounters.length === 0 ? (
                 <div className="flex items-center justify-center h-32 text-xs text-muted-foreground">Aucun résultat</div>
-              ) : (<>
+              ) : (
+                <>
                 {filteredCounters.length > 200 && !search && (
                   <div className="flex items-center justify-center py-3 mb-1 rounded-lg bg-muted/30 border border-border/30">
                     <p className="text-[10px] text-muted-foreground">
@@ -266,13 +267,14 @@ const CounterSelectorModal: React.FC<CounterSelectorModalProps> = ({ open, onClo
                       </div>
                     </button>
                   );
-                })
+                })}
                 {filteredCounters.length > 200 && !search && (
                   <div className="text-center py-2 text-[9px] text-muted-foreground">
                     Affichage limité à 200 — utilisez la recherche
                   </div>
                 )}
-              </>)}
+                </>
+              )}
             </div>
           </div>
         </div>
