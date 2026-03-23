@@ -742,6 +742,13 @@ const KPIMonitorInner: React.FC = () => {
                                 store.toggleWidgetSelection(wId, false);
                               }
                             }}
+                            onDoubleClick={() => {
+                              if (editMode) {
+                                const wId = getId(w);
+                                if (w.kind === 'chart') { store.setActiveEditingWidgetId(wId); setShowAI(false); }
+                                else if (w.kind === 'table') { setEditingId(wId); }
+                              }
+                            }}
                             className={`cursor-pointer transition-all duration-200 rounded-xl ${
                               store.selectedWidgetIds.includes(getId(w)) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
