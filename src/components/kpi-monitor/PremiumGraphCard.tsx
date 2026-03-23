@@ -92,6 +92,22 @@ const PremiumGraphCard: React.FC<PremiumGraphCardProps> = ({
         </div>
 
         <div className="flex items-center gap-0.5" onMouseDown={(e) => e.stopPropagation()}>
+          {/* Info button */}
+          {onInfo && (
+            <button
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onInfo(); }}
+              className={cn(
+                'flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-all',
+                'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                isHovered ? 'opacity-100' : 'opacity-0'
+              )}
+            >
+              <Info className="w-3 h-3" />
+              <span className="hidden sm:inline">Info</span>
+            </button>
+          )}
+
           {/* Edit toggle — only when edit callbacks exist */}
           {onToggleEditMode && (
             <button

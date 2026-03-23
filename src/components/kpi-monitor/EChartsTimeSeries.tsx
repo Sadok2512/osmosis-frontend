@@ -88,6 +88,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
       onDelete={onDelete}
       editMode={editMode}
       onToggleEditMode={onToggleEditMode}
+      onInfo={onInfo}
       configPanel={configPanel}
       bottomPanel={bottomPanel}
       axisConfig={ac}
