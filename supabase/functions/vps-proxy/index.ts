@@ -120,6 +120,7 @@ Deno.serve(async (req) => {
     console.log(`[vps-proxy] Upstream responded: ${upstreamRes.status}`);
 
     const contentType = upstreamRes.headers.get('content-type') || 'application/json';
+    const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
 
     // Stream SSE responses directly (don't buffer)
     if (contentType.includes('text/event-stream') && upstreamRes.body) {
@@ -135,6 +136,16 @@ Deno.serve(async (req) => {
     }
 
     const responseBody = await upstreamRes.text();
+
+    if (!upstreamRes.ok && isSafeRead) {
+      const errorSnippet = responseBody.slice(0, 300) || `HTTP ${upstreamRes.status}`;
+      console.warn(`[vps-proxy] Safe fallback for upstream ${upstreamRes.status}: ${errorSnippet}`);
+
+      return new Response(JSON.stringify(buildSafeFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`)), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     return new Response(responseBody, {
       status: upstreamRes.status,
