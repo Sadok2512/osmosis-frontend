@@ -710,12 +710,16 @@ const KPIMonitorInner: React.FC = () => {
                         )}
                         {validWidgets.map(w => (
                           <div key={getId(w)}
-                            onClickCapture={() => {
+                            onClickCapture={(e) => {
                               const wId = getId(w);
-                              store.setSelectedWidgetId(store.selectedWidgetId === wId ? null : wId);
+                              if (e.ctrlKey || e.metaKey) {
+                                store.toggleWidgetSelection(wId, true);
+                              } else {
+                                store.toggleWidgetSelection(wId, false);
+                              }
                             }}
                             className={`cursor-pointer transition-all duration-200 rounded-xl ${
-                              store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                              store.selectedWidgetIds.includes(getId(w)) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
                           >{renderWidget(w)}</div>
                         ))}
