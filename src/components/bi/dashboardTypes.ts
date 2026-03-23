@@ -2,6 +2,7 @@ import { ChartConfig } from './biTypes';
 import { TextWidgetConfig } from './BITextWidget';
 import { ImageWidgetConfig } from './BIImageWidget';
 import { TableWidgetConfig } from './BITableWidget';
+import { KpiCardWidgetConfig } from './BIKpiCardWidget';
 
 export type MapDisplayMode = 'topo' | 'qoe' | 'parameter';
 
@@ -56,4 +57,5 @@ export type WidgetItem =
   | { kind: 'text'; config: TextWidgetConfig; layout: WidgetLayout }
   | { kind: 'map'; config: MapWidgetConfig; layout: WidgetLayout }
   | { kind: 'image'; config: ImageWidgetConfig; layout: WidgetLayout }
-  | { kind: 'table'; config: TableWidgetConfig; layout: WidgetLayout };
+  | { kind: 'table'; config: TableWidgetConfig; layout: WidgetLayout }
+  | { kind: 'kpicard'; config: KpiCardWidgetConfig; layout: WidgetLayout };
