@@ -47,10 +47,23 @@ export interface WidgetThreshold {
   value: number;
   label: string;
   color: string;
-  style: 'dashed' | 'solid';
+  style: 'dashed' | 'solid' | 'dotted';
+  axis?: 'left' | 'right';           // default: 'left'
+  visible?: boolean;                  // default: true
+}
+
+// Per-axis side config (used for dual axis)
+export interface AxisSideConfig {
+  title: string;
+  min: 'auto' | number;
+  max: 'auto' | number;
+  unit: string;
+  decimals: number;
+  invert: boolean;
 }
 
 export interface WidgetAxisConfig {
+  // Legacy flat fields (still used, mapped to left axis)
   yTitle: string;
   yMin: 'auto' | number;
   yMax: 'auto' | number;
@@ -60,6 +73,9 @@ export interface WidgetAxisConfig {
   xMode: 'date' | 'dimension' | 'kpi';
   xFormat: 'short' | 'full' | 'date' | 'datetime';
   xShowGrid: boolean;
+  // Dual axis (optional — if present, overrides flat fields)
+  leftAxis?: AxisSideConfig;
+  rightAxis?: AxisSideConfig;
 }
 
 export interface WidgetGraphConfig {

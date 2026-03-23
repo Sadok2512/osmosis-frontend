@@ -197,6 +197,8 @@ const GRANULARITIES = [
   { value: '15m', label: '15m' },
   { value: '1h', label: '1h' },
   { value: '1d', label: '1j' },
+  { value: '1w', label: '1sem' },
+  { value: '1M', label: '1mois' },
 ];
 
 const MILESTONE_COLORS = [

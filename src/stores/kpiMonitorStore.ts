@@ -1,19 +1,22 @@
 import { create } from 'zustand';
 import { KpiSelection, DynamicFilter, SplitDimension, KpiMonitorView, GraphType } from '../components/kpi-monitor/types';
+import { normalizeKpiSelection, getDefaultSeriesColor } from '../components/kpi-monitor/normalizeConfig';
 
 export interface Milestone {
   id: string;
   date: string;
   label: string;
   color: string;
+  visible?: boolean;
 }
 
 interface KpiMonitorState {
-  // KPI selections
+  // KPI selections (id-based, backward compat with kpi_key)
   selectedKpis: KpiSelection[];
   addKpi: (kpi: KpiSelection) => void;
-  removeKpi: (kpiKey: string) => void;
-  updateKpi: (kpiKey: string, updates: Partial<KpiSelection>) => void;
+  removeKpi: (kpiKeyOrId: string) => void;
+  updateKpi: (kpiKeyOrId: string, updates: Partial<KpiSelection>) => void;
+  reorderKpis: (kpis: KpiSelection[]) => void;
 
   // Split
   splitBy: SplitDimension | null;
@@ -53,11 +56,19 @@ interface KpiMonitorState {
 
 export const useKpiMonitorStore = create<KpiMonitorState>((set) => ({
   selectedKpis: [],
-  addKpi: (kpi) => set((s) => ({ selectedKpis: [...s.selectedKpis, kpi] })),
-  removeKpi: (key) => set((s) => ({ selectedKpis: s.selectedKpis.filter(k => k.kpi_key !== key) })),
-  updateKpi: (key, updates) => set((s) => ({
-    selectedKpis: s.selectedKpis.map(k => k.kpi_key === key ? { ...k, ...updates } : k),
+  addKpi: (kpi) => set((s) => {
+    const normalized = normalizeKpiSelection(kpi, s.selectedKpis.length);
+    return { selectedKpis: [...s.selectedKpis, normalized] };
+  }),
+  removeKpi: (keyOrId) => set((s) => ({
+    selectedKpis: s.selectedKpis.filter(k => k.id !== keyOrId && k.kpi_key !== keyOrId),
   })),
+  updateKpi: (keyOrId, updates) => set((s) => ({
+    selectedKpis: s.selectedKpis.map(k =>
+      (k.id === keyOrId || k.kpi_key === keyOrId) ? { ...k, ...updates } : k
+    ),
+  })),
+  reorderKpis: (kpis) => set({ selectedKpis: kpis }),
 
   splitBy: null,
   setSplitBy: (s) => set({ splitBy: s }),

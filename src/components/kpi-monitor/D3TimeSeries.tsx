@@ -2,8 +2,9 @@ import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react'
 import * as d3 from 'd3';
 import { KpiTimeSeriesPoint, KpiCatalogEntry, GraphType } from './types';
 import { KPI_CATALOG_MAP } from './kpiCatalog';
-import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
+import { useKpiMonitorStore, Milestone } from '../../stores/kpiMonitorStore';
 import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
+import { getAxisSideConfig } from './normalizeConfig';
 
 interface Props {
   data: KpiTimeSeriesPoint[];
@@ -13,6 +14,8 @@ interface Props {
   ac?: WidgetAxisConfig;
   thresholds?: WidgetThreshold[];
   thresholdsEnabled?: boolean;
+  milestones?: Milestone[];
+  showMilestones?: boolean;
 }
 
 const PREMIUM_COLORS = [
@@ -22,7 +25,9 @@ const PREMIUM_COLORS = [
 
 const MARGIN = { top: 20, right: 24, bottom: 36, left: 56 };
 
-const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externalMap, gc, ac, thresholds, thresholdsEnabled }) => {
+const DASH_MAP: Record<string, string> = { solid: '0', dashed: '6,4', dotted: '2,3' };
+
+const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externalMap, gc, ac, thresholds, thresholdsEnabled, milestones, showMilestones }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,13 +94,20 @@ const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externa
       return min === Infinity ? [0, 100] : [Math.min(0, min), max * 1.1];
     };
 
-    const yLeftDomain = ac?.yMin !== undefined && ac.yMin !== 'auto' && ac?.yMax !== undefined && ac.yMax !== 'auto'
-      ? [ac.yMin as number, ac.yMax as number]
-      : getExtent(leftSeries.length > 0 ? leftSeries : seriesArr);
-    const yLeft = d3.scaleLinear().domain(ac?.yInvert ? [yLeftDomain[1], yLeftDomain[0]] : yLeftDomain).range([innerH, 0]).nice();
+    // Dual axis config
+    const leftCfg = ac ? getAxisSideConfig(ac, 'left') : null;
+    const rightCfg = ac ? getAxisSideConfig(ac, 'right') : null;
 
+    const yLeftDomain = leftCfg?.min !== undefined && leftCfg.min !== 'auto' && leftCfg?.max !== undefined && leftCfg.max !== 'auto'
+      ? [leftCfg.min as number, leftCfg.max as number]
+      : getExtent(leftSeries.length > 0 ? leftSeries : seriesArr);
+    const yLeft = d3.scaleLinear().domain(leftCfg?.invert ? [yLeftDomain[1], yLeftDomain[0]] : yLeftDomain).range([innerH, 0]).nice();
+
+    const yRightDomain = rightCfg?.min !== undefined && rightCfg.min !== 'auto' && rightCfg?.max !== undefined && rightCfg.max !== 'auto'
+      ? [rightCfg.min as number, rightCfg.max as number]
+      : getExtent(rightSeries);
     const yRight = rightSeries.length > 0
-      ? d3.scaleLinear().domain(getExtent(rightSeries)).range([innerH, 0]).nice()
+      ? d3.scaleLinear().domain(rightCfg?.invert ? [yRightDomain[1], yRightDomain[0]] : yRightDomain).range([innerH, 0]).nice()
       : null;
 
     // Grid lines
@@ -115,34 +127,40 @@ const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externa
         .call(g => g.select('.domain').remove());
     }
 
-    // Axes
-    const yDecimals = ac?.yDecimals ?? 2;
-    const yFmt = (v: d3.NumberValue) => {
+    // Axes formatters
+    const makeYFmt = (cfg: typeof leftCfg) => (v: d3.NumberValue) => {
       const n = +v;
-      if (ac?.yUnit) return n.toFixed(yDecimals) + ' ' + ac.yUnit;
+      const dec = cfg?.decimals ?? 2;
+      const unit = cfg?.unit || '';
+      if (unit) return n.toFixed(dec) + ' ' + unit;
       if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + 'M';
       if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(1) + 'k';
-      return n % 1 === 0 ? n.toString() : n.toFixed(yDecimals);
+      return n % 1 === 0 ? n.toString() : n.toFixed(dec);
     };
 
     g.append('g')
-      .call(d3.axisLeft(yLeft).ticks(6).tickFormat(yFmt))
+      .call(d3.axisLeft(yLeft).ticks(6).tickFormat(makeYFmt(leftCfg)))
       .call(g => g.select('.domain').remove())
       .call(g => g.selectAll('text').attr('fill', '#9ca3af').style('font-size', '10px').style('font-family', 'Inter, system-ui, sans-serif'))
       .call(g => g.selectAll('.tick line').remove());
 
-    if (ac?.yTitle) {
+    if (leftCfg?.title) {
       g.append('text').attr('transform', 'rotate(-90)').attr('y', -44).attr('x', -innerH / 2)
-        .attr('text-anchor', 'middle').attr('fill', '#9ca3af').style('font-size', '10px').text(ac.yTitle);
+        .attr('text-anchor', 'middle').attr('fill', '#9ca3af').style('font-size', '10px').text(leftCfg.title);
     }
 
     if (yRight) {
       g.append('g')
         .attr('transform', `translate(${innerW},0)`)
-        .call(d3.axisRight(yRight).ticks(5).tickFormat(yFmt))
+        .call(d3.axisRight(yRight).ticks(5).tickFormat(makeYFmt(rightCfg)))
         .call(g => g.select('.domain').remove())
         .call(g => g.selectAll('text').attr('fill', '#9ca3af').style('font-size', '10px'))
         .call(g => g.selectAll('.tick line').remove());
+
+      if (rightCfg?.title) {
+        g.append('text').attr('transform', 'rotate(90)').attr('y', -innerW - 16).attr('x', innerH / 2)
+          .attr('text-anchor', 'middle').attr('fill', '#9ca3af').style('font-size', '10px').text(rightCfg.title);
+      }
     }
 
     // X Axis
@@ -163,18 +181,29 @@ const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externa
         .attr('transform', allTs.length > 30 ? 'rotate(-35)' : '').style('text-anchor', allTs.length > 30 ? 'end' : 'middle'))
       .call(g => g.selectAll('.tick line').remove());
 
-    // Draw series
-    const lineW = gc?.lineWidth ?? 2.5;
+    // Draw series — per-series style support
+    const globalLineW = gc?.lineWidth ?? 2.5;
     const isSmooth = gc?.smooth ?? true;
-    const showSym = gc?.showSymbols ?? false;
+    const globalShowSym = gc?.showSymbols ?? false;
 
     let colorIdx = 0;
     for (const s of seriesArr) {
       const kpiSel = selectedKpis.find(k => k.kpi_key === s.kpiKey);
+
+      // Skip hidden series
+      if (kpiSel?.visible === false) { colorIdx++; continue; }
+
       const cat = catMap[s.kpiKey];
       const color = kpiSel?.color || cat?.color || PREMIUM_COLORS[colorIdx % PREMIUM_COLORS.length];
       const yScale = rightKeys.has(s.kpiKey) && yRight ? yRight : yLeft;
       const chartType = kpiSel?.graphType || 'line';
+
+      // Per-series style (with global fallback)
+      const seriesLineW = kpiSel?.lineWidth ?? globalLineW;
+      const seriesLineStyle = kpiSel?.lineStyle || 'solid';
+      const seriesShowSym = kpiSel?.showMarkers ?? globalShowSym;
+      const seriesOpacity = kpiSel?.opacity ?? 1;
+      const dashArray = DASH_MAP[seriesLineStyle] || '0';
 
       const pointData = allTs
         .map(ts => ({ ts: new Date(ts), value: s.points.get(ts) ?? null }))
@@ -190,7 +219,7 @@ const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externa
           .attr('width', barW)
           .attr('height', d => Math.max(0, innerH - yScale(d.value)))
           .attr('fill', color)
-          .attr('opacity', 0.7)
+          .attr('opacity', seriesOpacity * 0.7)
           .attr('rx', 2);
       } else if (chartType === 'scatter') {
         g.selectAll(`.dot-${colorIdx}`)
@@ -200,6 +229,7 @@ const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externa
           .attr('cy', d => yScale(d.value))
           .attr('r', 4)
           .attr('fill', color)
+          .attr('opacity', seriesOpacity)
           .attr('stroke', '#fff')
           .attr('stroke-width', 1.5);
       } else {
@@ -213,7 +243,7 @@ const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externa
         if (chartType === 'area' || chartType === 'stacked_area') {
           const gradId = `grad-d3-${colorIdx}`;
           const grad = defs.append('linearGradient').attr('id', gradId).attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 1);
-          grad.append('stop').attr('offset', '0%').attr('stop-color', color).attr('stop-opacity', 0.15);
+          grad.append('stop').attr('offset', '0%').attr('stop-color', color).attr('stop-opacity', 0.15 * seriesOpacity);
           grad.append('stop').attr('offset', '100%').attr('stop-color', color).attr('stop-opacity', 0.01);
 
           const areaGen = d3.area<{ ts: Date; value: number }>()
@@ -222,25 +252,24 @@ const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externa
             .y1(d => yScale(d.value))
             .curve(curve);
 
-          g.append('path')
-            .datum(pointData)
-            .attr('fill', `url(#${gradId})`)
-            .attr('d', areaGen);
+          g.append('path').datum(pointData).attr('fill', `url(#${gradId})`).attr('d', areaGen);
         }
 
-        // Line with glow
+        // Line with per-series style
         g.append('path')
           .datum(pointData)
           .attr('fill', 'none')
           .attr('stroke', color)
-          .attr('stroke-width', lineW)
+          .attr('stroke-width', seriesLineW)
           .attr('stroke-linecap', 'round')
           .attr('stroke-linejoin', 'round')
+          .attr('stroke-dasharray', dashArray)
+          .attr('opacity', seriesOpacity)
           .attr('d', lineGen)
           .style('filter', `drop-shadow(0 3px 6px ${color}30)`);
 
-        // Dots
-        if (showSym) {
+        // Dots (per-series override)
+        if (seriesShowSym) {
           g.selectAll(`.sym-${colorIdx}`)
             .data(pointData)
             .join('circle')
@@ -255,24 +284,60 @@ const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externa
       colorIdx++;
     }
 
-    // Thresholds
+    // Thresholds — per-axis support
     if (thresholdsEnabled && thresholds) {
       for (const t of thresholds) {
-        const y = yLeft(t.value);
+        if (t.visible === false) continue;
+        const scale = (t.axis === 'right' && yRight) ? yRight : yLeft;
+        const y = scale(t.value);
         if (y < 0 || y > innerH) continue;
+        const dash = DASH_MAP[t.style] || (t.style === 'dashed' ? '6,4' : '0');
         g.append('line')
           .attr('x1', 0).attr('x2', innerW)
           .attr('y1', y).attr('y2', y)
           .attr('stroke', t.color)
           .attr('stroke-width', 1.5)
-          .attr('stroke-dasharray', t.style === 'dashed' ? '6,4' : '0');
+          .attr('stroke-dasharray', dash);
         g.append('text')
-          .attr('x', innerW - 4).attr('y', y - 4)
-          .attr('text-anchor', 'end')
+          .attr('x', t.axis === 'right' ? 4 : innerW - 4)
+          .attr('y', y - 4)
+          .attr('text-anchor', t.axis === 'right' ? 'start' : 'end')
           .attr('fill', t.color)
           .style('font-size', '9px')
           .style('font-weight', '600')
           .text(t.label);
+      }
+    }
+
+    // Milestones — vertical date markers
+    if (showMilestones && milestones) {
+      for (const m of milestones) {
+        if (m.visible === false) continue;
+        const mDate = new Date(m.date);
+        const mx = xScale(mDate);
+        if (mx < 0 || mx > innerW) continue;
+        g.append('line')
+          .attr('x1', mx).attr('x2', mx)
+          .attr('y1', 0).attr('y2', innerH)
+          .attr('stroke', m.color || '#3b82f6')
+          .attr('stroke-width', 1.5)
+          .attr('stroke-dasharray', '4,3')
+          .attr('opacity', 0.7);
+        // Label background
+        const labelW = m.label.length * 5.5 + 12;
+        g.append('rect')
+          .attr('x', mx - labelW / 2).attr('y', -2)
+          .attr('width', labelW).attr('height', 16)
+          .attr('rx', 4)
+          .attr('fill', m.color || '#3b82f6')
+          .attr('opacity', 0.85);
+        g.append('text')
+          .attr('x', mx).attr('y', 10)
+          .attr('text-anchor', 'middle')
+          .attr('fill', '#fff')
+          .style('font-size', '9px')
+          .style('font-weight', '600')
+          .text(m.label);
       }
     }
 
@@ -345,7 +410,7 @@ const D3TimeSeries: React.FC<Props> = ({ data, height = 380, catalogMap: externa
           .on('end', function () { d3.select(this).attr('stroke-dasharray', null); });
       });
 
-  }, [data, seriesArr, allTs, containerWidth, height, selectedKpis, catMap, gc, ac, thresholds, thresholdsEnabled]);
+  }, [data, seriesArr, allTs, containerWidth, height, selectedKpis, catMap, gc, ac, thresholds, thresholdsEnabled, milestones, showMilestones]);
 
   return (
     <div ref={containerRef} className="relative w-full" style={{ height }}>

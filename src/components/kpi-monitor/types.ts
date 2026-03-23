@@ -2,9 +2,10 @@
 
 export type TechnoScope = '4G' | '5G' | 'both';
 export type ValueType = 'ratio' | 'counter' | 'gauge';
-export type AggFunc = 'avg' | 'sum' | 'max' | 'min' | 'p95' | 'p50' | 'last';
-export type Granularity = '15m' | '1h' | '1d';
+export type AggFunc = 'avg' | 'sum' | 'max' | 'min' | 'p95' | 'p50' | 'last' | 'count';
+export type Granularity = '15m' | '1h' | '1d' | '1w' | '1M';
 export type AxisSide = 'left' | 'right';
+export type LineStyle = 'solid' | 'dashed' | 'dotted';
 export type SplitDimension = 'DR' | 'DOR' | 'ZONE_ARCEP' | 'BAND' | 'PLAQUE' | 'SITE' | 'CELL' | 'VENDOR' | 'TECHNO';
 export type FilterOp = 'IN' | 'NOT_IN' | 'EQ';
 export type KpiMonitorView = 'graph' | 'table' | 'map';
@@ -35,6 +36,7 @@ export interface KpiCatalogEntry {
 export type GraphType = 'line' | 'area' | 'bar' | 'stacked_area' | 'scatter';
 
 export interface KpiSelection {
+  id?: string;                        // unique series id (auto-generated)
   kpi_key: string;
   agg: AggFunc;
   axis: AxisSide;
@@ -42,6 +44,14 @@ export interface KpiSelection {
   graphType?: GraphType;
   splitOverride?: SplitDimension | null;
   yAxisIndex?: number;
+  // Per-series style
+  label?: string;                     // display label override
+  lineWidth?: number;                 // default: inherit from global
+  lineStyle?: LineStyle;              // default: 'solid'
+  showMarkers?: boolean;              // default: inherit from global
+  opacity?: number;                   // 0-1, default: 1
+  visible?: boolean;                  // default: true
+  order?: number;                     // z-order
 }
 
 export interface DynamicFilter {

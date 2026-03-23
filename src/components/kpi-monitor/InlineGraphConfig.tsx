@@ -134,6 +134,8 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const [axeOpen, setAxeOpen] = useState(true);
   const [graphOpen, setGraphOpen] = useState(false);
   const [seuilOpen, setSeuilOpen] = useState(false);
+  const [milestoneOpen, setMilestoneOpen] = useState(false);
+  const [expandedKpi, setExpandedKpi] = useState<string | null>(null);
 
   const [dirty, setDirty] = useState(false);
   const markDirty = () => { if (!dirty) setDirty(true); };
@@ -227,50 +229,89 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             {store.selectedKpis.length > 0 && (
               <div className="space-y-1">
                 {store.selectedKpis.map(kpi => {
+                  const kpiId = kpi.id || kpi.kpi_key;
                   const cat = catalogMap[kpi.kpi_key];
                   const displayColor = kpi.color || cat?.color || '#3b82f6';
-                  const displayName = cat?.display_name || kpi.kpi_key;
+                  const displayName = kpi.label || cat?.display_name || kpi.kpi_key;
+                  const isExpanded = expandedKpi === kpiId;
+                  const updateThis = (u: Record<string, any>) => { store.updateKpi(kpiId, u); markDirty(); };
                   return (
-                    <div key={kpi.kpi_key} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-background/80 border border-border/30 hover:border-border/60 transition-colors group">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button className="w-3 h-3 rounded-full shrink-0 ring-1 ring-border/30 hover:ring-primary/50 transition-all cursor-pointer" style={{ backgroundColor: displayColor }} />
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-2" align="start">
-                          <div className="grid grid-cols-5 gap-1.5">
-                            {PRESET_COLORS.map(c => (
-                              <button key={c} onClick={() => { store.updateKpi(kpi.kpi_key, { color: c }); markDirty(); }}
-                                className={cn('w-5 h-5 rounded-full transition-transform hover:scale-125', displayColor === c && 'ring-2 ring-primary ring-offset-1')}
-                                style={{ backgroundColor: c }} />
+                    <div key={kpiId} className="rounded-lg bg-background/80 border border-border/30 hover:border-border/60 transition-colors">
+                      {/* Compact row */}
+                      <div className="flex items-center gap-2 px-2.5 py-2 group">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className="w-3 h-3 rounded-full shrink-0 ring-1 ring-border/30 hover:ring-primary/50 transition-all cursor-pointer" style={{ backgroundColor: displayColor }} />
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-2" align="start">
+                            <div className="grid grid-cols-5 gap-1.5">
+                              {PRESET_COLORS.map(c => (
+                                <button key={c} onClick={() => updateThis({ color: c })}
+                                  className={cn('w-5 h-5 rounded-full transition-transform hover:scale-125', displayColor === c && 'ring-2 ring-primary ring-offset-1')}
+                                  style={{ backgroundColor: c }} />
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        <button onClick={() => setExpandedKpi(isExpanded ? null : kpiId)} className="text-[11px] font-medium text-foreground truncate flex-1 min-w-0 text-left hover:text-primary transition-colors">
+                          {displayName}
+                        </button>
+                        {/* Axis toggle L/R */}
+                        <button
+                          onClick={() => updateThis({ axis: kpi.axis === 'left' ? 'right' : 'left', yAxisIndex: kpi.axis === 'left' ? 1 : 0 })}
+                          className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold border transition-colors',
+                            kpi.axis === 'left' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-violet-500/10 text-violet-400 border-violet-500/20'
+                          )}
+                        >{kpi.axis === 'left' ? 'L' : 'R'}</button>
+                        {/* Graph type */}
+                        <Select value={kpi.graphType || 'line'} onValueChange={v => updateThis({ graphType: v as GraphType })}>
+                          <SelectTrigger className="h-6 w-[58px] text-[10px] px-1.5 border-border/40 bg-background"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {GRAPH_TYPES.map(g => (
+                              <SelectItem key={g.value} value={g.value} className="text-[10px]">
+                                <div className="flex items-center gap-1"><g.icon className="w-3 h-3" /> {g.label}</div>
+                              </SelectItem>
                             ))}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <span className="text-[11px] font-medium text-foreground truncate flex-1 min-w-0">{displayName}</span>
-                      <button
-                        onClick={() => { store.updateKpi(kpi.kpi_key, { yAxisIndex: (kpi.yAxisIndex || 0) === 0 ? 1 : 0 }); markDirty(); }}
-                        className={cn(
-                          'px-1.5 py-0.5 rounded text-[9px] font-bold border transition-colors',
-                          (kpi.yAxisIndex || 0) === 0
-                            ? 'bg-primary/10 text-primary border-primary/20'
-                            : 'bg-secondary/10 text-secondary-foreground border-border/40'
-                        )}
-                      >
-                        {(kpi.yAxisIndex || 0) === 0 ? 'L' : 'R'}
-                      </button>
-                      <Select value={kpi.graphType || 'line'} onValueChange={v => { store.updateKpi(kpi.kpi_key, { graphType: v as GraphType }); markDirty(); }}>
-                        <SelectTrigger className="h-6 w-[58px] text-[10px] px-1.5 border-border/40 bg-background"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {GRAPH_TYPES.map(g => (
-                            <SelectItem key={g.value} value={g.value} className="text-[10px]">
-                              <div className="flex items-center gap-1"><g.icon className="w-3 h-3" /> {g.label}</div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <button onClick={() => { store.removeKpi(kpi.kpi_key); markDirty(); }}
-                        className="p-0.5 rounded text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all shrink-0"
-                      ><Trash2 className="w-3 h-3" /></button>
+                          </SelectContent>
+                        </Select>
+                        {/* Aggregation */}
+                        <Select value={kpi.agg || 'avg'} onValueChange={v => updateThis({ agg: v })}>
+                          <SelectTrigger className="h-6 w-[52px] text-[9px] px-1 border-border/40 bg-background"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {['avg','sum','min','max','last','count'].map(a => (
+                              <SelectItem key={a} value={a} className="text-[10px]">{a.toUpperCase()}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <button onClick={() => { store.removeKpi(kpiId); markDirty(); }}
+                          className="p-0.5 rounded text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                        ><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                      {/* Expanded per-series config */}
+                      {isExpanded && (
+                        <div className="px-3 pb-2.5 pt-1 border-t border-border/20 space-y-2">
+                          <FieldRow label="Style">
+                            <SmallSelect value={kpi.lineStyle || 'solid'} options={[
+                              { value: 'solid', label: '── Solid' }, { value: 'dashed', label: '- - Dashed' }, { value: 'dotted', label: '··· Dotted' },
+                            ]} onChange={v => updateThis({ lineStyle: v })} className="w-[90px]" />
+                          </FieldRow>
+                          <FieldRow label="Épaisseur">
+                            <SmallInput type="number" value={String(kpi.lineWidth ?? 2.5)} onChange={e => updateThis({ lineWidth: Number(e.target.value) || 2.5 })} className="w-[60px]" />
+                          </FieldRow>
+                          <FieldRow label="Opacité">
+                            <SmallInput type="number" value={String(kpi.opacity ?? 1)} min="0" max="1" step="0.1" onChange={e => updateThis({ opacity: Number(e.target.value) })} className="w-[60px]" />
+                          </FieldRow>
+                          <SmallToggle label="Marqueurs" checked={kpi.showMarkers ?? false} onChange={v => updateThis({ showMarkers: v })} />
+                          <SmallToggle label="Visible" checked={kpi.visible ?? true} onChange={v => updateThis({ visible: v })} />
+                          {/* Split override */}
+                          <FieldRow label="Split">
+                            <SmallSelect value={kpi.splitOverride || ''} options={[
+                              { value: '', label: 'Global' },
+                              ...SPLIT_OPTIONS.map(s => ({ value: s.value, label: s.label })),
+                            ]} onChange={v => updateThis({ splitOverride: v || null })} className="w-[100px]" />
+                          </FieldRow>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -304,37 +345,59 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
           </div>
         )}
 
-        {/* ── AXES ── */}
+        {/* ── AXES (Dual) ── */}
         <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
           <button onClick={() => setAxeOpen(!axeOpen)} className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
             {axeOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
             <Axis3D className="w-3.5 h-3.5" /> Axes
           </button>
           {axeOpen && (<>
-            <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-wider">Axe Y</p>
+            {/* Left Y-Axis */}
+            <p className="text-[9px] font-bold text-primary uppercase tracking-wider flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-primary" /> Axe Y Gauche (L)
+            </p>
             <FieldRow label="Titre">
-              <SmallInput value={axis.yTitle} onChange={e => setAxisD({ yTitle: e.target.value })} placeholder="Auto" className="w-[100px]" />
+              <SmallInput value={axis.leftAxis?.title || axis.yTitle} onChange={e => setAxisD({ yTitle: e.target.value, leftAxis: { ...(axis.leftAxis || { title:'',min:'auto',max:'auto',unit:'',decimals:2,invert:false }), title: e.target.value } })} placeholder="Auto" className="w-[100px]" />
             </FieldRow>
             <FieldRow label="Min">
-              <SmallInput type="number" value={axis.yMin === 'auto' ? '' : String(axis.yMin)} placeholder="Auto"
-                onChange={e => setAxisD({ yMin: e.target.value === '' ? 'auto' : Number(e.target.value) })} className="w-[80px]" />
+              <SmallInput type="number" value={(axis.leftAxis?.min ?? axis.yMin) === 'auto' ? '' : String(axis.leftAxis?.min ?? axis.yMin)} placeholder="Auto"
+                onChange={e => { const v = e.target.value === '' ? 'auto' as const : Number(e.target.value); setAxisD({ yMin: v, leftAxis: { ...(axis.leftAxis || { title:'',min:'auto',max:'auto',unit:'',decimals:2,invert:false }), min: v } }); }} className="w-[80px]" />
             </FieldRow>
             <FieldRow label="Max">
-              <SmallInput type="number" value={axis.yMax === 'auto' ? '' : String(axis.yMax)} placeholder="Auto"
-                onChange={e => setAxisD({ yMax: e.target.value === '' ? 'auto' : Number(e.target.value) })} className="w-[80px]" />
+              <SmallInput type="number" value={(axis.leftAxis?.max ?? axis.yMax) === 'auto' ? '' : String(axis.leftAxis?.max ?? axis.yMax)} placeholder="Auto"
+                onChange={e => { const v = e.target.value === '' ? 'auto' as const : Number(e.target.value); setAxisD({ yMax: v, leftAxis: { ...(axis.leftAxis || { title:'',min:'auto',max:'auto',unit:'',decimals:2,invert:false }), max: v } }); }} className="w-[80px]" />
             </FieldRow>
             <FieldRow label="Unité">
-              <SmallSelect value={axis.yUnit} options={[
+              <SmallSelect value={axis.leftAxis?.unit || axis.yUnit} options={[
                 { value: '', label: 'Auto' }, { value: '%', label: '%' }, { value: 'Mbps', label: 'Mbps' },
                 { value: 'ms', label: 'ms' }, { value: 'GB', label: 'GB' }, { value: 'k', label: 'k' },
-              ]} onChange={v => setAxisD({ yUnit: v })} className="w-[80px]" />
+              ]} onChange={v => setAxisD({ yUnit: v, leftAxis: { ...(axis.leftAxis || { title:'',min:'auto',max:'auto',unit:'',decimals:2,invert:false }), unit: v } })} className="w-[80px]" />
             </FieldRow>
-            <FieldRow label="Décimales">
-              <SmallSelect value={String(axis.yDecimals)} options={[
-                { value: '0', label: '0' }, { value: '1', label: '1' }, { value: '2', label: '2' }, { value: '3', label: '3' },
-              ]} onChange={v => setAxisD({ yDecimals: Number(v) })} className="w-[80px]" />
-            </FieldRow>
-            <SmallToggle label="Inverser" checked={axis.yInvert} onChange={v => setAxisD({ yInvert: v })} />
+
+            {/* Right Y-Axis */}
+            {store.selectedKpis.some(k => k.axis === 'right') && (<>
+              <div className="h-px bg-border/40 my-1" />
+              <p className="text-[9px] font-bold text-violet-400 uppercase tracking-wider flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-violet-400" /> Axe Y Droite (R)
+              </p>
+              <FieldRow label="Titre">
+                <SmallInput value={axis.rightAxis?.title || ''} onChange={e => setAxisD({ rightAxis: { ...(axis.rightAxis || { title:'',min:'auto',max:'auto',unit:'',decimals:2,invert:false }), title: e.target.value } })} placeholder="Auto" className="w-[100px]" />
+              </FieldRow>
+              <FieldRow label="Min">
+                <SmallInput type="number" value={axis.rightAxis?.min === 'auto' || !axis.rightAxis ? '' : String(axis.rightAxis.min)} placeholder="Auto"
+                  onChange={e => { const v = e.target.value === '' ? 'auto' as const : Number(e.target.value); setAxisD({ rightAxis: { ...(axis.rightAxis || { title:'',min:'auto',max:'auto',unit:'',decimals:2,invert:false }), min: v } }); }} className="w-[80px]" />
+              </FieldRow>
+              <FieldRow label="Max">
+                <SmallInput type="number" value={axis.rightAxis?.max === 'auto' || !axis.rightAxis ? '' : String(axis.rightAxis.max)} placeholder="Auto"
+                  onChange={e => { const v = e.target.value === '' ? 'auto' as const : Number(e.target.value); setAxisD({ rightAxis: { ...(axis.rightAxis || { title:'',min:'auto',max:'auto',unit:'',decimals:2,invert:false }), max: v } }); }} className="w-[80px]" />
+              </FieldRow>
+              <FieldRow label="Unité">
+                <SmallSelect value={axis.rightAxis?.unit || ''} options={[
+                  { value: '', label: 'Auto' }, { value: '%', label: '%' }, { value: 'Mbps', label: 'Mbps' },
+                  { value: 'ms', label: 'ms' }, { value: 'GB', label: 'GB' }, { value: 'k', label: 'k' },
+                ]} onChange={v => setAxisD({ rightAxis: { ...(axis.rightAxis || { title:'',min:'auto',max:'auto',unit:'',decimals:2,invert:false }), unit: v } })} className="w-[80px]" />
+              </FieldRow>
+            </>)}
 
             {/* Axe X removed — date controlled from top bar */}
           </>)}
@@ -446,8 +509,12 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                     className="flex-1 min-w-0" />
                   <SmallSelect value={t.style}
                     onChange={v => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, style: v as any } : th)); markDirty(); }}
-                    options={[{ value: 'dashed', label: '- - -' }, { value: 'solid', label: '───' }]}
-                    className="w-14" />
+                    options={[{ value: 'dashed', label: '- -' }, { value: 'solid', label: '──' }, { value: 'dotted', label: '···' }]}
+                    className="w-12" />
+                  <SmallSelect value={t.axis || 'left'}
+                    onChange={v => { onThresholdsChange(thresholds.map(th => th.id === t.id ? { ...th, axis: v as any } : th)); markDirty(); }}
+                    options={[{ value: 'left', label: 'L' }, { value: 'right', label: 'R' }]}
+                    className="w-10" />
                   <button onClick={() => { onThresholdsChange(thresholds.filter(th => th.id !== t.id)); markDirty(); }}
                     className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
                     <X className="w-2.5 h-2.5" />
@@ -463,6 +530,57 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             <div className="text-[10px] text-muted-foreground italic text-center">Seuils désactivés</div>
           )}
         </div>
+      </div>
+
+        {/* ── JALONS (Milestones) ── */}
+        <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+          <button onClick={() => setMilestoneOpen(!milestoneOpen)} className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
+            {milestoneOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M12 3v18M8 7h8" /></svg>
+            Jalons
+            <span className="ml-auto text-[9px] font-medium text-muted-foreground">{store.milestones.length}</span>
+          </button>
+          {milestoneOpen && (
+            <div className="space-y-2">
+              <SmallToggle label="Afficher" checked={store.showMilestones} onChange={v => store.setShowMilestones(v)} />
+              {store.milestones.map(m => (
+                <div key={m.id} className="flex items-center gap-1.5 group">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="w-3 h-3 rounded-full shrink-0 ring-1 ring-border/30" style={{ backgroundColor: m.color }} />
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-2" align="start">
+                      <div className="flex gap-1.5">
+                        {THRESHOLD_COLORS.map(c => (
+                          <button key={c} onClick={() => store.updateMilestone(m.id, { color: c })}
+                            className={cn('w-5 h-5 rounded-full', m.color === c && 'ring-2 ring-primary ring-offset-1')}
+                            style={{ backgroundColor: c }} />
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <SmallInput type="date" value={m.date?.split('T')[0] || ''}
+                    onChange={e => store.updateMilestone(m.id, { date: e.target.value })}
+                    className="w-28" />
+                  <SmallInput value={m.label}
+                    onChange={e => store.updateMilestone(m.id, { label: e.target.value })}
+                    className="flex-1 min-w-0" placeholder="Label" />
+                  <button onClick={() => store.removeMilestone(m.id)}
+                    className="p-0.5 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => store.addMilestone({ id: crypto.randomUUID(), date: new Date().toISOString().slice(0, 10), label: 'Jalon', color: '#3b82f6' })}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed border-border/50 text-[10px] text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+              >
+                <Plus className="w-3 h-3" /> Ajouter un jalon
+              </button>
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* ─── Footer ─── */}

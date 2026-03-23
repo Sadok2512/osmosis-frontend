@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { KpiTimeSeriesPoint, KpiCatalogEntry } from './types';
 import { KPI_CATALOG_MAP } from './kpiCatalog';
-import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
+import { useKpiMonitorStore, Milestone } from '../../stores/kpiMonitorStore';
 import PremiumGraphCard from './PremiumGraphCard';
 import D3TimeSeries from './D3TimeSeries';
 import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
@@ -39,7 +39,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
   editMode, onToggleEditMode, configPanel, bottomPanel,
   onAxisConfigChange, onGraphConfigChange,
 }) => {
-  const { selectedKpis } = useKpiMonitorStore();
+  const { selectedKpis, milestones: storeMilestones, showMilestones: storeShowMilestones } = useKpiMonitorStore();
   const catMap = externalMap || KPI_CATALOG_MAP;
 
   const handleExportPNG = useCallback(() => {
@@ -113,6 +113,8 @@ const EChartsTimeSeries: React.FC<Props> = ({
             ac={ac}
             thresholds={thresholdList}
             thresholdsEnabled={thresholdsEnabled}
+            milestones={storeMilestones}
+            showMilestones={storeShowMilestones}
           />
         </div>
       )}
