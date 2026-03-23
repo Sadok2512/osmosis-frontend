@@ -654,6 +654,7 @@ const KPIMonitorInner: React.FC = () => {
           skipLayoutChangeRef.current = true;
           store.setActiveEditingWidgetId(null);
           store.clearWidgetSelection();
+          setExplainWidgetId(null);
           toast({ title: 'Configuration appliquée', description: 'Retour au dashboard.' });
         };
 
