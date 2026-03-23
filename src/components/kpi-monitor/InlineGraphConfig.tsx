@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useKpiMonitorStore } from '@/stores/kpiMonitorStore';
 import { KpiCatalogEntry, SplitDimension, GraphType } from './types';
 import { Switch } from '../ui/switch';
+import { Slider } from '../ui/slider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   X, Plus, TrendingUp, AreaChart, BarChart, Layers2, CircleDot, Hash,
   ChevronDown, ChevronRight, Trash2, Filter, GitBranch,
-  BarChart3, Axis3D, Settings2, AlertTriangle, Save,
+  BarChart3, Axis3D, Settings2, AlertTriangle, Save, Grid3X3, Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -130,9 +131,16 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const graph = externalGraph || DEFAULT_GRAPH;
   const setGraph = (u: Partial<WidgetGraphConfig>) => onGraphConfigChange?.({ ...graph, ...u });
 
+  // Grid & Calendar config helpers
+  const gridCfg = graph.grid || { enabled: true, opacity: 20, type: 'both' as const };
+  const calCfg = graph.calendar || { highlightWeekends: true, weekendColor: '#E5E7EB', weekendOpacity: 10 };
+  const setGridCfg = (u: Partial<typeof gridCfg>) => setGraphD({ grid: { ...gridCfg, ...u } });
+  const setCalCfg = (u: Partial<typeof calCfg>) => setGraphD({ calendar: { ...calCfg, ...u } });
+
   const [kpiOpen, setKpiOpen] = useState(true);
   const [axeOpen, setAxeOpen] = useState(false);
   const [graphOpen, setGraphOpen] = useState(false);
+  const [gridCalOpen, setGridCalOpen] = useState(false);
   const [seuilOpen, setSeuilOpen] = useState(false);
   const [milestoneOpen, setMilestoneOpen] = useState(false);
   
@@ -462,6 +470,68 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
               )}
             </div>
           </>)}
+        </div>
+
+        {/* ── GRID & CALENDAR ── */}
+        <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+          <button onClick={() => setGridCalOpen(!gridCalOpen)} className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
+            {gridCalOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+            <Grid3X3 className="w-3.5 h-3.5" /> Grille & Weekends
+          </button>
+          {gridCalOpen && (
+            <div className="space-y-3">
+              {/* Grid */}
+              <div className="space-y-2">
+                <SmallToggle label="Afficher la grille" checked={gridCfg.enabled} onChange={v => setGridCfg({ enabled: v })} />
+                {gridCfg.enabled && (
+                  <div className="space-y-2 pl-1">
+                    <FieldRow label="Opacité">
+                      <div className="flex items-center gap-1.5">
+                        <Slider min={0} max={100} step={5} value={[gridCfg.opacity]} onValueChange={([v]) => setGridCfg({ opacity: v })} className="w-[80px]" />
+                        <span className="text-[9px] text-muted-foreground w-[28px] text-right">{gridCfg.opacity}%</span>
+                      </div>
+                    </FieldRow>
+                    <FieldRow label="Type">
+                      <SmallSelect value={gridCfg.type} options={[
+                        { value: 'horizontal', label: 'Horizontal' },
+                        { value: 'vertical', label: 'Vertical' },
+                        { value: 'both', label: 'Les deux' },
+                      ]} onChange={v => setGridCfg({ type: v as any })} className="w-[90px]" />
+                    </FieldRow>
+                  </div>
+                )}
+              </div>
+
+              {/* Calendar / Weekends */}
+              <div className="h-px bg-border/40" />
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Weekends</span>
+                </div>
+                <SmallToggle label="Highlight weekends" checked={calCfg.highlightWeekends} onChange={v => setCalCfg({ highlightWeekends: v })} />
+                {calCfg.highlightWeekends && (
+                  <div className="space-y-2 pl-1">
+                    <FieldRow label="Opacité">
+                      <div className="flex items-center gap-1.5">
+                        <Slider min={0} max={50} step={2} value={[calCfg.weekendOpacity]} onValueChange={([v]) => setCalCfg({ weekendOpacity: v })} className="w-[80px]" />
+                        <span className="text-[9px] text-muted-foreground w-[28px] text-right">{calCfg.weekendOpacity}%</span>
+                      </div>
+                    </FieldRow>
+                    <FieldRow label="Couleur">
+                      <div className="flex items-center gap-1">
+                        {['#E5E7EB', '#DBEAFE', '#FEF3C7', '#D1FAE5'].map(c => (
+                          <button key={c} onClick={() => setCalCfg({ weekendColor: c })}
+                            className={cn('w-4 h-4 rounded border transition-all', calCfg.weekendColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border')}
+                            style={{ backgroundColor: c }} />
+                        ))}
+                      </div>
+                    </FieldRow>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── FILTERS ── */}
