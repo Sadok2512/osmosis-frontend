@@ -625,6 +625,7 @@ const KPIMonitorInner: React.FC = () => {
         const isMonoView = !!editingWidget;
 
         const closeEdit = () => {
+          skipLayoutChangeRef.current = true;
           store.setActiveEditingWidgetId(null);
           store.clearWidgetSelection();
           toast({ title: 'Configuration appliquée', description: 'Retour au dashboard.' });
