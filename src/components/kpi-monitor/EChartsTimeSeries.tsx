@@ -4,6 +4,7 @@ import { KPI_CATALOG_MAP } from './kpiCatalog';
 import { useKpiMonitorStore, Milestone } from '../../stores/kpiMonitorStore';
 import PremiumGraphCard from './PremiumGraphCard';
 import D3TimeSeries from './D3TimeSeries';
+import { BarChart3 } from 'lucide-react';
 import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
 
 interface Props {
@@ -94,14 +95,12 @@ const EChartsTimeSeries: React.FC<Props> = ({
     >
       {data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3">
-          <div className="w-full h-full flex flex-col gap-2 p-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-3 rounded bg-muted/40 animate-pulse" style={{ width: `${85 - i * 12}%` }} />
-            ))}
+          <div className="flex flex-col items-center gap-2 text-muted-foreground/50">
+            <BarChart3 className="w-10 h-10 stroke-[1.2]" />
+            <p className="text-xs font-medium">
+              Aucune donnée — ajustez les filtres ou la période
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground/60 font-medium">
-            Aucune donnée — ajustez les filtres
-          </p>
         </div>
       ) : (
         <div className="d3-ts-container">
