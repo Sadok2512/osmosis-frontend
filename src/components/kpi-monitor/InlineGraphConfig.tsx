@@ -530,7 +530,6 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             <div className="text-[10px] text-muted-foreground italic text-center">Seuils désactivés</div>
           )}
         </div>
-      </div>
 
         {/* ── JALONS (Milestones) ── */}
         <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
