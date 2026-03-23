@@ -78,6 +78,18 @@ export interface WidgetAxisConfig {
   rightAxis?: AxisSideConfig;
 }
 
+export interface GridConfig {
+  enabled: boolean;
+  opacity: number; // 0-100
+  type: 'horizontal' | 'vertical' | 'both';
+}
+
+export interface CalendarConfig {
+  highlightWeekends: boolean;
+  weekendColor: string;
+  weekendOpacity: number; // 0-100
+}
+
 export interface WidgetGraphConfig {
   smooth: boolean;
   lineWidth: number;
@@ -88,6 +100,8 @@ export interface WidgetGraphConfig {
   transparentBg: boolean;
   showLegend: boolean;
   legendPosition: 'top' | 'bottom';
+  grid?: GridConfig;
+  calendar?: CalendarConfig;
 }
 
 export interface WidgetStyleConfig {
