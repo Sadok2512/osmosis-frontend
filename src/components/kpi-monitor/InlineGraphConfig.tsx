@@ -298,7 +298,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                           <PopoverTrigger asChild>
                             <button
                               className="w-3.5 h-3.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-background hover:scale-110 transition-transform cursor-pointer"
-                              style={{ backgroundColor: displayColor, ringColor: displayColor + '40' }}
+                              style={{ backgroundColor: displayColor }}
                             />
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-3" align="start">
