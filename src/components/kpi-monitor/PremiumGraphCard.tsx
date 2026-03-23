@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Download, FileSpreadsheet, RefreshCw, Maximize2,
-  Copy, Trash2, MoreHorizontal, Pencil, PencilOff, Settings,
+  Copy, Trash2, MoreHorizontal, Pencil, PencilOff, Settings, Info,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
