@@ -78,11 +78,16 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       }
     }
 
+    const normalizedCount = catalog.filter(k => k.is_normalized).length;
+    const vendorSpecificCount = catalog.filter(k => !k.is_normalized).length;
+
     return {
       vendors: Array.from(vendors).sort(),
       technos: Array.from(technos).sort(),
       families: Array.from(families).sort(),
       levels: Array.from(levels).sort(),
+      normalizedCount,
+      vendorSpecificCount,
     };
   }, [catalog]);
 
@@ -167,15 +172,37 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
           </button>
         </div>
 
-        {/* Selection summary + filter toggle + reset */}
+        {/* Stats + Normalized/Techno toggle + selection info */}
         <div className="flex items-center justify-between px-5 py-2 border-b border-border bg-muted/30">
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-foreground">{selected.size} sélectionné(s)</span>
-            <span className="text-[10px] text-muted-foreground">
-              {filteredCatalog.length !== catalog.length && `${filteredCatalog.length}/${catalog.length} affiché(s)`}
-            </span>
+            {filteredCatalog.length !== catalog.length && (
+              <span className="text-[10px] text-muted-foreground">{filteredCatalog.length}/{catalog.length} affiché(s)</span>
+            )}
+            {/* KPI stats badges */}
+            <div className="flex items-center gap-1.5 ml-2">
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 font-bold">{filterOptions.normalizedCount} normalisés</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold">{filterOptions.vendorSpecificCount} vendor</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-bold">{filterOptions.technos.length} technos</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-bold">{filterOptions.vendors.length} vendors</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Normalized / Techno toggle */}
+            <div className="flex items-center rounded-lg border border-border overflow-hidden">
+              <button
+                onClick={() => setFilterNormalized(filterNormalized === 'normalized' ? '' : 'normalized')}
+                className={`px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                  filterNormalized === 'normalized' ? 'bg-violet-500 text-white' : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >Normalisé ({filterOptions.normalizedCount})</button>
+              <button
+                onClick={() => setFilterNormalized(filterNormalized === 'vendor-specific' ? '' : 'vendor-specific')}
+                className={`px-2.5 py-1 text-[10px] font-bold border-l border-border transition-colors ${
+                  filterNormalized === 'vendor-specific' ? 'bg-blue-500 text-white' : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >Vendor ({filterOptions.vendorSpecificCount})</button>
+            </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-medium transition-colors ${
@@ -203,17 +230,11 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
           </div>
         </div>
 
-        {/* Filter bar (collapsible) */}
+        {/* Filter bar (collapsible) — without Type dropdown (replaced by toggle above) */}
         {showFilters && (
-          <div className="px-5 py-3 border-b border-border bg-muted/10 grid grid-cols-5 gap-3">
+          <div className="px-5 py-3 border-b border-border bg-muted/10 grid grid-cols-4 gap-3">
             <FilterDropdown label="Vendor" value={filterVendor} options={filterOptions.vendors} onChange={setFilterVendor} />
             <FilterDropdown label="Techno" value={filterTechno} options={filterOptions.technos} onChange={setFilterTechno} />
-            <FilterDropdown
-              label="Type"
-              value={filterNormalized}
-              options={['vendor-specific', 'normalized']}
-              onChange={setFilterNormalized}
-            />
             <FilterDropdown label="Level" value={filterLevel} options={filterOptions.levels} onChange={setFilterLevel} />
             <FilterDropdown label="Family" value={filterFamily} options={filterOptions.families} onChange={setFilterFamily} />
           </div>
