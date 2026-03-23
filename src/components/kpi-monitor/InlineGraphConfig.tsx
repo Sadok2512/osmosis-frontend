@@ -491,7 +491,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                 <div className="text-[10px] text-muted-foreground italic py-2 text-center">Aucun filtre actif</div>
               )}
               <button
-                onClick={() => store.addFilter({ id: crypto.randomUUID(), dimension: 'DR', op: 'in', values: [] })}
+                onClick={() => store.addFilter({ id: crypto.randomUUID(), dimension: 'DR', op: 'IN', values: [] })}
                 className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-dashed border-border/50 text-[10px] text-muted-foreground hover:text-foreground hover:border-border transition-colors"
               >
                 <Plus className="w-3 h-3" /> Ajouter un filtre
