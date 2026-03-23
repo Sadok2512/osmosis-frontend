@@ -732,23 +732,38 @@ const KPIMonitorInner: React.FC = () => {
                         ]}
                         onLayoutChange={onFreeLayoutChange}
                         editable={editMode}
+                        selectedIds={store.selectedWidgetIds}
+                        onSelectionChange={(ids) => store.setSelectedWidgetIds(ids)}
                       >
                         {mainChartRect && (
                           <div
                             key={MAIN_CHART_ID}
                             className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
-                              store.selectedWidgetId === MAIN_CHART_ID ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                              store.selectedWidgetIds.includes(MAIN_CHART_ID) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
-                            onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === MAIN_CHART_ID ? null : MAIN_CHART_ID)}
+                            onClickCapture={(e) => {
+                              if (e.ctrlKey || e.metaKey) {
+                                store.toggleWidgetSelection(MAIN_CHART_ID, true);
+                              } else {
+                                store.toggleWidgetSelection(MAIN_CHART_ID, false);
+                              }
+                            }}
                           >
                             {renderMainChart(Math.max(280, mainChartRect.h - 16))}
                           </div>
                         )}
                         {validWidgets.map(w => (
                           <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
-                            store.selectedWidgetId === getId(w) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
+                            store.selectedWidgetIds.includes(getId(w)) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                           }`}
-                            onClickCapture={() => store.setSelectedWidgetId(store.selectedWidgetId === getId(w) ? null : getId(w))}
+                            onClickCapture={(e) => {
+                              const wId = getId(w);
+                              if (e.ctrlKey || e.metaKey) {
+                                store.toggleWidgetSelection(wId, true);
+                              } else {
+                                store.toggleWidgetSelection(wId, false);
+                              }
+                            }}
                           >{renderWidget(w)}</div>
                         ))}
                       </FreeLayoutCanvas>
