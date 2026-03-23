@@ -5,7 +5,7 @@ import { Switch } from '../ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   X, Plus, TrendingUp, AreaChart, BarChart, Layers2, CircleDot, Hash,
-  ChevronDown, ChevronRight, Trash2, Filter,
+  ChevronDown, ChevronRight, Trash2, Filter, GitBranch,
   BarChart3, Axis3D, Settings2, AlertTriangle, Save,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -135,6 +135,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const [graphOpen, setGraphOpen] = useState(false);
   const [seuilOpen, setSeuilOpen] = useState(false);
   const [milestoneOpen, setMilestoneOpen] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(false);
   const [expandedKpi, setExpandedKpi] = useState<string | null>(null);
 
   const [dirty, setDirty] = useState(false);
@@ -496,6 +497,40 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
               >
                 <Plus className="w-3 h-3" /> Ajouter un filtre
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── SPLIT ── */}
+        <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+          <button onClick={() => setSplitOpen(!splitOpen)} className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 hover:text-foreground transition-colors">
+            {splitOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+            <GitBranch className="w-3.5 h-3.5" />
+            Split
+            {store.splitBy && <span className="ml-auto text-[9px] font-medium text-primary">{store.splitBy}</span>}
+          </button>
+          {splitOpen && (
+            <div className="space-y-2.5">
+              <FieldRow label="Dimension">
+                <SmallSelect
+                  value={store.splitBy || ''}
+                  options={[
+                    { value: '', label: 'Aucun' },
+                    ...SPLIT_OPTIONS.map(s => ({ value: s.value, label: s.label })),
+                  ]}
+                  onChange={v => store.setSplitBy((v || null) as SplitDimension | null)}
+                  className="w-[110px]"
+                />
+              </FieldRow>
+              {store.splitBy && (
+                <>
+                  <FieldRow label="Top N">
+                    <SmallInput type="number" value={String(store.topN)} min="1" max="50"
+                      onChange={e => store.setTopN(Number(e.target.value) || 5)} className="w-[60px]" />
+                  </FieldRow>
+                  <SmallToggle label="Inclure Autres" checked={store.includeOthers} onChange={v => store.setIncludeOthers(v)} />
+                </>
+              )}
             </div>
           )}
         </div>
