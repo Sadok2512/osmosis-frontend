@@ -453,9 +453,43 @@ const D3TimeSeries: React.FC<Props> = ({ data, height: rawHeight = 380, catalogM
 
   }, [data, seriesArr, allTs, containerWidth, height, selectedKpis, catMap, gc, ac, thresholds, thresholdsEnabled, milestones, showMilestones]);
 
-  return (
-    <div ref={containerRef} className="relative w-full" style={{ height }}>
+    return (
+    <div ref={containerRef} className="relative w-full" style={{ height: rawHeight }}>
+      {/* Legend top */}
+      {showLegend && legendPos === 'top' && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1.5 overflow-hidden" style={{ maxHeight: LEGEND_HEIGHT }}>
+          {seriesArr.map((s, i) => {
+            const kpiSel = selectedKpis.find(k => k.kpi_key === s.kpiKey);
+            if (kpiSel?.visible === false) return null;
+            const cat = catMap[s.kpiKey];
+            const color = kpiSel?.color || cat?.color || PREMIUM_COLORS[i % PREMIUM_COLORS.length];
+            return (
+              <div key={s.name} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}40` }} />
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">{s.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <svg ref={svgRef} width={containerWidth} height={height} className="overflow-visible" />
+      {/* Legend bottom */}
+      {showLegend && legendPos === 'bottom' && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1.5 overflow-hidden" style={{ maxHeight: LEGEND_HEIGHT }}>
+          {seriesArr.map((s, i) => {
+            const kpiSel = selectedKpis.find(k => k.kpi_key === s.kpiKey);
+            if (kpiSel?.visible === false) return null;
+            const cat = catMap[s.kpiKey];
+            const color = kpiSel?.color || cat?.color || PREMIUM_COLORS[i % PREMIUM_COLORS.length];
+            return (
+              <div key={s.name} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}40` }} />
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">{s.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <div
         ref={tooltipRef}
         className="absolute pointer-events-none z-50"
