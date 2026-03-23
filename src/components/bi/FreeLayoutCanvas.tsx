@@ -22,6 +22,7 @@ interface FreeLayoutCanvasProps {
   onLayoutChange: (id: string, rect: Partial<FreeRect>) => void;
   children: React.ReactNode;
   allowOverlap?: boolean;
+  editable?: boolean;
 }
 
 /** Collect all edge positions from sibling rects */
