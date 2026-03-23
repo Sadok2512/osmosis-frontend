@@ -29,10 +29,12 @@ export const FILTER_DIMENSIONS: DimensionDef[] = [
   { key: 'dor', label: 'DOR', type: 'enum', multi: true, depends_on: [] },
   { key: 'constructeur', label: 'Constructeur', type: 'enum', multi: true, depends_on: ['dor'] },
   { key: 'plaque', label: 'Plaque', type: 'enum', multi: true, depends_on: ['dor', 'constructeur'] },
-  { key: 'zone_arcep', label: 'Zone ARCEP', type: 'enum', multi: true, depends_on: [], values: ['top15', 'rural', 'Intermidiare', 'AXE', 'TGV'] },
-  { key: 'techno', label: 'Techno', type: 'enum', multi: true, depends_on: [], values: ['4g', '5g'] },
+  { key: 'site', label: 'Site', type: 'enum', multi: true, depends_on: ['plaque'], value_source: 'backend' },
+  { key: 'cell', label: 'Cellule', type: 'enum', multi: true, depends_on: ['site'], value_source: 'backend' },
+  { key: 'zone_arcep', label: 'Zone ARCEP', type: 'enum', multi: true, depends_on: [] },
+  { key: 'techno', label: 'Techno', type: 'enum', multi: true, depends_on: [] },
   { key: 'bande', label: 'Bande', type: 'enum', multi: true, depends_on: ['techno'] },
-  { key: 'saisonnier', label: 'Saisonnier', type: 'enum', multi: true, depends_on: [], values: ['Essentiel', 'Hiver', 'Eté', 'Sites stratégiques'] },
+  { key: 'vendor', label: 'Vendor', type: 'enum', multi: true, depends_on: [] },
 ];
 
 // ── Reference data ──
