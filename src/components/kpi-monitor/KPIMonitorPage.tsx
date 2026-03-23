@@ -796,6 +796,13 @@ const KPIMonitorInner: React.FC = () => {
                                 store.toggleWidgetSelection(wId, false);
                               }
                             }}
+                            onDoubleClick={() => {
+                              if (editMode) {
+                                const wId = getId(w);
+                                if (w.kind === 'chart') { store.setActiveEditingWidgetId(wId); setShowAI(false); }
+                                else if (w.kind === 'table') { setEditingId(wId); }
+                              }
+                            }}
                           >{renderWidget(w)}</div>
                         ))}
                       </FreeLayoutCanvas>
