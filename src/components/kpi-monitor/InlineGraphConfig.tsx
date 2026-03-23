@@ -308,13 +308,6 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                           </FieldRow>
                           <SmallToggle label="Marqueurs" checked={kpi.showMarkers ?? false} onChange={v => updateThis({ showMarkers: v })} />
                           <SmallToggle label="Visible" checked={kpi.visible ?? true} onChange={v => updateThis({ visible: v })} />
-                          {/* Split override */}
-                          <FieldRow label="Split">
-                            <SmallSelect value={kpi.splitOverride || ''} options={[
-                              { value: '', label: 'Global' },
-                              ...SPLIT_OPTIONS.map(s => ({ value: s.value, label: s.label })),
-                            ]} onChange={v => updateThis({ splitOverride: v || null })} className="w-[100px]" />
-                          </FieldRow>
                         </div>
                       )}
                     </div>
