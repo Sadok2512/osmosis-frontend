@@ -783,7 +783,7 @@ const KPIMonitorInner: React.FC = () => {
                             className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
                               store.selectedWidgetIds.includes(MAIN_CHART_ID) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                             }`}
-                            onClickCapture={(e) => handleWidgetClick(MAIN_CHART_ID, e, 'chart')}
+                            onMouseUpCapture={(e) => { if (e.button === 0) handleWidgetClick(MAIN_CHART_ID, e, 'chart'); }}
                           >
                             {renderMainChart(Math.max(280, mainChartRect.h - 16))}
                           </div>
@@ -792,7 +792,7 @@ const KPIMonitorInner: React.FC = () => {
                           <div key={getId(w)} className={`w-full h-full cursor-pointer transition-all duration-200 rounded-xl ${
                             store.selectedWidgetIds.includes(getId(w)) ? 'ring-2 ring-primary shadow-lg shadow-primary/10' : ''
                           }`}
-                            onClickCapture={(e) => handleWidgetClick(getId(w), e, w.kind)}
+                            onMouseUpCapture={(e) => { if (e.button === 0) handleWidgetClick(getId(w), e, w.kind); }}
                           >{renderWidget(w)}</div>
                         ))}
                       </FreeLayoutCanvas>
