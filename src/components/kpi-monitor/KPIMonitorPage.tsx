@@ -7,7 +7,7 @@ import 'react-resizable/css/styles.css';
 import { useKpiMonitorStore } from '../../stores/kpiMonitorStore';
 import { useGlobalFilterStore } from '../../stores/globalFilterStore';
 import { useDashboardSettingsStore } from '../../stores/dashboardSettingsStore';
-import { buildCatalogMap, fetchKpiCatalogFromDB } from './kpiCatalog';
+import { buildCatalogMap } from './kpiCatalog';
 import { KpiCatalogEntry, SplitDimension } from './types';
 import { useTimeseriesQuery, useSummaryQuery, useTableQuery, useKpiCatalog, useCounterCatalog, useDateRange, type TimeseriesRequest, type MonitorFilter, type MonitorKpiCatalogEntry } from './api/kpiMonitorApi';
 import SummaryTilesRow from './SummaryTilesRow';
@@ -168,43 +168,32 @@ const KPIMonitorInner: React.FC = () => {
   const widgets = dm.activeTab?.widgets || [];
   const setWidgets = dm.updateActiveWidgets;
 
-  // KPI catalog — try backend first, fallback to Supabase DB
+  // KPI catalog — from backend API only
   const queryClient = useQueryClient();
   const { data: backendCatalog } = useKpiCatalog();
-  const [dbCatalog, setDbCatalog] = useState<KpiCatalogEntry[]>([]);
-
-  useEffect(() => {
-    if (!backendCatalog || backendCatalog.length === 0) {
-      fetchKpiCatalogFromDB().then(entries => {
-        if (entries.length > 0) setDbCatalog(entries);
-      });
-    }
-  }, [backendCatalog]);
 
   const catalog: KpiCatalogEntry[] = useMemo(() => {
-    if (backendCatalog && backendCatalog.length > 0) {
-      return backendCatalog.map((e: any): KpiCatalogEntry => ({
-        kpi_id: e.kpi_key,
-        kpi_key: e.kpi_key,
-        display_name: e.display_name,
-        description: e.description || '',
-        techno_scope: (e.techno === 'LTE' || e.techno === '4G') ? '4G' : (e.techno === 'NR' || e.techno === '5G') ? '5G' : 'both',
-        unit: e.unit || '',
-        value_type: (e.value_type as any) || 'gauge',
-        default_agg: 'avg',
-        allowed_aggs: ['avg', 'min', 'max', 'sum'],
-        is_map_supported: false,
-        thresholds: e.threshold_warning != null ? { warning: e.threshold_warning, critical: e.threshold_critical ?? e.threshold_warning * 0.8 } : undefined,
-        category: e.category || 'Other',
-        color: '#3b82f6',
-        vendor: e.vendor || '',
-        techno: e.techno || '',
-        supported_levels: e.supported_levels || [],
-        is_normalized: !!e.is_normalized,
-      }));
-    }
-    return dbCatalog;
-  }, [backendCatalog, dbCatalog]);
+    if (!backendCatalog || backendCatalog.length === 0) return [];
+    return backendCatalog.map((e: any): KpiCatalogEntry => ({
+      kpi_id: e.kpi_key,
+      kpi_key: e.kpi_key,
+      display_name: e.display_name,
+      description: e.description || '',
+      techno_scope: (e.techno === 'LTE' || e.techno === '4G') ? '4G' : (e.techno === 'NR' || e.techno === '5G') ? '5G' : 'both',
+      unit: e.unit || '',
+      value_type: (e.value_type as any) || 'gauge',
+      default_agg: 'avg',
+      allowed_aggs: ['avg', 'min', 'max', 'sum'],
+      is_map_supported: false,
+      thresholds: e.threshold_warning != null ? { warning: e.threshold_warning, critical: e.threshold_critical ?? e.threshold_warning * 0.8 } : undefined,
+      category: e.category || 'Other',
+      color: '#3b82f6',
+      vendor: e.vendor || '',
+      techno: e.techno || '',
+      supported_levels: e.supported_levels || [],
+      is_normalized: !!e.is_normalized,
+    }));
+  }, [backendCatalog]);
   const catalogMap = useMemo(() => buildCatalogMap(catalog), [catalog]);
 
   // BI state
