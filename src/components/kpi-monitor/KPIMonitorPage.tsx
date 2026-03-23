@@ -151,6 +151,7 @@ const KPIMonitorInner: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAI, setShowAI] = useState(false);
   const [containerWidth, setContainerWidth] = useState(1200);
+  const [explainWidgetId, setExplainWidgetId] = useState<string | null>(null);
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [newDashName, setNewDashName] = useState('');
   const [showCSVPanel, setShowCSVPanel] = useState(false);
