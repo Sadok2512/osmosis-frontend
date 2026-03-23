@@ -487,11 +487,11 @@ const KPIMonitorInner: React.FC = () => {
   const renderWidget = (w: WidgetItem) => {
     const wId = getId(w);
     const isSelected = store.selectedWidgetId === wId;
-    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { store.setActiveEditingWidgetId(wId); setShowAI(false); }} onDuplicate={() => duplicateWidget(wId)} onDelete={() => deleteWidget(wId)} />;
-    if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={cfg => updateMapConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
-    if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={cfg => updateImageConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
-    if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} onEdit={() => { setEditingId(wId); }} />;
-    return <BITextWidget config={w.config as TextWidgetConfig} onChange={cfg => updateTextConfig(wId, cfg)} onDelete={() => deleteWidget(wId)} />;
+    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={editMode ? () => { store.setActiveEditingWidgetId(wId); setShowAI(false); } : undefined} onDuplicate={editMode ? () => duplicateWidget(wId) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
+    if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={editMode ? cfg => updateMapConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
+    if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={editMode ? cfg => updateImageConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
+    if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={editMode ? cfg => updateTableConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} onEdit={editMode ? () => { setEditingId(wId); } : undefined} />;
+    return <BITextWidget config={w.config as TextWidgetConfig} onChange={editMode ? cfg => updateTextConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
   };
 
   const canvasBg = dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor;
@@ -616,7 +616,7 @@ const KPIMonitorInner: React.FC = () => {
                         thresholds={widgetThresholds['__kpi_main__']}
                         thresholdsEnabled={widgetThresholdsEnabled['__kpi_main__']}
                         editMode={isEditingMain}
-                        onToggleEditMode={() => store.setActiveEditingWidgetId('__kpi_main__')}
+                        onToggleEditMode={editMode ? () => store.setActiveEditingWidgetId('__kpi_main__') : undefined}
                         onAxisConfigChange={c => setWidgetAxisConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
                         onGraphConfigChange={c => setWidgetGraphConfigs(prev => ({ ...prev, '__kpi_main__': c }))}
                       />
