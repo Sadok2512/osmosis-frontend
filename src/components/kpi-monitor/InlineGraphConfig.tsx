@@ -257,6 +257,19 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                         <button onClick={() => setExpandedKpi(isExpanded ? null : kpiId)} className="text-[11px] font-medium text-foreground truncate flex-1 min-w-0 text-left hover:text-primary transition-colors">
                           {displayName}
                         </button>
+                        {/* Split per-KPI */}
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <GitBranch className="w-2.5 h-2.5 text-muted-foreground/50" />
+                          <SmallSelect
+                            value={kpi.splitOverride || ''}
+                            options={[
+                              { value: '', label: 'Aucun' },
+                              ...SPLIT_OPTIONS.map(s => ({ value: s.value, label: s.label })),
+                            ]}
+                            onChange={v => updateThis({ splitOverride: v || null })}
+                            className="w-[80px]"
+                          />
+                        </div>
                         {/* Axis toggle L/R */}
                         <button
                           onClick={() => updateThis({ axis: kpi.axis === 'left' ? 'right' : 'left', yAxisIndex: kpi.axis === 'left' ? 1 : 0 })}
