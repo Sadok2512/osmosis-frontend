@@ -228,7 +228,7 @@ const KpiWidgetCard: React.FC<Props> = ({
         };
       }),
     };
-  }, [tsData, config, catalogMap]);
+  }, [tsData, config, catalogMap, jalons]);
 
   // ── Status color ──
   const statusColor = useMemo(() => {
