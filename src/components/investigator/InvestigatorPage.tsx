@@ -4,7 +4,7 @@ import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
-import { InvestigationState, DataPoint, WorstElement, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG } from './types';
+import { InvestigationState, DataPoint, WorstElement, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, Jalon } from './types';
 import { fetchTimeSeriesData, fetchWorstElements, fetchKpiDefinitions } from './investigatorApi';
 import { KPIS as FALLBACK_KPIS } from './mockData';
 import {
@@ -37,6 +37,7 @@ const INITIAL_STATE: InvestigationState = {
   sortBy: '',
   graphLayout: 2,
   activeGraphTab: 'TimeSeries',
+  jalons: [],
 };
 
 const InvestigatorPage: React.FC = () => {
@@ -203,6 +204,7 @@ const InvestigatorPage: React.FC = () => {
 
           {state.activeGraphTab === 'TimeSeries' && (
             <KPIGraphs
+              jalons={state.jalons}
               graphSlots={state.graphSlots}
               data={tsData}
               layout={state.graphLayout}

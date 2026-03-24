@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType } from './types';
+import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon } from './types';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
@@ -24,6 +24,7 @@ interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
   layout: 1 | 2 | 4;
+  jalons: Jalon[];
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
   onRemoveSlot: (slotId: string) => void;
   onAddEmptySlot: () => void;
@@ -34,7 +35,7 @@ interface Props {
   onSlotClick?: (slotId: string) => void;
 }
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
   const cols = layout === 1 ? 1 : 2;
   const chartHeight = layout === 1 ? 400 : layout === 4 ? 220 : 280;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
@@ -138,6 +139,26 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
           };
         });
 
+        // Build markLine data for jalons
+        const markLineData = jalons
+          .filter(j => allTimestamps.includes(j.date) || true) // show all jalons
+          .map(j => ({
+            xAxis: j.date,
+            label: {
+              show: true,
+              formatter: j.label,
+              fontSize: 9,
+              fontWeight: 'bold' as const,
+              color: j.color,
+              position: 'insideEndTop' as const,
+            },
+            lineStyle: {
+              color: j.color,
+              width: 2,
+              type: 'dashed' as const,
+            },
+          }));
+
         const option = {
           animation: true,
           grid: { top: 40, right: 20, bottom: 36, left: 56 },
@@ -185,7 +206,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
               lineStyle: { color: 'rgba(128,128,128,0.12)', type: 'dashed' as const },
             },
           },
-          series,
+          series: series.map((s, i) => i === 0 ? { ...s, markLine: markLineData.length > 0 ? { silent: true, symbol: 'none', data: markLineData } : undefined } : s),
         };
 
         const primaryDef = defs[0];
