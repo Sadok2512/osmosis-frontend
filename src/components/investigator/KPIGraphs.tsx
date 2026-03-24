@@ -258,9 +258,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           axisLine: { show: false },
           axisTick: { show: false },
         };
+        const yAxisRightCfg = cfg.yAxisRight;
         const yAxisRight = {
           type: 'value' as const,
           position: 'right' as const,
+          min: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.min != null ? yAxisRightCfg.min : undefined,
+          max: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.max != null ? yAxisRightCfg.max : undefined,
           axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
           splitLine: { show: false },
           axisLine: { show: false },

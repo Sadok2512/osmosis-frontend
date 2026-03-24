@@ -20,6 +20,7 @@ export interface GraphConfig {
   showGrid: boolean;
   showArea: boolean;
   yAxis?: YAxisConfig;
+  yAxisRight?: YAxisConfig;
   /** Maps kpiId → 0 (left) or 1 (right). Default is 0. */
   yAxisAssignments?: Record<string, number>;
 }
