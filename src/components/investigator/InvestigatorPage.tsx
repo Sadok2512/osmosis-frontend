@@ -49,8 +49,10 @@ const InvestigatorPage: React.FC = () => {
     setIsApplying(true);
     try {
       const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
-      // splitBy value comes directly as dimension_key from backend (SITE, CELL, DOR, etc.)
-      const splitValue = state.splitBy === 'None' ? undefined : state.splitBy;
+      // splitBy is per-slot — collect from each slot for the active one, fallback to global
+      const activeSlot = state.graphSlots.find(s => s.id === activeSlotId);
+      const slotSplitBy = activeSlot?.splitBy || state.splitBy;
+      const splitValue = (!slotSplitBy || slotSplitBy === 'None') ? undefined : slotSplitBy;
 
       const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
       const [ts, worst] = await Promise.all([
