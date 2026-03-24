@@ -9,7 +9,7 @@ import { fetchTimeSeriesData, fetchWorstElements, fetchKpiDefinitions } from './
 import { KPIS as FALLBACK_KPIS } from './mockData';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
-  BarChart3, PieChart, LineChart as LineChartIcon,
+  BarChart3, PieChart, LineChart as LineChartIcon, Plus, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
