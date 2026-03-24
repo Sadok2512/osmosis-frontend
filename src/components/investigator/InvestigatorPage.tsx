@@ -93,7 +93,7 @@ const InvestigatorPage: React.FC = () => {
         setState(prev => ({
           ...prev,
           selectedKpis: ids,
-          graphSlots: ids.map((id, i) => ({ id: `slot-${i + 1}`, kpiId: id })),
+          graphSlots: ids.map((id, i) => createSlot(i + 1, id)),
           startDate: '2026-01-14',
           endDate: '2026-03-14',
         }));
