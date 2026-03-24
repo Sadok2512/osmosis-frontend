@@ -183,51 +183,39 @@ const KPIMonitorPage: React.FC = () => {
 
       {/* Top Bar */}
       <div className="sticky top-0 z-40 mx-3 mt-2 mb-1 rounded-xl border border-border/40 bg-card/95 backdrop-blur-md shadow-[0_2px_12px_hsl(var(--foreground)/0.04)]">
-        <div className="flex items-center gap-3 px-5 py-2.5">
-          {/* Left: Title */}
+        {/* Row 1: Dashboard title + actions */}
+        <div className="flex items-center gap-3 px-5 py-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <BarChart3 className="w-4.5 h-4.5 text-primary" />
             <h1 className="text-base font-bold text-foreground truncate max-w-[280px]">
               {dm.activeTab?.name || 'KPI Monitor'}
             </h1>
           </div>
-
           <div className="flex-1" />
-
-          {/* Right: Actions */}
           <div className="flex items-center gap-2">
             <button onClick={addWidget}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm"
             >
               <Plus className="w-4 h-4" /> Ajouter Widget
             </button>
-
-            <div className="w-px h-6 bg-border/50" />
-
+            <div className="w-px h-5 bg-border/50" />
             <button onClick={() => setEditMode(!editMode)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
                 editMode ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
               {editMode ? <><Pencil className="w-3.5 h-3.5" /> Edit</> : <><EyeIcon className="w-3.5 h-3.5" /> View</>}
             </button>
-
-            <button onClick={handleSave}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-            >
+            <button onClick={handleSave} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
               <Save className="w-3.5 h-3.5" /> Save
             </button>
-
-            <button onClick={handleExportPDF}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-            >
+            <button onClick={handleExportPDF} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
               <FileDown className="w-3.5 h-3.5" /> PDF
             </button>
-
             <button onClick={() => setShowAI(!showAI)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
                 showAI ? "bg-primary text-primary-foreground shadow-sm" : "bg-primary/10 text-primary hover:bg-primary/20"
               )}
             >
@@ -235,6 +223,82 @@ const KPIMonitorPage: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Row 2: Selected widget context panel */}
+        {(() => {
+          const sel = widgets.find(w => w.config.id === selectedWidgetId);
+          if (!sel) return null;
+          const cfg = sel.config;
+          return (
+            <div className="border-t border-border/30 px-5 py-2 flex items-center gap-4 flex-wrap text-xs">
+              {/* Widget name */}
+              <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                <BarChart3 className="w-3.5 h-3.5 text-primary" />
+                <span className="truncate max-w-[160px]">{cfg.title}</span>
+              </div>
+
+              <div className="w-px h-4 bg-border/40" />
+
+              {/* KPIs */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground font-medium">KPIs:</span>
+                {cfg.kpis.length === 0 ? (
+                  <span className="text-muted-foreground/60 italic">Aucun</span>
+                ) : (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {cfg.kpis.map((k, i) => {
+                      const entry = catalogMap[k.kpi_key];
+                      return (
+                        <span key={k.id || i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: k.color || '#3b82f6' }} />
+                          {entry?.display_name || k.kpi_key}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="w-px h-4 bg-border/40" />
+
+              {/* Split By */}
+              <div className="flex items-center gap-1.5">
+                <GitBranch className="w-3 h-3 text-muted-foreground" />
+                <span className="text-muted-foreground font-medium">Split:</span>
+                <span className={cfg.splitBy ? "text-foreground font-medium" : "text-muted-foreground/60 italic"}>
+                  {cfg.splitBy || 'Aucun'}
+                </span>
+              </div>
+
+              <div className="w-px h-4 bg-border/40" />
+
+              {/* Filters */}
+              <div className="flex items-center gap-1.5">
+                <Filter className="w-3 h-3 text-muted-foreground" />
+                <span className="text-muted-foreground font-medium">Filtres:</span>
+                {cfg.filters.length === 0 ? (
+                  <span className="text-muted-foreground/60 italic">Aucun</span>
+                ) : (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {cfg.filters.map((f, i) => (
+                      <span key={f.id || i} className="px-2 py-0.5 rounded-md bg-accent text-accent-foreground font-medium">
+                        {f.dimension}: {Array.isArray(f.values) ? f.values.join(', ') : f.values}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="w-px h-4 bg-border/40" />
+
+              {/* Period */}
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-3 h-3 text-muted-foreground" />
+                <span className="text-muted-foreground/80">{cfg.dateFrom} → {cfg.dateTo}</span>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Dashboard Canvas */}
