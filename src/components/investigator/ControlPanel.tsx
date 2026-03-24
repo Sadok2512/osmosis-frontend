@@ -5,7 +5,7 @@ import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, Gra
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
-import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2 } from 'lucide-react';
+import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
