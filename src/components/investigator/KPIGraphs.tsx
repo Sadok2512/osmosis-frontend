@@ -231,11 +231,42 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const totalPts = allTimestamps.length;
         const xInterval = totalPts > 90 ? Math.floor(totalPts / 8) : totalPts > 40 ? Math.floor(totalPts / 10) : totalPts > 20 ? Math.floor(totalPts / 8) : 0;
 
+        // Determine if we need a right Y-axis
+        const yAxisAssignments = cfg.yAxisAssignments || {};
+        const hasRightAxis = Object.values(yAxisAssignments).includes(1);
+
+        // Build yAxis array (always left; optionally right)
+        const yAxisLeft = {
+          type: 'value' as const,
+          position: 'left' as const,
+          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
+          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : undefined,
+          axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
+          splitLine: {
+            show: cfg.showGrid,
+            lineStyle: { color: 'rgba(128,128,128,0.05)', type: 'dashed' as const },
+          },
+          axisLine: { show: false },
+          axisTick: { show: false },
+        };
+        const yAxisRight = {
+          type: 'value' as const,
+          position: 'right' as const,
+          axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
+          splitLine: { show: false },
+          axisLine: { show: false },
+          axisTick: { show: false },
+        };
+        const yAxisArr = hasRightAxis ? [yAxisLeft, yAxisRight] : [yAxisLeft];
+
+        // Assign yAxisIndex to each series based on its KPI
+        const getYAxisIndex = (kpiId: string) => yAxisAssignments[kpiId] === 1 ? 1 : 0;
+
         const option = {
           animation: true,
           grid: {
             top: 32,
-            right: 28,
+            right: hasRightAxis ? 62 : 28,
             bottom: series.length > 4 ? 78 : series.length > 2 ? 66 : 54,
             left: 62,
             containLabel: false,
@@ -305,35 +336,28 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             axisTick: { show: false },
             splitLine: { show: false },
           },
-          // Determine if we need a right Y-axis
-          const yAxisAssignments = cfg.yAxisAssignments || {};
-          const hasRightAxis = Object.values(yAxisAssignments).includes(1);
+          yAxis: yAxisArr,
+          series: series.map((s, i) => {
+            // Find which KPI this series belongs to for yAxisIndex
+            const seriesKpiId = hasSplit
+              ? kpiIds.find(kid => s.name?.startsWith(defs[kpiIds.indexOf(kid)]?.label)) || kpiIds[0]
+              : kpiIds[i] || kpiIds[0];
 
-          yAxis: {
-            type: 'value' as const,
-            min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
-            max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : undefined,
-            axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
-            splitLine: {
-              show: cfg.showGrid,
-              lineStyle: { color: 'rgba(128,128,128,0.05)', type: 'dashed' as const },
-            },
-            axisLine: { show: false },
-            axisTick: { show: false },
-          },
-          series: series.map((s, i) => ({
-            ...s,
-            lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
-            emphasis: {
-              focus: 'series' as const,
-              blurScope: 'coordinateSystem' as const,
-              lineStyle: { width: (s.lineStyle?.width || cfg.lineWidth || 2.5) + 1.5 },
-            },
-            ...(i === 0 ? {
-              markLine: markLineData.length > 0 ? { silent: true, symbol: 'none', data: markLineData } : undefined,
-              markArea: markAreaData.length > 0 ? { silent: true, data: markAreaData } : undefined,
-            } : {}),
-          })),
+            return {
+              ...s,
+              yAxisIndex: hasRightAxis ? getYAxisIndex(seriesKpiId) : 0,
+              lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
+              emphasis: {
+                focus: 'series' as const,
+                blurScope: 'coordinateSystem' as const,
+                lineStyle: { width: (s.lineStyle?.width || cfg.lineWidth || 2.5) + 1.5 },
+              },
+              ...(i === 0 ? {
+                markLine: markLineData.length > 0 ? { silent: true, symbol: 'none', data: markLineData } : undefined,
+                markArea: markAreaData.length > 0 ? { silent: true, data: markAreaData } : undefined,
+              } : {}),
+            };
+          }),
         };
 
         const primaryDef = defs[0];
