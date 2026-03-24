@@ -759,7 +759,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   if (s.id !== selectorOpen) return s;
                   // Merge: add new keys that aren't already present
                   const merged = [...new Set([...s.kpiIds, ...validKeys])];
-                  return { ...s, kpiIds: merged };
+                  // Reset split when adding new KPIs to avoid stale split data
+                  return { ...s, kpiIds: merged, splitBy: 'None' };
                 }),
               }));
               onSlotClick?.(selectorOpen);
