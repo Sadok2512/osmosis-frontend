@@ -601,13 +601,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
                     <div className="h-px bg-border/60" />
 
-                    <PopoverClose asChild>
-                      <button
-                        className="w-full text-[10px] font-semibold text-primary hover:bg-primary/10 py-1.5 rounded-md transition-colors"
-                      >
-                        Appliquer
-                      </button>
-                    </PopoverClose>
+                    <button
+                      onClick={(e) => {
+                        // Just close the popover by clicking outside - trigger a blur
+                        (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
+                          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+                        );
+                      }}
+                      className="w-full text-[10px] font-semibold text-primary hover:bg-primary/10 py-1.5 rounded-md transition-colors"
+                    >
+                      Appliquer
+                    </button>
                   </PopoverContent>
                 </Popover>
               );
