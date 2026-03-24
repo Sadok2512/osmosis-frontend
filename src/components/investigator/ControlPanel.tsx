@@ -384,7 +384,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
         </div>
       </div>
 
-      {/* Row 2: KPI slots */}
+      {/* Row 2: KPI slots with config popovers */}
       <div className="max-w-[1600px] mx-auto px-6 pb-1.5">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">KPIs:</span>
@@ -393,21 +393,111 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
             const defEntry = kpiDefs.find(k => k.id === slot.kpiId);
             const name = catalogEntry?.display_name || defEntry?.label || slot.kpiId;
             const color = catalogEntry?.color || defEntry?.color || '#6366f1';
+            const cfg = slot.config || DEFAULT_GRAPH_CONFIG;
+            const setSlotConfig = (updates: Partial<GraphConfig>) => {
+              setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.map(s =>
+                  s.id === slot.id ? { ...s, config: { ...cfg, ...updates } } : s
+                ),
+              }));
+            };
             return (
-              <span key={slot.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                <button onClick={() => setSelectorOpen(slot.id)} className="truncate max-w-[140px] hover:underline">
-                  {name}
-                </button>
-                {state.graphSlots.length > 1 && (
-                  <button
-                    onClick={() => setState(prev => ({ ...prev, graphSlots: prev.graphSlots.filter(s => s.id !== slot.id) }))}
-                    className="ml-0.5 hover:text-destructive transition-colors"
-                  >
-                    <X className="w-2.5 h-2.5" />
+              <Popover key={slot.id}>
+                <PopoverTrigger asChild>
+                  <button className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span className="truncate max-w-[140px]">{name}</span>
+                    <Settings2 className="w-3 h-3 text-muted-foreground" />
                   </button>
-                )}
-              </span>
+                </PopoverTrigger>
+                <PopoverContent className="w-[260px] p-3 space-y-3" align="start">
+                  {/* KPI Name & Change */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                      <span className="text-xs font-bold text-foreground truncate max-w-[130px]">{name}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px] px-2"
+                      onClick={() => setSelectorOpen(slot.id)}
+                    >
+                      Change KPI
+                    </Button>
+                  </div>
+
+                  <div className="h-px bg-border/60" />
+
+                  {/* Chart Type */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
+                    <div className="flex gap-1">
+                      {CHART_TYPES.map(ct => (
+                        <button
+                          key={ct.value}
+                          onClick={() => setSlotConfig({ chartType: ct.value })}
+                          className={cn(
+                            'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
+                            cfg.chartType === ct.value
+                              ? 'border-primary/40 bg-primary/10 text-primary'
+                              : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+                          )}
+                        >
+                          <ct.icon className="w-3 h-3" />
+                          {ct.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Smooth */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-foreground">Smooth Curve</span>
+                    <Switch checked={cfg.smooth} onCheckedChange={v => setSlotConfig({ smooth: v })} className="scale-75" />
+                  </div>
+
+                  {/* Line Width */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-medium text-foreground">Line Width</span>
+                      <span className="text-[9px] text-muted-foreground font-mono">{cfg.lineWidth}px</span>
+                    </div>
+                    <Slider value={[cfg.lineWidth]} onValueChange={v => setSlotConfig({ lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="w-full" />
+                  </div>
+
+                  {/* Toggles */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-foreground">Show Markers</span>
+                    <Switch checked={cfg.showSymbols} onCheckedChange={v => setSlotConfig({ showSymbols: v })} className="scale-75" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-foreground">Area Fill</span>
+                    <Switch checked={cfg.showArea} onCheckedChange={v => setSlotConfig({ showArea: v })} className="scale-75" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-foreground">Thresholds</span>
+                    <Switch checked={cfg.showThresholds} onCheckedChange={v => setSlotConfig({ showThresholds: v })} className="scale-75" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-foreground">Grid Lines</span>
+                    <Switch checked={cfg.showGrid} onCheckedChange={v => setSlotConfig({ showGrid: v })} className="scale-75" />
+                  </div>
+
+                  <div className="h-px bg-border/60" />
+
+                  {/* Remove */}
+                  {state.graphSlots.length > 1 && (
+                    <button
+                      onClick={() => setState(prev => ({ ...prev, graphSlots: prev.graphSlots.filter(s => s.id !== slot.id) }))}
+                      className="w-full text-[10px] font-semibold text-destructive hover:bg-destructive/10 py-1.5 rounded-md transition-colors"
+                    >
+                      Remove this KPI
+                    </button>
+                  )}
+                </PopoverContent>
+              </Popover>
             );
           })}
           {state.graphSlots.length < 4 && (
