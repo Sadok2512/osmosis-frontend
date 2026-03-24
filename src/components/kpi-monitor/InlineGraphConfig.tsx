@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Input } from '../ui/input';
 import { useKpiMonitorStore } from '@/stores/kpiMonitorStore';
 import { KpiCatalogEntry, SplitDimension, GraphType } from './types';
 import { Switch } from '../ui/switch';
