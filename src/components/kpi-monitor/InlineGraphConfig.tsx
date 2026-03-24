@@ -150,7 +150,7 @@ const ChartConfigSection: React.FC<{
   setGridCfg: (u: Partial<{ enabled: boolean; opacity: number; type: 'horizontal' | 'vertical' | 'both' }>) => void;
 }> = ({ graph, setGraphD, gridCfg, setGridCfg }) => {
   const [open, setOpen] = useState(true);
-  const currentType = graph.chartType || 'line';
+  const currentType = (graph as any).chartType || 'line';
 
   return (
     <SectionCard
