@@ -3,9 +3,32 @@ export type Granularity = 'Hourly' | 'Daily' | 'Weekly';
 export type GraphTab = 'TimeSeries' | 'Histogram' | 'Breakdown';
 export type SplitOption = 'None' | 'Vendor' | 'Technology' | 'Band' | 'DOR' | 'DR';
 
+export type ChartType = 'line' | 'area' | 'bar' | 'scatter';
+
+export interface GraphConfig {
+  chartType: ChartType;
+  smooth: boolean;
+  lineWidth: number;
+  showSymbols: boolean;
+  showThresholds: boolean;
+  showGrid: boolean;
+  showArea: boolean;
+}
+
+export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
+  chartType: 'line',
+  smooth: true,
+  lineWidth: 2.5,
+  showSymbols: false,
+  showThresholds: true,
+  showGrid: true,
+  showArea: true,
+};
+
 export interface GraphSlot {
   id: string;
   kpiId: string;
+  config?: GraphConfig;
 }
 
 export interface InvestigationState {
