@@ -166,7 +166,7 @@ const KPIMonitorPage: React.FC = () => {
     }
   };
 
-  const configuringWidget = configuringWidgetId ? widgets.find(w => w.config.id === configuringWidgetId) : null;
+  
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
