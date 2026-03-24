@@ -214,7 +214,8 @@ const InvestigatorPage: React.FC = () => {
                   }),
                 }));
                 if (kpiIdToRemove) {
-                  setTsData(prev => prev.filter(d => d.kpi !== kpiIdToRemove));
+                  const current = useInvestigatorStore.getState().tsData;
+                  setTsData(current.filter(d => d.kpi !== kpiIdToRemove));
                 }
               }}
               onRemoveSlot={(slotId) => setState(prev => ({
