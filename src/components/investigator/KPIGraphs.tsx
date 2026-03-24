@@ -1,21 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG } from './types';
+import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType } from './types';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
 
-/* ── Main Component ── */
+const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
+  { value: 'line', label: 'Line', icon: TrendingUp },
+  { value: 'area', label: 'Area', icon: AreaChart },
+  { value: 'bar', label: 'Bar', icon: BarChart },
+  { value: 'scatter', label: 'Scatter', icon: CircleDot },
+];
+
 interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
   layout: 1 | 2 | 4;
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
   onRemoveSlot: (slotId: string) => void;
+  onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
+  onOpenKpiSelector: (slotId: string) => void;
 }
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi, onRemoveSlot }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi, onRemoveSlot, onUpdateSlotConfig, onOpenKpiSelector }) => {
   const cols = layout === 1 ? 1 : 2;
   const chartHeight = layout === 1 ? 400 : layout === 4 ? 220 : 280;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
@@ -100,13 +113,112 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
         };
 
         return (
-          <div key={slot.id} className="rounded-xl border border-border/60 bg-card p-4">
+          <div
+            key={slot.id}
+            className="rounded-xl border border-border/60 bg-card p-4 group relative"
+          >
+            {/* Header with config popover */}
             <div className="flex items-center gap-2 mb-2">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: def.color }} />
                 <span className="text-xs font-bold text-foreground truncate max-w-[200px]">{def.label}</span>
               </div>
-              <span className="text-[10px] text-muted-foreground font-medium ml-auto">{def.unit}</span>
+              <span className="text-[10px] text-muted-foreground font-medium ml-auto mr-1">{def.unit}</span>
+
+              {/* Config popover on the widget */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+                    <Settings2 className="w-3.5 h-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[260px] p-3 space-y-3 z-50" align="end" side="bottom">
+                  {/* KPI Name & Change */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: def.color }} />
+                      <span className="text-xs font-bold text-foreground truncate max-w-[130px]">{def.label}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px] px-2"
+                      onClick={() => onOpenKpiSelector(slot.id)}
+                    >
+                      Change KPI
+                    </Button>
+                  </div>
+
+                  <div className="h-px bg-border/60" />
+
+                  {/* Chart Type */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
+                    <div className="flex gap-1">
+                      {CHART_TYPES.map(ct => (
+                        <button
+                          key={ct.value}
+                          onClick={() => onUpdateSlotConfig(slot.id, { chartType: ct.value })}
+                          className={cn(
+                            'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
+                            cfg.chartType === ct.value
+                              ? 'border-primary/40 bg-primary/10 text-primary'
+                              : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+                          )}
+                        >
+                          <ct.icon className="w-3 h-3" />
+                          {ct.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Smooth */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-foreground">Smooth Curve</span>
+                    <Switch checked={cfg.smooth} onCheckedChange={v => onUpdateSlotConfig(slot.id, { smooth: v })} className="scale-75" />
+                  </div>
+
+                  {/* Line Width */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-medium text-foreground">Line Width</span>
+                      <span className="text-[9px] text-muted-foreground font-mono">{cfg.lineWidth}px</span>
+                    </div>
+                    <Slider value={[cfg.lineWidth]} onValueChange={v => onUpdateSlotConfig(slot.id, { lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="w-full" />
+                  </div>
+
+                  {/* Toggles */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-foreground">Show Markers</span>
+                    <Switch checked={cfg.showSymbols} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showSymbols: v })} className="scale-75" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-foreground">Area Fill</span>
+                    <Switch checked={cfg.showArea} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showArea: v })} className="scale-75" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-foreground">Thresholds</span>
+                    <Switch checked={cfg.showThresholds} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showThresholds: v })} className="scale-75" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-foreground">Grid Lines</span>
+                    <Switch checked={cfg.showGrid} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showGrid: v })} className="scale-75" />
+                  </div>
+
+                  <div className="h-px bg-border/60" />
+
+                  {/* Remove */}
+                  {graphSlots.length > 1 && (
+                    <button
+                      onClick={() => onRemoveSlot(slot.id)}
+                      className="w-full text-[10px] font-semibold text-destructive hover:bg-destructive/10 py-1.5 rounded-md transition-colors"
+                    >
+                      Remove this KPI
+                    </button>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
             <ReactECharts option={option} style={{ height: chartHeight }} />
           </div>
