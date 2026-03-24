@@ -175,7 +175,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
       };
     }).filter(Boolean);
 
-    return {
+    const opt: any = {
       animation: true,
       grid: {
         top: 40,
