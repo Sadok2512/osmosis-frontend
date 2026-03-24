@@ -306,6 +306,25 @@ const KpiMonitorBisPage: React.FC = () => {
           {/* Divider */}
           <div className="h-5 w-px" style={{ background: 'var(--bis-border)' }} />
 
+          {/* Divider */}
+          <div className="h-5 w-px" style={{ background: 'var(--bis-border)' }} />
+
+          {/* Split By */}
+          <div className="flex items-center gap-1.5">
+            <span className="col-header" style={{ color: 'var(--bis-muted)' }}>Split</span>
+            <select
+              value={splitBy || ''}
+              onChange={e => setSplitBy(e.target.value || null)}
+              className="px-2.5 py-1 rounded border text-[10px] font-mono font-bold appearance-none cursor-pointer hover:bg-black hover:text-white transition-all"
+              style={{ borderColor: 'var(--bis-border)', color: 'var(--bis-fg)', background: 'var(--bis-card)' }}
+            >
+              {SPLIT_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+
+          {/* Divider */}
+          <div className="h-5 w-px" style={{ background: 'var(--bis-border)' }} />
+
           {/* View mode */}
           <div className="flex items-center gap-0.5 p-0.5 rounded border" style={{ borderColor: 'var(--bis-border)' }}>
             {([
@@ -349,18 +368,9 @@ const KpiMonitorBisPage: React.FC = () => {
               </div>
             </>
           )}
-
-          {/* Apply */}
-          <button
-            onClick={fetchData}
-            className="ml-auto px-5 py-1.5 rounded text-xs font-mono font-bold uppercase tracking-wider transition-all hover:opacity-80"
-            style={{ background: 'var(--bis-primary)', color: 'var(--bis-card)' }}
-          >
-            Apply
-          </button>
         </div>
 
-        {/* Row 2: KPI slots */}
+        {/* Row 2: KPI slots + Apply */}
         <div className="px-6 pb-1.5 flex items-center gap-2 flex-wrap">
           <span className="col-header" style={{ color: 'var(--bis-muted)' }}>KPIs</span>
           {slots.map(slot => {
