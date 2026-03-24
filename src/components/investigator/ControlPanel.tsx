@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
-import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
+import { fetchKpiCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 
 const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
   { value: 'line', label: 'Line', icon: TrendingUp },
@@ -230,7 +230,18 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   };
 
   useEffect(() => {
-    fetchKpiCatalogFromDB().then(c => { if (c.length > 0) setCatalog(c); }).catch(() => {});
+    fetchKpiCatalog().then(data => {
+      if (data && data.length > 0) {
+        const mapped = data.map((k: any) => ({
+          kpi_id: k.kpi_key, kpi_key: k.kpi_key, display_name: k.display_name || k.kpi_key,
+          description: k.description || '', techno_scope: 'both' as const, unit: k.unit || '',
+          value_type: (k.value_type || 'gauge') as any, default_agg: 'avg' as const, allowed_aggs: ['avg' as const],
+          is_map_supported: false, category: k.category || 'Other', color: '#3b82f6',
+          vendor: k.vendor || '', techno: k.techno || '',
+        }));
+        setCatalog(mapped);
+      }
+    }).catch(() => {});
     fetchKpiDefinitions().then(k => { if (k.length > 0) setKpiDefs(k); }).catch(() => {});
   }, []);
 
