@@ -139,6 +139,17 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
               </div>
               <span className="text-[10px] text-muted-foreground font-medium ml-auto mr-1">{def.unit}</span>
 
+              {/* Remove button */}
+              {graphSlots.length > 1 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
+                  className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Supprimer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               {/* Config popover on the widget */}
               <Popover>
                 <PopoverTrigger asChild>
