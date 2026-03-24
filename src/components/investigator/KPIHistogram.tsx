@@ -22,10 +22,10 @@ const KPIHistogram: React.FC<Props> = ({ selectedKpis, layout }) => {
 
   return (
     <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-      {selectedKpis.map(kpiId => {
-        const def = KPI_MAP[kpiId];
+      {selectedKpis.filter(Boolean).map(kpiId => {
+        const def = KPI_MAP[kpiId] || { id: kpiId, label: kpiId, unit: '', color: '#6366f1', thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         const bins = histData[kpiId] || [];
-        if (!def && bins.length === 0) return null;
+        if (bins.length === 0) return null;
 
         const option = {
           grid: { top: 30, right: 20, bottom: 36, left: 50 },
