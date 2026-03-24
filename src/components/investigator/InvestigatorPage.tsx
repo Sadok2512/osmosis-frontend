@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const createSlot = (index: number, kpiId = ''): GraphSlot => ({
+const createSlot = (index: number, kpiIds: string[] = []): GraphSlot => ({
   id: `slot-${Date.now()}-${index}`,
-  kpiId,
+  kpiIds,
   name: `Graph ${index}`,
   filters: {},
   startDate: '',
