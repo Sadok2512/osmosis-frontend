@@ -47,6 +47,51 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
         const def = slot.kpiId ? (KPI_MAP[slot.kpiId] || allKpis.find(k => k.id === slot.kpiId)) : null;
         const isEmpty = !slot.kpiId || !def;
         const cfg: GraphConfig = slot.config || DEFAULT_GRAPH_CONFIG;
+
+        const isActive = activeSlotId === slot.id;
+
+        // Empty slot — no KPI assigned yet
+        if (isEmpty) {
+          return (
+            <div
+              key={slot.id}
+              onClick={() => onSlotClick?.(slot.id)}
+              className={cn(
+                'rounded-xl border bg-card p-4 group relative cursor-pointer transition-all duration-300 flex flex-col',
+                isActive
+                  ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5'
+                  : 'border-border/60 hover:border-border'
+              )}
+            >
+              <div className="flex items-center gap-2 mb-2 relative z-10">
+                <span className="text-xs font-bold text-muted-foreground">Slot vide</span>
+                <span className="ml-auto" />
+                {graphSlots.length > 1 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
+                    className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Supprimer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ minHeight: chartHeight - 40 }}>
+                <div className="text-muted-foreground/40">
+                  <BarChart className="w-8 h-8" />
+                </div>
+                <p className="text-[10px] text-muted-foreground">Aucun KPI sélectionné</p>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }}
+                  className="px-3 py-1 rounded-md text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                >
+                  Choisir un KPI
+                </button>
+              </div>
+            </div>
+          );
+        }
+
         const kpiData = data.filter(d => d.kpi === slot.kpiId);
         const timestamps = kpiData.map(d => d.timestamp);
         const values = kpiData.map(d => d.value);
@@ -66,7 +111,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
               if (!p) return '';
               const dt = new Date(p.axisValue);
               return `<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">${dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
-                <div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${def.color}"></span><b>${p.value?.toFixed(2)} ${def.unit}</b></div>`;
+                <div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${def!.color}"></span><b>${p.value?.toFixed(2)} ${def!.unit}</b></div>`;
             },
           },
           xAxis: {
@@ -94,23 +139,23 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
             smooth: cfg.smooth,
             symbol: cfg.showSymbols ? 'circle' : 'none',
             symbolSize: cfg.showSymbols ? 5 : 0,
-            lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color: def.color } : undefined,
-            itemStyle: { color: def.color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+            lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color: def!.color } : undefined,
+            itemStyle: { color: def!.color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
             barMaxWidth: 20,
             areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
               color: {
                 type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                 colorStops: [
-                  { offset: 0, color: `${def.color}20` },
-                  { offset: 1, color: `${def.color}02` },
+                  { offset: 0, color: `${def!.color}20` },
+                  { offset: 1, color: `${def!.color}02` },
                 ],
               },
             } : undefined,
             markLine: cfg.showThresholds ? {
               silent: true,
               data: [
-                { yAxis: def.thresholds.warning, lineStyle: { color: '#f59e0b', type: 'dashed' as const, width: 1 }, label: { show: false } },
-                { yAxis: def.thresholds.critical, lineStyle: { color: '#ef4444', type: 'dashed' as const, width: 1 }, label: { show: false } },
+                { yAxis: def!.thresholds.warning, lineStyle: { color: '#f59e0b', type: 'dashed' as const, width: 1 }, label: { show: false } },
+                { yAxis: def!.thresholds.critical, lineStyle: { color: '#ef4444', type: 'dashed' as const, width: 1 }, label: { show: false } },
               ],
             } : undefined,
           }],
