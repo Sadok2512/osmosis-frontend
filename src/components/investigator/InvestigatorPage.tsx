@@ -231,7 +231,7 @@ const InvestigatorPage: React.FC = () => {
             />
           )}
           {state.activeGraphTab === 'Histogram' && (
-            <KPIHistogram selectedKpis={state.graphSlots.map(s => s.kpiId)} layout={state.graphLayout} />
+            <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
           )}
           {state.activeGraphTab === 'Breakdown' && (
             <KPIBreakdown selectedKpis={state.graphSlots.map(s => s.kpiId)} layout={state.graphLayout} />
