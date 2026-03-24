@@ -43,16 +43,17 @@ const InvestigatorPage: React.FC = () => {
       const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
       const splitMap: Record<string, string> = { 'None': '', 'Vendor': 'Vendor', 'Technology': 'TECHNO', 'Band': 'BAND', 'DOR': 'DOR', 'DR': 'DOR' };
 
+      const kpiIds = state.graphSlots.map(s => s.kpiId);
       const [ts, worst] = await Promise.all([
         fetchTimeSeriesData(
-          state.selectedKpis,
+          kpiIds,
           state.startDate.split('T')[0] || '2026-01-14',
           state.endDate.split('T')[0] || '2026-03-14',
           granMap[state.granularity] || '1h',
           splitMap[state.splitBy] || undefined,
         ),
         fetchWorstElements(
-          state.selectedKpis[0] || 'dcr',
+          kpiIds[0] || 'dcr',
           state.topLimit,
           state.endDate.split('T')[0] || undefined,
           state.dimension === 'Cell' ? 'cell' : 'site',
