@@ -27,7 +27,7 @@ const createSlot = (index: number, kpiId = ''): GraphSlot => ({
 const INITIAL_STATE: InvestigationState = {
   dimension: 'Cell',
   selectedKpis: [],
-  graphSlots: [createSlot(1)],
+  graphSlots: [],
   splitBy: 'None',
   startDate: new Date().toISOString(),
   endDate: new Date().toISOString(),
