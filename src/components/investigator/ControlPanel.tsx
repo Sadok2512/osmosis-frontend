@@ -29,6 +29,8 @@ interface Props {
   onApply: () => void;
   externalSelectorSlot?: string | null;
   onExternalSelectorClose?: () => void;
+  activeSlotId?: string | null;
+  onSlotClick?: (slotId: string) => void;
 }
 
 const SPLITS: SplitOption[] = ['None', 'Vendor', 'Technology', 'Band', 'DOR', 'DR'];
