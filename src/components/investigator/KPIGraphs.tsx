@@ -109,41 +109,7 @@ const GraphSettingsPopover: React.FC<{ config: GraphConfig; onChange: (c: GraphC
   );
 };
 
-/* ── KPI Selector Button (opens KPI Monitor modal) ── */
-const SlotKpiSelector: React.FC<{
-  currentKpiId: string;
-  onChange: (kpiId: string) => void;
-  catalog: KpiCatalogEntry[];
-  allKpis: KpiDefinition[];
-}> = ({ currentKpiId, onChange, catalog, allKpis }) => {
-  const [open, setOpen] = useState(false);
-  const current = allKpis.find(k => k.id === currentKpiId);
-  const catalogEntry = catalog.find(k => k.kpi_key === currentKpiId);
-  const displayName = catalogEntry?.display_name || current?.label || currentKpiId;
-  const displayColor = catalogEntry?.color || current?.color;
 
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold bg-muted/50 hover:bg-muted border border-border/40 transition-colors"
-      >
-        {displayColor && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: displayColor }} />}
-        <span className="truncate max-w-[160px]">{displayName}</span>
-        <ChevronDown className="w-3 h-3 text-muted-foreground" />
-      </button>
-      <KpiSelectorModal
-        open={open}
-        onClose={() => setOpen(false)}
-        catalog={catalog}
-        selectedKeys={[currentKpiId]}
-        onConfirm={(keys) => {
-          if (keys.length > 0) onChange(keys[0]);
-        }}
-      />
-    </>
-  );
-};
 
 /* ── Main Component ── */
 interface Props {
