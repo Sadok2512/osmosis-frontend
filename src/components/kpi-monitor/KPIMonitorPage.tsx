@@ -337,7 +337,16 @@ const KPIMonitorInner: React.FC = () => {
   };
 
   const handleCreateNew = () => { setNewDashName(''); setShowNameDialog(true); };
-  const confirmCreate = () => { if (newDashName.trim()) { dm.createNew(newDashName.trim()); setShowNameDialog(false); } };
+  const confirmCreate = () => {
+    if (newDashName.trim()) {
+      // Clear KPI selections so the new dashboard starts empty
+      store.reorderKpis([]);
+      store.setSplitBy(null);
+      store.setActiveEditingWidgetId(null);
+      dm.createNew(newDashName.trim());
+      setShowNameDialog(false);
+    }
+  };
 
   const handleSave = async () => {
     const name = await dm.saveCurrent();
