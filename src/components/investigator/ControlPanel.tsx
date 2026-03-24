@@ -592,16 +592,22 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           open={!!selectorOpen}
           onClose={handleSelectorClose}
           catalog={catalog}
-          selectedKeys={selectorOpen && selectorOpen !== 'new' ? [state.graphSlots.find(s => s.id === selectorOpen)?.kpiId || ''] : []}
+          selectedKeys={selectorOpen && selectorOpen !== 'new'
+            ? (() => {
+                const currentKpiId = state.graphSlots.find(s => s.id === selectorOpen)?.kpiId;
+                return currentKpiId ? [currentKpiId] : [];
+              })()
+            : []}
           onConfirm={(keys) => {
-            if (keys.length === 0) return;
+            const validKeys = keys.filter(Boolean);
+            if (validKeys.length === 0) return;
             if (selectorOpen === 'new') {
               const newId = `slot-${Date.now()}`;
               setState(prev => {
                 const nextIndex = prev.graphSlots.length + 1;
                 const newSlot: GraphSlot = {
                   id: newId,
-                  kpiId: keys[0],
+                  kpiId: validKeys[0],
                   name: `Graph ${nextIndex}`,
                   filters: {},
                   startDate: '',
@@ -615,7 +621,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             } else if (selectorOpen) {
               setState(prev => ({
                 ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === selectorOpen ? { ...s, kpiId: keys[0] } : s),
+                graphSlots: prev.graphSlots.map(s => s.id === selectorOpen ? { ...s, kpiId: validKeys[0] } : s),
               }));
               onSlotClick?.(selectorOpen);
             }
