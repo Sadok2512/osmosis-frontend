@@ -214,7 +214,7 @@ const FilterValuesList: React.FC<{ dim: string; onSelect: (val: string) => void;
 };
 
 /* ── Main Control Panel ── */
-const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose }) => {
+const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick }) => {
   const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
   const [kpiDefs, setKpiDefs] = useState<KpiDefinition[]>(FALLBACK_KPIS);
   const [selectorOpen, setSelectorOpen] = useState<string | null>(null);
