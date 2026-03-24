@@ -544,26 +544,29 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
         </div>
       </div>
 
-      {/* KPI Selector Modal */}
-      <KpiSelectorModal
-        open={!!selectorOpen}
-        onClose={() => setSelectorOpen(null)}
-        catalog={catalog}
-        selectedKeys={selectorOpen && selectorOpen !== 'new' ? [state.graphSlots.find(s => s.id === selectorOpen)?.kpiId || ''] : []}
-        onConfirm={(keys) => {
-          if (keys.length === 0) return;
-          if (selectorOpen === 'new') {
-            const newSlot: GraphSlot = { id: `slot-${Date.now()}`, kpiId: keys[0] };
-            setState(prev => ({ ...prev, graphSlots: [...prev.graphSlots, newSlot] }));
-          } else if (selectorOpen) {
-            setState(prev => ({
-              ...prev,
-              graphSlots: prev.graphSlots.map(s => s.id === selectorOpen ? { ...s, kpiId: keys[0] } : s),
-            }));
-          }
-          setSelectorOpen(null);
-        }}
-      />
+      {/* KPI Selector Modal - rendered via portal to escape stacking context */}
+      {createPortal(
+        <KpiSelectorModal
+          open={!!selectorOpen}
+          onClose={() => setSelectorOpen(null)}
+          catalog={catalog}
+          selectedKeys={selectorOpen && selectorOpen !== 'new' ? [state.graphSlots.find(s => s.id === selectorOpen)?.kpiId || ''] : []}
+          onConfirm={(keys) => {
+            if (keys.length === 0) return;
+            if (selectorOpen === 'new') {
+              const newSlot: GraphSlot = { id: `slot-${Date.now()}`, kpiId: keys[0] };
+              setState(prev => ({ ...prev, graphSlots: [...prev.graphSlots, newSlot] }));
+            } else if (selectorOpen) {
+              setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.map(s => s.id === selectorOpen ? { ...s, kpiId: keys[0] } : s),
+              }));
+            }
+            setSelectorOpen(null);
+          }}
+        />,
+        document.body
+      )}
     </div>
   );
 };
