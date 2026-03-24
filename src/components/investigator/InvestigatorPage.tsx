@@ -47,6 +47,7 @@ const InvestigatorPage: React.FC = () => {
 
   const handleApply = async () => {
     setIsApplying(true);
+    setTsData([]);
     try {
       const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
       // splitBy is per-slot — collect from each slot for the active one, fallback to global
