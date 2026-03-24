@@ -49,7 +49,8 @@ const InvestigatorPage: React.FC = () => {
     setIsApplying(true);
     try {
       const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
-      const splitMap: Record<string, string> = { 'None': '', 'Vendor': 'VENDOR', 'Technology': 'TECHNO', 'Band': 'BAND', 'DOR': 'DOR', 'DR': 'DOR', 'Site': 'SITE', 'Cell': 'CELL', 'Plaque': 'PLAQUE', 'Zone ARCEP': 'ZONE_ARCEP' };
+      // splitBy value comes directly as dimension_key from backend (SITE, CELL, DOR, etc.)
+      const splitValue = state.splitBy === 'None' ? undefined : state.splitBy;
 
       const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
       const [ts, worst] = await Promise.all([
@@ -58,7 +59,7 @@ const InvestigatorPage: React.FC = () => {
           state.startDate.split('T')[0] || '2026-01-14',
           state.endDate.split('T')[0] || '2026-03-14',
           granMap[state.granularity] || '1h',
-          splitMap[state.splitBy] || undefined,
+          splitValue,
         ),
         fetchWorstElements(
           kpiIds[0] || 'dcr',

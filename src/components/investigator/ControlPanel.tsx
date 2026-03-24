@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
-import { fetchKpiCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { fetchKpiCatalog, fetchFilterCatalog, type MonitorFilterDef } from '@/components/kpi-monitor/api/kpiMonitorApi';
 
 const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
   { value: 'line', label: 'Line', icon: TrendingUp },
@@ -33,7 +33,7 @@ interface Props {
   onSlotClick?: (slotId: string) => void;
 }
 
-const SPLITS: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
+const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
 const PERIODS = [
   { label: '24h', days: 1 },
   { label: '7j', days: 7 },
@@ -254,6 +254,22 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
   const [kpiDefs, setKpiDefs] = useState<KpiDefinition[]>(FALLBACK_KPIS);
   const [selectorOpen, setSelectorOpen] = useState<string | null>(null);
+  const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
+
+  // Load split dimensions from backend
+  useEffect(() => {
+    fetchFilterCatalog().then(filters => {
+      if (filters && filters.length > 0) {
+        const opts = filters
+          .filter((f: any) => f.is_active !== false)
+          .map((f: any) => ({ key: f.dimension_key, label: f.display_name }));
+        setSplitOptions(opts);
+      }
+    }).catch(() => {
+      // Fallback to static
+      setSplitOptions(SPLITS_FALLBACK.filter(s => s !== 'None').map(s => ({ key: s, label: s })));
+    });
+  }, []);
 
   // Open selector when triggered externally from graph widget
   useEffect(() => {
@@ -595,7 +611,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         }))}
                         className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium"
                       >
-                        {SPLITS.map(s => <option key={s} value={s}>{s}</option>)}
+                        <option value="None">Aucun</option>
+                        {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                       </select>
                     </div>
 
