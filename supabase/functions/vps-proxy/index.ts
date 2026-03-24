@@ -105,8 +105,13 @@ Deno.serve(async (req) => {
       console.error(`[vps-proxy] Upstream fetch failed:`, msg);
 
       const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
-      if (isSafeRead) {
-        return new Response(JSON.stringify(buildSafeFallback(service, path, msg)), {
+      const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
+        (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
+      if (isSafeRead || isSafePost) {
+        const fallback = isSafePost
+          ? { unavailable: true, service, path, error: msg, series: [], data: [], rows: [], total: 0 }
+          : buildSafeFallback(service, path, msg);
+        return new Response(JSON.stringify(fallback), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -121,6 +126,8 @@ Deno.serve(async (req) => {
 
     const contentType = upstreamRes.headers.get('content-type') || 'application/json';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
+    const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
 
     // Stream SSE responses directly (don't buffer)
     if (contentType.includes('text/event-stream') && upstreamRes.body) {
@@ -137,11 +144,13 @@ Deno.serve(async (req) => {
 
     const responseBody = await upstreamRes.text();
 
-    if (!upstreamRes.ok && isSafeRead) {
+    if (!upstreamRes.ok && (isSafeRead || isSafePost)) {
       const errorSnippet = responseBody.slice(0, 300) || `HTTP ${upstreamRes.status}`;
       console.warn(`[vps-proxy] Safe fallback for upstream ${upstreamRes.status}: ${errorSnippet}`);
-
-      return new Response(JSON.stringify(buildSafeFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`)), {
+      const fallback = isSafePost
+        ? { unavailable: true, service, path, error: `Upstream ${upstreamRes.status}: ${errorSnippet}`, series: [], data: [], rows: [], total: 0 }
+        : buildSafeFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`);
+      return new Response(JSON.stringify(fallback), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -162,9 +171,14 @@ Deno.serve(async (req) => {
     const service = url.searchParams.get('service') || 'kpi';
     const path = url.searchParams.get('path') || '/health';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
+    const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
 
-    if (isSafeRead) {
-      return new Response(JSON.stringify(buildSafeFallback(service, path, message)), {
+    if (isSafeRead || isSafePost) {
+      const fallback = isSafePost
+        ? { unavailable: true, service, path, error: message, series: [], data: [], rows: [], total: 0 }
+        : buildSafeFallback(service, path, message);
+      return new Response(JSON.stringify(fallback), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
