@@ -66,9 +66,7 @@ const GraphConfigPopover: React.FC<Props> = ({ config, onChange }) => {
     .filter(f => f.values && f.values.length > 0)
     .map(f => `${f.dimension}: ${f.values.join(', ')}`);
 
-  const dateLabel = dateRange
-    ? `${dateRange.from || '—'} → ${dateRange.to || '—'}`
-    : 'Auto (latest)';
+  const dateLabel = `${dateFrom} → ${dateTo}`;
 
   return (
     <Popover>
