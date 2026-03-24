@@ -296,10 +296,10 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
               )}
               <button
                 onClick={() => setShowSettings(true)}
-                className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
                 title="Dashboard Settings"
               >
-                <Settings className="w-3 h-3" />
+                <Settings className="w-4 h-4" />
               </button>
             </div>
             <div className="flex items-center gap-1.5">
