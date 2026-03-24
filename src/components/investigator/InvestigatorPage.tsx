@@ -204,6 +204,7 @@ const InvestigatorPage: React.FC = () => {
 
           {state.activeGraphTab === 'TimeSeries' && (
             <KPIGraphs
+              jalons={state.jalons}
               graphSlots={state.graphSlots}
               data={tsData}
               layout={state.graphLayout}

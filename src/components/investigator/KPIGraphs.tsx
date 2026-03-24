@@ -139,6 +139,26 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           };
         });
 
+        // Build markLine data for jalons
+        const markLineData = jalons
+          .filter(j => allTimestamps.includes(j.date) || true) // show all jalons
+          .map(j => ({
+            xAxis: j.date,
+            label: {
+              show: true,
+              formatter: j.label,
+              fontSize: 9,
+              fontWeight: 'bold' as const,
+              color: j.color,
+              position: 'insideEndTop' as const,
+            },
+            lineStyle: {
+              color: j.color,
+              width: 2,
+              type: 'dashed' as const,
+            },
+          }));
+
         const option = {
           animation: true,
           grid: { top: 40, right: 20, bottom: 36, left: 56 },
@@ -186,7 +206,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               lineStyle: { color: 'rgba(128,128,128,0.12)', type: 'dashed' as const },
             },
           },
-          series,
+          series: series.map((s, i) => i === 0 ? { ...s, markLine: markLineData.length > 0 ? { silent: true, symbol: 'none', data: markLineData } : undefined } : s),
         };
 
         const primaryDef = defs[0];
