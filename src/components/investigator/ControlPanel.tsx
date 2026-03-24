@@ -610,7 +610,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       }))}
                       className="w-full text-[10px] font-semibold text-orange-600 hover:bg-orange-500/10 py-1.5 rounded-md transition-colors"
                     >
-                      Retirer ce KPI
+                      Appliquer
                     </button>
                   </PopoverContent>
                 </Popover>
