@@ -627,26 +627,16 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               );
             });
           })}
-          {/* Always show Add KPI — creates a graph if none exists */}
-          <button
-            onClick={() => {
-              if (state.graphSlots.length === 0) {
-                // No graph yet: open selector in 'new' mode to auto-create
-                setSelectorOpen('new');
-              } else {
-                const activeSlot = activeSlotId ? state.graphSlots.find(s => s.id === activeSlotId) : null;
-                if (activeSlot) {
-                  setSelectorOpen(activeSlot.id);
-                } else {
-                  setSelectorOpen(state.graphSlots.length < 4 ? 'new' : state.graphSlots[0].id);
-                }
-              }
-            }}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors"
-          >
-            <Plus className="w-3 h-3" />
-            Add KPI
-          </button>
+          {/* Add KPI — only enabled when a graph exists and is active */}
+          {state.graphSlots.length > 0 && activeSlotId && (
+            <button
+              onClick={() => setSelectorOpen(activeSlotId)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Add KPI
+            </button>
+          )}
         </div>
       </div>
 
