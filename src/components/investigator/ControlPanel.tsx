@@ -407,7 +407,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             const catalogEntry = catalog.find(k => k.kpi_key === slot.kpiId);
             const defEntry = kpiDefs.find(k => k.id === slot.kpiId);
             const kpiName = catalogEntry?.display_name || defEntry?.label || slot.kpiId || 'Aucun KPI';
-            const name = slot.name || kpiName;
+            const name = kpiName;
             const color = catalogEntry?.color || defEntry?.color || '#6366f1';
             const cfg = slot.config || DEFAULT_GRAPH_CONFIG;
             const setSlotConfig = (updates: Partial<GraphConfig>) => {
