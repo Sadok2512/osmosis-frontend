@@ -161,14 +161,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const option = {
           animation: true,
-          grid: { top: 40, right: 20, bottom: 36, left: 56 },
+          grid: { top: 40, right: 20, bottom: kpiIds.length > 2 ? 56 : 36, left: 56 },
           legend: {
             show: true,
             bottom: 0,
             icon: 'circle',
             itemWidth: 8,
             itemHeight: 8,
-            textStyle: { fontSize: 11, color: '#888' },
+            itemGap: 12,
+            type: 'scroll' as any,
+            textStyle: { fontSize: 10, color: '#888', overflow: 'truncate', width: 120 },
           },
           tooltip: {
             trigger: 'axis' as const,
