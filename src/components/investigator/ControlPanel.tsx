@@ -237,17 +237,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
   return (
     <div className="border-b border-border bg-card/50 backdrop-blur-sm">
       {/* Row 1: Main controls */}
-      <div className="max-w-[1600px] mx-auto px-6 py-3">
-        <div className="flex items-end gap-3 flex-wrap">
+      <div className="max-w-[1600px] mx-auto px-6 py-2.5">
+        <div className="flex items-center gap-5 flex-wrap">
           {/* Date Start */}
-          <div className="space-y-1 shrink-0">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date Début</label>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Date Début</span>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   className={cn(
-                    'w-[130px] justify-start text-left text-xs font-medium h-[34px]',
+                    'w-[130px] justify-start text-left text-xs font-medium h-[32px]',
                     !startDate && 'text-muted-foreground'
                   )}
                 >
@@ -268,14 +268,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
           </div>
 
           {/* Date End */}
-          <div className="space-y-1 shrink-0">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date Fin</label>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Date Fin</span>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   className={cn(
-                    'w-[130px] justify-start text-left text-xs font-medium h-[34px]',
+                    'w-[130px] justify-start text-left text-xs font-medium h-[32px]',
                     !endDate && 'text-muted-foreground'
                   )}
                 >
@@ -295,15 +295,18 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
             </Popover>
           </div>
 
+          {/* Separator */}
+          <div className="h-5 w-px bg-border/60 shrink-0" />
+
           {/* Period shortcuts */}
-          <div className="space-y-1 shrink-0">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Période</label>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Période</span>
             <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
               {PERIODS.map(p => (
                 <button
                   key={p.label}
                   onClick={() => applyPeriod(p.days)}
-                  className="px-2.5 py-1.5 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-card transition-all"
+                  className="px-2.5 py-1 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-card transition-all"
                 >
                   {p.label}
                 </button>
@@ -311,16 +314,19 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
             </div>
           </div>
 
+          {/* Separator */}
+          <div className="h-5 w-px bg-border/60 shrink-0" />
+
           {/* Granularity */}
-          <div className="space-y-1 shrink-0">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Granularité</label>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Granularité</span>
             <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
               {GRANULARITIES.map(g => (
                 <button
                   key={g.value}
                   onClick={() => setState(prev => ({ ...prev, granularity: g.value }))}
                   className={cn(
-                    'px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all',
+                    'px-2.5 py-1 rounded-md text-[10px] font-bold transition-all',
                     state.granularity === g.value
                       ? 'bg-card text-primary shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -332,21 +338,25 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
             </div>
           </div>
 
+          {/* Separator */}
+          <div className="h-5 w-px bg-border/60 shrink-0" />
+
           {/* Split By */}
-          <div className="space-y-1 shrink-0">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Split By</label>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Split By</span>
             <select
               value={state.splitBy}
               onChange={e => setState(prev => ({ ...prev, splitBy: e.target.value as SplitOption }))}
-              className="px-3 py-2 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-[110px]"
+              className="px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-[100px] h-[32px]"
             >
               {SPLITS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
+          {/* Apply */}
           <button
             onClick={onApply}
-            className="shrink-0 px-6 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
+            className="shrink-0 ml-auto px-6 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm h-[32px]"
           >
             Appliquer
           </button>
