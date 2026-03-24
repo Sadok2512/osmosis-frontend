@@ -209,14 +209,12 @@ const InvestigatorPage: React.FC = () => {
                   ...prev,
                   graphSlots: prev.graphSlots.map(s => {
                     if (s.id !== slotId) return s;
-                    // Remove the specific KPI from the slot's list
                     const updated = s.kpiIds.filter(k => k !== kpiIdToRemove);
                     return { ...s, kpiIds: updated };
                   }),
                 }));
-                // Also purge stale data for the removed KPI
                 if (kpiIdToRemove) {
-                  setTsData(prev => prev.filter(d => d.kpi !== kpiIdToRemove));
+                  setTsData(tsData.filter(d => d.kpi !== kpiIdToRemove));
                 }
               }}
               onRemoveSlot={(slotId) => setState(prev => ({
