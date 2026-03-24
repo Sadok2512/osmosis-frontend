@@ -105,8 +105,13 @@ Deno.serve(async (req) => {
       console.error(`[vps-proxy] Upstream fetch failed:`, msg);
 
       const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
-      if (isSafeRead) {
-        return new Response(JSON.stringify(buildSafeFallback(service, path, msg)), {
+      const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
+        (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
+      if (isSafeRead || isSafePost) {
+        const fallback = isSafePost
+          ? { unavailable: true, service, path, error: msg, series: [], data: [], rows: [], total: 0 }
+          : buildSafeFallback(service, path, msg);
+        return new Response(JSON.stringify(fallback), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
