@@ -16,6 +16,7 @@ import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './Gra
 import { getAxisSideConfig } from './normalizeConfig';
 import { DEFAULT_GRID, DEFAULT_CALENDAR } from './GraphSettingsPanel';
 import GraphConfigPopover from './GraphConfigPopover';
+import WidgetInfoPopover from './WidgetInfoPopover';
 import { exportElementToPNG, exportElementToPDF } from '@/lib/exportUtils';
 
 const PREMIUM_COLORS = [
