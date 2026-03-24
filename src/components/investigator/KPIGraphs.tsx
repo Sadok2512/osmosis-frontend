@@ -24,6 +24,7 @@ interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
   layout: 1 | 2 | 4;
+  jalons: Jalon[];
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
   onRemoveSlot: (slotId: string) => void;
   onAddEmptySlot: () => void;
