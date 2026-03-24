@@ -375,7 +375,45 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
         </div>
       </div>
 
-      {/* Row 2: Filter chips */}
+      {/* Row 2: KPI slots */}
+      <div className="max-w-[1600px] mx-auto px-6 pb-1.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">KPIs:</span>
+          {state.graphSlots.map((slot) => {
+            const catalogEntry = catalog.find(k => k.kpi_key === slot.kpiId);
+            const defEntry = kpiDefs.find(k => k.id === slot.kpiId);
+            const name = catalogEntry?.display_name || defEntry?.label || slot.kpiId;
+            const color = catalogEntry?.color || defEntry?.color || '#6366f1';
+            return (
+              <span key={slot.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                <button onClick={() => setSelectorOpen(slot.id)} className="truncate max-w-[140px] hover:underline">
+                  {name}
+                </button>
+                {state.graphSlots.length > 1 && (
+                  <button
+                    onClick={() => setState(prev => ({ ...prev, graphSlots: prev.graphSlots.filter(s => s.id !== slot.id) }))}
+                    className="ml-0.5 hover:text-destructive transition-colors"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </span>
+            );
+          })}
+          {state.graphSlots.length < 4 && (
+            <button
+              onClick={() => setSelectorOpen('new')}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Add KPI
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Row 3: Filter chips */}
       <div className="max-w-[1600px] mx-auto px-6 pb-2.5">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 text-muted-foreground">
@@ -405,6 +443,27 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
           />
         </div>
       </div>
+
+      {/* KPI Selector Modal */}
+      <KpiSelectorModal
+        open={!!selectorOpen}
+        onClose={() => setSelectorOpen(null)}
+        catalog={catalog}
+        selectedKeys={selectorOpen && selectorOpen !== 'new' ? [state.graphSlots.find(s => s.id === selectorOpen)?.kpiId || ''] : []}
+        onConfirm={(keys) => {
+          if (keys.length === 0) return;
+          if (selectorOpen === 'new') {
+            const newSlot: GraphSlot = { id: `slot-${Date.now()}`, kpiId: keys[0] };
+            setState(prev => ({ ...prev, graphSlots: [...prev.graphSlots, newSlot] }));
+          } else if (selectorOpen) {
+            setState(prev => ({
+              ...prev,
+              graphSlots: prev.graphSlots.map(s => s.id === selectorOpen ? { ...s, kpiId: keys[0] } : s),
+            }));
+          }
+          setSelectorOpen(null);
+        }}
+      />
     </div>
   );
 };
