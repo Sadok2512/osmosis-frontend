@@ -199,7 +199,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
               <span className="text-[10px] text-muted-foreground font-medium ml-auto mr-1">{def.unit}</span>
 
               {/* Remove button */}
-              {graphSlots.length > 1 && (
+              {true && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
                   className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
