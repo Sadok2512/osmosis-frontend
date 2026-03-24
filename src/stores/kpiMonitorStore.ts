@@ -139,7 +139,7 @@ export const useKpiMonitorStore = create<KpiMonitorState>()(
     }),
     {
       name: 'kpi-monitor-store',
-      version: 1,
+      version: 2,
       partialize: (state) => ({
         selectedKpis: state.selectedKpis,
         splitBy: state.splitBy,
