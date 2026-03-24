@@ -171,9 +171,14 @@ Deno.serve(async (req) => {
     const service = url.searchParams.get('service') || 'kpi';
     const path = url.searchParams.get('path') || '/health';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
+    const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
 
-    if (isSafeRead) {
-      return new Response(JSON.stringify(buildSafeFallback(service, path, message)), {
+    if (isSafeRead || isSafePost) {
+      const fallback = isSafePost
+        ? { unavailable: true, service, path, error: message, series: [], data: [], rows: [], total: 0 }
+        : buildSafeFallback(service, path, message);
+      return new Response(JSON.stringify(fallback), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
