@@ -13,20 +13,28 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const createSlot = (index: number, kpiId = ''): GraphSlot => ({
+  id: `slot-${Date.now()}-${index}`,
+  kpiId,
+  name: `Graph ${index}`,
+  filters: {},
+  startDate: '',
+  endDate: '',
+  granularity: 'Hourly',
+  splitBy: 'None',
+});
+
 const INITIAL_STATE: InvestigationState = {
   dimension: 'Cell',
-  selectedKpis: ['4G_LTE_DCR', '4G_LTE_SR'],
-  graphSlots: [
-    { id: 'slot-1', kpiId: '4G_LTE_DCR' },
-    { id: 'slot-2', kpiId: '4G_LTE_SR' },
-  ],
+  selectedKpis: [],
+  graphSlots: [createSlot(1)],
   splitBy: 'None',
   startDate: new Date().toISOString(),
   endDate: new Date().toISOString(),
   granularity: 'Hourly',
-  filters: { Vendor: ['Ericsson'], Technology: ['4G'] },
+  filters: {},
   topLimit: 10,
-  sortBy: '4G_LTE_DCR',
+  sortBy: '',
   graphLayout: 2,
   activeGraphTab: 'TimeSeries',
 };
@@ -85,7 +93,7 @@ const InvestigatorPage: React.FC = () => {
         setState(prev => ({
           ...prev,
           selectedKpis: ids,
-          graphSlots: ids.map((id, i) => ({ id: `slot-${i + 1}`, kpiId: id })),
+          graphSlots: ids.map((id, i) => createSlot(i + 1, id)),
           startDate: '2026-01-14',
           endDate: '2026-03-14',
         }));
@@ -220,9 +228,15 @@ const InvestigatorPage: React.FC = () => {
                 graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
               }))}
               onAddEmptySlot={() => {
-                const newSlot: GraphSlot = { id: `slot-${Date.now()}`, kpiId: '' };
-                setState(prev => ({ ...prev, graphSlots: [...prev.graphSlots, newSlot] }));
+                setState(prev => {
+                  const nextIndex = prev.graphSlots.length + 1;
+                  return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex)] };
+                });
               }}
+              onRenameSlot={(slotId, name) => setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, name } : s),
+              }))}
               onUpdateSlotConfig={handleUpdateSlotConfig}
               onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
               activeSlotId={activeSlotId}

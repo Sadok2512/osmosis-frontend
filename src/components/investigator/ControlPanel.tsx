@@ -406,7 +406,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           {state.graphSlots.map((slot) => {
             const catalogEntry = catalog.find(k => k.kpi_key === slot.kpiId);
             const defEntry = kpiDefs.find(k => k.id === slot.kpiId);
-            const name = catalogEntry?.display_name || defEntry?.label || slot.kpiId;
+            const kpiName = catalogEntry?.display_name || defEntry?.label || slot.kpiId || 'Aucun KPI';
+            const name = slot.name || kpiName;
             const color = catalogEntry?.color || defEntry?.color || '#6366f1';
             const cfg = slot.config || DEFAULT_GRAPH_CONFIG;
             const setSlotConfig = (updates: Partial<GraphConfig>) => {
@@ -588,8 +589,20 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           onConfirm={(keys) => {
             if (keys.length === 0) return;
             if (selectorOpen === 'new') {
-              const newSlot: GraphSlot = { id: `slot-${Date.now()}`, kpiId: keys[0] };
-              setState(prev => ({ ...prev, graphSlots: [...prev.graphSlots, newSlot] }));
+              setState(prev => {
+                const nextIndex = prev.graphSlots.length + 1;
+                const newSlot: GraphSlot = {
+                  id: `slot-${Date.now()}`,
+                  kpiId: keys[0],
+                  name: `Graph ${nextIndex}`,
+                  filters: {},
+                  startDate: '',
+                  endDate: '',
+                  granularity: 'Hourly',
+                  splitBy: 'None',
+                };
+                return { ...prev, graphSlots: [...prev.graphSlots, newSlot] };
+              });
             } else if (selectorOpen) {
               setState(prev => ({
                 ...prev,
