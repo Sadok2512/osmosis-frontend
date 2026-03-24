@@ -694,7 +694,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       {slot.kpiIds.map((kpiId, ki) => {
                         const kDef = kpiDefs.find(k => k.id === kpiId);
                         const kLabel = kDef?.label || kpiId;
-                        const currentSplit = cfg.splitByPerKpi?.[kpiId] || slot.splitBy || 'None';
+                        const currentSplit = cfg.splitByPerKpi?.[kpiId] || 'None';
                         return (
                           <div key={kpiId} className="flex items-center gap-2">
                             <span className="text-[9px] text-muted-foreground truncate max-w-[80px]" title={kLabel}>{kLabel}</span>
