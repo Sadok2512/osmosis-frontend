@@ -1,11 +1,10 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { cn } from '@/lib/utils';
-import { Plus, BarChart3, Save, FileDown, Sparkles, Pencil, EyeIcon, Settings, Trash2 } from 'lucide-react';
+import { Plus, BarChart3, Save, FileDown, Sparkles, Pencil, EyeIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 import { useKpiCatalog, useDateRange } from './api/kpiMonitorApi';
@@ -13,10 +12,9 @@ import { buildCatalogMap } from './kpiCatalog';
 import { KpiCatalogEntry } from './types';
 import { KpiWidgetItem, KpiWidgetConfig, createEmptyKpiWidget, duplicateKpiWidget } from './KpiWidgetTypes';
 import KpiWidgetCard from './KpiWidgetCard';
-import KpiWidgetConfigPanel from './KpiWidgetConfigPanel';
 import AIFloatingModal from './AIFloatingModal';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
-import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
+import { exportElementToPDF } from '@/lib/exportUtils';
 
 const COLS = 12;
 const ROW_HEIGHT = 80;
