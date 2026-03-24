@@ -315,34 +315,151 @@ const EChartsTimeSeries: React.FC<Props> = ({
   }, [data, seriesArr, allTs, selectedKpis, catMap, gc, ac, thresholdList, thresholdsEnabled, storeMilestones, storeShowMilestones, smooth, lineWidth, showSymbols, gridCfg]);
 
   const chartHeight = height - 80;
+  const chartRef = useRef<HTMLDivElement>(null);
+  const fsChartRef = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [animating, setAnimating] = useState<'in' | 'out' | null>(null);
 
-  return (
-    <div className="rounded-xl border border-border/60 bg-card p-4">
-      {/* Header — Investigator style */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: headerColor }} />
-        <h3 className="text-xs font-bold text-foreground uppercase tracking-tight">{headerTitle}</h3>
-        <div className="flex items-center gap-1 ml-auto">
-          <span className="text-[10px] text-muted-foreground font-medium">{headerUnit}</span>
-          {onGraphConfigChange && gc && (
-            <GraphConfigPopover config={gc} onChange={onGraphConfigChange} />
+  const openFullscreen = useCallback(() => { setAnimating('in'); setFullscreen(true); }, []);
+  const closeFullscreen = useCallback(() => {
+    setAnimating('out');
+    setTimeout(() => { setFullscreen(false); setAnimating(null); }, 280);
+  }, []);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') closeFullscreen(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [fullscreen, closeFullscreen]);
+
+  const handleExportPNG = async (isFs: boolean) => {
+    const el = isFs ? fsChartRef.current : chartRef.current;
+    if (!el) return;
+    await exportElementToPNG(el, headerTitle.replace(/\s+/g, '_'));
+  };
+
+  const handleExportPDF = async (isFs: boolean) => {
+    const el = isFs ? fsChartRef.current : chartRef.current;
+    if (!el) return;
+    await exportElementToPDF(el, headerTitle.replace(/\s+/g, '_'));
+  };
+
+  const stopDrag = (e: React.MouseEvent) => { e.stopPropagation(); };
+
+  const actionsMenu = (isFs: boolean) => (
+    <div className="flex items-center gap-1" onMouseDown={stopDrag}>
+      {onGraphConfigChange && gc && (
+        <GraphConfigPopover config={gc} onChange={onGraphConfigChange} />
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors">
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem onClick={() => handleExportPNG(isFs)} className="gap-2.5 text-xs">
+            <Image className="w-3.5 h-3.5" /> Download PNG
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExportPDF(isFs)} className="gap-2.5 text-xs">
+            <Download className="w-3.5 h-3.5" /> Export PDF
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={isFs ? closeFullscreen : openFullscreen} className="gap-2.5 text-xs">
+            {isFs ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            {isFs ? 'Exit fullscreen' : 'Expand fullscreen'}
+          </DropdownMenuItem>
+          {onRefresh && (
+            <DropdownMenuItem onClick={onRefresh} className="gap-2.5 text-xs">
+              <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            </DropdownMenuItem>
           )}
+          {onToggleEditMode && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onToggleEditMode} className="gap-2.5 text-xs">
+                <Settings className="w-3.5 h-3.5" /> Edit configuration
+              </DropdownMenuItem>
+            </>
+          )}
+          {onInfo && (
+            <DropdownMenuItem onClick={onInfo} className="gap-2.5 text-xs">
+              <Settings2 className="w-3.5 h-3.5" /> Explain KPI
+            </DropdownMenuItem>
+          )}
+          {onDuplicate && (
+            <DropdownMenuItem onClick={onDuplicate} className="gap-2.5 text-xs">
+              <Copy className="w-3.5 h-3.5" /> Duplicate widget
+            </DropdownMenuItem>
+          )}
+          {onDelete && (
+            <DropdownMenuItem onClick={onDelete} className="gap-2.5 text-xs text-destructive focus:text-destructive">
+              <Trash2 className="w-3.5 h-3.5" /> Remove widget
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
+  const chartContent = (h: number) => data.length === 0 ? (
+    <div className="flex items-center justify-center text-muted-foreground text-sm" style={{ height: h }}>
+      No data available
+    </div>
+  ) : (
+    <ReactECharts
+      option={option}
+      style={{ height: h }}
+      opts={{ renderer: 'canvas' }}
+      notMerge
+    />
+  );
+
+  const fullscreenOverlay = fullscreen ? createPortal(
+    <div className={cn('fixed inset-0 z-[9999] flex items-center justify-center transition-all duration-300', animating === 'out' ? 'opacity-0' : 'opacity-100')}
+      onClick={(e) => { if (e.target === e.currentTarget) closeFullscreen(); }}>
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-md" />
+      <div className={cn(
+        'relative w-[calc(100vw-48px)] h-[calc(100vh-48px)] max-w-[1600px] flex flex-col rounded-xl bg-card border border-border/60 overflow-hidden',
+        'shadow-[0_8px_64px_-12px_hsl(var(--foreground)/0.15)]',
+        'transition-all duration-300 ease-out',
+        animating === 'in' ? 'animate-scale-in' : animating === 'out' ? 'animate-scale-out' : ''
+      )} onAnimationEnd={() => { if (animating === 'in') setAnimating(null); }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: headerColor }} />
+            <h3 className="text-sm font-bold text-foreground uppercase tracking-tight">{headerTitle}</h3>
+            <span className="text-[10px] text-muted-foreground font-medium">{headerUnit}</span>
+          </div>
+          {actionsMenu(true)}
+        </div>
+        <div ref={fsChartRef} className="flex-1 px-4 pb-4 min-h-0">
+          {chartContent(window.innerHeight - 160)}
         </div>
       </div>
+    </div>,
+    document.body
+  ) : null;
 
-      {data.length === 0 ? (
-        <div className="flex items-center justify-center text-muted-foreground text-sm" style={{ height: chartHeight }}>
-          No data available
+  return (
+    <>
+      <div className="h-full flex flex-col rounded-xl border border-border/60 bg-card overflow-hidden group shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.08)] transition-shadow duration-200">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+          <div className="flex items-center gap-2 min-w-0 flex-1 drag-handle cursor-grab active:cursor-grabbing">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: headerColor }} />
+            <h3 className="text-[13px] font-semibold text-foreground truncate tracking-tight">{headerTitle}</h3>
+            <span className="text-[10px] text-muted-foreground font-medium">{headerUnit}</span>
+          </div>
+          {actionsMenu(false)}
         </div>
-      ) : (
-        <ReactECharts
-          option={option}
-          style={{ height: chartHeight }}
-          opts={{ renderer: 'canvas' }}
-          notMerge
-        />
-      )}
-    </div>
+        <div ref={chartRef} className="flex-1 px-2 pt-1 pb-1 min-h-0">
+          {chartContent(chartHeight)}
+        </div>
+      </div>
+      {fullscreenOverlay}
+    </>
   );
 };
 
