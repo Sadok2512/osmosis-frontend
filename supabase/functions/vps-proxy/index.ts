@@ -126,6 +126,8 @@ Deno.serve(async (req) => {
 
     const contentType = upstreamRes.headers.get('content-type') || 'application/json';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
+    const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
 
     // Stream SSE responses directly (don't buffer)
     if (contentType.includes('text/event-stream') && upstreamRes.body) {
