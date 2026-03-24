@@ -27,6 +27,8 @@ interface Props {
   state: InvestigationState;
   setState: React.Dispatch<React.SetStateAction<InvestigationState>>;
   onApply: () => void;
+  externalSelectorSlot?: string | null;
+  onExternalSelectorClose?: () => void;
 }
 
 const SPLITS: SplitOption[] = ['None', 'Vendor', 'Technology', 'Band', 'DOR', 'DR'];
