@@ -238,6 +238,19 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
           </div>
         );
       })}
+      {/* Add Graph placeholder */}
+      {graphSlots.length < 4 && (
+        <div
+          onClick={() => onOpenKpiSelector('new')}
+          className="rounded-xl border-2 border-dashed border-border/40 bg-muted/20 p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all duration-200"
+          style={{ minHeight: chartHeight }}
+        >
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <Plus className="w-5 h-5 text-primary" />
+          </div>
+          <span className="text-xs font-semibold text-muted-foreground">Ajouter un graphique</span>
+        </div>
+      )}
     </div>
   );
 };
