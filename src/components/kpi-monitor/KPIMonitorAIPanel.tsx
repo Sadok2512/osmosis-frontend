@@ -12,6 +12,7 @@ import InlineChart from '../otarie/chat-visualizations/InlineChart';
 import InlineKPICards from '../otarie/chat-visualizations/InlineKPICards';
 import AIClarifyingQuestions, { detectNeedsClarification, generateClarifyingQuestions, ClarifyQuestion } from './AIClarifyingQuestions';
 import { fetchParameterChanges, changesToMilestones } from '@/services/parameterChangesService';
+import { parseKpiBlocks, KpiSummaryCards, SplitSectionCards } from './AIKpiCards';
 const InlineMap = lazy(() => import('../otarie/chat-visualizations/InlineMap'));
 
 type Msg = { role: 'user' | 'assistant'; content: string };
@@ -545,6 +546,21 @@ const CompactAssistantMessage: React.FC<{ content: string }> = ({ content }) => 
   const vizBlocks = useMemo(() => parseVisualizationBlocks(cleaned), [cleaned]);
   const hasViz = vizBlocks.some(b => b.type !== 'markdown');
 
+  const renderMarkdownWithKpiCards = useCallback((md: string) => {
+    const kpiBlocks = parseKpiBlocks(md);
+    const hasKpiBlocks = kpiBlocks.some(b => b.type !== 'markdown');
+    if (!hasKpiBlocks) return <CompactMarkdown content={md} />;
+    return (
+      <>
+        {kpiBlocks.map((block, j) => {
+          if (block.type === 'kpi_summary' && block.summaries) return <KpiSummaryCards key={j} summaries={block.summaries} />;
+          if (block.type === 'split_section' && block.splitEntries && block.splitDimension) return <SplitSectionCards key={j} dimension={block.splitDimension} entries={block.splitEntries} />;
+          return <CompactMarkdown key={j} content={block.content || ''} />;
+        })}
+      </>
+    );
+  }, []);
+
   return (
     <div className="text-xs leading-relaxed text-foreground">
       {hasViz ? (
@@ -556,10 +572,10 @@ const CompactAssistantMessage: React.FC<{ content: string }> = ({ content }) => 
             </Suspense>
           );
           if (block.type === 'kpi') return <InlineKPICards key={i} config={block.config} />;
-          return <CompactMarkdown key={i} content={block.content} />;
+          return <React.Fragment key={i}>{renderMarkdownWithKpiCards(block.content)}</React.Fragment>;
         })
       ) : (
-        <CompactMarkdown content={cleaned} />
+        renderMarkdownWithKpiCards(cleaned)
       )}
     </div>
   );
