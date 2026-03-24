@@ -403,7 +403,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       <div className="max-w-[1600px] mx-auto px-6 pb-1.5">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">KPIs:</span>
-          {state.graphSlots.map((slot) => {
+          {state.graphSlots.filter(slot => slot.kpiId).map((slot) => {
             const catalogEntry = catalog.find(k => k.kpi_key === slot.kpiId);
             const defEntry = kpiDefs.find(k => k.id === slot.kpiId);
             const kpiName = catalogEntry?.display_name || defEntry?.label || slot.kpiId || 'Aucun KPI';
