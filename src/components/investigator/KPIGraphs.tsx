@@ -24,6 +24,7 @@ interface Props {
   layout: 1 | 2 | 4;
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
   onRemoveSlot: (slotId: string) => void;
+  onAddEmptySlot: () => void;
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onOpenKpiSelector: (slotId: string) => void;
   activeSlotId?: string | null;
