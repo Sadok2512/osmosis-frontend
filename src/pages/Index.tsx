@@ -25,6 +25,7 @@ import KPIMonitorPage from '../components/kpi-monitor/KPIMonitorPage';
 import PmDashboardPage from '../components/pm-dashboard/PmDashboardPage';
 import SentinelPage from '../components/sentinel/SentinelPage';
 import InvestigatorPage from '../components/investigator/InvestigatorPage';
+import KpiMonitorBisPage from '../components/kpi-monitor-bis/KpiMonitorBisPage';
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
 import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
@@ -149,6 +150,8 @@ const Index: React.FC = () => {
         return <TopologiePage />;
       case 'kpi_monitor':
         return <KPIMonitorPage />;
+      case 'kpi_monitor_bis':
+        return <KpiMonitorBisPage />;
       case 'kpi_engine_config':
         return (
           <div className="flex-1 flex items-center justify-center bg-background">
