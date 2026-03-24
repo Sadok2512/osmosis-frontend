@@ -219,6 +219,10 @@ const InvestigatorPage: React.FC = () => {
                 ...prev,
                 graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
               }))}
+              onAddEmptySlot={() => {
+                const newSlot: GraphSlot = { id: `slot-${Date.now()}`, kpiId: '' };
+                setState(prev => ({ ...prev, graphSlots: [...prev.graphSlots, newSlot] }));
+              }}
               onUpdateSlotConfig={handleUpdateSlotConfig}
               onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
               activeSlotId={activeSlotId}

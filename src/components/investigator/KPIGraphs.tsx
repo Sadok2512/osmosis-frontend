@@ -300,7 +300,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
       {/* Small Add button */}
       {graphSlots.length < 4 && (
         <button
-          onClick={() => onOpenKpiSelector('new')}
+          onClick={() => onAddEmptySlot()}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border/60 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all"
         >
           <Plus className="w-3.5 h-3.5" />
