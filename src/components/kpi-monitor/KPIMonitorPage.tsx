@@ -524,11 +524,13 @@ const KPIMonitorPage: React.FC = () => {
   }, []);
 
   // Layout
-  const layout = useMemo(() => widgets.map(w => ({
-    i: w.config.id,
-    x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h,
-    minW: 4, minH: 4,
-  })), [widgets]);
+  const layout = useMemo(() => widgets
+    .filter(w => w.layout && typeof w.layout.x === 'number')
+    .map(w => ({
+      i: w.config.id,
+      x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h,
+      minW: 4, minH: 4,
+    })), [widgets]);
 
   const onLayoutChange = useCallback((newLayout: any[]) => {
     setWidgets(prev => prev.map(w => {
