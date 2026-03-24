@@ -303,16 +303,7 @@ const KPIMonitorPage: React.FC = () => {
         )}
       </div>
 
-      {/* Config Panel (per-widget) */}
-      {configuringWidget && (
-        <KpiWidgetConfigPanel
-          config={configuringWidget.config}
-          catalog={catalog}
-          catalogMap={catalogMap}
-          onUpdate={(updates) => updateWidgetConfig(configuringWidgetId!, updates)}
-          onClose={() => setConfiguringWidgetId(null)}
-        />
-      )}
+      {/* Config panel removed - inline config is now inside each widget */}
 
       {/* AI Modal */}
       <AIFloatingModal open={showAI} onClose={() => setShowAI(false)} />
