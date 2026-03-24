@@ -300,7 +300,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
                     Retirer le KPI
                   </button>
                   {/* Remove slot entirely */}
-                  {graphSlots.length > 1 && (
+                  {true && (
                     <button
                       onClick={() => onRemoveSlot(slot.id)}
                       className="w-full text-[10px] font-semibold text-destructive hover:bg-destructive/10 py-1.5 rounded-md transition-colors"
