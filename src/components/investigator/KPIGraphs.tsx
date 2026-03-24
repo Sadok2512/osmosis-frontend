@@ -5,7 +5,7 @@ import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus } from 'lucide-react';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -15,6 +15,7 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
   { value: 'line', label: 'Line', icon: TrendingUp },
   { value: 'area', label: 'Area', icon: AreaChart },
   { value: 'bar', label: 'Bar', icon: BarChart },
+  { value: 'stacked_bar', label: 'Stacked', icon: Layers },
   { value: 'scatter', label: 'Scatter', icon: CircleDot },
 ];
 
@@ -164,7 +165,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Collect all unique timestamps across all KPIs
         const allTimestamps = [...new Set(kpiIds.flatMap(id => effectiveData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
 
-        const seriesType = cfg.chartType === 'scatter' ? 'scatter' : cfg.chartType === 'bar' ? 'bar' : 'line';
+        const isStacked = cfg.chartType === 'stacked_bar';
+        const seriesType = cfg.chartType === 'scatter' ? 'scatter' : (cfg.chartType === 'bar' || isStacked) ? 'bar' : 'line';
 
         let series: any[];
 
