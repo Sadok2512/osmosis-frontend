@@ -4,18 +4,22 @@ import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
-import { InvestigationState, DataPoint, WorstElement } from './types';
+import { InvestigationState, DataPoint, WorstElement, GraphSlot } from './types';
 import { fetchTimeSeriesData, fetchWorstElements, fetchKpiDefinitions } from './investigatorApi';
 import { KPIS as FALLBACK_KPIS } from './mockData';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
-  BarChart3, PieChart, LineChart as LineChartIcon,
+  BarChart3, PieChart, LineChart as LineChartIcon, Plus, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const INITIAL_STATE: InvestigationState = {
   dimension: 'Cell',
   selectedKpis: ['4G_LTE_DCR', '4G_LTE_SR'],
+  graphSlots: [
+    { id: 'slot-1', kpiId: '4G_LTE_DCR' },
+    { id: 'slot-2', kpiId: '4G_LTE_SR' },
+  ],
   splitBy: 'None',
   startDate: new Date().toISOString(),
   endDate: new Date().toISOString(),
@@ -39,16 +43,17 @@ const InvestigatorPage: React.FC = () => {
       const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
       const splitMap: Record<string, string> = { 'None': '', 'Vendor': 'Vendor', 'Technology': 'TECHNO', 'Band': 'BAND', 'DOR': 'DOR', 'DR': 'DOR' };
 
+      const kpiIds = state.graphSlots.map(s => s.kpiId);
       const [ts, worst] = await Promise.all([
         fetchTimeSeriesData(
-          state.selectedKpis,
+          kpiIds,
           state.startDate.split('T')[0] || '2026-01-14',
           state.endDate.split('T')[0] || '2026-03-14',
           granMap[state.granularity] || '1h',
           splitMap[state.splitBy] || undefined,
         ),
         fetchWorstElements(
-          state.selectedKpis[0] || 'dcr',
+          kpiIds[0] || 'dcr',
           state.topLimit,
           state.endDate.split('T')[0] || undefined,
           state.dimension === 'Cell' ? 'cell' : 'site',
@@ -66,10 +71,11 @@ const InvestigatorPage: React.FC = () => {
   useEffect(() => {
     fetchKpiDefinitions().then(kpis => {
       if (kpis.length > 0) {
-        // Update initial selection with real KPI codes
+        const ids = kpis.slice(0, 2).map(k => k.id);
         setState(prev => ({
           ...prev,
-          selectedKpis: kpis.slice(0, 2).map(k => k.id),
+          selectedKpis: ids,
+          graphSlots: ids.map((id, i) => ({ id: `slot-${i + 1}`, kpiId: id })),
           startDate: '2026-01-14',
           endDate: '2026-03-14',
         }));
@@ -174,13 +180,44 @@ const InvestigatorPage: React.FC = () => {
           </div>
 
           {state.activeGraphTab === 'TimeSeries' && (
-            <KPIGraphs selectedKpis={state.selectedKpis} data={tsData} layout={state.graphLayout} />
+            <KPIGraphs
+              graphSlots={state.graphSlots}
+              data={tsData}
+              layout={state.graphLayout}
+              onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiId } : s),
+              }))}
+              onRemoveSlot={(slotId) => setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
+              }))}
+            />
           )}
           {state.activeGraphTab === 'Histogram' && (
-            <KPIHistogram selectedKpis={state.selectedKpis} layout={state.graphLayout} />
+            <KPIHistogram selectedKpis={state.graphSlots.map(s => s.kpiId)} layout={state.graphLayout} />
           )}
           {state.activeGraphTab === 'Breakdown' && (
-            <KPIBreakdown selectedKpis={state.selectedKpis} layout={state.graphLayout} />
+            <KPIBreakdown selectedKpis={state.graphSlots.map(s => s.kpiId)} layout={state.graphLayout} />
+          )}
+
+          {/* Add Graph Button */}
+          {state.graphSlots.length < 4 && (
+            <button
+              onClick={() => {
+                const usedKpis = state.graphSlots.map(s => s.kpiId);
+                const availableKpi = FALLBACK_KPIS.find(k => !usedKpis.includes(k.id));
+                const newSlot: GraphSlot = {
+                  id: `slot-${Date.now()}`,
+                  kpiId: availableKpi?.id || FALLBACK_KPIS[0].id,
+                };
+                setState(prev => ({ ...prev, graphSlots: [...prev.graphSlots, newSlot] }));
+              }}
+              className="w-full py-3 rounded-xl border-2 border-dashed border-border/60 hover:border-primary/40 bg-card/50 hover:bg-primary/5 flex items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase tracking-wider">Add Graph ({state.graphSlots.length}/4)</span>
+            </button>
           )}
         </section>
 
