@@ -145,47 +145,37 @@ const KpiDropdown: React.FC<{ selected: string[]; onChange: (ids: string[]) => v
   );
 };
 
-/* ── Add Filter Dropdown ── */
+/* ── Add Filter Dropdown (uses Radix Popover to portal above graphs) ── */
 const AddFilterDropdown: React.FC<{
   existingKeys: string[];
   onAdd: (dim: string, val: string) => void;
 }> = ({ existingKeys, onAdd }) => {
   const [open, setOpen] = useState(false);
   const [selectedDim, setSelectedDim] = useState<string | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSelectedDim(null); } };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => { setOpen(!open); setSelectedDim(null); }}
-        className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-      >
-        <Filter className="w-3 h-3" /> Add Filter
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-xl shadow-xl min-w-[180px] p-1.5">
-          {!selectedDim ? (
-            FILTER_DIMENSIONS.map(dim => (
-              <button
-                key={dim}
-                onClick={() => setSelectedDim(dim)}
-                className="w-full text-left px-3 py-1.5 rounded-md text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
-              >
-                {dim}
-              </button>
-            ))
-          ) : (
-            <FilterValuesList dim={selectedDim} onSelect={(val) => { onAdd(selectedDim, val); setOpen(false); setSelectedDim(null); }} onBack={() => setSelectedDim(null)} />
-          )}
-        </div>
-      )}
-    </div>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSelectedDim(null); }}>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+          <Filter className="w-3 h-3" /> Add Filter
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="min-w-[180px] p-1.5" align="start" sideOffset={4}>
+        {!selectedDim ? (
+          FILTER_DIMENSIONS.map(dim => (
+            <button
+              key={dim}
+              onClick={() => setSelectedDim(dim)}
+              className="w-full text-left px-3 py-1.5 rounded-md text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
+            >
+              {dim}
+            </button>
+          ))
+        ) : (
+          <FilterValuesList dim={selectedDim} onSelect={(val) => { onAdd(selectedDim, val); setOpen(false); setSelectedDim(null); }} onBack={() => setSelectedDim(null)} />
+        )}
+      </PopoverContent>
+    </Popover>
   );
 };
 
