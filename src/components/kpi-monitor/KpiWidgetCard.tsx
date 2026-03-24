@@ -59,6 +59,13 @@ const GRAPH_TYPES = [
   { value: 'stacked_area', label: 'Stack', icon: Layers2 },
 ] as const;
 
+interface Jalon {
+  id: string;
+  date: string;
+  label: string;
+  color: string;
+}
+
 interface Props {
   config: KpiWidgetConfig;
   catalog: KpiCatalogEntry[];
@@ -69,6 +76,7 @@ interface Props {
   onDuplicate: () => void;
   onDelete: () => void;
   onUpdateConfig: (updates: Partial<KpiWidgetConfig>) => void;
+  jalons?: Jalon[];
 }
 
 const KpiWidgetCard: React.FC<Props> = ({
