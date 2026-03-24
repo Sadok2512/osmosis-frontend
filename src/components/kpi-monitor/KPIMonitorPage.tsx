@@ -677,8 +677,8 @@ const KPIMonitorInner: React.FC = () => {
         const configKey = isEditingMain ? MAIN_CHART_ID : editingWidgetId!;
 
         return (
-          <div className="flex-1 min-h-0 flex overflow-hidden">
-            <div className="flex-1 overflow-auto flex flex-col min-w-0">
+          <div className="flex-1 min-h-0 flex overflow-hidden w-full">
+            <div className="flex-1 overflow-auto flex flex-col min-w-0 shrink">
               {isMonoView && (
                 <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
                   <button onClick={closeEdit}
