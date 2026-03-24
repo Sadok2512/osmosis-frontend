@@ -37,7 +37,7 @@ interface Props {
 
 const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
   const cols = layout === 1 ? 1 : 2;
-  const chartHeight = layout === 1 ? 440 : layout === 4 ? 260 : 320;
+  const chartHeight = layout === 1 ? 480 : layout === 4 ? 300 : 360;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
 
   useEffect(() => {
@@ -222,35 +222,40 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const markAreaData = weekendAreas.map(([start, end]) => [{
           xAxis: start.xAxis,
-          itemStyle: { color: 'rgba(148,163,184,0.08)' },
+          itemStyle: { color: 'rgba(148,163,184,0.045)' },
         }, {
           xAxis: end.xAxis,
         }]);
 
+        // Smart x-axis interval: keep labels horizontal, show ~10-14 ticks max
+        const totalPts = allTimestamps.length;
+        const xInterval = totalPts > 90 ? Math.floor(totalPts / 10) : totalPts > 40 ? Math.floor(totalPts / 12) : totalPts > 20 ? Math.floor(totalPts / 10) : 0;
+
         const option = {
           animation: true,
           grid: {
-            top: 48,
-            right: 24,
-            bottom: series.length > 4 ? 80 : series.length > 2 ? 64 : 48,
-            left: 64,
+            top: 36,
+            right: 28,
+            bottom: series.length > 4 ? 72 : series.length > 2 ? 60 : 50,
+            left: 60,
             containLabel: false,
           },
           legend: {
             show: true,
-            bottom: 4,
+            bottom: 2,
             icon: 'roundRect',
-            itemWidth: 14,
-            itemHeight: 4,
-            itemGap: 18,
+            itemWidth: 18,
+            itemHeight: 5,
+            itemGap: 24,
             type: 'scroll' as any,
-            pageIconSize: 10,
+            pageIconSize: 12,
             textStyle: {
-              fontSize: 11,
-              color: '#6b7280',
-              padding: [0, 0, 0, 2],
+              fontSize: 12,
+              fontWeight: 500,
+              color: '#4b5563',
+              padding: [0, 0, 0, 4],
               overflow: 'truncate',
-              width: 140,
+              width: 160,
             },
           },
           tooltip: {
@@ -262,7 +267,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             textStyle: { color: '#f1f5f9', fontSize: 11.5 },
             axisPointer: {
               type: 'line' as const,
-              lineStyle: { color: 'rgba(99,102,241,0.35)', width: 1.5, type: 'dashed' as const },
+              lineStyle: { color: 'rgba(99,102,241,0.3)', width: 1, type: 'dashed' as const },
             },
             formatter: (params: any) => {
               const items = Array.isArray(params) ? params : [params];
@@ -277,7 +282,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               const rows = items.map((p: any) => {
                 const def = defs.find(d => d.label === p.seriesName) || defs[0];
                 const val = p.value != null ? p.value.toFixed(2) : '—';
-                return `<div style="display:flex;align-items:center;gap:8px;padding:1.5px 0"><span style="width:10px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1">${p.seriesName}</span><b style="color:#f1f5f9">${val} ${def.unit}</b></div>`;
+                return `<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1">${p.seriesName}</span><b style="color:#f1f5f9">${val} ${def.unit}</b></div>`;
               }).join('');
               return header + rows;
             },
@@ -288,15 +293,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             axisLabel: {
               formatter: (v: string) => {
                 const d = new Date(v);
-                return `${d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}`;
+                return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
               },
-              fontSize: 10,
+              fontSize: 10.5,
               color: '#9ca3af',
-              margin: 12,
-              rotate: allTimestamps.length > 30 ? 30 : 0,
-              interval: allTimestamps.length > 60 ? Math.floor(allTimestamps.length / 20) : allTimestamps.length > 20 ? Math.floor(allTimestamps.length / 14) : 0,
+              margin: 14,
+              rotate: 0,
+              interval: xInterval,
             },
-            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
             axisTick: { show: false },
             splitLine: { show: false },
           },
@@ -304,21 +309,21 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             type: 'value' as const,
             min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
             max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : undefined,
-            axisLabel: { fontSize: 10, color: '#9ca3af', formatter: (v: number) => `${v.toFixed(1)}`, margin: 12 },
+            axisLabel: { fontSize: 10, color: '#9ca3af', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
             splitLine: {
               show: cfg.showGrid,
-              lineStyle: { color: 'rgba(128,128,128,0.09)', type: 'dashed' as const },
+              lineStyle: { color: 'rgba(128,128,128,0.06)', type: 'dashed' as const },
             },
             axisLine: { show: false },
             axisTick: { show: false },
           },
           series: series.map((s, i) => ({
             ...s,
-            lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2 },
+            lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
             emphasis: {
               focus: 'series' as const,
               blurScope: 'coordinateSystem' as const,
-              lineStyle: { width: (s.lineStyle?.width || cfg.lineWidth || 2) + 1 },
+              lineStyle: { width: (s.lineStyle?.width || cfg.lineWidth || 2.5) + 1.5 },
             },
             ...(i === 0 ? {
               markLine: markLineData.length > 0 ? { silent: true, symbol: 'none', data: markLineData } : undefined,
@@ -338,10 +343,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               onSlotClick?.(slot.id);
             }}
             className={cn(
-              'rounded-xl border bg-card px-5 pt-4 pb-3 group relative cursor-pointer transition-all duration-300',
+              'rounded-xl border bg-card px-6 pt-5 pb-4 group relative cursor-pointer transition-all duration-300',
               isActive
                 ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5'
-                : 'border-border/50 hover:border-border hover:shadow-sm'
+                : 'border-border/40 hover:border-border/70 hover:shadow-sm'
             )}
           >
             {/* Header */}
