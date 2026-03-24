@@ -28,7 +28,13 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
 export interface GraphSlot {
   id: string;
   kpiId: string;
+  name: string;
   config?: GraphConfig;
+  filters: Record<string, string[]>;
+  startDate: string;
+  endDate: string;
+  granularity: Granularity;
+  splitBy: SplitOption;
 }
 
 export interface InvestigationState {
