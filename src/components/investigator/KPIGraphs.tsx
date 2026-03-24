@@ -134,7 +134,9 @@ interface Props {
 }
 
 const KPIGraphs: React.FC<Props> = ({ selectedKpis, data, layout }) => {
+  // Layout=1: all KPIs in ONE combined chart. Layout=2: 2 columns. Layout=4: 2x2 grid.
   const cols = layout === 1 ? 1 : 2;
+  const chartHeight = layout === 1 ? 400 : layout === 4 ? 220 : 280;
   const [configs, setConfigs] = useState<Record<string, GraphConfig>>({});
 
   const getConfig = (kpiId: string): GraphConfig => configs[kpiId] || DEFAULT_CONFIG;
@@ -225,7 +227,7 @@ const KPIGraphs: React.FC<Props> = ({ selectedKpis, data, layout }) => {
                 <GraphSettingsPopover config={cfg} onChange={c => setConfig(kpiId, c)} />
               </div>
             </div>
-            <ReactECharts option={option} style={{ height: layout === 1 ? 360 : 240 }} />
+            <ReactECharts option={option} style={{ height: chartHeight }} />
           </div>
         );
       })}
