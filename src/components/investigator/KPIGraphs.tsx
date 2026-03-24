@@ -20,6 +20,28 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
 
 const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
 
+/** Wrapper that uses replaceMerge so legend pagination state is preserved */
+const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }) => {
+  const chartRef = useRef<any>(null);
+
+  useEffect(() => {
+    const instance = chartRef.current?.getEchartsInstance?.();
+    if (instance) {
+      instance.setOption(option, { replaceMerge: ['series', 'yAxis'] });
+    }
+  }, [option]);
+
+  return (
+    <ReactECharts
+      ref={chartRef}
+      option={option}
+      notMerge={true}
+      lazyUpdate={true}
+      style={{ height }}
+    />
+  );
+};
+
 interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
