@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import ControlPanel from './ControlPanel';
 import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
-import { InvestigationState, DataPoint, WorstElement, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, Jalon } from './types';
-import { fetchTimeSeriesData, fetchWorstElements, fetchKpiDefinitions } from './investigatorApi';
-import { KPIS as FALLBACK_KPIS } from './mockData';
+import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig } from './types';
+import { fetchTimeSeriesData, fetchWorstElements } from './investigatorApi';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useInvestigatorStore } from '@/stores/investigatorStore';
 
 const createSlot = (index: number, kpiIds: string[] = []): GraphSlot => ({
   id: `slot-${Date.now()}-${index}`,
@@ -24,29 +24,17 @@ const createSlot = (index: number, kpiIds: string[] = []): GraphSlot => ({
   splitBy: 'None',
 });
 
-const INITIAL_STATE: InvestigationState = {
-  dimension: 'Cell',
-  selectedKpis: [],
-  graphSlots: [],
-  splitBy: 'None',
-  startDate: '2026-01-14',
-  endDate: '2026-03-14',
-  granularity: 'Hourly',
-  filters: {},
-  topLimit: 10,
-  sortBy: '',
-  graphLayout: 2,
-  activeGraphTab: 'TimeSeries',
-  jalons: [],
-};
-
 const InvestigatorPage: React.FC = () => {
-  const [state, setState] = useState<InvestigationState>(INITIAL_STATE);
-  const [tsData, setTsData] = useState<DataPoint[]>([]);
-  const [worstElements, setWorstElements] = useState<WorstElement[]>([]);
-  const [isApplying, setIsApplying] = useState(false);
-  const [kpiSelectorSlot, setKpiSelectorSlot] = useState<string | null>(null);
-  const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
+  const {
+    state, setState,
+    tsData, setTsData,
+    worstElements, setWorstElements,
+    activeSlotId, setActiveSlotId,
+    kpiSelectorSlot, setKpiSelectorSlot,
+    hasLoadedOnce, setHasLoadedOnce,
+  } = useInvestigatorStore();
+
+  const [isApplying, setIsApplying] = React.useState(false);
 
   // Auto-select first slot if none selected or active was removed
   useEffect(() => {
@@ -81,15 +69,19 @@ const InvestigatorPage: React.FC = () => {
       ]);
       setTsData(ts);
       setWorstElements(worst);
+      setHasLoadedOnce(true);
     } catch (e) {
       console.error('[Investigator] API error, using fallback:', e);
     }
     setIsApplying(false);
   };
 
-  // No auto-load — start empty, user adds graphs manually
-
-  useEffect(() => { handleApply(); }, []);
+  // Only auto-load on first mount if never loaded before
+  useEffect(() => {
+    if (!hasLoadedOnce) {
+      handleApply();
+    }
+  }, []);
 
   const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig>) => {
     setState(prev => ({
