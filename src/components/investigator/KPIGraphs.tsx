@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon } from './types';
 import { KPI_MAP, KPIS } from './mockData';
@@ -537,13 +537,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 </PopoverContent>
               </Popover>
             </div>
-            <ReactECharts
-              option={option}
-              notMerge={false}
-              lazyUpdate={true}
-              opts={{ replaceMerge: ['series', 'yAxis'] }}
-              style={{ height: chartHeight }}
-            />
+            <SlotChart option={option} height={chartHeight} />
           </div>
         );
       })}
