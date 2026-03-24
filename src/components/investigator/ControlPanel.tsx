@@ -212,10 +212,20 @@ const FilterValuesList: React.FC<{ dim: string; onSelect: (val: string) => void;
 };
 
 /* ── Main Control Panel ── */
-const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
+const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose }) => {
   const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
   const [kpiDefs, setKpiDefs] = useState<KpiDefinition[]>(FALLBACK_KPIS);
-  const [selectorOpen, setSelectorOpen] = useState<string | null>(null); // slot id or 'new'
+  const [selectorOpen, setSelectorOpen] = useState<string | null>(null);
+
+  // Open selector when triggered externally from graph widget
+  useEffect(() => {
+    if (externalSelectorSlot) setSelectorOpen(externalSelectorSlot);
+  }, [externalSelectorSlot]);
+
+  const handleSelectorClose = () => {
+    setSelectorOpen(null);
+    onExternalSelectorClose?.();
+  };
 
   useEffect(() => {
     fetchKpiCatalogFromDB().then(c => { if (c.length > 0) setCatalog(c); }).catch(() => {});
