@@ -219,6 +219,8 @@ const InvestigatorPage: React.FC = () => {
               }))}
               onUpdateSlotConfig={handleUpdateSlotConfig}
               onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
+              activeSlotId={activeSlotId}
+              onSlotClick={setActiveSlotId}
             />
           )}
           {state.activeGraphTab === 'Histogram' && (
