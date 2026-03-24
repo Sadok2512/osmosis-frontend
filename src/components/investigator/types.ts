@@ -3,9 +3,15 @@ export type Granularity = 'Hourly' | 'Daily' | 'Weekly';
 export type GraphTab = 'TimeSeries' | 'Histogram' | 'Breakdown';
 export type SplitOption = 'None' | 'Vendor' | 'Technology' | 'Band' | 'DOR' | 'DR';
 
+export interface GraphSlot {
+  id: string;
+  kpiId: string;
+}
+
 export interface InvestigationState {
   dimension: Dimension;
   selectedKpis: string[];
+  graphSlots: GraphSlot[];
   splitBy: SplitOption;
   startDate: string;
   endDate: string;
