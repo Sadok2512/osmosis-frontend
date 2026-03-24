@@ -239,29 +239,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
       {/* Row 1: Main controls */}
       <div className="max-w-[1600px] mx-auto px-6 py-3">
         <div className="flex items-end gap-3 flex-wrap">
-          {/* KPIs */}
-          <div className="space-y-1 flex-1 min-w-[200px]">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              KPIs ({state.selectedKpis.length})
-            </label>
-            <KpiDropdown
-              selected={state.selectedKpis}
-              onChange={ids => setState(prev => ({ ...prev, selectedKpis: ids }))}
-            />
-          </div>
-
-          {/* Split By */}
-          <div className="space-y-1 shrink-0">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Split By</label>
-            <select
-              value={state.splitBy}
-              onChange={e => setState(prev => ({ ...prev, splitBy: e.target.value as SplitOption }))}
-              className="px-3 py-2 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-[110px]"
-            >
-              {SPLITS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-
           {/* Date Start */}
           <div className="space-y-1 shrink-0">
             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date Début</label>
@@ -355,7 +332,18 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
             </div>
           </div>
 
-          {/* Apply */}
+          {/* Split By */}
+          <div className="space-y-1 shrink-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Split By</label>
+            <select
+              value={state.splitBy}
+              onChange={e => setState(prev => ({ ...prev, splitBy: e.target.value as SplitOption }))}
+              className="px-3 py-2 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-[110px]"
+            >
+              {SPLITS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
           <button
             onClick={onApply}
             className="shrink-0 px-6 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
