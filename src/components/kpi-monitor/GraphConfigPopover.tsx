@@ -97,7 +97,7 @@ const GraphConfigPopover: React.FC<Props> = ({ config, onChange }) => {
                   {selectedKpis.map(k => (
                     <span key={k.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] bg-primary/10 text-primary font-medium">
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: k.color || '#3b82f6' }} />
-                      {k.display_name || k.kpi_key}
+                     {k.label || k.kpi_key}
                     </span>
                   ))}
                 </div>
