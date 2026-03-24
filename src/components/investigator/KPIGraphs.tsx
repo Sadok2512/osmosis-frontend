@@ -343,10 +343,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               onSlotClick?.(slot.id);
             }}
             className={cn(
-              'rounded-xl border bg-card px-5 pt-4 pb-3 group relative cursor-pointer transition-all duration-300',
+              'rounded-xl border bg-card px-6 pt-5 pb-4 group relative cursor-pointer transition-all duration-300',
               isActive
                 ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5'
-                : 'border-border/50 hover:border-border hover:shadow-sm'
+                : 'border-border/40 hover:border-border/70 hover:shadow-sm'
             )}
           >
             {/* Header */}
