@@ -1,11 +1,10 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { cn } from '@/lib/utils';
-import { Plus, BarChart3, Save, FileDown, Sparkles, Pencil, EyeIcon, Settings, Trash2 } from 'lucide-react';
+import { Plus, BarChart3, Save, FileDown, Sparkles, Pencil, EyeIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 import { useKpiCatalog, useDateRange } from './api/kpiMonitorApi';
@@ -13,10 +12,9 @@ import { buildCatalogMap } from './kpiCatalog';
 import { KpiCatalogEntry } from './types';
 import { KpiWidgetItem, KpiWidgetConfig, createEmptyKpiWidget, duplicateKpiWidget } from './KpiWidgetTypes';
 import KpiWidgetCard from './KpiWidgetCard';
-import KpiWidgetConfigPanel from './KpiWidgetConfigPanel';
 import AIFloatingModal from './AIFloatingModal';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
-import { exportElementToPDF, PDFHeaderOptions } from '@/lib/exportUtils';
+import { exportElementToPDF } from '@/lib/exportUtils';
 
 const COLS = 12;
 const ROW_HEIGHT = 80;
@@ -49,7 +47,7 @@ const KPIMonitorPage: React.FC = () => {
   const [widgets, setWidgets] = useState<KpiWidgetItem[]>([]);
   const [editMode, setEditMode] = useState(true);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
-  const [configuringWidgetId, setConfiguringWidgetId] = useState<string | null>(null);
+  
   const [showAI, setShowAI] = useState(false);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [showNameDialog, setShowNameDialog] = useState(false);
@@ -103,16 +101,13 @@ const KPIMonitorPage: React.FC = () => {
     const maxY = widgets.reduce((max, w) => Math.max(max, w.layout.y + w.layout.h), 0);
     newWidget.layout.y = maxY;
     setWidgets(prev => [...prev, newWidget]);
-    // Auto-open config
-    setConfiguringWidgetId(newWidget.config.id);
     setSelectedWidgetId(newWidget.config.id);
   }, [widgets, getDefaultDates]);
 
   const deleteWidget = useCallback((id: string) => {
     setWidgets(prev => prev.filter(w => w.config.id !== id));
     if (selectedWidgetId === id) setSelectedWidgetId(null);
-    if (configuringWidgetId === id) setConfiguringWidgetId(null);
-  }, [selectedWidgetId, configuringWidgetId]);
+  }, [selectedWidgetId]);
 
   const duplicateWidget = useCallback((id: string) => {
     const source = widgets.find(w => w.config.id === id);
@@ -150,7 +145,7 @@ const KPIMonitorPage: React.FC = () => {
     if (newDashName.trim()) {
       setWidgets([]);
       setSelectedWidgetId(null);
-      setConfiguringWidgetId(null);
+      
       dm.createNew(newDashName.trim());
       setShowNameDialog(false);
     }
@@ -171,7 +166,7 @@ const KPIMonitorPage: React.FC = () => {
     }
   };
 
-  const configuringWidget = configuringWidgetId ? widgets.find(w => w.config.id === configuringWidgetId) : null;
+  
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
@@ -288,11 +283,11 @@ const KPIMonitorPage: React.FC = () => {
               >
                 <KpiWidgetCard
                   config={w.config}
+                  catalog={catalog}
                   catalogMap={catalogMap}
                   isSelected={selectedWidgetId === w.config.id}
                   editMode={editMode}
                   onSelect={() => setSelectedWidgetId(w.config.id)}
-                  onConfigure={() => { setConfiguringWidgetId(w.config.id); setSelectedWidgetId(w.config.id); }}
                   onDuplicate={() => duplicateWidget(w.config.id)}
                   onDelete={() => deleteWidget(w.config.id)}
                   onUpdateConfig={(updates) => updateWidgetConfig(w.config.id, updates)}
@@ -303,16 +298,7 @@ const KPIMonitorPage: React.FC = () => {
         )}
       </div>
 
-      {/* Config Panel (per-widget) */}
-      {configuringWidget && (
-        <KpiWidgetConfigPanel
-          config={configuringWidget.config}
-          catalog={catalog}
-          catalogMap={catalogMap}
-          onUpdate={(updates) => updateWidgetConfig(configuringWidgetId!, updates)}
-          onClose={() => setConfiguringWidgetId(null)}
-        />
-      )}
+      {/* Config panel removed - inline config is now inside each widget */}
 
       {/* AI Modal */}
       <AIFloatingModal open={showAI} onClose={() => setShowAI(false)} />
