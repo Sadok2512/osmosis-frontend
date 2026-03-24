@@ -130,7 +130,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           let colorIdx = 0;
           series = kpiIds.flatMap((kpiId, ki) => {
             const def = defs[ki];
-            const kpiData = data.filter(d => d.kpi === kpiId && d.splitValue);
+            const kpiData = effectiveData.filter(d => d.kpi === kpiId && d.splitValue);
             const splitValues = [...new Set(kpiData.map(d => d.splitValue!))];
 
             return splitValues.map(sv => {
