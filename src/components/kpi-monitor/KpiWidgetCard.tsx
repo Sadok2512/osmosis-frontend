@@ -200,6 +200,17 @@ const KpiWidgetCard: React.FC<Props> = ({
         const isArea = config.graphType === 'area' || config.graphType === 'stacked_area';
         const isBar = config.graphType === 'bar';
         const color = config.kpis.find(k => k.kpi_key === s.kpiKey)?.color || COLORS[i % COLORS.length];
+
+        // Jalon markLines (on first series only)
+        const markLineData = i === 0 && jalons.length > 0 ? jalons.map(j => ({
+          xAxis: j.date,
+          label: {
+            show: true, formatter: j.label, fontSize: 9, fontWeight: 'bold' as const,
+            color: j.color, position: 'insideEndTop' as const,
+          },
+          lineStyle: { color: j.color, width: 2, type: 'dashed' as const },
+        })) : undefined;
+
         return {
           name: catalogMap[s.kpiKey]?.display_name || s.name,
           type: isBar ? 'bar' : 'line',
@@ -213,6 +224,7 @@ const KpiWidgetCard: React.FC<Props> = ({
           barMaxWidth: 16,
           itemStyle: isBar ? { borderRadius: [3, 3, 0, 0] } : undefined,
           markArea: i === 0 && merged.length > 0 ? { silent: true, data: merged } : undefined,
+          markLine: markLineData ? { silent: true, symbol: 'none', data: markLineData } : undefined,
         };
       }),
     };
