@@ -37,6 +37,14 @@ const InvestigatorPage: React.FC = () => {
   const [worstElements, setWorstElements] = useState<WorstElement[]>([]);
   const [isApplying, setIsApplying] = useState(false);
   const [kpiSelectorSlot, setKpiSelectorSlot] = useState<string | null>(null);
+  const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
+
+  // Auto-select first slot if none selected
+  useEffect(() => {
+    if (!activeSlotId && state.graphSlots.length > 0) {
+      setActiveSlotId(state.graphSlots[0].id);
+    }
+  }, [state.graphSlots, activeSlotId]);
 
   const handleApply = async () => {
     setIsApplying(true);
@@ -128,6 +136,8 @@ const InvestigatorPage: React.FC = () => {
         onApply={handleApply}
         externalSelectorSlot={kpiSelectorSlot}
         onExternalSelectorClose={() => setKpiSelectorSlot(null)}
+        activeSlotId={activeSlotId}
+        onSlotClick={setActiveSlotId}
       />
 
       {/* Main Content */}
@@ -209,6 +219,8 @@ const InvestigatorPage: React.FC = () => {
               }))}
               onUpdateSlotConfig={handleUpdateSlotConfig}
               onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
+              activeSlotId={activeSlotId}
+              onSlotClick={setActiveSlotId}
             />
           )}
           {state.activeGraphTab === 'Histogram' && (

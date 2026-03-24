@@ -26,9 +26,11 @@ interface Props {
   onRemoveSlot: (slotId: string) => void;
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onOpenKpiSelector: (slotId: string) => void;
+  activeSlotId?: string | null;
+  onSlotClick?: (slotId: string) => void;
 }
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi, onRemoveSlot, onUpdateSlotConfig, onOpenKpiSelector }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi, onRemoveSlot, onUpdateSlotConfig, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
   const cols = layout === 1 ? 1 : 2;
   const chartHeight = layout === 1 ? 400 : layout === 4 ? 220 : 280;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
@@ -112,10 +114,17 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
           }],
         };
 
+        const isActive = activeSlotId === slot.id;
         return (
           <div
             key={slot.id}
-            className="rounded-xl border border-border/60 bg-card p-4 group relative"
+            onClick={() => onSlotClick?.(slot.id)}
+            className={cn(
+              'rounded-xl border bg-card p-4 group relative cursor-pointer transition-all duration-300',
+              isActive
+                ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5'
+                : 'border-border/60 hover:border-border'
+            )}
           >
             {/* Header with config popover */}
             <div className="flex items-center gap-2 mb-2 relative z-10">
