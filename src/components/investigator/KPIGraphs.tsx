@@ -40,7 +40,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
   }, []);
 
   return (
-    <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+    <div className="space-y-3">
+      <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
       {graphSlots.map(slot => {
         const def = KPI_MAP[slot.kpiId] || allKpis.find(k => k.id === slot.kpiId);
         if (!def) return null;
@@ -138,6 +139,17 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
                 <span className="text-xs font-bold text-foreground truncate max-w-[200px]">{def.label}</span>
               </div>
               <span className="text-[10px] text-muted-foreground font-medium ml-auto mr-1">{def.unit}</span>
+
+              {/* Remove button */}
+              {graphSlots.length > 1 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
+                  className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Supprimer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
 
               {/* Config popover on the widget */}
               <Popover>
@@ -238,18 +250,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
           </div>
         );
       })}
-      {/* Add Graph placeholder */}
+      </div>
+      {/* Small Add button */}
       {graphSlots.length < 4 && (
-        <div
+        <button
           onClick={() => onOpenKpiSelector('new')}
-          className="rounded-xl border-2 border-dashed border-border/40 bg-muted/20 p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all duration-200"
-          style={{ minHeight: chartHeight }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border/60 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all"
         >
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <Plus className="w-5 h-5 text-primary" />
-          </div>
-          <span className="text-xs font-semibold text-muted-foreground">Ajouter un graphique</span>
-        </div>
+          <Plus className="w-3.5 h-3.5" />
+          Ajouter
+        </button>
       )}
     </div>
   );
