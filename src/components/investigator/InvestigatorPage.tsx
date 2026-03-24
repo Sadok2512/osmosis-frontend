@@ -194,6 +194,12 @@ const InvestigatorPage: React.FC = () => {
               }))}
             />
           )}
+          {state.activeGraphTab === 'Histogram' && (
+            <KPIHistogram selectedKpis={state.graphSlots.map(s => s.kpiId)} layout={state.graphLayout} />
+          )}
+          {state.activeGraphTab === 'Breakdown' && (
+            <KPIBreakdown selectedKpis={state.graphSlots.map(s => s.kpiId)} layout={state.graphLayout} />
+          )}
         </section>
 
         {/* Divider */}
