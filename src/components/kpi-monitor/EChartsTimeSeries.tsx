@@ -1,14 +1,20 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import ReactECharts from 'echarts-for-react';
 import { KpiTimeSeriesPoint, KpiCatalogEntry } from './types';
 import { KPI_CATALOG_MAP } from './kpiCatalog';
 import { useKpiMonitorStore, Milestone } from '../../stores/kpiMonitorStore';
-import { Settings2, Percent } from 'lucide-react';
+import { MoreHorizontal, Download, Image, RefreshCw, Maximize2, Minimize2, Settings, Copy, Trash2, Settings2, Percent } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
 import { getAxisSideConfig } from './normalizeConfig';
 import { DEFAULT_GRID, DEFAULT_CALENDAR } from './GraphSettingsPanel';
 import GraphConfigPopover from './GraphConfigPopover';
+import { exportElementToPNG, exportElementToPDF } from '@/lib/exportUtils';
 
 const PREMIUM_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444',
