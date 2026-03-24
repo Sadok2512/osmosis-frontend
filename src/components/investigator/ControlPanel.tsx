@@ -1,17 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
-import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot } from './types';
+import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType } from './types';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
-import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check } from 'lucide-react';
+import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
+
+const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
+  { value: 'line', label: 'Line', icon: TrendingUp },
+  { value: 'area', label: 'Area', icon: AreaChart },
+  { value: 'bar', label: 'Bar', icon: BarChart },
+  { value: 'scatter', label: 'Scatter', icon: CircleDot },
+];
 
 interface Props {
   state: InvestigationState;
