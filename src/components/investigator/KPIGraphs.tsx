@@ -37,7 +37,7 @@ interface Props {
 
 const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
   const cols = layout === 1 ? 1 : 2;
-  const chartHeight = layout === 1 ? 440 : layout === 4 ? 260 : 320;
+  const chartHeight = layout === 1 ? 480 : layout === 4 ? 300 : 360;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
 
   useEffect(() => {
