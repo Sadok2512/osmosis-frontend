@@ -991,6 +991,21 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
   const vizBlocks = useMemo(() => parseVisualizationBlocks(cleaned), [cleaned]);
   const hasViz = vizBlocks.some(b => b.type !== 'markdown');
 
+  const renderWithKpiCards = useCallback((md: string) => {
+    const kpiBlocks = parseKpiBlocks(md);
+    const hasKpiBlocks = kpiBlocks.some(b => b.type !== 'markdown');
+    if (!hasKpiBlocks) return <MarkdownBlock content={md} />;
+    return (
+      <>
+        {kpiBlocks.map((block, j) => {
+          if (block.type === 'kpi_summary' && block.summaries) return <KpiSummaryCards key={j} summaries={block.summaries} />;
+          if (block.type === 'split_section' && block.splitEntries && block.splitDimension) return <SplitSectionCards key={j} dimension={block.splitDimension} entries={block.splitEntries} />;
+          return <MarkdownBlock key={j} content={block.content || ''} />;
+        })}
+      </>
+    );
+  }, []);
+
   return (
     <div className="ai-msg-content text-sm leading-relaxed text-foreground">
       {hasViz ? (
@@ -1002,10 +1017,10 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
             </Suspense>
           );
           if (block.type === 'kpi') return <InlineKPICards key={i} config={block.config} />;
-          return <MarkdownBlock key={i} content={block.content} />;
+          return <React.Fragment key={i}>{renderWithKpiCards(block.content)}</React.Fragment>;
         })
       ) : (
-        <MarkdownBlock content={cleaned} />
+        renderWithKpiCards(cleaned)
       )}
     </div>
   );
