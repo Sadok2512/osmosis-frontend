@@ -40,7 +40,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
   }, []);
 
   return (
-    <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+    <div className="space-y-3">
+      <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
       {graphSlots.map(slot => {
         const def = KPI_MAP[slot.kpiId] || allKpis.find(k => k.id === slot.kpiId);
         if (!def) return null;
