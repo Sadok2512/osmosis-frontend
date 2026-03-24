@@ -60,7 +60,6 @@ const InvestigatorPage: React.FC = () => {
         for (const kpiId of slot.kpiIds) {
           const perKpiSplit = slot.config?.splitByPerKpi?.[kpiId];
           const splitDim = (perKpiSplit && perKpiSplit !== 'None') ? perKpiSplit
-            : (slot.splitBy && slot.splitBy !== 'None') ? slot.splitBy
             : '__none__';
           if (!splitGroups[splitDim]) splitGroups[splitDim] = [];
           if (!splitGroups[splitDim].includes(kpiId)) splitGroups[splitDim].push(kpiId);

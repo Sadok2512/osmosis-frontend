@@ -694,7 +694,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       {slot.kpiIds.map((kpiId, ki) => {
                         const kDef = kpiDefs.find(k => k.id === kpiId);
                         const kLabel = kDef?.label || kpiId;
-                        const currentSplit = cfg.splitByPerKpi?.[kpiId] || slot.splitBy || 'None';
+                        const currentSplit = cfg.splitByPerKpi?.[kpiId] || 'None';
                         return (
                           <div key={kpiId} className="flex items-center gap-2">
                             <span className="text-[9px] text-muted-foreground truncate max-w-[80px]" title={kLabel}>{kLabel}</span>
@@ -702,9 +702,20 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                               value={currentSplit}
                               onChange={e => {
                                 const val = e.target.value;
-                                setSlotConfig({
-                                  splitByPerKpi: { ...(cfg.splitByPerKpi || {}), [kpiId]: val },
-                                });
+                                // Update per-KPI split and clear legacy slot-level splitBy
+                                setState(prev => ({
+                                  ...prev,
+                                  graphSlots: prev.graphSlots.map(s =>
+                                    s.id === slot.id ? {
+                                      ...s,
+                                      splitBy: 'None',
+                                      config: {
+                                        ...cfg,
+                                        splitByPerKpi: { ...(cfg.splitByPerKpi || {}), [kpiId]: val },
+                                      },
+                                    } : s
+                                  ),
+                                }));
                               }}
                               className="flex-1 px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
                             >
