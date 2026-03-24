@@ -432,6 +432,9 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             )}
           </SectionCard>
 
+          {/* ── CHART CONFIGURATION ── */}
+          <ChartConfigSection graph={graph} setGraphD={setGraphD} gridCfg={gridCfg} setGridCfg={setGridCfg} />
+
           {/* ── COMPTEURS ── */}
           {onOpenCounterSelector && (
             <SectionCard
