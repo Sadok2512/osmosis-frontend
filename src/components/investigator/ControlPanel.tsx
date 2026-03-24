@@ -17,7 +17,18 @@ interface Props {
 }
 
 const SPLITS: SplitOption[] = ['None', 'Vendor', 'Technology', 'Band', 'DOR', 'DR'];
-const TIME_RANGES = ['Last 24h', 'Last 7 Days', 'Last 14 Days', 'Last 30 Days', 'Custom'];
+const PERIODS = [
+  { label: '24h', days: 1 },
+  { label: '7j', days: 7 },
+  { label: '14j', days: 14 },
+  { label: '30j', days: 30 },
+  { label: '90j', days: 90 },
+];
+const GRANULARITIES: { value: Granularity; label: string }[] = [
+  { value: 'Hourly', label: 'Horaire' },
+  { value: 'Daily', label: 'Jour' },
+  { value: 'Weekly', label: 'Semaine' },
+];
 const FILTER_DIMENSIONS = ['Site', 'Vendor', 'Technology', 'Band', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
 
 // Filter values fetched from backend
