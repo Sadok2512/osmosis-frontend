@@ -364,6 +364,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
           <Settings className="w-4 h-4" />
         </button>
       )}
+      <WidgetInfoPopover />
       {onGraphConfigChange && gc && (
         <GraphConfigPopover config={gc} onChange={onGraphConfigChange} />
       )}
