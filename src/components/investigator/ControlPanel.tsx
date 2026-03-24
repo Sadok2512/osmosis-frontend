@@ -385,6 +385,49 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             </div>
           </div>
 
+          {/* Separator */}
+          <div className="h-5 w-px bg-border/60 shrink-0" />
+
+          {/* Jalons */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Jalons</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-[32px] text-xs gap-1.5 px-2.5">
+                  <Flag className="w-3.5 h-3.5" />
+                  {state.jalons.length > 0 ? `${state.jalons.length}` : '+'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] p-3 space-y-2" align="start">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Ajouter un jalon</div>
+                <JalonForm onAdd={(j) => setState(prev => ({ ...prev, jalons: [...prev.jalons, j] }))} />
+                {state.jalons.length > 0 && (
+                  <div className="space-y-1 pt-2 border-t border-border/40">
+                    {state.jalons.map(j => (
+                      <div key={j.id} className="flex items-center gap-2 text-[10px]">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: j.color }} />
+                        <span className="font-medium text-foreground truncate flex-1">{j.label}</span>
+                        <span className="text-muted-foreground">{j.date}</span>
+                        <button onClick={() => setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) }))} className="text-muted-foreground hover:text-destructive">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+            {/* Show jalon chips */}
+            {state.jalons.map(j => (
+              <span key={j.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border border-border/40 bg-muted/30 text-foreground">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: j.color }} />
+                {j.label}
+                <button onClick={() => setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) }))} className="hover:text-destructive ml-0.5">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
 
           {/* Apply */}
           <button
