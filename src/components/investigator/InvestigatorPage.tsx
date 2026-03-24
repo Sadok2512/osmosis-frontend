@@ -16,6 +16,10 @@ import { cn } from '@/lib/utils';
 const INITIAL_STATE: InvestigationState = {
   dimension: 'Cell',
   selectedKpis: ['4G_LTE_DCR', '4G_LTE_SR'],
+  graphSlots: [
+    { id: 'slot-1', kpiId: '4G_LTE_DCR' },
+    { id: 'slot-2', kpiId: '4G_LTE_SR' },
+  ],
   splitBy: 'None',
   startDate: new Date().toISOString(),
   endDate: new Date().toISOString(),
