@@ -162,7 +162,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const option = {
           animation: true,
           grid: { top: 40, right: 20, bottom: 36, left: 56 },
-          legend: { show: false },
+          legend: {
+            show: true,
+            bottom: 0,
+            icon: 'circle',
+            itemWidth: 8,
+            itemHeight: 8,
+            textStyle: { fontSize: 11, color: '#888' },
+          },
           tooltip: {
             trigger: 'axis' as const,
             backgroundColor: 'rgba(15,23,42,0.95)',
