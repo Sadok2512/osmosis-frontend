@@ -39,9 +39,11 @@ const InvestigatorPage: React.FC = () => {
   const [kpiSelectorSlot, setKpiSelectorSlot] = useState<string | null>(null);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
 
-  // Auto-select first slot if none selected
+  // Auto-select first slot if none selected or active was removed
   useEffect(() => {
-    if (!activeSlotId && state.graphSlots.length > 0) {
+    if (state.graphSlots.length === 0) {
+      setActiveSlotId(null);
+    } else if (!activeSlotId || !state.graphSlots.find(s => s.id === activeSlotId)) {
       setActiveSlotId(state.graphSlots[0].id);
     }
   }, [state.graphSlots, activeSlotId]);
