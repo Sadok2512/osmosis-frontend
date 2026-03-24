@@ -231,11 +231,42 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const totalPts = allTimestamps.length;
         const xInterval = totalPts > 90 ? Math.floor(totalPts / 8) : totalPts > 40 ? Math.floor(totalPts / 10) : totalPts > 20 ? Math.floor(totalPts / 8) : 0;
 
+        // Determine if we need a right Y-axis
+        const yAxisAssignments = cfg.yAxisAssignments || {};
+        const hasRightAxis = Object.values(yAxisAssignments).includes(1);
+
+        // Build yAxis array (always left; optionally right)
+        const yAxisLeft = {
+          type: 'value' as const,
+          position: 'left' as const,
+          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
+          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : undefined,
+          axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
+          splitLine: {
+            show: cfg.showGrid,
+            lineStyle: { color: 'rgba(128,128,128,0.05)', type: 'dashed' as const },
+          },
+          axisLine: { show: false },
+          axisTick: { show: false },
+        };
+        const yAxisRight = {
+          type: 'value' as const,
+          position: 'right' as const,
+          axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
+          splitLine: { show: false },
+          axisLine: { show: false },
+          axisTick: { show: false },
+        };
+        const yAxisArr = hasRightAxis ? [yAxisLeft, yAxisRight] : [yAxisLeft];
+
+        // Assign yAxisIndex to each series based on its KPI
+        const getYAxisIndex = (kpiId: string) => yAxisAssignments[kpiId] === 1 ? 1 : 0;
+
         const option = {
           animation: true,
           grid: {
             top: 32,
-            right: 28,
+            right: hasRightAxis ? 62 : 28,
             bottom: series.length > 4 ? 78 : series.length > 2 ? 66 : 54,
             left: 62,
             containLabel: false,
@@ -305,31 +336,28 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             axisTick: { show: false },
             splitLine: { show: false },
           },
-          yAxis: {
-            type: 'value' as const,
-            min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
-            max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : undefined,
-            axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
-            splitLine: {
-              show: cfg.showGrid,
-              lineStyle: { color: 'rgba(128,128,128,0.05)', type: 'dashed' as const },
-            },
-            axisLine: { show: false },
-            axisTick: { show: false },
-          },
-          series: series.map((s, i) => ({
-            ...s,
-            lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
-            emphasis: {
-              focus: 'series' as const,
-              blurScope: 'coordinateSystem' as const,
-              lineStyle: { width: (s.lineStyle?.width || cfg.lineWidth || 2.5) + 1.5 },
-            },
-            ...(i === 0 ? {
-              markLine: markLineData.length > 0 ? { silent: true, symbol: 'none', data: markLineData } : undefined,
-              markArea: markAreaData.length > 0 ? { silent: true, data: markAreaData } : undefined,
-            } : {}),
-          })),
+          yAxis: yAxisArr,
+          series: series.map((s, i) => {
+            // Find which KPI this series belongs to for yAxisIndex
+            const seriesKpiId = hasSplit
+              ? kpiIds.find(kid => s.name?.startsWith(defs[kpiIds.indexOf(kid)]?.label)) || kpiIds[0]
+              : kpiIds[i] || kpiIds[0];
+
+            return {
+              ...s,
+              yAxisIndex: hasRightAxis ? getYAxisIndex(seriesKpiId) : 0,
+              lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
+              emphasis: {
+                focus: 'series' as const,
+                blurScope: 'coordinateSystem' as const,
+                lineStyle: { width: (s.lineStyle?.width || cfg.lineWidth || 2.5) + 1.5 },
+              },
+              ...(i === 0 ? {
+                markLine: markLineData.length > 0 ? { silent: true, symbol: 'none', data: markLineData } : undefined,
+                markArea: markAreaData.length > 0 ? { silent: true, data: markAreaData } : undefined,
+              } : {}),
+            };
+          }),
         };
 
         const primaryDef = defs[0];
@@ -395,17 +423,44 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">KPIs ({kpiIds.length})</span>
                     {defs.map((d, i) => (
-                      <div key={kpiIds[i]} className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
-                          <span className="text-[10px] font-medium text-foreground truncate max-w-[150px]">{d.label}</span>
+                      <div key={kpiIds[i]} className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                          <span className="text-[10px] font-medium text-foreground truncate max-w-[100px]">{d.label}</span>
                         </div>
-                        <button
-                          onClick={() => onChangeSlotKpi(slot.id, kpiIds[i])}
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* L/R Y-axis toggle */}
+                          {kpiIds.length > 1 && (
+                            <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
+                              <button
+                                onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kpiIds[i]]: 0 } })}
+                                className={cn(
+                                  'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
+                                  (cfg.yAxisAssignments?.[kpiIds[i]] || 0) === 0
+                                    ? 'bg-primary/20 text-primary'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                )}
+                                title="Left Y-axis"
+                              >L</button>
+                              <button
+                                onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kpiIds[i]]: 1 } })}
+                                className={cn(
+                                  'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
+                                  cfg.yAxisAssignments?.[kpiIds[i]] === 1
+                                    ? 'bg-primary/20 text-primary'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                )}
+                                title="Right Y-axis"
+                              >R</button>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => onChangeSlotKpi(slot.id, kpiIds[i])}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                     <Button
