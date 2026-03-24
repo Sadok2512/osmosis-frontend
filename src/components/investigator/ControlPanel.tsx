@@ -213,6 +213,52 @@ const FilterValuesList: React.FC<{ dim: string; onSelect: (val: string) => void;
   );
 };
 
+const JALON_COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+/* ── Jalon Form ── */
+const JalonForm: React.FC<{ onAdd: (j: Jalon) => void }> = ({ onAdd }) => {
+  const [date, setDate] = useState('');
+  const [label, setLabel] = useState('');
+  const [color, setColor] = useState(JALON_COLORS[0]);
+
+  const handleAdd = () => {
+    if (!date || !label) return;
+    onAdd({ id: `jalon-${Date.now()}`, date, label, color });
+    setDate('');
+    setLabel('');
+  };
+
+  return (
+    <div className="space-y-2">
+      <input
+        type="date"
+        value={date}
+        onChange={e => setDate(e.target.value)}
+        className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+      />
+      <input
+        value={label}
+        onChange={e => setLabel(e.target.value)}
+        placeholder="Nom du jalon..."
+        className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+      />
+      <div className="flex items-center gap-1.5">
+        {JALON_COLORS.map(c => (
+          <button
+            key={c}
+            onClick={() => setColor(c)}
+            className={cn('w-5 h-5 rounded-full border-2 transition-all', color === c ? 'border-foreground scale-110' : 'border-transparent')}
+            style={{ backgroundColor: c }}
+          />
+        ))}
+        <Button size="sm" className="h-6 text-[10px] px-3 ml-auto" onClick={handleAdd} disabled={!date || !label}>
+          <Plus className="w-3 h-3 mr-1" /> Ajouter
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 /* ── Main Control Panel ── */
 const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick }) => {
   const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
