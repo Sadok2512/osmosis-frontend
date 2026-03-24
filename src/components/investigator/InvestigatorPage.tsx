@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const createSlot = (index: number, kpiId = ''): GraphSlot => ({
+const createSlot = (index: number, kpiIds: string[] = []): GraphSlot => ({
   id: `slot-${Date.now()}-${index}`,
-  kpiId,
+  kpiIds,
   name: `Graph ${index}`,
   filters: {},
   startDate: '',
@@ -62,7 +62,7 @@ const InvestigatorPage: React.FC = () => {
       const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
       const splitMap: Record<string, string> = { 'None': '', 'Vendor': 'Vendor', 'Technology': 'TECHNO', 'Band': 'BAND', 'DOR': 'DOR', 'DR': 'DOR' };
 
-      const kpiIds = state.graphSlots.map(s => s.kpiId);
+      const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
       const [ts, worst] = await Promise.all([
         fetchTimeSeriesData(
           kpiIds,
@@ -208,7 +208,7 @@ const InvestigatorPage: React.FC = () => {
               layout={state.graphLayout}
               onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
                 ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiId } : s),
+                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
               }))}
               onRemoveSlot={(slotId) => setState(prev => ({
                 ...prev,
@@ -231,10 +231,10 @@ const InvestigatorPage: React.FC = () => {
             />
           )}
           {state.activeGraphTab === 'Histogram' && (
-            <KPIHistogram selectedKpis={state.graphSlots.map(s => s.kpiId)} layout={state.graphLayout} />
+            <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
           )}
           {state.activeGraphTab === 'Breakdown' && (
-            <KPIBreakdown selectedKpis={state.graphSlots.map(s => s.kpiId)} layout={state.graphLayout} />
+            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
           )}
         </section>
 

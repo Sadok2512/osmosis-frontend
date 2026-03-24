@@ -27,7 +27,9 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
 
 export interface GraphSlot {
   id: string;
-  kpiId: string;
+  kpiIds: string[];
+  /** @deprecated use kpiIds */
+  kpiId?: string;
   name: string;
   config?: GraphConfig;
   filters: Record<string, string[]>;

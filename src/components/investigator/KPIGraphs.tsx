@@ -18,6 +18,8 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
   { value: 'scatter', label: 'Scatter', icon: CircleDot },
 ];
 
+const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
+
 interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
@@ -41,14 +43,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
   }, []);
 
+  const getDef = (kpiId: string) => KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId) || null;
+
   return (
     <div className="space-y-3">
       <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
       {graphSlots.map(slot => {
-        const def = slot.kpiId ? (KPI_MAP[slot.kpiId] || allKpis.find(k => k.id === slot.kpiId)) : null;
-        const isEmpty = !slot.kpiId || !def;
+        const kpiIds = slot.kpiIds || [];
+        const isEmpty = kpiIds.length === 0;
         const cfg: GraphConfig = slot.config || DEFAULT_GRAPH_CONFIG;
-
         const isActive = activeSlotId === slot.id;
 
         // Empty slot — no KPI assigned yet
@@ -72,15 +75,13 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
                   className="text-xs font-bold text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[140px] truncate"
                 />
                 <span className="ml-auto" />
-                {true && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
-                    className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Supprimer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
+                  className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Supprimer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ minHeight: chartHeight - 40 }}>
                 <div className="text-muted-foreground/40">
@@ -98,31 +99,76 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
           );
         }
 
-        const kpiData = data.filter(d => d.kpi === slot.kpiId);
-        const timestamps = kpiData.map(d => d.timestamp);
-        const values = kpiData.map(d => d.value);
+        // Multi-KPI: build series for each kpiId
+        const defs = kpiIds.map((id, i) => {
+          const d = getDef(id);
+          return d || { id, label: id, unit: '', color: SERIES_COLORS[i % SERIES_COLORS.length], thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
+        });
+
+        // Collect all unique timestamps across all KPIs
+        const allTimestamps = [...new Set(kpiIds.flatMap(id => data.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
 
         const seriesType = cfg.chartType === 'scatter' ? 'scatter' : cfg.chartType === 'bar' ? 'bar' : 'line';
+
+        const series = kpiIds.map((kpiId, i) => {
+          const def = defs[i];
+          const kpiData = data.filter(d => d.kpi === kpiId);
+          const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
+          const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
+
+          return {
+            name: def.label,
+            type: seriesType as any,
+            data: values,
+            smooth: cfg.smooth,
+            symbol: cfg.showSymbols ? 'circle' : 'none',
+            symbolSize: cfg.showSymbols ? 5 : 0,
+            lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color: def.color } : undefined,
+            itemStyle: { color: def.color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+            barMaxWidth: 20,
+            areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
+              color: {
+                type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+                colorStops: [
+                  { offset: 0, color: `${def.color}20` },
+                  { offset: 1, color: `${def.color}02` },
+                ],
+              },
+            } : undefined,
+          };
+        });
 
         const option = {
           animation: true,
           grid: { top: 40, right: 20, bottom: 36, left: 56 },
+          legend: kpiIds.length > 1 ? {
+            top: 4,
+            right: 10,
+            textStyle: { color: '#9ca3af', fontSize: 9 },
+            icon: 'circle',
+            itemWidth: 8,
+            itemHeight: 8,
+          } : undefined,
           tooltip: {
             trigger: 'axis' as const,
             backgroundColor: 'rgba(15,23,42,0.95)',
             borderColor: 'rgba(255,255,255,0.08)',
             textStyle: { color: '#f8fafc', fontSize: 11 },
             formatter: (params: any) => {
-              const p = Array.isArray(params) ? params[0] : params;
-              if (!p) return '';
-              const dt = new Date(p.axisValue);
-              return `<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">${dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
-                <div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${def!.color}"></span><b>${p.value?.toFixed(2)} ${def!.unit}</b></div>`;
+              const items = Array.isArray(params) ? params : [params];
+              if (items.length === 0) return '';
+              const dt = new Date(items[0].axisValue);
+              const header = `<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">${dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>`;
+              const rows = items.map((p: any) => {
+                const def = defs.find(d => d.label === p.seriesName) || defs[0];
+                return `<div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${p.color}"></span><span>${p.seriesName}:</span><b>${p.value?.toFixed(2)} ${def.unit}</b></div>`;
+              }).join('');
+              return header + rows;
             },
           },
           xAxis: {
             type: 'category' as const,
-            data: timestamps,
+            data: allTimestamps,
             axisLabel: {
               formatter: (v: string) => new Date(v).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
               fontSize: 9,
@@ -139,40 +185,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
               lineStyle: { color: 'rgba(128,128,128,0.12)', type: 'dashed' as const },
             },
           },
-          series: [{
-            type: seriesType as any,
-            data: values,
-            smooth: cfg.smooth,
-            symbol: cfg.showSymbols ? 'circle' : 'none',
-            symbolSize: cfg.showSymbols ? 5 : 0,
-            lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color: def!.color } : undefined,
-            itemStyle: { color: def!.color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
-            barMaxWidth: 20,
-            areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
-              color: {
-                type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                colorStops: [
-                  { offset: 0, color: `${def!.color}20` },
-                  { offset: 1, color: `${def!.color}02` },
-                ],
-              },
-            } : undefined,
-            markLine: cfg.showThresholds ? {
-              silent: true,
-              data: [
-                { yAxis: def!.thresholds.warning, lineStyle: { color: '#f59e0b', type: 'dashed' as const, width: 1 }, label: { show: false } },
-                { yAxis: def!.thresholds.critical, lineStyle: { color: '#ef4444', type: 'dashed' as const, width: 1 }, label: { show: false } },
-              ],
-            } : undefined,
-          }],
+          series,
         };
 
-        // isActive already declared above
+        const primaryDef = defs[0];
+
         return (
           <div
             key={slot.id}
             onClick={(e) => {
-              // Don't select when clicking inside popovers or buttons
               const target = e.target as HTMLElement;
               if (target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
               onSlotClick?.(slot.id);
@@ -184,32 +205,44 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
                 : 'border-border/60 hover:border-border'
             )}
           >
-            {/* Header with config popover */}
+            {/* Header */}
             <div className="flex items-center gap-2 mb-2 relative z-10">
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: def.color }} />
+                {/* Show color dots for each KPI */}
+                {defs.map((d, i) => (
+                  <span key={i} className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                ))}
                 <input
                   value={slot.name}
                   onChange={(e) => onRenameSlot(slot.id, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                   className="text-xs font-bold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[120px] truncate"
                 />
-                <span className="text-[10px] text-muted-foreground">— {def.label}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  — {defs.map(d => d.label).join(', ')}
+                </span>
               </div>
-              <span className="text-[10px] text-muted-foreground font-medium ml-auto mr-1">{def.unit}</span>
+              <span className="ml-auto" />
+
+              {/* Add KPI to this graph */}
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }}
+                className="p-1 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                title="Ajouter un KPI"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
 
               {/* Remove button */}
-              {true && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
-                  className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Supprimer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
+                className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                title="Supprimer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
 
-              {/* Config popover on the widget */}
+              {/* Config popover */}
               <Popover>
                 <PopoverTrigger asChild>
                   <button className="p-1.5 rounded-md border border-border/60 bg-muted/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
@@ -217,19 +250,30 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[260px] p-3 space-y-3 z-50" align="end" side="bottom">
-                  {/* KPI Name & Change */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: def.color }} />
-                      <span className="text-xs font-bold text-foreground truncate max-w-[130px]">{def.label}</span>
-                    </div>
+                  {/* KPIs list */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">KPIs ({kpiIds.length})</span>
+                    {defs.map((d, i) => (
+                      <div key={kpiIds[i]} className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
+                          <span className="text-[10px] font-medium text-foreground truncate max-w-[150px]">{d.label}</span>
+                        </div>
+                        <button
+                          onClick={() => onChangeSlotKpi(slot.id, '')}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-6 text-[10px] px-2"
+                      className="h-6 text-[10px] px-2 w-full mt-1"
                       onClick={() => onOpenKpiSelector(slot.id)}
                     >
-                      Change KPI
+                      <Plus className="w-3 h-3 mr-1" /> Ajouter KPI
                     </Button>
                   </div>
 
@@ -257,13 +301,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
                     </div>
                   </div>
 
-                  {/* Smooth */}
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-medium text-foreground">Smooth Curve</span>
                     <Switch checked={cfg.smooth} onCheckedChange={v => onUpdateSlotConfig(slot.id, { smooth: v })} className="scale-75" />
                   </div>
-
-                  {/* Line Width */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-medium text-foreground">Line Width</span>
@@ -271,8 +312,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
                     </div>
                     <Slider value={[cfg.lineWidth]} onValueChange={v => onUpdateSlotConfig(slot.id, { lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="w-full" />
                   </div>
-
-                  {/* Toggles */}
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-medium text-foreground">Show Markers</span>
                     <Switch checked={cfg.showSymbols} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showSymbols: v })} className="scale-75" />
@@ -289,25 +328,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
                     <span className="text-[10px] font-medium text-foreground">Grid Lines</span>
                     <Switch checked={cfg.showGrid} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showGrid: v })} className="scale-75" />
                   </div>
-
-                  <div className="h-px bg-border/60" />
-
-                  {/* Clear KPI (keep slot) */}
-                  <button
-                    onClick={() => onChangeSlotKpi(slot.id, '')}
-                    className="w-full text-[10px] font-semibold text-orange-600 hover:bg-orange-500/10 py-1.5 rounded-md transition-colors"
-                  >
-                    Retirer le KPI
-                  </button>
-                  {/* Remove slot entirely */}
-                  {true && (
-                    <button
-                      onClick={() => onRemoveSlot(slot.id)}
-                      className="w-full text-[10px] font-semibold text-destructive hover:bg-destructive/10 py-1.5 rounded-md transition-colors"
-                    >
-                      Supprimer le graphique
-                    </button>
-                  )}
                 </PopoverContent>
               </Popover>
             </div>
