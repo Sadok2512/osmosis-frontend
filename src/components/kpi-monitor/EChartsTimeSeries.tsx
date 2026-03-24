@@ -352,6 +352,15 @@ const EChartsTimeSeries: React.FC<Props> = ({
 
   const actionsMenu = (isFs: boolean) => (
     <div className="flex items-center gap-1" onMouseDown={stopDrag}>
+      {onToggleEditMode && (
+        <button
+          onClick={onToggleEditMode}
+          className="p-1.5 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-primary transition-colors"
+          title="Widget configuration"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
+      )}
       {onGraphConfigChange && gc && (
         <GraphConfigPopover config={gc} onChange={onGraphConfigChange} />
       )}
