@@ -560,7 +560,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       {createPortal(
         <KpiSelectorModal
           open={!!selectorOpen}
-          onClose={() => setSelectorOpen(null)}
+          onClose={handleSelectorClose}
           catalog={catalog}
           selectedKeys={selectorOpen && selectorOpen !== 'new' ? [state.graphSlots.find(s => s.id === selectorOpen)?.kpiId || ''] : []}
           onConfirm={(keys) => {
@@ -574,7 +574,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 graphSlots: prev.graphSlots.map(s => s.id === selectorOpen ? { ...s, kpiId: keys[0] } : s),
               }));
             }
-            setSelectorOpen(null);
+            handleSelectorClose();
           }}
         />,
         document.body
