@@ -200,25 +200,6 @@ const InvestigatorPage: React.FC = () => {
           {state.activeGraphTab === 'Breakdown' && (
             <KPIBreakdown selectedKpis={state.graphSlots.map(s => s.kpiId)} layout={state.graphLayout} />
           )}
-
-          {/* Add Graph Button */}
-          {state.graphSlots.length < 4 && (
-            <button
-              onClick={() => {
-                const usedKpis = state.graphSlots.map(s => s.kpiId);
-                const availableKpi = FALLBACK_KPIS.find(k => !usedKpis.includes(k.id));
-                const newSlot: GraphSlot = {
-                  id: `slot-${Date.now()}`,
-                  kpiId: availableKpi?.id || FALLBACK_KPIS[0].id,
-                };
-                setState(prev => ({ ...prev, graphSlots: [...prev.graphSlots, newSlot] }));
-              }}
-              className="w-full py-3 rounded-xl border-2 border-dashed border-border/60 hover:border-primary/40 bg-card/50 hover:bg-primary/5 flex items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="text-xs font-bold uppercase tracking-wider">Add Graph ({state.graphSlots.length}/4)</span>
-            </button>
-          )}
         </section>
 
         {/* Divider */}

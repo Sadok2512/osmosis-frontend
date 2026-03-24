@@ -6,13 +6,12 @@ import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import {
   Settings2, TrendingUp, AreaChart, BarChart, CircleDot,
-  ChevronDown, X,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 
@@ -110,41 +109,7 @@ const GraphSettingsPopover: React.FC<{ config: GraphConfig; onChange: (c: GraphC
   );
 };
 
-/* ── KPI Selector Button (opens KPI Monitor modal) ── */
-const SlotKpiSelector: React.FC<{
-  currentKpiId: string;
-  onChange: (kpiId: string) => void;
-  catalog: KpiCatalogEntry[];
-  allKpis: KpiDefinition[];
-}> = ({ currentKpiId, onChange, catalog, allKpis }) => {
-  const [open, setOpen] = useState(false);
-  const current = allKpis.find(k => k.id === currentKpiId);
-  const catalogEntry = catalog.find(k => k.kpi_key === currentKpiId);
-  const displayName = catalogEntry?.display_name || current?.label || currentKpiId;
-  const displayColor = catalogEntry?.color || current?.color;
 
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold bg-muted/50 hover:bg-muted border border-border/40 transition-colors"
-      >
-        {displayColor && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: displayColor }} />}
-        <span className="truncate max-w-[160px]">{displayName}</span>
-        <ChevronDown className="w-3 h-3 text-muted-foreground" />
-      </button>
-      <KpiSelectorModal
-        open={open}
-        onClose={() => setOpen(false)}
-        catalog={catalog}
-        selectedKeys={[currentKpiId]}
-        onConfirm={(keys) => {
-          if (keys.length > 0) onChange(keys[0]);
-        }}
-      />
-    </>
-  );
-};
 
 /* ── Main Component ── */
 interface Props {
@@ -247,13 +212,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
 
         return (
           <div key={slot.id} className="rounded-xl border border-border/60 bg-card p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <SlotKpiSelector
-                currentKpiId={slot.kpiId}
-                onChange={(kpiId) => onChangeSlotKpi(slot.id, kpiId)}
-                catalog={catalog}
-                allKpis={allKpis}
-              />
+             <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: def.color }} />
+                <span className="text-xs font-bold text-foreground truncate max-w-[200px]">{def.label}</span>
+              </div>
               <div className="flex items-center gap-1 ml-auto">
                 <span className="text-[10px] text-muted-foreground font-medium">{def.unit}</span>
                 <GraphSettingsPopover config={cfg} onChange={c => setConfig(slot.id, c)} />
