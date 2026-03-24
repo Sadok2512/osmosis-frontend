@@ -401,7 +401,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                           <span className="text-[10px] font-medium text-foreground truncate max-w-[150px]">{d.label}</span>
                         </div>
                         <button
-                          onClick={() => onChangeSlotKpi(slot.id, '')}
+                          onClick={() => onChangeSlotKpi(slot.id, kpiIds[i])}
                           className="text-muted-foreground hover:text-destructive"
                         >
                           <X className="w-3 h-3" />
