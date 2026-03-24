@@ -100,44 +100,89 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           );
         }
 
-        // Multi-KPI: build series for each kpiId
+        // Multi-KPI: build series — detect split data
         const defs = kpiIds.map((id, i) => {
           const d = getDef(id);
           return d || { id, label: id, unit: '', color: SERIES_COLORS[i % SERIES_COLORS.length], thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         });
+
+        // Check if data contains split values
+        const hasSplit = data.some(d => d.splitValue && d.splitValue !== 'ALL');
 
         // Collect all unique timestamps across all KPIs
         const allTimestamps = [...new Set(kpiIds.flatMap(id => data.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
 
         const seriesType = cfg.chartType === 'scatter' ? 'scatter' : cfg.chartType === 'bar' ? 'bar' : 'line';
 
-        const series = kpiIds.map((kpiId, i) => {
-          const def = defs[i];
-          const kpiData = data.filter(d => d.kpi === kpiId);
-          const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
-          const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
+        let series: any[];
 
-          return {
-            name: def.label,
-            type: seriesType as any,
-            data: values,
-            smooth: cfg.smooth,
-            symbol: cfg.showSymbols ? 'circle' : 'none',
-            symbolSize: cfg.showSymbols ? 5 : 0,
-            lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color: def.color } : undefined,
-            itemStyle: { color: def.color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
-            barMaxWidth: 20,
-            areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
-              color: {
-                type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                colorStops: [
-                  { offset: 0, color: `${def.color}20` },
-                  { offset: 1, color: `${def.color}02` },
-                ],
-              },
-            } : undefined,
-          };
-        });
+        if (hasSplit) {
+          // Build one series per kpiId × splitValue combination
+          let colorIdx = 0;
+          series = kpiIds.flatMap((kpiId, ki) => {
+            const def = defs[ki];
+            const kpiData = data.filter(d => d.kpi === kpiId && d.splitValue);
+            const splitValues = [...new Set(kpiData.map(d => d.splitValue!))];
+
+            return splitValues.map(sv => {
+              const color = SERIES_COLORS[colorIdx++ % SERIES_COLORS.length];
+              const svData = kpiData.filter(d => d.splitValue === sv);
+              const dataMap = new Map(svData.map(d => [d.timestamp, d.value]));
+              const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
+              const seriesName = kpiIds.length > 1 ? `${def.label} — ${sv}` : sv;
+
+              return {
+                name: seriesName,
+                type: seriesType as any,
+                data: values,
+                smooth: cfg.smooth,
+                symbol: cfg.showSymbols ? 'circle' : 'none',
+                symbolSize: cfg.showSymbols ? 5 : 0,
+                lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
+                itemStyle: { color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+                barMaxWidth: 20,
+                areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
+                  color: {
+                    type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+                    colorStops: [
+                      { offset: 0, color: `${color}20` },
+                      { offset: 1, color: `${color}02` },
+                    ],
+                  },
+                } : undefined,
+              };
+            });
+          });
+        } else {
+          // No split — one series per KPI (original logic)
+          series = kpiIds.map((kpiId, i) => {
+            const def = defs[i];
+            const kpiData = data.filter(d => d.kpi === kpiId);
+            const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
+            const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
+
+            return {
+              name: def.label,
+              type: seriesType as any,
+              data: values,
+              smooth: cfg.smooth,
+              symbol: cfg.showSymbols ? 'circle' : 'none',
+              symbolSize: cfg.showSymbols ? 5 : 0,
+              lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color: def.color } : undefined,
+              itemStyle: { color: def.color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+              barMaxWidth: 20,
+              areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
+                color: {
+                  type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+                  colorStops: [
+                    { offset: 0, color: `${def.color}20` },
+                    { offset: 1, color: `${def.color}02` },
+                  ],
+                },
+              } : undefined,
+            };
+          });
+        }
 
         // Build markLine data for jalons
         const markLineData = jalons
