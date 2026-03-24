@@ -23,11 +23,17 @@ const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec489
 /** Wrapper that uses replaceMerge so legend pagination state is preserved */
 const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }) => {
   const chartRef = useRef<any>(null);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     const instance = chartRef.current?.getEchartsInstance?.();
     if (instance) {
-      instance.setOption(option, { replaceMerge: ['series', 'yAxis'] });
+      if (!initializedRef.current) {
+        instance.setOption(option, true); // notMerge on first render
+        initializedRef.current = true;
+      } else {
+        instance.setOption(option, { replaceMerge: ['series', 'yAxis'] });
+      }
     }
   }, [option]);
 
@@ -35,8 +41,8 @@ const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }
     <ReactECharts
       ref={chartRef}
       option={option}
-      notMerge={true}
-      lazyUpdate={true}
+      notMerge={false}
+      lazyUpdate={false}
       style={{ height }}
     />
   );
