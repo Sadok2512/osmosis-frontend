@@ -143,8 +143,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const getKpiHasSplit = (kpiId: string) => {
           const perKpi = splitByPerKpi[kpiId];
           if (perKpi && perKpi !== 'None') return true;
-          // Legacy fallback: slot-level splitBy only if no per-KPI config exists
-          if (!perKpi && slot.splitBy && slot.splitBy !== 'None') return true;
           return false;
         };
 
