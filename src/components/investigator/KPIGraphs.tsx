@@ -118,7 +118,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
         return (
           <div
             key={slot.id}
-            onClick={() => onSlotClick?.(slot.id)}
+            onClick={(e) => {
+              // Don't select when clicking inside popovers or buttons
+              const target = e.target as HTMLElement;
+              if (target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
+              onSlotClick?.(slot.id);
+            }}
             className={cn(
               'rounded-xl border bg-card p-4 group relative cursor-pointer transition-all duration-300',
               isActive
