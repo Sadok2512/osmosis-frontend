@@ -4,7 +4,7 @@ import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
-import { InvestigationState, DataPoint, WorstElement } from './types';
+import { InvestigationState, DataPoint, WorstElement, GraphSlot } from './types';
 import { fetchTimeSeriesData, fetchWorstElements, fetchKpiDefinitions } from './investigatorApi';
 import { KPIS as FALLBACK_KPIS } from './mockData';
 import {
