@@ -5,6 +5,12 @@ export type SplitOption = string;  // Dynamic from backend: 'None' | 'SITE' | 'C
 
 export type ChartType = 'line' | 'area' | 'bar' | 'scatter';
 
+export interface YAxisConfig {
+  mode: 'auto' | 'manual';
+  min?: number;
+  max?: number;
+}
+
 export interface GraphConfig {
   chartType: ChartType;
   smooth: boolean;
@@ -13,6 +19,7 @@ export interface GraphConfig {
   showThresholds: boolean;
   showGrid: boolean;
   showArea: boolean;
+  yAxis?: YAxisConfig;
 }
 
 export const DEFAULT_GRAPH_CONFIG: GraphConfig = {

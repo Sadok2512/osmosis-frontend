@@ -598,6 +598,51 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       <Switch checked={cfg.showGrid} onCheckedChange={v => setSlotConfig({ showGrid: v })} className="scale-75" />
                     </div>
 
+                    {/* Y-Axis Settings */}
+                    <div className="space-y-1.5">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Axe Y</span>
+                      <div className="flex gap-1">
+                        {(['auto', 'manual'] as const).map(mode => (
+                          <button
+                            key={mode}
+                            onClick={() => setSlotConfig({ yAxis: { ...cfg.yAxis, mode } })}
+                            className={cn(
+                              'flex-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
+                              (cfg.yAxis?.mode || 'auto') === mode
+                                ? 'border-primary/40 bg-primary/10 text-primary'
+                                : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+                            )}
+                          >
+                            {mode === 'auto' ? 'Auto' : 'Manuel'}
+                          </button>
+                        ))}
+                      </div>
+                      {(cfg.yAxis?.mode === 'manual') && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] text-muted-foreground">Min</span>
+                            <input
+                              type="number"
+                              value={cfg.yAxis?.min ?? ''}
+                              onChange={e => setSlotConfig({ yAxis: { ...cfg.yAxis, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })}
+                              placeholder="Auto"
+                              className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono"
+                            />
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] text-muted-foreground">Max</span>
+                            <input
+                              type="number"
+                              value={cfg.yAxis?.max ?? ''}
+                              onChange={e => setSlotConfig({ yAxis: { ...cfg.yAxis, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })}
+                              placeholder="Auto"
+                              className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Split By */}
                     <div className="space-y-1">
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split By</span>
