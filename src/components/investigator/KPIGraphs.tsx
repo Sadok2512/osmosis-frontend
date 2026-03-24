@@ -110,52 +110,39 @@ const GraphSettingsPopover: React.FC<{ config: GraphConfig; onChange: (c: GraphC
   );
 };
 
-/* ── KPI Selector Dropdown for a slot ── */
+/* ── KPI Selector Button (opens KPI Monitor modal) ── */
 const SlotKpiSelector: React.FC<{
   currentKpiId: string;
   onChange: (kpiId: string) => void;
+  catalog: KpiCatalogEntry[];
   allKpis: KpiDefinition[];
-}> = ({ currentKpiId, onChange, allKpis }) => {
+}> = ({ currentKpiId, onChange, catalog, allKpis }) => {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
   const current = allKpis.find(k => k.id === currentKpiId);
+  const catalogEntry = catalog.find(k => k.kpi_key === currentKpiId);
+  const displayName = catalogEntry?.display_name || current?.label || currentKpiId;
+  const displayColor = catalogEntry?.color || current?.color;
 
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen(true)}
         className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold bg-muted/50 hover:bg-muted border border-border/40 transition-colors"
       >
-        {current && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: current.color }} />}
-        <span className="truncate max-w-[120px]">{current?.label || currentKpiId}</span>
+        {displayColor && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: displayColor }} />}
+        <span className="truncate max-w-[160px]">{displayName}</span>
         <ChevronDown className="w-3 h-3 text-muted-foreground" />
       </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 w-[220px] bg-popover border border-border rounded-lg shadow-xl z-50 max-h-[240px] overflow-auto p-1">
-          {allKpis.map(k => (
-            <button
-              key={k.id}
-              onClick={() => { onChange(k.id); setOpen(false); }}
-              className={cn(
-                'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors text-left',
-                k.id === currentKpiId ? 'bg-primary/10 text-primary' : 'hover:bg-muted text-foreground'
-              )}
-            >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: k.color }} />
-              <span className="truncate">{k.label}</span>
-              <span className="ml-auto text-[9px] text-muted-foreground">{k.unit}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      <KpiSelectorModal
+        open={open}
+        onClose={() => setOpen(false)}
+        catalog={catalog}
+        selectedKeys={[currentKpiId]}
+        onConfirm={(keys) => {
+          if (keys.length > 0) onChange(keys[0]);
+        }}
+      />
+    </>
   );
 };
 
