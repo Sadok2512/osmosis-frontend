@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
-import { InvestigationState, Dimension, SplitOption, Granularity } from './types';
+import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot } from './types';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
@@ -9,6 +9,9 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
+import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
+import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
+import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 
 interface Props {
   state: InvestigationState;
