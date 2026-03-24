@@ -201,6 +201,15 @@ const FilterValuesList: React.FC<{ dim: string; onSelect: (val: string) => void;
 
 /* ── Main Control Panel ── */
 const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
+  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
+  const [kpiDefs, setKpiDefs] = useState<KpiDefinition[]>(FALLBACK_KPIS);
+  const [selectorOpen, setSelectorOpen] = useState<string | null>(null); // slot id or 'new'
+
+  useEffect(() => {
+    fetchKpiCatalogFromDB().then(c => { if (c.length > 0) setCatalog(c); }).catch(() => {});
+    fetchKpiDefinitions().then(k => { if (k.length > 0) setKpiDefs(k); }).catch(() => {});
+  }, []);
+
   const applyPeriod = (days: number) => {
     const end = new Date();
     const start = new Date();
