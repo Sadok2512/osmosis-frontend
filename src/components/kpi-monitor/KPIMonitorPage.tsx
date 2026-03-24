@@ -588,12 +588,12 @@ const KPIMonitorInner: React.FC = () => {
 
   const renderWidget = (w: WidgetItem) => {
     const wId = getId(w);
-    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { store.setActiveEditingWidgetId(wId); setShowAI(false); }} onDuplicate={editMode ? () => duplicateWidget(wId) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
-    if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={editMode ? cfg => updateMapConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
-    if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={editMode ? cfg => updateImageConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
-    if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={editMode ? cfg => updateTableConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} onEdit={editMode ? () => { setEditingId(wId); } : undefined} />;
-    if (w.kind === 'kpicard') return <BIKpiCardWidget config={w.config as KpiCardWidgetConfig} onChange={editMode ? cfg => updateKpiCardConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
-    return <BITextWidget config={w.config as TextWidgetConfig} onChange={editMode ? cfg => updateTextConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
+    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { store.setActiveEditingWidgetId(wId); setShowAI(false); }} onDuplicate={() => duplicateWidget(wId)} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
+    if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={cfg => updateMapConfig(wId, cfg)} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
+    if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={cfg => updateImageConfig(wId, cfg)} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
+    if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={cfg => updateTableConfig(wId, cfg)} onDelete={editMode ? () => deleteWidget(wId) : undefined} onEdit={() => { setEditingId(wId); }} />;
+    if (w.kind === 'kpicard') return <BIKpiCardWidget config={w.config as KpiCardWidgetConfig} onChange={cfg => updateKpiCardConfig(wId, cfg)} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
+    return <BITextWidget config={w.config as TextWidgetConfig} onChange={cfg => updateTextConfig(wId, cfg)} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
   };
 
   const canvasBg = dashSettingsStore.getSettings(dm.activeTabId, dm.activeTab?.name).theme.backgroundColor;
