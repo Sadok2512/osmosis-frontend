@@ -589,10 +589,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           onConfirm={(keys) => {
             if (keys.length === 0) return;
             if (selectorOpen === 'new') {
+              const newId = `slot-${Date.now()}`;
               setState(prev => {
                 const nextIndex = prev.graphSlots.length + 1;
                 const newSlot: GraphSlot = {
-                  id: `slot-${Date.now()}`,
+                  id: newId,
                   kpiId: keys[0],
                   name: `Graph ${nextIndex}`,
                   filters: {},
@@ -603,11 +604,13 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 };
                 return { ...prev, graphSlots: [...prev.graphSlots, newSlot] };
               });
+              onSlotClick?.(newId);
             } else if (selectorOpen) {
               setState(prev => ({
                 ...prev,
                 graphSlots: prev.graphSlots.map(s => s.id === selectorOpen ? { ...s, kpiId: keys[0] } : s),
               }));
+              onSlotClick?.(selectorOpen);
             }
             handleSelectorClose();
           }}
