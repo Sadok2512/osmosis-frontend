@@ -273,20 +273,23 @@ const EChartsTimeSeries: React.FC<Props> = ({
       series,
     };
 
-    // Weekend shading via markArea on first series
-    if (series.length > 0 && allTs.length > 0) {
+    // Weekend shading via markArea on first series (respects calendar config)
+    const calendarCfg = gc?.calendar;
+    const showWeekends = calendarCfg?.highlightWeekends !== false; // default true
+    if (showWeekends && series.length > 0 && allTs.length > 0) {
+      const wColor = calendarCfg?.weekendColor || '#94a3b8';
+      const wOpacity = (calendarCfg?.weekendOpacity ?? 10) / 100;
       const weekendAreas: any[] = [];
       for (let idx = 0; idx < allTs.length; idx++) {
         const d = new Date(allTs[idx]);
         const day = d.getUTCDay();
         if (day === 0 || day === 6) {
           weekendAreas.push([
-            { xAxis: allTs[idx], itemStyle: { color: 'rgba(148,163,184,0.10)' } },
+            { xAxis: allTs[idx], itemStyle: { color: wColor.startsWith('#') ? `${wColor}${Math.round(wOpacity * 255).toString(16).padStart(2, '0')}` : `rgba(148,163,184,${wOpacity})` } },
             { xAxis: allTs[idx] },
           ]);
         }
       }
-      // Merge consecutive weekend days
       const merged: any[] = [];
       for (const area of weekendAreas) {
         const last = merged[merged.length - 1];
