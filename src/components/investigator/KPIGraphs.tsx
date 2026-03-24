@@ -160,9 +160,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
   const chartHeight = layout === 1 ? 400 : layout === 4 ? 220 : 280;
   const [configs, setConfigs] = useState<Record<string, GraphConfig>>({});
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
+  const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
 
   useEffect(() => {
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
+    fetchKpiCatalogFromDB().then(c => { if (c.length > 0) setCatalog(c); }).catch(() => {});
   }, []);
 
   const getConfig = (slotId: string): GraphConfig => configs[slotId] || DEFAULT_CONFIG;
