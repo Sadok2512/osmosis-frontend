@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
-import { KPI_MAP, generateHistogramData } from './mockData';
+import { KPI_MAP } from './mockData';
+import { fetchHistogramData } from './investigatorApi';
 
 interface Props {
   selectedKpis: string[];
@@ -9,13 +10,22 @@ interface Props {
 
 const KPIHistogram: React.FC<Props> = ({ selectedKpis, layout }) => {
   const cols = layout === 1 ? 1 : 2;
+  const [histData, setHistData] = React.useState<Record<string, any[]>>({});
+
+  React.useEffect(() => {
+    selectedKpis.forEach(kpiId => {
+      fetchHistogramData(kpiId).then(bins => {
+        setHistData(prev => ({ ...prev, [kpiId]: bins }));
+      }).catch(() => {});
+    });
+  }, [selectedKpis]);
 
   return (
     <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
       {selectedKpis.map(kpiId => {
         const def = KPI_MAP[kpiId];
-        if (!def) return null;
-        const bins = generateHistogramData(kpiId);
+        const bins = histData[kpiId] || [];
+        if (!def && bins.length === 0) return null;
 
         const option = {
           grid: { top: 30, right: 20, bottom: 36, left: 50 },

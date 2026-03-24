@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
-import { KPI_MAP, generateBreakdownData } from './mockData';
+import { KPI_MAP } from './mockData';
+import { fetchBreakdownData } from './investigatorApi';
 
 interface Props {
   selectedKpis: string[];
@@ -9,13 +10,22 @@ interface Props {
 
 const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout }) => {
   const cols = layout === 1 ? 1 : 2;
+  const [breakData, setBreakData] = React.useState<Record<string, any[]>>({});
+
+  React.useEffect(() => {
+    selectedKpis.forEach(kpiId => {
+      fetchBreakdownData(kpiId).then(slices => {
+        setBreakData(prev => ({ ...prev, [kpiId]: slices }));
+      }).catch(() => {});
+    });
+  }, [selectedKpis]);
 
   return (
     <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
       {selectedKpis.map(kpiId => {
         const def = KPI_MAP[kpiId];
-        if (!def) return null;
-        const slices = generateBreakdownData(kpiId);
+        const slices = breakData[kpiId] || [];
+        if (!def && slices.length === 0) return null;
 
         const option = {
           tooltip: {

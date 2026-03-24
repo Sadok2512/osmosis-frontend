@@ -5,7 +5,8 @@ import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
 import { InvestigationState, DataPoint, WorstElement } from './types';
-import { generateTimeSeriesData, generateWorstElements } from './mockData';
+import { fetchTimeSeriesData, fetchWorstElements, fetchKpiDefinitions } from './investigatorApi';
+import { KPIS as FALLBACK_KPIS } from './mockData';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
@@ -32,14 +33,49 @@ const InvestigatorPage: React.FC = () => {
   const [worstElements, setWorstElements] = useState<WorstElement[]>([]);
   const [isApplying, setIsApplying] = useState(false);
 
-  const handleApply = () => {
+  const handleApply = async () => {
     setIsApplying(true);
-    setTimeout(() => {
-      setTsData(generateTimeSeriesData(state.selectedKpis));
-      setWorstElements(generateWorstElements(state.selectedKpis[0] || '4G_LTE_DCR', state.topLimit));
-      setIsApplying(false);
-    }, 600);
+    try {
+      const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
+      const splitMap: Record<string, string> = { 'None': '', 'Vendor': 'Vendor', 'Technology': 'TECHNO', 'Band': 'BAND', 'DOR': 'DOR', 'DR': 'DOR' };
+
+      const [ts, worst] = await Promise.all([
+        fetchTimeSeriesData(
+          state.selectedKpis,
+          state.startDate.split('T')[0] || '2026-01-14',
+          state.endDate.split('T')[0] || '2026-03-14',
+          granMap[state.granularity] || '1h',
+          splitMap[state.splitBy] || undefined,
+        ),
+        fetchWorstElements(
+          state.selectedKpis[0] || 'dcr',
+          state.topLimit,
+          state.endDate.split('T')[0] || undefined,
+          state.dimension === 'Cell' ? 'cell' : 'site',
+        ),
+      ]);
+      setTsData(ts);
+      setWorstElements(worst);
+    } catch (e) {
+      console.error('[Investigator] API error, using fallback:', e);
+    }
+    setIsApplying(false);
   };
+
+  // Load KPI definitions from backend
+  useEffect(() => {
+    fetchKpiDefinitions().then(kpis => {
+      if (kpis.length > 0) {
+        // Update initial selection with real KPI codes
+        setState(prev => ({
+          ...prev,
+          selectedKpis: kpis.slice(0, 2).map(k => k.id),
+          startDate: '2026-01-14',
+          endDate: '2026-03-14',
+        }));
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => { handleApply(); }, []);
 
