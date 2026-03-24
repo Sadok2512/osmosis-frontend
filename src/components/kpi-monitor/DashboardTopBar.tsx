@@ -307,18 +307,19 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
                 onChange={e => dm.activeTab && dm.updateDescription(dm.activeTab.id, e.target.value)}
                 className="text-[10px] text-muted-foreground bg-transparent border-none outline-none w-[140px] placeholder:text-muted-foreground/40"
               />
-              <button onClick={() => dm.activeTab && dm.toggleShared(dm.activeTab.id)}
-                className={`inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${
+              <span
+                className={`inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border cursor-default ${
                   dm.activeTab?.isShared
-                    ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
-                    : 'bg-muted/50 text-muted-foreground border-border/50 hover:bg-muted'
+                    ? 'bg-primary/10 text-primary border-primary/20'
+                    : 'bg-muted/50 text-muted-foreground border-border/50'
                 }`}
+                title="Configurable dans Settings"
               >
                 {dm.activeTab?.isShared
                   ? <><Globe className="w-2.5 h-2.5" /> Public</>
                   : <><Lock className="w-2.5 h-2.5" /> Privé</>
                 }
-              </button>
+              </span>
             </div>
           </div>
         </div>
