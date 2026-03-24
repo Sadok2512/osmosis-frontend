@@ -584,10 +584,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           onClose={handleSelectorClose}
           catalog={catalog}
           selectedKeys={selectorOpen && selectorOpen !== 'new'
-            ? (() => {
-                const currentKpiId = state.graphSlots.find(s => s.id === selectorOpen)?.kpiId;
-                return currentKpiId ? [currentKpiId] : [];
-              })()
+            ? (state.graphSlots.find(s => s.id === selectorOpen)?.kpiIds || [])
             : []}
           onConfirm={(keys) => {
             const validKeys = keys.filter(Boolean);
@@ -598,7 +595,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 const nextIndex = prev.graphSlots.length + 1;
                 const newSlot: GraphSlot = {
                   id: newId,
-                  kpiId: validKeys[0],
+                  kpiIds: validKeys,
                   name: `Graph ${nextIndex}`,
                   filters: {},
                   startDate: '',
@@ -612,7 +609,12 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             } else if (selectorOpen) {
               setState(prev => ({
                 ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === selectorOpen ? { ...s, kpiId: validKeys[0] } : s),
+                graphSlots: prev.graphSlots.map(s => {
+                  if (s.id !== selectorOpen) return s;
+                  // Merge: add new keys that aren't already present
+                  const merged = [...new Set([...s.kpiIds, ...validKeys])];
+                  return { ...s, kpiIds: merged };
+                }),
               }));
               onSlotClick?.(selectorOpen);
             }
