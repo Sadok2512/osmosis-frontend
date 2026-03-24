@@ -439,30 +439,28 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           {/* L/R Y-axis toggle */}
-                          {kpiIds.length > 1 && (
-                            <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
-                              <button
-                                onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kpiIds[i]]: 0 } })}
-                                className={cn(
-                                  'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
-                                  (cfg.yAxisAssignments?.[kpiIds[i]] || 0) === 0
-                                    ? 'bg-primary/20 text-primary'
-                                    : 'text-muted-foreground hover:text-foreground'
-                                )}
-                                title="Left Y-axis"
-                              >L</button>
-                              <button
-                                onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kpiIds[i]]: 1 } })}
-                                className={cn(
-                                  'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
-                                  cfg.yAxisAssignments?.[kpiIds[i]] === 1
-                                    ? 'bg-primary/20 text-primary'
-                                    : 'text-muted-foreground hover:text-foreground'
-                                )}
-                                title="Right Y-axis"
-                              >R</button>
-                            </div>
-                          )}
+                          <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
+                            <button
+                              onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kpiIds[i]]: 0 } })}
+                              className={cn(
+                                'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
+                                (cfg.yAxisAssignments?.[kpiIds[i]] || 0) === 0
+                                  ? 'bg-primary/20 text-primary'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              )}
+                              title="Left Y-axis"
+                            >L</button>
+                            <button
+                              onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kpiIds[i]]: 1 } })}
+                              className={cn(
+                                'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
+                                cfg.yAxisAssignments?.[kpiIds[i]] === 1
+                                  ? 'bg-primary/20 text-primary'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              )}
+                              title="Right Y-axis"
+                            >R</button>
+                          </div>
                           <button
                             onClick={() => onChangeSlotKpi(slot.id, kpiIds[i])}
                             className="text-muted-foreground hover:text-destructive"
