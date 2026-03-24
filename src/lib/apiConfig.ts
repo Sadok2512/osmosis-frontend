@@ -116,7 +116,7 @@ export function getApiUrl(functionName: string): string {
       return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
     }
     // Topo/data endpoints → Parser :8000 with /api/v1/ prefix
-    const parserPrefixes = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range', 'sentinel'];
+    const parserPrefixes = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range', 'sentinel', 'monitor'];
     const isParser = parserPrefixes.some(p => clean.startsWith(p));
     if (isParser) {
       return getVpsProxyUrl('parser', `/api/v1/${clean}`);
