@@ -458,6 +458,73 @@ const EChartsTimeSeries: React.FC<Props> = ({
 
   const bgStyle = gc?.backgroundColor && gc.backgroundColor !== 'transparent' ? { backgroundColor: gc.backgroundColor } : undefined;
   const titleColor = (gc as any)?.titleColor;
+  const customTitle = (gc as any)?.customTitle;
+  const displayTitle = customTitle || headerTitle;
+
+  const TITLE_COLORS = ['#000000', '#ffffff', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#6366f1'];
+  const BG_COLORS = ['transparent', '#ffffff', '#0f172a', '#f8fafc', '#f0fdf4', '#eff6ff', '#fefce8', '#fdf2f8'];
+
+  const titlePopover = (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="text-[13px] font-semibold truncate tracking-tight hover:underline hover:decoration-primary/40 transition-all cursor-pointer text-left"
+          style={titleColor ? { color: titleColor } : undefined}
+          onMouseDown={stopDrag}
+          title="Click to edit title & colors"
+        >
+          {displayTitle}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[240px] p-3 space-y-3" align="start" onMouseDown={stopDrag}>
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Widget Appearance</div>
+        {/* Title */}
+        <div className="space-y-1">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase">Title</span>
+          <Input
+            value={customTitle || ''}
+            placeholder={headerTitle}
+            onChange={e => onGraphConfigChange?.({ ...(gc || {} as any), customTitle: e.target.value || undefined } as any)}
+            className="h-7 text-xs"
+          />
+        </div>
+        {/* Title Color */}
+        <div className="space-y-1">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase">Title Color</span>
+          <div className="flex gap-1 flex-wrap">
+            {TITLE_COLORS.map(c => (
+              <button key={c} onClick={() => onGraphConfigChange?.({ ...(gc || {} as any), titleColor: c } as any)}
+                className={cn('w-5 h-5 rounded-md border-2 transition-all', titleColor === c ? 'border-foreground scale-110' : 'border-border/40')}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+            {titleColor && (
+              <button onClick={() => onGraphConfigChange?.({ ...(gc || {} as any), titleColor: undefined } as any)}
+                className="px-1.5 py-0.5 rounded-md text-[9px] text-muted-foreground border border-border/40 hover:bg-muted/50">
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+        {/* Background Color */}
+        <div className="space-y-1">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase">Background</span>
+          <div className="flex gap-1 flex-wrap">
+            {BG_COLORS.map(c => (
+              <button key={c} onClick={() => onGraphConfigChange?.({ ...(gc || {} as any), backgroundColor: c, transparentBg: c === 'transparent' } as any)}
+                className={cn(
+                  'w-5 h-5 rounded-md border-2 transition-all',
+                  (gc?.backgroundColor || 'transparent') === c ? 'border-foreground scale-110' : 'border-border/40',
+                  c === 'transparent' && 'bg-[repeating-conic-gradient(#ddd_0_25%,transparent_0_50%)] bg-[length:8px_8px]'
+                )}
+                style={c !== 'transparent' ? { backgroundColor: c } : undefined}
+              />
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 
   return (
     <>
@@ -466,7 +533,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
           <div className="flex items-center gap-2 min-w-0 flex-1 drag-handle cursor-grab active:cursor-grabbing">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: headerColor }} />
-            <h3 className="text-[13px] font-semibold truncate tracking-tight" style={titleColor ? { color: titleColor } : undefined}>{headerTitle}</h3>
+            {titlePopover}
             <span className="text-[10px] text-muted-foreground font-medium">{headerUnit}</span>
           </div>
           {actionsMenu(false)}
