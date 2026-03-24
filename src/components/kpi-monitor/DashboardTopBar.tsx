@@ -327,23 +327,24 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
 
         {/* RIGHT: Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          {editMode && (
-            <div className="flex items-center gap-0 rounded-lg border border-border bg-muted/30 p-1">
-              {[
-                { icon: Plus, label: 'Chart', onClick: onAddChart },
-                { icon: MapIcon, label: 'Map', onClick: onAddMap },
-                { icon: Table2, label: 'Table', onClick: onAddTable },
-                { icon: Activity, label: 'KPI', onClick: onAddKpiCard },
-                { icon: Type, label: 'Txt', onClick: onAddText },
-                { icon: ImageIcon, label: 'Img', onClick: onAddImage },
-              ].map(btn => (
-                <button key={btn.label} onClick={btn.onClick}
-                  className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-card hover:text-foreground transition-all"
-                ><btn.icon className="w-4 h-4" /> {btn.label}</button>
-              ))}
-            </div>
-          )}
-          {editMode && <div className="w-px h-6 bg-primary/60 mx-1" />}
+          <div className={cn(
+            "flex items-center gap-0 rounded-lg border bg-muted/30 p-1 transition-opacity",
+            editMode ? "border-primary/50 opacity-100" : "border-border opacity-50 pointer-events-none"
+          )}>
+            {[
+              { icon: Plus, label: 'Chart', onClick: onAddChart },
+              { icon: MapIcon, label: 'Map', onClick: onAddMap },
+              { icon: Table2, label: 'Table', onClick: onAddTable },
+              { icon: Activity, label: 'KPI', onClick: onAddKpiCard },
+              { icon: Type, label: 'Txt', onClick: onAddText },
+              { icon: ImageIcon, label: 'Img', onClick: onAddImage },
+            ].map(btn => (
+              <button key={btn.label} onClick={btn.onClick}
+                className="flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-card hover:text-foreground transition-all"
+              ><btn.icon className="w-4 h-4" /> {btn.label}</button>
+            ))}
+          </div>
+          <div className="w-px h-6 bg-primary/60 mx-1" />
           <button onClick={onToggleEditMode}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
               editMode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
