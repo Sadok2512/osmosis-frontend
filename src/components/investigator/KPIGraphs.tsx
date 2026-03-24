@@ -106,11 +106,20 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           return d || { id, label: id, unit: '', color: SERIES_COLORS[i % SERIES_COLORS.length], thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         });
 
-        // Check if data contains split values
-        const hasSplit = data.some(d => d.splitValue && d.splitValue !== 'ALL');
+        // Filter data to only this slot's KPIs
+        const slotData = data.filter(d => kpiIds.includes(d.kpi));
+
+        // Check if THIS slot's split is active (not global)
+        const slotSplitBy = slot.splitBy;
+        const hasSplit = slotSplitBy && slotSplitBy !== 'None' && slotData.some(d => d.splitValue && d.splitValue !== 'ALL');
+
+        // When no split, filter OUT split entries to avoid stale data showing
+        const effectiveData = hasSplit
+          ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
+          : slotData.filter(d => !d.splitValue || d.splitValue === 'ALL');
 
         // Collect all unique timestamps across all KPIs
-        const allTimestamps = [...new Set(kpiIds.flatMap(id => data.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
+        const allTimestamps = [...new Set(kpiIds.flatMap(id => effectiveData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
 
         const seriesType = cfg.chartType === 'scatter' ? 'scatter' : cfg.chartType === 'bar' ? 'bar' : 'line';
 
@@ -121,7 +130,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           let colorIdx = 0;
           series = kpiIds.flatMap((kpiId, ki) => {
             const def = defs[ki];
-            const kpiData = data.filter(d => d.kpi === kpiId && d.splitValue);
+            const kpiData = effectiveData.filter(d => d.kpi === kpiId && d.splitValue);
             const splitValues = [...new Set(kpiData.map(d => d.splitValue!))];
 
             return splitValues.map(sv => {
@@ -157,7 +166,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           // No split — one series per KPI (original logic)
           series = kpiIds.map((kpiId, i) => {
             const def = defs[i];
-            const kpiData = data.filter(d => d.kpi === kpiId);
+            const kpiData = effectiveData.filter(d => d.kpi === kpiId);
             const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
             const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
 
