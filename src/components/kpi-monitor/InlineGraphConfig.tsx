@@ -142,6 +142,134 @@ const AxisBadge: React.FC<{ side: 'left' | 'right'; onClick: () => void }> = ({ 
   </button>
 );
 
+/* ── Chart Configuration Section (matching reference design) ── */
+const ChartConfigSection: React.FC<{
+  graph: WidgetGraphConfig;
+  setGraphD: (u: Partial<WidgetGraphConfig>) => void;
+  gridCfg: { enabled: boolean; opacity: number; type: 'horizontal' | 'vertical' | 'both' };
+  setGridCfg: (u: Partial<{ enabled: boolean; opacity: number; type: 'horizontal' | 'vertical' | 'both' }>) => void;
+}> = ({ graph, setGraphD, gridCfg, setGridCfg }) => {
+  const [open, setOpen] = useState(true);
+  const currentType = graph.chartType || 'line';
+
+  return (
+    <SectionCard
+      icon={<Settings2 className="w-4 h-4" />}
+      title="Chart Configuration"
+      open={open}
+      onToggle={() => setOpen(!open)}
+    >
+      {/* TYPE selector tabs */}
+      <div className="space-y-1">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Type</span>
+        <div className="flex rounded-lg border border-border/30 overflow-hidden">
+          {GRAPH_TYPES.map(g => (
+            <button
+              key={g.value}
+              onClick={() => setGraphD({ chartType: g.value } as any)}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1 py-2 text-[10px] font-medium transition-colors border-r border-border/20 last:border-0',
+                currentType === g.value
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+              )}
+            >
+              <g.icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{g.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Smooth Curve */}
+      <div className="flex items-center justify-between py-2.5">
+        <span className="text-[11px] font-medium text-foreground">Smooth Curve</span>
+        <Switch checked={graph.smooth} onCheckedChange={v => setGraphD({ smooth: v })} className="h-5 w-9 data-[state=checked]:bg-primary" />
+      </div>
+
+      {/* Line Width */}
+      <div className="flex items-center justify-between py-2.5">
+        <span className="text-[11px] font-medium text-foreground">Line Width</span>
+        <div className="flex items-center gap-2.5">
+          <Slider
+            min={0.5} max={6} step={0.5}
+            value={[graph.lineWidth]}
+            onValueChange={([v]) => setGraphD({ lineWidth: v })}
+            className="w-[100px]"
+          />
+          <span className="text-[10px] text-muted-foreground w-[32px] text-right font-medium">{graph.lineWidth}px</span>
+        </div>
+      </div>
+
+      {/* Show Markers */}
+      <div className="flex items-center justify-between py-2.5">
+        <span className="text-[11px] font-medium text-foreground">Show Markers</span>
+        <Switch checked={graph.showSymbols} onCheckedChange={v => setGraphD({ showSymbols: v })} className="h-5 w-9 data-[state=checked]:bg-primary" />
+      </div>
+
+      {/* Show Legend */}
+      <div className="flex items-center justify-between py-2.5">
+        <span className="text-[11px] font-medium text-foreground">Show Legend</span>
+        <Switch checked={graph.showLegend} onCheckedChange={v => setGraphD({ showLegend: v })} className="h-5 w-9 data-[state=checked]:bg-primary" />
+      </div>
+
+      {/* GRID sub-section */}
+      <div className="border-t border-border/20 pt-3 mt-1 space-y-2">
+        <div className="flex items-center gap-2">
+          <Grid3X3 className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Grid</span>
+        </div>
+
+        {/* Grid Lines toggle */}
+        <div className="flex items-center justify-between py-2">
+          <span className="text-[11px] font-medium text-foreground">Grid Lines</span>
+          <Switch checked={gridCfg.enabled} onCheckedChange={v => setGridCfg({ enabled: v })} className="h-5 w-9 data-[state=checked]:bg-primary" />
+        </div>
+
+        {gridCfg.enabled && (
+          <>
+            {/* Opacity */}
+            <div className="flex items-center justify-between py-2">
+              <span className="text-[11px] font-medium text-foreground">Opacity</span>
+              <div className="flex items-center gap-2.5">
+                <Slider
+                  min={0} max={100} step={5}
+                  value={[gridCfg.opacity]}
+                  onValueChange={([v]) => setGridCfg({ opacity: v })}
+                  className="w-[100px]"
+                />
+                <span className="text-[10px] text-muted-foreground w-[32px] text-right font-medium">{gridCfg.opacity}%</span>
+              </div>
+            </div>
+
+            {/* Grid type: horizontal / vertical / both */}
+            <div className="flex rounded-lg border border-border/30 overflow-hidden">
+              {[
+                { value: 'horizontal', label: 'horizontal' },
+                { value: 'vertical', label: 'vertical' },
+                { value: 'both', label: 'both' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setGridCfg({ type: opt.value as any })}
+                  className={cn(
+                    'flex-1 py-2 text-[10px] font-medium transition-colors border-r border-border/20 last:border-0',
+                    gridCfg.type === opt.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </SectionCard>
+  );
+};
+
 /* ════════════════════════════════════════════════════════════════
    SIDEBAR CONFIG PANEL — Redesigned: KPI Explainability style
    ════════════════════════════════════════════════════════════════ */
