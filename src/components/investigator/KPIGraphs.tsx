@@ -26,6 +26,8 @@ interface Props {
   onRemoveSlot: (slotId: string) => void;
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onOpenKpiSelector: (slotId: string) => void;
+  activeSlotId?: string | null;
+  onSlotClick?: (slotId: string) => void;
 }
 
 const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi, onRemoveSlot, onUpdateSlotConfig, onOpenKpiSelector }) => {
