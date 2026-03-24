@@ -705,41 +705,14 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
             )}
           </SectionCard>
 
-          {/* ── GRILLE & WEEKENDS ── */}
+          {/* ── WEEKENDS ── */}
           <SectionCard
-            icon={<Grid3X3 className="w-4 h-4" />}
-            title="Grille & Weekends"
+            icon={<Calendar className="w-4 h-4" />}
+            title="Weekends"
             open={gridCalOpen}
             onToggle={() => setGridCalOpen(!gridCalOpen)}
           >
-            {/* Grid */}
             <div className="rounded-lg border border-border/20 bg-background/40 p-3 space-y-1">
-              <SmallToggle label="Afficher la grille" checked={gridCfg.enabled} onChange={v => setGridCfg({ enabled: v })} />
-              {gridCfg.enabled && (
-                <>
-                  <FieldRow label="Opacité">
-                    <div className="flex items-center gap-2">
-                      <Slider min={0} max={100} step={5} value={[gridCfg.opacity]} onValueChange={([v]) => setGridCfg({ opacity: v })} className="w-[80px]" />
-                      <span className="text-[9px] text-muted-foreground w-[28px] text-right">{gridCfg.opacity}%</span>
-                    </div>
-                  </FieldRow>
-                  <FieldRow label="Type">
-                    <SmallSelect value={gridCfg.type} options={[
-                      { value: 'horizontal', label: 'Horizontal' },
-                      { value: 'vertical', label: 'Vertical' },
-                      { value: 'both', label: 'Les deux' },
-                    ]} onChange={v => setGridCfg({ type: v as any })} className="w-[90px]" />
-                  </FieldRow>
-                </>
-              )}
-            </div>
-
-            {/* Weekends */}
-            <div className="rounded-lg border border-border/20 bg-background/40 p-3 space-y-1 mt-2">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-[10px] font-semibold text-foreground/80">Weekends</span>
-              </div>
               <SmallToggle label="Highlight weekends" checked={calCfg.highlightWeekends} onChange={v => setCalCfg({ highlightWeekends: v })} />
               {calCfg.highlightWeekends && (
                 <>
@@ -758,6 +731,10 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                           style={{ backgroundColor: c }} />
                       ))}
                     </div>
+                  </FieldRow>
+                </>
+              )}
+            </div>
                   </FieldRow>
                 </>
               )}
