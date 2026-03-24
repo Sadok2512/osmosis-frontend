@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType } from './types';
+import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon } from './types';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
