@@ -70,10 +70,11 @@ const InvestigatorPage: React.FC = () => {
   useEffect(() => {
     fetchKpiDefinitions().then(kpis => {
       if (kpis.length > 0) {
-        // Update initial selection with real KPI codes
+        const ids = kpis.slice(0, 2).map(k => k.id);
         setState(prev => ({
           ...prev,
-          selectedKpis: kpis.slice(0, 2).map(k => k.id),
+          selectedKpis: ids,
+          graphSlots: ids.map((id, i) => ({ id: `slot-${i + 1}`, kpiId: id })),
           startDate: '2026-01-14',
           endDate: '2026-03-14',
         }));
