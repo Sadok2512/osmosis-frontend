@@ -28,14 +28,22 @@ export function parseKpiBlocks(text: string): ParsedKpiBlock[] {
   const lines = text.split('\n');
   let i = 0;
 
-  while (i < lines.length) {
-    const line = lines[i];
+  // Flexible regex: bullet may be •, -, *, or absent (after HTML strip); bold markers optional
+  const kpiLineTest = /(?:[•\-\*]\s*)?(?:\*{0,2})([\w][\w.]*?)(?:\*{0,2})\s*:\s*avg\s*=\s*/i;
+  const kpiCapture = /(?:[•\-\*]\s*)?(?:\*{0,2})([\w][\w.]*?)(?:\*{0,2})\s*:\s*avg\s*=\s*([\d.]+)\s*\|?\s*min\s*=\s*([\d.]+)\s*\|?\s*max\s*=\s*([\d.]+)/i;
+  const splitHeaderRe = /(?:[📊📈🔍]\s*)?\**\s*Split\s+par\s+([\w\s/]+?)\s*\**/i;
+  const splitEntryRe = /(?:[•\-\*]\s*)?(?:\*{0,2})(.+?)(?:\*{0,2})\s*:\s*avg\s*=\s*([\d.]+)(?:\s*\((\d+)\s*points?\))?/i;
 
-    // Detect KPI summary: "• kpi_key: avg=X | min=Y | max=Z"
-    if (/[•\-\*]\s*\*{0,2}[\w]+\*{0,2}\s*:\s*avg\s*=/.test(line)) {
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line) { i++; continue; }
+
+    // Detect KPI summary line(s)
+    if (kpiLineTest.test(line)) {
       const summaries: KpiSummary[] = [];
       while (i < lines.length) {
-        const m = lines[i].match(/[•\-\*]\s*\*{0,2}([\w]+)\*{0,2}\s*:\s*avg\s*=\s*([\d.]+)\s*\|\s*min\s*=\s*([\d.]+)\s*\|\s*max\s*=\s*([\d.]+)/);
+        const trimmed = lines[i].trim();
+        const m = trimmed.match(kpiCapture);
         if (!m) break;
         summaries.push({ kpiKey: m[1], avg: parseFloat(m[2]), min: parseFloat(m[3]), max: parseFloat(m[4]) });
         i++;
@@ -43,14 +51,16 @@ export function parseKpiBlocks(text: string): ParsedKpiBlock[] {
       if (summaries.length > 0) { blocks.push({ type: 'kpi_summary', summaries }); continue; }
     }
 
-    // Detect split section: "Split par DOR"
-    const splitMatch = line.match(/(?:📊|📈|🔍)?\s*\**Split\s+par\s+([\w\s]+?)\**/i);
+    // Detect split section header
+    const splitMatch = line.match(splitHeaderRe);
     if (splitMatch) {
       const dimension = splitMatch[1].trim();
       i++;
       const entries: SplitEntry[] = [];
       while (i < lines.length) {
-        const em = lines[i].match(/[•\-\*]\s*\*{0,2}(.+?)\*{0,2}\s*:\s*avg\s*=\s*([\d.]+)(?:\s*\((\d+)\s*points?\))?/);
+        const trimmed = lines[i].trim();
+        if (!trimmed) { i++; continue; }
+        const em = trimmed.match(splitEntryRe);
         if (!em) break;
         entries.push({ label: em[1].trim(), avg: parseFloat(em[2]), count: em[3] ? parseInt(em[3]) : undefined });
         i++;
@@ -60,8 +70,8 @@ export function parseKpiBlocks(text: string): ParsedKpiBlock[] {
 
     // Markdown accumulation
     const last = blocks[blocks.length - 1];
-    if (last?.type === 'markdown') { last.content += '\n' + line; }
-    else { blocks.push({ type: 'markdown', content: line }); }
+    if (last?.type === 'markdown') { last.content += '\n' + lines[i]; }
+    else { blocks.push({ type: 'markdown', content: lines[i] }); }
     i++;
   }
   return blocks;
