@@ -81,7 +81,7 @@ interface Props {
 
 const KpiWidgetCard: React.FC<Props> = ({
   config, catalog, catalogMap, isSelected, editMode,
-  onSelect, onDuplicate, onDelete, onUpdateConfig,
+  onSelect, onDuplicate, onDelete, onUpdateConfig, jalons = [],
 }) => {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(config.title);
