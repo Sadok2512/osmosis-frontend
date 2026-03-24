@@ -54,11 +54,12 @@ export async function fetchTimeSeriesData(
   });
   if (!res.ok) return [];
   const data = await res.json();
+  const noSplitRequested = !splitBy;
   return (data.series || []).map((s: any) => ({
     timestamp: s.ts,
     kpi: s.kpi_key,
     value: s.value,
-    splitValue: s.split_value === 'ALL' ? undefined : s.split_value,
+    splitValue: noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value),
   }));
 }
 
