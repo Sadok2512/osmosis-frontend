@@ -139,7 +139,7 @@ export const useKpiMonitorStore = create<KpiMonitorState>()(
     }),
     {
       name: 'kpi-monitor-store',
-      version: 1,
+      version: 2,
       partialize: (state) => ({
         selectedKpis: state.selectedKpis,
         splitBy: state.splitBy,
@@ -153,9 +153,10 @@ export const useKpiMonitorStore = create<KpiMonitorState>()(
       }),
       migrate: (_persistedState: unknown, version: number) => {
         const state = _persistedState as Record<string, any>;
-        if (version === 0) {
-          // Clear stale widget names stored as KPIs (e.g. "Graph 1", "Graph 2")
+        if (version < 2) {
+          // v2: Force clear any stale KPIs that aren't real kpi_keys
           state.selectedKpis = [];
+          state.localFilters = [];
         }
         return state as any;
       },
