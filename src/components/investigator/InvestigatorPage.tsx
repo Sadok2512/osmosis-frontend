@@ -13,20 +13,28 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const createSlot = (index: number, kpiId = ''): GraphSlot => ({
+  id: `slot-${Date.now()}-${index}`,
+  kpiId,
+  name: `Graph ${index}`,
+  filters: {},
+  startDate: '',
+  endDate: '',
+  granularity: 'Hourly',
+  splitBy: 'None',
+});
+
 const INITIAL_STATE: InvestigationState = {
   dimension: 'Cell',
-  selectedKpis: ['4G_LTE_DCR', '4G_LTE_SR'],
-  graphSlots: [
-    { id: 'slot-1', kpiId: '4G_LTE_DCR' },
-    { id: 'slot-2', kpiId: '4G_LTE_SR' },
-  ],
+  selectedKpis: [],
+  graphSlots: [createSlot(1)],
   splitBy: 'None',
   startDate: new Date().toISOString(),
   endDate: new Date().toISOString(),
   granularity: 'Hourly',
-  filters: { Vendor: ['Ericsson'], Technology: ['4G'] },
+  filters: {},
   topLimit: 10,
-  sortBy: '4G_LTE_DCR',
+  sortBy: '',
   graphLayout: 2,
   activeGraphTab: 'TimeSeries',
 };
