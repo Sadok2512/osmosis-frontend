@@ -511,6 +511,23 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     <Switch checked={cfg.showGrid} onCheckedChange={v => setSlotConfig({ showGrid: v })} className="scale-75" />
                   </div>
 
+                  {/* Split By */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split By</span>
+                    <select
+                      value={slot.splitBy || 'None'}
+                      onChange={e => setState(prev => ({
+                        ...prev,
+                        graphSlots: prev.graphSlots.map(s =>
+                          s.id === slot.id ? { ...s, splitBy: e.target.value as SplitOption } : s
+                        ),
+                      }))}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium"
+                    >
+                      {SPLITS.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+
                   <div className="h-px bg-border/60" />
 
                   {/* Clear KPI (keep slot) */}
