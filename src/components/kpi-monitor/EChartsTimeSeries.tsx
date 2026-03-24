@@ -1,6 +1,8 @@
 import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import ReactECharts from 'echarts-for-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
 import { KpiTimeSeriesPoint, KpiCatalogEntry } from './types';
 import { KPI_CATALOG_MAP } from './kpiCatalog';
 import { useKpiMonitorStore, Milestone } from '../../stores/kpiMonitorStore';
