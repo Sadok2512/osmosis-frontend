@@ -288,11 +288,11 @@ const KPIMonitorPage: React.FC = () => {
               >
                 <KpiWidgetCard
                   config={w.config}
+                  catalog={catalog}
                   catalogMap={catalogMap}
                   isSelected={selectedWidgetId === w.config.id}
                   editMode={editMode}
                   onSelect={() => setSelectedWidgetId(w.config.id)}
-                  onConfigure={() => { setConfiguringWidgetId(w.config.id); setSelectedWidgetId(w.config.id); }}
                   onDuplicate={() => duplicateWidget(w.config.id)}
                   onDelete={() => deleteWidget(w.config.id)}
                   onUpdateConfig={(updates) => updateWidgetConfig(w.config.id, updates)}
