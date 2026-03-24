@@ -4,7 +4,7 @@ import GridLayout from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { cn } from '@/lib/utils';
-import { Plus, BarChart3, Save, FileDown, Sparkles, Pencil, EyeIcon } from 'lucide-react';
+import { Plus, BarChart3, Save, FileDown, Sparkles, Pencil, EyeIcon, GitBranch, Filter, Calendar } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 import { useKpiCatalog, useDateRange } from './api/kpiMonitorApi';
