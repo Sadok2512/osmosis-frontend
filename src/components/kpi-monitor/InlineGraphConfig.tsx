@@ -292,6 +292,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                   </div>
                 </PopoverContent>
               </Popover>
+            </div>
           </div>
           {onClose && (
             <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted transition-colors">
