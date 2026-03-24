@@ -101,8 +101,6 @@ const KPIMonitorPage: React.FC = () => {
     const maxY = widgets.reduce((max, w) => Math.max(max, w.layout.y + w.layout.h), 0);
     newWidget.layout.y = maxY;
     setWidgets(prev => [...prev, newWidget]);
-    // Auto-open config
-    setConfiguringWidgetId(newWidget.config.id);
     setSelectedWidgetId(newWidget.config.id);
   }, [widgets, getDefaultDates]);
 
