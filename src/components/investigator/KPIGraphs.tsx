@@ -118,7 +118,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
             className="rounded-xl border border-border/60 bg-card p-4 group relative"
           >
             {/* Header with config popover */}
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 relative z-10">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: def.color }} />
                 <span className="text-xs font-bold text-foreground truncate max-w-[200px]">{def.label}</span>
