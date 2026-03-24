@@ -37,6 +37,14 @@ const InvestigatorPage: React.FC = () => {
   const [worstElements, setWorstElements] = useState<WorstElement[]>([]);
   const [isApplying, setIsApplying] = useState(false);
   const [kpiSelectorSlot, setKpiSelectorSlot] = useState<string | null>(null);
+  const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
+
+  // Auto-select first slot if none selected
+  useEffect(() => {
+    if (!activeSlotId && state.graphSlots.length > 0) {
+      setActiveSlotId(state.graphSlots[0].id);
+    }
+  }, [state.graphSlots, activeSlotId]);
 
   const handleApply = async () => {
     setIsApplying(true);
