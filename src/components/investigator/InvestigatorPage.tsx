@@ -37,6 +37,7 @@ const INITIAL_STATE: InvestigationState = {
   sortBy: '',
   graphLayout: 2,
   activeGraphTab: 'TimeSeries',
+  jalons: [],
 };
 
 const InvestigatorPage: React.FC = () => {
