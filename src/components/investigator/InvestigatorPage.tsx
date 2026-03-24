@@ -204,10 +204,21 @@ const InvestigatorPage: React.FC = () => {
               graphSlots={state.graphSlots}
               data={tsData}
               layout={state.graphLayout}
-              onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
-                ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
-              }))}
+              onChangeSlotKpi={(slotId, kpiIdToRemove) => {
+                setState(prev => ({
+                  ...prev,
+                  graphSlots: prev.graphSlots.map(s => {
+                    if (s.id !== slotId) return s;
+                    // Remove the specific KPI from the slot's list
+                    const updated = s.kpiIds.filter(k => k !== kpiIdToRemove);
+                    return { ...s, kpiIds: updated };
+                  }),
+                }));
+                // Also purge stale data for the removed KPI
+                if (kpiIdToRemove) {
+                  setTsData(prev => prev.filter(d => d.kpi !== kpiIdToRemove));
+                }
+              }}
               onRemoveSlot={(slotId) => setState(prev => ({
                 ...prev,
                 graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
