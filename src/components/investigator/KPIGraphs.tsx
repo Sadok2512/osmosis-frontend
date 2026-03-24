@@ -338,24 +338,24 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               onSlotClick?.(slot.id);
             }}
             className={cn(
-              'rounded-xl border bg-card p-4 group relative cursor-pointer transition-all duration-300',
+              'rounded-xl border bg-card px-5 pt-4 pb-3 group relative cursor-pointer transition-all duration-300',
               isActive
                 ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5'
-                : 'border-border/60 hover:border-border'
+                : 'border-border/50 hover:border-border hover:shadow-sm'
             )}
           >
             {/* Header */}
-            <div className="flex items-center gap-2 mb-2 relative z-10">
+            <div className="flex items-center gap-2 mb-3 relative z-10">
               <div className="flex items-center gap-1.5">
                 {/* Show color dots for each KPI */}
                 {defs.map((d, i) => (
-                  <span key={i} className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                  <span key={i} className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-white/20" style={{ backgroundColor: d.color }} />
                 ))}
                 <input
                   value={slot.name}
                   onChange={(e) => onRenameSlot(slot.id, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-xs font-bold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[120px] truncate"
+                  className="text-[13px] font-semibold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[160px] truncate ml-1"
                 />
               </div>
               <span className="ml-auto" />
