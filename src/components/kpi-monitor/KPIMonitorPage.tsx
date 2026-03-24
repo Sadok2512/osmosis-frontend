@@ -145,7 +145,7 @@ const KPIMonitorPage: React.FC = () => {
     if (newDashName.trim()) {
       setWidgets([]);
       setSelectedWidgetId(null);
-      setConfiguringWidgetId(null);
+      
       dm.createNew(newDashName.trim());
       setShowNameDialog(false);
     }
