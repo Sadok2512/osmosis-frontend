@@ -4,8 +4,8 @@ import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
-import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig } from './types';
-import { fetchTimeSeriesData, fetchWorstElements } from './investigatorApi';
+import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement } from './types';
+import { fetchTimeSeriesData, fetchWorstElements, fetchWorstByDOR, fetchFilterValues } from './investigatorApi';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
@@ -35,6 +35,21 @@ const InvestigatorPage: React.FC = () => {
   } = useInvestigatorStore();
 
   const [isApplying, setIsApplying] = React.useState(false);
+  const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
+  const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
+  const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
+  const [isLoadingWorst, setIsLoadingWorst] = React.useState(false);
+
+  // Load filter options on mount
+  React.useEffect(() => {
+    Promise.all([
+      fetchFilterValues('DOR'),
+      fetchFilterValues('PLAQUE'),
+      fetchFilterValues('BAND'),
+    ]).then(([dors, plaques, bands]) => {
+      setWorstFilterOptions({ DOR: dors, PLAQUE: plaques, BAND: bands });
+    });
+  }, []);
 
   // Auto-select first slot if none selected or active was removed
   useEffect(() => {
@@ -47,50 +62,66 @@ const InvestigatorPage: React.FC = () => {
 
   const handleApply = async () => {
     setIsApplying(true);
-    setTsData([]);
     try {
       const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
-      const dateFrom = state.startDate.split('T')[0] || '2026-01-14';
-      const dateTo = state.endDate.split('T')[0] || '2026-03-14';
-      const gran = granMap[state.granularity] || '1h';
+      const splitValue = state.splitBy === 'None' ? undefined : state.splitBy;
 
-      // Group KPIs by their split dimension (per-KPI split support)
-      const splitGroups: Record<string, string[]> = {}; // splitDim → kpiIds
-      for (const slot of state.graphSlots) {
-        for (const kpiId of slot.kpiIds) {
-          const perKpiSplit = slot.config?.splitByPerKpi?.[kpiId];
-          const splitDim = (perKpiSplit && perKpiSplit !== 'None') ? perKpiSplit
-            : '__none__';
-          if (!splitGroups[splitDim]) splitGroups[splitDim] = [];
-          if (!splitGroups[splitDim].includes(kpiId)) splitGroups[splitDim].push(kpiId);
-        }
-      }
+      const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
+      const dateFrom = state.startDate.split('T')[0] || '2026-01-01';
+      const dateTo = state.endDate.split('T')[0] || '2026-03-24';
 
-      const allKpiIds = state.graphSlots.flatMap(s => s.kpiIds);
-
-      // Fetch timeseries per split group in parallel
-      const tsPromises = Object.entries(splitGroups).map(([splitDim, kpis]) =>
-        fetchTimeSeriesData(kpis, dateFrom, dateTo, gran, splitDim === '__none__' ? undefined : splitDim)
+      const ts = await fetchTimeSeriesData(
+        kpiIds, dateFrom, dateTo,
+        granMap[state.granularity] || '1h',
+        splitValue,
       );
-      const worstPromise = fetchWorstElements(
-        allKpiIds[0] || 'dcr',
-        state.topLimit,
-        dateTo,
-        state.dimension === 'Cell' ? 'cell' : 'site',
-      );
-
-      const [tsResults, worst] = await Promise.all([
-        Promise.all(tsPromises),
-        worstPromise,
-      ]);
-
-      setTsData(tsResults.flat());
-      setWorstElements(worst);
+      setTsData(ts);
       setHasLoadedOnce(true);
     } catch (e) {
-      console.error('[Investigator] API error, using fallback:', e);
+      console.error('[Investigator] API error:', e);
     }
     setIsApplying(false);
+  };
+
+  const handleFindWorst = async () => {
+    setIsLoadingWorst(true);
+    try {
+      const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
+      if (!kpiIds.length) { setIsLoadingWorst(false); return; }
+      const dateFrom = state.startDate.split('T')[0] || '2026-01-01';
+      const dateTo = state.endDate.split('T')[0] || '2026-03-24';
+
+      const byDOR = await fetchWorstByDOR(kpiIds, state.topLimit, dateFrom, dateTo, worstFilters);
+      setWorstByDOR(byDOR);
+
+      // Also set flat list for legacy table
+      const flat = Object.values(byDOR).flat();
+      setWorstElements(flat);
+    } catch (e) {
+      console.error('[Investigator] Worst elements error:', e);
+    }
+    setIsLoadingWorst(false);
+  };
+
+  const addWorstFilter = (dimension: string, value: string) => {
+    setWorstFilters(prev => {
+      const existing = prev.find(f => f.dimension === dimension);
+      if (existing) {
+        if (existing.values.includes(value)) return prev;
+        return prev.map(f => f.dimension === dimension ? { ...f, values: [...f.values, value] } : f);
+      }
+      return [...prev, { dimension, op: 'IN', values: [value] }];
+    });
+  };
+
+  const removeWorstFilter = (dimension: string, value: string) => {
+    setWorstFilters(prev => {
+      return prev.map(f => {
+        if (f.dimension !== dimension) return f;
+        const newVals = f.values.filter(v => v !== value);
+        return { ...f, values: newVals };
+      }).filter(f => f.values.length > 0);
+    });
   };
 
   // Only auto-load on first mount if never loaded before
@@ -217,26 +248,10 @@ const InvestigatorPage: React.FC = () => {
               graphSlots={state.graphSlots}
               data={tsData}
               layout={state.graphLayout}
-              onChangeSlotKpi={(slotId, kpiIdToRemove) => {
-                const { state: currentState, tsData: currentTsData } = useInvestigatorStore.getState();
-                const nextGraphSlots = currentState.graphSlots.map((slot) => {
-                  if (slot.id !== slotId) return slot;
-
-                  return {
-                    ...slot,
-                    kpiIds: slot.kpiIds.filter((kpiId) => kpiId !== kpiIdToRemove),
-                  };
-                });
-
-                setState((prev) => ({
-                  ...prev,
-                  graphSlots: nextGraphSlots,
-                }));
-
-                if (kpiIdToRemove && !nextGraphSlots.some((slot) => slot.kpiIds.includes(kpiIdToRemove))) {
-                  setTsData(currentTsData.filter((point) => point.kpi !== kpiIdToRemove));
-                }
-              }}
+              onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
+              }))}
               onRemoveSlot={(slotId) => setState(prev => ({
                 ...prev,
                 graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
@@ -270,24 +285,94 @@ const InvestigatorPage: React.FC = () => {
 
         {/* Worst Elements Section */}
         <section className="space-y-4">
-          <div className="flex items-center gap-3 border-b border-border/40 pb-3">
-            <div className="p-1.5 bg-destructive/10 rounded-lg">
-              <AlertTriangle className="w-4 h-4 text-destructive" />
+          <div className="flex items-center justify-between border-b border-border/40 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-destructive/10 rounded-lg">
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+              </div>
+              <div>
+                <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">Top 10 Worst Cells per DOR</h2>
+                <p className="text-[10px] text-muted-foreground">Click Find to identify worst cells based on selected KPIs</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">Worst Elements Analysis</h2>
-              <p className="text-[10px] text-muted-foreground">Identify and investigate problematic cells and sites</p>
-            </div>
+            <button
+              onClick={handleFindWorst}
+              disabled={isLoadingWorst || state.graphSlots.flatMap(s => s.kpiIds).length === 0}
+              className={cn(
+                'px-4 py-2 rounded-lg text-xs font-bold transition-all',
+                isLoadingWorst
+                  ? 'bg-primary/20 text-primary cursor-wait'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90',
+                state.graphSlots.flatMap(s => s.kpiIds).length === 0 && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              {isLoadingWorst ? 'Loading...' : 'Find Worst Cells'}
+            </button>
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-            <WorstElementsTable
-              elements={worstElements}
-              limit={state.topLimit}
-              onLimitChange={limit => setState(prev => ({ ...prev, topLimit: limit }))}
-              onRowClick={id => console.log(`Navigate to ${id}`)}
-            />
+          {/* Filter Bar */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {['DOR', 'PLAQUE', 'BAND'].map(dim => (
+              <div key={dim} className="flex items-center gap-1.5">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase">{dim}</span>
+                <select
+                  className="h-7 px-2 rounded-md border border-border bg-background text-foreground text-[10px]"
+                  value=""
+                  onChange={e => { if (e.target.value) addWorstFilter(dim, e.target.value); }}
+                >
+                  <option value="">+</option>
+                  {(worstFilterOptions[dim] || []).map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            {/* Active filter chips */}
+            {worstFilters.flatMap(f => f.values.map(v => (
+              <span
+                key={`${f.dimension}-${v}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold"
+              >
+                {f.dimension}: {v}
+                <button onClick={() => removeWorstFilter(f.dimension, v)} className="hover:text-destructive">x</button>
+              </span>
+            )))}
+            {worstFilters.length > 0 && (
+              <button
+                onClick={() => setWorstFilters([])}
+                className="text-[9px] text-muted-foreground hover:text-foreground underline"
+              >
+                Clear all
+              </button>
+            )}
           </div>
+
+          {/* Results grouped by DOR */}
+          {Object.keys(worstByDOR).length > 0 ? (
+            Object.entries(worstByDOR).map(([dor, elements]) => (
+              <div key={dor} className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                <div className="px-4 py-2 bg-muted/30 border-b border-border/40">
+                  <span className="text-xs font-bold text-primary">{dor}</span>
+                  <span className="text-[10px] text-muted-foreground ml-2">({elements.length} cells)</span>
+                </div>
+                <WorstElementsTable
+                  elements={elements}
+                  limit={state.topLimit}
+                  onLimitChange={limit => setState(prev => ({ ...prev, topLimit: limit }))}
+                  onRowClick={id => console.log(`Navigate to ${id}`)}
+                />
+              </div>
+            ))
+          ) : (
+            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+              <WorstElementsTable
+                elements={worstElements}
+                limit={state.topLimit}
+                onLimitChange={limit => setState(prev => ({ ...prev, topLimit: limit }))}
+                onRowClick={id => console.log(`Navigate to ${id}`)}
+              />
+            </div>
+          )}
         </section>
       </main>
     </div>
