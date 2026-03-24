@@ -135,30 +135,8 @@ export interface ExplainResponse {
 
 // ── Fetch helpers ──
 // Monitor endpoints → Parser :8000/api/v1/monitor/* (proxied to KPI Engine)
-// Direct VPS call first, then fallback to Supabase proxy if needed.
-
-const VPS_MONITOR_BASE = 'http://151.242.147.49:8000/api/v1/monitor';
 
 async function monitorGet<T>(path: string): Promise<T> {
-  // Try direct VPS first (fast, no size limit)
-  try {
-    const directUrl = `${VPS_MONITOR_BASE}/${path}`;
-    const directRes = await fetch(directUrl, {
-      headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (directRes.ok) {
-      const data = await directRes.json();
-      // Check for proxy "unavailable" wrapper
-      if (data && typeof data === 'object' && !Array.isArray(data) && data.unavailable) {
-        throw new Error('VPS returned unavailable');
-      }
-      return data as T;
-    }
-  } catch (e) {
-    console.warn(`[monitorGet] Direct VPS failed for ${path}, trying proxy:`, e);
-  }
-  // Fallback to Supabase proxy
   const url = getApiUrl(`monitor/${path}`);
   const res = await fetch(url, { headers: getApiHeaders() });
   if (!res.ok) {
@@ -170,20 +148,6 @@ async function monitorGet<T>(path: string): Promise<T> {
 }
 
 async function monitorPost<T>(path: string, body: any): Promise<T> {
-  // Try direct VPS first
-  try {
-    const directUrl = `${VPS_MONITOR_BASE}/${path}`;
-    const directRes = await fetch(directUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (directRes.ok) return directRes.json();
-  } catch (e) {
-    console.warn(`[monitorPost] Direct VPS failed for ${path}, trying proxy:`, e);
-  }
-  // Fallback
   const url = getApiUrl(`monitor/${path}`);
   const res = await fetch(url, {
     method: 'POST',
