@@ -212,13 +212,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
 
         return (
           <div key={slot.id} className="rounded-xl border border-border/60 bg-card p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <SlotKpiSelector
-                currentKpiId={slot.kpiId}
-                onChange={(kpiId) => onChangeSlotKpi(slot.id, kpiId)}
-                catalog={catalog}
-                allKpis={allKpis}
-              />
+             <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: def.color }} />
+                <span className="text-xs font-bold text-foreground truncate max-w-[200px]">{def.label}</span>
+              </div>
               <div className="flex items-center gap-1 ml-auto">
                 <span className="text-[10px] text-muted-foreground font-medium">{def.unit}</span>
                 <GraphSettingsPopover config={cfg} onChange={c => setConfig(slot.id, c)} />
