@@ -111,7 +111,7 @@ const GraphConfigPopover: React.FC<Props> = ({ config, onChange }) => {
               <div className="flex flex-wrap gap-1 mt-0.5">
                 {selectedKpis.length > 0 ? selectedKpis.map(k => (
                   <span key={k.id} className="px-1.5 py-0.5 rounded text-[9px] bg-muted text-muted-foreground font-medium">
-                    {k.display_name || k.kpi_key}: {k.agg || 'avg'}
+                    {k.label || k.kpi_key}: {k.agg || 'avg'}
                   </span>
                 )) : (
                   <span className="text-muted-foreground text-[10px] italic">—</span>
