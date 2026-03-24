@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { InvestigationState, Dimension, SplitOption } from './types';
+import { format } from 'date-fns';
+import { InvestigationState, Dimension, SplitOption, Granularity } from './types';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
-import { Filter, Calendar, X, Plus, ChevronDown, Check } from 'lucide-react';
+import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   state: InvestigationState;
@@ -13,7 +17,18 @@ interface Props {
 }
 
 const SPLITS: SplitOption[] = ['None', 'Vendor', 'Technology', 'Band', 'DOR', 'DR'];
-const TIME_RANGES = ['Last 24h', 'Last 7 Days', 'Last 14 Days', 'Last 30 Days', 'Custom'];
+const PERIODS = [
+  { label: '24h', days: 1 },
+  { label: '7j', days: 7 },
+  { label: '14j', days: 14 },
+  { label: '30j', days: 30 },
+  { label: '90j', days: 90 },
+];
+const GRANULARITIES: { value: Granularity; label: string }[] = [
+  { value: 'Hourly', label: 'Horaire' },
+  { value: 'Daily', label: 'Jour' },
+  { value: 'Weekly', label: 'Semaine' },
+];
 const FILTER_DIMENSIONS = ['Site', 'Vendor', 'Technology', 'Band', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
 
 // Filter values fetched from backend
@@ -183,7 +198,19 @@ const FilterValuesList: React.FC<{ dim: string; onSelect: (val: string) => void;
 
 /* ── Main Control Panel ── */
 const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
-  const [timeRange, setTimeRange] = useState('Last 7 Days');
+  const applyPeriod = (days: number) => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - days);
+    setState(prev => ({
+      ...prev,
+      startDate: format(start, 'yyyy-MM-dd'),
+      endDate: format(end, 'yyyy-MM-dd'),
+    }));
+  };
+
+  const startDate = state.startDate ? new Date(state.startDate) : undefined;
+  const endDate = state.endDate ? new Date(state.endDate) : undefined;
 
   const addFilter = (dim: string, val: string) => {
     setState(prev => {
@@ -211,9 +238,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
     <div className="border-b border-border bg-card/50 backdrop-blur-sm">
       {/* Row 1: Main controls */}
       <div className="max-w-[1600px] mx-auto px-6 py-3">
-        <div className="flex items-end gap-3">
+        <div className="flex items-end gap-3 flex-wrap">
           {/* KPIs */}
-          <div className="space-y-1 flex-1 min-w-0">
+          <div className="space-y-1 flex-1 min-w-[200px]">
             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
               KPIs ({state.selectedKpis.length})
             </label>
@@ -235,19 +262,96 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
             </select>
           </div>
 
-          {/* Time Range */}
+          {/* Date Start */}
           <div className="space-y-1 shrink-0">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Time Range</label>
-            <div className="relative">
-              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <select
-                value={timeRange}
-                onChange={e => setTimeRange(e.target.value)}
-                className="pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-[140px] appearance-none"
-              >
-                {TIME_RANGES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date Début</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'w-[130px] justify-start text-left text-xs font-medium h-[34px]',
+                    !startDate && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                  {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={(d) => d && setState(prev => ({ ...prev, startDate: format(d, 'yyyy-MM-dd') }))}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Date End */}
+          <div className="space-y-1 shrink-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date Fin</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'w-[130px] justify-start text-left text-xs font-medium h-[34px]',
+                    !endDate && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                  {endDate ? format(endDate, 'dd/MM/yyyy') : 'Fin'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Period shortcuts */}
+          <div className="space-y-1 shrink-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Période</label>
+            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+              {PERIODS.map(p => (
+                <button
+                  key={p.label}
+                  onClick={() => applyPeriod(p.days)}
+                  className="px-2.5 py-1.5 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-card transition-all"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Granularity */}
+          <div className="space-y-1 shrink-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Granularité</label>
+            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+              {GRANULARITIES.map(g => (
+                <button
+                  key={g.value}
+                  onClick={() => setState(prev => ({ ...prev, granularity: g.value }))}
+                  className={cn(
+                    'px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all',
+                    state.granularity === g.value
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {g.label}
+                </button>
+              ))}
             </div>
           </div>
 
