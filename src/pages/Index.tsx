@@ -150,6 +150,8 @@ const Index: React.FC = () => {
         return <TopologiePage />;
       case 'kpi_monitor':
         return <KPIMonitorPage />;
+      case 'kpi_monitor_bis':
+        return <KpiMonitorBisPage />;
       case 'kpi_engine_config':
         return (
           <div className="flex-1 flex items-center justify-center bg-background">
