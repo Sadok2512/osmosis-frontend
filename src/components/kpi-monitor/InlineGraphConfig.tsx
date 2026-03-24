@@ -358,7 +358,7 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
   const axDef = (existing: any) => existing || { title: '', min: 'auto', max: 'auto', unit: '', decimals: 2, invert: false };
 
   return (
-    <div className="w-[340px] shrink-0 h-full border-l border-border/30 bg-card flex flex-col overflow-hidden shadow-lg z-10">
+    <div className="w-[380px] max-w-[calc(100vw-5rem)] shrink-0 h-full -ml-24 border-l border-border/30 bg-card flex flex-col overflow-hidden shadow-2xl z-20 xl:-ml-28">
 
       {/* ─── Header (Explainability style) ─── */}
       <div className="px-5 py-4 border-b border-border/20 bg-sidebar-background">
