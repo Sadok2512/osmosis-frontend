@@ -240,11 +240,58 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
               <Settings2 className="w-4.5 h-4.5 text-primary" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground leading-tight">
-                {title || 'Graph Settings'}
-              </h3>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Chart configuration</p>
-            </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="text-left group/title">
+                    <h3 className="text-sm font-semibold text-foreground leading-tight group-hover/title:underline group-hover/title:decoration-primary/40 transition-all cursor-pointer">
+                      {(graph as any).customTitle || title || 'Graph Settings'}
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Click to edit appearance</p>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[240px] p-3 space-y-3" align="start">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Widget Appearance</div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase">Title</span>
+                    <Input
+                      value={(graph as any).customTitle || ''}
+                      placeholder={title || 'Graph title'}
+                      onChange={e => setGraphD({ customTitle: e.target.value || undefined } as any)}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase">Title Color</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {['#000000','#ffffff','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#6366f1'].map(c => (
+                        <button key={c} onClick={() => setGraphD({ titleColor: c } as any)}
+                          className={cn('w-5 h-5 rounded-md border-2 transition-all', (graph as any).titleColor === c ? 'border-foreground scale-110' : 'border-border/40')}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                      {(graph as any).titleColor && (
+                        <button onClick={() => setGraphD({ titleColor: undefined } as any)}
+                          className="px-1.5 py-0.5 rounded-md text-[9px] text-muted-foreground border border-border/40 hover:bg-muted/50">Reset</button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase">Background</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {['transparent','#ffffff','#0f172a','#f8fafc','#f0fdf4','#eff6ff','#fefce8','#fdf2f8'].map(c => (
+                        <button key={c} onClick={() => setGraphD({ backgroundColor: c, transparentBg: c === 'transparent' })}
+                          className={cn(
+                            'w-5 h-5 rounded-md border-2 transition-all',
+                            (graph.backgroundColor || 'transparent') === c ? 'border-foreground scale-110' : 'border-border/40',
+                            c === 'transparent' && 'bg-[repeating-conic-gradient(#ddd_0_25%,transparent_0_50%)] bg-[length:8px_8px]'
+                          )}
+                          style={c !== 'transparent' ? { backgroundColor: c } : undefined}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
           </div>
           {onClose && (
             <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted transition-colors">
