@@ -4,12 +4,12 @@ import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
-import { InvestigationState, DataPoint, WorstElement, GraphSlot } from './types';
+import { InvestigationState, DataPoint, WorstElement, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG } from './types';
 import { fetchTimeSeriesData, fetchWorstElements, fetchKpiDefinitions } from './investigatorApi';
 import { KPIS as FALLBACK_KPIS } from './mockData';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
-  BarChart3, PieChart, LineChart as LineChartIcon, Plus, X,
+  BarChart3, PieChart, LineChart as LineChartIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,6 +36,7 @@ const InvestigatorPage: React.FC = () => {
   const [tsData, setTsData] = useState<DataPoint[]>([]);
   const [worstElements, setWorstElements] = useState<WorstElement[]>([]);
   const [isApplying, setIsApplying] = useState(false);
+  const [kpiSelectorSlot, setKpiSelectorSlot] = useState<string | null>(null);
 
   const handleApply = async () => {
     setIsApplying(true);
@@ -67,7 +68,6 @@ const InvestigatorPage: React.FC = () => {
     setIsApplying(false);
   };
 
-  // Load KPI definitions from backend
   useEffect(() => {
     fetchKpiDefinitions().then(kpis => {
       if (kpis.length > 0) {
@@ -84,6 +84,15 @@ const InvestigatorPage: React.FC = () => {
   }, []);
 
   useEffect(() => { handleApply(); }, []);
+
+  const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig>) => {
+    setState(prev => ({
+      ...prev,
+      graphSlots: prev.graphSlots.map(s =>
+        s.id === slotId ? { ...s, config: { ...(s.config || DEFAULT_GRAPH_CONFIG), ...updates } } : s
+      ),
+    }));
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
@@ -113,7 +122,13 @@ const InvestigatorPage: React.FC = () => {
       </div>
 
       {/* Control Panel */}
-      <ControlPanel state={state} setState={setState} onApply={handleApply} />
+      <ControlPanel
+        state={state}
+        setState={setState}
+        onApply={handleApply}
+        externalSelectorSlot={kpiSelectorSlot}
+        onExternalSelectorClose={() => setKpiSelectorSlot(null)}
+      />
 
       {/* Main Content */}
       <main className="flex-1 p-6 space-y-8">
@@ -192,6 +207,8 @@ const InvestigatorPage: React.FC = () => {
                 ...prev,
                 graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
               }))}
+              onUpdateSlotConfig={handleUpdateSlotConfig}
+              onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
             />
           )}
           {state.activeGraphTab === 'Histogram' && (
