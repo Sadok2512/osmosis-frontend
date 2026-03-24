@@ -47,7 +47,7 @@ const KPIMonitorPage: React.FC = () => {
   const [widgets, setWidgets] = useState<KpiWidgetItem[]>([]);
   const [editMode, setEditMode] = useState(true);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
-  const [configuringWidgetId, setConfiguringWidgetId] = useState<string | null>(null);
+  
   const [showAI, setShowAI] = useState(false);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [showNameDialog, setShowNameDialog] = useState(false);
