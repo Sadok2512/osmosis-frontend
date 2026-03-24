@@ -1,9 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { InvestigationState, Dimension, SplitOption } from './types';
+import { format } from 'date-fns';
+import { InvestigationState, Dimension, SplitOption, Granularity } from './types';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
-import { Filter, Calendar, X, Plus, ChevronDown, Check } from 'lucide-react';
+import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface Props {
