@@ -266,6 +266,47 @@ const EChartsTimeSeries: React.FC<Props> = ({
       ],
       series,
     };
+
+    // Weekend shading via markArea on first series
+    if (series.length > 0 && allTs.length > 0) {
+      const weekendAreas: any[] = [];
+      for (let idx = 0; idx < allTs.length; idx++) {
+        const d = new Date(allTs[idx]);
+        const day = d.getUTCDay();
+        if (day === 0 || day === 6) {
+          weekendAreas.push([
+            { xAxis: allTs[idx], itemStyle: { color: 'rgba(148,163,184,0.10)' } },
+            { xAxis: allTs[idx] },
+          ]);
+        }
+      }
+      // Merge consecutive weekend days
+      const merged: any[] = [];
+      for (const area of weekendAreas) {
+        const last = merged[merged.length - 1];
+        if (last) {
+          const lastIdx = allTs.indexOf(last[1].xAxis);
+          const curIdx = allTs.indexOf(area[0].xAxis);
+          if (curIdx === lastIdx + 1) {
+            last[1].xAxis = area[1].xAxis;
+            continue;
+          }
+        }
+        merged.push([...area]);
+      }
+      if (merged.length > 0) {
+        const firstSeries = series.find((s: any) => s != null);
+        if (firstSeries) {
+          firstSeries.markArea = {
+            ...(firstSeries.markArea || {}),
+            silent: true,
+            data: [...(firstSeries.markArea?.data || []), ...merged],
+          };
+        }
+      }
+    }
+
+    return opt;
   }, [data, seriesArr, allTs, selectedKpis, catMap, gc, ac, thresholdList, thresholdsEnabled, storeMilestones, storeShowMilestones, smooth, lineWidth, showSymbols, gridCfg]);
 
   const chartHeight = height - 80;
