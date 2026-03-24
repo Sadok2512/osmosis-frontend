@@ -601,17 +601,13 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
                     <div className="h-px bg-border/60" />
 
-                    <button
-                      onClick={() => setState(prev => ({
-                        ...prev,
-                        graphSlots: prev.graphSlots.map(s =>
-                          s.id === slot.id ? { ...s, kpiIds: s.kpiIds.filter(k => k !== kpiIdItem) } : s
-                        ),
-                      }))}
-                      className="w-full text-[10px] font-semibold text-orange-600 hover:bg-orange-500/10 py-1.5 rounded-md transition-colors"
-                    >
-                      Appliquer
-                    </button>
+                    <PopoverClose asChild>
+                      <button
+                        className="w-full text-[10px] font-semibold text-primary hover:bg-primary/10 py-1.5 rounded-md transition-colors"
+                      >
+                        Appliquer
+                      </button>
+                    </PopoverClose>
                   </PopoverContent>
                 </Popover>
               );
