@@ -344,7 +344,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
               ><btn.icon className="w-4 h-4" /> {btn.label}</button>
             ))}
           </div>
-          <div className="w-px h-6 bg-primary/60 mx-1" />
+          <div className="w-[2px] h-7 bg-primary/70 rounded-full mx-2" />
           <button onClick={onToggleEditMode}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
               editMode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
