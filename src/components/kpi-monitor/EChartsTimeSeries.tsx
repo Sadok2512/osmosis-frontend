@@ -273,20 +273,23 @@ const EChartsTimeSeries: React.FC<Props> = ({
       series,
     };
 
-    // Weekend shading via markArea on first series
-    if (series.length > 0 && allTs.length > 0) {
+    // Weekend shading via markArea on first series (respects calendar config)
+    const calendarCfg = gc?.calendar;
+    const showWeekends = calendarCfg?.highlightWeekends !== false; // default true
+    if (showWeekends && series.length > 0 && allTs.length > 0) {
+      const wColor = calendarCfg?.weekendColor || '#94a3b8';
+      const wOpacity = (calendarCfg?.weekendOpacity ?? 10) / 100;
       const weekendAreas: any[] = [];
       for (let idx = 0; idx < allTs.length; idx++) {
         const d = new Date(allTs[idx]);
         const day = d.getUTCDay();
         if (day === 0 || day === 6) {
           weekendAreas.push([
-            { xAxis: allTs[idx], itemStyle: { color: 'rgba(148,163,184,0.10)' } },
+            { xAxis: allTs[idx], itemStyle: { color: wColor.startsWith('#') ? `${wColor}${Math.round(wOpacity * 255).toString(16).padStart(2, '0')}` : `rgba(148,163,184,${wOpacity})` } },
             { xAxis: allTs[idx] },
           ]);
         }
       }
-      // Merge consecutive weekend days
       const merged: any[] = [];
       for (const area of weekendAreas) {
         const last = merged[merged.length - 1];
@@ -442,14 +445,17 @@ const EChartsTimeSeries: React.FC<Props> = ({
     document.body
   ) : null;
 
+  const bgStyle = gc?.backgroundColor && gc.backgroundColor !== 'transparent' ? { backgroundColor: gc.backgroundColor } : undefined;
+  const titleColor = (gc as any)?.titleColor;
+
   return (
     <>
-      <div className="h-full flex flex-col rounded-xl border border-border/60 bg-card overflow-hidden group shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.08)] transition-shadow duration-200">
+      <div className="h-full flex flex-col rounded-xl border border-border/60 bg-card overflow-hidden group shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.08)] transition-shadow duration-200" style={bgStyle}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
           <div className="flex items-center gap-2 min-w-0 flex-1 drag-handle cursor-grab active:cursor-grabbing">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: headerColor }} />
-            <h3 className="text-[13px] font-semibold text-foreground truncate tracking-tight">{headerTitle}</h3>
+            <h3 className="text-[13px] font-semibold truncate tracking-tight" style={titleColor ? { color: titleColor } : undefined}>{headerTitle}</h3>
             <span className="text-[10px] text-muted-foreground font-medium">{headerUnit}</span>
           </div>
           {actionsMenu(false)}
