@@ -239,9 +239,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   onClick={(e) => e.stopPropagation()}
                   className="text-xs font-bold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[120px] truncate"
                 />
-                <span className="text-[10px] text-muted-foreground">
-                  — {defs.map(d => d.label).join(', ')}
-                </span>
               </div>
               <span className="ml-auto" />
 
