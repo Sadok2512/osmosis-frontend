@@ -6,13 +6,12 @@ import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import {
   Settings2, TrendingUp, AreaChart, BarChart, CircleDot,
-  ChevronDown, X,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 
