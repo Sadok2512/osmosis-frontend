@@ -538,7 +538,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           })}
           {state.graphSlots.length < 4 && (
             <button
-              onClick={() => setSelectorOpen('new')}
+              onClick={() => {
+                const activeSlot = activeSlotId ? state.graphSlots.find(s => s.id === activeSlotId) : null;
+                if (activeSlot && !activeSlot.kpiId) {
+                  setSelectorOpen(activeSlot.id);
+                } else {
+                  setSelectorOpen('new');
+                }
+              }}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors"
             >
               <Plus className="w-3 h-3" />
