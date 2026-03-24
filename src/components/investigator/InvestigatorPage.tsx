@@ -27,7 +27,7 @@ const createSlot = (index: number, kpiId = ''): GraphSlot => ({
 const INITIAL_STATE: InvestigationState = {
   dimension: 'Cell',
   selectedKpis: [],
-  graphSlots: [createSlot(1)],
+  graphSlots: [],
   splitBy: 'None',
   startDate: new Date().toISOString(),
   endDate: new Date().toISOString(),
@@ -86,20 +86,7 @@ const InvestigatorPage: React.FC = () => {
     setIsApplying(false);
   };
 
-  useEffect(() => {
-    fetchKpiDefinitions().then(kpis => {
-      if (kpis.length > 0) {
-        const ids = kpis.slice(0, 2).map(k => k.id);
-        setState(prev => ({
-          ...prev,
-          selectedKpis: ids,
-          graphSlots: ids.map((id, i) => createSlot(i + 1, id)),
-          startDate: '2026-01-14',
-          endDate: '2026-03-14',
-        }));
-      }
-    }).catch(() => {});
-  }, []);
+  // No auto-load — start empty, user adds graphs manually
 
   useEffect(() => { handleApply(); }, []);
 
