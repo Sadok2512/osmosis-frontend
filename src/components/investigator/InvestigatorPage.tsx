@@ -233,6 +233,10 @@ const InvestigatorPage: React.FC = () => {
                   return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex)] };
                 });
               }}
+              onRenameSlot={(slotId, name) => setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, name } : s),
+              }))}
               onUpdateSlotConfig={handleUpdateSlotConfig}
               onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
               activeSlotId={activeSlotId}
