@@ -397,7 +397,7 @@ const KPIMonitorPage: React.FC = () => {
   const catalog: KpiCatalogEntry[] = useMemo(() => {
     const arr = Array.isArray(backendCatalog) ? backendCatalog : (backendCatalog as any)?.items ?? [];
     if (!arr || arr.length === 0) return [];
-    return backendCatalog.map((e: any): KpiCatalogEntry => ({
+    return arr.map((e: any): KpiCatalogEntry => ({
       kpi_id: e.kpi_key, kpi_key: e.kpi_key, display_name: e.display_name,
       description: e.description || '', techno_scope: 'both', unit: e.unit || '',
       value_type: (e.value_type as any) || 'gauge', default_agg: 'avg',
