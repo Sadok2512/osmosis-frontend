@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { DataPoint } from './types';
-import { KPI_MAP } from './mockData';
+import { DataPoint, GraphSlot } from './types';
+import { KPI_MAP, KPIS } from './mockData';
+import { fetchKpiDefinitions } from './investigatorApi';
+import type { KpiDefinition } from './types';
 import {
   Settings2, TrendingUp, AreaChart, BarChart, CircleDot,
-  Eye, EyeOff, ChevronDown,
+  ChevronDown, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -53,8 +55,6 @@ const GraphSettingsPopover: React.FC<{ config: GraphConfig; onChange: (c: GraphC
       </PopoverTrigger>
       <PopoverContent className="w-[220px] p-3 space-y-3" align="end">
         <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Graph Config</div>
-
-        {/* Chart Type */}
         <div className="space-y-1">
           <span className="text-[9px] font-bold text-muted-foreground uppercase">Type</span>
           <div className="flex gap-1">
@@ -75,48 +75,29 @@ const GraphSettingsPopover: React.FC<{ config: GraphConfig; onChange: (c: GraphC
             ))}
           </div>
         </div>
-
-        {/* Smooth */}
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-medium text-foreground">Smooth Curve</span>
           <Switch checked={config.smooth} onCheckedChange={v => set({ smooth: v })} className="scale-75" />
         </div>
-
-        {/* Line Width */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-medium text-foreground">Line Width</span>
             <span className="text-[9px] text-muted-foreground font-mono">{config.lineWidth}px</span>
           </div>
-          <Slider
-            value={[config.lineWidth]}
-            onValueChange={v => set({ lineWidth: v[0] })}
-            min={0.5}
-            max={5}
-            step={0.5}
-            className="w-full"
-          />
+          <Slider value={[config.lineWidth]} onValueChange={v => set({ lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="w-full" />
         </div>
-
-        {/* Show Symbols */}
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-medium text-foreground">Show Markers</span>
           <Switch checked={config.showSymbols} onCheckedChange={v => set({ showSymbols: v })} className="scale-75" />
         </div>
-
-        {/* Show Area */}
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-medium text-foreground">Area Fill</span>
           <Switch checked={config.showArea} onCheckedChange={v => set({ showArea: v })} className="scale-75" />
         </div>
-
-        {/* Show Thresholds */}
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-medium text-foreground">Thresholds</span>
           <Switch checked={config.showThresholds} onCheckedChange={v => set({ showThresholds: v })} className="scale-75" />
         </div>
-
-        {/* Show Grid */}
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-medium text-foreground">Grid Lines</span>
           <Switch checked={config.showGrid} onCheckedChange={v => set({ showGrid: v })} className="scale-75" />
@@ -126,29 +107,84 @@ const GraphSettingsPopover: React.FC<{ config: GraphConfig; onChange: (c: GraphC
   );
 };
 
+/* ── KPI Selector Dropdown for a slot ── */
+const SlotKpiSelector: React.FC<{
+  currentKpiId: string;
+  onChange: (kpiId: string) => void;
+  allKpis: KpiDefinition[];
+}> = ({ currentKpiId, onChange, allKpis }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const current = allKpis.find(k => k.id === currentKpiId);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold bg-muted/50 hover:bg-muted border border-border/40 transition-colors"
+      >
+        {current && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: current.color }} />}
+        <span className="truncate max-w-[120px]">{current?.label || currentKpiId}</span>
+        <ChevronDown className="w-3 h-3 text-muted-foreground" />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-[220px] bg-popover border border-border rounded-lg shadow-xl z-50 max-h-[240px] overflow-auto p-1">
+          {allKpis.map(k => (
+            <button
+              key={k.id}
+              onClick={() => { onChange(k.id); setOpen(false); }}
+              className={cn(
+                'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors text-left',
+                k.id === currentKpiId ? 'bg-primary/10 text-primary' : 'hover:bg-muted text-foreground'
+              )}
+            >
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: k.color }} />
+              <span className="truncate">{k.label}</span>
+              <span className="ml-auto text-[9px] text-muted-foreground">{k.unit}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── Main Component ── */
 interface Props {
-  selectedKpis: string[];
+  graphSlots: GraphSlot[];
   data: DataPoint[];
   layout: 1 | 2 | 4;
+  onChangeSlotKpi: (slotId: string, kpiId: string) => void;
+  onRemoveSlot: (slotId: string) => void;
 }
 
-const KPIGraphs: React.FC<Props> = ({ selectedKpis, data, layout }) => {
-  // Layout=1: all KPIs in ONE combined chart. Layout=2: 2 columns. Layout=4: 2x2 grid.
+const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi, onRemoveSlot }) => {
   const cols = layout === 1 ? 1 : 2;
   const chartHeight = layout === 1 ? 400 : layout === 4 ? 220 : 280;
   const [configs, setConfigs] = useState<Record<string, GraphConfig>>({});
+  const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
 
-  const getConfig = (kpiId: string): GraphConfig => configs[kpiId] || DEFAULT_CONFIG;
-  const setConfig = (kpiId: string, cfg: GraphConfig) => setConfigs(prev => ({ ...prev, [kpiId]: cfg }));
+  useEffect(() => {
+    fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
+  }, []);
+
+  const getConfig = (slotId: string): GraphConfig => configs[slotId] || DEFAULT_CONFIG;
+  const setConfig = (slotId: string, cfg: GraphConfig) => setConfigs(prev => ({ ...prev, [slotId]: cfg }));
 
   return (
     <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-      {selectedKpis.map(kpiId => {
-        const def = KPI_MAP[kpiId];
+      {graphSlots.map(slot => {
+        const def = KPI_MAP[slot.kpiId] || allKpis.find(k => k.id === slot.kpiId);
         if (!def) return null;
-        const cfg = getConfig(kpiId);
-        const kpiData = data.filter(d => d.kpi === kpiId);
+        const cfg = getConfig(slot.id);
+        const kpiData = data.filter(d => d.kpi === slot.kpiId);
         const timestamps = kpiData.map(d => d.timestamp);
         const values = kpiData.map(d => d.value);
 
@@ -218,13 +254,25 @@ const KPIGraphs: React.FC<Props> = ({ selectedKpis, data, layout }) => {
         };
 
         return (
-          <div key={kpiId} className="rounded-xl border border-border/60 bg-card p-4">
+          <div key={slot.id} className="rounded-xl border border-border/60 bg-card p-4">
             <div className="flex items-center gap-2 mb-2">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: def.color }} />
-              <h3 className="text-xs font-bold text-foreground uppercase tracking-tight">{def.label}</h3>
+              <SlotKpiSelector
+                currentKpiId={slot.kpiId}
+                onChange={(kpiId) => onChangeSlotKpi(slot.id, kpiId)}
+                allKpis={allKpis}
+              />
               <div className="flex items-center gap-1 ml-auto">
                 <span className="text-[10px] text-muted-foreground font-medium">{def.unit}</span>
-                <GraphSettingsPopover config={cfg} onChange={c => setConfig(kpiId, c)} />
+                <GraphSettingsPopover config={cfg} onChange={c => setConfig(slot.id, c)} />
+                {graphSlots.length > 1 && (
+                  <button
+                    onClick={() => onRemoveSlot(slot.id)}
+                    className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Remove graph"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
             <ReactECharts option={option} style={{ height: chartHeight }} />
