@@ -161,7 +161,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
           }],
         };
 
-        const isActive = activeSlotId === slot.id;
+        // isActive already declared above
         return (
           <div
             key={slot.id}
