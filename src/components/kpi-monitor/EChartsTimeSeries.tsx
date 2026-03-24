@@ -295,12 +295,11 @@ const EChartsTimeSeries: React.FC<Props> = ({
         merged.push([...area]);
       }
       if (merged.length > 0) {
-        const firstSeries = series.find((s: any) => s != null);
+        const firstSeries = series.find((s: any) => s != null) as any;
         if (firstSeries) {
           firstSeries.markArea = {
-            ...(firstSeries.markArea || {}),
             silent: true,
-            data: [...(firstSeries.markArea?.data || []), ...merged],
+            data: merged,
           };
         }
       }
