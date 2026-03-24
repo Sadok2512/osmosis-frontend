@@ -588,7 +588,7 @@ const KPIMonitorInner: React.FC = () => {
 
   const renderWidget = (w: WidgetItem) => {
     const wId = getId(w);
-    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={editMode ? () => { store.setActiveEditingWidgetId(wId); setShowAI(false); } : undefined} onDuplicate={editMode ? () => duplicateWidget(wId) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
+    if (w.kind === 'chart') return <BIChartCardECharts config={w.config as ChartConfig} onEdit={() => { store.setActiveEditingWidgetId(wId); setShowAI(false); }} onDuplicate={editMode ? () => duplicateWidget(wId) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     if (w.kind === 'map') return <BIMapWidget config={w.config as MapWidgetConfig} onChange={editMode ? cfg => updateMapConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     if (w.kind === 'image') return <BIImageWidget config={w.config as ImageWidgetConfig} onChange={editMode ? cfg => updateImageConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} />;
     if (w.kind === 'table') return <BITableWidget config={w.config as TableWidgetConfig} onChange={editMode ? cfg => updateTableConfig(wId, cfg) : undefined} onDelete={editMode ? () => deleteWidget(wId) : undefined} onEdit={editMode ? () => { setEditingId(wId); } : undefined} />;
