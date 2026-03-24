@@ -251,6 +251,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
               <SlotKpiSelector
                 currentKpiId={slot.kpiId}
                 onChange={(kpiId) => onChangeSlotKpi(slot.id, kpiId)}
+                catalog={catalog}
                 allKpis={allKpis}
               />
               <div className="flex items-center gap-1 ml-auto">
