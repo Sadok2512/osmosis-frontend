@@ -531,7 +531,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             <button
               onClick={() => {
                 const activeSlot = activeSlotId ? state.graphSlots.find(s => s.id === activeSlotId) : null;
-                if (activeSlot && !activeSlot.kpiId) {
+                if (activeSlot) {
                   setSelectorOpen(activeSlot.id);
                 } else {
                   setSelectorOpen('new');
