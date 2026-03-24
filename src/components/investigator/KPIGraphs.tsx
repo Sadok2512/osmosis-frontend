@@ -137,14 +137,29 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Filter data to only this slot's KPIs
         const slotData = data.filter(d => kpiIds.includes(d.kpi));
 
-        // Check if THIS slot's split is active (not global)
-        const slotSplitBy = slot.splitBy;
-        const hasSplit = slotSplitBy && slotSplitBy !== 'None' && slotData.some(d => d.splitValue && d.splitValue !== 'ALL');
+        // Per-KPI split detection
+        const splitByPerKpi = cfg.splitByPerKpi || {};
+        const getKpiHasSplit = (kpiId: string) => {
+          const perKpi = splitByPerKpi[kpiId];
+          if (perKpi && perKpi !== 'None') return true;
+          // Legacy fallback: slot-level splitBy only if no per-KPI config exists
+          if (!perKpi && slot.splitBy && slot.splitBy !== 'None') return true;
+          return false;
+        };
 
-        // When no split, filter OUT split entries to avoid stale data showing
-        const effectiveData = hasSplit
-          ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
-          : slotData.filter(d => !d.splitValue || d.splitValue === 'ALL');
+        // Filter data per-KPI based on individual split settings
+        const effectiveData = slotData.filter(d => {
+          const kpiSplit = getKpiHasSplit(d.kpi);
+          if (kpiSplit) {
+            // For split KPIs, keep only split entries (not ALL)
+            return d.splitValue && d.splitValue !== 'ALL';
+          } else {
+            // For non-split KPIs, keep only aggregate entries
+            return !d.splitValue || d.splitValue === 'ALL';
+          }
+        });
+
+        const hasSplit = kpiIds.some(id => getKpiHasSplit(id));
 
         // Collect all unique timestamps across all KPIs
         const allTimestamps = [...new Set(kpiIds.flatMap(id => effectiveData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
@@ -154,13 +169,41 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         let series: any[];
 
         if (hasSplit) {
-          // Build one series per kpiId × splitValue combination
           let colorIdx = 0;
           series = kpiIds.flatMap((kpiId, ki) => {
             const def = defs[ki];
-            const kpiData = effectiveData.filter(d => d.kpi === kpiId && d.splitValue);
-            const splitValues = [...new Set(kpiData.map(d => d.splitValue!))];
+            const kpiHasSplit = getKpiHasSplit(kpiId);
+            const kpiData = effectiveData.filter(d => d.kpi === kpiId);
 
+            if (!kpiHasSplit) {
+              // Non-split KPI: single aggregated series
+              const color = SERIES_COLORS[colorIdx++ % SERIES_COLORS.length];
+              const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
+              const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
+              return [{
+                name: def.label,
+                type: seriesType as any,
+                data: values,
+                smooth: cfg.smooth,
+                symbol: cfg.showSymbols ? 'circle' : 'none',
+                symbolSize: cfg.showSymbols ? 5 : 0,
+                lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
+                itemStyle: { color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+                barMaxWidth: 20,
+                areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
+                  color: {
+                    type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+                    colorStops: [
+                      { offset: 0, color: `${color}20` },
+                      { offset: 1, color: `${color}02` },
+                    ],
+                  },
+                } : undefined,
+              }];
+            }
+
+            // Split KPI: one series per split value
+            const splitValues = [...new Set(kpiData.map(d => d.splitValue!))];
             return splitValues.map(sv => {
               const color = SERIES_COLORS[colorIdx++ % SERIES_COLORS.length];
               const svData = kpiData.filter(d => d.splitValue === sv);
