@@ -512,13 +512,23 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
                   <div className="h-px bg-border/60" />
 
-                  {/* Remove */}
+                  {/* Clear KPI (keep slot) */}
+                  <button
+                    onClick={() => setState(prev => ({
+                      ...prev,
+                      graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, kpiId: '' } : s),
+                    }))}
+                    className="w-full text-[10px] font-semibold text-orange-600 hover:bg-orange-500/10 py-1.5 rounded-md transition-colors"
+                  >
+                    Retirer le KPI
+                  </button>
+                  {/* Remove slot entirely */}
                   {state.graphSlots.length > 1 && (
                     <button
                       onClick={() => setState(prev => ({ ...prev, graphSlots: prev.graphSlots.filter(s => s.id !== slot.id) }))}
                       className="w-full text-[10px] font-semibold text-destructive hover:bg-destructive/10 py-1.5 rounded-md transition-colors"
                     >
-                      Remove this KPI
+                      Supprimer le graphique
                     </button>
                   )}
                 </PopoverContent>
