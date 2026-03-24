@@ -222,38 +222,38 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const markAreaData = weekendAreas.map(([start, end]) => [{
           xAxis: start.xAxis,
-          itemStyle: { color: 'rgba(148,163,184,0.045)' },
+          itemStyle: { color: 'rgba(148,163,184,0.035)' },
         }, {
           xAxis: end.xAxis,
         }]);
 
-        // Smart x-axis interval: keep labels horizontal, show ~10-14 ticks max
+        // Smart x-axis interval: keep labels horizontal, show ~8-12 ticks max
         const totalPts = allTimestamps.length;
-        const xInterval = totalPts > 90 ? Math.floor(totalPts / 10) : totalPts > 40 ? Math.floor(totalPts / 12) : totalPts > 20 ? Math.floor(totalPts / 10) : 0;
+        const xInterval = totalPts > 90 ? Math.floor(totalPts / 8) : totalPts > 40 ? Math.floor(totalPts / 10) : totalPts > 20 ? Math.floor(totalPts / 8) : 0;
 
         const option = {
           animation: true,
           grid: {
-            top: 36,
+            top: 32,
             right: 28,
-            bottom: series.length > 4 ? 72 : series.length > 2 ? 60 : 50,
-            left: 60,
+            bottom: series.length > 4 ? 78 : series.length > 2 ? 66 : 54,
+            left: 62,
             containLabel: false,
           },
           legend: {
             show: true,
-            bottom: 2,
+            bottom: 4,
             icon: 'roundRect',
-            itemWidth: 18,
+            itemWidth: 20,
             itemHeight: 5,
-            itemGap: 24,
+            itemGap: 28,
             type: 'scroll' as any,
             pageIconSize: 12,
             textStyle: {
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: 500,
               color: '#4b5563',
-              padding: [0, 0, 0, 4],
+              padding: [0, 0, 0, 5],
               overflow: 'truncate',
               width: 160,
             },
@@ -267,7 +267,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             textStyle: { color: '#f1f5f9', fontSize: 11.5 },
             axisPointer: {
               type: 'line' as const,
-              lineStyle: { color: 'rgba(99,102,241,0.3)', width: 1, type: 'dashed' as const },
+              lineStyle: { color: 'rgba(99,102,241,0.25)', width: 1, type: 'dashed' as const },
             },
             formatter: (params: any) => {
               const items = Array.isArray(params) ? params : [params];
@@ -296,12 +296,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
               },
               fontSize: 10.5,
-              color: '#9ca3af',
+              color: '#a1a1aa',
               margin: 14,
               rotate: 0,
               interval: xInterval,
             },
-            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
             axisTick: { show: false },
             splitLine: { show: false },
           },
@@ -309,10 +309,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             type: 'value' as const,
             min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
             max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : undefined,
-            axisLabel: { fontSize: 10, color: '#9ca3af', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
+            axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
             splitLine: {
               show: cfg.showGrid,
-              lineStyle: { color: 'rgba(128,128,128,0.06)', type: 'dashed' as const },
+              lineStyle: { color: 'rgba(128,128,128,0.05)', type: 'dashed' as const },
             },
             axisLine: { show: false },
             axisTick: { show: false },
@@ -343,10 +343,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               onSlotClick?.(slot.id);
             }}
             className={cn(
-              'rounded-xl border bg-card px-6 pt-5 pb-4 group relative cursor-pointer transition-all duration-300',
+              'rounded-xl border bg-card px-6 pt-5 pb-4 group relative cursor-pointer transition-all duration-200',
               isActive
-                ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5'
-                : 'border-border/40 hover:border-border/70 hover:shadow-sm'
+                ? 'border-primary/40 ring-1 ring-primary/15 shadow-md shadow-primary/5'
+                : 'border-border/40 hover:border-border/60 hover:shadow-sm'
             )}
           >
             {/* Header */}
