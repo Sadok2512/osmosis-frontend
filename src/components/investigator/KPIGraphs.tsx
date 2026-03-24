@@ -536,7 +536,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 </PopoverContent>
               </Popover>
             </div>
-            <ReactECharts option={option} style={{ height: chartHeight }} />
+            <ReactECharts option={option} notMerge={true} style={{ height: chartHeight }} />
           </div>
         );
       })}
