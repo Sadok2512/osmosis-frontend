@@ -420,7 +420,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             return (
               <Popover key={slot.id}>
                 <PopoverTrigger asChild>
-                  <button className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors">
+                  <button
+                    onClick={(e) => {
+                      onSlotClick?.(slot.id);
+                    }}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all duration-300',
+                      activeSlotId === slot.id
+                        ? 'bg-primary/20 text-primary border-primary/40 ring-2 ring-primary/20 shadow-sm'
+                        : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
+                    )}
+                  >
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                     <span className="truncate max-w-[140px]">{name}</span>
                     <Settings2 className="w-3 h-3 text-muted-foreground" />
