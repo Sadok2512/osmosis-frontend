@@ -208,7 +208,7 @@ const InvestigatorPage: React.FC = () => {
               layout={state.graphLayout}
               onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
                 ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiId } : s),
+                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
               }))}
               onRemoveSlot={(slotId) => setState(prev => ({
                 ...prev,
