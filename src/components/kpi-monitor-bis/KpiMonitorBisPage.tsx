@@ -76,6 +76,15 @@ const GRANULARITIES = [
 ];
 
 const FILTER_DIMENSIONS = ['Vendor', 'TECHNO', 'BAND', 'DOR', 'Plaque', 'ARCEP'];
+const SPLIT_OPTIONS = [
+  { value: '', label: 'None' },
+  { value: 'Vendor', label: 'Vendor' },
+  { value: 'TECHNO', label: 'Techno' },
+  { value: 'BAND', label: 'Band' },
+  { value: 'DOR', label: 'DOR' },
+  { value: 'DR', label: 'DR' },
+  { value: 'Plaque', label: 'Plaque' },
+];
 
 // ── Helper: fetch filter values ──
 const useDimensionValues = (dimension: string) => {
