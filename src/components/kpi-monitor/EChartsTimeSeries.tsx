@@ -445,14 +445,17 @@ const EChartsTimeSeries: React.FC<Props> = ({
     document.body
   ) : null;
 
+  const bgStyle = gc?.backgroundColor && gc.backgroundColor !== 'transparent' ? { backgroundColor: gc.backgroundColor } : undefined;
+  const titleColor = (gc as any)?.titleColor;
+
   return (
     <>
-      <div className="h-full flex flex-col rounded-xl border border-border/60 bg-card overflow-hidden group shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.08)] transition-shadow duration-200">
+      <div className="h-full flex flex-col rounded-xl border border-border/60 bg-card overflow-hidden group shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.08)] transition-shadow duration-200" style={bgStyle}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
           <div className="flex items-center gap-2 min-w-0 flex-1 drag-handle cursor-grab active:cursor-grabbing">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: headerColor }} />
-            <h3 className="text-[13px] font-semibold text-foreground truncate tracking-tight">{headerTitle}</h3>
+            <h3 className="text-[13px] font-semibold truncate tracking-tight" style={titleColor ? { color: titleColor } : undefined}>{headerTitle}</h3>
             <span className="text-[10px] text-muted-foreground font-medium">{headerUnit}</span>
           </div>
           {actionsMenu(false)}
