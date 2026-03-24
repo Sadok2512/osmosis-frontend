@@ -250,6 +250,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
           </div>
         );
       })}
+      </div>
       {/* Small Add button */}
       {graphSlots.length < 4 && (
         <button
