@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { DataPoint, GraphSlot } from './types';
 import { KPI_MAP, KPIS } from './mockData';
@@ -12,6 +12,9 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
+import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
+import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 
 type ChartType = 'line' | 'area' | 'bar' | 'scatter';
 
