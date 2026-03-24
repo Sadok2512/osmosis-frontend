@@ -136,6 +136,8 @@ const InvestigatorPage: React.FC = () => {
         onApply={handleApply}
         externalSelectorSlot={kpiSelectorSlot}
         onExternalSelectorClose={() => setKpiSelectorSlot(null)}
+        activeSlotId={activeSlotId}
+        onSlotClick={setActiveSlotId}
       />
 
       {/* Main Content */}
