@@ -72,7 +72,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
                   className="text-xs font-bold text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[140px] truncate"
                 />
                 <span className="ml-auto" />
-                {graphSlots.length > 1 && (
+                {true && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
                     className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
@@ -199,7 +199,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
               <span className="text-[10px] text-muted-foreground font-medium ml-auto mr-1">{def.unit}</span>
 
               {/* Remove button */}
-              {graphSlots.length > 1 && (
+              {true && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
                   className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
@@ -300,7 +300,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
                     Retirer le KPI
                   </button>
                   {/* Remove slot entirely */}
-                  {graphSlots.length > 1 && (
+                  {true && (
                     <button
                       onClick={() => onRemoveSlot(slot.id)}
                       className="w-full text-[10px] font-semibold text-destructive hover:bg-destructive/10 py-1.5 rounded-md transition-colors"
