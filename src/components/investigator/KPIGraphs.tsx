@@ -188,7 +188,13 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
             <div className="flex items-center gap-2 mb-2 relative z-10">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: def.color }} />
-                <span className="text-xs font-bold text-foreground truncate max-w-[200px]">{def.label}</span>
+                <input
+                  value={slot.name}
+                  onChange={(e) => onRenameSlot(slot.id, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-xs font-bold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[120px] truncate"
+                />
+                <span className="text-[10px] text-muted-foreground">— {def.label}</span>
               </div>
               <span className="text-[10px] text-muted-foreground font-medium ml-auto mr-1">{def.unit}</span>
 
