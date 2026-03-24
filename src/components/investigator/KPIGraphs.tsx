@@ -128,8 +128,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, onChangeSlotKpi,
               {/* Config popover on the widget */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <button className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
-                    <Settings2 className="w-3.5 h-3.5" />
+                  <button className="p-1.5 rounded-md border border-border/60 bg-muted/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
+                    <Settings2 className="w-4 h-4" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[260px] p-3 space-y-3 z-50" align="end" side="bottom">
