@@ -37,7 +37,7 @@ interface Props {
 
 const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
   const cols = layout === 1 ? 1 : 2;
-  const chartHeight = layout === 1 ? 400 : layout === 4 ? 220 : 280;
+  const chartHeight = layout === 1 ? 440 : layout === 4 ? 260 : 320;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
 
   useEffect(() => {
@@ -204,32 +204,80 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             },
           }));
 
+        // Weekend highlighting — build markArea data
+        const weekendAreas: { xAxis: string }[][] = [];
+        let inWeekend = false;
+        for (let ti = 0; ti < allTimestamps.length; ti++) {
+          const day = new Date(allTimestamps[ti]).getDay(); // 0=Sun, 6=Sat
+          const isWE = day === 0 || day === 6;
+          if (isWE && !inWeekend) {
+            weekendAreas.push([{ xAxis: allTimestamps[ti] }, { xAxis: allTimestamps[ti] }]);
+            inWeekend = true;
+          } else if (isWE && inWeekend) {
+            weekendAreas[weekendAreas.length - 1][1] = { xAxis: allTimestamps[ti] };
+          } else {
+            inWeekend = false;
+          }
+        }
+
+        const markAreaData = weekendAreas.map(([start, end]) => [{
+          xAxis: start.xAxis,
+          itemStyle: { color: 'rgba(148,163,184,0.08)' },
+        }, {
+          xAxis: end.xAxis,
+        }]);
+
         const option = {
           animation: true,
-          grid: { top: 40, right: 20, bottom: kpiIds.length > 2 ? 56 : 36, left: 56 },
+          grid: {
+            top: 48,
+            right: 24,
+            bottom: series.length > 4 ? 80 : series.length > 2 ? 64 : 48,
+            left: 64,
+            containLabel: false,
+          },
           legend: {
             show: true,
-            bottom: 0,
-            icon: 'circle',
-            itemWidth: 8,
-            itemHeight: 8,
-            itemGap: 12,
+            bottom: 4,
+            icon: 'roundRect',
+            itemWidth: 14,
+            itemHeight: 4,
+            itemGap: 18,
             type: 'scroll' as any,
-            textStyle: { fontSize: 10, color: '#888', overflow: 'truncate', width: 120 },
+            pageIconSize: 10,
+            textStyle: {
+              fontSize: 11,
+              color: '#6b7280',
+              padding: [0, 0, 0, 2],
+              overflow: 'truncate',
+              width: 140,
+            },
           },
           tooltip: {
             trigger: 'axis' as const,
-            backgroundColor: 'rgba(15,23,42,0.95)',
-            borderColor: 'rgba(255,255,255,0.08)',
-            textStyle: { color: '#f8fafc', fontSize: 11 },
+            backgroundColor: 'rgba(15,23,42,0.96)',
+            borderColor: 'rgba(255,255,255,0.06)',
+            borderRadius: 8,
+            padding: [10, 14],
+            textStyle: { color: '#f1f5f9', fontSize: 11.5 },
+            axisPointer: {
+              type: 'line' as const,
+              lineStyle: { color: 'rgba(99,102,241,0.35)', width: 1.5, type: 'dashed' as const },
+            },
             formatter: (params: any) => {
               const items = Array.isArray(params) ? params : [params];
               if (items.length === 0) return '';
               const dt = new Date(items[0].axisValue);
-              const header = `<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">${dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>`;
+              const dayName = dt.toLocaleDateString('fr-FR', { weekday: 'short' });
+              const dateStr = dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' });
+              const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+              const isWE = dt.getDay() === 0 || dt.getDay() === 6;
+              const weBadge = isWE ? ' <span style="background:rgba(148,163,184,0.2);padding:1px 5px;border-radius:3px;font-size:9px;color:#94a3b8">WE</span>' : '';
+              const header = `<div style="font-size:10.5px;color:#94a3b8;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
               const rows = items.map((p: any) => {
                 const def = defs.find(d => d.label === p.seriesName) || defs[0];
-                return `<div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${p.color}"></span><span>${p.seriesName}:</span><b>${p.value?.toFixed(2)} ${def.unit}</b></div>`;
+                const val = p.value != null ? p.value.toFixed(2) : '—';
+                return `<div style="display:flex;align-items:center;gap:8px;padding:1.5px 0"><span style="width:10px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1">${p.seriesName}</span><b style="color:#f1f5f9">${val} ${def.unit}</b></div>`;
               }).join('');
               return header + rows;
             },
@@ -238,24 +286,45 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             type: 'category' as const,
             data: allTimestamps,
             axisLabel: {
-              formatter: (v: string) => new Date(v).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
-              fontSize: 9,
+              formatter: (v: string) => {
+                const d = new Date(v);
+                return `${d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}`;
+              },
+              fontSize: 10,
               color: '#9ca3af',
+              margin: 12,
+              rotate: allTimestamps.length > 30 ? 30 : 0,
+              interval: allTimestamps.length > 60 ? Math.floor(allTimestamps.length / 20) : allTimestamps.length > 20 ? Math.floor(allTimestamps.length / 14) : 0,
             },
-            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
             axisTick: { show: false },
+            splitLine: { show: false },
           },
           yAxis: {
             type: 'value' as const,
             min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
             max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : undefined,
-            axisLabel: { fontSize: 9, color: '#9ca3af', formatter: (v: number) => `${v.toFixed(1)}` },
+            axisLabel: { fontSize: 10, color: '#9ca3af', formatter: (v: number) => `${v.toFixed(1)}`, margin: 12 },
             splitLine: {
               show: cfg.showGrid,
-              lineStyle: { color: 'rgba(128,128,128,0.12)', type: 'dashed' as const },
+              lineStyle: { color: 'rgba(128,128,128,0.09)', type: 'dashed' as const },
             },
+            axisLine: { show: false },
+            axisTick: { show: false },
           },
-          series: series.map((s, i) => i === 0 ? { ...s, markLine: markLineData.length > 0 ? { silent: true, symbol: 'none', data: markLineData } : undefined } : s),
+          series: series.map((s, i) => ({
+            ...s,
+            lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2 },
+            emphasis: {
+              focus: 'series' as const,
+              blurScope: 'coordinateSystem' as const,
+              lineStyle: { width: (s.lineStyle?.width || cfg.lineWidth || 2) + 1 },
+            },
+            ...(i === 0 ? {
+              markLine: markLineData.length > 0 ? { silent: true, symbol: 'none', data: markLineData } : undefined,
+              markArea: markAreaData.length > 0 ? { silent: true, data: markAreaData } : undefined,
+            } : {}),
+          })),
         };
 
         const primaryDef = defs[0];
@@ -269,24 +338,24 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               onSlotClick?.(slot.id);
             }}
             className={cn(
-              'rounded-xl border bg-card p-4 group relative cursor-pointer transition-all duration-300',
+              'rounded-xl border bg-card px-5 pt-4 pb-3 group relative cursor-pointer transition-all duration-300',
               isActive
                 ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5'
-                : 'border-border/60 hover:border-border'
+                : 'border-border/50 hover:border-border hover:shadow-sm'
             )}
           >
             {/* Header */}
-            <div className="flex items-center gap-2 mb-2 relative z-10">
+            <div className="flex items-center gap-2 mb-3 relative z-10">
               <div className="flex items-center gap-1.5">
                 {/* Show color dots for each KPI */}
                 {defs.map((d, i) => (
-                  <span key={i} className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                  <span key={i} className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-white/20" style={{ backgroundColor: d.color }} />
                 ))}
                 <input
                   value={slot.name}
                   onChange={(e) => onRenameSlot(slot.id, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-xs font-bold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[120px] truncate"
+                  className="text-[13px] font-semibold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[160px] truncate ml-1"
                 />
               </div>
               <span className="ml-auto" />
