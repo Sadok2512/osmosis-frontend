@@ -457,6 +457,15 @@ const KpiMonitorBisPage: React.FC = () => {
               <Plus className="w-3 h-3" /> Add KPI
             </button>
           )}
+
+          {/* Apply button aligned right */}
+          <button
+            onClick={fetchData}
+            className="ml-auto px-5 py-1 rounded text-[10px] font-mono font-bold uppercase tracking-wider transition-all hover:opacity-80"
+            style={{ background: 'var(--bis-primary)', color: 'var(--bis-card)' }}
+          >
+            Apply
+          </button>
         </div>
 
         {/* Row 3: Filters */}
