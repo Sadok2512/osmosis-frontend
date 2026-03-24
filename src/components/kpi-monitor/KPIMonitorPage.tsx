@@ -107,8 +107,7 @@ const KPIMonitorPage: React.FC = () => {
   const deleteWidget = useCallback((id: string) => {
     setWidgets(prev => prev.filter(w => w.config.id !== id));
     if (selectedWidgetId === id) setSelectedWidgetId(null);
-    if (configuringWidgetId === id) setConfiguringWidgetId(null);
-  }, [selectedWidgetId, configuringWidgetId]);
+  }, [selectedWidgetId]);
 
   const duplicateWidget = useCallback((id: string) => {
     const source = widgets.find(w => w.config.id === id);
