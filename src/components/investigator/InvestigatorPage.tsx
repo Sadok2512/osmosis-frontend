@@ -49,7 +49,7 @@ const InvestigatorPage: React.FC = () => {
     setIsApplying(true);
     try {
       const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
-      const splitMap: Record<string, string> = { 'None': '', 'Vendor': 'Vendor', 'Technology': 'TECHNO', 'Band': 'BAND', 'DOR': 'DOR', 'DR': 'DOR' };
+      const splitMap: Record<string, string> = { 'None': '', 'Vendor': 'VENDOR', 'Technology': 'TECHNO', 'Band': 'BAND', 'DOR': 'DOR', 'DR': 'DOR', 'Site': 'SITE', 'Cell': 'CELL', 'Plaque': 'PLAQUE', 'Zone ARCEP': 'ZONE_ARCEP' };
 
       const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
       const [ts, worst] = await Promise.all([

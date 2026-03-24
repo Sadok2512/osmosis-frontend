@@ -33,7 +33,7 @@ interface Props {
   onSlotClick?: (slotId: string) => void;
 }
 
-const SPLITS: SplitOption[] = ['None', 'Vendor', 'Technology', 'Band', 'DOR', 'DR'];
+const SPLITS: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
 const PERIODS = [
   { label: '24h', days: 1 },
   { label: '7j', days: 7 },

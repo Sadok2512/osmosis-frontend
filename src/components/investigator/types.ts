@@ -1,7 +1,7 @@
 export type Dimension = 'Cell' | 'Site' | 'DOR' | 'DR' | 'Plaque' | 'Zone ARCEP';
 export type Granularity = 'Hourly' | 'Daily' | 'Weekly';
 export type GraphTab = 'TimeSeries' | 'Histogram' | 'Breakdown';
-export type SplitOption = 'None' | 'Vendor' | 'Technology' | 'Band' | 'DOR' | 'DR';
+export type SplitOption = 'None' | 'Vendor' | 'Technology' | 'Band' | 'DOR' | 'DR' | 'Site' | 'Cell' | 'Plaque' | 'Zone ARCEP';
 
 export type ChartType = 'line' | 'area' | 'bar' | 'scatter';
 
