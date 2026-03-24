@@ -374,20 +374,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             </div>
           </div>
 
-          {/* Separator */}
-          <div className="h-5 w-px bg-border/60 shrink-0" />
-
-          {/* Split By */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Split By</span>
-            <select
-              value={state.splitBy}
-              onChange={e => setState(prev => ({ ...prev, splitBy: e.target.value as SplitOption }))}
-              className="px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-[100px] h-[32px]"
-            >
-              {SPLITS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
 
           {/* Apply */}
           <button
