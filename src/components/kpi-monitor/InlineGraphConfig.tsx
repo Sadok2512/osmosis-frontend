@@ -735,10 +735,6 @@ export const HorizontalConfigPanel: React.FC<ConfigPanelProps> = ({
                 </>
               )}
             </div>
-                  </FieldRow>
-                </>
-              )}
-            </div>
           </SectionCard>
 
           {/* ── FILTRES ── */}
