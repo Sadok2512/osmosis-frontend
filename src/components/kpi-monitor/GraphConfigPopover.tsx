@@ -60,11 +60,11 @@ const GraphConfigPopover: React.FC<Props> = ({ config, onChange }) => {
 
   // Pull widget context from stores
   const { selectedKpis, splitBy, topN, includeOthers, localFilters } = useKpiMonitorStore();
-  const { dateRange, dor, plaque } = useGlobalFilterStore();
+  const { dateFrom, dateTo, globalFilters } = useGlobalFilterStore();
 
-  const activeGlobalFilters: string[] = [];
-  if (dor) activeGlobalFilters.push(`DOR: ${dor}`);
-  if (plaque) activeGlobalFilters.push(`Plaque: ${plaque}`);
+  const activeGlobalFilters = globalFilters
+    .filter(f => f.values && f.values.length > 0)
+    .map(f => `${f.dimension}: ${f.values.join(', ')}`);
 
   const dateLabel = dateRange
     ? `${dateRange.from || '—'} → ${dateRange.to || '—'}`
