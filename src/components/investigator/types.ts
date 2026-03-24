@@ -23,6 +23,8 @@ export interface GraphConfig {
   yAxisRight?: YAxisConfig;
   /** Maps kpiId → 0 (left) or 1 (right). Default is 0. */
   yAxisAssignments?: Record<string, number>;
+  /** Maps kpiId → split dimension (e.g. 'BAND'). Missing or 'None' means no split. */
+  splitByPerKpi?: Record<string, string>;
 }
 
 export const DEFAULT_GRAPH_CONFIG: GraphConfig = {

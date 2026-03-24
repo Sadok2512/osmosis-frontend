@@ -50,28 +50,42 @@ const InvestigatorPage: React.FC = () => {
     setTsData([]);
     try {
       const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
-      // splitBy is per-slot — collect from each slot for the active one, fallback to global
-      const activeSlot = state.graphSlots.find(s => s.id === activeSlotId);
-      const slotSplitBy = activeSlot?.splitBy || state.splitBy;
-      const splitValue = (!slotSplitBy || slotSplitBy === 'None') ? undefined : slotSplitBy;
+      const dateFrom = state.startDate.split('T')[0] || '2026-01-14';
+      const dateTo = state.endDate.split('T')[0] || '2026-03-14';
+      const gran = granMap[state.granularity] || '1h';
 
-      const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
-      const [ts, worst] = await Promise.all([
-        fetchTimeSeriesData(
-          kpiIds,
-          state.startDate.split('T')[0] || '2026-01-14',
-          state.endDate.split('T')[0] || '2026-03-14',
-          granMap[state.granularity] || '1h',
-          splitValue,
-        ),
-        fetchWorstElements(
-          kpiIds[0] || 'dcr',
-          state.topLimit,
-          state.endDate.split('T')[0] || undefined,
-          state.dimension === 'Cell' ? 'cell' : 'site',
-        ),
+      // Group KPIs by their split dimension (per-KPI split support)
+      const splitGroups: Record<string, string[]> = {}; // splitDim → kpiIds
+      for (const slot of state.graphSlots) {
+        for (const kpiId of slot.kpiIds) {
+          const perKpiSplit = slot.config?.splitByPerKpi?.[kpiId];
+          const splitDim = (perKpiSplit && perKpiSplit !== 'None') ? perKpiSplit
+            : (slot.splitBy && slot.splitBy !== 'None') ? slot.splitBy
+            : '__none__';
+          if (!splitGroups[splitDim]) splitGroups[splitDim] = [];
+          if (!splitGroups[splitDim].includes(kpiId)) splitGroups[splitDim].push(kpiId);
+        }
+      }
+
+      const allKpiIds = state.graphSlots.flatMap(s => s.kpiIds);
+
+      // Fetch timeseries per split group in parallel
+      const tsPromises = Object.entries(splitGroups).map(([splitDim, kpis]) =>
+        fetchTimeSeriesData(kpis, dateFrom, dateTo, gran, splitDim === '__none__' ? undefined : splitDim)
+      );
+      const worstPromise = fetchWorstElements(
+        allKpiIds[0] || 'dcr',
+        state.topLimit,
+        dateTo,
+        state.dimension === 'Cell' ? 'cell' : 'site',
+      );
+
+      const [tsResults, worst] = await Promise.all([
+        Promise.all(tsPromises),
+        worstPromise,
       ]);
-      setTsData(ts);
+
+      setTsData(tsResults.flat());
       setWorstElements(worst);
       setHasLoadedOnce(true);
     } catch (e) {

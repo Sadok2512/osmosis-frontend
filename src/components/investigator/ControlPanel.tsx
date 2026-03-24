@@ -689,20 +689,30 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
                     {/* Split By */}
                     <div className="space-y-1">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split By</span>
-                      <select
-                        value={slot.splitBy || 'None'}
-                        onChange={e => setState(prev => ({
-                          ...prev,
-                          graphSlots: prev.graphSlots.map(s =>
-                            s.id === slot.id ? { ...s, splitBy: e.target.value as SplitOption } : s
-                          ),
-                        }))}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium"
-                      >
-                        <option value="None">Aucun</option>
-                        {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                      </select>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split By (par KPI)</span>
+                      {slot.kpiIds.map((kpiId, ki) => {
+                        const kDef = kpiDefs.find(k => k.id === kpiId);
+                        const kLabel = kDef?.label || kpiId;
+                        const currentSplit = cfg.splitByPerKpi?.[kpiId] || slot.splitBy || 'None';
+                        return (
+                          <div key={kpiId} className="flex items-center gap-2">
+                            <span className="text-[9px] text-muted-foreground truncate max-w-[80px]" title={kLabel}>{kLabel}</span>
+                            <select
+                              value={currentSplit}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setSlotConfig({
+                                  splitByPerKpi: { ...(cfg.splitByPerKpi || {}), [kpiId]: val },
+                                });
+                              }}
+                              className="flex-1 px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+                            >
+                              <option value="None">Aucun</option>
+                              {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                            </select>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     <div className="h-px bg-border/60" />
