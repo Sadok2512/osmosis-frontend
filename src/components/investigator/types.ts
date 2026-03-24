@@ -39,6 +39,13 @@ export interface GraphSlot {
   splitBy: SplitOption;
 }
 
+export interface Jalon {
+  id: string;
+  date: string;
+  label: string;
+  color: string;
+}
+
 export interface InvestigationState {
   dimension: Dimension;
   selectedKpis: string[];
@@ -52,6 +59,7 @@ export interface InvestigationState {
   sortBy: string;
   graphLayout: 1 | 2 | 4;
   activeGraphTab: GraphTab;
+  jalons: Jalon[];
 }
 
 export interface DataPoint {
