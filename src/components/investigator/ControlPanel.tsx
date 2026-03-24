@@ -332,7 +332,18 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply }) => {
             </div>
           </div>
 
-          {/* Apply */}
+          {/* Split By */}
+          <div className="space-y-1 shrink-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Split By</label>
+            <select
+              value={state.splitBy}
+              onChange={e => setState(prev => ({ ...prev, splitBy: e.target.value as SplitOption }))}
+              className="px-3 py-2 rounded-lg border border-border bg-background text-foreground text-xs font-medium w-[110px]"
+            >
+              {SPLITS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
           <button
             onClick={onApply}
             className="shrink-0 px-6 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm"
