@@ -305,6 +305,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             axisTick: { show: false },
             splitLine: { show: false },
           },
+          // Determine if we need a right Y-axis
+          const yAxisAssignments = cfg.yAxisAssignments || {};
+          const hasRightAxis = Object.values(yAxisAssignments).includes(1);
+
           yAxis: {
             type: 'value' as const,
             min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
