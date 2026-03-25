@@ -39,8 +39,6 @@ const InvestigatorPage: React.FC = () => {
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
   const [isLoadingWorst, setIsLoadingWorst] = React.useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [sidebarFilters, setSidebarFilters] = useState<Record<string, string[]>>({});
 
   // Load filter options on mount
   React.useEffect(() => {
