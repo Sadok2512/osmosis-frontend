@@ -77,7 +77,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
   return (
     <div className="space-y-3">
-      <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+      <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1 max-w-[1400px]' : 'grid-cols-1 md:grid-cols-2'}`}>
       {graphSlots.map(slot => {
         const kpiIds = slot.kpiIds || [];
         const isEmpty = kpiIds.length === 0;
