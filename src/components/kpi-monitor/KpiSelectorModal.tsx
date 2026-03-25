@@ -445,6 +445,22 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                             <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">{k.unit || '–'}</span>
                           </div>
                         </button>
+
+                        {/* L/R axis toggle — only when selected */}
+                        {isSelected && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleAxis(k.kpi_key); }}
+                            className={cn(
+                              'shrink-0 w-6 h-5 rounded text-[8px] font-black tracking-tight flex items-center justify-center border transition-all',
+                              (axisMap[k.kpi_key] || 'left') === 'left'
+                                ? 'bg-primary/10 border-primary/30 text-primary'
+                                : 'bg-accent/50 border-accent text-accent-foreground'
+                            )}
+                            title={(axisMap[k.kpi_key] || 'left') === 'left' ? 'Axe gauche — cliquer pour passer à droite' : 'Axe droit — cliquer pour passer à gauche'}
+                          >
+                            {(axisMap[k.kpi_key] || 'left') === 'left' ? 'L' : 'R'}
+                          </button>
+                        )}
                       </div>
                     );
                   })}
