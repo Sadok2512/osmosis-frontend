@@ -91,7 +91,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [filterNormalized, setFilterNormalized] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
 
-  // Reset state when opening
+  // Load favorites from DB on open
   React.useEffect(() => {
     if (open) {
       setSelected(new Set(selectedKeys));
@@ -102,8 +102,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       setFilterNormalized('');
       setFilterLevel('');
       setShowFavOnly(false);
-      setFavorites(loadFavorites());
       setAxisMap(extAxisAssignments || {});
+      // Async load favorites from DB
+      loadFavoritesDB('kpi-monitor').then(favs => setFavorites(favs));
     }
   }, [open, selectedKeys, extAxisAssignments]);
 
