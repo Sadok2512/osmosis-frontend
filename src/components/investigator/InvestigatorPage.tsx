@@ -5,13 +5,15 @@ import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import CMChangesCard from './CMChangesCard';
 import CounterGraphSection from './CounterGraphSection';
+import CounterSelectorModal from './CounterSelectorModal';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import WorstElementsTable from './WorstElementsTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType } from './types';
 import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWorstByDOR, fetchFilterValues, fetchCellDetails } from './investigatorApi';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
-  Settings2, Bell, Cpu,
+  Settings2, Bell, Cpu, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
@@ -47,11 +49,37 @@ const InvestigatorPage: React.FC = () => {
   } = useInvestigatorStore();
 
   const [isApplying, setIsApplying] = React.useState(false);
+  const [counterSelectorOpen, setCounterSelectorOpen] = React.useState(false);
+  const [counterCatalog, setCounterCatalog] = React.useState<{counter_name:string;display_name:string;family:string;vendor:string;techno:string;count:number}[]>([]);
+  const [selectedCounters, setSelectedCounters] = React.useState<string[]>([]);
+  const [counterTsData, setCounterTsData] = React.useState<{timestamp:string;kpi:string;value:number}[]>([]);
   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'counters' | 'alarms' | 'cm_history'>('breakdown');
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
   const [isLoadingWorst, setIsLoadingWorst] = React.useState(false);
+
+  // Load counter catalog
+  React.useEffect(() => {
+    fetch(getApiUrl('pm/counters/catalog'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : []).then(setCounterCatalog).catch(() => {});
+  }, []);
+
+  // Fetch counter timeseries when selection changes
+  React.useEffect(() => {
+    if (selectedCounters.length === 0) { setCounterTsData([]); return; }
+    const dateFrom = state.startDate.split('T')[0] || '2026-01-01';
+    const dateTo = state.endDate.split('T')[0] || '2026-03-24';
+    fetch(getApiUrl('pm/counters/timeseries'), {
+      method: 'POST', headers: getApiHeaders(),
+      body: JSON.stringify({ counter_names: selectedCounters, date_from: dateFrom, date_to: dateTo, granularity: '1d' }),
+    }).then(r => r.ok ? r.json() : { series: [] })
+      .then(data => {
+        setCounterTsData((data.series || []).map((s: any) => ({
+          timestamp: s.ts, kpi: s.counter, value: s.value,
+        })));
+      }).catch(() => setCounterTsData([]));
+  }, [selectedCounters.join(','), state.startDate, state.endDate]);
 
   // Load filter options on mount
   React.useEffect(() => {
@@ -285,6 +313,16 @@ const InvestigatorPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
+              {/* Add KPI / Add Counter buttons */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setCounterSelectorOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border border-dashed border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 transition-all"
+                >
+                  <Cpu className="w-3 h-3" /> Add Counter
+                </button>
+              </div>
+
               {/* Graph type tabs */}
               <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
                 {([
@@ -333,11 +371,29 @@ const InvestigatorPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Selected counter pills */}
+          {selectedCounters.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap pb-2">
+              <span className="text-[9px] font-bold text-emerald-500 uppercase mr-1">Counters:</span>
+              {selectedCounters.map((name, i) => {
+                const def = counterCatalog.find(c => c.counter_name === name);
+                return (
+                  <span key={name} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md text-[9px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                    <span className="font-mono">{def?.display_name || name}</span>
+                    <button onClick={() => setSelectedCounters(prev => prev.filter(c => c !== name))} className="p-0.5 rounded hover:bg-destructive/10 hover:text-destructive">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
           {state.activeGraphTab === 'TimeSeries' && (
             <KPIGraphs
               jalons={state.jalons}
               graphSlots={state.graphSlots}
-              data={tsData}
+              data={[...tsData, ...counterTsData]}
               layout={state.graphLayout}
               onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
                 ...prev,
@@ -548,6 +604,15 @@ const InvestigatorPage: React.FC = () => {
           </section>
         )}
       </main>
+
+      {/* Counter Selector Modal */}
+      <CounterSelectorModal
+        open={counterSelectorOpen}
+        onClose={() => setCounterSelectorOpen(false)}
+        catalog={counterCatalog}
+        selectedKeys={selectedCounters}
+        onConfirm={setSelectedCounters}
+      />
     </div>
   );
 };
