@@ -138,27 +138,30 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Filter data to only this slot's KPIs
         const slotData = data.filter(d => kpiIds.includes(d.kpi));
 
-        // Per-KPI split detection
+        // Per-KPI split detection — check both per-KPI config AND global split
         const splitByPerKpi = cfg.splitByPerKpi || {};
+        const hasGlobalSplit = slotData.some(d => d.splitValue && d.splitValue !== 'ALL');
         const getKpiHasSplit = (kpiId: string) => {
           const perKpi = splitByPerKpi[kpiId];
           if (perKpi && perKpi !== 'None') return true;
-          return false;
+          return hasGlobalSplit;
         };
 
-        // Filter data per-KPI based on individual split settings
-        const effectiveData = slotData.filter(d => {
-          const kpiSplit = getKpiHasSplit(d.kpi);
-          if (kpiSplit) {
-            // For split KPIs, keep only split entries (not ALL)
-            return d.splitValue && d.splitValue !== 'ALL';
-          } else {
-            // For non-split KPIs, keep only aggregate entries
-            return !d.splitValue || d.splitValue === 'ALL';
-          }
-        });
+        // Filter data per-KPI based on split settings
+        const effectiveData = hasGlobalSplit
+          ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
+          : slotData.filter(d => {
+              const kpiSplit = splitByPerKpi[d.kpi];
+              if (kpiSplit && kpiSplit !== 'None') {
+                return d.splitValue && d.splitValue !== 'ALL';
+              }
+              return !d.splitValue || d.splitValue === 'ALL';
+            });
 
-        const hasSplit = kpiIds.some(id => getKpiHasSplit(id));
+        const hasSplit = hasGlobalSplit || kpiIds.some(id => {
+          const p = splitByPerKpi[id];
+          return p && p !== 'None';
+        });
 
         // Collect all unique timestamps across all KPIs
         const allTimestamps = [...new Set(kpiIds.flatMap(id => effectiveData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
