@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { X, Search, Check, RotateCcw, ChevronRight, BarChart3, Filter, ChevronDown, Star, ChevronUp } from 'lucide-react';
-import { KpiCatalogEntry } from './types';
+import { KpiCatalogEntry, AxisSide } from './types';
 import { cn } from '@/lib/utils';
 
 interface KpiSelectorModalProps {
@@ -9,6 +9,9 @@ interface KpiSelectorModalProps {
   catalog: KpiCatalogEntry[];
   selectedKeys: string[];
   onConfirm: (keys: string[]) => void;
+  /** Optional: receive axis assignment per KPI key */
+  axisAssignments?: Record<string, AxisSide>;
+  onAxisAssignmentsChange?: (assignments: Record<string, AxisSide>) => void;
 }
 
 // ── Favorites persistence ──
@@ -77,8 +80,9 @@ const FilterSection: React.FC<{
   );
 };
 
-const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, catalog, selectedKeys, onConfirm }) => {
+const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, catalog, selectedKeys, onConfirm, axisAssignments: extAxisAssignments, onAxisAssignmentsChange }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
+  const [axisMap, setAxisMap] = useState<Record<string, AxisSide>>({});
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState<string[]>(loadFavorites);
@@ -102,8 +106,18 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       setFilterLevel('');
       setShowFavOnly(false);
       setFavorites(loadFavorites());
+      setAxisMap(extAxisAssignments || {});
     }
-  }, [open, selectedKeys]);
+  }, [open, selectedKeys, extAxisAssignments]);
+
+  const toggleAxis = useCallback((key: string) => {
+    setAxisMap(prev => {
+      const current = prev[key] || 'left';
+      const next = { ...prev, [key]: (current === 'left' ? 'right' : 'left') as AxisSide };
+      onAxisAssignmentsChange?.(next);
+      return next;
+    });
+  }, [onAxisAssignmentsChange]);
 
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
@@ -203,6 +217,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
 
   const handleConfirm = () => {
     onConfirm(Array.from(selected));
+    onAxisAssignmentsChange?.(axisMap);
     onClose();
   };
 
@@ -431,6 +446,22 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                             <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">{k.unit || '–'}</span>
                           </div>
                         </button>
+
+                        {/* L/R axis toggle — only when selected */}
+                        {isSelected && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleAxis(k.kpi_key); }}
+                            className={cn(
+                              'shrink-0 w-6 h-5 rounded text-[8px] font-black tracking-tight flex items-center justify-center border transition-all',
+                              (axisMap[k.kpi_key] || 'left') === 'left'
+                                ? 'bg-primary/10 border-primary/30 text-primary'
+                                : 'bg-accent/50 border-accent text-accent-foreground'
+                            )}
+                            title={(axisMap[k.kpi_key] || 'left') === 'left' ? 'Axe gauche — cliquer pour passer à droite' : 'Axe droit — cliquer pour passer à gauche'}
+                          >
+                            {(axisMap[k.kpi_key] || 'left') === 'left' ? 'L' : 'R'}
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -452,6 +483,12 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
               const k = catalog.find(c => c.kpi_key === key);
               return (
                 <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold">
+                  <span className={cn(
+                    'w-3 h-3 rounded text-[7px] font-black flex items-center justify-center',
+                    (axisMap[key] || 'left') === 'left' ? 'bg-primary/20' : 'bg-accent/50'
+                  )}>
+                    {(axisMap[key] || 'left') === 'left' ? 'L' : 'R'}
+                  </span>
                   {k?.display_name || key}
                   <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive">
                     <X className="w-2.5 h-2.5" />
