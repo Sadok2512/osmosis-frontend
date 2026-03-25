@@ -564,8 +564,15 @@ const InvestigatorPage: React.FC = () => {
         )}
       </main>
     </div>
+
+      {/* AI Panel */}
+      {showAIPanel && (
+        <div className="w-[380px] shrink-0 border-l border-border h-full">
+          <InvestigatorAIPanel onClose={() => setShowAIPanel(false)} />
+        </div>
+      )}
+    </div>
   );
 };
 
 export default InvestigatorPage;
-// rebuild trigger 1774479233
