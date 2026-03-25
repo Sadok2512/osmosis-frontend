@@ -335,28 +335,23 @@ const InvestigatorPage: React.FC = () => {
           {state.activeGraphTab === 'Histogram' && (
             <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
           )}
-        </section>
 
-        {/* KPI Breakdown Section */}
-        {state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
-          <section className="space-y-4">
-            <div className="flex items-center gap-3 border-b border-border/40 pb-3">
-              <div className="p-1.5 bg-accent/10 rounded-lg">
-                <PieChart className="w-4 h-4 text-accent-foreground" />
+          {/* KPI Breakdown — attached to KPI graphs */}
+          {state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border/30">
+              <div className="flex items-center gap-2 mb-3">
+                <PieChart className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">KPI Breakdown — Formula & Distribution</span>
               </div>
-              <div>
-                <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">KPI Breakdown</h2>
-                <p className="text-[10px] text-muted-foreground">Distribution analysis by dimension</p>
-              </div>
+              <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} />
             </div>
-            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} />
-          </section>
-        )}
+          )}
+        </section>
 
         {/* Divider */}
         <div className="h-px bg-border" />
 
-        {/* Worst Elements Section */}
+        {/* Network Elements — Worst Cells, Alarms, CM Changes */}
         <section className="space-y-4">
           <div className="flex items-center justify-between border-b border-border/40 pb-3">
             <div className="flex items-center gap-3">
@@ -364,8 +359,8 @@ const InvestigatorPage: React.FC = () => {
                 <AlertTriangle className="w-4 h-4 text-destructive" />
               </div>
               <div>
-                <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">Top 10 Worst Cells per DOR</h2>
-                <p className="text-[10px] text-muted-foreground">Click Find to identify worst cells based on selected KPIs</p>
+                <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">Network Elements — Dimension Analysis</h2>
+                <p className="text-[10px] text-muted-foreground">Worst cells, active alarms & CM parameter changes</p>
               </div>
             </div>
             <button
