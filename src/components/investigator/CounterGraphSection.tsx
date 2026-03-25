@@ -11,6 +11,7 @@ interface CounterDef {
   family: string;
   vendor: string;
   techno: string;
+  object_type: string;
   count: number;
 }
 

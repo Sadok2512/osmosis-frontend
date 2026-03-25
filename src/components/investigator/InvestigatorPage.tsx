@@ -49,6 +49,10 @@ const InvestigatorPage: React.FC = () => {
 
   const [isApplying, setIsApplying] = React.useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
+  const [counterSelectorOpen, setCounterSelectorOpen] = React.useState(false);
+  const [counterCatalog, setCounterCatalog] = React.useState<{counter_name:string;display_name:string;family:string;vendor:string;techno:string;object_type:string;count:number}[]>([]);
+  const [selectedCounters, setSelectedCounters] = React.useState<string[]>([]);
+  const [counterTsData, setCounterTsData] = React.useState<{timestamp:string;kpi:string;value:number}[]>([]);
   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'counters' | 'alarms' | 'cm_history'>('breakdown');
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);

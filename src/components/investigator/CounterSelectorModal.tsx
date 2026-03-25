@@ -9,6 +9,7 @@ interface CounterDef {
   family: string;
   vendor: string;
   techno: string;
+  object_type: string;
   count: number;
 }
 
@@ -84,6 +85,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
   const [showFavOnly, setShowFavOnly] = useState(false);
   const [filterVendor, setFilterVendor] = useState('');
   const [filterTechno, setFilterTechno] = useState('');
+  const [filterType, setFilterType] = useState('');
 
   React.useEffect(() => {
     if (open) {
@@ -93,6 +95,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
       setShowFavOnly(false);
       setFilterVendor('');
       setFilterTechno('');
+      setFilterType('');
       loadFavoritesDB('pm-counters').then(favs => setFavorites(favs));
     }
   }, [open, selectedKeys]);
@@ -122,6 +125,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
     if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
     if (filterVendor) items = items.filter(c => c.vendor === filterVendor);
     if (filterTechno) items = items.filter(c => c.techno === filterTechno);
+    if (filterType) items = items.filter(c => c.object_type === filterType);
     if (activeFamily) items = items.filter(c => c.family === activeFamily);
     if (search) {
       const q = search.toLowerCase();
@@ -132,7 +136,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
       );
     }
     return items;
-  }, [catalog, activeFamily, search, showFavOnly, favorites, filterVendor, filterTechno]);
+  }, [catalog, activeFamily, search, showFavOnly, favorites, filterVendor, filterTechno, filterType]);
 
   // Families (categories) computed from filtered data
   const familyCategories = useMemo(() => {
@@ -140,28 +144,39 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
     if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
     if (filterVendor) items = items.filter(c => c.vendor === filterVendor);
     if (filterTechno) items = items.filter(c => c.techno === filterTechno);
+    if (filterType) items = items.filter(c => c.object_type === filterType);
     const fams = new Map<string, number>();
     for (const c of items) {
       const f = c.family || 'Other';
       fams.set(f, (fams.get(f) || 0) + 1);
     }
     return fams;
-  }, [catalog, showFavOnly, favorites, filterVendor, filterTechno]);
+  }, [catalog, showFavOnly, favorites, filterVendor, filterTechno, filterType]);
 
   const filterOptions = useMemo(() => {
     const vendors = new Map<string, number>();
     const technos = new Map<string, number>();
+    const types = new Map<string, number>();
+    const typeLabels: Record<string, string> = {
+      'CELL': 'Cell',
+      'BTS': 'BTS / eNodeB',
+      'CELL_NEIGHBOR': 'Neighbor',
+      'CELL_PMQAP': 'PMQAP (QCI/ARP)',
+      'CELL_CA_REL': 'CA Relation',
+    };
     for (const c of catalog) {
       if (c.vendor) vendors.set(c.vendor, (vendors.get(c.vendor) || 0) + 1);
       if (c.techno) technos.set(c.techno, (technos.get(c.techno) || 0) + 1);
+      if (c.object_type) types.set(c.object_type, (types.get(c.object_type) || 0) + 1);
     }
     return {
       vendors: Array.from(vendors.entries()).sort().map(([v, n]) => ({ value: v, label: v, count: n })),
       technos: Array.from(technos.entries()).sort().map(([v, n]) => ({ value: v, label: v, count: n })),
+      types: Array.from(types.entries()).sort((a, b) => b[1] - a[1]).map(([v, n]) => ({ value: v, label: typeLabels[v] || v, count: n })),
     };
   }, [catalog]);
 
-  const activeFilterCount = [filterVendor, filterTechno].filter(Boolean).length + (showFavOnly ? 1 : 0);
+  const activeFilterCount = [filterVendor, filterTechno, filterType].filter(Boolean).length + (showFavOnly ? 1 : 0);
 
   const totalFiltered = Array.from(familyCategories.values()).reduce((a, b) => a + b, 0);
 
@@ -244,9 +259,17 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
                 options={filterOptions.technos}
               />
 
-              {/* Type */}
+              {/* Counter Type (object level) */}
               <FilterSection
-                label="Type"
+                label="Counter Type"
+                selected={filterType}
+                onChange={setFilterType}
+                options={filterOptions.types}
+              />
+
+              {/* Normalized */}
+              <FilterSection
+                label="Mapping"
                 selected=""
                 onChange={() => {}}
                 options={[
@@ -260,7 +283,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
             {activeFilterCount > 0 && (
               <div className="px-3 py-2 border-t border-border/40">
                 <button
-                  onClick={() => { setShowFavOnly(false); setFilterVendor(''); setFilterTechno(''); }}
+                  onClick={() => { setShowFavOnly(false); setFilterVendor(''); setFilterTechno(''); setFilterType(''); }}
                   className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-bold text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   <RotateCcw className="w-3 h-3" /> Effacer les filtres
@@ -381,6 +404,11 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
                             )}
                             {c.techno && (
                               <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-400 font-medium">{c.techno}</span>
+                            )}
+                            {c.object_type && c.object_type !== 'CELL' && (
+                              <span className="text-[8px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400 font-medium">
+                                {c.object_type === 'CELL_NEIGHBOR' ? 'NBR' : c.object_type === 'CELL_PMQAP' ? 'QAP' : c.object_type === 'CELL_CA_REL' ? 'CA' : c.object_type === 'BTS' ? 'BTS' : c.object_type}
+                              </span>
                             )}
                             <span className="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-medium truncate max-w-[100px]">
                               {c.family.replace('LTE_', '')}
