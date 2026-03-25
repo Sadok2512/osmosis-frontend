@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { X, Search, Check, RotateCcw, ChevronRight, BarChart3, Filter, ChevronDown, Star, ChevronUp } from 'lucide-react';
-import { KpiCatalogEntry } from './types';
+import { KpiCatalogEntry, AxisSide } from './types';
 import { cn } from '@/lib/utils';
 
 interface KpiSelectorModalProps {
@@ -9,6 +9,9 @@ interface KpiSelectorModalProps {
   catalog: KpiCatalogEntry[];
   selectedKeys: string[];
   onConfirm: (keys: string[]) => void;
+  /** Optional: receive axis assignment per KPI key */
+  axisAssignments?: Record<string, AxisSide>;
+  onAxisAssignmentsChange?: (assignments: Record<string, AxisSide>) => void;
 }
 
 // ── Favorites persistence ──
