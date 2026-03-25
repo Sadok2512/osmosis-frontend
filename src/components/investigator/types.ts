@@ -44,6 +44,7 @@ export interface GraphSlot {
   /** @deprecated use kpiIds */
   kpiId?: string;
   name: string;
+  widgetType?: WidgetType;
   config?: GraphConfig;
   filters: Record<string, string[]>;
   startDate: string;
