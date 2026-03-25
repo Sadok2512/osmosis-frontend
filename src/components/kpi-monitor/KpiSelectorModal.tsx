@@ -16,11 +16,7 @@ interface KpiSelectorModalProps {
 }
 
 // ── Favorites persistence ──
-const FAV_KEY = 'qoebit_kpi_favorites';
-const loadFavorites = (): string[] => {
-  try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch { return []; }
-};
-const saveFavorites = (favs: string[]) => localStorage.setItem(FAV_KEY, JSON.stringify(favs));
+// Favorites are now loaded from DB via favoritesService
 
 // ── Filter section component ──
 const FilterSection: React.FC<{
