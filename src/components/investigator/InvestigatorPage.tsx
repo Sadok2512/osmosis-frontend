@@ -4,6 +4,7 @@ import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import KPIFormulaCards from './KPIFormulaCards';
+import CMChangesCard from './CMChangesCard';
 import WorstElementsTable from './WorstElementsTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement } from './types';
 import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWorstByDOR, fetchFilterValues, fetchCellDetails } from './investigatorApi';
@@ -461,6 +462,11 @@ const InvestigatorPage: React.FC = () => {
                 onRowClick={id => console.log(`Navigate to ${id}`)}
               />
             </div>
+          )}
+
+          {/* CM Parameter Changes for worst cells */}
+          {worstElements.length > 0 && (
+            <CMChangesCard cellNames={worstElements.slice(0, 10).map(el => el.name)} days={30} />
           )}
         </section>
       </main>
