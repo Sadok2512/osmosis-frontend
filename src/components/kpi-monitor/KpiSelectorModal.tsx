@@ -120,7 +120,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
       const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
-      saveFavorites(next);
+      saveFavoritesDB(next, 'kpi-monitor');
       return next;
     });
   }, []);
