@@ -11,6 +11,7 @@ import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWors
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
+  Settings2, Bell, Cpu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
@@ -37,6 +38,7 @@ const InvestigatorPage: React.FC = () => {
   } = useInvestigatorStore();
 
   const [isApplying, setIsApplying] = React.useState(false);
+  const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'counters' | 'alarms' | 'cm_history'>('breakdown');
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
@@ -355,123 +357,160 @@ const InvestigatorPage: React.FC = () => {
             <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
           )}
 
-          {/* KPI Breakdown — attached to KPI graphs */}
-          {state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
-            <div className="mt-4 pt-4 border-t border-border/30">
-              <div className="flex items-center gap-2 mb-3">
-                <PieChart className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">KPI Breakdown — Formula & Distribution</span>
-              </div>
-              <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} />
-            </div>
-          )}
         </section>
 
-        {/* PM Counter Analysis */}
-        <CounterGraphSection
-          dateFrom={state.startDate.split("T")[0] || "2026-01-01"}
-          dateTo={state.endDate.split("T")[0] || "2026-03-24"}
-        />
-
-        {/* Divider */}
-        <div className="h-px bg-border" />
-
-        {/* Network Elements — Worst Cells, Alarms, CM Changes */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-border/40 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 bg-destructive/10 rounded-lg">
-                <AlertTriangle className="w-4 h-4 text-destructive" />
-              </div>
-              <div>
-                <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">Network Elements — Dimension Analysis</h2>
-                <p className="text-[10px] text-muted-foreground">Worst cells, active alarms & CM parameter changes</p>
-              </div>
-            </div>
-            <button
-              onClick={handleFindWorst}
-              disabled={isLoadingWorst || state.graphSlots.flatMap(s => s.kpiIds).length === 0}
-              className={cn(
-                'px-4 py-2 rounded-lg text-xs font-bold transition-all',
-                isLoadingWorst
-                  ? 'bg-primary/20 text-primary cursor-wait'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90',
-                state.graphSlots.flatMap(s => s.kpiIds).length === 0 && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              {isLoadingWorst ? 'Loading...' : 'Find Worst Cells'}
-            </button>
-          </div>
-
-          {/* Filter Bar */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {['DOR', 'PLAQUE', 'BAND'].map(dim => (
-              <div key={dim} className="flex items-center gap-1.5">
-                <span className="text-[9px] font-bold text-muted-foreground uppercase">{dim}</span>
-                <select
-                  className="h-7 px-2 rounded-md border border-border bg-background text-foreground text-[10px]"
-                  value=""
-                  onChange={e => { if (e.target.value) addWorstFilter(dim, e.target.value); }}
-                >
-                  <option value="">+</option>
-                  {(worstFilterOptions[dim] || []).map(v => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
-              </div>
-            ))}
-            {/* Active filter chips */}
-            {worstFilters.flatMap(f => f.values.map(v => (
-              <span
-                key={`${f.dimension}-${v}`}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold"
-              >
-                {f.dimension}: {v}
-                <button onClick={() => removeWorstFilter(f.dimension, v)} className="hover:text-destructive">x</button>
-              </span>
-            )))}
-            {worstFilters.length > 0 && (
+        {/* ═══ Analysis Navigation Tabs ═══ */}
+        <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
+          <div className="flex items-center gap-0.5 px-1 py-1">
+            {([
+              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
+              { key: 'counters' as const, icon: Cpu, label: 'PM Counters', color: 'text-emerald-500' },
+              { key: 'alarms' as const, icon: Bell, label: 'Alarms & Worst Cells', color: 'text-red-500', badge: worstElements.length > 0 ? worstElements.length : undefined },
+              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
+            ] as const).map(tab => (
               <button
-                onClick={() => setWorstFilters([])}
-                className="text-[9px] text-muted-foreground hover:text-foreground underline"
+                key={tab.key}
+                onClick={() => setAnalysisTab(tab.key)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
+                  analysisTab === tab.key
+                    ? 'bg-card text-foreground shadow-sm border border-border/60'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                )}
               >
-                Clear all
+                <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
+                {tab.label}
+                {tab.badge && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-destructive/15 text-destructive">{tab.badge}</span>
+                )}
               </button>
-            )}
+            ))}
           </div>
+        </div>
 
-          {/* Results grouped by DOR */}
-          {Object.keys(worstByDOR).length > 0 ? (
-            Object.entries(worstByDOR).map(([dor, elements]) => (
-              <div key={dor} className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                <div className="px-4 py-2 bg-muted/30 border-b border-border/40">
-                  <span className="text-xs font-bold text-primary">{dor}</span>
-                  <span className="text-[10px] text-muted-foreground ml-2">({elements.length} cells)</span>
+        {/* ═══ Tab Content ═══ */}
+
+        {/* KPI Breakdown */}
+        {analysisTab === 'breakdown' && state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
+          <section className="space-y-4">
+            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} />
+          </section>
+        )}
+
+        {/* PM Counters */}
+        {analysisTab === 'counters' && (
+          <CounterGraphSection
+            dateFrom={state.startDate.split("T")[0] || "2026-01-01"}
+            dateTo={state.endDate.split("T")[0] || "2026-03-24"}
+          />
+        )}
+
+        {/* Alarms & Worst Cells */}
+        {analysisTab === 'alarms' && (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-1.5 bg-destructive/10 rounded-lg">
+                  <AlertTriangle className="w-4 h-4 text-destructive" />
                 </div>
+                <div>
+                  <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">Worst Cells & Active Alarms</h2>
+                  <p className="text-[10px] text-muted-foreground">Identify degraded cells with vendor, DOR, plaque & alarm details</p>
+                </div>
+              </div>
+              <button
+                onClick={handleFindWorst}
+                disabled={isLoadingWorst || state.graphSlots.flatMap(s => s.kpiIds).length === 0}
+                className={cn(
+                  'px-4 py-2 rounded-lg text-xs font-bold transition-all',
+                  isLoadingWorst
+                    ? 'bg-primary/20 text-primary cursor-wait'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90',
+                  state.graphSlots.flatMap(s => s.kpiIds).length === 0 && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                {isLoadingWorst ? 'Loading...' : 'Find Worst Cells'}
+              </button>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {['DOR', 'PLAQUE', 'BAND'].map(dim => (
+                <div key={dim} className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase">{dim}</span>
+                  <select
+                    className="h-7 px-2 rounded-md border border-border bg-background text-foreground text-[10px]"
+                    value=""
+                    onChange={e => { if (e.target.value) addWorstFilter(dim, e.target.value); }}
+                  >
+                    <option value="">+</option>
+                    {(worstFilterOptions[dim] || []).map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+              {worstFilters.flatMap(f => f.values.map(v => (
+                <span
+                  key={`${f.dimension}-${v}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold"
+                >
+                  {f.dimension}: {v}
+                  <button onClick={() => removeWorstFilter(f.dimension, v)} className="hover:text-destructive">x</button>
+                </span>
+              )))}
+              {worstFilters.length > 0 && (
+                <button
+                  onClick={() => setWorstFilters([])}
+                  className="text-[9px] text-muted-foreground hover:text-foreground underline"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            {/* Results grouped by DOR */}
+            {Object.keys(worstByDOR).length > 0 ? (
+              Object.entries(worstByDOR).map(([dor, elements]) => (
+                <div key={dor} className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                  <div className="px-4 py-2 bg-muted/30 border-b border-border/40">
+                    <span className="text-xs font-bold text-primary">{dor}</span>
+                    <span className="text-[10px] text-muted-foreground ml-2">({elements.length} cells)</span>
+                  </div>
+                  <WorstElementsTable
+                    elements={elements}
+                    limit={state.topLimit}
+                    onLimitChange={limit => setState(prev => ({ ...prev, topLimit: limit }))}
+                    onRowClick={id => console.log(`Navigate to ${id}`)}
+                  />
+                </div>
+              ))
+            ) : (
+              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
                 <WorstElementsTable
-                  elements={elements}
+                  elements={worstElements}
                   limit={state.topLimit}
                   onLimitChange={limit => setState(prev => ({ ...prev, topLimit: limit }))}
                   onRowClick={id => console.log(`Navigate to ${id}`)}
                 />
               </div>
-            ))
-          ) : (
-            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-              <WorstElementsTable
-                elements={worstElements}
-                limit={state.topLimit}
-                onLimitChange={limit => setState(prev => ({ ...prev, topLimit: limit }))}
-                onRowClick={id => console.log(`Navigate to ${id}`)}
-              />
-            </div>
-          )}
+            )}
+          </section>
+        )}
 
-          {/* CM Parameter Changes for worst cells */}
-          {worstElements.length > 0 && (
-            <CMChangesCard cellNames={worstElements.slice(0, 10).map(el => el.name)} days={30} />
-          )}
-        </section>
+        {/* CM History */}
+        {analysisTab === 'cm_history' && (
+          <section className="space-y-4">
+            {worstElements.length > 0 ? (
+              <CMChangesCard cellNames={worstElements.slice(0, 10).map(el => el.name)} days={30} />
+            ) : (
+              <div className="rounded-xl border border-border/60 bg-card p-8 text-center">
+                <Settings2 className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">Find worst cells first (Alarms tab), then CM changes will load for those cells</p>
+              </div>
+            )}
+          </section>
+        )}
       </main>
     </div>
   );
