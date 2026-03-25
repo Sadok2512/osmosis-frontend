@@ -853,13 +853,19 @@ const KPIMonitorPage: React.FC = () => {
           </div>
         </div>
 
+        {/* ── Gradient separator ── */}
+        <div className="mx-6 my-0.5">
+          <div className="h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+        </div>
+
         {/* Filter chips row */}
         {globalFilterChips.length > 0 && (
-          <div className="max-w-[1600px] mx-auto px-6 pb-2">
+          <div className="max-w-[1600px] mx-auto px-6 pb-2.5">
             <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50 mr-1">Filtres actifs</span>
               {globalFilterChips.map(({ dim, val }) => (
                 <span key={`${dim}-${val}`}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-primary/8 text-primary border border-primary/15 shadow-[0_1px_2px_hsl(var(--primary)/0.06)]">
                   <span className="text-muted-foreground">{dim}:</span>
                   <span className="font-bold">{val}</span>
                   <button onClick={() => removeGlobalFilter(dim, val)} className="ml-0.5 hover:text-destructive transition-colors">
