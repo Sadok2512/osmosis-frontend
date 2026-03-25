@@ -1,13 +1,17 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getStoredSession } from './adminAuth';
 
-const LOCAL_FAV_KEY = 'qoebit_kpi_favorites';
+const LOCAL_FAV_KEY_PREFIX = 'qoebit_kpi_favorites';
+
+function getLocalKey(module: string) {
+  return `${LOCAL_FAV_KEY_PREFIX}_${module}`;
+}
 
 /** Load favorites – from DB if logged in, else localStorage */
 export async function loadFavorites(module = 'investigator'): Promise<string[]> {
   const session = getStoredSession();
   if (!session?.id) {
-    try { return JSON.parse(localStorage.getItem(LOCAL_FAV_KEY) || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(getLocalKey(module)) || '[]'); } catch { return []; }
   }
 
   const { data, error } = await supabase
@@ -18,7 +22,7 @@ export async function loadFavorites(module = 'investigator'): Promise<string[]> 
 
   if (error) {
     console.warn('Failed to load favorites from DB, falling back to localStorage', error);
-    try { return JSON.parse(localStorage.getItem(LOCAL_FAV_KEY) || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(getLocalKey(module)) || '[]'); } catch { return []; }
   }
 
   return (data || []).map(r => r.kpi_key);
@@ -27,7 +31,7 @@ export async function loadFavorites(module = 'investigator'): Promise<string[]> 
 /** Save favorites – to DB if logged in, always to localStorage as cache */
 export async function saveFavorites(favs: string[], module = 'investigator'): Promise<void> {
   // Always save to localStorage as cache
-  localStorage.setItem(LOCAL_FAV_KEY, JSON.stringify(favs));
+  localStorage.setItem(getLocalKey(module), JSON.stringify(favs));
 
   const session = getStoredSession();
   if (!session?.id) return;
