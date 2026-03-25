@@ -688,43 +688,34 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       )}
                     </div>
 
-                    {/* Split By */}
+                    {/* Split By — single for all KPIs */}
                     <div className="space-y-1">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split By (par KPI)</span>
-                      {slot.kpiIds.map((kpiId, ki) => {
-                        const kDef = kpiDefs.find(k => k.id === kpiId);
-                        const kLabel = kDef?.label || kpiId;
-                        const currentSplit = cfg.splitByPerKpi?.[kpiId] || 'None';
-                        return (
-                          <div key={kpiId} className="flex items-center gap-2">
-                            <span className="text-[9px] text-muted-foreground truncate max-w-[80px]" title={kLabel}>{kLabel}</span>
-                            <select
-                              value={currentSplit}
-                              onChange={e => {
-                                const val = e.target.value;
-                                // Update per-KPI split and clear legacy slot-level splitBy
-                                setState(prev => ({
-                                  ...prev,
-                                  graphSlots: prev.graphSlots.map(s =>
-                                    s.id === slot.id ? {
-                                      ...s,
-                                      splitBy: 'None',
-                                      config: {
-                                        ...cfg,
-                                        splitByPerKpi: { ...(cfg.splitByPerKpi || {}), [kpiId]: val },
-                                      },
-                                    } : s
-                                  ),
-                                }));
-                              }}
-                              className="flex-1 px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
-                            >
-                              <option value="None">Aucun</option>
-                              {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                            </select>
-                          </div>
-                        );
-                      })}
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split By</span>
+                      <select
+                        value={(() => {
+                          const vals = Object.values(cfg.splitByPerKpi || {}).filter(v => v && v !== 'None');
+                          return vals.length > 0 ? vals[0] : 'None';
+                        })()}
+                        onChange={e => {
+                          const val = e.target.value;
+                          const allSplits: Record<string, string> = {};
+                          slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
+                          setState(prev => ({
+                            ...prev,
+                            graphSlots: prev.graphSlots.map(s =>
+                              s.id === slot.id ? {
+                                ...s,
+                                splitBy: 'None',
+                                config: { ...cfg, splitByPerKpi: allSplits },
+                              } : s
+                            ),
+                          }));
+                        }}
+                        className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+                      >
+                        <option value="None">Aucun</option>
+                        {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                      </select>
                     </div>
 
                     <div className="h-px bg-border/60" />
