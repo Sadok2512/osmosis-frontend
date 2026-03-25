@@ -67,14 +67,24 @@ const InvestigatorPage: React.FC = () => {
       const splitValue = state.splitBy === 'None' ? undefined : state.splitBy;
 
       const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
+      if (kpiIds.length === 0) {
+        setTsData([]);
+        setHasLoadedOnce(true);
+        setIsApplying(false);
+        return;
+      }
       const dateFrom = state.startDate.split('T')[0] || '2026-01-01';
       const dateTo = state.endDate.split('T')[0] || '2026-03-24';
+      const gran = granMap[state.granularity] || '1h';
 
-      const ts = await fetchTimeSeriesData(
-        kpiIds, dateFrom, dateTo,
-        granMap[state.granularity] || '1h',
-        splitValue,
-      );
+      let ts = await fetchTimeSeriesData(kpiIds, dateFrom, dateTo, gran, splitValue);
+
+      // Fallback: if hourly returned empty, retry with daily granularity
+      if (ts.length === 0 && gran === '1h') {
+        console.warn('[Investigator] Hourly returned empty, retrying with daily granularity');
+        ts = await fetchTimeSeriesData(kpiIds, dateFrom, dateTo, '1d', splitValue);
+      }
+
       setTsData(ts);
       setHasLoadedOnce(true);
     } catch (e) {
