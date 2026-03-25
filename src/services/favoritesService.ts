@@ -31,7 +31,7 @@ export async function loadFavorites(module = 'investigator'): Promise<string[]> 
 /** Save favorites – to DB if logged in, always to localStorage as cache */
 export async function saveFavorites(favs: string[], module = 'investigator'): Promise<void> {
   // Always save to localStorage as cache
-  localStorage.setItem(LOCAL_FAV_KEY, JSON.stringify(favs));
+  localStorage.setItem(getLocalKey(module), JSON.stringify(favs));
 
   const session = getStoredSession();
   if (!session?.id) return;
