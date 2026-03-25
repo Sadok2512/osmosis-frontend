@@ -217,6 +217,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
 
   const handleConfirm = () => {
     onConfirm(Array.from(selected));
+    onAxisAssignmentsChange?.(axisMap);
     onClose();
   };
 
