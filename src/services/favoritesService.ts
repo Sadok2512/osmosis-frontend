@@ -1,13 +1,17 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getStoredSession } from './adminAuth';
 
-const LOCAL_FAV_KEY = 'qoebit_kpi_favorites';
+const LOCAL_FAV_KEY_PREFIX = 'qoebit_kpi_favorites';
+
+function getLocalKey(module: string) {
+  return `${LOCAL_FAV_KEY_PREFIX}_${module}`;
+}
 
 /** Load favorites – from DB if logged in, else localStorage */
 export async function loadFavorites(module = 'investigator'): Promise<string[]> {
   const session = getStoredSession();
   if (!session?.id) {
-    try { return JSON.parse(localStorage.getItem(LOCAL_FAV_KEY) || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(getLocalKey(module)) || '[]'); } catch { return []; }
   }
 
   const { data, error } = await supabase
