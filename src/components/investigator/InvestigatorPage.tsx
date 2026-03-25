@@ -141,16 +141,7 @@ const InvestigatorPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden">
-      {/* Left Sidebar Filters */}
-      <InvestigatorFilterSidebar
-        filters={sidebarFilters}
-        onFilterChange={setSidebarFilters}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
-
-      <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
+    <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
       <div className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="flex items-center justify-between px-4 md:px-6 py-3 max-w-[1600px] mx-auto w-full">
           <div className="flex items-center gap-3">
