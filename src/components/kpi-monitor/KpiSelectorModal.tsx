@@ -106,8 +106,18 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       setFilterLevel('');
       setShowFavOnly(false);
       setFavorites(loadFavorites());
+      setAxisMap(extAxisAssignments || {});
     }
-  }, [open, selectedKeys]);
+  }, [open, selectedKeys, extAxisAssignments]);
+
+  const toggleAxis = useCallback((key: string) => {
+    setAxisMap(prev => {
+      const current = prev[key] || 'left';
+      const next = { ...prev, [key]: (current === 'left' ? 'right' : 'left') as AxisSide };
+      onAxisAssignmentsChange?.(next);
+      return next;
+    });
+  }, [onAxisAssignmentsChange]);
 
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
