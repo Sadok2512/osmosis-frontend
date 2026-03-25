@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType } from './types';
+import CounterSelectorModal from './CounterSelectorModal';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
@@ -154,6 +156,7 @@ interface Props {
   layout: 1 | 2 | 4;
   jalons: Jalon[];
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
+  onSetSlotKpiIds: (slotId: string, kpiIds: string[]) => void;
   onRemoveSlot: (slotId: string) => void;
   onAddEmptySlot: (widgetType?: import('./types').WidgetType) => void;
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
@@ -163,11 +166,13 @@ interface Props {
   onSlotClick?: (slotId: string) => void;
 }
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
   const cols = layout === 1 ? 1 : layout === 4 ? 2 : 2;
   const chartHeight = layout === 1 ? 520 : layout === 4 ? 340 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
+  const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; count: number }[]>([]);
+  const [counterSelectorSlotId, setCounterSelectorSlotId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
@@ -181,6 +186,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
     }).catch(() => {
       setSplitOptions(['Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'].map(s => ({ key: s, label: s })));
     });
+    // Load counter catalog
+    fetch(getApiUrl('pm/counters/catalog'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(setCounterCatalog)
+      .catch(() => {});
   }, []);
 
   const getDef = (kpiId: string) => KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId) || null;
@@ -235,7 +245,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   {wType === 'counter' ? 'Aucun compteur sélectionné' : 'Aucun KPI sélectionné'}
                 </p>
                 <button
-                  onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }}
+                  onClick={(e) => { e.stopPropagation(); wType === 'counter' ? setCounterSelectorSlotId(slot.id) : onOpenKpiSelector(slot.id); }}
                   className="px-3 py-1 rounded-md text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                 >
                   {wType === 'counter' ? 'Choisir un Compteur' : 'Choisir un KPI'}
@@ -294,10 +304,24 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 <span className="text-xs font-bold text-foreground">{slot.name}</span>
                 <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500">Counter</span>
                 <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); setCounterSelectorSlotId(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Ajouter compteurs"><Plus className="w-3.5 h-3.5" /></button>
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
               </div>
-              <div className="flex items-center justify-center" style={{ minHeight: chartHeight - 40 }}>
-                <p className="text-xs text-muted-foreground">PM Counter view — sélectionnez des compteurs dans l'onglet PM Counters</p>
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {kpiIds.map((cId, i) => {
+                    const cDef = counterCatalog.find(c => c.counter_name === cId);
+                    return (
+                      <span key={cId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border border-border/50 bg-muted/30">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: SERIES_COLORS[i % SERIES_COLORS.length] }} />
+                        {cDef?.display_name || cId}
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="text-center text-[10px] text-muted-foreground py-4">
+                  Compteurs sélectionnés — données affichées dans l'onglet PM Counters
+                </div>
               </div>
             </div>
           );
@@ -913,6 +937,20 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
       {graphSlots.length < 8 && (
         <AddWidgetMenu onAdd={onAddEmptySlot} />
       )}
+
+      {/* Counter Selector Modal */}
+      <CounterSelectorModal
+        open={!!counterSelectorSlotId}
+        onClose={() => setCounterSelectorSlotId(null)}
+        catalog={counterCatalog}
+        selectedKeys={counterSelectorSlotId ? (graphSlots.find(s => s.id === counterSelectorSlotId)?.kpiIds || []) : []}
+        onConfirm={(keys) => {
+          if (counterSelectorSlotId) {
+            onSetSlotKpiIds(counterSelectorSlotId, keys);
+          }
+          setCounterSelectorSlotId(null);
+        }}
+      />
     </div>
   );
 };
