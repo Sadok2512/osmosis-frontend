@@ -170,6 +170,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
   const chartHeight = layout === 1 ? 520 : layout === 4 ? 340 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
+  const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; count: number }[]>([]);
+  const [counterSelectorSlotId, setCounterSelectorSlotId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
@@ -183,6 +185,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
     }).catch(() => {
       setSplitOptions(['Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'].map(s => ({ key: s, label: s })));
     });
+    // Load counter catalog
+    fetch(getApiUrl('pm/counters/catalog'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(setCounterCatalog)
+      .catch(() => {});
   }, []);
 
   const getDef = (kpiId: string) => KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId) || null;
