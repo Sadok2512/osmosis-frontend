@@ -248,3 +248,22 @@ export async function startInvestigation(query: string): Promise<ReadableStream 
   if (!res.ok) throw new Error(`Agent ${res.status}`);
   return res.body;
 }
+
+// ── Fetch cell details (metadata + active alarms) ──
+export async function fetchCellDetails(
+  cellNames: string[]
+): Promise<any[]> {
+  if (!cellNames.length) return [];
+  const url = getApiUrl('alarms/cell-details');
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify({ cell_names: cellNames }),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}

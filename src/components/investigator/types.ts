@@ -81,6 +81,20 @@ export interface DataPoint {
   splitValue?: string;
 }
 
+export interface CellAlarms {
+  total: number;
+  critical: number;
+  major: number;
+  minor: number;
+  warning: number;
+}
+
+export interface AlarmDetail {
+  severity: string;
+  text: string;
+  time: string | null;
+}
+
 export interface WorstElement {
   id: string;
   name: string;
@@ -91,6 +105,13 @@ export interface WorstElement {
   region?: string;
   vendor?: string;
   technology?: string;
+  dor?: string;
+  plaque?: string;
+  band?: string;
+  techno?: string;
+  site_name?: string;
+  alarms?: CellAlarms;
+  latest_alarms?: AlarmDetail[];
 }
 
 export interface KpiDefinition {

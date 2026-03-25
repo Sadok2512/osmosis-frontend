@@ -5,7 +5,7 @@ import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement } from './types';
-import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWorstByDOR, fetchFilterValues } from './investigatorApi';
+import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWorstByDOR, fetchFilterValues, fetchCellDetails } from './investigatorApi';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
@@ -121,11 +121,40 @@ const InvestigatorPage: React.FC = () => {
       const dateTo = state.endDate.split('T')[0] || '2026-03-24';
 
       const byDOR = await fetchWorstByDOR(kpiIds, state.topLimit, dateFrom, dateTo, worstFilters);
-      setWorstByDOR(byDOR);
 
-      // Also set flat list for legacy table
-      const flat = Object.values(byDOR).flat();
-      setWorstElements(flat);
+      // Enrich all cells with metadata + alarms
+      const allCells = Object.values(byDOR).flat();
+      const cellNames = allCells.map(c => c.name).filter(Boolean);
+      const cellDetails = cellNames.length > 0 ? await fetchCellDetails(cellNames) : [];
+      const detailMap: Record<string, any> = {};
+      for (const d of cellDetails) {
+        detailMap[d.cell_name] = d;
+      }
+
+      // Merge details into worst elements
+      const enriched: Record<string, typeof allCells> = {};
+      for (const [dor, elements] of Object.entries(byDOR)) {
+        enriched[dor] = elements.map(el => {
+          const detail = detailMap[el.name];
+          if (detail) {
+            return {
+              ...el,
+              vendor: detail.vendor || el.vendor,
+              dor: detail.dor || dor,
+              plaque: detail.plaque || '',
+              band: detail.band || '',
+              techno: detail.techno || '',
+              site_name: detail.site_name || '',
+              alarms: detail.alarms,
+              latest_alarms: detail.latest_alarms,
+            };
+          }
+          return { ...el, dor: dor };
+        });
+      }
+
+      setWorstByDOR(enriched);
+      setWorstElements(Object.values(enriched).flat());
     } catch (e) {
       console.error('[Investigator] Worst elements error:', e);
     }
