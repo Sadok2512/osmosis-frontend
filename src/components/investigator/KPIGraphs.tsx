@@ -130,6 +130,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const isEmpty = kpiIds.length === 0;
         const cfg: GraphConfig = slot.config || DEFAULT_GRAPH_CONFIG;
         const isActive = activeSlotId === slot.id;
+        const wType = slot.widgetType || 'timeseries';
+        const wtDef = WIDGET_TYPES.find(w => w.value === wType) || WIDGET_TYPES[0];
 
         // Empty slot — no KPI assigned yet
         if (isEmpty) {
@@ -145,12 +147,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               )}
             >
               <div className="flex items-center gap-2 mb-2 relative z-10">
+                <wtDef.icon className={cn('w-3.5 h-3.5', wtDef.color)} />
                 <input
                   value={slot.name}
                   onChange={(e) => onRenameSlot(slot.id, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                   className="text-xs font-bold text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[140px] truncate"
                 />
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{wtDef.label}</span>
                 <span className="ml-auto" />
                 <button
                   onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
@@ -162,15 +166,99 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               </div>
               <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ minHeight: chartHeight - 40 }}>
                 <div className="text-muted-foreground/40">
-                  <BarChart className="w-8 h-8" />
+                  <wtDef.icon className="w-8 h-8" />
                 </div>
-                <p className="text-[10px] text-muted-foreground">Aucun KPI sélectionné</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {wType === 'counter' ? 'Aucun compteur sélectionné' : 'Aucun KPI sélectionné'}
+                </p>
                 <button
                   onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }}
                   className="px-3 py-1 rounded-md text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                 >
-                  Choisir un KPI
+                  {wType === 'counter' ? 'Choisir un Compteur' : 'Choisir un KPI'}
                 </button>
+              </div>
+            </div>
+          );
+        }
+
+        // ── Non-timeseries widget types: render specialized content ──
+        if (wType === 'histogram') {
+          return (
+            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
+              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
+              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
+            )}>
+              <div className="flex items-center gap-2 mb-2 relative z-10">
+                <BarChart3 className="w-3.5 h-3.5 text-purple-500" />
+                <span className="text-xs font-bold text-foreground">{slot.name}</span>
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-500">Histogram</span>
+                <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <HistogramWidget kpiIds={kpiIds} height={chartHeight} allKpis={allKpis} />
+            </div>
+          );
+        }
+
+        if (wType === 'kpi_card') {
+          return (
+            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
+              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
+              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
+            )}>
+              <div className="flex items-center gap-2 mb-3 relative z-10">
+                <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-xs font-bold text-foreground">{slot.name}</span>
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">KPI Card</span>
+                <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><Plus className="w-3.5 h-3.5" /></button>
+                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <KpiCardWidget kpiIds={kpiIds} data={data} allKpis={allKpis} />
+            </div>
+          );
+        }
+
+        if (wType === 'counter') {
+          return (
+            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
+              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
+              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
+            )}>
+              <div className="flex items-center gap-2 mb-3 relative z-10">
+                <Hash className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-bold text-foreground">{slot.name}</span>
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500">Counter</span>
+                <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="flex items-center justify-center" style={{ minHeight: chartHeight - 40 }}>
+                <p className="text-xs text-muted-foreground">PM Counter view — sélectionnez des compteurs dans l'onglet PM Counters</p>
+              </div>
+            </div>
+          );
+        }
+
+        if (wType === 'neighbors') {
+          return (
+            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
+              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
+              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
+            )}>
+              <div className="flex items-center gap-2 mb-3 relative z-10">
+                <GitBranch className="w-3.5 h-3.5 text-cyan-500" />
+                <span className="text-xs font-bold text-foreground">{slot.name}</span>
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-500">Neighbors</span>
+                <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="flex items-center justify-center" style={{ minHeight: chartHeight - 40 }}>
+                <div className="text-center space-y-2">
+                  <GitBranch className="w-10 h-10 text-cyan-500/30 mx-auto" />
+                  <p className="text-xs text-muted-foreground">Neighbors Flux — analyse des relations inter-cellules</p>
+                  <p className="text-[10px] text-muted-foreground/60">Sélectionnez une cellule dans le tableau Worst Elements</p>
+                </div>
               </div>
             </div>
           );
