@@ -32,18 +32,20 @@ async function fetchCounterCatalog(): Promise<CounterDef[]> {
   } catch { return []; }
 }
 
-async function fetchCounterTimeseries(counterNames: string[], dateFrom: string, dateTo: string, granularity: string = '1d'): Promise<CounterPoint[]> {
+async function fetchCounterTimeseries(counterNames: string[], dateFrom: string, dateTo: string, granularity: string = '1d', splitByDimension: boolean = false): Promise<CounterPoint[]> {
   try {
     const res = await fetch(getApiUrl('pm/counters/timeseries'), {
       method: 'POST',
       headers: getApiHeaders(),
-      body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity }),
+      body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity, split_by_dimension: splitByDimension }),
     });
     if (!res.ok) return [];
     const data = await res.json();
     return data.series || [];
   } catch { return []; }
 }
+
+const DIMENSIONAL_TYPES = ['CELL_PMQAP', 'CELL_NEIGHBOR', 'CELL_CA_REL'];
 
 interface Props {
   dateFrom: string;
@@ -56,6 +58,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   const [tsData, setTsData] = React.useState<CounterPoint[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [selectorOpen, setSelectorOpen] = React.useState(false);
+  const [splitByDimension, setSplitByDimension] = React.useState(false);
 
   // Load catalog
   React.useEffect(() => {
@@ -66,11 +69,11 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   React.useEffect(() => {
     if (selectedCounters.length === 0) { setTsData([]); return; }
     setLoading(true);
-    fetchCounterTimeseries(selectedCounters, dateFrom, dateTo).then(data => {
+    fetchCounterTimeseries(selectedCounters, dateFrom, dateTo, '1d', splitByDimension).then(data => {
       setTsData(data);
       setLoading(false);
     });
-  }, [selectedCounters.join(','), dateFrom, dateTo]);
+  }, [selectedCounters.join(','), dateFrom, dateTo, splitByDimension]);
 
   const removeCounter = (name: string) => {
     setSelectedCounters(prev => prev.filter(c => c !== name));
@@ -161,6 +164,22 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
         >
           <Plus className="w-3.5 h-3.5" /> Add Counter
         </button>
+        {selectedCounters.some(name => {
+          const def = catalog.find(c => c.counter_name === name);
+          return def && DIMENSIONAL_TYPES.includes(def.object_type);
+        }) && (
+          <button
+            onClick={() => setSplitByDimension(!splitByDimension)}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
+              splitByDimension
+                ? "bg-orange-500/15 text-orange-500 border border-orange-500/30"
+                : "border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+            )}
+          >
+            Split by Dimension {splitByDimension ? "ON" : "OFF"}
+          </button>
+        )}
         {selectedCounters.length === 0 && (
           <span className="text-[10px] text-muted-foreground ml-1">Select counters to visualize raw PM data</span>
         )}
