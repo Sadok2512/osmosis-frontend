@@ -276,9 +276,6 @@ const InvestigatorPage: React.FC = () => {
           {state.activeGraphTab === 'Histogram' && (
             <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
           )}
-          {state.activeGraphTab === 'Breakdown' && (
-            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
-          )}
         </section>
 
         {/* KPI Breakdown Section */}
