@@ -65,8 +65,8 @@ interface Props {
 }
 
 const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
-  const cols = layout === 1 ? 1 : 2;
-  const chartHeight = layout === 1 ? 480 : layout === 4 ? 300 : 360;
+  const cols = layout === 1 ? 1 : layout === 4 ? 2 : 2;
+  const chartHeight = layout === 1 ? 520 : layout === 4 ? 340 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
 
   useEffect(() => {
@@ -77,7 +77,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
   return (
     <div className="space-y-3">
-      <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+      <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1 max-w-[1400px]' : 'grid-cols-1 md:grid-cols-2'}`}>
       {graphSlots.map(slot => {
         const kpiIds = slot.kpiIds || [];
         const isEmpty = kpiIds.length === 0;
