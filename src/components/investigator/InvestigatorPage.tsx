@@ -84,7 +84,20 @@ const InvestigatorPage: React.FC = () => {
     setIsApplying(true);
     try {
       const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
-      const splitValue = state.splitBy === 'None' ? undefined : state.splitBy;
+
+      // Determine split: check global splitBy first, then per-slot configs
+      let splitValue = state.splitBy === 'None' ? undefined : state.splitBy;
+      if (!splitValue) {
+        // Check if any slot has a per-KPI split configured
+        for (const slot of state.graphSlots) {
+          const perKpi = slot.config?.splitByPerKpi || {};
+          const activeSplit = Object.values(perKpi).find(v => v && v !== 'None');
+          if (activeSplit) {
+            splitValue = activeSplit;
+            break;
+          }
+        }
+      }
 
       const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
       if (kpiIds.length === 0) {
@@ -183,13 +196,18 @@ const InvestigatorPage: React.FC = () => {
     });
   };
 
-  // Auto-apply when graphSlots change and have KPIs
+  // Auto-apply when graphSlots KPIs or split config changes
+  const slotSplitKey = state.graphSlots.map(s => {
+    const splits = Object.values(s.config?.splitByPerKpi || {}).join(',');
+    return `${s.kpiIds.join(',')}:${splits}`;
+  }).join('|');
+
   useEffect(() => {
     const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
     if (kpiIds.length > 0) {
       handleApply();
     }
-  }, [state.graphSlots.map(s => s.kpiIds.join(',')).join('|')]);
+  }, [slotSplitKey, state.splitBy]);
 
   const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig>) => {
     setState(prev => ({
