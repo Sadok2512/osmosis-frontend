@@ -483,6 +483,12 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
               const k = catalog.find(c => c.kpi_key === key);
               return (
                 <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold">
+                  <span className={cn(
+                    'w-3 h-3 rounded text-[7px] font-black flex items-center justify-center',
+                    (axisMap[key] || 'left') === 'left' ? 'bg-primary/20' : 'bg-accent/50'
+                  )}>
+                    {(axisMap[key] || 'left') === 'left' ? 'L' : 'R'}
+                  </span>
                   {k?.display_name || key}
                   <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive">
                     <X className="w-2.5 h-2.5" />
