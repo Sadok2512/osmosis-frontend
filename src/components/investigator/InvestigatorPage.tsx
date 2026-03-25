@@ -5,7 +5,7 @@ import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement } from './types';
-import { fetchTimeSeriesData, fetchWorstElements, fetchWorstByDOR, fetchFilterValues } from './investigatorApi';
+import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWorstByDOR, fetchFilterValues } from './investigatorApi';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
@@ -59,6 +59,25 @@ const InvestigatorPage: React.FC = () => {
       setActiveSlotId(state.graphSlots[0].id);
     }
   }, [state.graphSlots, activeSlotId]);
+
+  // Auto-load default KPIs on first visit (no KPIs selected yet)
+  useEffect(() => {
+    if (state.graphSlots.length === 0 || state.graphSlots.every(s => s.kpiIds.length === 0)) {
+      fetchKpiDefinitions().then(kpis => {
+        if (kpis.length === 0) return;
+        // Pick first 3 KPIs as defaults
+        const defaultKpis = kpis.slice(0, 3).map(k => k.id);
+        const slot = createSlot(1, defaultKpis);
+        setState(prev => ({
+          ...prev,
+          graphSlots: [slot],
+        }));
+        setActiveSlotId(slot.id);
+      }).catch(err => {
+        console.warn('[Investigator] Failed to load default KPIs:', err);
+      });
+    }
+  }, []);
 
   const handleApply = async () => {
     setIsApplying(true);
@@ -134,12 +153,13 @@ const InvestigatorPage: React.FC = () => {
     });
   };
 
-  // Only auto-load on first mount if never loaded before
+  // Auto-apply when graphSlots change and have KPIs
   useEffect(() => {
-    if (!hasLoadedOnce) {
+    const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
+    if (kpiIds.length > 0) {
       handleApply();
     }
-  }, []);
+  }, [state.graphSlots.map(s => s.kpiIds.join(',')).join('|')]);
 
   const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig>) => {
     setState(prev => ({
