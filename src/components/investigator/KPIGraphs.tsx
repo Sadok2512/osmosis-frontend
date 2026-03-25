@@ -197,6 +197,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
               return [{
                 name: def.label,
+                _kpiId: kpiId,
                 type: seriesType as any,
                 data: values,
                 smooth: cfg.smooth,
@@ -229,6 +230,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
               return {
                 name: seriesName,
+                _kpiId: kpiId,
                 type: seriesType as any,
                 data: values,
                 smooth: cfg.smooth,
@@ -260,6 +262,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
             return {
               name: def.label,
+              _kpiId: kpiId,
               type: seriesType as any,
               data: values,
               smooth: cfg.smooth,
@@ -439,13 +442,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           },
           yAxis: yAxisArr,
           series: series.map((s, i) => {
-            // Find which KPI this series belongs to for yAxisIndex
-            const seriesKpiId = hasSplit
-              ? kpiIds.find(kid => s.name?.startsWith(defs[kpiIds.indexOf(kid)]?.label)) || kpiIds[0]
-              : kpiIds[i] || kpiIds[0];
+            const seriesKpiId = s._kpiId || kpiIds[0];
 
             return {
               ...s,
+              _kpiId: undefined, // don't pass internal prop to ECharts
               yAxisIndex: hasRightAxis ? getYAxisIndex(seriesKpiId) : 0,
               lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
               emphasis: {
