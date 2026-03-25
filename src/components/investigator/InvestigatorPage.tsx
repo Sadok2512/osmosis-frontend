@@ -201,7 +201,6 @@ const InvestigatorPage: React.FC = () => {
                 {([
                   { key: 'TimeSeries', icon: LineChartIcon, label: 'Time Series' },
                   { key: 'Histogram', icon: BarChart3, label: 'Histogram' },
-                  { key: 'Breakdown', icon: PieChart, label: 'Breakdown' },
                 ] as const).map(tab => (
                   <button
                     key={tab.key}
