@@ -156,6 +156,7 @@ interface Props {
   layout: 1 | 2 | 4;
   jalons: Jalon[];
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
+  onSetSlotKpiIds: (slotId: string, kpiIds: string[]) => void;
   onRemoveSlot: (slotId: string) => void;
   onAddEmptySlot: (widgetType?: import('./types').WidgetType) => void;
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
@@ -165,7 +166,7 @@ interface Props {
   onSlotClick?: (slotId: string) => void;
 }
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
   const cols = layout === 1 ? 1 : layout === 4 ? 2 : 2;
   const chartHeight = layout === 1 ? 520 : layout === 4 ? 340 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
