@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { X, Search, Check, RotateCcw, ChevronRight, BarChart3, Filter, ChevronDown, Star, ChevronUp } from 'lucide-react';
+import { loadFavorites as loadFavoritesDB, saveFavorites as saveFavoritesDB } from '@/services/favoritesService';
 import { KpiCatalogEntry, AxisSide } from './types';
 import { cn } from '@/lib/utils';
 
@@ -15,11 +16,7 @@ interface KpiSelectorModalProps {
 }
 
 // ── Favorites persistence ──
-const FAV_KEY = 'qoebit_kpi_favorites';
-const loadFavorites = (): string[] => {
-  try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch { return []; }
-};
-const saveFavorites = (favs: string[]) => localStorage.setItem(FAV_KEY, JSON.stringify(favs));
+// Favorites are now loaded from DB via favoritesService
 
 // ── Filter section component ──
 const FilterSection: React.FC<{
@@ -85,7 +82,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [axisMap, setAxisMap] = useState<Record<string, AxisSide>>({});
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [favorites, setFavorites] = useState<string[]>(loadFavorites);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavOnly, setShowFavOnly] = useState(false);
 
   // Filter states
@@ -94,7 +91,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [filterNormalized, setFilterNormalized] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
 
-  // Reset state when opening
+  // Load favorites from DB on open
   React.useEffect(() => {
     if (open) {
       setSelected(new Set(selectedKeys));
@@ -105,8 +102,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       setFilterNormalized('');
       setFilterLevel('');
       setShowFavOnly(false);
-      setFavorites(loadFavorites());
       setAxisMap(extAxisAssignments || {});
+      // Async load favorites from DB
+      loadFavoritesDB('kpi-monitor').then(favs => setFavorites(favs));
     }
   }, [open, selectedKeys, extAxisAssignments]);
 
@@ -122,7 +120,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
       const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
-      saveFavorites(next);
+      saveFavoritesDB(next, 'kpi-monitor');
       return next;
     });
   }, []);
