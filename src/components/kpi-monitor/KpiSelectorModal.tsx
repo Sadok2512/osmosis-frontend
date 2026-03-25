@@ -82,7 +82,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [axisMap, setAxisMap] = useState<Record<string, AxisSide>>({});
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [favorites, setFavorites] = useState<string[]>(loadFavorites);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavOnly, setShowFavOnly] = useState(false);
 
   // Filter states
