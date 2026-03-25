@@ -511,6 +511,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               const defEntry = kpiDefs.find(k => k.id === kpiIdItem);
               const name = catalogEntry?.display_name || defEntry?.label || kpiIdItem;
               const color = catalogEntry?.color || defEntry?.color || '#6366f1';
+              // Get split dimension for this KPI
+              const splitVal = cfg.splitByPerKpi?.[kpiIdItem];
+              const hasSplit = splitVal && splitVal !== 'None';
+              const splitLabel = hasSplit ? splitOptions.find(s => s.key === splitVal)?.label || splitVal : null;
               return (
                 <Popover key={`${slot.id}-${kpiIdItem}`}>
                   <PopoverTrigger asChild>
@@ -523,6 +527,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     >
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                       <span className="truncate max-w-[140px]">{name}</span>
+                      {splitLabel && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-accent text-accent-foreground border border-accent/60">
+                          ÷ {splitLabel}
+                        </span>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
