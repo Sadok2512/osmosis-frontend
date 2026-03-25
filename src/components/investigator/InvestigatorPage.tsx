@@ -346,10 +346,10 @@ const InvestigatorPage: React.FC = () => {
                 ...prev,
                 graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
               }))}
-              onAddEmptySlot={() => {
+              onAddEmptySlot={(widgetType) => {
                 setState(prev => {
                   const nextIndex = prev.graphSlots.length + 1;
-                  return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex)] };
+                  return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries')] };
                 });
               }}
               onRenameSlot={(slotId, name) => setState(prev => ({
