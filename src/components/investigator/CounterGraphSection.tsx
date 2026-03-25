@@ -9,6 +9,8 @@ interface CounterDef {
   counter_name: string;
   display_name: string;
   family: string;
+  vendor: string;
+  techno: string;
   count: number;
 }
 

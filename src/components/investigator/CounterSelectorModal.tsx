@@ -7,6 +7,8 @@ interface CounterDef {
   counter_name: string;
   display_name: string;
   family: string;
+  vendor: string;
+  techno: string;
   count: number;
 }
 
@@ -80,6 +82,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavOnly, setShowFavOnly] = useState(false);
+  const [filterVendor, setFilterVendor] = useState('');
+  const [filterTechno, setFilterTechno] = useState('');
 
   React.useEffect(() => {
     if (open) {
@@ -87,6 +91,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
       setActiveFamily(null);
       setSearch('');
       setShowFavOnly(false);
+      setFilterVendor('');
+      setFilterTechno('');
       loadFavoritesDB('pm-counters').then(favs => setFavorites(favs));
     }
   }, [open, selectedKeys]);
@@ -114,6 +120,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
   const filteredCatalog = useMemo(() => {
     let items = catalog;
     if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
+    if (filterVendor) items = items.filter(c => c.vendor === filterVendor);
+    if (filterTechno) items = items.filter(c => c.techno === filterTechno);
     if (activeFamily) items = items.filter(c => c.family === activeFamily);
     if (search) {
       const q = search.toLowerCase();
@@ -124,19 +132,36 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
       );
     }
     return items;
-  }, [catalog, activeFamily, search, showFavOnly, favorites]);
+  }, [catalog, activeFamily, search, showFavOnly, favorites, filterVendor, filterTechno]);
 
   // Families (categories) computed from filtered data
   const familyCategories = useMemo(() => {
     let items = catalog;
     if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
+    if (filterVendor) items = items.filter(c => c.vendor === filterVendor);
+    if (filterTechno) items = items.filter(c => c.techno === filterTechno);
     const fams = new Map<string, number>();
     for (const c of items) {
       const f = c.family || 'Other';
       fams.set(f, (fams.get(f) || 0) + 1);
     }
     return fams;
-  }, [catalog, showFavOnly, favorites]);
+  }, [catalog, showFavOnly, favorites, filterVendor, filterTechno]);
+
+  const filterOptions = useMemo(() => {
+    const vendors = new Map<string, number>();
+    const technos = new Map<string, number>();
+    for (const c of catalog) {
+      if (c.vendor) vendors.set(c.vendor, (vendors.get(c.vendor) || 0) + 1);
+      if (c.techno) technos.set(c.techno, (technos.get(c.techno) || 0) + 1);
+    }
+    return {
+      vendors: Array.from(vendors.entries()).sort().map(([v, n]) => ({ value: v, label: v, count: n })),
+      technos: Array.from(technos.entries()).sort().map(([v, n]) => ({ value: v, label: v, count: n })),
+    };
+  }, [catalog]);
+
+  const activeFilterCount = [filterVendor, filterTechno].filter(Boolean).length + (showFavOnly ? 1 : 0);
 
   const totalFiltered = Array.from(familyCategories.values()).reduce((a, b) => a + b, 0);
 
@@ -173,6 +198,11 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
               <div className="flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5 text-emerald-500" />
                 <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">Filtres</span>
+                {activeFilterCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-emerald-500 text-white text-[8px] font-bold flex items-center justify-center ml-auto">
+                    {activeFilterCount}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -198,7 +228,23 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
                 </button>
               </div>
 
-              {/* Has Normalized Name filter */}
+              {/* Vendor */}
+              <FilterSection
+                label="Vendor"
+                selected={filterVendor}
+                onChange={setFilterVendor}
+                options={filterOptions.vendors}
+              />
+
+              {/* Technology */}
+              <FilterSection
+                label="Technology"
+                selected={filterTechno}
+                onChange={setFilterTechno}
+                options={filterOptions.technos}
+              />
+
+              {/* Type */}
               <FilterSection
                 label="Type"
                 selected=""
@@ -211,10 +257,10 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
               />
             </div>
 
-            {showFavOnly && (
+            {activeFilterCount > 0 && (
               <div className="px-3 py-2 border-t border-border/40">
                 <button
-                  onClick={() => setShowFavOnly(false)}
+                  onClick={() => { setShowFavOnly(false); setFilterVendor(''); setFilterTechno(''); }}
                   className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-bold text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   <RotateCcw className="w-3 h-3" /> Effacer les filtres
@@ -330,6 +376,12 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
                             )}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
+                            {c.vendor && (
+                              <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">{c.vendor}</span>
+                            )}
+                            {c.techno && (
+                              <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-400 font-medium">{c.techno}</span>
+                            )}
                             <span className="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-medium truncate max-w-[100px]">
                               {c.family.replace('LTE_', '')}
                             </span>
