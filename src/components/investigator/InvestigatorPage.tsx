@@ -233,7 +233,8 @@ const InvestigatorPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
+    <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
       <div className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="flex items-center justify-between px-4 md:px-6 py-3 max-w-[1600px] mx-auto w-full">
           <div className="flex items-center gap-3">
@@ -256,6 +257,18 @@ const InvestigatorPage: React.FC = () => {
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
               <span className="text-[10px] font-bold uppercase tracking-wider">Live</span>
             </div>
+            <button
+              onClick={() => setShowAIPanel(!showAIPanel)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all',
+                showAIPanel
+                  ? 'bg-cyan-600 text-white shadow-md'
+                  : 'bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 border border-cyan-500/20'
+              )}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              TRACE AI
+            </button>
           </div>
         </div>
       </div>
