@@ -57,7 +57,7 @@ interface Props {
   jalons: Jalon[];
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
   onRemoveSlot: (slotId: string) => void;
-  onAddEmptySlot: () => void;
+  onAddEmptySlot: (widgetType?: import('./types').WidgetType) => void;
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onRenameSlot: (slotId: string, name: string) => void;
   onOpenKpiSelector: (slotId: string) => void;
@@ -723,15 +723,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         );
       })}
       </div>
-      {/* Small Add button */}
-      {graphSlots.length < 4 && (
-        <button
-          onClick={() => onAddEmptySlot()}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border/60 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Ajouter
-        </button>
+      {/* Widget type add menu */}
+      {graphSlots.length < 8 && (
+        <AddWidgetMenu onAdd={onAddEmptySlot} />
       )}
     </div>
   );
