@@ -4,6 +4,7 @@ export type GraphTab = 'TimeSeries' | 'Histogram' | 'Breakdown';
 export type SplitOption = string;  // Dynamic from backend: 'None' | 'SITE' | 'CELL' | 'DOR' | 'PLAQUE' | 'VENDOR' | 'TECHNO' | 'BAND' | 'ZONE_ARCEP' | ...
 
 export type ChartType = 'line' | 'area' | 'bar' | 'stacked_bar' | 'scatter';
+export type WidgetType = 'timeseries' | 'histogram' | 'kpi_card' | 'counter' | 'neighbors';
 
 export interface YAxisConfig {
   mode: 'auto' | 'manual';
@@ -43,6 +44,7 @@ export interface GraphSlot {
   /** @deprecated use kpiIds */
   kpiId?: string;
   name: string;
+  widgetType?: WidgetType;
   config?: GraphConfig;
   filters: Record<string, string[]>;
   startDate: string;

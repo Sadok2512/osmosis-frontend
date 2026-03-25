@@ -1,16 +1,51 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption } from './types';
+import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType } from './types';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers } from 'lucide-react';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { fetchFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
+
+const WIDGET_TYPES: { value: WidgetType; label: string; icon: React.ElementType; color: string }[] = [
+  { value: 'timeseries', label: 'Graph', icon: TrendingUp, color: 'text-blue-500' },
+  { value: 'kpi_card', label: 'KPI Card', icon: Activity, color: 'text-emerald-500' },
+  { value: 'counter', label: 'Counter', icon: Hash, color: 'text-amber-500' },
+  { value: 'histogram', label: 'Histogram', icon: BarChart3, color: 'text-purple-500' },
+  { value: 'neighbors', label: 'Neighbors Flux', icon: GitBranch, color: 'text-cyan-500' },
+];
+
+const AddWidgetMenu: React.FC<{ onAdd: (type: WidgetType) => void }> = ({ onAdd }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border/60 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all">
+          <Plus className="w-3.5 h-3.5" />
+          Ajouter
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[200px] p-1.5" sideOffset={6}>
+        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1">Type de widget</p>
+        {WIDGET_TYPES.map(wt => (
+          <button
+            key={wt.value}
+            onClick={() => { onAdd(wt.value); setOpen(false); }}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[11px] font-semibold text-foreground hover:bg-muted transition-colors"
+          >
+            <wt.icon className={cn('w-3.5 h-3.5', wt.color)} />
+            {wt.label}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
   { value: 'line', label: 'Line', icon: TrendingUp },
@@ -49,6 +84,69 @@ const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }
     />
   );
 };
+/** Inline Histogram widget for a slot */
+const HistogramWidget: React.FC<{ kpiIds: string[]; height: number; allKpis: KpiDefinition[] }> = ({ kpiIds, height, allKpis }) => {
+  const [histData, setHistData] = React.useState<Record<string, any[]>>({});
+  React.useEffect(() => {
+    import('./investigatorApi').then(({ fetchHistogramData }) => {
+      kpiIds.forEach(kpiId => {
+        fetchHistogramData(kpiId).then(bins => {
+          setHistData(prev => ({ ...prev, [kpiId]: bins }));
+        }).catch(() => {});
+      });
+    });
+  }, [kpiIds]);
+
+  return (
+    <div className="space-y-2">
+      {kpiIds.map(kpiId => {
+        const def = KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId);
+        const bins = histData[kpiId] || [];
+        if (bins.length === 0) return <div key={kpiId} className="text-center text-[10px] text-muted-foreground py-8">Chargement histogram...</div>;
+        const option = {
+          grid: { top: 30, right: 20, bottom: 36, left: 50 },
+          tooltip: { trigger: 'axis' as const, backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#f8fafc', fontSize: 11 } },
+          xAxis: { type: 'category' as const, data: bins.map((b: any) => b.label), axisLabel: { fontSize: 8, color: '#9ca3af', rotate: 30 } },
+          yAxis: { type: 'value' as const, name: 'Count', axisLabel: { fontSize: 9, color: '#9ca3af' }, splitLine: { lineStyle: { color: 'rgba(128,128,128,0.12)', type: 'dashed' as const } } },
+          series: [{ type: 'bar' as const, data: bins.map((b: any) => b.count), itemStyle: { color: def?.color || '#6366f1', borderRadius: [3, 3, 0, 0] }, barMaxWidth: 30 }],
+        };
+        return <ReactECharts key={kpiId} option={option} style={{ height: height - 40 }} />;
+      })}
+    </div>
+  );
+};
+
+/** Inline KPI card widget */
+const KpiCardWidget: React.FC<{ kpiIds: string[]; data: DataPoint[]; allKpis: KpiDefinition[] }> = ({ kpiIds, data, allKpis }) => {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {kpiIds.map(kpiId => {
+        const def = KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId);
+        const points = data.filter(d => d.kpi === kpiId);
+        const lastVal = points.length > 0 ? points[points.length - 1].value : null;
+        const prevVal = points.length > 1 ? points[points.length - 2].value : null;
+        const delta = lastVal !== null && prevVal !== null && prevVal !== 0 ? ((lastVal - prevVal) / prevVal * 100) : null;
+        return (
+          <div key={kpiId} className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: def?.color || '#6366f1' }} />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">{def?.label || kpiId}</span>
+            </div>
+            <div className="text-lg font-black text-foreground">
+              {lastVal !== null ? lastVal.toFixed(2) : '—'}
+              <span className="text-[10px] font-normal text-muted-foreground ml-1">{def?.unit || ''}</span>
+            </div>
+            {delta !== null && (
+              <span className={cn('text-[10px] font-bold', delta >= 0 ? 'text-emerald-500' : 'text-red-500')}>
+                {delta >= 0 ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}%
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 interface Props {
   graphSlots: GraphSlot[];
@@ -57,7 +155,7 @@ interface Props {
   jalons: Jalon[];
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
   onRemoveSlot: (slotId: string) => void;
-  onAddEmptySlot: () => void;
+  onAddEmptySlot: (widgetType?: import('./types').WidgetType) => void;
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onRenameSlot: (slotId: string, name: string) => void;
   onOpenKpiSelector: (slotId: string) => void;
@@ -95,6 +193,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const isEmpty = kpiIds.length === 0;
         const cfg: GraphConfig = slot.config || DEFAULT_GRAPH_CONFIG;
         const isActive = activeSlotId === slot.id;
+        const wType = slot.widgetType || 'timeseries';
+        const wtDef = WIDGET_TYPES.find(w => w.value === wType) || WIDGET_TYPES[0];
 
         // Empty slot — no KPI assigned yet
         if (isEmpty) {
@@ -110,12 +210,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               )}
             >
               <div className="flex items-center gap-2 mb-2 relative z-10">
+                <wtDef.icon className={cn('w-3.5 h-3.5', wtDef.color)} />
                 <input
                   value={slot.name}
                   onChange={(e) => onRenameSlot(slot.id, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                   className="text-xs font-bold text-muted-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[140px] truncate"
                 />
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{wtDef.label}</span>
                 <span className="ml-auto" />
                 <button
                   onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
@@ -127,15 +229,99 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               </div>
               <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ minHeight: chartHeight - 40 }}>
                 <div className="text-muted-foreground/40">
-                  <BarChart className="w-8 h-8" />
+                  <wtDef.icon className="w-8 h-8" />
                 </div>
-                <p className="text-[10px] text-muted-foreground">Aucun KPI sélectionné</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {wType === 'counter' ? 'Aucun compteur sélectionné' : 'Aucun KPI sélectionné'}
+                </p>
                 <button
                   onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }}
                   className="px-3 py-1 rounded-md text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                 >
-                  Choisir un KPI
+                  {wType === 'counter' ? 'Choisir un Compteur' : 'Choisir un KPI'}
                 </button>
+              </div>
+            </div>
+          );
+        }
+
+        // ── Non-timeseries widget types: render specialized content ──
+        if (wType === 'histogram') {
+          return (
+            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
+              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
+              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
+            )}>
+              <div className="flex items-center gap-2 mb-2 relative z-10">
+                <BarChart3 className="w-3.5 h-3.5 text-purple-500" />
+                <span className="text-xs font-bold text-foreground">{slot.name}</span>
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-500">Histogram</span>
+                <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <HistogramWidget kpiIds={kpiIds} height={chartHeight} allKpis={allKpis} />
+            </div>
+          );
+        }
+
+        if (wType === 'kpi_card') {
+          return (
+            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
+              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
+              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
+            )}>
+              <div className="flex items-center gap-2 mb-3 relative z-10">
+                <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-xs font-bold text-foreground">{slot.name}</span>
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">KPI Card</span>
+                <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><Plus className="w-3.5 h-3.5" /></button>
+                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <KpiCardWidget kpiIds={kpiIds} data={data} allKpis={allKpis} />
+            </div>
+          );
+        }
+
+        if (wType === 'counter') {
+          return (
+            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
+              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
+              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
+            )}>
+              <div className="flex items-center gap-2 mb-3 relative z-10">
+                <Hash className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-bold text-foreground">{slot.name}</span>
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500">Counter</span>
+                <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="flex items-center justify-center" style={{ minHeight: chartHeight - 40 }}>
+                <p className="text-xs text-muted-foreground">PM Counter view — sélectionnez des compteurs dans l'onglet PM Counters</p>
+              </div>
+            </div>
+          );
+        }
+
+        if (wType === 'neighbors') {
+          return (
+            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
+              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
+              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
+            )}>
+              <div className="flex items-center gap-2 mb-3 relative z-10">
+                <GitBranch className="w-3.5 h-3.5 text-cyan-500" />
+                <span className="text-xs font-bold text-foreground">{slot.name}</span>
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-500">Neighbors</span>
+                <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="flex items-center justify-center" style={{ minHeight: chartHeight - 40 }}>
+                <div className="text-center space-y-2">
+                  <GitBranch className="w-10 h-10 text-cyan-500/30 mx-auto" />
+                  <p className="text-xs text-muted-foreground">Neighbors Flux — analyse des relations inter-cellules</p>
+                  <p className="text-[10px] text-muted-foreground/60">Sélectionnez une cellule dans le tableau Worst Elements</p>
+                </div>
               </div>
             </div>
           );
@@ -723,15 +909,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         );
       })}
       </div>
-      {/* Small Add button */}
-      {graphSlots.length < 4 && (
-        <button
-          onClick={() => onAddEmptySlot()}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border/60 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Ajouter
-        </button>
+      {/* Widget type add menu */}
+      {graphSlots.length < 8 && (
+        <AddWidgetMenu onAdd={onAddEmptySlot} />
       )}
     </div>
   );
