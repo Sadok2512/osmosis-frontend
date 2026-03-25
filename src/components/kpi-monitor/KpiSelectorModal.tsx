@@ -80,8 +80,9 @@ const FilterSection: React.FC<{
   );
 };
 
-const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, catalog, selectedKeys, onConfirm }) => {
+const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, catalog, selectedKeys, onConfirm, axisAssignments: extAxisAssignments, onAxisAssignmentsChange }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
+  const [axisMap, setAxisMap] = useState<Record<string, AxisSide>>({});
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState<string[]>(loadFavorites);
