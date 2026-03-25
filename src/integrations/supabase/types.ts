@@ -1896,6 +1896,76 @@ export type Database = {
         }
         Relationships: []
       }
+      user_kpi_favorites: {
+        Row: {
+          created_at: string
+          id: string
+          kpi_key: string
+          module: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kpi_key: string
+          module?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kpi_key?: string
+          module?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_kpi_favorites_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          preferences: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          preferences?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          preferences?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
