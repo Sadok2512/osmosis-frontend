@@ -7,6 +7,7 @@ import CounterSelectorModal from './CounterSelectorModal';
 
 interface CounterDef {
   counter_name: string;
+  display_name: string;
   family: string;
   count: number;
 }
@@ -143,7 +144,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
           return (
             <div key={name} className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-lg text-[10px] font-bold border border-border/50 bg-card shadow-sm">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-              <span className="font-mono">{name}</span>
+              <span className="font-mono">{def?.display_name || name}</span>
               {def && <span className="text-[8px] text-muted-foreground font-normal px-1 py-0.5 rounded bg-muted">{def.family}</span>}
               <button onClick={() => removeCounter(name)} className="p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors ml-0.5">
                 <X className="w-3 h-3" />

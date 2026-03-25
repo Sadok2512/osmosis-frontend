@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 
 interface CounterDef {
   counter_name: string;
+  display_name: string;
   family: string;
   count: number;
 }
@@ -133,7 +134,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
                       )}>
                         {selected && <Check className="w-2.5 h-2.5 text-white" />}
                       </div>
-                      <span className="font-mono font-bold">{c.counter_name}</span>
+                      <><span className="font-mono font-bold">{c.counter_name}</span>{c.display_name !== c.counter_name && <span className="text-muted-foreground font-normal ml-1.5">({c.display_name})</span>}</>
                     </button>
                   );
                 })}
