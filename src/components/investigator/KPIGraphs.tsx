@@ -69,9 +69,20 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
   const cols = layout === 1 ? 1 : layout === 4 ? 2 : 2;
   const chartHeight = layout === 1 ? 520 : layout === 4 ? 340 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
+  const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
 
   useEffect(() => {
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
+    fetchFilterCatalog().then(filters => {
+      if (filters?.length) {
+        const opts = filters
+          .filter((f: any) => f.is_active !== false)
+          .map((f: any) => ({ key: f.dimension_key, label: f.display_name }));
+        setSplitOptions(opts);
+      }
+    }).catch(() => {
+      setSplitOptions(['Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'].map(s => ({ key: s, label: s })));
+    });
   }, []);
 
   const getDef = (kpiId: string) => KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId) || null;
