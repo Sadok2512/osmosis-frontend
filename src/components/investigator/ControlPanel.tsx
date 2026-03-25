@@ -757,6 +757,31 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           selectedKeys={selectorOpen && selectorOpen !== 'new'
             ? (state.graphSlots.find(s => s.id === selectorOpen)?.kpiIds || [])
             : []}
+          axisAssignments={(() => {
+            if (!selectorOpen || selectorOpen === 'new') return {};
+            const slot = state.graphSlots.find(s => s.id === selectorOpen);
+            if (!slot?.config?.yAxisAssignments) return {};
+            const result: Record<string, 'left' | 'right'> = {};
+            for (const [k, v] of Object.entries(slot.config.yAxisAssignments)) {
+              result[k] = v === 1 ? 'right' : 'left';
+            }
+            return result;
+          })()}
+          onAxisAssignmentsChange={(assignments) => {
+            if (!selectorOpen || selectorOpen === 'new') return;
+            const numericAssignments: Record<string, number> = {};
+            for (const [k, v] of Object.entries(assignments)) {
+              numericAssignments[k] = v === 'right' ? 1 : 0;
+            }
+            setState(prev => ({
+              ...prev,
+              graphSlots: prev.graphSlots.map(s =>
+                s.id === selectorOpen
+                  ? { ...s, config: { ...(s.config || DEFAULT_GRAPH_CONFIG), yAxisAssignments: numericAssignments } }
+                  : s
+              ),
+            }));
+          }}
           onConfirm={(keys) => {
             const validKeys = keys.filter(Boolean);
             if (validKeys.length === 0) return;
@@ -782,9 +807,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 ...prev,
                 graphSlots: prev.graphSlots.map(s => {
                   if (s.id !== selectorOpen) return s;
-                  // Merge: add new keys that aren't already present
                   const merged = [...new Set([...s.kpiIds, ...validKeys])];
-                  // Reset split when adding new KPIs to avoid stale split data
                   return { ...s, kpiIds: merged, splitBy: 'None' };
                 }),
               }));
