@@ -333,38 +333,65 @@ const InvestigatorPage: React.FC = () => {
             </div>
           </div>
 
-          <KPIGraphs
-            jalons={state.jalons}
-            graphSlots={state.graphSlots}
-            data={tsData}
-            layout={state.graphLayout}
-            onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
-              ...prev,
-              graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
-            }))}
-            onSetSlotKpiIds={(slotId, kpiIds) => setState(prev => ({
-              ...prev,
-              graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds } : s),
-            }))}
-            onRemoveSlot={(slotId) => setState(prev => ({
-              ...prev,
-              graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
-            }))}
-            onAddEmptySlot={(widgetType) => {
-              setState(prev => {
-                const nextIndex = prev.graphSlots.length + 1;
-                return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries')] };
-              });
-            }}
-            onRenameSlot={(slotId, name) => setState(prev => ({
-              ...prev,
-              graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, name } : s),
-            }))}
-            onUpdateSlotConfig={handleUpdateSlotConfig}
-            onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
-            activeSlotId={activeSlotId}
-            onSlotClick={setActiveSlotId}
-          />
+          {state.activeGraphTab === 'TimeSeries' && (
+            <KPIGraphs
+              jalons={state.jalons}
+              graphSlots={state.graphSlots}
+              data={tsData}
+              layout={state.graphLayout}
+              onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
+              }))}
+              onSetSlotKpiIds={(slotId, kpiIds) => setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds } : s),
+              }))}
+              onRemoveSlot={(slotId) => setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
+              }))}
+              onAddEmptySlot={(widgetType) => {
+                setState(prev => {
+                  const nextIndex = prev.graphSlots.length + 1;
+                  return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries')] };
+                });
+              }}
+              onRenameSlot={(slotId, name) => setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, name } : s),
+              }))}
+              onUpdateSlotConfig={handleUpdateSlotConfig}
+              onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
+              activeSlotId={activeSlotId}
+              onSlotClick={setActiveSlotId}
+            />
+          )}
+
+          {state.activeGraphTab === 'Histogram' && (
+            <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
+          )}
+
+          {state.activeGraphTab === 'Neighbors' && (
+            <div className="rounded-xl border border-border/60 bg-card p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-lg bg-cyan-500/10">
+                  <Activity className="w-5 h-5 text-cyan-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">Neighbors Flux Analysis</h3>
+                  <p className="text-[10px] text-muted-foreground">Analyse des relations de voisinage inter-cellules et flux de handover</p>
+                </div>
+              </div>
+              <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                <Activity className="w-12 h-12 text-cyan-500/20" />
+                <p className="text-sm font-semibold text-muted-foreground">Sélectionnez une cellule dans le tableau Worst Elements</p>
+                <p className="text-[10px] text-muted-foreground max-w-md">
+                  Le flux de voisinage affiche les handovers entrants/sortants, les taux de succès HO et la topologie des relations entre cellules adjacentes.
+                </p>
+              </div>
+            </div>
+          )}
 
         </section>
 
