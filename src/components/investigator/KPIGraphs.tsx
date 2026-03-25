@@ -1,11 +1,51 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption } from './types';
+import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType } from './types';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers } from 'lucide-react';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
+import { fetchFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
+
+const WIDGET_TYPES: { value: WidgetType; label: string; icon: React.ElementType; color: string }[] = [
+  { value: 'timeseries', label: 'Graph', icon: TrendingUp, color: 'text-blue-500' },
+  { value: 'kpi_card', label: 'KPI Card', icon: Activity, color: 'text-emerald-500' },
+  { value: 'counter', label: 'Counter', icon: Hash, color: 'text-amber-500' },
+  { value: 'histogram', label: 'Histogram', icon: BarChart3, color: 'text-purple-500' },
+  { value: 'neighbors', label: 'Neighbors Flux', icon: GitBranch, color: 'text-cyan-500' },
+];
+
+const AddWidgetMenu: React.FC<{ onAdd: (type: WidgetType) => void }> = ({ onAdd }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border/60 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all">
+          <Plus className="w-3.5 h-3.5" />
+          Ajouter
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[200px] p-1.5" sideOffset={6}>
+        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1">Type de widget</p>
+        {WIDGET_TYPES.map(wt => (
+          <button
+            key={wt.value}
+            onClick={() => { onAdd(wt.value); setOpen(false); }}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[11px] font-semibold text-foreground hover:bg-muted transition-colors"
+          >
+            <wt.icon className={cn('w-3.5 h-3.5', wt.color)} />
+            {wt.label}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+};
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
