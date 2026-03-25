@@ -284,87 +284,58 @@ const InvestigatorPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              {/* Graph type tabs */}
-              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
-                {([
-                  { key: 'TimeSeries', icon: LineChartIcon, label: 'Time Series' },
-                  { key: 'Histogram', icon: BarChart3, label: 'Histogram' },
-                ] as const).map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setState(prev => ({ ...prev, activeGraphTab: tab.key }))}
-                    className={cn(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all',
-                      state.activeGraphTab === tab.key
-                        ? 'bg-card text-primary shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    <tab.icon className="w-3 h-3" />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Layout switcher */}
-              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
-                {([
-                  { val: 1 as const, icon: Square, title: 'Single' },
-                  { val: 2 as const, icon: Columns2, title: 'Dual' },
-                  { val: 4 as const, icon: LayoutGrid, title: 'Grid' },
-                ]).map(l => (
-                  <button
-                    key={l.val}
-                    onClick={() => setState(prev => ({ ...prev, graphLayout: l.val }))}
-                    title={l.title}
-                    className={cn(
-                      'p-1.5 rounded-md transition-all',
-                      state.graphLayout === l.val
-                        ? 'bg-card text-primary shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    <l.icon className="w-3.5 h-3.5" />
-                  </button>
-                ))}
-              </div>
+            {/* Layout switcher */}
+            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+              {([
+                { val: 1 as const, icon: Square, title: 'Single' },
+                { val: 2 as const, icon: Columns2, title: 'Dual' },
+                { val: 4 as const, icon: LayoutGrid, title: 'Grid' },
+              ]).map(l => (
+                <button
+                  key={l.val}
+                  onClick={() => setState(prev => ({ ...prev, graphLayout: l.val }))}
+                  title={l.title}
+                  className={cn(
+                    'p-1.5 rounded-md transition-all',
+                    state.graphLayout === l.val
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <l.icon className="w-3.5 h-3.5" />
+                </button>
+              ))}
             </div>
           </div>
 
-          {state.activeGraphTab === 'TimeSeries' && (
-            <KPIGraphs
-              jalons={state.jalons}
-              graphSlots={state.graphSlots}
-              data={tsData}
-              layout={state.graphLayout}
-              onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
-                ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
-              }))}
-              onRemoveSlot={(slotId) => setState(prev => ({
-                ...prev,
-                graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
-              }))}
-              onAddEmptySlot={(widgetType) => {
-                setState(prev => {
-                  const nextIndex = prev.graphSlots.length + 1;
-                  return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries')] };
-                });
-              }}
-              onRenameSlot={(slotId, name) => setState(prev => ({
-                ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, name } : s),
-              }))}
-              onUpdateSlotConfig={handleUpdateSlotConfig}
-              onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
-              activeSlotId={activeSlotId}
-              onSlotClick={setActiveSlotId}
-            />
-          )}
-          {state.activeGraphTab === 'Histogram' && (
-            <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
-          )}
+          <KPIGraphs
+            jalons={state.jalons}
+            graphSlots={state.graphSlots}
+            data={tsData}
+            layout={state.graphLayout}
+            onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
+              ...prev,
+              graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
+            }))}
+            onRemoveSlot={(slotId) => setState(prev => ({
+              ...prev,
+              graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
+            }))}
+            onAddEmptySlot={(widgetType) => {
+              setState(prev => {
+                const nextIndex = prev.graphSlots.length + 1;
+                return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries')] };
+              });
+            }}
+            onRenameSlot={(slotId, name) => setState(prev => ({
+              ...prev,
+              graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, name } : s),
+            }))}
+            onUpdateSlotConfig={handleUpdateSlotConfig}
+            onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
+            activeSlotId={activeSlotId}
+            onSlotClick={setActiveSlotId}
+          />
 
         </section>
 
