@@ -317,6 +317,10 @@ const InvestigatorPage: React.FC = () => {
               ...prev,
               graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
             }))}
+            onSetSlotKpiIds={(slotId, kpiIds) => setState(prev => ({
+              ...prev,
+              graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds } : s),
+            }))}
             onRemoveSlot={(slotId) => setState(prev => ({
               ...prev,
               graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
