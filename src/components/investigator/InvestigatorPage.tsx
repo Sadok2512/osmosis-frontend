@@ -48,6 +48,7 @@ const InvestigatorPage: React.FC = () => {
   } = useInvestigatorStore();
 
   const [isApplying, setIsApplying] = React.useState(false);
+  const [showAIPanel, setShowAIPanel] = useState(false);
   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'counters' | 'alarms' | 'cm_history'>('breakdown');
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
