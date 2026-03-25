@@ -388,7 +388,6 @@ const InvestigatorPage: React.FC = () => {
           )}
         </section>
       </main>
-      </div>
     </div>
   );
 };
