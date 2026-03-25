@@ -623,6 +623,103 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                     <span className="text-[10px] font-medium text-foreground">Grid Lines</span>
                     <Switch checked={cfg.showGrid} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showGrid: v })} className="scale-75" />
                   </div>
+
+                  {/* Y-Axis Settings */}
+                  <div className="space-y-1.5">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Axe Y — Gauche (L)</span>
+                    <div className="flex gap-1">
+                      {(['auto', 'manual'] as const).map(mode => (
+                        <button
+                          key={mode}
+                          onClick={() => onUpdateSlotConfig(slot.id, { yAxis: { ...cfg.yAxis, mode } })}
+                          className={cn(
+                            'flex-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
+                            (cfg.yAxis?.mode || 'auto') === mode
+                              ? 'border-primary/40 bg-primary/10 text-primary'
+                              : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+                          )}
+                        >
+                          {mode === 'auto' ? 'Auto' : 'Manuel'}
+                        </button>
+                      ))}
+                    </div>
+                    {cfg.yAxis?.mode === 'manual' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] text-muted-foreground">Min</span>
+                          <input type="number" value={cfg.yAxis?.min ?? ''} onChange={e => onUpdateSlotConfig(slot.id, { yAxis: { ...cfg.yAxis, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] text-muted-foreground">Max</span>
+                          <input type="number" value={cfg.yAxis?.max ?? ''} onChange={e => onUpdateSlotConfig(slot.id, { yAxis: { ...cfg.yAxis, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
+                        </div>
+                      </div>
+                    )}
+
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mt-2 block">Axe Y — Droite (R)</span>
+                    <div className="flex gap-1">
+                      {(['auto', 'manual'] as const).map(mode => (
+                        <button
+                          key={mode}
+                          onClick={() => onUpdateSlotConfig(slot.id, { yAxisRight: { ...cfg.yAxisRight, mode } })}
+                          className={cn(
+                            'flex-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
+                            (cfg.yAxisRight?.mode || 'auto') === mode
+                              ? 'border-primary/40 bg-primary/10 text-primary'
+                              : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+                          )}
+                        >
+                          {mode === 'auto' ? 'Auto' : 'Manuel'}
+                        </button>
+                      ))}
+                    </div>
+                    {cfg.yAxisRight?.mode === 'manual' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] text-muted-foreground">Min</span>
+                          <input type="number" value={cfg.yAxisRight?.min ?? ''} onChange={e => onUpdateSlotConfig(slot.id, { yAxisRight: { ...cfg.yAxisRight, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] text-muted-foreground">Max</span>
+                          <input type="number" value={cfg.yAxisRight?.max ?? ''} onChange={e => onUpdateSlotConfig(slot.id, { yAxisRight: { ...cfg.yAxisRight, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Split By — single for all KPIs */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split By</span>
+                    <select
+                      value={(() => {
+                        const vals = Object.values(cfg.splitByPerKpi || {}).filter(v => v && v !== 'None');
+                        return vals.length > 0 ? vals[0] : 'None';
+                      })()}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const allSplits: Record<string, string> = {};
+                        kpiIds.forEach(kid => { allSplits[kid] = val; });
+                        onUpdateSlotConfig(slot.id, { splitByPerKpi: allSplits });
+                      }}
+                      className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+                    >
+                      <option value="None">Aucun</option>
+                      {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="h-px bg-border/60" />
+
+                  <button
+                    onClick={(e) => {
+                      (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
+                        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+                      );
+                    }}
+                    className="w-full text-[10px] font-semibold text-primary hover:bg-primary/10 py-1.5 rounded-md transition-colors"
+                  >
+                    Appliquer
+                  </button>
                 </PopoverContent>
               </Popover>
             </div>
