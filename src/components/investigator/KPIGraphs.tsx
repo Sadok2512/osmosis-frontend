@@ -932,12 +932,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         selectedKeys={counterSelectorSlotId ? (graphSlots.find(s => s.id === counterSelectorSlotId)?.kpiIds || []) : []}
         onConfirm={(keys) => {
           if (counterSelectorSlotId) {
-            const slot = graphSlots.find(s => s.id === counterSelectorSlotId);
-            if (slot) {
-              onChangeSlotKpi(counterSelectorSlotId, keys.join(','));
-              // Use a workaround: set kpiIds directly via the parent setState
-              // We pass a special format that the parent can detect
-            }
+            onSetSlotKpiIds(counterSelectorSlotId, keys);
           }
           setCounterSelectorSlotId(null);
         }}
