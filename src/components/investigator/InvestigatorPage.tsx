@@ -348,7 +348,7 @@ const InvestigatorPage: React.FC = () => {
                 <p className="text-[10px] text-muted-foreground">Distribution analysis by dimension</p>
               </div>
             </div>
-            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
+            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} />
           </section>
         )}
 
