@@ -4,7 +4,7 @@ import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
-import InvestigatorFilterSidebar from './InvestigatorFilterSidebar';
+import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement } from './types';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement } from './types';
 import { fetchTimeSeriesData, fetchWorstElements, fetchWorstByDOR, fetchFilterValues } from './investigatorApi';
 import {
