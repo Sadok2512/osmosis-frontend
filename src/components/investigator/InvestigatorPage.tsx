@@ -284,27 +284,52 @@ const InvestigatorPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Layout switcher */}
-            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
-              {([
-                { val: 1 as const, icon: Square, title: 'Single' },
-                { val: 2 as const, icon: Columns2, title: 'Dual' },
-                { val: 4 as const, icon: LayoutGrid, title: 'Grid' },
-              ]).map(l => (
-                <button
-                  key={l.val}
-                  onClick={() => setState(prev => ({ ...prev, graphLayout: l.val }))}
-                  title={l.title}
-                  className={cn(
-                    'p-1.5 rounded-md transition-all',
-                    state.graphLayout === l.val
-                      ? 'bg-card text-primary shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <l.icon className="w-3.5 h-3.5" />
-                </button>
-              ))}
+            <div className="flex items-center gap-4">
+              {/* Graph type tabs */}
+              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+                {([
+                  { key: 'TimeSeries' as const, icon: LineChartIcon, label: 'Time Series' },
+                  { key: 'Histogram' as const, icon: BarChart3, label: 'Histogram' },
+                  { key: 'Neighbors' as const, icon: Activity, label: 'Neighbors Flux' },
+                ]).map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setState(prev => ({ ...prev, activeGraphTab: tab.key as any }))}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all',
+                      state.activeGraphTab === tab.key
+                        ? 'bg-card text-primary shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    <tab.icon className="w-3 h-3" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Layout switcher */}
+              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+                {([
+                  { val: 1 as const, icon: Square, title: 'Single' },
+                  { val: 2 as const, icon: Columns2, title: 'Dual' },
+                  { val: 4 as const, icon: LayoutGrid, title: 'Grid' },
+                ]).map(l => (
+                  <button
+                    key={l.val}
+                    onClick={() => setState(prev => ({ ...prev, graphLayout: l.val }))}
+                    title={l.title}
+                    className={cn(
+                      'p-1.5 rounded-md transition-all',
+                      state.graphLayout === l.val
+                        ? 'bg-card text-primary shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    <l.icon className="w-3.5 h-3.5" />
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
