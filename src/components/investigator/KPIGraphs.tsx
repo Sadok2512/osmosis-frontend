@@ -148,7 +148,7 @@ const KpiCardWidget: React.FC<{ kpiIds: string[]; data: DataPoint[]; allKpis: Kp
   );
 };
 
-
+interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
   layout: 1 | 2 | 4;
