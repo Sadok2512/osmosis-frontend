@@ -6,7 +6,7 @@ import KPIBreakdown from './KPIBreakdown';
 import CMChangesCard from './CMChangesCard';
 import CounterGraphSection from './CounterGraphSection';
 import WorstElementsTable from './WorstElementsTable';
-import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement } from './types';
+import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType } from './types';
 import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWorstByDOR, fetchFilterValues, fetchCellDetails } from './investigatorApi';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
@@ -16,10 +16,19 @@ import {
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 
-const createSlot = (index: number, kpiIds: string[] = []): GraphSlot => ({
+const WIDGET_NAMES: Record<WidgetType, string> = {
+  timeseries: 'Graph',
+  histogram: 'Histogram',
+  kpi_card: 'KPI Card',
+  counter: 'Counter',
+  neighbors: 'Neighbors',
+};
+
+const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType = 'timeseries'): GraphSlot => ({
   id: `slot-${Date.now()}-${index}`,
   kpiIds,
-  name: `Graph ${index}`,
+  name: `${WIDGET_NAMES[widgetType]} ${index}`,
+  widgetType,
   filters: {},
   startDate: '',
   endDate: '',
