@@ -1,8 +1,9 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
-import { BarChart3, Plus, X, RefreshCw, Search } from 'lucide-react';
+import { BarChart3, Plus, X, RefreshCw, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import CounterSelectorModal from './CounterSelectorModal';
 
 interface CounterDef {
   counter_name: string;
@@ -16,7 +17,8 @@ interface CounterPoint {
   value: number;
 }
 
-const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#ef4444','#84cc16','#6366f1','#14b8a6'];
+const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#ef4444','#84cc16','#6366f1','#14b8a6',
+                '#f97316','#a855f7','#22d3ee','#4ade80','#fbbf24','#fb7185'];
 
 async function fetchCounterCatalog(): Promise<CounterDef[]> {
   try {
@@ -49,20 +51,12 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   const [selectedCounters, setSelectedCounters] = React.useState<string[]>([]);
   const [tsData, setTsData] = React.useState<CounterPoint[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [showSelector, setShowSelector] = React.useState(false);
-  const [search, setSearch] = React.useState('');
+  const [selectorOpen, setSelectorOpen] = React.useState(false);
 
   // Load catalog
   React.useEffect(() => {
     fetchCounterCatalog().then(setCatalog);
   }, []);
-
-  // Auto-select first 3 counters
-  React.useEffect(() => {
-    if (catalog.length > 0 && selectedCounters.length === 0) {
-      setSelectedCounters(catalog.slice(0, 3).map(c => c.counter_name));
-    }
-  }, [catalog]);
 
   // Fetch timeseries when selection changes
   React.useEffect(() => {
@@ -74,39 +68,28 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
     });
   }, [selectedCounters.join(','), dateFrom, dateTo]);
 
-  const addCounter = (name: string) => {
-    if (!selectedCounters.includes(name)) {
-      setSelectedCounters(prev => [...prev, name]);
-    }
-    setShowSelector(false);
-    setSearch('');
-  };
-
   const removeCounter = (name: string) => {
     setSelectedCounters(prev => prev.filter(c => c !== name));
   };
-
-  // Group by family for selector
-  const grouped = catalog.reduce<Record<string, CounterDef[]>>((acc, c) => {
-    if (!acc[c.family]) acc[c.family] = [];
-    acc[c.family].push(c);
-    return acc;
-  }, {});
-
-  const filtered = search
-    ? catalog.filter(c => c.counter_name.toLowerCase().includes(search.toLowerCase()) || c.family.toLowerCase().includes(search.toLowerCase()))
-    : [];
 
   // Build chart
   const counters = [...new Set(tsData.map(d => d.counter))];
   const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
 
-  const chartOption = {
+  const chartOption = tsData.length > 0 ? {
     tooltip: {
       trigger: 'axis' as const,
       backgroundColor: 'rgba(15,23,42,0.95)',
       borderColor: 'rgba(255,255,255,0.08)',
       textStyle: { color: '#f8fafc', fontSize: 10 },
+      formatter: (params: any[]) => {
+        let html = `<div style="font-size:10px;font-weight:700;margin-bottom:4px">${params[0]?.axisValue}</div>`;
+        params.forEach((p: any) => {
+          const v = typeof p.value === 'number' ? (p.value >= 1e6 ? (p.value/1e6).toFixed(2)+'M' : p.value >= 1e3 ? (p.value/1e3).toFixed(1)+'K' : p.value.toFixed(0)) : '—';
+          html += `<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:8px;height:8px;border-radius:50%;background:${p.color}"></span><span style="flex:1">${p.seriesName}</span><span style="font-weight:700;font-family:monospace">${v}</span></div>`;
+        });
+        return html;
+      },
     },
     legend: {
       bottom: 0,
@@ -122,7 +105,10 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
     },
     yAxis: {
       type: 'value' as const,
-      axisLabel: { color: '#6b7280', fontSize: 9, formatter: (v: number) => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(1)+'K' : v.toString() },
+      axisLabel: {
+        color: '#6b7280', fontSize: 9,
+        formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toString()
+      },
       splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
     },
     series: counters.map((counter, i) => ({
@@ -136,121 +122,75 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
       lineStyle: { width: 2, color: COLORS[i % COLORS.length] },
       itemStyle: { color: COLORS[i % COLORS.length] },
       symbolSize: 4,
-      areaStyle: { color: { type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: COLORS[i % COLORS.length] + '25' }, { offset: 1, color: COLORS[i % COLORS.length] + '05' }] } },
+      areaStyle: {
+        color: {
+          type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: COLORS[i % COLORS.length] + '25' },
+            { offset: 1, color: COLORS[i % COLORS.length] + '05' },
+          ],
+        },
+      },
     })),
-  };
+  } : null;
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between border-b border-border/40 pb-3">
-        <div className="flex items-center gap-3">
-          <div className="p-1.5 bg-emerald-500/10 rounded-lg">
-            <BarChart3 className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div>
-            <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">PM Counter Analysis</h2>
-            <p className="text-[10px] text-muted-foreground">Raw performance counters — {catalog.length} available</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowSelector(!showSelector)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all"
-          >
-            <Plus className="w-3 h-3" /> Add Counter
-          </button>
-        </div>
-      </div>
-
-      {/* Selected counter pills */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+      {/* Selected counter pills + Add button */}
+      <div className="flex items-center gap-2 flex-wrap">
         {selectedCounters.map((name, i) => {
           const def = catalog.find(c => c.counter_name === name);
           return (
-            <span key={name} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border border-border/40 bg-card">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+            <div key={name} className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-lg text-[10px] font-bold border border-border/50 bg-card shadow-sm">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
               <span className="font-mono">{name}</span>
-              {def && <span className="text-muted-foreground font-normal">({def.family})</span>}
-              <button onClick={() => removeCounter(name)} className="hover:text-destructive ml-0.5"><X className="w-3 h-3" /></button>
-            </span>
+              {def && <span className="text-[8px] text-muted-foreground font-normal px-1 py-0.5 rounded bg-muted">{def.family}</span>}
+              <button onClick={() => removeCounter(name)} className="p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors ml-0.5">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
           );
         })}
+        <button
+          onClick={() => setSelectorOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border border-dashed border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 transition-all"
+        >
+          <Plus className="w-3.5 h-3.5" /> Add Counter
+        </button>
         {selectedCounters.length === 0 && (
-          <span className="text-[10px] text-muted-foreground">No counters selected — click "Add Counter"</span>
+          <span className="text-[10px] text-muted-foreground ml-1">Select counters to visualize raw PM data</span>
         )}
       </div>
 
-      {/* Counter Selector dropdown */}
-      {showSelector && (
-        <div className="rounded-xl border border-border bg-card shadow-lg p-3 max-h-[300px] overflow-y-auto">
-          <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              autoFocus
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search counters..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-md border border-border bg-background text-foreground text-[11px]"
-            />
-          </div>
-          {search ? (
-            <div className="space-y-0.5">
-              {filtered.slice(0, 20).map(c => (
-                <button
-                  key={c.counter_name}
-                  onClick={() => addCounter(c.counter_name)}
-                  disabled={selectedCounters.includes(c.counter_name)}
-                  className={cn(
-                    'w-full text-left px-2 py-1.5 rounded-md text-[10px] hover:bg-muted/50 flex items-center justify-between',
-                    selectedCounters.includes(c.counter_name) && 'opacity-40'
-                  )}
-                >
-                  <span className="font-mono font-bold">{c.counter_name}</span>
-                  <span className="text-muted-foreground">{c.family}</span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {Object.entries(grouped).map(([family, counters]) => (
-                <div key={family}>
-                  <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-1">{family}</div>
-                  <div className="space-y-0.5">
-                    {counters.map(c => (
-                      <button
-                        key={c.counter_name}
-                        onClick={() => addCounter(c.counter_name)}
-                        disabled={selectedCounters.includes(c.counter_name)}
-                        className={cn(
-                          'w-full text-left px-2 py-1 rounded-md text-[10px] hover:bg-muted/50 font-mono',
-                          selectedCounters.includes(c.counter_name) && 'opacity-40'
-                        )}
-                      >
-                        {c.counter_name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Counter Chart */}
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
+        <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2 rounded-xl border border-border/60 bg-card">
           <RefreshCw className="w-4 h-4 animate-spin" /> Loading counter data...
         </div>
-      ) : tsData.length > 0 ? (
+      ) : chartOption ? (
         <div className="rounded-xl border border-border/60 bg-card p-4">
-          <ReactECharts option={chartOption} style={{ height: 280 }} />
+          <ReactECharts option={chartOption} style={{ height: 300 }} />
         </div>
       ) : selectedCounters.length > 0 ? (
         <div className="rounded-xl border border-border/60 bg-card p-8 text-center text-xs text-muted-foreground">
           No counter data available for the selected date range
         </div>
-      ) : null}
+      ) : (
+        <div className="rounded-xl border border-dashed border-border/60 bg-card/50 p-10 text-center">
+          <Cpu className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+          <p className="text-xs text-muted-foreground font-medium">Click <strong>"Add Counter"</strong> to select PM counters and view timeseries</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{catalog.length} counters available</p>
+        </div>
+      )}
+
+      {/* Counter Selector Modal */}
+      <CounterSelectorModal
+        open={selectorOpen}
+        onClose={() => setSelectorOpen(false)}
+        catalog={catalog}
+        selectedKeys={selectedCounters}
+        onConfirm={setSelectedCounters}
+      />
     </section>
   );
 };
