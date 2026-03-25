@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import ControlPanel from './ControlPanel';
 import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import WorstElementsTable from './WorstElementsTable';
+import InvestigatorFilterSidebar from './InvestigatorFilterSidebar';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement } from './types';
 import { fetchTimeSeriesData, fetchWorstElements, fetchWorstByDOR, fetchFilterValues } from './investigatorApi';
 import {
@@ -39,6 +40,8 @@ const InvestigatorPage: React.FC = () => {
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
   const [isLoadingWorst, setIsLoadingWorst] = React.useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarFilters, setSidebarFilters] = useState<Record<string, string[]>>({});
 
   // Load filter options on mount
   React.useEffect(() => {
@@ -141,8 +144,16 @@ const InvestigatorPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
-      {/* Header */}
+    <div className="flex-1 flex overflow-hidden">
+      {/* Left Sidebar Filters */}
+      <InvestigatorFilterSidebar
+        filters={sidebarFilters}
+        onFilterChange={setSidebarFilters}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+
+      <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
       <div className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="flex items-center justify-between px-4 md:px-6 py-3 max-w-[1600px] mx-auto w-full">
           <div className="flex items-center gap-3">
@@ -389,6 +400,7 @@ const InvestigatorPage: React.FC = () => {
           )}
         </section>
       </main>
+      </div>
     </div>
   );
 };
