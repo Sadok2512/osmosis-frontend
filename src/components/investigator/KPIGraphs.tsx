@@ -84,8 +84,71 @@ const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }
     />
   );
 };
+/** Inline Histogram widget for a slot */
+const HistogramWidget: React.FC<{ kpiIds: string[]; height: number; allKpis: KpiDefinition[] }> = ({ kpiIds, height, allKpis }) => {
+  const [histData, setHistData] = React.useState<Record<string, any[]>>({});
+  React.useEffect(() => {
+    import('./investigatorApi').then(({ fetchHistogramData }) => {
+      kpiIds.forEach(kpiId => {
+        fetchHistogramData(kpiId).then(bins => {
+          setHistData(prev => ({ ...prev, [kpiId]: bins }));
+        }).catch(() => {});
+      });
+    });
+  }, [kpiIds]);
 
-interface Props {
+  return (
+    <div className="space-y-2">
+      {kpiIds.map(kpiId => {
+        const def = KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId);
+        const bins = histData[kpiId] || [];
+        if (bins.length === 0) return <div key={kpiId} className="text-center text-[10px] text-muted-foreground py-8">Chargement histogram...</div>;
+        const option = {
+          grid: { top: 30, right: 20, bottom: 36, left: 50 },
+          tooltip: { trigger: 'axis' as const, backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#f8fafc', fontSize: 11 } },
+          xAxis: { type: 'category' as const, data: bins.map((b: any) => b.label), axisLabel: { fontSize: 8, color: '#9ca3af', rotate: 30 } },
+          yAxis: { type: 'value' as const, name: 'Count', axisLabel: { fontSize: 9, color: '#9ca3af' }, splitLine: { lineStyle: { color: 'rgba(128,128,128,0.12)', type: 'dashed' as const } } },
+          series: [{ type: 'bar' as const, data: bins.map((b: any) => b.count), itemStyle: { color: def?.color || '#6366f1', borderRadius: [3, 3, 0, 0] }, barMaxWidth: 30 }],
+        };
+        return <ReactECharts key={kpiId} option={option} style={{ height: height - 40 }} />;
+      })}
+    </div>
+  );
+};
+
+/** Inline KPI card widget */
+const KpiCardWidget: React.FC<{ kpiIds: string[]; data: DataPoint[]; allKpis: KpiDefinition[] }> = ({ kpiIds, data, allKpis }) => {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {kpiIds.map(kpiId => {
+        const def = KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId);
+        const points = data.filter(d => d.kpi === kpiId);
+        const lastVal = points.length > 0 ? points[points.length - 1].value : null;
+        const prevVal = points.length > 1 ? points[points.length - 2].value : null;
+        const delta = lastVal !== null && prevVal !== null && prevVal !== 0 ? ((lastVal - prevVal) / prevVal * 100) : null;
+        return (
+          <div key={kpiId} className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: def?.color || '#6366f1' }} />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">{def?.label || kpiId}</span>
+            </div>
+            <div className="text-lg font-black text-foreground">
+              {lastVal !== null ? lastVal.toFixed(2) : '—'}
+              <span className="text-[10px] font-normal text-muted-foreground ml-1">{def?.unit || ''}</span>
+            </div>
+            {delta !== null && (
+              <span className={cn('text-[10px] font-bold', delta >= 0 ? 'text-emerald-500' : 'text-red-500')}>
+                {delta >= 0 ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}%
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+
   graphSlots: GraphSlot[];
   data: DataPoint[];
   layout: 1 | 2 | 4;
