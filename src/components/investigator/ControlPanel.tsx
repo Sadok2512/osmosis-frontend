@@ -599,93 +599,61 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       <Switch checked={cfg.showGrid} onCheckedChange={v => setSlotConfig({ showGrid: v })} className="scale-75" />
                     </div>
 
-                    {/* Y-Axis Settings */}
+                    {/* Y-Axis Settings with L/R selector */}
                     <div className="space-y-1.5">
-                      {/* Left Y-Axis */}
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Axe Y — Gauche (L)</span>
-                      <div className="flex gap-1">
-                        {(['auto', 'manual'] as const).map(mode => (
-                          <button
-                            key={mode}
-                            onClick={() => setSlotConfig({ yAxis: { ...cfg.yAxis, mode } })}
-                            className={cn(
-                              'flex-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
-                              (cfg.yAxis?.mode || 'auto') === mode
-                                ? 'border-primary/40 bg-primary/10 text-primary'
-                                : 'border-border/40 text-muted-foreground hover:bg-muted/50'
-                            )}
-                          >
-                            {mode === 'auto' ? 'Auto' : 'Manuel'}
-                          </button>
-                        ))}
-                      </div>
-                      {cfg.yAxis?.mode === 'manual' && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-0.5">
-                            <span className="text-[9px] text-muted-foreground">Min</span>
-                            <input
-                              type="number"
-                              value={cfg.yAxis?.min ?? ''}
-                              onChange={e => setSlotConfig({ yAxis: { ...cfg.yAxis, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })}
-                              placeholder="Auto"
-                              className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono"
-                            />
-                          </div>
-                          <div className="space-y-0.5">
-                            <span className="text-[9px] text-muted-foreground">Max</span>
-                            <input
-                              type="number"
-                              value={cfg.yAxis?.max ?? ''}
-                              onChange={e => setSlotConfig({ yAxis: { ...cfg.yAxis, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })}
-                              placeholder="Auto"
-                              className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono"
-                            />
-                          </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Axe Y</span>
+                        <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
+                          {(['L', 'R'] as const).map(side => {
+                            const isActiveAxis = (cfg as any).__activeYTab === side || (!(cfg as any).__activeYTab && side === 'L');
+                            return (
+                              <button
+                                key={side}
+                                onClick={() => setSlotConfig({ __activeYTab: side } as any)}
+                                className={cn(
+                                  'px-2.5 py-0.5 text-[9px] font-bold transition-colors',
+                                  isActiveAxis ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                                )}
+                              >{side}</button>
+                            );
+                          })}
                         </div>
-                      )}
-
-                      {/* Right Y-Axis */}
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mt-2 block">Axe Y — Droite (R)</span>
-                      <div className="flex gap-1">
-                        {(['auto', 'manual'] as const).map(mode => (
-                          <button
-                            key={mode}
-                            onClick={() => setSlotConfig({ yAxisRight: { ...cfg.yAxisRight, mode } })}
-                            className={cn(
-                              'flex-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
-                              (cfg.yAxisRight?.mode || 'auto') === mode
-                                ? 'border-primary/40 bg-primary/10 text-primary'
-                                : 'border-border/40 text-muted-foreground hover:bg-muted/50'
-                            )}
-                          >
-                            {mode === 'auto' ? 'Auto' : 'Manuel'}
-                          </button>
-                        ))}
                       </div>
-                      {cfg.yAxisRight?.mode === 'manual' && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-0.5">
-                            <span className="text-[9px] text-muted-foreground">Min</span>
-                            <input
-                              type="number"
-                              value={cfg.yAxisRight?.min ?? ''}
-                              onChange={e => setSlotConfig({ yAxisRight: { ...cfg.yAxisRight, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })}
-                              placeholder="Auto"
-                              className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono"
-                            />
-                          </div>
-                          <div className="space-y-0.5">
-                            <span className="text-[9px] text-muted-foreground">Max</span>
-                            <input
-                              type="number"
-                              value={cfg.yAxisRight?.max ?? ''}
-                              onChange={e => setSlotConfig({ yAxisRight: { ...cfg.yAxisRight, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })}
-                              placeholder="Auto"
-                              className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono"
-                            />
-                          </div>
-                        </div>
-                      )}
+                      {(() => {
+                        const isRight = (cfg as any).__activeYTab === 'R';
+                        const axisCfg = isRight ? cfg.yAxisRight : cfg.yAxis;
+                        const axisKey = isRight ? 'yAxisRight' : 'yAxis';
+                        return (
+                          <>
+                            <div className="flex gap-1">
+                              {(['auto', 'manual'] as const).map(mode => (
+                                <button
+                                  key={mode}
+                                  onClick={() => setSlotConfig({ [axisKey]: { ...axisCfg, mode } })}
+                                  className={cn(
+                                    'flex-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
+                                    (axisCfg?.mode || 'auto') === mode
+                                      ? 'border-primary/40 bg-primary/10 text-primary'
+                                      : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+                                  )}
+                                >{mode === 'auto' ? 'Auto' : 'Manuel'}</button>
+                              ))}
+                            </div>
+                            {axisCfg?.mode === 'manual' && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-0.5">
+                                  <span className="text-[9px] text-muted-foreground">Min</span>
+                                  <input type="number" value={axisCfg?.min ?? ''} onChange={e => setSlotConfig({ [axisKey]: { ...axisCfg, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <span className="text-[9px] text-muted-foreground">Max</span>
+                                  <input type="number" value={axisCfg?.max ?? ''} onChange={e => setSlotConfig({ [axisKey]: { ...axisCfg, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* Split By — single for all KPIs */}
