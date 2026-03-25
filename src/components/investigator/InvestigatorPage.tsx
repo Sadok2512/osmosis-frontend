@@ -3,6 +3,7 @@ import ControlPanel from './ControlPanel';
 import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
+import KPIFormulaCards from './KPIFormulaCards';
 import WorstElementsTable from './WorstElementsTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement } from './types';
 import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWorstByDOR, fetchFilterValues, fetchCellDetails } from './investigatorApi';
@@ -335,6 +336,22 @@ const InvestigatorPage: React.FC = () => {
             <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
           )}
         </section>
+
+        {/* KPI Formula Cards */}
+        {state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 border-b border-border/40 pb-3">
+              <div className="p-1.5 bg-primary/10 rounded-lg">
+                <LayoutGrid className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">Selected KPIs — Formula & Counters</h2>
+                <p className="text-[10px] text-muted-foreground">Numerator / Denominator breakdown for each KPI</p>
+              </div>
+            </div>
+            <KPIFormulaCards selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} />
+          </section>
+        )}
 
         {/* KPI Breakdown Section */}
         {state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
