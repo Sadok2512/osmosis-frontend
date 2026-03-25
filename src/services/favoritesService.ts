@@ -22,7 +22,7 @@ export async function loadFavorites(module = 'investigator'): Promise<string[]> 
 
   if (error) {
     console.warn('Failed to load favorites from DB, falling back to localStorage', error);
-    try { return JSON.parse(localStorage.getItem(LOCAL_FAV_KEY) || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(getLocalKey(module)) || '[]'); } catch { return []; }
   }
 
   return (data || []).map(r => r.kpi_key);
