@@ -201,7 +201,6 @@ const InvestigatorPage: React.FC = () => {
                 {([
                   { key: 'TimeSeries', icon: LineChartIcon, label: 'Time Series' },
                   { key: 'Histogram', icon: BarChart3, label: 'Histogram' },
-                  { key: 'Breakdown', icon: PieChart, label: 'Breakdown' },
                 ] as const).map(tab => (
                   <button
                     key={tab.key}
@@ -277,10 +276,23 @@ const InvestigatorPage: React.FC = () => {
           {state.activeGraphTab === 'Histogram' && (
             <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
           )}
-          {state.activeGraphTab === 'Breakdown' && (
-            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
-          )}
         </section>
+
+        {/* KPI Breakdown Section */}
+        {state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 border-b border-border/40 pb-3">
+              <div className="p-1.5 bg-accent/10 rounded-lg">
+                <PieChart className="w-4 h-4 text-accent-foreground" />
+              </div>
+              <div>
+                <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">KPI Breakdown</h2>
+                <p className="text-[10px] text-muted-foreground">Distribution analysis by dimension</p>
+              </div>
+            </div>
+            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
+          </section>
+        )}
 
         {/* Divider */}
         <div className="h-px bg-border" />
