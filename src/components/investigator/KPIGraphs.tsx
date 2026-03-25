@@ -244,7 +244,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   {wType === 'counter' ? 'Aucun compteur sélectionné' : 'Aucun KPI sélectionné'}
                 </p>
                 <button
-                  onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }}
+                  onClick={(e) => { e.stopPropagation(); wType === 'counter' ? setCounterSelectorSlotId(slot.id) : onOpenKpiSelector(slot.id); }}
                   className="px-3 py-1 rounded-md text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                 >
                   {wType === 'counter' ? 'Choisir un Compteur' : 'Choisir un KPI'}
