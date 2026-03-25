@@ -4,6 +4,7 @@ import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import CMChangesCard from './CMChangesCard';
+import CounterGraphSection from './CounterGraphSection';
 import WorstElementsTable from './WorstElementsTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement } from './types';
 import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWorstByDOR, fetchFilterValues, fetchCellDetails } from './investigatorApi';
@@ -365,6 +366,12 @@ const InvestigatorPage: React.FC = () => {
             </div>
           )}
         </section>
+
+        {/* PM Counter Analysis */}
+        <CounterGraphSection
+          dateFrom={state.startDate.split("T")[0] || "2026-01-01"}
+          dateTo={state.endDate.split("T")[0] || "2026-03-24"}
+        />
 
         {/* Divider */}
         <div className="h-px bg-border" />
