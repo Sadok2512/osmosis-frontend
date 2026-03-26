@@ -32,6 +32,9 @@ interface Props {
   onExternalSelectorClose?: () => void;
   activeSlotId?: string | null;
   onSlotClick?: (slotId: string) => void;
+  isApplying?: boolean;
+  showAIPanel?: boolean;
+  onToggleAIPanel?: () => void;
 }
 
 const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
