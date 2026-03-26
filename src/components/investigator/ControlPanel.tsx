@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
-import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon } from './types';
+import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, KpiLevel } from './types';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
-import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers } from 'lucide-react';
+import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -492,7 +492,119 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         </div>
       </div>
 
-      {/* Row 2: KPI slots with config popovers */}
+      {/* Row 2: KPI Level + Profile/Neighbor dimension filters */}
+      <div className="max-w-[1600px] mx-auto px-6 py-1.5 border-t border-border/30">
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* KPI Level selector */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Niveau</span>
+            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+              {([
+                { value: 'CELL' as KpiLevel, label: 'Cell', icon: BarChart },
+                { value: 'PROFILE' as KpiLevel, label: 'Profile (QCI)', icon: Fingerprint },
+                { value: 'NEIGHBOR' as KpiLevel, label: 'Neighbor', icon: GitBranch },
+              ]).map(lvl => (
+                <button
+                  key={lvl.value}
+                  onClick={() => setState(prev => ({ ...prev, kpiLevel: lvl.value, profileQci: null, profileArp: null, neighborType: null }))}
+                  className={cn(
+                    'flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all',
+                    state.kpiLevel === lvl.value
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <lvl.icon className="w-3 h-3" />
+                  {lvl.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Profile filters (QCI, ARP) — visible when kpiLevel = PROFILE */}
+          {state.kpiLevel === 'PROFILE' && (
+            <>
+              <div className="h-5 w-px bg-border/60 shrink-0" />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">QCI</span>
+                <select
+                  value={state.profileQci ?? ''}
+                  onChange={e => setState(prev => ({ ...prev, profileQci: e.target.value === '' ? null : Number(e.target.value) }))}
+                  className="h-7 px-2 rounded-md border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
+                >
+                  <option value="">Tous</option>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(q => (
+                    <option key={q} value={q}>QCI {q}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">ARP</span>
+                <select
+                  value={state.profileArp ?? ''}
+                  onChange={e => setState(prev => ({ ...prev, profileArp: e.target.value === '' ? null : Number(e.target.value) }))}
+                  className="h-7 px-2 rounded-md border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
+                >
+                  <option value="">Tous</option>
+                  {Array.from({ length: 15 }, (_, i) => i + 1).map(a => (
+                    <option key={a} value={a}>ARP {a}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Active profile filter chips */}
+              {(state.profileQci != null || state.profileArp != null) && (
+                <div className="flex items-center gap-1">
+                  {state.profileQci != null && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                      QCI: {state.profileQci}
+                      <button onClick={() => setState(prev => ({ ...prev, profileQci: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                    </span>
+                  )}
+                  {state.profileArp != null && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                      ARP: {state.profileArp}
+                      <button onClick={() => setState(prev => ({ ...prev, profileArp: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Neighbor filters — visible when kpiLevel = NEIGHBOR */}
+          {state.kpiLevel === 'NEIGHBOR' && (
+            <>
+              <div className="h-5 w-px bg-border/60 shrink-0" />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Type</span>
+                <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+                  {([
+                    { value: null, label: 'Tous' },
+                    { value: 'X2', label: 'X2' },
+                    { value: 'HO_LTE', label: 'HO LTE' },
+                    { value: 'HO_UTRAN', label: 'HO UTRAN' },
+                  ] as { value: string | null; label: string }[]).map(nt => (
+                    <button
+                      key={nt.label}
+                      onClick={() => setState(prev => ({ ...prev, neighborType: nt.value }))}
+                      className={cn(
+                        'px-2 py-1 rounded-md text-[10px] font-bold transition-all',
+                        state.neighborType === nt.value
+                          ? 'bg-card text-cyan-600 shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {nt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Row 3: KPI slots with config popovers */}
       <div className="max-w-[1600px] mx-auto px-6 pb-1.5">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">KPIs:</span>

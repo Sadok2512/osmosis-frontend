@@ -128,12 +128,18 @@ const InvestigatorPage: React.FC = () => {
       const dateTo = state.endDate.split('T')[0] || '2026-03-24';
       const gran = granMap[state.granularity] || '1h';
 
-      let ts = await fetchTimeSeriesData(kpiIds, dateFrom, dateTo, gran, splitValue);
+      let ts = await fetchTimeSeriesData(
+        kpiIds, dateFrom, dateTo, gran, splitValue, undefined,
+        state.kpiLevel, state.profileQci, state.profileArp, state.neighborType
+      );
 
       // Fallback: if hourly returned empty, retry with daily granularity
       if (ts.length === 0 && gran === '1h') {
         console.warn('[Investigator] Hourly returned empty, retrying with daily granularity');
-        ts = await fetchTimeSeriesData(kpiIds, dateFrom, dateTo, '1d', splitValue);
+        ts = await fetchTimeSeriesData(
+          kpiIds, dateFrom, dateTo, '1d', splitValue, undefined,
+          state.kpiLevel, state.profileQci, state.profileArp, state.neighborType
+        );
       }
 
       setTsData(ts);
@@ -225,7 +231,7 @@ const InvestigatorPage: React.FC = () => {
     if (kpiIds.length > 0) {
       handleApply();
     }
-  }, [slotSplitKey, state.splitBy]);
+  }, [slotSplitKey, state.splitBy, state.kpiLevel, state.profileQci, state.profileArp, state.neighborType]);
 
   const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig>) => {
     setState(prev => ({
@@ -402,13 +408,55 @@ const InvestigatorPage: React.FC = () => {
                   <p className="text-[10px] text-muted-foreground">Analyse des relations de voisinage inter-cellules et flux de handover</p>
                 </div>
               </div>
-              <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-                <Activity className="w-12 h-12 text-cyan-500/20" />
-                <p className="text-sm font-semibold text-muted-foreground">Sélectionnez une cellule dans le tableau Worst Elements</p>
-                <p className="text-[10px] text-muted-foreground max-w-md">
-                  Le flux de voisinage affiche les handovers entrants/sortants, les taux de succès HO et la topologie des relations entre cellules adjacentes.
-                </p>
-              </div>
+
+              {state.kpiLevel === 'NEIGHBOR' && tsData.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    {(['X2', 'HO_LTE', 'HO_UTRAN'] as const).map(ntype => {
+                      const count = tsData.filter(d => d.splitValue === ntype).length;
+                      return (
+                        <div
+                          key={ntype}
+                          onClick={() => setState(prev => ({ ...prev, neighborType: prev.neighborType === ntype ? null : ntype }))}
+                          className={cn(
+                            'rounded-lg border p-4 cursor-pointer transition-all',
+                            state.neighborType === ntype
+                              ? 'border-cyan-500/60 bg-cyan-500/10 shadow-sm'
+                              : 'border-border/60 bg-card hover:border-cyan-500/30'
+                          )}
+                        >
+                          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{ntype.replace('_', ' ')}</div>
+                          <div className="text-lg font-bold text-foreground mt-1">{count > 0 ? count : '--'}</div>
+                          <div className="text-[9px] text-muted-foreground">data points</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Les KPIs neighbor sont affiches dans le graphe TimeSeries ci-dessus. Utilisez le filtre "Type" pour isoler X2, HO LTE ou HO UTRAN.
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                  <Activity className="w-12 h-12 text-cyan-500/20" />
+                  <p className="text-sm font-semibold text-muted-foreground">
+                    {state.kpiLevel !== 'NEIGHBOR'
+                      ? 'Passez au niveau "Neighbor" dans la barre de filtres pour analyser les relations de voisinage'
+                      : 'Selectionnez des KPIs Neighbor (NEIGH_*) et appliquez'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground max-w-md">
+                    Le flux de voisinage affiche les handovers entrants/sortants, les taux de succes HO et la topologie des relations entre cellules adjacentes.
+                  </p>
+                  {state.kpiLevel !== 'NEIGHBOR' && (
+                    <button
+                      onClick={() => setState(prev => ({ ...prev, kpiLevel: 'NEIGHBOR', activeGraphTab: 'TimeSeries' }))}
+                      className="mt-2 px-4 py-2 rounded-lg bg-cyan-500/10 text-cyan-600 text-xs font-bold hover:bg-cyan-500/20 transition-colors border border-cyan-500/20"
+                    >
+                      Activer le niveau Neighbor
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

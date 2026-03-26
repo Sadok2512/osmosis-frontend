@@ -16,6 +16,10 @@ const INITIAL_STATE: InvestigationState = {
   graphLayout: 2,
   activeGraphTab: 'TimeSeries',
   jalons: [],
+  kpiLevel: 'CELL',
+  profileQci: null,
+  profileArp: null,
+  neighborType: null,
 };
 
 interface InvestigatorStore {

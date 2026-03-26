@@ -2,6 +2,7 @@ export type Dimension = 'Cell' | 'Site' | 'DOR' | 'DR' | 'Plaque' | 'Zone ARCEP'
 export type Granularity = 'Hourly' | 'Daily' | 'Weekly';
 export type GraphTab = 'TimeSeries' | 'Histogram' | 'Breakdown' | 'Neighbors';
 export type SplitOption = string;  // Dynamic from backend: 'None' | 'SITE' | 'CELL' | 'DOR' | 'PLAQUE' | 'VENDOR' | 'TECHNO' | 'BAND' | 'ZONE_ARCEP' | ...
+export type KpiLevel = 'CELL' | 'PROFILE' | 'NEIGHBOR';
 
 export type ChartType = 'line' | 'area' | 'bar' | 'stacked_bar' | 'scatter';
 export type WidgetType = 'timeseries' | 'histogram' | 'kpi_card' | 'counter' | 'neighbors';
@@ -74,6 +75,11 @@ export interface InvestigationState {
   graphLayout: 1 | 2 | 4;
   activeGraphTab: GraphTab;
   jalons: Jalon[];
+  // Profile & Neighbor dimension filters
+  kpiLevel: KpiLevel;
+  profileQci?: number | null;
+  profileArp?: number | null;
+  neighborType?: string | null;  // 'X2' | 'HO_LTE' | 'HO_UTRAN'
 }
 
 export interface DataPoint {

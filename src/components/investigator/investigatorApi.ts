@@ -27,17 +27,38 @@ export async function fetchTimeSeriesData(
   dateTo: string,
   granularity: string = '1h',
   splitBy?: string,
-  filters?: { dimension: string; values: string[] }[]
+  filters?: { dimension: string; values: string[] }[],
+  kpiLevel?: string,
+  profileQci?: number | null,
+  profileArp?: number | null,
+  neighborType?: string | null,
 ): Promise<DataPoint[]> {
   const url = getApiUrl('monitor/query/timeseries');
+  const allFilters = (filters || []).map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
+
+  // Add kpi_level filter
+  if (kpiLevel && kpiLevel !== 'CELL') {
+    allFilters.push({ dimension: 'KPI_LEVEL', op: 'IN', values: [kpiLevel] });
+  }
+  // Add profile dimension filters
+  if (kpiLevel === 'PROFILE') {
+    if (profileQci != null) allFilters.push({ dimension: 'QCI', op: 'IN', values: [String(profileQci)] });
+    if (profileArp != null) allFilters.push({ dimension: 'ARP', op: 'IN', values: [String(profileArp)] });
+  }
+  // Add neighbor dimension filters
+  if (kpiLevel === 'NEIGHBOR') {
+    if (neighborType) allFilters.push({ dimension: 'NEIGHBOR_TYPE', op: 'IN', values: [neighborType] });
+  }
+
   const body = {
     date_from: dateFrom,
     date_to: dateTo,
     granularity,
     selections: kpiIds.map(k => ({ kpi_key: k })),
-    filters: (filters || []).map(f => ({ dimension: f.dimension, op: 'IN', values: f.values })),
+    filters: allFilters,
     split_by: splitBy || null,
     top_n: 10,
+    kpi_level: kpiLevel || 'CELL',
   };
   const res = await fetch(url, {
     method: 'POST',
