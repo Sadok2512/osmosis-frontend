@@ -5,7 +5,7 @@ import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, Gra
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
-import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch } from 'lucide-react';
+import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -32,6 +32,9 @@ interface Props {
   onExternalSelectorClose?: () => void;
   activeSlotId?: string | null;
   onSlotClick?: (slotId: string) => void;
+  isApplying?: boolean;
+  showAIPanel?: boolean;
+  onToggleAIPanel?: () => void;
 }
 
 const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
@@ -251,7 +254,7 @@ const JalonForm: React.FC<{ onAdd: (j: Jalon) => void }> = ({ onAdd }) => {
 };
 
 /* ── Main Control Panel ── */
-const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick }) => {
+const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick, isApplying, showAIPanel, onToggleAIPanel }) => {
   const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
   const [kpiDefs, setKpiDefs] = useState<KpiDefinition[]>(FALLBACK_KPIS);
   const [selectorOpen, setSelectorOpen] = useState<string | null>(null);
@@ -335,120 +338,80 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   );
 
   return (
-    <div className="border-b border-border bg-card/50 backdrop-blur-sm">
-      {/* Row 1: Main controls */}
-      <div className="max-w-[1600px] mx-auto px-6 py-2.5">
-        <div className="flex items-center gap-5 flex-wrap">
-          {/* Date Start */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Date Début</span>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    'w-[130px] justify-start text-left text-xs font-medium h-[32px]',
-                    !startDate && 'text-muted-foreground'
-                  )}
-                >
-                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-                  {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={startDate}
-                  onSelect={(d) => d && setState(prev => ({ ...prev, startDate: format(d, 'yyyy-MM-dd') }))}
-                  initialFocus
-                  className={cn('p-3 pointer-events-auto')}
-                />
-              </PopoverContent>
-            </Popover>
+    <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-md border-b border-border shadow-sm">
+      {/* Row 1: 3-section toolbar — Title | Filters | Actions */}
+      <div className="max-w-[1600px] mx-auto px-5 py-3">
+        <div className="flex items-center gap-4">
+          {/* LEFT — Title */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center">
+              <Settings2 className="w-4 h-4 text-primary" />
+            </div>
+            <div className="leading-tight">
+              <h1 className="text-xs font-bold text-foreground tracking-tight">QOEBIT Investigator</h1>
+              <p className="text-[9px] text-muted-foreground font-medium tracking-wide">KPI Investigation & RCA</p>
+            </div>
           </div>
 
-          {/* Date End */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Date Fin</span>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    'w-[130px] justify-start text-left text-xs font-medium h-[32px]',
-                    !endDate && 'text-muted-foreground'
-                  )}
-                >
-                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-                  {endDate ? format(endDate, 'dd/MM/yyyy') : 'Fin'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={endDate}
-                  onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))}
-                  initialFocus
-                  className={cn('p-3 pointer-events-auto')}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+          {/* Vertical separator */}
+          <div className="h-8 w-px bg-border shrink-0" />
 
-          {/* Separator */}
-          <div className="h-5 w-px bg-border/60 shrink-0" />
+          {/* CENTER — Filters */}
+          <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
+            {/* Date range group */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('h-8 w-[120px] justify-start text-left text-[11px] font-medium rounded-md', !startDate && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-1.5 h-3 w-3 text-muted-foreground" />
+                    {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={startDate} onSelect={(d) => d && setState(prev => ({ ...prev, startDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+              <span className="text-[10px] text-muted-foreground">→</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('h-8 w-[120px] justify-start text-left text-[11px] font-medium rounded-md', !endDate && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-1.5 h-3 w-3 text-muted-foreground" />
+                    {endDate ? format(endDate, 'dd/MM/yyyy') : 'Fin'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={endDate} onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
 
-          {/* Period shortcuts */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Période</span>
-            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+            {/* Period shortcuts */}
+            <div className="flex items-center bg-muted/40 p-0.5 rounded-md border border-border/30 shrink-0">
               {PERIODS.map(p => (
-                <button
-                  key={p.label}
-                  onClick={() => applyPeriod(p.days)}
-                  className="px-2.5 py-1 rounded-md text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-card transition-all"
-                >
+                <button key={p.label} onClick={() => applyPeriod(p.days)}
+                  className="px-2 py-1 rounded text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-background/80 transition-all">
                   {p.label}
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* Separator */}
-          <div className="h-5 w-px bg-border/60 shrink-0" />
-
-          {/* Granularity */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Granularité</span>
-            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+            {/* Granularity */}
+            <div className="flex items-center bg-muted/40 p-0.5 rounded-md border border-border/30 shrink-0">
               {GRANULARITIES.map(g => (
-                <button
-                  key={g.value}
-                  onClick={() => setState(prev => ({ ...prev, granularity: g.value }))}
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-[10px] font-bold transition-all',
-                    state.granularity === g.value
-                      ? 'bg-card text-primary shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
+                <button key={g.value} onClick={() => setState(prev => ({ ...prev, granularity: g.value }))}
+                  className={cn('px-2 py-1 rounded text-[10px] font-semibold transition-all',
+                    state.granularity === g.value ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
                   {g.label}
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* Separator */}
-          <div className="h-5 w-px bg-border/60 shrink-0" />
-
-          {/* Jalons */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Jalons</span>
+            {/* Jalons */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="h-[32px] text-xs gap-1.5 px-2.5">
-                  <Flag className="w-3.5 h-3.5" />
-                  {state.jalons.length > 0 ? `${state.jalons.length}` : '+'}
+                <Button variant="outline" className="h-8 text-[11px] gap-1 px-2.5 rounded-md">
+                  <Flag className="w-3 h-3 text-muted-foreground" />
+                  {state.jalons.length > 0 ? `${state.jalons.length}` : 'Jalons'}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[280px] p-3 space-y-2" align="start">
@@ -470,9 +433,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 )}
               </PopoverContent>
             </Popover>
-            {/* Show jalon chips */}
+
+            {/* Jalon chips inline */}
             {state.jalons.map(j => (
-              <span key={j.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border border-border/40 bg-muted/30 text-foreground">
+              <span key={j.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border border-border/30 bg-muted/30 text-foreground">
                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: j.color }} />
                 {j.label}
                 <button onClick={() => setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) }))} className="hover:text-destructive ml-0.5">
@@ -482,13 +446,33 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             ))}
           </div>
 
-          {/* Apply */}
-          <button
-            onClick={onApply}
-            className="shrink-0 ml-auto px-6 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-opacity shadow-sm h-[32px]"
-          >
-            Appliquer
-          </button>
+          {/* Vertical separator */}
+          <div className="h-8 w-px bg-border shrink-0" />
+
+          {/* RIGHT — Actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button onClick={onApply} size="sm" className="h-8 px-5 text-[11px] font-bold uppercase tracking-wider rounded-md shadow-sm">
+              Appliquer
+            </Button>
+
+            {isApplying && (
+              <div className="flex items-center gap-1.5 text-[10px] text-primary font-semibold">
+                <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            <div className="flex items-center gap-1 text-green-600 px-2 py-1 rounded-md bg-green-500/10">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-[9px] font-bold uppercase tracking-wider">Live</span>
+            </div>
+
+            <button onClick={onToggleAIPanel}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all',
+                showAIPanel ? 'bg-cyan-600 text-white shadow-md' : 'bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 border border-cyan-500/20')}>
+              <Sparkles className="w-3.5 h-3.5" />
+              TRACE AI
+            </button>
+          </div>
         </div>
       </div>
 
