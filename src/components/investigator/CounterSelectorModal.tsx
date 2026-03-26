@@ -121,7 +121,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
 
   // Filter
   const filteredCatalog = useMemo(() => {
-    let items = catalog;
+    let items = Array.isArray(catalog) ? catalog : [];
     if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
     if (filterVendor) items = items.filter(c => c.vendor === filterVendor);
     if (filterTechno) items = items.filter(c => c.techno === filterTechno);
@@ -140,7 +140,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
 
   // Families (categories) computed from filtered data
   const familyCategories = useMemo(() => {
-    let items = catalog;
+    let items = Array.isArray(catalog) ? catalog : [];
     if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
     if (filterVendor) items = items.filter(c => c.vendor === filterVendor);
     if (filterTechno) items = items.filter(c => c.techno === filterTechno);
@@ -164,7 +164,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
       'CELL_PMQAP': 'PMQAP (QCI/ARP)',
       'CELL_CA_REL': 'CA Relation',
     };
-    for (const c of catalog) {
+    for (const c of (Array.isArray(catalog) ? catalog : [])) {
       if (c.vendor) vendors.set(c.vendor, (vendors.get(c.vendor) || 0) + 1);
       if (c.techno) technos.set(c.techno, (technos.get(c.techno) || 0) + 1);
       if (c.object_type) types.set(c.object_type, (types.get(c.object_type) || 0) + 1);
