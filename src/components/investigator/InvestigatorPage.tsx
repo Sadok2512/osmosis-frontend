@@ -260,7 +260,7 @@ const InvestigatorPage: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 p-5 md:px-6 md:pt-5 md:pb-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* KPI Graph Section */}
         <section className="space-y-4">
           <div className="flex items-center justify-between border-b border-border/40 pb-3">

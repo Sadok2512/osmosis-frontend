@@ -338,9 +338,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   );
 
   return (
-    <div className="sticky top-4 z-30 mx-4 rounded-xl bg-card/95 backdrop-blur-md border border-border/60 shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)]">
+    <div className="sticky top-5 z-30 mx-5 mt-4 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/40 shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.07),0_1px_3px_-1px_hsl(var(--foreground)/0.04)]">
       {/* Row 1: 3-section toolbar — Title | Filters | Actions */}
-      <div className="max-w-[1600px] mx-auto px-5 py-3">
+      <div className="max-w-[1600px] mx-auto px-6 py-3.5">
         <div className="flex items-center gap-4">
           {/* LEFT — Title */}
           <div className="flex items-center gap-2.5 shrink-0">
