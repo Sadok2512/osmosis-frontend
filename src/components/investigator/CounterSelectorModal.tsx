@@ -121,7 +121,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
 
   // Filter
   const filteredCatalog = useMemo(() => {
-    let items = catalog;
+    let items = Array.isArray(catalog) ? catalog : [];
     if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
     if (filterVendor) items = items.filter(c => c.vendor === filterVendor);
     if (filterTechno) items = items.filter(c => c.techno === filterTechno);
@@ -140,7 +140,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
 
   // Families (categories) computed from filtered data
   const familyCategories = useMemo(() => {
-    let items = catalog;
+    let items = Array.isArray(catalog) ? catalog : [];
     if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
     if (filterVendor) items = items.filter(c => c.vendor === filterVendor);
     if (filterTechno) items = items.filter(c => c.techno === filterTechno);
