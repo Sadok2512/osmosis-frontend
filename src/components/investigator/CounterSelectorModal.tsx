@@ -164,7 +164,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
       'CELL_PMQAP': 'PMQAP (QCI/ARP)',
       'CELL_CA_REL': 'CA Relation',
     };
-    for (const c of catalog) {
+    for (const c of (Array.isArray(catalog) ? catalog : [])) {
       if (c.vendor) vendors.set(c.vendor, (vendors.get(c.vendor) || 0) + 1);
       if (c.techno) technos.set(c.techno, (technos.get(c.techno) || 0) + 1);
       if (c.object_type) types.set(c.object_type, (types.get(c.object_type) || 0) + 1);
