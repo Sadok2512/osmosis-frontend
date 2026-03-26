@@ -12,7 +12,7 @@ import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWors
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
-  Settings2, Bell, Cpu, Sparkles,
+  Settings2, Bell, Cpu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
