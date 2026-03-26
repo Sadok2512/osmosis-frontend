@@ -338,7 +338,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   );
 
   return (
-    <div className="sticky top-0 z-30 bg-card/95 backdrop-blur-md border-b border-border shadow-sm">
+    <div className="sticky top-4 z-30 mx-4 rounded-xl bg-card/95 backdrop-blur-md border border-border/60 shadow-[0_2px_16px_-4px_hsl(var(--foreground)/0.06)]">
       {/* Row 1: 3-section toolbar — Title | Filters | Actions */}
       <div className="max-w-[1600px] mx-auto px-5 py-3">
         <div className="flex items-center gap-4">
