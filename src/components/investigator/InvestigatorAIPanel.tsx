@@ -117,7 +117,7 @@ Règles:
 - Propose des actions concrètes (optimisation, escalade, investigation)
 - Pour les RCA, corrèle KPIs + alarmes + changements CM
 - Identifie les patterns communs (même vendeur, même DOR, même bande)`;
-  }, [state, tsData, worstElements]);
+  }, [state, tsData, worstElements, graphSlots]);
 
   const streamChat = async (allMessages: Msg[]): Promise<string> => {
     let openrouterKey = '';
