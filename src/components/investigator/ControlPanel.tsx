@@ -254,7 +254,7 @@ const JalonForm: React.FC<{ onAdd: (j: Jalon) => void }> = ({ onAdd }) => {
 };
 
 /* ── Main Control Panel ── */
-const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick }) => {
+const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick, isApplying, showAIPanel, onToggleAIPanel }) => {
   const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
   const [kpiDefs, setKpiDefs] = useState<KpiDefinition[]>(FALLBACK_KPIS);
   const [selectorOpen, setSelectorOpen] = useState<string | null>(null);
