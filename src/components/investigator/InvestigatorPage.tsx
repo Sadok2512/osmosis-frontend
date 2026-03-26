@@ -245,45 +245,7 @@ const InvestigatorPage: React.FC = () => {
   return (
     <div className="flex-1 flex overflow-hidden">
       <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
-      <div className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30">
-        <div className="flex items-center justify-between px-4 md:px-6 py-3 max-w-[1600px] mx-auto w-full">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-              <Activity className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold text-foreground uppercase tracking-tight">QOEBIT Investigator</h1>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">KPI Investigation & Root Cause Analysis</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {isApplying && (
-              <div className="flex items-center gap-2 text-[10px] text-primary font-bold bg-primary/10 px-3 py-1.5 rounded-full">
-                <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                REFRESHING...
-              </div>
-            )}
-            <div className="flex items-center gap-1 bg-green-500/10 text-green-600 px-2.5 py-1 rounded-full">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Live</span>
-            </div>
-            <button
-              onClick={() => setShowAIPanel(!showAIPanel)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all',
-                showAIPanel
-                  ? 'bg-cyan-600 text-white shadow-md'
-                  : 'bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 border border-cyan-500/20'
-              )}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              TRACE AI
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Control Panel */}
+      {/* Unified Toolbar */}
       <ControlPanel
         state={state}
         setState={setState}
@@ -292,6 +254,9 @@ const InvestigatorPage: React.FC = () => {
         onExternalSelectorClose={() => setKpiSelectorSlot(null)}
         activeSlotId={activeSlotId}
         onSlotClick={setActiveSlotId}
+        isApplying={isApplying}
+        showAIPanel={showAIPanel}
+        onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
       />
 
       {/* Main Content */}
