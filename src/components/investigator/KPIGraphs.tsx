@@ -171,7 +171,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
   const chartHeight = layout === 1 ? 520 : layout === 4 ? 340 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
-  const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; vendor: string; techno: string; count: number }[]>([]);
+  const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; vendor: string; techno: string; object_type: string; count: number }[]>([]);
   const [counterSelectorSlotId, setCounterSelectorSlotId] = useState<string | null>(null);
 
   useEffect(() => {

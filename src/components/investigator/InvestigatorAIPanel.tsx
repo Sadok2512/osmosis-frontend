@@ -27,16 +27,19 @@ interface InvestigatorAIPanelProps {
 
 const InvestigatorAIPanel: React.FC<InvestigatorAIPanelProps> = ({ onClose }) => {
   const sessionStore = useChatSessionStore();
-  const { state, tsData, worstElements } = useInvestigatorStore();
+  const { state, tsData: rawTsData, worstElements: rawWorstElements } = useInvestigatorStore();
+  const tsData = Array.isArray(rawTsData) ? rawTsData : [];
+  const worstElements = Array.isArray(rawWorstElements) ? rawWorstElements : [];
+  const graphSlots = Array.isArray(state?.graphSlots) ? state.graphSlots : [];
 
-  const sessionId = useMemo(() => {
+  const [sessionId] = useState(() => {
     const existing = sessionStore.sessions.find(s => s.title.startsWith('[TRACE]'));
     if (existing) {
       sessionStore.setActiveSession(existing.id);
       return existing.id;
     }
     return sessionStore.createSession('[TRACE] Investigation');
-  }, []);
+  });
 
   const activeSession = sessionStore.sessions.find(s => s.id === sessionId);
   const messages: Msg[] = (activeSession?.messages || []).map(m => ({ role: m.role, content: m.content }));
@@ -58,8 +61,8 @@ const InvestigatorAIPanel: React.FC<InvestigatorAIPanelProps> = ({ onClose }) =>
 
   // Build investigation context
   const investigatorContext = useMemo(() => {
-    const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
-    const slotInfo = state.graphSlots.map(s =>
+    const kpiIds = graphSlots.flatMap(s => s.kpiIds || []);
+    const slotInfo = graphSlots.map(s =>
       `Slot "${s.name}": KPIs=[${s.kpiIds.join(', ')}] split=${s.splitBy} type=${s.widgetType || 'timeseries'}`
     ).join('\n');
 
@@ -114,7 +117,7 @@ Règles:
 - Propose des actions concrètes (optimisation, escalade, investigation)
 - Pour les RCA, corrèle KPIs + alarmes + changements CM
 - Identifie les patterns communs (même vendeur, même DOR, même bande)`;
-  }, [state, tsData, worstElements]);
+  }, [state, tsData, worstElements, graphSlots]);
 
   const streamChat = async (allMessages: Msg[]): Promise<string> => {
     let openrouterKey = '';
