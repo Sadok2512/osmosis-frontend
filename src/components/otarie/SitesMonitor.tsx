@@ -5988,9 +5988,37 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const avgUl = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).p50_thr_up_mbps ?? 0), 0) / totalCells : 0;
             const avgRtt = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).p95_rtt_ms ?? 0), 0) / totalCells : 0;
 
-            // Use topoNetworkStats for instant display while sites load
+            // Use topoNetworkStats for instant display, fallback to computed from loaded sites
             const ns = topoNetworkStats;
             const hasFastStats = ns && (ns.sites4G > 0 || ns.sites5G > 0 || ns.cells4G > 0 || ns.cells5G > 0);
+            // Compute from loaded sites as fallback
+            const computedStats: TopoNetworkStats = (() => {
+              const s4g = new Set<string>();
+              const s5g = new Set<string>();
+              let c4g = 0, c5g = 0;
+              const bm4g: Record<string, number> = {};
+              const bm5g: Record<string, number> = {};
+              const vm: Record<string, number> = {};
+              filteredSites.forEach(site => {
+                let has4g = false, has5g = false;
+                site.cells.forEach(c => {
+                  const is5g = c.techno?.includes('5G') || c.techno === 'NR';
+                  if (is5g) { c5g++; has5g = true; const b = c.bande || 'Unknown'; bm5g[b] = (bm5g[b] || 0) + 1; }
+                  else { c4g++; has4g = true; const b = c.bande || 'Unknown'; bm4g[b] = (bm4g[b] || 0) + 1; }
+                  const v = (c as any).vendor || site.vendor || 'Unknown'; vm[v] = (vm[v] || 0) + 1;
+                });
+                if (has4g) s4g.add(site.site_id);
+                if (has5g) s5g.add(site.site_id);
+                // If no cells loaded, use lte_cells/nr_cells counts
+                if (site.cells.length === 0) {
+                  if ((site.lte_cells ?? 0) > 0) { s4g.add(site.site_id); c4g += site.lte_cells ?? 0; }
+                  if ((site.nr_cells ?? 0) > 0) { s5g.add(site.site_id); c5g += site.nr_cells ?? 0; }
+                }
+              });
+              return { sites4G: s4g.size, sites5G: s5g.size, cells4G: c4g, cells5G: c5g, bandMap4G: bm4g, bandMap5G: bm5g, vendorMap: vm };
+            })();
+            const displayStats = hasFastStats ? ns! : computedStats;
+            const hasAnyStats = displayStats.sites4G > 0 || displayStats.sites5G > 0 || displayStats.cells4G > 0 || displayStats.cells5G > 0;
 
             return (
               <div className="divide-y divide-border">
