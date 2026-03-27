@@ -64,7 +64,8 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2
+  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2,
+  Bell, FileText
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
@@ -6835,6 +6836,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       { id: 'topo' as const, label: 'TOPOLOGIE', icon: <Radio size={12} /> },
                       { id: 'config' as const, label: 'CONFIG', icon: <Settings2 size={12} /> },
                       { id: 'sim' as const, label: 'SIMULATION', icon: <Signal size={12} /> },
+                      { id: 'alarms' as const, label: 'ALARMS', icon: <Bell size={12} /> },
+                      { id: 'cm' as const, label: 'CM', icon: <FileText size={12} /> },
                     ].map(tab => (
                       <button
                         key={tab.id}
