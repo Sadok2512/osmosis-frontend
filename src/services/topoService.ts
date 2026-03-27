@@ -713,13 +713,27 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
     ).catch(() => null);
 
     if (vpsResp && vpsResp.cells && vpsResp.cells.length > 0) {
-      const siteRows = vpsResp.cells.filter((c: any) => (c.site_name || c.nom_site || c.code_nidt) === siteId);
-      if (siteRows.length > 0) {
-        const sites = buildSitesFromRows(siteRows as TopoRow[]);
-        const cells = sites.length > 0 ? sites[0].cells : [];
-        siteCellsCache.set(siteId, { cells, ts: Date.now() });
-        console.log(`[TopoService] Site cells (VPS): ${cells.length} cells for ${siteId}`);
-        return cells;
+      const normalizedSiteId = siteId.trim().toUpperCase();
+      const matchingRows = vpsResp.cells.filter((cell: any) => {
+        const identities = [cell.code_nidt, cell.site_id, cell.site_name, cell.nom_site]
+          .filter(Boolean)
+          .map((value: unknown) => String(value).trim().toUpperCase());
+        return identities.includes(normalizedSiteId);
+      });
+
+      const sourceRows = matchingRows.length > 0 ? matchingRows : vpsResp.cells;
+      const sites = buildSitesFromRows(sourceRows as TopoRow[]);
+      const matchedSite = sites.find(site => {
+        const identities = [site.site_id, site.site_name]
+          .filter(Boolean)
+          .map(value => String(value).trim().toUpperCase());
+        return identities.includes(normalizedSiteId);
+      });
+
+      if (matchedSite && matchedSite.cells.length > 0) {
+        siteCellsCache.set(siteId, { cells: matchedSite.cells, ts: Date.now() });
+        console.log(`[TopoService] Site cells (VPS): ${matchedSite.cells.length} cells for ${siteId}`);
+        return matchedSite.cells;
       }
     }
   } catch {}
