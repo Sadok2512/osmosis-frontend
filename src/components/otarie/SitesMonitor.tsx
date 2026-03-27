@@ -2223,8 +2223,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [dashboardActive, setDashboardActive] = useState(false);
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   // activeDashboardId already declared above for tab persistence
-  // Clear any previously persisted dashboard so sites never auto-load
-  useEffect(() => { localStorage.removeItem('qoebit_active_dashboard'); }, []);
+  // Do not clear the active dashboard on mount: keep current in-app selection while navigating
   const [dashboardList, setDashboardList] = useState<{ id: string; name: string; widgets: any }[]>([]);
   const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
   const [dashboardSaving, setDashboardSaving] = useState(false);
@@ -2345,7 +2344,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     await dashboardsApi.update(dbId, { widgets });
     setDashboardList(prev => prev.map(d => d.id === dbId ? { ...d, widgets } : d));
     setActiveDashboardId(dbId);
-    localStorage.setItem('qoebit_active_dashboard', dbId);
     setDashboardSaving(false);
     setDashboardSaveFlash(true);
     setTimeout(() => setDashboardSaveFlash(false), 1500);
@@ -2384,7 +2382,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     }
     setActiveDashboardId(dbId);
-    localStorage.setItem('qoebit_active_dashboard', dbId);
     setShowDashboardDropdown(false);
   }, [dashboardList]);
 
