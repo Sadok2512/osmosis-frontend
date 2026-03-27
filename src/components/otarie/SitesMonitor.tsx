@@ -3052,6 +3052,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [viewport.zoom, visibleSites, dashboardActive, getDisplayMode]);
 
 
+  const renderSites = useMemo(() => {
     if (!selectedSiteId || !selectedSiteSnapshot) return visibleSites;
     if (visibleSites.some(site => site.site_id === selectedSiteId)) return visibleSites;
     if (viewport.bounds && !viewport.bounds.contains(L.latLng(selectedSiteSnapshot.coordinates[0], selectedSiteSnapshot.coordinates[1]))) {
