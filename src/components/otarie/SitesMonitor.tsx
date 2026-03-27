@@ -5240,7 +5240,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           })()}
 
           {/* ========== GLOBAL MODE ========== */}
-          {focusMode === 'global' && (() => {
+          {sectorColorMode !== 'topo' && focusMode === 'global' && (() => {
             const allCells = filteredSites.flatMap(s => s.cells);
             const totalCells = allCells.length;
             const totalSites = filteredSites.length;
