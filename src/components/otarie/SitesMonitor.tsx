@@ -1466,6 +1466,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         name: newDashName.trim(),
         description: '',
         is_shared: true,
+        dashboard_type: 'map',
         widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope, siteFilters: cleanFilters }],
         owner_username: session?.username,
       });
