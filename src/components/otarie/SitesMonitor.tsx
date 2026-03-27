@@ -760,8 +760,12 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                       values={dim.values}
                       selected={selectedValues}
                       onChange={(vals) => {
-                        setLocalSiteFilters(prev => ({ ...prev, [dim.id]: vals.length > 0 ? vals : undefined }));
+                        const updated = { ...localSiteFilters, [dim.id]: vals.length > 0 ? vals : undefined };
+                        const clean: DashboardSiteFilters = {};
+                        for (const [k, v] of Object.entries(updated)) { if (v && (v as string[]).length > 0) (clean as any)[k] = v; }
+                        setLocalSiteFilters(updated);
                         setDirty(true);
+                        if (onSiteFiltersChange) onSiteFiltersChange(clean);
                       }}
                     />
                   );
