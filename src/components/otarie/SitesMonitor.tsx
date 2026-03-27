@@ -745,8 +745,42 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
             </div>
           )}
 
-
-
+          {/* ── Site Filters (dashboards only) ── */}
+          {dashboardId && backendFilterDefs && backendFilterDefs.length > 0 && (
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-0.5">🔍 Filtres de sites</label>
+              <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez les critères pour filtrer les sites affichés</p>
+              <div className="space-y-2">
+                {backendFilterDefs.map(dim => {
+                  const selectedValues = localSiteFilters[dim.id as keyof DashboardSiteFilters] || [];
+                  return (
+                    <CreateFilterDropdown
+                      key={dim.id}
+                      label={dim.label}
+                      values={dim.values}
+                      selected={selectedValues}
+                      onChange={(vals) => {
+                        setLocalSiteFilters(prev => ({ ...prev, [dim.id]: vals.length > 0 ? vals : undefined }));
+                        setDirty(true);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              {Object.values(localSiteFilters).some(v => v && v.length > 0) && (
+                <div className="border border-primary/20 rounded-xl bg-primary/5 p-3 mt-3">
+                  <span className="text-[9px] font-bold text-primary uppercase tracking-wider">Filtres actifs</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {Object.entries(localSiteFilters).filter(([, v]) => v && v.length > 0).map(([key, vals]) => (
+                      <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
+                        {backendFilterDefs.find(d => d.id === key)?.label || key}: {vals!.join(', ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Sections below only for dashboards ── */}
           {dashboardId && (<>
