@@ -2255,7 +2255,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return { prb, mimoLabel, rsPower, bwMhz: bwMhz ? `${bwMhz} MHz` : null };
   };
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('dashboard');
-  const [activeDashboardId, setActiveDashboardId] = useState<string | null>(null);
+  const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
+    try { return localStorage.getItem('qoebit_active_dashboard_id') || null; } catch { return null; }
+  });
+  const setActiveDashboardId = useCallback((id: string | null) => {
+    _setActiveDashboardId(id);
+    try {
+      if (id) localStorage.setItem('qoebit_active_dashboard_id', id);
+      else localStorage.removeItem('qoebit_active_dashboard_id');
+    } catch {}
+  }, []);
   const [beamVisibility, setBeamVisibility] = useState<number>(() => {
     try { const v = localStorage.getItem('qoebit_beam_visibility'); return v ? Number(v) : 75; } catch { return 75; }
   });
