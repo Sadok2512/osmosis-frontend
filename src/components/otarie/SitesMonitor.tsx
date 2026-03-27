@@ -2157,6 +2157,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, [mapCache]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const selectedSiteIdRef = useRef<string | null>(null);
+  useEffect(() => { selectedSiteIdRef.current = selectedSiteId; }, [selectedSiteId]);
   const [selectedSiteSnapshot, setSelectedSiteSnapshot] = useState<SiteSummary | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -2909,7 +2911,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       if (controller.signal.aborted) return;
 
-      setSites(newSites || []);
+      // Preserve the currently selected site if it was added via search and isn't in the new bbox results
+      setSites(prev => {
+        const selectedId = selectedSiteIdRef.current;
+        const selectedSite = selectedId ? prev.find(s => s.site_id === selectedId) : null;
+        if (selectedSite && !(newSites || []).some(s => s.site_id === selectedId)) {
+          return [selectedSite, ...(newSites || [])];
+        }
+        return newSites || [];
+      });
       setBboxTotal(total || 0);
       setBboxLoading(false);
       setLoading(false);
