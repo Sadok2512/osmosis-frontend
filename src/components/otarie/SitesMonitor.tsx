@@ -2412,16 +2412,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [paramLoading, setParamLoading] = useState(false);
   const [paramSearch, setParamSearch] = useState('');
 
-  // Load available parameters once panel opens
+  // Load available parameters from VPS backend
   useEffect(() => {
     if (!paramPanelOpen || paramAvailable.length > 0) return;
     (async () => {
       setParamAvailableLoading(true);
       try {
-        const { data, error } = await (supabase as any).from('parameter_dump').select('parameter').limit(10000);
-        if (!error && data) {
-          const unique = [...new Set(data.map((r: any) => r.parameter).filter(Boolean))].sort() as string[];
-          setParamAvailable(unique);
+        const resp = await fetch(getVpsProxyUrl('parser', '/api/v1/topo/param-list?object_type=CELL&limit=500'), {
+          headers: getVpsProxyHeaders(),
+        });
+        const data = await resp.json();
+        if (Array.isArray(data)) {
+          setParamAvailable(data.map((r: any) => r.name).filter(Boolean).sort());
         }
       } catch (err) { console.warn('[SitesMonitor] paramAvailable fetch failed', err); }
       setParamAvailableLoading(false);
@@ -2434,6 +2436,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return paramAvailable.filter(p => p.toLowerCase().includes(s));
   }, [paramAvailable, paramSearch]);
 
+  // Also search VPS when local list doesn't have results
+  useEffect(() => {
+    if (!paramSearch || paramSearch.length < 3) return;
+    const timer = setTimeout(async () => {
+      try {
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/param-list?search=${encodeURIComponent(paramSearch)}&object_type=CELL&limit=50`), {
+          headers: getVpsProxyHeaders(),
+        });
+        const data = await resp.json();
+        if (Array.isArray(data)) {
+          const newNames = data.map((r: any) => r.name).filter(Boolean);
+          setParamAvailable(prev => {
+            const merged = [...new Set([...prev, ...newNames])].sort();
+            return merged;
+          });
+        }
+      } catch {}
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [paramSearch]);
+
   const handleParamConfirm = useCallback(async () => {
     if (!paramSelected) return;
     setParamConfirmed(paramSelected);
@@ -2441,18 +2464,39 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setParamLoading(true);
     setParamPanelOpen(false);
     try {
-      const { data, error } = await (supabase as any)
-        .from('parameter_dump')
-        .select('cell_name, site_name, latitude, longitude, parameter, value, bande, vendor, dn')
-        .eq('parameter', paramSelected)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null)
-        .limit(100000);
-      if (!error && data) setParamPoints(data.filter((r: any) => r.latitude && r.longitude));
-      else setParamPoints([]);
-    } catch { setParamPoints([]); }
+      const bbox = viewport.bounds
+        ? `${viewport.bounds.getWest()},${viewport.bounds.getSouth()},${viewport.bounds.getEast()},${viewport.bounds.getNorth()}`
+        : '-180,-90,180,90';
+      const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/param-map?param=${encodeURIComponent(paramSelected)}&bbox=${bbox}&limit=10000`), {
+        headers: getVpsProxyHeaders(),
+      });
+      const data = await resp.json();
+      if (data.sites) {
+        const points: any[] = [];
+        let id = 0;
+        for (const site of data.sites) {
+          for (const cell of (site.cells || [])) {
+            points.push({
+              id: id++,
+              cell_name: cell.cell_name,
+              site_name: site.site_name,
+              latitude: site.latitude,
+              longitude: site.longitude,
+              parameter: paramSelected,
+              value: cell.value,
+              bande: cell.bande,
+              vendor: site.constructeur,
+              dn: null,
+            });
+          }
+        }
+        setParamPoints(points);
+      } else {
+        setParamPoints([]);
+      }
+    } catch (err) { console.warn('[SitesMonitor] param-map fetch failed', err); setParamPoints([]); }
     setParamLoading(false);
-  }, [paramSelected]);
+  }, [paramSelected, viewport.bounds]);
 
   const handleParamReset = useCallback(() => {
     setParamMode(false);
