@@ -3914,7 +3914,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
-          const showMiniSectors = showBeamSectors && viewport.zoom >= 7 && site.cells.length > 0 && !isIndoor;
+          const isTagged = isSiteTagged(site.site_id);
+          const showMiniSectors = (showBeamSectors && viewport.zoom >= 7 && site.cells.length > 0 && !isIndoor) || (isTagged && site.cells.length > 0 && !isIndoor);
 
           if (isIndoor) {
             const iconSize = viewport.zoom >= 10 ? 20 : 14;
