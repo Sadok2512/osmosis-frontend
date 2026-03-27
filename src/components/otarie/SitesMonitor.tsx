@@ -5296,18 +5296,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </button>
 
-                          {/* Expanded sector pills */}
+                           {/* Expanded sector pills + cells */}
                           {isExpanded && (
                             <div className="px-4 pb-4 pt-1 animate-fade-in">
-                              {/* Sector pills row */}
-                              <div className="flex items-center gap-2 flex-wrap mb-2">
+                              {/* Sector tabs row */}
+                              <div className="flex items-center gap-1.5 flex-wrap mb-3">
                                 {sortedSec.map(([sNum, cells]) => {
-                                  const techs = [...new Set(cells.map(c => c.techno))].filter(Boolean).sort((a, b) => (a.includes('5G') ? -1 : 1));
                                   const isSectorExpanded = expandedSectors.has(sNum);
-                                  const hasFocusedCell = cells.some(c => c.cell_id === focusCellId);
-                                  const isQoeMode = sectorColorMode === 'kpi';
-                                  const sectorAvgKpi = isQoeMode ? cells.reduce((s, c) => s + getCellKpiValue(c), 0) / (cells.length || 1) : 0;
-                                  const sectorKpiColor = isQoeMode ? getKpiColor(sectorAvgKpi) : '';
                                   return (
                                     <button
                                       key={sNum}
@@ -5319,93 +5314,64 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           return next;
                                         });
                                       }}
-                                      className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-xl border-2 transition-all min-w-[64px] ${
-                                        isSectorExpanded || hasFocusedCell
-                                          ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                                          : 'bg-muted/40 border-border hover:border-primary/30 text-foreground'
+                                      className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold uppercase tracking-wide transition-all ${
+                                        isSectorExpanded
+                                          ? 'bg-primary text-primary-foreground shadow-md'
+                                          : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-border'
                                       }`}
                                     >
-                                      <span className={`text-[10px] font-bold uppercase ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                                        {isQoeMode ? MAP_KPIS.find(k => k.id === mapKpi)?.label || mapKpi : techs.join(' / ')}
+                                      Sector <span className="ml-0.5">S{sNum}</span>
+                                      <span className={`ml-1.5 text-[10px] font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                        {cells.length} cell{cells.length > 1 ? 's' : ''}
                                       </span>
-                                      <div className="flex items-center gap-1">
-                                        {isQoeMode ? (
-                                          <div className="w-3 h-3 rounded-full" style={{ background: isSectorExpanded || hasFocusedCell ? 'white' : sectorKpiColor }} />
-                                        ) : techs.map(tech => (
-                                          <div key={tech} className={`w-2.5 h-2.5 rounded-full ${
-                                            isSectorExpanded || hasFocusedCell
-                                              ? 'bg-primary-foreground'
-                                              : tech.includes('5G') ? 'bg-emerald-500' : 'bg-amber-500'
-                                          }`} />
-                                        ))}
-                                      </div>
-                                      <span className={`text-[11px] font-extrabold ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground' : 'text-foreground'}`}>
-                                        S{sNum}
-                                      </span>
-                                      {isQoeMode && !(isSectorExpanded || hasFocusedCell) ? (
-                                        <span className="text-[10px] font-black" style={{ color: sectorKpiColor }}>
-                                          {(sectorAvgKpi ?? 0).toFixed(1)}
-                                        </span>
-                                      ) : (
-                                        <span className={`text-[8px] font-semibold ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-                                          {cells.length} cell{cells.length > 1 ? 's' : ''}
-                                        </span>
-                                      )}
                                     </button>
                                   );
                                 })}
                               </div>
 
-                              {/* Expanded sector → cell table */}
+                              {/* Expanded sector → cell cards */}
                               {expandedSectors.size > 0 && (() => {
                                 const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
                                 if (!secCells.length) return null;
                                 return (
-                                  <div className="border border-border rounded-xl overflow-hidden animate-fade-in">
-                                    <table className="w-full text-[11px]">
-                                      <thead>
-                                        <tr className="bg-muted/40 text-muted-foreground text-[9px] uppercase tracking-wider">
-                                          <th className="text-left px-3 py-1.5 font-semibold">Cell</th>
-                                          <th className="text-center px-1 py-1.5 font-semibold">Tech</th>
-                                          <th className="text-center px-1 py-1.5 font-semibold">Az</th>
-                                          <th className="text-center px-1 py-1.5 font-semibold">Tilt</th>
-                                          <th className="text-center px-1 py-1.5 font-semibold">Hba</th>
-                                          <th className="text-center px-1 py-1.5 font-semibold">Sec</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {secCells.map((cell, idx) => {
-                                          const isSel = focusCellId === cell.cell_id;
-                                          const sNum = getSectorNumber(cell.cell_id);
-                                          const tilt = (cell as any).tilt as number | null;
-                                          const hba = (cell as any).hba as number | null;
-                                          return (
-                                            <tr
-                                              key={cell.cell_id}
-                                              onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
-                                              className={`cursor-pointer transition-colors ${idx > 0 ? 'border-t border-border/50' : ''} ${
-                                                isSel ? 'bg-primary/10' : 'hover:bg-muted/30'
-                                              }`}
-                                            >
-                                              <td className="px-3 py-1.5 font-mono truncate max-w-[140px]" title={cell.cell_id}>
-                                                {cell.cell_id.length > 18 ? cell.cell_id.slice(0, 18) + '…' : cell.cell_id}
-                                              </td>
-                                              <td className="text-center px-1 py-1.5">
-                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${
-                                                  cell.techno?.includes('5G') || cell.techno === 'NR' ? 'bg-emerald-500' : 'bg-amber-500'
-                                                }`}>
-                                                  {cell.techno || '—'}
-                                                </span>
-                                              </td>
-                                              <td className="text-center px-1 py-1.5 font-mono font-semibold">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
-                                              <td className="text-center px-1 py-1.5 font-mono font-semibold">{tilt != null ? `${tilt}°` : '—'}</td>
-                                              <td className="text-center px-1 py-1.5 font-mono text-muted-foreground">{hba != null ? `${hba}m` : '—m'}</td>
-                                              <td className="text-center px-1 py-1.5 font-semibold text-muted-foreground">S{sNum}</td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
+                                  <div className="space-y-1.5 animate-fade-in">
+                                    {secCells.map((cell) => {
+                                      const isSel = focusCellId === cell.cell_id;
+                                      const sNum = getSectorNumber(cell.cell_id);
+                                      const tilt = (cell as any).tilt as number | null;
+                                      const hba = (cell as any).hba as number | null;
+                                      const techLabel = cell.techno || '—';
+                                      const bandLabel = cell.bande || '';
+                                      const details = [
+                                        techLabel,
+                                        bandLabel ? `${bandLabel} MHz` : null,
+                                        cell.azimut != null ? `Az ${cell.azimut}°` : null,
+                                        tilt != null ? `Tilt ${tilt}°` : null,
+                                        hba != null ? `${hba}m` : null,
+                                      ].filter(Boolean).join(' • ');
+                                      return (
+                                        <div
+                                          key={cell.cell_id}
+                                          onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
+                                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
+                                            isSel
+                                              ? 'border-primary/40 bg-primary/5 shadow-sm'
+                                              : 'border-border hover:border-primary/20 hover:bg-muted/30'
+                                          }`}
+                                        >
+                                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                                            isSel ? 'bg-primary/15 text-primary' : 'bg-muted/60 text-muted-foreground'
+                                          }`}>
+                                            <Radio size={13} />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-[11px] font-bold text-foreground truncate">{cell.cell_id}</div>
+                                            <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{details}</div>
+                                          </div>
+                                          <span className="text-[10px] font-bold text-muted-foreground shrink-0">S{sNum}</span>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 );
                               })()}
