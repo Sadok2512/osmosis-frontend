@@ -49,7 +49,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
   }, [map, points, radius, blur, maxZoom, minOpacity]);
   return null;
 };
-import { fetchSites, fetchSiteDetails } from '../../services/api';
+import { fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache } from '../../services/topoService';
@@ -2657,36 +2657,54 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }, 450);
   }, [fetchForViewport, currentBboxFilters]);
 
-  // Initial load + filter changes → refetch for current viewport
-  // GATED: only load when a dashboard is active
+  // Dashboard-first loading: load site summaries only for the active dashboard context
   useEffect(() => {
     mountedRef.current = true;
+
     if (!dashboardActive) {
+      if (abortRef.current) abortRef.current.abort();
       setSites([]);
+      setBboxTotal(0);
+      setBboxLoading(false);
       setLoading(false);
       return;
     }
-    // If we have viewport bounds, fetch by bbox; otherwise load legacy
-    if (viewport.bounds) {
-      fetchForViewport(viewport.bounds, currentBboxFilters);
-    } else {
-      // Fallback: legacy full load (first render before map gives us bounds)
-      let cancelled = false;
-      const loadLegacy = async () => {
-        setLoading(true);
-        const data = await fetchSites(filters);
+
+    let cancelled = false;
+
+    const loadDashboardScopedSites = async () => {
+      setLoading(true);
+      setBboxLoading(true);
+
+      try {
+        const dashboardSearch = localSearch.trim() || undefined;
+        const dashboardSites = await fetchDashboardSites(activeDashboardFilters, dashboardSearch);
+
+        if (cancelled) return;
+
+        setSites(dashboardSites || []);
+        setBboxTotal((dashboardSites || []).length);
+      } catch (err) {
         if (!cancelled) {
-          setSites(data || []);
+          console.warn('[SitesMonitor] dashboard site load failed', err);
+          setSites([]);
+          setBboxTotal(0);
+        }
+      } finally {
+        if (!cancelled) {
+          setBboxLoading(false);
           setLoading(false);
         }
-      };
-      loadLegacy();
-      return () => { cancelled = true; };
-    }
+      }
+    };
+
+    loadDashboardScopedSites();
+
     return () => {
+      cancelled = true;
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [currentBboxFilters, filters, dashboardActive]);
+  }, [dashboardActive, activeDashboardFilters, localSearch]);
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
@@ -2713,8 +2731,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
 
     prevViewportRef.current = v;
-    handleViewportForFetch(v);
-  }, [dashboardActive, handleViewportForFetch]);
+  }, [dashboardActive]);
 
   // Cleanup
   useEffect(() => {
