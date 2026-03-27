@@ -4620,23 +4620,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 ))}
               </div>
 
-              {sectorColorMode === 'topo' && inventoryTab === 'sites' ? (
-                <div className="flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Radio size={18} className="text-primary" />
-                  </div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider">Mode Topologie</span>
-                  <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
-                    Vue réseau 4G/5G disponible dans le panneau <strong>Global Network</strong> à droite.
-                  </p>
-                  <button
-                    onClick={() => { setShowRightPanel(true); setFocusMode('global'); }}
-                    className="mt-2 flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors"
-                  >
-                    <Network size={14} />
-                    Ouvrir Global Network
-                  </button>
-                </div>
+              {false ? (
+                <></>
               ) : (
               <>
 
