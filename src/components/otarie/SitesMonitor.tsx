@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallba
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { dashboardsApi, mapViewsApi, qoeMetricsApi, topoApi } from '@/lib/localDb';
+import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { useMapSitesStore } from "@/stores/mapSitesStore";
 import { ActiveFilter } from '@/config/filterDimensions';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
