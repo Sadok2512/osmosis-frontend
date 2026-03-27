@@ -256,10 +256,13 @@ const inferSiteTechState = (site: SiteSummary) => {
   }
 
   const fallbackTech = String(site.techno || '').toUpperCase();
-  return {
-    has4G: is4GTech(fallbackTech),
-    has5G: is5GTech(fallbackTech),
-  };
+  const has5G = is5GTech(fallbackTech);
+  const has4G = is4GTech(fallbackTech);
+
+  // If no tech info at all, default to 4G (most common)
+  if (!has4G && !has5G) return { has4G: true, has5G: false };
+
+  return { has4G, has5G };
 };
 
 const getValidSectorAzimuths = (site: SiteSummary): number[] => {
