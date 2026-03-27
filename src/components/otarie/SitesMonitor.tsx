@@ -3914,7 +3914,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
-          const showMiniSectors = showBeamSectors && viewport.zoom >= 7 && site.cells.length > 0 && !isIndoor;
+          const isTagged = isSiteTagged(site.site_id);
+          const showMiniSectors = (showBeamSectors && viewport.zoom >= 7 && site.cells.length > 0 && !isIndoor) || (isTagged && site.cells.length > 0 && !isIndoor);
 
           if (isIndoor) {
             const iconSize = viewport.zoom >= 10 ? 20 : 14;
@@ -3953,7 +3954,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           if (showMiniSectors) {
-            const miniRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7;
+            const TAGGED_FIXED_RADIUS = 350; // meters — constant for tagged sites
+            const miniRadius = isTagged ? TAGGED_FIXED_RADIUS * 0.7 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7;
             const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
@@ -4040,7 +4042,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {!paramMode && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
-          const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100));
+          const isTaggedSite = isSiteTagged(site.site_id);
+          const TAGGED_FIXED_RADIUS_DETAIL = 350;
+          const zoomRadius = isTaggedSite ? TAGGED_FIXED_RADIUS_DETAIL : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100));
           const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           const beamScale = beamVisibility / 100;
           const overlapFactor = baseOverlap + (1 - baseOverlap) * beamScale;
