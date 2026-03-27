@@ -3056,6 +3056,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
 
+        {/* ── TOPO mode: clean map, no markers ── */}
+        {sectorColorMode === 'topo' && !paramMode && (
+          <div className="leaflet-control" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1000, pointerEvents: 'none' }}>
+            <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl px-8 py-5 shadow-xl text-center">
+              <Radio size={28} className="mx-auto mb-2 text-primary opacity-60" />
+              <p className="text-[13px] font-bold text-foreground">Mode Topologie</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Sélectionnez un mode de vue pour afficher les données 4G/5G</p>
+            </div>
+          </div>
+        )}
+
         {/* ── Parameter overlay markers ── */}
         {paramMode && !paramLoading && paramPoints.length > 0 && (
           <FitHighlightBounds coords={paramPoints.map(p => [p.latitude, p.longitude] as [number, number])} />
@@ -3086,12 +3097,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         ))}
 
         {/* Heatmap layer */}
-        {!paramMode && mapDisplayMode === 'heatmap' && (
+        {sectorColorMode !== 'topo' && !paramMode && mapDisplayMode === 'heatmap' && (
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
         {/* Points mode — individual cell markers colored by KPI threshold */}
-        {!paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
+        {sectorColorMode !== 'topo' && !paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells.filter(c => {
               const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
@@ -3156,11 +3167,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
-        {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
+        {sectorColorMode !== 'topo' && !paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
           const has5G = site.cells.length > 0 ? site.cells.some(c => (c.techno || '').toUpperCase().includes('5G')) : site.site_name.toUpperCase().includes('5G');
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
-          const color = sectorColorMode === 'topo' ? topoColor : kpiColor;
+          const color = (sectorColorMode as string) === 'topo' ? topoColor : kpiColor;
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
@@ -3296,7 +3307,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {!paramMode && showSectors && renderSites.map(site => {
+        {sectorColorMode !== 'topo' && !paramMode && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * (0.5 + 0.5 * (beamVisibility / 100));
@@ -3311,7 +3322,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const has5G = site.cells.length > 0 ? site.cells.some(c => (c.techno || '').toUpperCase().includes('5G')) : site.site_name.toUpperCase().includes('5G');
             const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
             const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
-            const color = sectorColorMode === 'topo' ? topoColor : kpiColor;
+            const color = (sectorColorMode as string) === 'topo' ? topoColor : kpiColor;
             const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
             return (
               <Marker
@@ -3422,7 +3433,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     });
                     if (repCell) kpiColor = getKpiColor(getCellKpiValue(repCell));
                   }
-                  const fillColor = isFocusFaded ? FADED_COLOR : (sectorColorMode === 'topo' ? topoColor : kpiColor);
+                  const fillColor = isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
                   const strokeColor = isFocusFaded ? '#cbd5e1' : deriveStrokeColor(fillColor);
                   const sectorCoords = getSectorCoords(site.coordinates, az, radius, 60);
                   return (
@@ -3504,8 +3515,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const cellRadius = is5G ? zoomRadius * 0.6 : zoomRadius;
                 const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, cellRadius, 60);
                 const isFaded = (mapTechnoFilter === '5G' && !is5G) || (mapTechnoFilter === '4G' && is5G);
-                const fillColor = isFaded || isFocusFaded ? FADED_COLOR : (sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
-                const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : (sectorColorMode === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
+                const fillColor = isFaded || isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
+                const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
                 const isFocusCell = focusCellId === cell.cell_id;
                 const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
                 const baseOpacity = isFocusFaded ? 0.08 : (isFaded ? 0.08 : (isCellDimmed ? 0.15 : overlapFactor));
@@ -3592,7 +3603,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Highlighted worst cells markers */}
-        {highlightedCellData.length > 0 && (
+        {sectorColorMode !== 'topo' && highlightedCellData.length > 0 && (
           <>
             <FitHighlightBounds coords={highlightedCellData.map(h => [h.lat, h.lng] as [number, number])} />
             {highlightedCellData.map((h, i) => {
@@ -4609,6 +4620,144 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 ))}
               </div>
 
+              {/* ── TOPO MODE: 4G/5G Network Overview ── */}
+              {sectorColorMode === 'topo' && inventoryTab === 'sites' ? (
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                  {/* Section title */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <Radio size={14} className="text-primary" />
+                    <span className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Réseau 4G / 5G — Vue d'ensemble</span>
+                  </div>
+
+                  {/* A. Global Summary */}
+                  {(() => {
+                    const allCells = sites.flatMap(s => s.cells || []);
+                    const cells4G = allCells.filter(c => !(c.techno || '').toUpperCase().includes('5G') && !(c.techno || '').toUpperCase().includes('3G') && !(c.techno || '').toUpperCase().includes('2G'));
+                    const cells5G = allCells.filter(c => (c.techno || '').toUpperCase().includes('5G'));
+                    const sites4G = new Set(sites.filter(s => (s.cells || []).some(c => !(c.techno || '').toUpperCase().includes('5G'))).map(s => s.site_id));
+                    const sites5G = new Set(sites.filter(s => (s.cells || []).some(c => (c.techno || '').toUpperCase().includes('5G'))).map(s => s.site_id));
+
+                    // Band distribution
+                    const bandMap4G: Record<string, number> = {};
+                    const bandMap5G: Record<string, number> = {};
+                    cells4G.forEach(c => { const b = c.bande || 'Unknown'; bandMap4G[b] = (bandMap4G[b] || 0) + 1; });
+                    cells5G.forEach(c => { const b = c.bande || 'Unknown'; bandMap5G[b] = (bandMap5G[b] || 0) + 1; });
+
+                    // Vendor distribution
+                    const vendorMap: Record<string, { '4G': number; '5G': number }> = {};
+                    allCells.filter(c => {
+                      const t = (c.techno || '').toUpperCase();
+                      return t.includes('4G') || t.includes('LTE') || t.includes('5G') || t.includes('NR');
+                    }).forEach(c => {
+                      const v = (c as any).vendor || (c as any).constructeur || 'Unknown';
+                      if (!vendorMap[v]) vendorMap[v] = { '4G': 0, '5G': 0 };
+                      if ((c.techno || '').toUpperCase().includes('5G')) vendorMap[v]['5G']++;
+                      else vendorMap[v]['4G']++;
+                    });
+
+                    return (
+                      <>
+                        {/* Summary cards */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-muted/40 border border-border rounded-xl p-3">
+                            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
+                            <div className="text-[22px] font-black text-foreground leading-none">{sites4G.size}</div>
+                          </div>
+                          <div className="bg-muted/40 border border-border rounded-xl p-3">
+                            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
+                            <div className="text-[22px] font-black text-primary leading-none">{sites5G.size}</div>
+                          </div>
+                          <div className="bg-muted/40 border border-border rounded-xl p-3">
+                            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
+                            <div className="text-[22px] font-black text-foreground leading-none">{cells4G.length}</div>
+                          </div>
+                          <div className="bg-muted/40 border border-border rounded-xl p-3">
+                            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
+                            <div className="text-[22px] font-black text-primary leading-none">{cells5G.length}</div>
+                          </div>
+                        </div>
+
+                        {/* B. Technology Distribution */}
+                        <div className="border border-border rounded-xl p-3">
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Distribution Technologie</div>
+                          {[
+                            { label: 'LTE (4G)', count: cells4G.length, color: 'hsl(var(--chart-2))' },
+                            { label: 'NR (5G)', count: cells5G.length, color: 'hsl(var(--primary))' },
+                          ].map(t => {
+                            const total = cells4G.length + cells5G.length || 1;
+                            const pct = ((t.count / total) * 100).toFixed(1);
+                            return (
+                              <div key={t.label} className="flex items-center gap-2 py-1.5">
+                                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: t.color }} />
+                                <span className="text-[11px] font-bold text-foreground flex-1">{t.label}</span>
+                                <span className="text-[11px] font-black text-foreground">{t.count}</span>
+                                <span className="text-[9px] text-muted-foreground w-12 text-right">{pct}%</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* C. Band Distribution */}
+                        <div className="border border-border rounded-xl p-3">
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Distribution Bandes</div>
+                          {Object.keys(bandMap4G).length > 0 && (
+                            <div className="mb-2">
+                              <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>LTE (4G)</div>
+                              {Object.entries(bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
+                                <div key={band} className="flex items-center gap-2 py-1">
+                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '4G') }} />
+                                  <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
+                                  <span className="text-[10px] font-black text-muted-foreground">{count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {Object.keys(bandMap5G).length > 0 && (
+                            <div>
+                              <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#a855f7' }}>NR (5G)</div>
+                              {Object.entries(bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
+                                <div key={band} className="flex items-center gap-2 py-1">
+                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '5G') }} />
+                                  <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
+                                  <span className="text-[10px] font-black text-muted-foreground">{count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {Object.keys(bandMap4G).length === 0 && Object.keys(bandMap5G).length === 0 && (
+                            <div className="text-[10px] text-muted-foreground/60 italic py-2">Aucune donnée de bande disponible</div>
+                          )}
+                        </div>
+
+                        {/* D. Vendor Distribution */}
+                        <div className="border border-border rounded-xl p-3">
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Distribution Constructeurs</div>
+                          {Object.entries(vendorMap).sort((a, b) => (b[1]['4G'] + b[1]['5G']) - (a[1]['4G'] + a[1]['5G'])).map(([vendor, counts]) => (
+                            <div key={vendor} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
+                              <span className="text-[11px] font-bold text-foreground flex-1 capitalize">{vendor}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <span className="text-[9px] text-muted-foreground">4G </span>
+                                  <span className="text-[10px] font-black text-foreground">{counts['4G']}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-[9px] text-muted-foreground">5G </span>
+                                  <span className="text-[10px] font-black text-primary">{counts['5G']}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {Object.keys(vendorMap).length === 0 && (
+                            <div className="text-[10px] text-muted-foreground/60 italic py-2">Chargez un dashboard pour voir les données</div>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+              <>
+
               {/* ── Filters row (sites tab only) ── */}
               {inventoryTab === 'sites' && panelMinimized && (
                 <div className="px-5 py-3 shrink-0 grid grid-cols-2 gap-2 animate-fade-in">
@@ -4949,6 +5098,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   isSaving={dashboardSaving}
                   backendFilterDefs={backendFilterDefs}
                 />
+               )}
+              </>
               )}
             </div>
           )}
