@@ -4543,20 +4543,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
                 <span className="w-px h-7 bg-border/50 shrink-0" />
 
-                {/* Show Tilt toggle */}
-                <button
-                  onClick={() => setShowTiltOverlay(prev => !prev)}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
-                    showTiltOverlay
-                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm shadow-red-500/20'
-                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
-                  }`}
-                >
-                  <Signal size={12} />
-                  Tilt
-                </button>
-
-                <span className="w-px h-7 bg-border/50 shrink-0" />
 
                 {/* Network Info right panel toggle */}
                 <button
