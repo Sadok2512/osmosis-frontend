@@ -465,7 +465,6 @@ const CustomZoomControl: React.FC = () => {
     </div>
   );
 };
-  const [localSiteFilters, setLocalSiteFilters] = useState<DashboardSiteFilters>(() => settings.siteFilters || {});
 
 
 interface ViewportState {
