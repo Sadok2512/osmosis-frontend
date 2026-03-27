@@ -1973,6 +1973,59 @@ export type Database = {
     Functions: {
       dump_parameter_distinct_filters: { Args: never; Returns: Json }
       execute_parmy_sql: { Args: { query_sql: string }; Returns: Json }
+      get_dashboard_sites: {
+        Args: {
+          p_bande?: string[]
+          p_constructeur?: string[]
+          p_dor?: string[]
+          p_limit?: number
+          p_plaque?: string[]
+          p_search?: string
+          p_techno?: string[]
+          p_zone_arcep?: string[]
+        }
+        Returns: {
+          code_nidt: string
+          dor: string
+          latitude: number
+          longitude: number
+          lte_cells: number
+          nom_site: string
+          nr_cells: number
+          plaque: string
+          region: string
+          total_cells: number
+          vendor: string
+          zone_arcep: string
+        }[]
+      }
+      get_site_cells: {
+        Args: { p_code_nidt: string }
+        Returns: {
+          azimut: number
+          bande: string
+          cid: number
+          constructeur: string
+          date_fn8: string
+          date_mes: string
+          eci: number
+          essentiel: string
+          etat_cellule: string
+          hba: number
+          hebergeur_leader: string
+          lac: number
+          latitude: number
+          longitude: number
+          nci: number
+          nom_cellule: string
+          pci: number
+          relative_id: string
+          tac: number
+          techno: string
+          tilt: number
+          zone_arcep: string
+        }[]
+      }
       match_documents: {
         Args: {
           match_count?: number

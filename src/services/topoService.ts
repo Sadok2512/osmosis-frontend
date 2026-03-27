@@ -2,6 +2,7 @@ import { SiteSummary, SiteDetail, CellProperties } from '../types';
 import { topoApi, BboxFilters, BboxSiteDTO, qoeMapApi, QoeMapSiteData } from '@/lib/localDb';
 import { supabase } from '@/integrations/supabase/client';
 import topoRaw from '../data/topoData';
+import { DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
@@ -562,4 +563,180 @@ export async function fetchTopoSiteDetail(siteId: string): Promise<SiteDetail> {
     traffic_up_bytes: seededRand(siteId + 'volup', 1e11, 2e12),
     p95_rtt_ms: seededRand(siteId + 'rtt', 20, 150),
   };
+}
+
+// ── NEW: Dashboard-scoped site summaries via RPC ──
+
+interface DashboardSitesCache {
+  key: string;
+  sites: SiteSummary[];
+  ts: number;
+}
+
+let dashboardSitesCache: DashboardSitesCache | null = null;
+const DASHBOARD_SITES_CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+function dashboardFilterKey(filters: DashboardSiteFilters | null, search?: string): string {
+  if (!filters) return search || 'all';
+  return JSON.stringify(filters) + '|' + (search || '');
+}
+
+export function invalidateDashboardSitesCache() {
+  dashboardSitesCache = null;
+}
+
+/**
+ * Fetch site summaries for a dashboard context using server-side filtering.
+ * Returns lightweight SiteSummary[] with empty cells array.
+ */
+export async function fetchDashboardSites(
+  siteFilters: DashboardSiteFilters | null,
+  search?: string,
+): Promise<SiteSummary[]> {
+  const key = dashboardFilterKey(siteFilters, search);
+  if (dashboardSitesCache && dashboardSitesCache.key === key && (Date.now() - dashboardSitesCache.ts) < DASHBOARD_SITES_CACHE_TTL) {
+    return dashboardSitesCache.sites;
+  }
+
+  try {
+    const params: Record<string, any> = {};
+    if (siteFilters?.dor?.length) params.p_dor = siteFilters.dor;
+    if (siteFilters?.plaque?.length) params.p_plaque = siteFilters.plaque;
+    if (siteFilters?.zone_arcep?.length) params.p_zone_arcep = siteFilters.zone_arcep;
+    if (siteFilters?.constructeur?.length) params.p_constructeur = siteFilters.constructeur;
+    if (siteFilters?.techno?.length) params.p_techno = siteFilters.techno;
+    if (siteFilters?.bande?.length) params.p_bande = siteFilters.bande;
+    if (search) params.p_search = search;
+
+    const { data, error } = await supabase.rpc('get_dashboard_sites', params);
+    if (error) throw error;
+
+    const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
+
+    const sites: SiteSummary[] = ((data as any[]) || [])
+      .filter((row: any) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude))
+      .map((row: any) => {
+        const site: SiteSummary = {
+          site_id: row.code_nidt,
+          site_name: row.nom_site,
+          vendor: row.vendor || 'Unknown',
+          dor: row.dor || '',
+          plaque: row.plaque || '',
+          department: (row.plaque || '').replace('DEPT_', ''),
+          cell_count: Number(row.total_cells) || 0,
+          qoe_score_avg: 0,
+          p50_thr_dn_mbps: 0,
+          p50_thr_up_mbps: 0,
+          dms_dl_3: 0,
+          dms_dl_8: 0,
+          dms_dl_30: 0,
+          dms_ul_3: 0,
+          coordinates: [row.latitude, row.longitude] as [number, number],
+          cells: [],
+          zone_arcep: row.zone_arcep || null,
+          lte_cells: Number(row.lte_cells) || 0,
+          nr_cells: Number(row.nr_cells) || 0,
+        };
+        return applyQoeData(site, qoeData);
+      });
+
+    console.log(`[TopoService] Dashboard sites: ${sites.length} sites via RPC`);
+    dashboardSitesCache = { key, sites, ts: Date.now() };
+    return sites;
+  } catch (err) {
+    console.warn('[TopoService] Dashboard RPC failed, falling back to bbox', err);
+    // Fallback to legacy full load
+    const allSites = await fetchTopoSites();
+    return allSites;
+  }
+}
+
+// ── NEW: On-demand cell loading per site with cache ──
+
+const siteCellsCache = new Map<string, { cells: CellProperties[]; ts: number }>();
+const SITE_CELLS_CACHE_TTL = 10 * 60 * 1000; // 10 min
+
+export function invalidateSiteCellsCache() {
+  siteCellsCache.clear();
+}
+
+/**
+ * Fetch cells for a single site on demand.
+ * Uses Supabase RPC get_site_cells, with local caching.
+ */
+export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> {
+  const cached = siteCellsCache.get(siteId);
+  if (cached && (Date.now() - cached.ts) < SITE_CELLS_CACHE_TTL) {
+    return cached.cells;
+  }
+
+  try {
+    // Try VPS first
+    const bboxFilters: BboxFilters = {};
+    const vpsResp = await topoApi.listCellsByBbox(
+      { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 },
+      { ...bboxFilters, q: siteId },
+      1000,
+    ).catch(() => null);
+
+    if (vpsResp && vpsResp.cells && vpsResp.cells.length > 0) {
+      const siteRows = vpsResp.cells.filter((c: any) => (c.site_name || c.nom_site || c.code_nidt) === siteId);
+      if (siteRows.length > 0) {
+        const sites = buildSitesFromRows(siteRows as TopoRow[]);
+        const cells = sites.length > 0 ? sites[0].cells : [];
+        siteCellsCache.set(siteId, { cells, ts: Date.now() });
+        console.log(`[TopoService] Site cells (VPS): ${cells.length} cells for ${siteId}`);
+        return cells;
+      }
+    }
+  } catch {}
+
+  // Supabase RPC fallback
+  try {
+    const { data, error } = await supabase.rpc('get_site_cells', { p_code_nidt: siteId });
+    if (error) throw error;
+
+    const rows = (data as any[]) || [];
+    // Detect if any row has a real azimut
+    const hasRealAzimut = rows.some(r => r.azimut != null && r.azimut !== 0);
+    let sectorAzimutMap: Map<number, number> | null = null;
+    if (!hasRealAzimut && rows.length > 0) {
+      const sectorIndices = new Set<number>();
+      for (const r of rows) {
+        const cellName = r.nom_cellule || '';
+        const lastChar = cellName.slice(-1);
+        sectorIndices.add(/^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1);
+      }
+      const sorted = Array.from(sectorIndices).sort((a, b) => a - b);
+      sectorAzimutMap = new Map();
+      sorted.forEach((idx, i) => {
+        sectorAzimutMap!.set(idx, Math.round((360 / Math.max(sorted.length, 1)) * i));
+      });
+    }
+
+    const cells: CellProperties[] = rows.map((r: any) => {
+      const cellName = r.nom_cellule || '';
+      let azimut = r.azimut || 0;
+      if (!hasRealAzimut && sectorAzimutMap) {
+        const lastChar = cellName.slice(-1);
+        const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+        azimut = sectorAzimutMap.get(sectorIdx) ?? 0;
+      }
+      return buildCellProperties(
+        cellName,
+        (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
+        r.bande || '',
+        azimut,
+        r.hba || 30,
+        r,
+      );
+    });
+
+    siteCellsCache.set(siteId, { cells, ts: Date.now() });
+    console.log(`[TopoService] Site cells (RPC): ${cells.length} cells for ${siteId}`);
+    return cells;
+  } catch (err) {
+    console.warn(`[TopoService] Failed to fetch cells for ${siteId}:`, err);
+    return [];
+  }
 }

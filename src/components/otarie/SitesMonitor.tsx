@@ -52,7 +52,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
 import { fetchSites, fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { invalidateSitesCache } from '../../services/mockData';
-import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery } from '../../services/topoService';
+import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters } from '../../types';
 import {
@@ -2229,6 +2229,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // ── Active Dashboard selector ──
   const [dashboardActive, setDashboardActive] = useState(false);
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
+  const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
   // activeDashboardId already declared above for tab persistence
   // Do not clear the active dashboard on mount: keep current in-app selection while navigating
   const [dashboardList, setDashboardList] = useState<{ id: string; name: string; widgets: any }[]>([]);
@@ -2613,13 +2614,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return base;
   }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
 
-  // Core bbox fetch function — uses zoom hysteresis to stabilize site/cell switching
+  // Core bbox fetch function — ALWAYS site-only mode (never load cells at map level)
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
-
-    const effectiveZoom = zoom ?? viewport.zoom;
-    const displayMode = getDisplayMode(effectiveZoom);
-    const needCells = displayMode === 'cells';
 
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
@@ -2635,24 +2632,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setBboxLoading(true);
 
     try {
-      if (needCells) {
-        const cellSites = await fetchCellsByBbox(bbox, bboxFilters, controller.signal);
-
-        if (controller.signal.aborted) return;
-
-        if (Array.isArray(cellSites) && cellSites.length > 0) {
-          setSites(cellSites);
-          setBboxTotal(cellSites.length);
-          console.log(`[SitesMonitor] CELLS mode: ${cellSites.length} sites with cells`);
-        } else {
-          console.warn('[SitesMonitor] CELLS mode returned empty result - keeping previous sites');
-        }
-
-        setBboxLoading(false);
-        setLoading(false);
-        return;
-      }
-
+      // Always fetch site summaries only — cells are loaded on demand per site
       const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
 
       if (controller.signal.aborted) return;
@@ -2667,7 +2647,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setBboxLoading(false);
       setLoading(false);
     }
-  }, [viewport.zoom, getDisplayMode]);
+  }, []);
 
   // Debounced viewport change handler
   const handleViewportForFetch = useCallback((v: ViewportState) => {
@@ -2747,7 +2727,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   useEffect(() => {
     if (selectedSiteId) {
       const loadDetail = async () => {
-        // First: try to use the already-loaded bbox site (which has cells from VPS merge)
+        // First: check if we already have cells from a previous load
         const bboxSite = sites.find(s => s.site_id === selectedSiteId || s.site_name === selectedSiteId);
         if (bboxSite && bboxSite.cells && bboxSite.cells.length > 0) {
           const detail: SiteDetail = {
@@ -2762,13 +2742,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           setDetailLoading(false);
           return;
         }
-        // Only show loading if we don't already have detail for this site
+        // On-demand: fetch cells for this site only (with caching)
         if (!siteDetail || siteDetail.site_id !== selectedSiteId) {
           setDetailLoading(true);
         }
-        // Fallback: legacy full-load detail
-        const data = await fetchSiteDetails(selectedSiteId);
-        setSiteDetail(data);
+        try {
+          const cells = await fetchSiteCells(selectedSiteId);
+          const baseSite = bboxSite || {
+            site_id: selectedSiteId,
+            site_name: selectedSiteId,
+            vendor: 'Unknown',
+            dor: '',
+            plaque: '',
+            department: '',
+            cell_count: cells.length,
+            qoe_score_avg: 0,
+            p50_thr_dn_mbps: 0,
+            p50_thr_up_mbps: 0,
+            dms_dl_3: 0,
+            dms_dl_8: 0,
+            dms_dl_30: 0,
+            dms_ul_3: 0,
+            coordinates: [46.6, 2.2] as [number, number],
+            cells: [],
+          };
+          const detail: SiteDetail = {
+            ...baseSite,
+            cells,
+            cell_count: cells.length,
+            traffic_dn_bytes: cells.reduce((sum, c) => sum + (c.traffic_dn_bytes || 0), 0),
+            traffic_up_bytes: cells.reduce((sum, c) => sum + (c.traffic_up_bytes || 0), 0),
+            p95_rtt_ms: cells.length > 0
+              ? cells.reduce((sum, c) => sum + (c.p95_rtt_ms || 0), 0) / cells.length
+              : 0,
+          };
+          setSiteDetail(detail);
+        } catch (err) {
+          console.warn('[SitesMonitor] Failed to load site cells:', err);
+          // Fallback: legacy full-load detail
+          const data = await fetchSiteDetails(selectedSiteId);
+          setSiteDetail(data);
+        }
         setDetailLoading(false);
       };
       loadDetail();
@@ -5108,6 +5122,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   onDashboardActiveChange={(active, scope, siteFilters) => {
                     setDashboardActive(active);
                     setActiveSiteScope(scope || null);
+                    setActiveDashboardFilters(siteFilters || null);
+                    invalidateDashboardSitesCache();
+                    invalidateSiteCellsCache();
+                    invalidateBboxCache();
+                    setSelectedSiteId(null);
+                    setSelectedSiteSnapshot(null);
+                    setSiteDetail(null);
+                    setExpandedSectors(new Set());
                     if (!active) {
                       setSites([]);
                       setLocalDor('ALL');
