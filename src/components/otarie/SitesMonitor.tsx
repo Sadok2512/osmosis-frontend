@@ -5188,19 +5188,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="bg-muted/40 border border-border rounded-xl p-3">
                       <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
-                      <div className="text-[22px] font-black text-foreground leading-none">{sites4G.size}</div>
+                      <div className="text-[22px] font-black text-foreground leading-none">{sites4GCount}</div>
                     </div>
                     <div className="bg-muted/40 border border-border rounded-xl p-3">
                       <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
-                      <div className="text-[22px] font-black text-primary leading-none">{sites5G.size}</div>
+                      <div className="text-[22px] font-black text-primary leading-none">{sites5GCount}</div>
                     </div>
                     <div className="bg-muted/40 border border-border rounded-xl p-3">
                       <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
-                      <div className="text-[22px] font-black text-foreground leading-none">{cells4G.length}</div>
+                      <div className="text-[22px] font-black text-foreground leading-none">{cells4GCount}</div>
                     </div>
                     <div className="bg-muted/40 border border-border rounded-xl p-3">
                       <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
-                      <div className="text-[22px] font-black text-primary leading-none">{cells5G.length}</div>
+                      <div className="text-[22px] font-black text-primary leading-none">{cells5GCount}</div>
                     </div>
                   </div>
                 </div>
@@ -5209,10 +5209,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="px-5 py-4">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Technologie</h4>
                   {[
-                    { label: 'LTE (4G)', count: cells4G.length, color: 'hsl(var(--chart-2))' },
-                    { label: 'NR (5G)', count: cells5G.length, color: 'hsl(var(--primary))' },
+                    { label: 'LTE (4G)', count: cells4GCount, color: 'hsl(var(--chart-2))' },
+                    { label: 'NR (5G)', count: cells5GCount, color: 'hsl(var(--primary))' },
                   ].map(t => {
-                    const total = cells4G.length + cells5G.length || 1;
+                    const total = cells4GCount + cells5GCount || 1;
                     const pct = ((t.count / total) * 100).toFixed(1);
                     return (
                       <div key={t.label} className="flex items-center gap-2 py-1.5">
