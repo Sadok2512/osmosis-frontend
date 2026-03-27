@@ -2165,6 +2165,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [detailLoading, setDetailLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table' | 'map'>('map');
   const [localSearch, setLocalSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [hoveredSiteId, setHoveredSiteId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [isFlying, setIsFlying] = useState(false);
