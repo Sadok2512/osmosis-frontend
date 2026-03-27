@@ -5191,6 +5191,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     invalidateDashboardSitesCache();
                     invalidateSiteCellsCache();
                     invalidateBboxCache();
+                    cellLoadingRef.current.clear();
                     setSelectedSiteId(null);
                     setSelectedSiteSnapshot(null);
                     setSiteDetail(null);
