@@ -2733,6 +2733,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     prevViewportRef.current = v;
   }, [dashboardActive]);
 
+  // Auto-load cells refs (effect placed after visibleSites is defined)
+  const cellLoadingRef = useRef(new Set<string>());
+  const cellLoadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Cleanup
   useEffect(() => {
     return () => {
@@ -3003,6 +3007,50 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     return candidates;
   }, [mapFilteredSites, viewport.bounds]);
+
+  // Auto-load cells for visible sites when zoom reaches sector display threshold
+  useEffect(() => {
+    const mode = getDisplayMode(viewport.zoom);
+    if (mode !== 'cells' || !dashboardActive) return;
+
+    const sitesNeedingCells = visibleSites.filter(
+      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id)
+    );
+
+    if (sitesNeedingCells.length === 0) return;
+
+    if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
+    cellLoadDebounceRef.current = setTimeout(async () => {
+      const batch = sitesNeedingCells.slice(0, 30);
+      batch.forEach(s => cellLoadingRef.current.add(s.site_id));
+
+      const results = await Promise.allSettled(
+        batch.map(s => fetchSiteCells(s.site_id).then(cells => ({ siteId: s.site_id, cells })))
+      );
+
+      const cellMap = new Map<string, typeof visibleSites[0]['cells']>();
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          cellMap.set(r.value.siteId, r.value.cells);
+        }
+      }
+
+      if (cellMap.size > 0) {
+        setSites(prev => prev.map(s => {
+          const cells = cellMap.get(s.site_id);
+          if (cells && cells.length > 0) {
+            return { ...s, cells, cell_count: cells.length };
+          }
+          return s;
+        }));
+      }
+    }, 600);
+
+    return () => {
+      if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
+    };
+  }, [viewport.zoom, visibleSites, dashboardActive, getDisplayMode]);
+
 
   const renderSites = useMemo(() => {
     if (!selectedSiteId || !selectedSiteSnapshot) return visibleSites;
@@ -5143,6 +5191,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     invalidateDashboardSitesCache();
                     invalidateSiteCellsCache();
                     invalidateBboxCache();
+                    cellLoadingRef.current.clear();
                     setSelectedSiteId(null);
                     setSelectedSiteSnapshot(null);
                     setSiteDetail(null);
