@@ -6834,7 +6834,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   ].map(tab => (
                     <button
                       key={tab.id}
-                      onClick={() => setCellDetailTab(tab.id)}
+                      onClick={() => setCellDetailTab(tab.id as any)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${
                         cellDetailTab === tab.id
                           ? 'bg-primary text-primary-foreground shadow-sm'
