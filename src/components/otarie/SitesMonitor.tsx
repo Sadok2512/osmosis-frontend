@@ -5458,11 +5458,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       }`}
                                     >
                                       <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
-                                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
-                                        {cells.map((c, ci) => (
-                                          <span key={ci} className="w-3 h-3 rounded-full border border-white/30" style={{ background: c.techno?.includes('5G') ? '#8b5cf6' : '#f97316' }} />
-                                        ))}
-                                      </div>
+                                      <div className="flex flex-col items-center gap-1 mb-1.5">
+                                        {(() => {
+                                          const nr = cells.filter(c => c.techno?.includes('5G') || c.techno === 'NR');
+                                          const lte = cells.filter(c => !c.techno?.includes('5G') && c.techno !== 'NR');
+                                          return (
+                                            <>
+                                              {nr.length > 0 && (
+                                                <div className="flex items-center justify-center gap-1">
+                                                  {nr.map((_, ci) => (
+                                                    <span key={`nr-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#8b5cf6' }} />
+                                                  ))}
+                                                </div>
+                                              )}
+                                              {lte.length > 0 && (
+                                                <div className="flex items-center justify-center gap-1">
+                                                  {lte.map((_, ci) => (
+                                                    <span key={`lte-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} />
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </>
+                                          );
+                                        })()}
                                       <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{sNum}</span>
                                       <span className={`text-[9px] mt-0.5 font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{cells.length} cell{cells.length > 1 ? 's' : ''}</span>
                                     </button>
