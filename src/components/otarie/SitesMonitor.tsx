@@ -5136,28 +5136,38 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== TOPO MODE: Global Network (no KPIs) ========== */}
           {sectorColorMode === 'topo' && focusMode === 'global' && (() => {
-            const allCells = sites.flatMap(s => s.cells || []);
-            const cells4G = allCells.filter(c => {
-              const t = (c.techno || '').toUpperCase();
-              return (t.includes('4G') || t.includes('LTE')) && !t.includes('5G') && !t.includes('3G') && !t.includes('2G');
-            });
-            const cells5G = allCells.filter(c => (c.techno || '').toUpperCase().includes('5G') || (c.techno || '').toUpperCase().includes('NR'));
-            const sites4G = new Set(sites.filter(s => (s.cells || []).some(c => {
-              const t = (c.techno || '').toUpperCase();
-              return (t.includes('4G') || t.includes('LTE')) && !t.includes('5G');
-            })).map(s => s.site_id));
-            const sites5G = new Set(sites.filter(s => (s.cells || []).some(c => (c.techno || '').toUpperCase().includes('5G'))).map(s => s.site_id));
-            const bandMap4G: Record<string, number> = {};
-            const bandMap5G: Record<string, number> = {};
-            cells4G.forEach(c => { const b = c.bande || 'Unknown'; bandMap4G[b] = (bandMap4G[b] || 0) + 1; });
-            cells5G.forEach(c => { const b = c.bande || 'Unknown'; bandMap5G[b] = (bandMap5G[b] || 0) + 1; });
-            const vendorMap: Record<string, { '4G': number; '5G': number }> = {};
-            [...cells4G, ...cells5G].forEach(c => {
-              const v = (c as any).vendor || (c as any).constructeur || 'Unknown';
-              if (!vendorMap[v]) vendorMap[v] = { '4G': 0, '5G': 0 };
-              if ((c.techno || '').toUpperCase().includes('5G')) vendorMap[v]['5G']++;
-              else vendorMap[v]['4G']++;
-            });
+            // Use DB stats if available, fallback to local sites
+            const dbStats = topoNetworkStats;
+            let sites4GCount = 0, sites5GCount = 0, cells4GCount = 0, cells5GCount = 0;
+            let bandMap4G: Record<string, number> = {};
+            let bandMap5G: Record<string, number> = {};
+            let vendorMap: Record<string, { '4G': number; '5G': number }> = {};
+
+            if (dbStats && (dbStats.cells4G > 0 || dbStats.cells5G > 0 || dbStats.sites4G > 0 || dbStats.sites5G > 0)) {
+              sites4GCount = dbStats.sites4G;
+              sites5GCount = dbStats.sites5G;
+              cells4GCount = dbStats.cells4G;
+              cells5GCount = dbStats.cells5G;
+              bandMap4G = dbStats.bandMap4G;
+              bandMap5G = dbStats.bandMap5G;
+              vendorMap = dbStats.vendorMap;
+            } else {
+              const allCells = sites.flatMap(s => s.cells || []);
+              const c4G = allCells.filter(c => { const t = (c.techno || '').toUpperCase(); return (t.includes('4G') || t.includes('LTE')) && !t.includes('5G'); });
+              const c5G = allCells.filter(c => (c.techno || '').toUpperCase().includes('5G') || (c.techno || '').toUpperCase().includes('NR'));
+              cells4GCount = c4G.length;
+              cells5GCount = c5G.length;
+              sites4GCount = new Set(sites.filter(s => (s.cells || []).some(c => { const t = (c.techno || '').toUpperCase(); return (t.includes('4G') || t.includes('LTE')) && !t.includes('5G'); })).map(s => s.site_id)).size;
+              sites5GCount = new Set(sites.filter(s => (s.cells || []).some(c => (c.techno || '').toUpperCase().includes('5G'))).map(s => s.site_id)).size;
+              c4G.forEach(c => { const b = c.bande || 'Unknown'; bandMap4G[b] = (bandMap4G[b] || 0) + 1; });
+              c5G.forEach(c => { const b = c.bande || 'Unknown'; bandMap5G[b] = (bandMap5G[b] || 0) + 1; });
+              [...c4G, ...c5G].forEach(c => {
+                const v = (c as any).vendor || (c as any).constructeur || 'Unknown';
+                if (!vendorMap[v]) vendorMap[v] = { '4G': 0, '5G': 0 };
+                if ((c.techno || '').toUpperCase().includes('5G')) vendorMap[v]['5G']++;
+                else vendorMap[v]['4G']++;
+              });
+            }
             return (
               <div className="divide-y divide-border">
                 {/* Header */}
