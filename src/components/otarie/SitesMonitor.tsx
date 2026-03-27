@@ -5314,10 +5314,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           {isExpanded && (
                             <div className="px-4 pb-4 pt-1 animate-fade-in">
                               {/* Sector cards row */}
-                              <div className="flex items-stretch gap-2 flex-wrap mb-3">
+                              <div className="flex items-stretch gap-2 mb-3">
                                 {sortedSec.map(([sNum, cells]) => {
                                   const isSectorExpanded = expandedSectors.has(sNum);
-                                  const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))];
+                                  const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
                                   const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
                                   return (
                                     <button
@@ -5330,19 +5330,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           return next;
                                         });
                                       }}
-                                      className={`flex flex-col items-center px-4 py-2.5 rounded-xl text-[11px] font-bold transition-all min-w-[80px] ${
+                                      className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
                                         isSectorExpanded
-                                          ? 'bg-primary text-primary-foreground shadow-md border-2 border-primary'
-                                          : 'bg-card text-foreground border-2 border-border hover:border-primary/30'
+                                          ? 'bg-primary text-primary-foreground shadow-lg'
+                                          : 'bg-card text-foreground border border-border hover:border-primary/30 shadow-sm'
                                       }`}
                                     >
-                                      <span className={`text-[10px] font-semibold ${isSectorExpanded ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{technoLabel}</span>
-                                      <div className="flex items-center gap-1 my-1">
+                                      <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
+                                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
                                         {cells.map((c, ci) => (
-                                          <span key={ci} className="w-2.5 h-2.5 rounded-full" style={{ background: getBandColor(c.bande, c.techno) }} />
+                                          <span key={ci} className="w-3 h-3 rounded-full border border-white/30" style={{ background: getBandColor(c.bande, c.techno) }} />
                                         ))}
                                       </div>
-                                      <span className="text-[13px] font-black">S{sNum}</span>
+                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{sNum}</span>
                                       <span className={`text-[9px] mt-0.5 font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{cells.length} cell{cells.length > 1 ? 's' : ''}</span>
                                     </button>
                                   );
