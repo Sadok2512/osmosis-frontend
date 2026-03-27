@@ -6827,29 +6827,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </div>
 
-                {/* Tabs: KPIs / Topologie */}
-                <div className="px-5 py-2 flex items-center gap-1 bg-muted/30">
-                  {[
-                    { id: 'kpi' as const, label: 'KPIs', icon: <BarChart2 size={12} /> },
-                    { id: 'topo' as const, label: 'Topologie', icon: <Radio size={12} /> },
-                    { id: 'config' as const, label: 'Config', icon: <Settings2 size={12} /> },
-                    { id: 'sim' as const, label: 'Simulation', icon: <Signal size={12} /> },
-                      { id: 'alarms', label: '🔔 Alarms', icon: null },
-                      { id: 'cm', label: '📝 CM', icon: null },
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setCellDetailTab(tab.id as any)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${
-                        cellDetailTab === tab.id
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      {tab.icon}
-                      {tab.label}
-                    </button>
-                  ))}
+                {/* Tabs: KPIs / Topologie — fixed horizontal scroll */}
+                <div className="px-3 py-2 bg-muted/30 border-b border-border sticky top-0 z-10">
+                  <div className="flex items-center gap-1 overflow-x-auto scrollbar-none whitespace-nowrap">
+                    {[
+                      { id: 'kpi' as const, label: 'KPIS', icon: <BarChart2 size={12} /> },
+                      { id: 'topo' as const, label: 'TOPOLOGIE', icon: <Radio size={12} /> },
+                      { id: 'config' as const, label: 'CONFIG', icon: <Settings2 size={12} /> },
+                      { id: 'sim' as const, label: 'SIMULATION', icon: <Signal size={12} /> },
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setCellDetailTab(tab.id as any)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all shrink-0 ${
+                          cellDetailTab === tab.id
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        {tab.icon}
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* ── KPI Tab — same style as Site Focus ── */}
