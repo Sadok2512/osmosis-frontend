@@ -4322,7 +4322,291 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       </div>
 
 
+      {/* Floating top bar — single row with scroll, dynamically positioned between sidebars */}
+      <div
+        className="absolute z-[1000] pointer-events-auto transition-all duration-300"
+        style={{
+          top: 12,
+          left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
+          transform: 'translateX(-50%)',
+          maxWidth: `min(1060px, calc(100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
+          width: '100%',
+        }}
+      >
+        <div
+          className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl flex items-center"
+          style={{ minHeight: 60, height: 60 }}
+        >
+          {/* Scroll-left button */}
+          {toolbarCanScrollLeft && (
+            <button
+              onClick={() => scrollToolbar('left')}
+              className="shrink-0 flex items-center justify-center w-7 h-full text-muted-foreground hover:text-foreground transition-colors border-r border-border/30"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft size={14} />
+            </button>
+          )}
 
+          {/* Scrollable KPI zone */}
+          <div
+            ref={toolbarScrollRef}
+            className="flex-1 overflow-x-auto overflow-y-hidden flex items-center gap-3 px-4 scrollbar-hide"
+            style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap', scrollbarWidth: 'none' }}
+          >
+            {/* ── Unified mode selector: QoE / Topo / Parameters ── */}
+            <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
+              <button
+                onClick={() => { setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }}
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
+                  sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Zap size={11} />
+                QoE
+              </button>
+              <button
+                onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                  sectorColorMode === 'topo' && !paramMode && !paramPanelOpen
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Radio size={11} />
+                Topo
+              </button>
+              <button
+                onClick={() => { setParamPanelOpen(!paramPanelOpen); }}
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
+                  paramMode || paramPanelOpen
+                    ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-md shadow-emerald-500/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <MapPin size={11} />
+                Param
+                {paramConfirmed && <span className="text-[8px] opacity-70">({paramPoints.length})</span>}
+              </button>
+            </div>
+
+            <span className="w-px h-7 bg-border/50 shrink-0" />
+
+            {/* ── QoE mode: KPI chips ── */}
+            {sectorColorMode === 'kpi' && !paramMode && (
+              <>
+                {/* DL group */}
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬇ DL</span>
+                  {MAP_KPIS.filter(k => ['qoe_score_avg', 'dms_dl_3', 'dms_dl_8', 'dms_dl_30', 'p50_thr_dn_mbps'].includes(k.id)).map(kpi => {
+                    const shortLabels: Record<string, string> = {
+                      'qoe_score_avg': 'QoE',
+                      'dms_dl_3': '≥3',
+                      'dms_dl_8': '≥8',
+                      'dms_dl_30': '≥30',
+                      'p50_thr_dn_mbps': 'Débit',
+                    };
+                    return (
+                      <button
+                        key={kpi.id}
+                        onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
+                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                          mapKpi === kpi.id
+                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        }`}
+                        title={kpi.label}
+                      >
+                        {shortLabels[kpi.id] || kpi.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                {/* UL group */}
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬆ UL</span>
+                  {MAP_KPIS.filter(k => ['dms_ul_3', 'p50_thr_up_mbps'].includes(k.id)).map(kpi => {
+                    const shortLabels: Record<string, string> = {
+                      'dms_ul_3': '≥3',
+                      'p50_thr_up_mbps': 'Débit',
+                    };
+                    return (
+                      <button
+                        key={kpi.id}
+                        onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
+                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                          mapKpi === kpi.id
+                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        }`}
+                        title={kpi.label}
+                      >
+                        {shortLabels[kpi.id] || kpi.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                {/* Plus dropdown for TCP/RTT/Volume */}
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => setShowKpiDropdown(!showKpiDropdown)}
+                    className={`px-3.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
+                      ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
+                        ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
+                    }`}
+                  >
+                    <SlidersHorizontal size={12} />
+                    Plus
+                    {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                  </button>
+                  {showKpiDropdown && (
+                    <div className="absolute top-10 right-0 w-[300px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
+                      <div className="max-h-[400px] overflow-y-auto py-1">
+                        {['RTT', 'TCP', 'VOLUME'].map(cat => (
+                          <div key={cat}>
+                            <div className="px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30">{cat}</div>
+                            {MAP_KPIS.filter(k => k.category === cat).map(kpi => (
+                              <button
+                                key={kpi.id}
+                                onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); }}
+                                className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-all ${
+                                  mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
+                                }`}
+                              >
+                                <div className="text-[11px] font-bold">{kpi.label}</div>
+                                {mapKpi === kpi.id && <span className="text-xs">✓</span>}
+                              </button>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* ── Topo mode: inline tech filter + layer switcher + label ── */}
+            {sectorColorMode === 'topo' && !paramMode && (
+              <>
+                {/* Tech filter: ALL / 5G / 4G / OFF */}
+                <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
+                  {(['ALL', '5G', '4G', 'OFF'] as const).map((tech) => (
+                    <button
+                      key={tech}
+                      onClick={() => {
+                        setMapTechnoFilter(tech);
+                        const NR_BANDS = ['NR3500', 'NR700', 'NR2100'];
+                        const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
+                        if (tech === 'ALL') {
+                          setEnabledBands(new Set([...NR_BANDS, ...LTE_BANDS]));
+                        } else if (tech === '5G') {
+                          setEnabledBands(new Set(NR_BANDS));
+                        } else if (tech === '4G') {
+                          setEnabledBands(new Set(LTE_BANDS));
+                        } else {
+                          setEnabledBands(new Set());
+                        }
+                      }}
+                      className={`px-3 py-2 text-[10px] font-black tracking-wider transition-all ${
+                        mapTechnoFilter === tech
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {tech}
+                    </button>
+                  ))}
+                </div>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                {/* Layer switcher: L / D / S */}
+                <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
+                  {([
+                    { key: 'light' as const, label: 'L' },
+                    { key: 'dark' as const, label: 'D' },
+                    { key: 'satellite' as const, label: 'S' },
+                  ]).map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setMapLayer(key)}
+                      className={`px-3 py-2 text-[10px] font-black tracking-wider transition-all ${
+                        mapLayer === key
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                <span className="text-[10px] font-bold text-muted-foreground shrink-0">Couleur par bande de fréquence</span>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                {/* Show Tilt toggle */}
+                <button
+                  onClick={() => setShowTiltOverlay(prev => !prev)}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                    showTiltOverlay
+                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm shadow-red-500/20'
+                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+                  }`}
+                >
+                  <Signal size={12} />
+                  Tilt
+                </button>
+              </>
+            )}
+
+            {/* ── Parameters mode: current selection ── */}
+            {paramMode && (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold text-foreground">{paramConfirmed}</span>
+                <span className="text-[9px] text-muted-foreground">({paramPoints.length} pts)</span>
+                <button
+                  onClick={handleParamReset}
+                  className="text-[9px] font-bold text-destructive hover:text-destructive/80 transition-colors"
+                >
+                  ✕ Reset
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Scroll-right button */}
+          {toolbarCanScrollRight && (
+            <button
+              onClick={() => scrollToolbar('right')}
+              className="shrink-0 flex items-center justify-center w-7 h-full text-muted-foreground hover:text-foreground transition-colors border-l border-border/30"
+              aria-label="Scroll right"
+            >
+              <ChevronRight size={14} />
+            </button>
+          )}
+
+          {/* Fixed right zone — Views */}
+          <div className="shrink-0 flex items-center gap-2 px-3 border-l border-border/40">
+            <MapViewManager
+              currentSettings={getCurrentMapSettings()}
+              onLoadView={handleLoadView}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Parameters panel — rendered outside overflow container */}
       {paramPanelOpen && (
