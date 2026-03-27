@@ -4467,7 +4467,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </>
           )}
         </div>
-      </div>
+
 
 
       {/* Floating top bar — single row with scroll, dynamically positioned between sidebars */}
@@ -5348,8 +5348,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   );
                                 })}
                               </div>
+                              {/* Techno legend */}
+                              <div className="flex items-center gap-4 mb-3 px-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: getBandColor('NR3500', '5G') }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">5G</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: getBandColor('L800', '4G') }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">4G</span>
+                                </div>
+                              </div>
 
-                              {/* Expanded sector → cell table rows */}
                               {expandedSectors.size > 0 && (() => {
                                 const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
                                 if (!secCells.length) return null;
