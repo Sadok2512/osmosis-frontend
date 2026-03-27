@@ -2614,13 +2614,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return base;
   }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
 
-  // Core bbox fetch function — uses zoom hysteresis to stabilize site/cell switching
+  // Core bbox fetch function — ALWAYS site-only mode (never load cells at map level)
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
-
-    const effectiveZoom = zoom ?? viewport.zoom;
-    const displayMode = getDisplayMode(effectiveZoom);
-    const needCells = displayMode === 'cells';
 
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
@@ -2636,24 +2632,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setBboxLoading(true);
 
     try {
-      if (needCells) {
-        const cellSites = await fetchCellsByBbox(bbox, bboxFilters, controller.signal);
-
-        if (controller.signal.aborted) return;
-
-        if (Array.isArray(cellSites) && cellSites.length > 0) {
-          setSites(cellSites);
-          setBboxTotal(cellSites.length);
-          console.log(`[SitesMonitor] CELLS mode: ${cellSites.length} sites with cells`);
-        } else {
-          console.warn('[SitesMonitor] CELLS mode returned empty result - keeping previous sites');
-        }
-
-        setBboxLoading(false);
-        setLoading(false);
-        return;
-      }
-
+      // Always fetch site summaries only — cells are loaded on demand per site
       const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
 
       if (controller.signal.aborted) return;
@@ -2668,7 +2647,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setBboxLoading(false);
       setLoading(false);
     }
-  }, [viewport.zoom, getDisplayMode]);
+  }, []);
 
   // Debounced viewport change handler
   const handleViewportForFetch = useCallback((v: ViewportState) => {
