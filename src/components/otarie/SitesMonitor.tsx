@@ -5748,7 +5748,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between text-[13px]">
                             <span className="font-bold text-foreground">{ts.tech === '5G' ? '5G NR' : '4G LTE'}</span>
-                            <span className="font-bold" style={{ color: getKpiColor(ts.avgQoE) }}>{ts.(avgQoE ?? 0).toFixed(1)}%</span>
+                            <span className="font-bold" style={{ color: getKpiColor(ts.avgQoE) }}>{(ts.avgQoE ?? 0).toFixed(1)}%</span>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-1">
                             {ts.count.toLocaleString('fr-FR')} cells • {ts.bands.join(' / ')}
@@ -5782,7 +5782,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               </div>
                             </td>
                             <td className="px-3 py-2 text-right font-medium text-foreground">{bs.count.toLocaleString()}</td>
-                            <td className="px-3 py-2 text-right font-semibold" style={{ color: getKpiColor(bs.avgQoE) }}>{bs.(avgQoE ?? 0).toFixed(1)}%</td>
+                            <td className="px-3 py-2 text-right font-semibold" style={{ color: getKpiColor(bs.avgQoE) }}>{(bs.avgQoE ?? 0).toFixed(1)}%</td>
                           </tr>
                         ))}
                       </tbody>
