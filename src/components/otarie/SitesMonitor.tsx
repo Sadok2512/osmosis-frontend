@@ -5122,6 +5122,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   onDashboardActiveChange={(active, scope, siteFilters) => {
                     setDashboardActive(active);
                     setActiveSiteScope(scope || null);
+                    setActiveDashboardFilters(siteFilters || null);
+                    invalidateDashboardSitesCache();
+                    invalidateSiteCellsCache();
+                    invalidateBboxCache();
+                    setSelectedSiteId(null);
+                    setSelectedSiteSnapshot(null);
+                    setSiteDetail(null);
+                    setExpandedSectors(new Set());
                     if (!active) {
                       setSites([]);
                       setLocalDor('ALL');
