@@ -2727,7 +2727,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   useEffect(() => {
     if (selectedSiteId) {
       const loadDetail = async () => {
-        // First: try to use the already-loaded bbox site (which has cells from VPS merge)
+        // First: check if we already have cells from a previous load
         const bboxSite = sites.find(s => s.site_id === selectedSiteId || s.site_name === selectedSiteId);
         if (bboxSite && bboxSite.cells && bboxSite.cells.length > 0) {
           const detail: SiteDetail = {
@@ -2742,13 +2742,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           setDetailLoading(false);
           return;
         }
-        // Only show loading if we don't already have detail for this site
+        // On-demand: fetch cells for this site only (with caching)
         if (!siteDetail || siteDetail.site_id !== selectedSiteId) {
           setDetailLoading(true);
         }
-        // Fallback: legacy full-load detail
-        const data = await fetchSiteDetails(selectedSiteId);
-        setSiteDetail(data);
+        try {
+          const cells = await fetchSiteCells(selectedSiteId);
+          const baseSite = bboxSite || {
+            site_id: selectedSiteId,
+            site_name: selectedSiteId,
+            vendor: 'Unknown',
+            dor: '',
+            plaque: '',
+            department: '',
+            cell_count: cells.length,
+            qoe_score_avg: 0,
+            p50_thr_dn_mbps: 0,
+            p50_thr_up_mbps: 0,
+            dms_dl_3: 0,
+            dms_dl_8: 0,
+            dms_dl_30: 0,
+            dms_ul_3: 0,
+            coordinates: [46.6, 2.2] as [number, number],
+            cells: [],
+          };
+          const detail: SiteDetail = {
+            ...baseSite,
+            cells,
+            cell_count: cells.length,
+            traffic_dn_bytes: cells.reduce((sum, c) => sum + (c.traffic_dn_bytes || 0), 0),
+            traffic_up_bytes: cells.reduce((sum, c) => sum + (c.traffic_up_bytes || 0), 0),
+            p95_rtt_ms: cells.length > 0
+              ? cells.reduce((sum, c) => sum + (c.p95_rtt_ms || 0), 0) / cells.length
+              : 0,
+          };
+          setSiteDetail(detail);
+        } catch (err) {
+          console.warn('[SitesMonitor] Failed to load site cells:', err);
+          // Fallback: legacy full-load detail
+          const data = await fetchSiteDetails(selectedSiteId);
+          setSiteDetail(data);
+        }
         setDetailLoading(false);
       };
       loadDetail();
