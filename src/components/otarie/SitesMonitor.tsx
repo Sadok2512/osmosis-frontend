@@ -942,7 +942,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                         {f.mode === 'topo' ? (
                           <>
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-accent/20 text-accent-foreground">TOPO</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${f.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{f.tech}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${f.tech === '5G' ? 'bg-green-500/15 text-green-600' : 'bg-orange-500/15 text-orange-600'}`}>{f.tech}</span>
                             <span className="font-medium text-muted-foreground">{SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === f.attribute)?.label}</span>
                             <span className="text-muted-foreground/50">→</span>
                             <span className="font-semibold text-foreground">{f.value}</span>
@@ -1029,7 +1029,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                     <div className="flex items-center gap-2">
                       <button onClick={() => setFilterStep('pick_tech')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-green-500/15 text-green-600' : 'bg-orange-500/15 text-orange-600'}`}>{filterDraft.tech}</span>
                         Étape 3 — Attribut
                       </span>
                     </div>
@@ -1052,7 +1052,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                     <div className="flex items-center gap-2">
                       <button onClick={() => setFilterStep('pick_attr')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-green-500/15 text-green-600' : 'bg-orange-500/15 text-orange-600'}`}>{filterDraft.tech}</span>
                         {SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label} — Valeur
                       </span>
                     </div>
