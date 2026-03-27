@@ -2341,7 +2341,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!dbId) return;
     setDashboardSaving(true);
     const currentSettings = getCurrentMapSettings();
-    const db = dashboardList.find(d => d.id === dbId);
+    let db = dashboardList.find(d => d.id === dbId);
+    // If dashboard not in local list, fetch it from API
+    if (!db) {
+      try {
+        const allData = await dashboardsApi.list();
+        if (Array.isArray(allData)) {
+          db = allData.find((d: any) => d.id === dbId);
+          if (db) setDashboardList(prev => [...prev.filter(d => d.id !== dbId), db!]);
+        }
+      } catch {}
+    }
     if (!db) { setDashboardSaving(false); return; }
     const widgets = Array.isArray(db.widgets) ? [...db.widgets] : [];
     const idx = widgets.findIndex((w: any) => w?._type === 'dashboard_settings');
