@@ -5533,7 +5533,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
       {showRightPanel && (
-      <div className={`absolute z-[1000] bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ${
+      <div className={`absolute z-[1200] bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ${
         detailFullscreen
           ? 'inset-0'
           : 'top-0 right-0 bottom-0 w-[450px]'
