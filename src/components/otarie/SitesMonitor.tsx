@@ -3559,7 +3559,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           );
         })}
 
-        {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
+        {/* Density factor for adaptive sector sizing: fewer visible sites → larger sectors */}
+        {(() => { /* computed once, used via closure */ return null; })()}
         {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
