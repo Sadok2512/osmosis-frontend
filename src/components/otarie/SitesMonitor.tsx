@@ -5947,19 +5947,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     setSelectedSiteSnapshot(null);
                     setSiteDetail(null);
                     setExpandedSectors(new Set());
+                    // Always reset local filters first, then apply dashboard-specific ones
+                    setLocalDor('ALL');
+                    setLocalPlaque('ALL');
+                    setLocalVendor('ALL');
+                    setLocalBande('ALL');
+                    setLocalZoneArcep('ALL');
+                    setLocalTechno('ALL');
                     if (!active) {
                       setSites([]);
                       setActiveDashboardId(null);
-                      setLocalDor('ALL');
-                      setLocalPlaque('ALL');
-                      setLocalVendor('ALL');
-                      setLocalBande('ALL');
-                      setLocalZoneArcep('ALL');
-                      setLocalTechno('ALL');
                     } else if (siteFilters && Object.keys(siteFilters).length > 0) {
                       // Apply multi-filters from dashboard
                       if (siteFilters.dor?.length === 1) setLocalDor(siteFilters.dor[0]);
-                      else if (siteFilters.dor?.length) setLocalDor(siteFilters.dor[0]); // first for bbox
+                      else if (siteFilters.dor?.length) setLocalDor(siteFilters.dor[0]);
                       if (siteFilters.constructeur?.length === 1) setLocalVendor(siteFilters.constructeur[0]);
                       if (siteFilters.plaque?.length === 1) setLocalPlaque(siteFilters.plaque[0]);
                       if (siteFilters.techno?.length === 1) setLocalTechno(siteFilters.techno[0] as any);
