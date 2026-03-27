@@ -5310,13 +5310,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </button>
 
-                           {/* Expanded sector pills + cells */}
+                           {/* Expanded: sector cards + cell table */}
                           {isExpanded && (
                             <div className="px-4 pb-4 pt-1 animate-fade-in">
-                              {/* Sector tabs row */}
-                              <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                              {/* Sector cards row */}
+                              <div className="flex items-stretch gap-2 flex-wrap mb-3">
                                 {sortedSec.map(([sNum, cells]) => {
                                   const isSectorExpanded = expandedSectors.has(sNum);
+                                  const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))];
+                                  const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
                                   return (
                                     <button
                                       key={sNum}
@@ -5328,64 +5330,71 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           return next;
                                         });
                                       }}
-                                      className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold uppercase tracking-wide transition-all ${
+                                      className={`flex flex-col items-center px-4 py-2.5 rounded-xl text-[11px] font-bold transition-all min-w-[80px] ${
                                         isSectorExpanded
-                                          ? 'bg-primary text-primary-foreground shadow-md'
-                                          : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-border'
+                                          ? 'bg-primary text-primary-foreground shadow-md border-2 border-primary'
+                                          : 'bg-card text-foreground border-2 border-border hover:border-primary/30'
                                       }`}
                                     >
-                                      Sector <span className="ml-0.5">S{sNum}</span>
-                                      <span className={`ml-1.5 text-[10px] font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                        {cells.length} cell{cells.length > 1 ? 's' : ''}
-                                      </span>
+                                      <span className={`text-[10px] font-semibold ${isSectorExpanded ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{technoLabel}</span>
+                                      <div className="flex items-center gap-1 my-1">
+                                        {cells.map((c, ci) => (
+                                          <span key={ci} className="w-2.5 h-2.5 rounded-full" style={{ background: getBandColor(c.bande, c.techno) }} />
+                                        ))}
+                                      </div>
+                                      <span className="text-[13px] font-black">S{sNum}</span>
+                                      <span className={`text-[9px] mt-0.5 font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{cells.length} cell{cells.length > 1 ? 's' : ''}</span>
                                     </button>
                                   );
                                 })}
                               </div>
 
-                              {/* Expanded sector → cell cards */}
+                              {/* Expanded sector → cell table rows */}
                               {expandedSectors.size > 0 && (() => {
                                 const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
                                 if (!secCells.length) return null;
                                 return (
-                                  <div className="space-y-1.5 animate-fade-in">
-                                    {secCells.map((cell) => {
-                                      const isSel = focusCellId === cell.cell_id;
-                                      const sNum = getSectorNumber(cell.cell_id);
-                                      const tilt = (cell as any).tilt as number | null;
-                                      const hba = (cell as any).hba as number | null;
-                                      const techLabel = cell.techno || '—';
-                                      const bandLabel = cell.bande || '';
-                                      const details = [
-                                        techLabel,
-                                        bandLabel ? `${bandLabel} MHz` : null,
-                                        cell.azimut != null ? `Az ${cell.azimut}°` : null,
-                                        tilt != null ? `Tilt ${tilt}°` : null,
-                                        hba != null ? `${hba}m` : null,
-                                      ].filter(Boolean).join(' • ');
-                                      return (
-                                        <div
-                                          key={cell.cell_id}
-                                          onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
-                                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
-                                            isSel
-                                              ? 'border-primary/40 bg-primary/5 shadow-sm'
-                                              : 'border-border hover:border-primary/20 hover:bg-muted/30'
-                                          }`}
-                                        >
-                                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                                            isSel ? 'bg-primary/15 text-primary' : 'bg-muted/60 text-muted-foreground'
-                                          }`}>
-                                            <Radio size={13} />
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="text-[11px] font-bold text-foreground truncate">{cell.cell_id}</div>
-                                            <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{details}</div>
-                                          </div>
-                                          <span className="text-[10px] font-bold text-muted-foreground shrink-0">S{sNum}</span>
-                                        </div>
-                                      );
-                                    })}
+                                  <div className="rounded-xl border border-border overflow-hidden animate-fade-in">
+                                    <table className="w-full text-[11px]">
+                                      <thead>
+                                        <tr className="bg-muted/40 border-b border-border">
+                                          <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Hba</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Sec</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {secCells.map((cell) => {
+                                          const isSel = focusCellId === cell.cell_id;
+                                          const sNum = getSectorNumber(cell.cell_id);
+                                          const tilt = (cell as any).tilt as number | null;
+                                          const hba = (cell as any).hba as number | null;
+                                          return (
+                                            <tr
+                                              key={cell.cell_id}
+                                              onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
+                                              className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${
+                                                isSel
+                                                  ? 'bg-primary/10'
+                                                  : 'hover:bg-muted/30'
+                                              }`}
+                                            >
+                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                              <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.techno || '—'}</td>
+                                              <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-extrabold text-primary">S{sNum}</td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
                                   </div>
                                 );
                               })()}
