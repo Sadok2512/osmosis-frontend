@@ -115,6 +115,90 @@ const deriveStrokeColor = (hex: string): string => {
 
 // Inactive/faded color for technology hierarchy mode
 const FADED_COLOR = '#94a3b8';
+const FRANCE_CENTER: [number, number] = [46.6, 2.2];
+const FRANCE_DEFAULT_ZOOM = 6;
+
+type TopoNetworkStats = {
+  sites4G: number;
+  sites5G: number;
+  cells4G: number;
+  cells5G: number;
+  bandMap4G: Record<string, number>;
+  bandMap5G: Record<string, number>;
+  vendorMap: Record<string, { '4G': number; '5G': number }>;
+};
+
+const EMPTY_TOPO_NETWORK_STATS: TopoNetworkStats = {
+  sites4G: 0,
+  sites5G: 0,
+  cells4G: 0,
+  cells5G: 0,
+  bandMap4G: {},
+  bandMap5G: {},
+  vendorMap: {},
+};
+
+const is5GTech = (techno?: string | null) => {
+  const tech = String(techno || '').toUpperCase();
+  return tech.includes('5G') || tech.includes('NR');
+};
+
+const is4GTech = (techno?: string | null) => {
+  const tech = String(techno || '').toUpperCase();
+  return !is5GTech(tech) && (tech.includes('4G') || tech.includes('LTE'));
+};
+
+const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
+  const stats: TopoNetworkStats = {
+    ...EMPTY_TOPO_NETWORK_STATS,
+    bandMap4G: {},
+    bandMap5G: {},
+    vendorMap: {},
+  };
+
+  const siteTechMap = new Map<string, { has4G: boolean; has5G: boolean }>();
+
+  rows.forEach((row, index) => {
+    const techno = row?.techno ?? row?.technology ?? row?.rat ?? null;
+    const is5G = is5GTech(techno);
+    const is4G = is4GTech(techno);
+
+    if (!is4G && !is5G) return;
+
+    const siteKey = String(
+      row?.code_nidt ?? row?.nom_site ?? row?.site_name ?? row?.site_id ?? row?.site ?? `site-${index}`,
+    );
+    const band = String(row?.bande ?? row?.band ?? 'Unknown');
+    const vendor = String(row?.constructeur ?? row?.vendor ?? row?.vendor_name ?? 'Unknown');
+
+    const siteEntry = siteTechMap.get(siteKey) ?? { has4G: false, has5G: false };
+
+    if (is5G) {
+      stats.cells5G += 1;
+      stats.bandMap5G[band] = (stats.bandMap5G[band] || 0) + 1;
+      siteEntry.has5G = true;
+    } else {
+      stats.cells4G += 1;
+      stats.bandMap4G[band] = (stats.bandMap4G[band] || 0) + 1;
+      siteEntry.has4G = true;
+    }
+
+    if (!stats.vendorMap[vendor]) {
+      stats.vendorMap[vendor] = { '4G': 0, '5G': 0 };
+    }
+    if (is5G) stats.vendorMap[vendor]['5G'] += 1;
+    if (is4G) stats.vendorMap[vendor]['4G'] += 1;
+
+    siteTechMap.set(siteKey, siteEntry);
+  });
+
+  siteTechMap.forEach(({ has4G, has5G }) => {
+    if (has4G) stats.sites4G += 1;
+    if (has5G) stats.sites5G += 1;
+  });
+
+  return stats;
+};
 
 const normalizeBandKey = (bande: string, techno?: string): keyof typeof DEFAULT_BAND_COLORS | null => {
   if (!bande) return null;
@@ -270,6 +354,19 @@ const FitHighlightBounds = ({ coords }: { coords: [number, number][] }) => {
       map.fitBounds(bounds.pad(0.2), { duration: 1 });
     }
   }, [coords, map]);
+  return null;
+};
+
+const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; resetKey: string }) => {
+  const map = useMap();
+  const lastResetKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled || lastResetKeyRef.current === resetKey) return;
+    lastResetKeyRef.current = resetKey;
+    map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
+  }, [enabled, resetKey, map]);
+
   return null;
 };
 
@@ -1937,49 +2034,68 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [editingColorBand, setEditingColorBand] = useState<string | null>(null);
 
   // ── TOPO mode: fetch global network stats from DB ──
-  const [topoNetworkStats, setTopoNetworkStats] = useState<{
-    sites4G: number; sites5G: number; cells4G: number; cells5G: number;
-    bandMap4G: Record<string, number>; bandMap5G: Record<string, number>;
-    vendorMap: Record<string, { '4G': number; '5G': number }>;
-  } | null>(null);
+  const [topoNetworkStats, setTopoNetworkStats] = useState<TopoNetworkStats | null>(null);
 
   useEffect(() => {
     if (sectorColorMode !== 'topo') return;
     let cancelled = false;
+
     const fetchStats = async () => {
       try {
+        const topoRowsResponse = await topoApi.list(100000);
+        const topoRows = Array.isArray(topoRowsResponse?.rows) ? topoRowsResponse.rows : [];
+
+        if (!cancelled && topoRows.length > 0) {
+          setTopoNetworkStats(buildTopoNetworkStatsFromRows(topoRows));
+          return;
+        }
+
         const { data, error } = await supabase.rpc('topo_inventory_stats');
-        if (error || !data || cancelled) return;
+        if (cancelled) return;
+        if (error || !data) {
+          setTopoNetworkStats(EMPTY_TOPO_NETWORK_STATS);
+          return;
+        }
+
         const stats = data as any;
-        let s4G = 0, s5G = 0, c4G = 0, c5G = 0;
-        const bm4G: Record<string, number> = {};
-        const bm5G: Record<string, number> = {};
-        const vm: Record<string, { '4G': number; '5G': number }> = {};
+        const fallbackStats: TopoNetworkStats = {
+          ...EMPTY_TOPO_NETWORK_STATS,
+          bandMap4G: {},
+          bandMap5G: {},
+          vendorMap: {},
+        };
+
         // by_techno is { "4G": count, "5G": count, ... }
         if (stats.by_techno && typeof stats.by_techno === 'object') {
           Object.entries(stats.by_techno).forEach(([tech, count]: [string, any]) => {
-            const t = tech.toUpperCase();
-            if (t.includes('5G') || t.includes('NR')) c5G += Number(count || 0);
-            else if (t.includes('4G') || t.includes('LTE')) c4G += Number(count || 0);
+            if (is5GTech(tech)) fallbackStats.cells5G += Number(count || 0);
+            else if (is4GTech(tech)) fallbackStats.cells4G += Number(count || 0);
           });
         }
-        // by_bande is { "B1": count, "B3": count, ... } — no techno info, put all in 4G for now
+
         if (stats.by_bande && typeof stats.by_bande === 'object') {
           Object.entries(stats.by_bande).forEach(([band, count]: [string, any]) => {
-            bm4G[band] = Number(count || 0);
+            const bandLabel = String(band || 'Unknown');
+            if (/^N|NR|5G/i.test(bandLabel)) fallbackStats.bandMap5G[bandLabel] = Number(count || 0);
+            else fallbackStats.bandMap4G[bandLabel] = Number(count || 0);
           });
         }
-        // by_constructeur is { "Nokia": count, ... }
+
         if (stats.by_constructeur && typeof stats.by_constructeur === 'object') {
           Object.entries(stats.by_constructeur).forEach(([vendor, count]: [string, any]) => {
-            vm[vendor] = { '4G': Number(count || 0), '5G': 0 };
+            fallbackStats.vendorMap[vendor] = { '4G': Number(count || 0), '5G': 0 };
           });
         }
-        s4G = stats.total_sites ?? 0;
-        s5G = 0;
-        if (!cancelled) setTopoNetworkStats({ sites4G: s4G, sites5G: s5G, cells4G: c4G, cells5G: c5G, bandMap4G: bm4G, bandMap5G: bm5G, vendorMap: vm });
-      } catch (e) { console.error('[TOPO] Failed to fetch network stats:', e); }
+
+        fallbackStats.sites4G = Number(stats.total_sites ?? 0);
+        fallbackStats.sites5G = 0;
+        setTopoNetworkStats(fallbackStats);
+      } catch (e) {
+        console.error('[TOPO] Failed to fetch network stats:', e);
+        if (!cancelled) setTopoNetworkStats(EMPTY_TOPO_NETWORK_STATS);
+      }
     };
+
     fetchStats();
     return () => { cancelled = true; };
   }, [sectorColorMode]);
@@ -3098,14 +3214,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
       {/* FULL SCREEN MAP */}
       <MapContainer
-        center={sites.length > 0 ? sites[0].coordinates : [46.6, 2.2]}
-        zoom={sites.length > 0 ? 12 : 6}
+        center={sectorColorMode === 'topo' && focusMode === 'global' ? FRANCE_CENTER : (sites.length > 0 ? sites[0].coordinates : FRANCE_CENTER)}
+        zoom={sectorColorMode === 'topo' && focusMode === 'global' ? FRANCE_DEFAULT_ZOOM : (sites.length > 0 ? 12 : FRANCE_DEFAULT_ZOOM)}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
         zoomSnap={1}
         zoomDelta={1}
         closePopupOnClick={true}
       >
+        <TopoFranceViewportReset
+          enabled={sectorColorMode === 'topo' && focusMode === 'global' && !selectedSiteId}
+          resetKey={`${sectorColorMode}-${focusMode}-${selectedSiteId ?? 'none'}`}
+        />
         <CustomZoomControl />
         <TileLayer
           key={mapLayer}
