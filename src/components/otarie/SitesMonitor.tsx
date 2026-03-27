@@ -1950,6 +1950,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     isSaving={isSaving}
                     onClose={() => { setEditingDashboardId(null); setEditingViewId(null); }}
                     onSetDashboards={setDashboards}
+                    backendFilterDefs={backendFilterDefs}
+                    onSiteFiltersChange={(filters) => {
+                      updateDashboardSettings(db.id, { siteFilters: filters });
+                      onDashboardActiveChange?.(true, extractScope(db), filters);
+                    }}
                   />
                 )}
 
