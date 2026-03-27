@@ -2372,8 +2372,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const cleaned = data.filter((d: any) => !autoFilterRegex.test((d.name || '').trim()) && !d.is_archived);
         setDashboardList(cleaned);
 
-        // No auto-activate: user must select a dashboard manually
-      } catch {}
+        // Auto-restore persisted dashboard if it exists in the list
+        const persistedId = activeDashboardId;
+        if (persistedId && cleaned.some((d: any) => d.id === persistedId)) {
+          setDashboardActive(true);
+          const db = cleaned.find((d: any) => d.id === persistedId);
+          if (db) {
+            const scope = extractScope(db);
+            const filters = extractSiteFilters(db);
+            setActiveSiteScope(scope);
+            setActiveDashboardFilters(filters);
+          }
+        }
     };
     fetchDashboards();
   }, []);
