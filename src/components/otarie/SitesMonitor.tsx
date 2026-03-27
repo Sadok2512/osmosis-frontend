@@ -2764,7 +2764,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     const sectorNums = new Set(siteDetail.cells.map(c => getSectorNumber(c.cell_id)));
     if (sectorNums.size > 0) {
-      setExpandedSectors(sectorNums);
+      const first = Math.min(...sectorNums);
+      setExpandedSectors(new Set([first]));
     }
   }, [focusMode, selectedSiteId, siteDetail, expandedSectors.size]);
 
@@ -3129,9 +3130,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setSelectedSiteId(site.site_id);
     setFocusMode('site');
     setFocusCellId(null);
-    // Auto-expand all sectors so cells are visible immediately
-    const sectorNums = new Set(site.cells.map(c => getSectorNumber(c.cell_id)));
-    setExpandedSectors(sectorNums);
+    // Auto-expand only the first sector by default
+    const sectorNums = Array.from(new Set(site.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
+    setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
     setShowRightPanel(true);
     // Ensure inventory panel is open and on sites tab before scrolling
     setPanelCollapsed(false);
