@@ -262,6 +262,34 @@ export const topoApi = {
     });
   },
 
+
+  /**
+   * Fetch sites with their cells (for sector rendering at zoom >= 9).
+   * Server-side filtering: only 4G/5G, only bbox, only matching filters.
+   * NO full cell cache — pure viewport-based loading.
+   */
+  listSitesWithCells: async (
+    bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number },
+    filters?: BboxFilters,
+    limit = 8000,
+    signal?: AbortSignal,
+  ): Promise<{ sites: any[]; total: number; total_cells: number }> => {
+    const qs = new URLSearchParams();
+    qs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
+    qs.set('limit', String(limit));
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v && v !== 'ALL') qs.set(k, v);
+      });
+    }
+
+    if (isLocalExpress()) {
+      return fetchJsonSignal<any>(localUrl(`topo/sites-with-cells?${qs}`), signal);
+    }
+
+    return fetchJsonSignal<any>(parserUrl(`/topo/sites-with-cells?${qs}`), signal);
+  },
+
   listFull: async (limit = 100000) => {
     if (isLocalExpress()) {
       return fetchJson<{ rows: any[]; total: number }>(localUrl(`topo?limit=${limit}&full=1`));
