@@ -3996,7 +3996,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 QoE
               </button>
               <button
-                onClick={() => { setSectorColorMode('topo'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }}
+                onClick={() => { setSectorColorMode('topo'); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
                   sectorColorMode === 'topo' && !paramMode && !paramPanelOpen
                     ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
