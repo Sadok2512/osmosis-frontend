@@ -541,7 +541,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
             <div className="grid grid-cols-2 gap-4">
               <InfoCard icon={<Building2 className="w-5 h-5" />} label="Organisation" value="Orange France" sublabel="Opérateur Télécom" accentColor="text-orange-500" bgColor="bg-orange-500/10" />
               <InfoCard icon={<Users className="w-5 h-5" />} label="Équipe" value="PSN Team" sublabel="Performance & Service Network" accentColor="text-primary" bgColor="bg-primary/10" />
-              <InfoCard icon={<Tag className="w-5 h-5" />} label="Version" value="V1.0.2" sublabel="Build 2026.03.27" accentColor="text-purple-500" bgColor="bg-purple-500/10" />
+              <InfoCard icon={<Tag className="w-5 h-5" />} label="Version" value="V1.0.1" sublabel="Build 2026.03.27" accentColor="text-purple-500" bgColor="bg-purple-500/10" />
               <InfoCard icon={<CalendarDays className="w-5 h-5" />} label="Date Système" value={systemTime.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })} sublabel={systemTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} accentColor="text-cyan-500" bgColor="bg-cyan-500/10" />
             </div>
           </div>

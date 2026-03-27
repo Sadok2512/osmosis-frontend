@@ -3412,7 +3412,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <span className="text-[10px] font-semibold text-muted-foreground">Chargement {bboxTotal > 0 ? `(${bboxTotal} sites)` : ''}...</span>
         </div>
       )}
-      {/* Floating filter bar removed — map is clean */}
+      {/* Dynamic filter bar from backend */}
+      {dashboardActive && backendFilterDefs.length > 0 && (
+        <div className="absolute top-0 left-0 right-0 z-[1002]">
+          <SitesFilterBar
+            filterDefs={backendFilterDefs}
+            activeFilters={backendActiveFilters}
+            availableToAdd={backendAvailableToAdd}
+            onAdd={backendAddFilter}
+            onToggle={backendToggleValue}
+            onRemove={backendRemoveFilter}
+            onClearAll={backendClearAll}
+          />
+        </div>
+      )}
       {/* FULL SCREEN MAP */}
       <MapContainer
         center={initialCenter || FRANCE_CENTER}
