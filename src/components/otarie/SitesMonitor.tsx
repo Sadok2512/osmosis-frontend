@@ -3101,8 +3101,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
-        {/* Points mode — individual cell markers colored by KPI threshold */}
-        {sectorColorMode !== 'topo' && !paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
+        {/* Points mode — individual cell markers */}
+        {!paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells.filter(c => {
               const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
@@ -3113,9 +3113,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
                 const val = getCellKpiValue(cell);
-                const color = getKpiColor(val);
+                const color = sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(val);
                 const isHovered = hoveredSiteId === site.site_id;
-                // Offset cells slightly from site center based on azimuth
                 const offsetDist = 0.0003;
                 const rad = ((cell.azimut || idx * 120) - 90) * (Math.PI / 180);
                 const cellLat = site.coordinates[0] + offsetDist * Math.cos(rad);
@@ -3139,7 +3138,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       mouseout: () => setHoveredSiteId(null),
                     }}
                   >
-                    {showCellLabels && (
+                    {showCellLabels && sectorColorMode !== 'topo' && (
                       <Tooltip direction="right" offset={[8, 0]} permanent className="cell-kpi-label">
                         <span style={{ color, fontWeight: 800, fontSize: '10px' }}>{val.toFixed(1)}</span>
                       </Tooltip>
@@ -3149,14 +3148,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <div className="font-bold text-sm">{site.site_name}</div>
                         <div className="text-xs text-gray-500 mt-0.5">{cell.cell_id}</div>
                         <div className="text-[10px] text-gray-400 mt-0.5">{cell.techno} • {cell.bande} MHz • {cell.azimut}°</div>
-                        <div className="mt-2 space-y-1">
-                          <div className="flex justify-between text-xs"><span>QoE</span><span className="font-bold" style={{ color: getKpiColor(cell.qoe_score_avg) }}>{cell.qoe_score_avg.toFixed(1)}%</span></div>
-                          <div className="flex justify-between text-xs"><span>DMS DL ≥3</span><span className="font-bold">{cell.dms_dl_3.toFixed(1)}%</span></div>
-                          <div className="flex justify-between text-xs"><span>DMS DL ≥8</span><span className="font-bold">{cell.dms_dl_8.toFixed(1)}%</span></div>
-                          <div className="flex justify-between text-xs"><span>Débit DL</span><span className="font-bold">{cell.p50_thr_dn_mbps.toFixed(1)} Mbps</span></div>
-                          <div className="flex justify-between text-xs"><span>RTT P95</span><span className="font-bold">{cell.p95_rtt_ms.toFixed(0)} ms</span></div>
-                          <div className="flex justify-between text-xs"><span>Sessions</span><span className="font-bold">{cell.sessions.toLocaleString()}</span></div>
-                        </div>
                       </div>
                     </Popup>
                   </CircleMarker>
@@ -3167,7 +3158,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
-        {sectorColorMode !== 'topo' && !paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
+        {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
           const has5G = site.cells.length > 0 ? site.cells.some(c => (c.techno || '').toUpperCase().includes('5G')) : site.site_name.toUpperCase().includes('5G');
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
@@ -3187,9 +3178,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     className: '',
                     iconSize: [iconSize, iconSize],
                     iconAnchor: [iconSize / 2, iconSize / 2],
-                    html: `<div style="width:${iconSize}px;height:${iconSize}px;border-radius:50%;background:${color};border:2px solid ${isSelectedSite || isHovered ? '#fff' : '#555'};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.3);">
-                      <span style="color:#fff;font-weight:900;font-size:${iconSize * 0.55}px;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,0.5);">I</span>
-                    </div>`,
+                    html: `<div style="width:${iconSize}px;height:${iconSize}px;border-radius:50%;background:${color};border:2px solid ${isSelectedSite || isHovered ? '#fff' : '#555'};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.3);"><span style="color:#fff;font-weight:900;font-size:${iconSize * 0.55}px;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,0.5);">I</span></div>`,
                   })}
                   eventHandlers={{
                     click: () => handleSiteClick(site),
@@ -3215,7 +3204,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           }
 
-          // Mini sector triangles at medium zoom
           if (showMiniSectors) {
             const miniRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * 0.7;
             const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
@@ -3246,9 +3234,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <div className="p-1">
                           <div className="font-bold text-sm">{site.site_name}</div>
                           <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                          <div className="text-sm font-bold mt-2" style={{ color }}>
-                            {selectedKpiLabel}: {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
-                          </div>
                         </div>
                       </Popup>
                     </Polygon>
@@ -3265,7 +3250,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           }
 
-          // Dot markers at low zoom
           const radius = viewport.zoom >= 10 ? (isHovered ? 7 : (isSelectedSite ? 7 : 5)) : (isHovered ? 5 : 3);
           return (
             <React.Fragment key={site.site_id}>
@@ -3289,9 +3273,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <div className="p-1">
                     <div className="font-bold text-sm">{site.site_name}</div>
                     <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                    <div className="text-sm font-bold mt-2" style={{ color }}>
-                      {selectedKpiLabel}: {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
-                    </div>
                   </div>
                 </Popup>
               </CircleMarker>
@@ -3307,7 +3288,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {sectorColorMode !== 'topo' && !paramMode && showSectors && renderSites.map(site => {
+        {!paramMode && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * (0.5 + 0.5 * (beamVisibility / 100));
