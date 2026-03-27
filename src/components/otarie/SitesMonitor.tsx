@@ -5047,7 +5047,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               )}
 
               {/* ── Dashboard tab ── */}
-               {inventoryTab === 'dashboard' && (
+               <div style={{ display: inventoryTab === 'dashboard' ? 'contents' : 'none' }}>
                 <DashboardInventoryTab
                   onApplyView={(settings) => {
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
@@ -5122,7 +5122,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   activeDashboardId={activeDashboardId}
                   onActiveDashboardIdChange={setActiveDashboardId}
                 />
-               )}
+               </div>
               </>
               )}
             </div>
