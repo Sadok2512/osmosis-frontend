@@ -2375,7 +2375,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         setBandColors(settings.bandColors);
         localStorage.setItem('qoebit_band_colors', JSON.stringify(settings.bandColors));
       }
-      if (settings.center) setFlyTarget(settings.center);
+      if (settings.center && settings.center[0] > 41 && settings.center[0] < 52 && settings.center[1] > -6 && settings.center[1] < 11) setFlyTarget(settings.center);
       if (settings.beamVisibility != null) {
         setBeamVisibility(settings.beamVisibility);
         localStorage.setItem('qoebit_beam_visibility', String(settings.beamVisibility));
@@ -3071,7 +3071,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
     if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
     // Fly to saved center/zoom
-    setFlyTarget(settings.center);
+    if (settings.center && settings.center[0] > 41 && settings.center[0] < 52 && settings.center[1] > -6 && settings.center[1] < 11) setFlyTarget(settings.center);
     if ((settings as any).beamVisibility != null) {
       setBeamVisibility((settings as any).beamVisibility);
       localStorage.setItem('qoebit_beam_visibility', String((settings as any).beamVisibility));
@@ -5053,7 +5053,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
                     if (settings.mapKpi) setMapKpi(settings.mapKpi);
                     if (settings.center && Array.isArray(settings.center)) {
-                      setFlyTarget(settings.center as [number, number]);
+                      if (settings.center && (settings.center as [number, number])[0] > 41 && (settings.center as [number, number])[0] < 52) setFlyTarget(settings.center as [number, number]);
                     }
                     // Apply site filters from dashboard
                     if (settings.siteFilters && Object.keys(settings.siteFilters).length > 0) {
