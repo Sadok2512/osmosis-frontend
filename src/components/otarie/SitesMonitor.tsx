@@ -235,11 +235,31 @@ const metersPerPixel = (lat: number, zoom: number): number => {
   return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
 };
 
-// Sector radius in meters — constant ~45px visual size, calmer proportions
-const getZoomAwareRadius = (lat: number, zoom: number): number => {
-  const TARGET_PX = 45; // reduced from 60 for cleaner look
+// Sector radius in meters — adaptive to zoom, density, and viewport
+const getZoomAwareRadius = (
+  lat: number,
+  zoom: number,
+  densityFactor: number = 1, // 0..1 — lower = denser area = smaller sectors
+  viewportWidth: number = 1400, // CSS px
+): number => {
+  // Zoom-based target pixel size: compact at low zoom, larger at high zoom
+  let targetPx: number;
+  if (zoom <= 9) targetPx = 22;
+  else if (zoom <= 10) targetPx = 28;
+  else if (zoom <= 11) targetPx = 34;
+  else if (zoom <= 12) targetPx = 38;
+  else targetPx = 42;
+
+  // Viewport scaling: shrink on small screens, slight grow on large
+  const vpScale = Math.max(0.7, Math.min(1.1, viewportWidth / 1400));
+  targetPx *= vpScale;
+
+  // Density scaling: reduce size in crowded areas (densityFactor 0→0.5x, 1→1x)
+  const densityScale = 0.5 + 0.5 * Math.max(0, Math.min(1, densityFactor));
+  targetPx *= densityScale;
+
   const mpp = metersPerPixel(lat, zoom);
-  return Math.max(40, Math.min(1500, TARGET_PX * mpp));
+  return Math.max(30, Math.min(1200, targetPx * mpp));
 };
 
 const inferSiteTechState = (site: SiteSummary) => {
