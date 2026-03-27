@@ -2262,7 +2262,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     fetchStats();
     return () => { cancelled = true; };
-  }, [sectorColorMode]);
+  }, []);
 
   // Dynamic color getters using state
   const getBandColor = useCallback((bande: string, techno?: string): string => {
