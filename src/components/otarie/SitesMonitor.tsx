@@ -2961,6 +2961,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setSelectedSiteId(site.site_id);
     setFocusMode('site');
     setFocusCellId(null);
+    // Auto-expand all sectors so cells are visible immediately
+    const sectorNums = new Set(site.cells.map(c => getSectorNumber(c.cell_id)));
+    setExpandedSectors(sectorNums);
     setShowRightPanel(true);
     // Ensure inventory panel is open and on sites tab before scrolling
     setPanelCollapsed(false);
