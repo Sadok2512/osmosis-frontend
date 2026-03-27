@@ -2452,6 +2452,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [dashboardActive, setDashboardActive] = useState(false);
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
+  const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
   // activeDashboardId already declared above for tab persistence
   // Do not clear the active dashboard on mount: keep current in-app selection while navigating
   const [dashboardList, setDashboardList] = useState<{ id: string; name: string; widgets: any }[]>([]);
@@ -3095,7 +3096,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       cancelled = true;
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [dashboardActive, activeDashboardFilters, activeSiteScope]);
+  }, [dashboardActive, activeDashboardFilters, activeSiteScope, dashboardRefreshTick]);
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
@@ -5939,6 +5940,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     setDashboardActive(active);
                     setActiveSiteScope(scope || null);
                     setActiveDashboardFilters(siteFilters || null);
+                    setDashboardRefreshTick(t => t + 1);
                     invalidateDashboardSitesCache();
                     invalidateSiteCellsCache();
                     invalidateBboxCache();
