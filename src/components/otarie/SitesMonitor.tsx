@@ -85,18 +85,18 @@ const CELLS_TO_SITES_ZOOM = 7;
 
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
-  // NR (5G) — muted violet tones
-  NR3500: '#8b7ec8',
-  NR700:  '#9f8fdb',
-  NR2100: '#7565b0',
-  // LTE (4G) — steel blue tones
-  L2600:  '#5b8db8',
-  L2100:  '#6d9ec5',
-  L1800:  '#4a7da8',
-  L800:   '#7eaed0',
-  L700:   '#3d6d98',
+  // NR (5G) — green tones
+  NR3500: '#22c55e',
+  NR700:  '#16a34a',
+  NR2100: '#15803d',
+  // LTE (4G) — orange tones
+  L2600:  '#f97316',
+  L2100:  '#fb923c',
+  L1800:  '#ea580c',
+  L800:   '#fdba74',
+  L700:   '#c2410c',
   // Group header colors
-  '5G_GROUP': '#a855f7',
+  '5G_GROUP': '#22c55e',
   '4G_GROUP': '#f97316',
 };
 // Load custom colors from localStorage
@@ -4266,7 +4266,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 })
                 .map(cell => {
                 const is5G = (cell.techno || '').toUpperCase().includes('5G');
-                const cellRadius = is5G ? zoomRadius * 0.6 : zoomRadius;
+                const cellRadius = is5G ? zoomRadius * 1.15 : zoomRadius * 0.85;
                 const az = Number(cell.azimut);
                 if (!Number.isFinite(az) || az < 0 || az > 360) return null;
                 const sectorCoords = getSectorCoords(site.coordinates, az, cellRadius, 60);
