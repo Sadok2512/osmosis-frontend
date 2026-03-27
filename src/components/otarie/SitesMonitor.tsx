@@ -5323,6 +5323,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     setExpandedSectors(new Set());
                     if (!active) {
                       setSites([]);
+                      setActiveDashboardId(null);
                       setLocalDor('ALL');
                       setLocalPlaque('ALL');
                       setLocalVendor('ALL');
