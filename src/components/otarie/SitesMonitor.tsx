@@ -1955,34 +1955,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const bm4G: Record<string, number> = {};
         const bm5G: Record<string, number> = {};
         const vm: Record<string, { '4G': number; '5G': number }> = {};
-        if (stats.by_techno) {
-          (Array.isArray(stats.by_techno) ? stats.by_techno : []).forEach((t: any) => {
-            const tech = (t.techno || '').toUpperCase();
-            if (tech.includes('5G') || tech.includes('NR')) c5G += Number(t.count || 0);
-            else if (tech.includes('4G') || tech.includes('LTE')) c4G += Number(t.count || 0);
+        // by_techno is { "4G": count, "5G": count, ... }
+        if (stats.by_techno && typeof stats.by_techno === 'object') {
+          Object.entries(stats.by_techno).forEach(([tech, count]: [string, any]) => {
+            const t = tech.toUpperCase();
+            if (t.includes('5G') || t.includes('NR')) c5G += Number(count || 0);
+            else if (t.includes('4G') || t.includes('LTE')) c4G += Number(count || 0);
           });
         }
-        if (stats.by_band) {
-          (Array.isArray(stats.by_band) ? stats.by_band : []).forEach((b: any) => {
-            const tech = (b.techno || '').toUpperCase();
-            const band = b.bande || 'Unknown';
-            const cnt = Number(b.count || 0);
-            if (tech.includes('5G') || tech.includes('NR')) bm5G[band] = (bm5G[band] || 0) + cnt;
-            else if (tech.includes('4G') || tech.includes('LTE')) bm4G[band] = (bm4G[band] || 0) + cnt;
+        // by_bande is { "B1": count, "B3": count, ... } — no techno info, put all in 4G for now
+        if (stats.by_bande && typeof stats.by_bande === 'object') {
+          Object.entries(stats.by_bande).forEach(([band, count]: [string, any]) => {
+            bm4G[band] = Number(count || 0);
           });
         }
-        if (stats.by_vendor || stats.by_constructeur) {
-          (Array.isArray(stats.by_vendor || stats.by_constructeur) ? (stats.by_vendor || stats.by_constructeur) : []).forEach((v: any) => {
-            const vendor = v.constructeur || v.vendor || 'Unknown';
-            const tech = (v.techno || '').toUpperCase();
-            if (!vm[vendor]) vm[vendor] = { '4G': 0, '5G': 0 };
-            const cnt = Number(v.count || 0);
-            if (tech.includes('5G') || tech.includes('NR')) vm[vendor]['5G'] += cnt;
-            else vm[vendor]['4G'] += cnt;
+        // by_constructeur is { "Nokia": count, ... }
+        if (stats.by_constructeur && typeof stats.by_constructeur === 'object') {
+          Object.entries(stats.by_constructeur).forEach(([vendor, count]: [string, any]) => {
+            vm[vendor] = { '4G': Number(count || 0), '5G': 0 };
           });
         }
-        s4G = stats.sites_4g ?? stats.sites_4G ?? 0;
-        s5G = stats.sites_5g ?? stats.sites_5G ?? 0;
+        s4G = stats.total_sites ?? 0;
+        s5G = 0;
         if (!cancelled) setTopoNetworkStats({ sites4G: s4G, sites5G: s5G, cells4G: c4G, cells5G: c5G, bandMap4G: bm4G, bandMap5G: bm5G, vendorMap: vm });
       } catch (e) { console.error('[TOPO] Failed to fetch network stats:', e); }
     };
