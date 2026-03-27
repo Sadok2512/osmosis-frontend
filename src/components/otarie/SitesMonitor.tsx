@@ -1715,11 +1715,33 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       )}
 
 
-      {dashboards.length === 0 ? (
-        <div className="px-3 py-3 text-center text-[10px] text-muted-foreground/60">Aucun dashboard</div>
+      {dashboards.length === 0 || !expandedDashboardId ? (
+        <div className="px-3 py-6 text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+            <LayoutGrid size={20} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Aucun dashboard actif</p>
+            <p className="text-[9px] text-muted-foreground mt-1">Créez ou chargez un dashboard pour afficher les sites sur la carte.</p>
+          </div>
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => { setShowCreateDash(true); }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              <Plus size={12} /> Créer
+            </button>
+            <button
+              onClick={() => { openLoadPicker(); }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border border-border text-foreground hover:bg-muted transition-colors"
+            >
+              <FolderOpen size={12} /> Charger
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="space-y-1.5">
-          {(expandedDashboardId ? dashboards.filter(db => db.id === expandedDashboardId) : dashboards).map(db => {
+          {dashboards.filter(db => db.id === expandedDashboardId).map(db => {
             const isExpanded = expandedDashboardId === db.id;
             const dbSettings = getDashboardSettings(db);
             const dbColor = dbSettings.color || '';
