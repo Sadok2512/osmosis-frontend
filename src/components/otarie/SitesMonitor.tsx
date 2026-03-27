@@ -3074,7 +3074,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       cancelled = true;
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [dashboardActive, activeDashboardFilters, activeSiteScope, localSearch]);
+  }, [dashboardActive, activeDashboardFilters, activeSiteScope]);
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
