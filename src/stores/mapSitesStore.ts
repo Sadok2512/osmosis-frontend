@@ -17,7 +17,12 @@ interface SiteSummaryCache {
 }
 
 interface ViewportCache {
-  bounds: any;
+  bounds: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  } | null;
   zoom: number;
 }
 
@@ -42,7 +47,7 @@ interface MapSitesState {
   setDashboardCache: (id: string | null, active: boolean) => void;
   setMapPosition: (center: [number, number], zoom: number) => void;
   clearCache: () => void;
-  isCacheValid: () => boolean;
+  isCacheValid: (dashboardId?: string | null) => boolean;
 }
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
