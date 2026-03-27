@@ -5998,14 +5998,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               let c4g = 0, c5g = 0;
               const bm4g: Record<string, number> = {};
               const bm5g: Record<string, number> = {};
-              const vm: Record<string, number> = {};
+              const vm: Record<string, { '4G': number; '5G': number }> = {};
               filteredSites.forEach(site => {
                 let has4g = false, has5g = false;
                 site.cells.forEach(c => {
                   const is5g = c.techno?.includes('5G') || c.techno === 'NR';
-                  if (is5g) { c5g++; has5g = true; const b = c.bande || 'Unknown'; bm5g[b] = (bm5g[b] || 0) + 1; }
-                  else { c4g++; has4g = true; const b = c.bande || 'Unknown'; bm4g[b] = (bm4g[b] || 0) + 1; }
-                  const v = (c as any).vendor || site.vendor || 'Unknown'; vm[v] = (vm[v] || 0) + 1;
+                  const v = (c as any).vendor || site.vendor || 'Unknown';
+                  if (!vm[v]) vm[v] = { '4G': 0, '5G': 0 };
+                  if (is5g) { c5g++; has5g = true; const b = c.bande || 'Unknown'; bm5g[b] = (bm5g[b] || 0) + 1; vm[v]['5G']++; }
+                  else { c4g++; has4g = true; const b = c.bande || 'Unknown'; bm4g[b] = (bm4g[b] || 0) + 1; vm[v]['4G']++; }
                 });
                 if (has4g) s4g.add(site.site_id);
                 if (has5g) s5g.add(site.site_id);
