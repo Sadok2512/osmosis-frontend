@@ -5456,7 +5456,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Site List (sites tab) ── */}
               {inventoryTab === 'sites' && (
               <div className="flex-1 overflow-y-auto px-4 pb-4">
-                {!dashboardActive && !loading && !localSearch.trim() ? (
+                {!dashboardActive && !loading && !isSearchActive && searchModeSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                       <Filter size={18} className="text-primary" />
@@ -5466,10 +5466,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       Sélectionnez ou créez un dashboard dans l'onglet Dashboard pour charger les sites.
                     </p>
                   </div>
+                ) : searchLoading ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                    <RefreshCw size={20} className="mb-3 animate-spin text-primary" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider">Recherche...</span>
+                  </div>
                 ) : filteredSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <Search size={28} className="mb-3 opacity-20" />
-                    <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">{isSearchActive ? 'Aucun résultat' : 'No sites found'}</span>
                   </div>
                 ) : (
                   <div className="space-y-2">
