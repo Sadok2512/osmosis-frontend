@@ -1231,6 +1231,8 @@ interface DashboardInventoryTabProps {
   onLoadDashboard?: (dbId: string) => void;
   isSaving?: boolean;
   backendFilterDefs?: FilterDefinition[];
+  activeDashboardId: string | null;
+  onActiveDashboardIdChange: (id: string | null) => void;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
@@ -1242,14 +1244,15 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
   const [showCreateView, setShowCreateView] = useState<string | null>(null);
   const [newViewName, setNewViewName] = useState('');
   const [creating, setCreating] = useState(false);
-  const [expandedDashboardId, setExpandedDashboardId] = useState<string | null>(null);
+  const expandedDashboardId = activeDashboardId;
+  const setExpandedDashboardId = onActiveDashboardIdChange;
   const [editingDashboardId, setEditingDashboardId] = useState<string | null>(null);
   const [editingViewId, setEditingViewId] = useState<string | null>(null);
   const [showDashMenu, setShowDashMenu] = useState(false);
@@ -2205,6 +2208,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return { prb, mimoLabel, rsPower, bwMhz: bwMhz ? `${bwMhz} MHz` : null };
   };
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('dashboard');
+  const [activeDashboardId, setActiveDashboardId] = useState<string | null>(null);
   const [beamVisibility, setBeamVisibility] = useState<number>(() => {
     try { const v = localStorage.getItem('qoebit_beam_visibility'); return v ? Number(v) : 75; } catch { return 75; }
   });
@@ -2212,7 +2216,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // ── Active Dashboard selector ──
   const [dashboardActive, setDashboardActive] = useState(false);
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
-  const [activeDashboardId, setActiveDashboardId] = useState<string | null>(null);
+  // activeDashboardId already declared above for tab persistence
   // Clear any previously persisted dashboard so sites never auto-load
   useEffect(() => { localStorage.removeItem('qoebit_active_dashboard'); }, []);
   const [dashboardList, setDashboardList] = useState<{ id: string; name: string; widgets: any }[]>([]);
@@ -5111,6 +5115,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   onLoadDashboard={(dbId) => loadDashboardSettings(dbId)}
                   isSaving={dashboardSaving}
                   backendFilterDefs={backendFilterDefs}
+                  activeDashboardId={activeDashboardId}
+                  onActiveDashboardIdChange={setActiveDashboardId}
                 />
                )}
               </>
