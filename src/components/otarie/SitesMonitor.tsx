@@ -3719,9 +3719,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
           if (!site.cells || site.cells.length === 0) {
-            const fallbackColor = getKpiColor(site.qoe_score_avg ?? 0);
+            const { has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
+            const fallbackColor = fb5G ? (bandColors['5G_GROUP'] || '#a855f7') : fb4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
             const radius = isHovered || isSelectedSite ? 7 : 5;
-            const fallbackHas5G = site.cells?.some(c => (c.techno || '').toUpperCase().includes('5G')) || false;
+            const fallbackHas5G = fb5G;
             return (
               <CircleMarker
                 key={site.site_id}
