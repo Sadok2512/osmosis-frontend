@@ -3909,7 +3909,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
         {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has4G, has5G } = inferSiteTechState(site);
-          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
+          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
           // Always use tech-based colors for site dots (circle markers & mini sectors)
           const color = topoColor;
           const isHovered = hoveredSiteId === site.site_id;
@@ -4071,7 +4071,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           if (isIndoor) {
             const { has4G, has5G } = inferSiteTechState(site);
-            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
             const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
             const color = (sectorColorMode as string) === 'topo' ? topoColor : kpiColor;
             const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
@@ -4107,7 +4107,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
           if (!site.cells || site.cells.length === 0) {
             const { has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
-            const fallbackColor = fb5G ? (bandColors['5G_GROUP'] || '#a855f7') : fb4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
+            const fallbackColor = fb5G ? (bandColors['5G_GROUP'] || '#22c55e') : fb4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
             const radius = isHovered || isSelectedSite ? 7 : 5;
             const fallbackHas5G = fb5G;
             return (
@@ -4178,7 +4178,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {renderItems.map(({ tech, az, radius }) => {
                   const groupColorKey = tech === '5G' ? '5G_GROUP' : '4G_GROUP';
                   // In topo mode: use 5G/4G group colors; in kpi mode: use KPI-based color from representative cell
-                  const topoColor = bandColors[groupColorKey] || (tech === '5G' ? '#a855f7' : '#f97316');
+                  const topoColor = bandColors[groupColorKey] || (tech === '5G' ? '#22c55e' : '#f97316');
                   let kpiColor = topoColor;
                   if (sectorColorMode === 'kpi') {
                     const repCell = site.cells.find(c => {
@@ -5170,7 +5170,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
                     </div>
                     {[
-                      { key: '5G_GROUP', tech: '5G', label: '5G', defaultColor: '#a855f7' },
+                      { key: '5G_GROUP', tech: '5G', label: '5G', defaultColor: '#22c55e' },
                       { key: '4G_GROUP', tech: '4G', label: '4G', defaultColor: '#f97316' },
                     ].map(({ key, tech, label, defaultColor }) => {
                       const enabled = enabledTechnos.has(tech);
@@ -5214,7 +5214,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="px-4 py-3 border-b border-border/50">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['5G_GROUP'] || '#a855f7' }}>
+                      <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['5G_GROUP'] || '#22c55e' }}>
                         5G NR
                       </button>
                     </div>
@@ -6232,7 +6232,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   )}
                   {Object.keys(bandMap5G).length > 0 && (
                     <div>
-                      <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#a855f7' }}>NR (5G)</div>
+                      <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#22c55e' }}>NR (5G)</div>
                       {Object.entries(bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
                         <div key={band} className="flex items-center gap-2 py-1">
                           <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '5G') }} />
@@ -6416,7 +6416,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       )}
                       {Object.keys(displayStats.bandMap5G).length > 0 && (
                         <div>
-                          <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#a855f7' }}>NR (5G)</div>
+                          <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#22c55e' }}>NR (5G)</div>
                           {Object.entries(displayStats.bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
                             <div key={band} className="flex items-center gap-2 py-1">
                               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '5G') }} />
