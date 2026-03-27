@@ -1480,9 +1480,18 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     handleCreateDashboardWithFilters();
   };
 
+  const clearActiveDashboard = () => {
+    setActiveDashboardId(null);
+    setDashboardActive(false);
+    setSites([]);
+    setTotalSites(0);
+    localStorage.removeItem('qoebit_active_dashboard_id');
+  };
+
   const handleDeleteDashboard = async (dbId: string) => {
     await dashboardsApi.update(dbId, { is_archived: true });
     if (expandedDashboardId === dbId) setExpandedDashboardId(null);
+    if (activeDashboardId === dbId) clearActiveDashboard();
     setDashboards(prev => prev.filter(d => d.id !== dbId));
     setShowDeleteConfirm(null);
   };
@@ -1490,6 +1499,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const handlePermanentDeleteDashboard = async (dbId: string) => {
     await dashboardsApi.update(dbId, { is_archived: true });
     if (expandedDashboardId === dbId) setExpandedDashboardId(null);
+    if (activeDashboardId === dbId) clearActiveDashboard();
     setDashboards(prev => prev.filter(d => d.id !== dbId));
     setShowDeleteConfirm(null);
   };
