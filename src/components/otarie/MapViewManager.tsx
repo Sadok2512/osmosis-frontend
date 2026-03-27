@@ -20,6 +20,7 @@ export interface MapViewSettings {
   localDor: string;
   localPlaque: string;
   localSite: string;
+  localBande?: string;
   localZoneArcep?: string;
   localTechno?: string;
   beamVisibility?: number;
@@ -183,7 +184,7 @@ const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView }) => {
                         <span className="text-[12px] font-semibold text-foreground truncate">{view.name}</span>
                       </div>
                       <div className="text-[9px] text-muted-foreground/60 mt-0.5">
-                        {new Date(view.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(view.updated_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </button>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">

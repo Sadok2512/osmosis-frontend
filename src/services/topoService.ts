@@ -601,12 +601,12 @@ export async function fetchDashboardSites(
 
   // Build BboxFilters from dashboard filters for VPS query
   const bboxFilters: BboxFilters = {};
-  if (siteFilters?.dor?.length) bboxFilters.dor = siteFilters.dor[0];
-  if (siteFilters?.constructeur?.length) bboxFilters.vendor = siteFilters.constructeur[0];
-  if (siteFilters?.plaque?.length) bboxFilters.plaque = siteFilters.plaque[0];
-  if (siteFilters?.zone_arcep?.length) bboxFilters.zone_arcep = siteFilters.zone_arcep[0];
-  if (siteFilters?.techno?.length) bboxFilters.techno = siteFilters.techno[0];
-  if (siteFilters?.bande?.length) bboxFilters.bande = siteFilters.bande[0];
+  if (siteFilters?.dor?.length) bboxFilters.dor = siteFilters.dor.join(',');
+  if (siteFilters?.constructeur?.length) bboxFilters.vendor = siteFilters.constructeur.join(',');
+  if (siteFilters?.plaque?.length) bboxFilters.plaque = siteFilters.plaque.join(',');
+  if (siteFilters?.zone_arcep?.length) bboxFilters.zone_arcep = siteFilters.zone_arcep.join(',');
+  if (siteFilters?.techno?.length) bboxFilters.techno = siteFilters.techno.join(',');
+  if (siteFilters?.bande?.length) bboxFilters.bande = siteFilters.bande.join(',');
   if (search) bboxFilters.q = search;
 
   // 1) Try VPS listSitesByBbox with full-world bbox (data lives on VPS, not Supabase)

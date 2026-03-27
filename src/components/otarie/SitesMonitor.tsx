@@ -100,7 +100,7 @@ const loadCustomBandColors = (): Record<string, string> => {
   try {
     const saved = localStorage.getItem('qoebit_band_colors');
     if (saved) return { ...DEFAULT_BAND_COLORS, ...JSON.parse(saved) };
-  } catch {}
+  } catch (err) { console.warn('[SitesMonitor] loadCustomBandColors failed', err); }
   return { ...DEFAULT_BAND_COLORS };
 };
 
@@ -1456,7 +1456,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       await fetchAll();
       setExpandedDashboardId(id);
       onDashboardActiveChange?.(true, finalScope, cleanFilters);
-    } catch {}
+    } catch (err) { console.warn('[SitesMonitor] createDashboard failed', err); }
     setCreatingDash(false);
   };
 
@@ -1486,7 +1486,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       if (Array.isArray(dbData)) {
         setAllDashboards(dedupeAutoFilterDashboards(dbData.filter((d: any) => !d.is_archived)));
       }
-    } catch {}
+    } catch (err) { console.warn('[SitesMonitor] loadAllDashboards failed', err); }
     setLoadingAll(false);
   };
 
@@ -1521,7 +1521,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       setNewViewName('');
       setShowCreateView(null);
       fetchAll();
-    } catch {}
+    } catch (err) { console.warn('[SitesMonitor] createView failed', err); }
     setCreating(false);
   };
 
@@ -2263,7 +2263,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     try {
       if (id) localStorage.setItem('qoebit_active_dashboard_id', id);
       else localStorage.removeItem('qoebit_active_dashboard_id');
-    } catch {}
+    } catch (err) { console.warn('[SitesMonitor] localStorage activeDashboardId failed', err); }
   }, []);
   const [beamVisibility, setBeamVisibility] = useState<number>(() => {
     try { const v = localStorage.getItem('qoebit_beam_visibility'); return v ? Number(v) : 75; } catch { return 75; }
@@ -2304,7 +2304,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const unique = [...new Set(data.map((r: any) => r.parameter).filter(Boolean))].sort() as string[];
           setParamAvailable(unique);
         }
-      } catch {}
+      } catch (err) { console.warn('[SitesMonitor] paramAvailable fetch failed', err); }
       setParamAvailableLoading(false);
     })();
   }, [paramPanelOpen]);
@@ -2387,7 +2387,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             setActiveDashboardFilters(siteFilters);
           }
         }
-      } catch {}
+      } catch (err) { console.warn('[SitesMonitor] fetchDashboards failed', err); }
     };
     fetchDashboards();
   }, []);
@@ -2408,7 +2408,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           db = allData.find((d: any) => d.id === dbId);
           if (db) setDashboardList(prev => [...prev.filter(d => d.id !== dbId), db!]);
         }
-      } catch {}
+      } catch (err) { console.warn('[SitesMonitor] saveDashboardSettings fetch failed', err); }
     }
     if (!db) { setDashboardSaving(false); return; }
     const widgets = Array.isArray(db.widgets) ? [...db.widgets] : [];
@@ -2443,7 +2443,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (settings.localVendor) setLocalVendor(settings.localVendor);
       if (settings.localDor) setLocalDor(settings.localDor);
       if (settings.localPlaque) setLocalPlaque(settings.localPlaque);
-      if (settings.localSite) setLocalBande(settings.localSite);
+      if ((settings as any).localBande) setLocalBande((settings as any).localBande);
+      else if (settings.localSite) setLocalBande(settings.localSite);
       if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
       if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
       if (settings.bandColors) {
@@ -3211,7 +3212,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       localVendor,
       localDor,
       localPlaque,
-      localSite: localBande,
+      localBande: localBande,
       localZoneArcep,
       localTechno,
       beamVisibility,
@@ -3232,7 +3233,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLocalVendor(settings.localVendor);
     setLocalDor(settings.localDor);
     setLocalPlaque(settings.localPlaque);
-    setLocalBande(settings.localSite);
+    setLocalBande((settings as any).localBande || settings.localSite);
     if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
     if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
     // Fly to saved center/zoom
