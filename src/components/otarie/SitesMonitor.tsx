@@ -2780,7 +2780,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       try {
         const dashboardSearch = localSearch.trim() || undefined;
-        const dashboardSites = await fetchDashboardSites(activeDashboardFilters, dashboardSearch);
+        // Merge scope into filters if filters are empty
+        let effectiveFilters = activeDashboardFilters;
+        if ((!effectiveFilters || Object.keys(effectiveFilters).length === 0) && activeSiteScope && activeSiteScope.type !== 'ALL' && activeSiteScope.value) {
+          if (activeSiteScope.type === 'DOR') effectiveFilters = { dor: [activeSiteScope.value] };
+          else if (activeSiteScope.type === 'Plaque') effectiveFilters = { plaque: [activeSiteScope.value] };
+        }
+        const dashboardSites = await fetchDashboardSites(effectiveFilters, dashboardSearch);
 
         if (cancelled) return;
 
