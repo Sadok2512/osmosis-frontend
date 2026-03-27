@@ -5115,6 +5115,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   onLoadDashboard={(dbId) => loadDashboardSettings(dbId)}
                   isSaving={dashboardSaving}
                   backendFilterDefs={backendFilterDefs}
+                  activeDashboardId={activeDashboardId}
+                  onActiveDashboardIdChange={setActiveDashboardId}
                 />
                )}
               </>
