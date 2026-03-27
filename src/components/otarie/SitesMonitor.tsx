@@ -6612,11 +6612,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           })()}
 
           {/* ========== LOADING STATE for site/cell modes ========== */}
-          {(focusMode === 'site' || focusMode === 'cell') && !siteDetail && (
+          {(focusMode === 'site' || focusMode === 'cell') && !siteDetail && detailLoading && (
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="flex flex-col items-center gap-3">
                 <RefreshCw className="w-6 h-6 text-primary animate-spin" />
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Loading site details…</p>
+              </div>
+            </div>
+          )}
+          {(focusMode === 'site' || focusMode === 'cell') && !siteDetail && !detailLoading && (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <AlertTriangle size={20} className="text-muted-foreground" />
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">No site details available</p>
+                <button onClick={() => { setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }} className="text-[10px] text-primary hover:underline mt-1">Back to Global</button>
               </div>
             </div>
           )}
