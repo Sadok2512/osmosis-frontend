@@ -2384,6 +2384,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             setActiveDashboardFilters(filters);
           }
         }
+      } catch {}
     };
     fetchDashboards();
   }, []);
