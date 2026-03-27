@@ -280,6 +280,12 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       addDebugLog(`Error: ${errBody.slice(0, 200)}`);
       if (resp.status === 429) { toast({ title: 'Limite atteinte', description: 'Réessayez dans un instant.', variant: 'destructive' }); throw new Error('Rate limited'); }
       if (resp.status === 402) { toast({ title: 'Crédits insuffisants', variant: 'destructive' }); throw new Error('Payment required'); }
+      if (resp.status === 404) {
+        const fallbackMsg = "⚠️ Le service d'analyse IA (Agent Orchestrator) n'est pas disponible actuellement. Veuillez vérifier que le serveur VPS est démarré et que le service orchestrator est actif sur le port 1000.";
+        setMessages(prev => [...prev, { role: 'assistant', content: fallbackMsg }]);
+        setIsLoading(false);
+        return;
+      }
       throw new Error(`Server error (${resp.status}): ${errBody.slice(0, 100)}`);
     }
 
