@@ -3244,14 +3244,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   const filteredSites = useMemo(() => {
+    // When search is active, use search results instead of dashboard sites
+    const baseSites = isSearchActive && searchModeSites.length > 0 ? searchModeSites : sites;
+
     // Debug: log active QOE filters
     const qoeFilters = activeViewFilters.filter(f => f.mode === 'qoe' && f.kpi && f.operator && f.threshold != null);
     if (qoeFilters.length > 0) {
       console.log('[QOE Filter] Active filters:', JSON.stringify(qoeFilters));
-      console.log('[QOE Filter] Total sites before filter:', sites.length);
+      console.log('[QOE Filter] Total sites before filter:', baseSites.length);
     }
-    const searchTerm = localSearch.toLowerCase();
-    const filtered = sites.filter(s => {
+    // Skip local search filter when using searchModeSites (already server-filtered)
+    const searchTerm = isSearchActive && searchModeSites.length > 0 ? '' : localSearch.toLowerCase();
+    const filtered = baseSites.filter(s => {
       const siteName = String(s.site_name ?? '');
       const siteId = String(s.site_id ?? '');
       const siteCells = Array.isArray(s.cells) ? s.cells : [];
@@ -3301,7 +3305,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
       return inventorySortOrder === 'asc' ? va - vb : vb - va;
     });
-  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters]);
+  }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters]);
 
   // Check if a cell's band passes the band filter
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
