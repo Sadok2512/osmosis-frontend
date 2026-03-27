@@ -2066,6 +2066,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [enabledTechnos, setEnabledTechnos] = useState<Set<string>>(new Set(['5G', '4G']));
   const [showBandPanel, setShowBandPanel] = useState(true);
   const [sectorColorMode, setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
+  const [topoResetCounter, setTopoResetCounter] = useState(0);
   const [bandColors, setBandColors] = useState<Record<string, string>>(loadCustomBandColors);
   const [editingColorBand, setEditingColorBand] = useState<string | null>(null);
 
@@ -4144,7 +4145,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 QoE
               </button>
               <button
-                onClick={() => { setSectorColorMode('topo'); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); }}
+                onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
                   sectorColorMode === 'topo' && !paramMode && !paramPanelOpen
                     ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
