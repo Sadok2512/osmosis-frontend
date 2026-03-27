@@ -727,11 +727,30 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
   try {
     // Try VPS first
     const bboxFilters: BboxFilters = {};
-    const vpsResp = await topoApi.listCellsByBbox(
+    // Use /sites-with-cells for complete cell data
+    const vpsResp = await topoApi.listSitesWithCells(
       { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 },
       { ...bboxFilters, q: siteId },
       1000,
-    ).catch(() => null);
+    ).then(r => {
+      // Convert to cells format expected by downstream code
+      const allCells: any[] = [];
+      for (const s of (r.sites || [])) {
+        for (const c of (s.cells || [])) {
+          allCells.push({
+            ...c,
+            code_nidt: s.site_name,
+            nom_site: s.site_name,
+            site_name: s.site_name,
+            site_id: s.site_name,
+            nom_cellule: c.nom_cellule,
+            latitude: s.latitude,
+            longitude: s.longitude,
+          });
+        }
+      }
+      return { cells: allCells, total: allCells.length };
+    }).catch(() => null);
 
     if (vpsResp && vpsResp.cells && vpsResp.cells.length > 0) {
       const normalizedSiteId = siteId.trim().toUpperCase();
