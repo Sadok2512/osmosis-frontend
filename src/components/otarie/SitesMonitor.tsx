@@ -1936,6 +1936,54 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [bandColors, setBandColors] = useState<Record<string, string>>(loadCustomBandColors);
   const [editingColorBand, setEditingColorBand] = useState<string | null>(null);
 
+  // ── TOPO mode: fetch global network stats from DB ──
+  const [topoNetworkStats, setTopoNetworkStats] = useState<{
+    sites4G: number; sites5G: number; cells4G: number; cells5G: number;
+    bandMap4G: Record<string, number>; bandMap5G: Record<string, number>;
+    vendorMap: Record<string, { '4G': number; '5G': number }>;
+  } | null>(null);
+
+  useEffect(() => {
+    if (sectorColorMode !== 'topo') return;
+    let cancelled = false;
+    const fetchStats = async () => {
+      try {
+        const { data, error } = await supabase.rpc('topo_inventory_stats');
+        if (error || !data || cancelled) return;
+        const stats = data as any;
+        let s4G = 0, s5G = 0, c4G = 0, c5G = 0;
+        const bm4G: Record<string, number> = {};
+        const bm5G: Record<string, number> = {};
+        const vm: Record<string, { '4G': number; '5G': number }> = {};
+        // by_techno is { "4G": count, "5G": count, ... }
+        if (stats.by_techno && typeof stats.by_techno === 'object') {
+          Object.entries(stats.by_techno).forEach(([tech, count]: [string, any]) => {
+            const t = tech.toUpperCase();
+            if (t.includes('5G') || t.includes('NR')) c5G += Number(count || 0);
+            else if (t.includes('4G') || t.includes('LTE')) c4G += Number(count || 0);
+          });
+        }
+        // by_bande is { "B1": count, "B3": count, ... } — no techno info, put all in 4G for now
+        if (stats.by_bande && typeof stats.by_bande === 'object') {
+          Object.entries(stats.by_bande).forEach(([band, count]: [string, any]) => {
+            bm4G[band] = Number(count || 0);
+          });
+        }
+        // by_constructeur is { "Nokia": count, ... }
+        if (stats.by_constructeur && typeof stats.by_constructeur === 'object') {
+          Object.entries(stats.by_constructeur).forEach(([vendor, count]: [string, any]) => {
+            vm[vendor] = { '4G': Number(count || 0), '5G': 0 };
+          });
+        }
+        s4G = stats.total_sites ?? 0;
+        s5G = 0;
+        if (!cancelled) setTopoNetworkStats({ sites4G: s4G, sites5G: s5G, cells4G: c4G, cells5G: c5G, bandMap4G: bm4G, bandMap5G: bm5G, vendorMap: vm });
+      } catch (e) { console.error('[TOPO] Failed to fetch network stats:', e); }
+    };
+    fetchStats();
+    return () => { cancelled = true; };
+  }, [sectorColorMode]);
+
   // Dynamic color getters using state
   const getBandColor = useCallback((bande: string, techno?: string): string => {
     const key = normalizeBandKey(bande, techno);
@@ -3050,7 +3098,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
       {/* FULL SCREEN MAP */}
       <MapContainer
-        center={sites.length > 0 ? sites[0].coordinates : [43.2965, 5.3698]}
+        center={sites.length > 0 ? sites[0].coordinates : [46.6, 2.2]}
         zoom={sites.length > 0 ? 12 : 6}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
@@ -5082,28 +5130,38 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== TOPO MODE: Global Network (no KPIs) ========== */}
           {sectorColorMode === 'topo' && focusMode === 'global' && (() => {
-            const allCells = sites.flatMap(s => s.cells || []);
-            const cells4G = allCells.filter(c => {
-              const t = (c.techno || '').toUpperCase();
-              return (t.includes('4G') || t.includes('LTE')) && !t.includes('5G') && !t.includes('3G') && !t.includes('2G');
-            });
-            const cells5G = allCells.filter(c => (c.techno || '').toUpperCase().includes('5G') || (c.techno || '').toUpperCase().includes('NR'));
-            const sites4G = new Set(sites.filter(s => (s.cells || []).some(c => {
-              const t = (c.techno || '').toUpperCase();
-              return (t.includes('4G') || t.includes('LTE')) && !t.includes('5G');
-            })).map(s => s.site_id));
-            const sites5G = new Set(sites.filter(s => (s.cells || []).some(c => (c.techno || '').toUpperCase().includes('5G'))).map(s => s.site_id));
-            const bandMap4G: Record<string, number> = {};
-            const bandMap5G: Record<string, number> = {};
-            cells4G.forEach(c => { const b = c.bande || 'Unknown'; bandMap4G[b] = (bandMap4G[b] || 0) + 1; });
-            cells5G.forEach(c => { const b = c.bande || 'Unknown'; bandMap5G[b] = (bandMap5G[b] || 0) + 1; });
-            const vendorMap: Record<string, { '4G': number; '5G': number }> = {};
-            [...cells4G, ...cells5G].forEach(c => {
-              const v = (c as any).vendor || (c as any).constructeur || 'Unknown';
-              if (!vendorMap[v]) vendorMap[v] = { '4G': 0, '5G': 0 };
-              if ((c.techno || '').toUpperCase().includes('5G')) vendorMap[v]['5G']++;
-              else vendorMap[v]['4G']++;
-            });
+            // Use DB stats if available, fallback to local sites
+            const dbStats = topoNetworkStats;
+            let sites4GCount = 0, sites5GCount = 0, cells4GCount = 0, cells5GCount = 0;
+            let bandMap4G: Record<string, number> = {};
+            let bandMap5G: Record<string, number> = {};
+            let vendorMap: Record<string, { '4G': number; '5G': number }> = {};
+
+            if (dbStats && (dbStats.cells4G > 0 || dbStats.cells5G > 0 || dbStats.sites4G > 0 || dbStats.sites5G > 0)) {
+              sites4GCount = dbStats.sites4G;
+              sites5GCount = dbStats.sites5G;
+              cells4GCount = dbStats.cells4G;
+              cells5GCount = dbStats.cells5G;
+              bandMap4G = dbStats.bandMap4G;
+              bandMap5G = dbStats.bandMap5G;
+              vendorMap = dbStats.vendorMap;
+            } else {
+              const allCells = sites.flatMap(s => s.cells || []);
+              const c4G = allCells.filter(c => { const t = (c.techno || '').toUpperCase(); return (t.includes('4G') || t.includes('LTE')) && !t.includes('5G'); });
+              const c5G = allCells.filter(c => (c.techno || '').toUpperCase().includes('5G') || (c.techno || '').toUpperCase().includes('NR'));
+              cells4GCount = c4G.length;
+              cells5GCount = c5G.length;
+              sites4GCount = new Set(sites.filter(s => (s.cells || []).some(c => { const t = (c.techno || '').toUpperCase(); return (t.includes('4G') || t.includes('LTE')) && !t.includes('5G'); })).map(s => s.site_id)).size;
+              sites5GCount = new Set(sites.filter(s => (s.cells || []).some(c => (c.techno || '').toUpperCase().includes('5G'))).map(s => s.site_id)).size;
+              c4G.forEach(c => { const b = c.bande || 'Unknown'; bandMap4G[b] = (bandMap4G[b] || 0) + 1; });
+              c5G.forEach(c => { const b = c.bande || 'Unknown'; bandMap5G[b] = (bandMap5G[b] || 0) + 1; });
+              [...c4G, ...c5G].forEach(c => {
+                const v = (c as any).vendor || (c as any).constructeur || 'Unknown';
+                if (!vendorMap[v]) vendorMap[v] = { '4G': 0, '5G': 0 };
+                if ((c.techno || '').toUpperCase().includes('5G')) vendorMap[v]['5G']++;
+                else vendorMap[v]['4G']++;
+              });
+            }
             return (
               <div className="divide-y divide-border">
                 {/* Header */}
@@ -5124,19 +5182,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="bg-muted/40 border border-border rounded-xl p-3">
                       <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
-                      <div className="text-[22px] font-black text-foreground leading-none">{sites4G.size}</div>
+                      <div className="text-[22px] font-black text-foreground leading-none">{sites4GCount}</div>
                     </div>
                     <div className="bg-muted/40 border border-border rounded-xl p-3">
                       <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
-                      <div className="text-[22px] font-black text-primary leading-none">{sites5G.size}</div>
+                      <div className="text-[22px] font-black text-primary leading-none">{sites5GCount}</div>
                     </div>
                     <div className="bg-muted/40 border border-border rounded-xl p-3">
                       <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
-                      <div className="text-[22px] font-black text-foreground leading-none">{cells4G.length}</div>
+                      <div className="text-[22px] font-black text-foreground leading-none">{cells4GCount}</div>
                     </div>
                     <div className="bg-muted/40 border border-border rounded-xl p-3">
                       <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
-                      <div className="text-[22px] font-black text-primary leading-none">{cells5G.length}</div>
+                      <div className="text-[22px] font-black text-primary leading-none">{cells5GCount}</div>
                     </div>
                   </div>
                 </div>
@@ -5145,10 +5203,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="px-5 py-4">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Technologie</h4>
                   {[
-                    { label: 'LTE (4G)', count: cells4G.length, color: 'hsl(var(--chart-2))' },
-                    { label: 'NR (5G)', count: cells5G.length, color: 'hsl(var(--primary))' },
+                    { label: 'LTE (4G)', count: cells4GCount, color: 'hsl(var(--chart-2))' },
+                    { label: 'NR (5G)', count: cells5GCount, color: 'hsl(var(--primary))' },
                   ].map(t => {
-                    const total = cells4G.length + cells5G.length || 1;
+                    const total = cells4GCount + cells5GCount || 1;
                     const pct = ((t.count / total) * 100).toFixed(1);
                     return (
                       <div key={t.label} className="flex items-center gap-2 py-1.5">
