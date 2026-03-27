@@ -3142,7 +3142,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds]);
 
-  // Auto-load cells for visible sites via a single bulk bbox call (avoids per-site 503s)
+  // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
+  const sectorDensityFactor = useMemo(() => {
+    const count = visibleSites.length;
+    if (count > 500) return 0;
+    if (count > 300) return 0.15;
+    if (count > 150) return 0.3;
+    if (count > 80) return 0.5;
+    if (count > 30) return 0.7;
+    return 1;
+  }, [visibleSites.length]);
+
+  // Viewport width for responsive sector sizing
+  const vpWidth = typeof window !== 'undefined' ? window.innerWidth : 1400;
+
+
   useEffect(() => {
     if (displayMode !== 'cells' || !dashboardActive) return;
     if (!viewport.bounds) return;
