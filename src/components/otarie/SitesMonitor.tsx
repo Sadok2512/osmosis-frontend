@@ -5530,7 +5530,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               )}
                               <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
                             </div>
-                            <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleTagSite(site); }}
+                                className={`w-6 h-6 flex items-center justify-center rounded-full transition-all ${isSiteTagged(site.site_id) ? 'text-yellow-400' : 'text-muted-foreground/40 hover:text-yellow-400'}`}
+                                title={isSiteTagged(site.site_id) ? 'Retirer du tag' : 'Tagger ce site'}
+                              >
+                                <Star size={14} fill={isSiteTagged(site.site_id) ? 'currentColor' : 'none'} />
+                              </button>
+                              <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </div>
                           </button>
 
                            {/* Expanded: sector cards + cell table */}
