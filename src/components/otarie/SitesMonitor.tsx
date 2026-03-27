@@ -2255,7 +2255,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return { prb, mimoLabel, rsPower, bwMhz: bwMhz ? `${bwMhz} MHz` : null };
   };
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('dashboard');
-  const [activeDashboardId, setActiveDashboardId] = useState<string | null>(null);
+  const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
+    try { return localStorage.getItem('qoebit_active_dashboard_id') || null; } catch { return null; }
+  });
+  const setActiveDashboardId = useCallback((id: string | null) => {
+    _setActiveDashboardId(id);
+    try {
+      if (id) localStorage.setItem('qoebit_active_dashboard_id', id);
+      else localStorage.removeItem('qoebit_active_dashboard_id');
+    } catch {}
+  }, []);
   const [beamVisibility, setBeamVisibility] = useState<number>(() => {
     try { const v = localStorage.getItem('qoebit_beam_visibility'); return v ? Number(v) : 75; } catch { return 75; }
   });
@@ -2363,7 +2372,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const cleaned = data.filter((d: any) => !autoFilterRegex.test((d.name || '').trim()) && !d.is_archived);
         setDashboardList(cleaned);
 
-        // No auto-activate: user must select a dashboard manually
+        // Auto-restore persisted dashboard if it exists in the list
+        const persistedId = activeDashboardId;
+        if (persistedId && cleaned.some((d: any) => d.id === persistedId)) {
+          setDashboardActive(true);
+          // Extract filters from the dashboard widgets
+          const db = cleaned.find((d: any) => d.id === persistedId);
+          if (db) {
+            const widgets = Array.isArray(db.widgets) ? db.widgets : [];
+            const dashSettings = widgets.find((w: any) => w.type === 'dashboard_settings' || w.dashboard_settings);
+            const scope = dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
+            const siteFilters = dashSettings?.siteFilters || dashSettings?.dashboard_settings?.siteFilters || null;
+            setActiveSiteScope(scope);
+            setActiveDashboardFilters(siteFilters);
+          }
+        }
       } catch {}
     };
     fetchDashboards();
