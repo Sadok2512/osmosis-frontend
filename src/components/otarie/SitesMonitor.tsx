@@ -5400,6 +5400,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               })()}
                             </div>
                           )}
+                        </div>
                       );
                     })}
                     {filteredSites.length > 100 && (
