@@ -4515,7 +4515,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (activeDashboardId) {
                       await saveDashboardSettings(activeDashboardId);
                       setActiveDashboardId(null);
-                      handleDashboardActiveChange(false, null, null);
+                      setDashboardActive(false);
+                      setActiveSiteScope(null);
+                      setActiveDashboardFilters(null);
                     }
                   }
                   setParamPanelOpen(!paramPanelOpen);
