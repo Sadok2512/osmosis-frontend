@@ -2909,7 +2909,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       if (controller.signal.aborted) return;
 
-      setSites(newSites || []);
+      // Preserve the currently selected site if it was added via search and isn't in the new bbox results
+      setSites(prev => {
+        const selectedId = selectedSiteIdRef.current;
+        const selectedSite = selectedId ? prev.find(s => s.site_id === selectedId) : null;
+        if (selectedSite && !(newSites || []).some(s => s.site_id === selectedId)) {
+          return [selectedSite, ...(newSites || [])];
+        }
+        return newSites || [];
+      });
       setBboxTotal(total || 0);
       setBboxLoading(false);
       setLoading(false);
