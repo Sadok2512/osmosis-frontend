@@ -5149,10 +5149,51 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <Search className="w-4 h-4 text-muted-foreground shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search Site ID or Name..."
+                    placeholder="Search site... (Enter to find)"
                     value={localSearch}
                     onChange={(e) => setLocalSearch(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Escape') { setLocalSearch(''); } }}
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Escape') { setLocalSearch(''); }
+                      if (e.key === 'Enter' && localSearch.trim().length >= 2) {
+                        // Server-side search: find site and fly to it
+                        try {
+                          const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites?search=${encodeURIComponent(localSearch.trim())}&limit=1`), {
+                            headers: getVpsProxyHeaders(),
+                          });
+                          const data = await resp.json();
+                          const siteList = Array.isArray(data) ? data : (data.sites || []);
+                          if (siteList.length > 0) {
+                            const s = siteList[0];
+                            const lat = Number(s.latitude ?? s.lat);
+                            const lng = Number(s.longitude ?? s.lng);
+                            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                              setFlyTarget([lat, lng]);
+                              // Also add to sites list if not present
+                              const siteSummary: SiteSummary = {
+                                site_id: s.site_name || s.code_nidt,
+                                site_name: s.site_name || s.nom_site || s.code_nidt,
+                                vendor: s.constructeur || (Array.isArray(s.vendors) ? s.vendors[0] : s.vendor) || 'Unknown',
+                                dor: s.dor || '',
+                                plaque: s.plaque || '',
+                                department: '',
+                                cell_count: Number(s.cell_count || s.nb_cells || 0),
+                                qoe_score_avg: 0, p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0,
+                                dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
+                                coordinates: [lat, lng],
+                                cells: [],
+                                zone_arcep: s.zone_arcep || null,
+                                lte_cells: 0, nr_cells: 0,
+                              };
+                              setSites(prev => {
+                                if (prev.find(x => x.site_id === siteSummary.site_id)) return prev;
+                                return [...prev, siteSummary];
+                              });
+                              setTimeout(() => handleSiteClick(siteSummary), 500);
+                            }
+                          }
+                        } catch (err) { console.warn('[SitesMonitor] Server search failed', err); }
+                      }
+                    }}
                     className="flex-1 bg-transparent text-[12px] font-medium text-foreground outline-none placeholder:text-muted-foreground min-w-0"
                   />
                   {localSearch && (
