@@ -3222,8 +3222,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
       {/* FULL SCREEN MAP */}
       <MapContainer
-        center={sectorColorMode === 'topo' && focusMode === 'global' ? FRANCE_CENTER : (sites.length > 0 ? sites[0].coordinates : FRANCE_CENTER)}
-        zoom={sectorColorMode === 'topo' && focusMode === 'global' ? FRANCE_DEFAULT_ZOOM : (sites.length > 0 ? 12 : FRANCE_DEFAULT_ZOOM)}
+        center={FRANCE_CENTER}
+        zoom={FRANCE_DEFAULT_ZOOM}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
         zoomSnap={1}
