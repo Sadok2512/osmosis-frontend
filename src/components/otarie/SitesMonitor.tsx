@@ -4514,9 +4514,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     // Entering param mode: save active dashboard first, then close it
                     if (activeDashboardId) {
                       await saveDashboardSettings(activeDashboardId);
-                    }
-                    if (expandedDashboardId) {
-                      requestDashboardSwitch(null);
+                      setActiveDashboardId(null);
+                      handleDashboardActiveChange(false, null, null);
                     }
                   }
                   setParamPanelOpen(!paramPanelOpen);
