@@ -3728,7 +3728,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setShowRightPanel(true);
     // Ensure inventory panel is open and on sites tab before scrolling
     setPanelCollapsed(false);
-    setInventoryTab('sites');
+    // Switch to the appropriate tab: tagged if it's a tagged site on that tab, otherwise sites
+    if (inventoryTab !== 'tagged' || !isSiteTagged(siteWithCells.site_id)) {
+      setInventoryTab('sites');
+    }
     // Scroll inventory to selected site with delay for DOM update
     setTimeout(() => {
       const el = siteRowRefs.current.get(siteWithCells.site_id);
