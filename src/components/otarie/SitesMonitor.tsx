@@ -6801,27 +6801,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <div className="divide-y divide-border">
                 {/* Cell Header — prominent */}
                 <div className="px-5 py-5">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: getBandColor(cell.bande, cell.techno) }}>
-                      <Signal size={24} className="text-white" />
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: cell.techno?.includes('5G') ? '#8b5cf6' : '#f97316' }}>
+                      <Signal size={20} className="text-white" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-[18px] font-extrabold text-foreground leading-tight tracking-tight uppercase truncate">
+                      <h3 className="text-[15px] font-extrabold text-foreground leading-tight tracking-tight uppercase truncate">
                         {cell.cell_id}
                       </h3>
-                      <div className="flex items-center gap-1.5 mt-1 text-[12px]">
-                        <span className="text-muted-foreground">{siteDetail.site_name}</span>
+                      <div className="flex flex-wrap items-center gap-1 mt-1 text-[11px]">
+                        <span className="text-muted-foreground truncate max-w-[120px]">{siteDetail.site_name}</span>
                         <span className="text-muted-foreground">•</span>
-                        <span className="font-semibold text-primary">{cell.techno} {cell.bande} MHz</span>
+                        <span className={`font-bold px-1.5 py-0.5 rounded text-[9px] text-white ${cell.techno?.includes('5G') ? 'bg-[#8b5cf6]' : 'bg-[#f97316]'}`}>{cell.techno}</span>
+                        <span className="font-semibold text-foreground">{cell.bande}</span>
                         <span className="text-muted-foreground">•</span>
                         <span className="text-muted-foreground">Az {cell.azimut}°</span>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-[22px] font-black" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
+                    <div className="text-right shrink-0 min-w-[60px]">
+                      <div className="text-[20px] font-black leading-none" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
                         {(cell.qoe_score_avg ?? 0).toFixed(1)}%
                       </div>
-                      <div className="text-[9px] font-semibold text-muted-foreground uppercase">QoE</div>
+                      <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-0.5">QoE</div>
                     </div>
                   </div>
                 </div>
@@ -6838,7 +6839,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   ].map(tab => (
                     <button
                       key={tab.id}
-                      onClick={() => setCellDetailTab(tab.id)}
+                      onClick={() => setCellDetailTab(tab.id as any)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${
                         cellDetailTab === tab.id
                           ? 'bg-primary text-primary-foreground shadow-sm'
