@@ -3094,18 +3094,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLteConfig(prev => ({ ...prev, loading: true, cellName }));
     const fetchParams = async () => {
       try {
-        const { data, error } = await (supabase as any)
-          .from('parameter_dump')
-          .select('parameter, value')
-          .eq('cell_name', cellName)
-          .in('parameter', ['LNCEL.pMax', 'LNCEL_FDD.dlChBw', 'LNCEL_FDD.dlMimoMode', 'LNCEL_FDD.dlRsBoost']);
-        if (error) throw error;
+        // Fetch cell config from VPS backend (uses ref_cell_daily + param_nokia_dump)
+        const siteName = siteDetail.site_name;
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/cell-config?site_name=${encodeURIComponent(siteName)}`), {
+          headers: getVpsProxyHeaders(),
+        });
+        const result = await resp.json();
         let pmax: number | null = null, dlChBw: string | null = null, dlMimoMode: string | null = null, dlRsBoost: number | null = null;
-        for (const row of (data || [])) {
-          if (row.parameter === 'LNCEL.pMax') pmax = parseFloat(row.value);
-          if (row.parameter === 'LNCEL_FDD.dlChBw') dlChBw = row.value;
-          if (row.parameter === 'LNCEL_FDD.dlMimoMode') dlMimoMode = row.value;
-          if (row.parameter === 'LNCEL_FDD.dlRsBoost') dlRsBoost = parseFloat(row.value);
+        // Find the matching cell in the response
+        const cellData = (result.cells || []).find((c: any) => c.cell_name === cellName);
+        if (cellData && cellData.config) {
+          const cfg = cellData.config;
+          if (cfg.pMax != null) pmax = Number(cfg.pMax);
+          if (cfg.dlBandwidth != null) dlChBw = String(cfg.dlBandwidth);
+          if (cfg.dlMimoMode != null) dlMimoMode = String(cfg.dlMimoMode);
+          if (cfg.dlRsBoost != null) dlRsBoost = Number(cfg.dlRsBoost);
         }
         setLteConfig({ pmax, dlChBw, dlMimoMode, dlRsBoost, loading: false, cellName });
       } catch (err) {
@@ -6993,7 +6996,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <div className="px-5 py-8 text-center">
                         <Database size={28} className="mx-auto text-muted-foreground/40 mb-3" />
                         <p className="text-[12px] text-muted-foreground font-medium">Aucun paramètre trouvé pour cette cellule.</p>
-                        <p className="text-[10px] text-muted-foreground/60 mt-1">Vérifiez que la cellule existe dans parameter_dump.</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">La configuration sera disponible après enrichissement des paramètres.</p>
                       </div>
                     );
                   }
