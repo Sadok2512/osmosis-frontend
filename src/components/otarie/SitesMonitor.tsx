@@ -5988,9 +5988,38 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const avgUl = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).p50_thr_up_mbps ?? 0), 0) / totalCells : 0;
             const avgRtt = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).p95_rtt_ms ?? 0), 0) / totalCells : 0;
 
-            // Use topoNetworkStats for instant display while sites load
+            // Use topoNetworkStats for instant display, fallback to computed from loaded sites
             const ns = topoNetworkStats;
             const hasFastStats = ns && (ns.sites4G > 0 || ns.sites5G > 0 || ns.cells4G > 0 || ns.cells5G > 0);
+            // Compute from loaded sites as fallback
+            const computedStats: TopoNetworkStats = (() => {
+              const s4g = new Set<string>();
+              const s5g = new Set<string>();
+              let c4g = 0, c5g = 0;
+              const bm4g: Record<string, number> = {};
+              const bm5g: Record<string, number> = {};
+              const vm: Record<string, { '4G': number; '5G': number }> = {};
+              filteredSites.forEach(site => {
+                let has4g = false, has5g = false;
+                site.cells.forEach(c => {
+                  const is5g = c.techno?.includes('5G') || c.techno === 'NR';
+                  const v = (c as any).vendor || site.vendor || 'Unknown';
+                  if (!vm[v]) vm[v] = { '4G': 0, '5G': 0 };
+                  if (is5g) { c5g++; has5g = true; const b = c.bande || 'Unknown'; bm5g[b] = (bm5g[b] || 0) + 1; vm[v]['5G']++; }
+                  else { c4g++; has4g = true; const b = c.bande || 'Unknown'; bm4g[b] = (bm4g[b] || 0) + 1; vm[v]['4G']++; }
+                });
+                if (has4g) s4g.add(site.site_id);
+                if (has5g) s5g.add(site.site_id);
+                // If no cells loaded, use lte_cells/nr_cells counts
+                if (site.cells.length === 0) {
+                  if ((site.lte_cells ?? 0) > 0) { s4g.add(site.site_id); c4g += site.lte_cells ?? 0; }
+                  if ((site.nr_cells ?? 0) > 0) { s5g.add(site.site_id); c5g += site.nr_cells ?? 0; }
+                }
+              });
+              return { sites4G: s4g.size, sites5G: s5g.size, cells4G: c4g, cells5G: c5g, bandMap4G: bm4g, bandMap5G: bm5g, vendorMap: vm };
+            })();
+            const displayStats = hasFastStats ? ns! : computedStats;
+            const hasAnyStats = displayStats.sites4G > 0 || displayStats.sites5G > 0 || displayStats.cells4G > 0 || displayStats.cells5G > 0;
 
             return (
               <div className="divide-y divide-border">
@@ -6008,25 +6037,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
 
                 {/* ── Network Summary (from DB, instant) ── */}
-                {hasFastStats && (
+                {hasAnyStats && (
                   <>
                     <div className="px-5 py-4">
                       <div className="grid grid-cols-2 gap-2.5">
                         <div className="bg-muted/40 border border-border rounded-xl p-3">
                           <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
-                          <div className="text-[22px] font-black text-foreground leading-none">{ns!.sites4G.toLocaleString('fr-FR')}</div>
+                          <div className="text-[22px] font-black text-foreground leading-none">{displayStats.sites4G.toLocaleString('fr-FR')}</div>
                         </div>
                         <div className="bg-muted/40 border border-border rounded-xl p-3">
                           <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
-                          <div className="text-[22px] font-black text-primary leading-none">{ns!.sites5G.toLocaleString('fr-FR')}</div>
+                          <div className="text-[22px] font-black text-primary leading-none">{displayStats.sites5G.toLocaleString('fr-FR')}</div>
                         </div>
                         <div className="bg-muted/40 border border-border rounded-xl p-3">
                           <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
-                          <div className="text-[22px] font-black text-foreground leading-none">{ns!.cells4G.toLocaleString('fr-FR')}</div>
+                          <div className="text-[22px] font-black text-foreground leading-none">{displayStats.cells4G.toLocaleString('fr-FR')}</div>
                         </div>
                         <div className="bg-muted/40 border border-border rounded-xl p-3">
                           <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
-                          <div className="text-[22px] font-black text-primary leading-none">{ns!.cells5G.toLocaleString('fr-FR')}</div>
+                          <div className="text-[22px] font-black text-primary leading-none">{displayStats.cells5G.toLocaleString('fr-FR')}</div>
                         </div>
                       </div>
                     </div>
@@ -6035,10 +6064,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <div className="px-5 py-4">
                       <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Technologie</h4>
                       {[
-                        { label: 'LTE (4G)', count: ns!.cells4G, color: 'hsl(var(--chart-2))' },
-                        { label: 'NR (5G)', count: ns!.cells5G, color: 'hsl(var(--primary))' },
+                        { label: 'LTE (4G)', count: displayStats.cells4G, color: 'hsl(var(--chart-2))' },
+                        { label: 'NR (5G)', count: displayStats.cells5G, color: 'hsl(var(--primary))' },
                       ].map(t => {
-                        const tot = (ns!.cells4G + ns!.cells5G) || 1;
+                        const tot = (displayStats.cells4G + displayStats.cells5G) || 1;
                         const pct = ((t.count / tot) * 100).toFixed(1);
                         return (
                           <div key={t.label} className="flex items-center gap-2 py-1.5">
@@ -6054,10 +6083,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {/* Band Distribution */}
                     <div className="px-5 py-4">
                       <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Bandes</h4>
-                      {Object.keys(ns!.bandMap4G).length > 0 && (
+                      {Object.keys(displayStats.bandMap4G).length > 0 && (
                         <div className="mb-3">
                           <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>LTE (4G)</div>
-                          {Object.entries(ns!.bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
+                          {Object.entries(displayStats.bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
                             <div key={band} className="flex items-center gap-2 py-1">
                               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '4G') }} />
                               <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
@@ -6066,10 +6095,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           ))}
                         </div>
                       )}
-                      {Object.keys(ns!.bandMap5G).length > 0 && (
+                      {Object.keys(displayStats.bandMap5G).length > 0 && (
                         <div>
                           <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#a855f7' }}>NR (5G)</div>
-                          {Object.entries(ns!.bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
+                          {Object.entries(displayStats.bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
                             <div key={band} className="flex items-center gap-2 py-1">
                               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '5G') }} />
                               <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
@@ -6079,6 +6108,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         </div>
                       )}
                     </div>
+
+                    {/* Vendor Distribution */}
+                    {Object.keys(displayStats.vendorMap).length > 0 && (
+                      <div className="px-5 py-4">
+                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Constructeurs</h4>
+                        {Object.entries(displayStats.vendorMap).sort((a, b) => (b[1]['4G'] + b[1]['5G']) - (a[1]['4G'] + a[1]['5G'])).map(([vendor, counts]) => (
+                          <div key={vendor} className="flex items-center gap-2 py-1.5">
+                            <span className="text-[11px] font-bold text-foreground flex-1">{vendor}</span>
+                            <span className="text-[9px] text-muted-foreground">4G</span>
+                            <span className="text-[10px] font-black text-foreground">{counts['4G']}</span>
+                            <span className="text-[9px] text-muted-foreground">5G</span>
+                            <span className="text-[10px] font-black text-primary">{counts['5G']}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </>
                 )}
 
