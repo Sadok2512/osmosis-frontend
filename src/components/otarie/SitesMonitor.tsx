@@ -2049,14 +2049,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [showBeamSectors, setShowBeamSectors] = useState(true);
 
-  const getDisplayMode = useCallback((zoom: number) => {
-    if (zoom >= SITES_TO_CELLS_ZOOM) {
-      displayModeRef.current = 'cells';
-    } else if (zoom <= CELLS_TO_SITES_ZOOM) {
-      displayModeRef.current = 'sites';
-    }
-    return displayModeRef.current;
-  }, []);
+  const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
+    ? 'cells'
+    : viewport.zoom <= CELLS_TO_SITES_ZOOM
+      ? 'sites'
+      : displayModeRef.current;
+
+  useEffect(() => {
+    displayModeRef.current = displayMode;
+  }, [displayMode]);
 
   const TILE_URLS: Record<typeof mapLayer, { url: string; attribution: string }> = {
     light: {
@@ -3010,8 +3011,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Auto-load cells for visible sites when zoom reaches sector display threshold
   useEffect(() => {
-    const mode = getDisplayMode(viewport.zoom);
-    if (mode !== 'cells' || !dashboardActive) return;
+    if (displayMode !== 'cells' || !dashboardActive) return;
 
     const sitesNeedingCells = visibleSites.filter(
       s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id)
@@ -3028,28 +3028,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         batch.map(s => fetchSiteCells(s.site_id).then(cells => ({ siteId: s.site_id, cells })))
       );
 
-      const cellMap = new Map<string, typeof visibleSites[0]['cells']>();
+      const cellMap = new Map<string, any[]>();
       for (const r of results) {
         if (r.status === 'fulfilled') {
           cellMap.set(r.value.siteId, r.value.cells);
+          cellLoadingRef.current.delete(r.value.siteId);
         }
       }
 
       if (cellMap.size > 0) {
         setSites(prev => prev.map(s => {
           const cells = cellMap.get(s.site_id);
-          if (cells && cells.length > 0) {
-            return { ...s, cells, cell_count: cells.length };
-          }
-          return s;
+          return cells && cells.length > 0 ? { ...s, cells, cell_count: cells.length } : s;
         }));
       }
-    }, 600);
+    }, 250);
 
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [viewport.zoom, visibleSites, dashboardActive, getDisplayMode]);
+  }, [displayMode, visibleSites, dashboardActive]);
 
 
   const renderSites = useMemo(() => {
@@ -3061,7 +3059,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return [selectedSiteSnapshot, ...visibleSites];
   }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds]);
 
-  const showSectors = displayModeRef.current === 'cells' && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
+  const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
 
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
