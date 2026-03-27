@@ -3056,6 +3056,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
 
+        {/* ── TOPO mode: clean map, no markers ── */}
+        {sectorColorMode === 'topo' && !paramMode && (
+          <div className="leaflet-control" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1000, pointerEvents: 'none' }}>
+            <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl px-8 py-5 shadow-xl text-center">
+              <Radio size={28} className="mx-auto mb-2 text-primary opacity-60" />
+              <p className="text-[13px] font-bold text-foreground">Mode Topologie</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Sélectionnez un mode de vue pour afficher les données 4G/5G</p>
+            </div>
+          </div>
+        )}
+
         {/* ── Parameter overlay markers ── */}
         {paramMode && !paramLoading && paramPoints.length > 0 && (
           <FitHighlightBounds coords={paramPoints.map(p => [p.latitude, p.longitude] as [number, number])} />
@@ -3086,12 +3097,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         ))}
 
         {/* Heatmap layer */}
-        {!paramMode && mapDisplayMode === 'heatmap' && (
+        {sectorColorMode !== 'topo' && !paramMode && mapDisplayMode === 'heatmap' && (
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
         {/* Points mode — individual cell markers colored by KPI threshold */}
-        {!paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
+        {sectorColorMode !== 'topo' && !paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells.filter(c => {
               const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
@@ -3156,7 +3167,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
-        {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
+        {sectorColorMode !== 'topo' && !paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
           const has5G = site.cells.length > 0 ? site.cells.some(c => (c.techno || '').toUpperCase().includes('5G')) : site.site_name.toUpperCase().includes('5G');
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
@@ -3296,7 +3307,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {!paramMode && showSectors && renderSites.map(site => {
+        {sectorColorMode !== 'topo' && !paramMode && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * (0.5 + 0.5 * (beamVisibility / 100));
@@ -3592,7 +3603,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Highlighted worst cells markers */}
-        {highlightedCellData.length > 0 && (
+        {sectorColorMode !== 'topo' && highlightedCellData.length > 0 && (
           <>
             <FitHighlightBounds coords={highlightedCellData.map(h => [h.lat, h.lng] as [number, number])} />
             {highlightedCellData.map((h, i) => {
