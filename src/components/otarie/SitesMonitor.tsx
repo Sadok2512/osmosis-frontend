@@ -5940,6 +5940,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     setDashboardActive(active);
                     setActiveSiteScope(scope || null);
                     setActiveDashboardFilters(siteFilters || null);
+                    setDashboardRefreshTick(t => t + 1);
                     invalidateDashboardSitesCache();
                     invalidateSiteCellsCache();
                     invalidateBboxCache();
