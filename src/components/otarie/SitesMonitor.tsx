@@ -3534,10 +3534,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
         {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
-          const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
           const { has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
-          const color = (sectorColorMode as string) === 'topo' ? topoColor : kpiColor;
+          // Always use tech-based colors for site dots (circle markers & mini sectors)
+          const color = topoColor;
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
