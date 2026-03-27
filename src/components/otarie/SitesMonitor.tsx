@@ -942,7 +942,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                         {f.mode === 'topo' ? (
                           <>
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-accent/20 text-accent-foreground">TOPO</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${f.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{f.tech}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${f.tech === '5G' ? 'bg-green-500/15 text-green-600' : 'bg-orange-500/15 text-orange-600'}`}>{f.tech}</span>
                             <span className="font-medium text-muted-foreground">{SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === f.attribute)?.label}</span>
                             <span className="text-muted-foreground/50">→</span>
                             <span className="font-semibold text-foreground">{f.value}</span>
@@ -1029,7 +1029,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                     <div className="flex items-center gap-2">
                       <button onClick={() => setFilterStep('pick_tech')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-green-500/15 text-green-600' : 'bg-orange-500/15 text-orange-600'}`}>{filterDraft.tech}</span>
                         Étape 3 — Attribut
                       </span>
                     </div>
@@ -1052,7 +1052,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                     <div className="flex items-center gap-2">
                       <button onClick={() => setFilterStep('pick_attr')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-purple-500/15 text-purple-600' : 'bg-blue-500/15 text-blue-600'}`}>{filterDraft.tech}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-green-500/15 text-green-600' : 'bg-orange-500/15 text-orange-600'}`}>{filterDraft.tech}</span>
                         {SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label} — Valeur
                       </span>
                     </div>
@@ -5602,7 +5602,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               {nr.length > 0 && (
                                                 <div className="flex items-center justify-center gap-1">
                                                   {nr.map((_, ci) => (
-                                                    <span key={`nr-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#8b5cf6' }} />
+                                                    <span key={`nr-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} />
                                                   ))}
                                                 </div>
                                               )}
@@ -5626,7 +5626,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               {/* Techno legend */}
                               <div className="flex items-center gap-4 mb-3 px-1">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="w-3 h-3 rounded-full" style={{ background: '#8b5cf6' }} />
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
                                   <span className="text-[10px] font-bold text-muted-foreground">5G</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
@@ -5670,7 +5670,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
-                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#8b5cf6]' : 'bg-[#f97316]'}`}>
+                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
                                                   {cell.techno || '—'}
                                                 </span>
                                               </td>
@@ -5819,7 +5819,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               {nr.length > 0 && (
                                                 <div className="flex items-center justify-center gap-1">
                                                   {nr.map((_, ci) => (
-                                                    <span key={`nr-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#8b5cf6' }} />
+                                                    <span key={`nr-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} />
                                                   ))}
                                                 </div>
                                               )}
@@ -5842,7 +5842,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               </div>
                               <div className="flex items-center gap-4 mb-3 px-1">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="w-3 h-3 rounded-full" style={{ background: '#8b5cf6' }} />
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
                                   <span className="text-[10px] font-bold text-muted-foreground">5G</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
@@ -5883,7 +5883,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
-                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#8b5cf6]' : 'bg-[#f97316]'}`}>
+                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
                                                   {cell.techno || '—'}
                                                 </span>
                                               </td>
@@ -7307,7 +7307,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {/* Cell Header — prominent */}
                 <div className="px-5 py-5">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: cell.techno?.includes('5G') ? '#8b5cf6' : '#f97316' }}>
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: cell.techno?.includes('5G') ? '#22c55e' : '#f97316' }}>
                       <Signal size={20} className="text-white" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -7317,7 +7317,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <div className="flex flex-wrap items-center gap-1 mt-1 text-[11px]">
                         <span className="text-muted-foreground truncate max-w-[120px]">{siteDetail.site_name}</span>
                         <span className="text-muted-foreground">•</span>
-                        <span className={`font-bold px-1.5 py-0.5 rounded text-[9px] text-white ${cell.techno?.includes('5G') ? 'bg-[#8b5cf6]' : 'bg-[#f97316]'}`}>{cell.techno}</span>
+                        <span className={`font-bold px-1.5 py-0.5 rounded text-[9px] text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>{cell.techno}</span>
                         <span className="font-semibold text-foreground">{cell.bande}</span>
                         <span className="text-muted-foreground">•</span>
                         <span className="text-muted-foreground">Az {cell.azimut}°</span>
