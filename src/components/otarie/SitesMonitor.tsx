@@ -360,6 +360,14 @@ const FitHighlightBounds = ({ coords }: { coords: [number, number][] }) => {
 const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; resetKey: string }) => {
   const map = useMap();
   const lastResetKeyRef = useRef<string | null>(null);
+  const initialDoneRef = useRef(false);
+
+  // Always center on France on very first mount
+  useEffect(() => {
+    if (initialDoneRef.current) return;
+    initialDoneRef.current = true;
+    map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
+  }, [map]);
 
   useEffect(() => {
     if (!enabled || lastResetKeyRef.current === resetKey) return;
