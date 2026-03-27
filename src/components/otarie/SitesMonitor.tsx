@@ -465,7 +465,7 @@ const CustomZoomControl: React.FC = () => {
     </div>
   );
 };
-
+  
 
 interface ViewportState {
   bounds: L.LatLngBounds | null;
@@ -632,9 +632,11 @@ interface DashboardSettingsPanelProps {
   isSaving?: boolean;
   onClose: () => void;
   onSetDashboards: React.Dispatch<React.SetStateAction<any[]>>;
+  backendFilterDefs?: { id: string; label: string; values: string[] }[];
+  onSiteFiltersChange?: (filters: DashboardSiteFilters) => void;
 }
 
-const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, onClose, onSetDashboards }) => {
+const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, onClose, onSetDashboards, backendFilterDefs, onSiteFiltersChange }) => {
   const [localName, setLocalName] = useState(currentName || '');
   const [localMapStyle, setLocalMapStyle] = useState(settings.mapStyle || settings.mapLayer || 'street');
   const [localThemeMode, setLocalThemeMode] = useState(settings.themeMode || 'light');
@@ -657,6 +659,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
   const [freeTextValue, setFreeTextValue] = useState('');
   const [kpiSearch, setKpiSearch] = useState('');
   const [thresholdInput, setThresholdInput] = useState('');
+  const [localSiteFilters, setLocalSiteFilters] = useState<DashboardSiteFilters>(() => settings.siteFilters || {});
 
   const commitFilter = (val?: string) => {
     let newFilters = localFilters;
@@ -692,7 +695,13 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
 
   const handleConfirm = async () => {
     if (onRename && localName.trim() && localName !== currentName) onRename(localName.trim());
-    onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: localFilters });
+    // Clean siteFilters
+    const cleanSiteFilters: DashboardSiteFilters = {};
+    for (const [k, v] of Object.entries(localSiteFilters)) {
+      if (v && v.length > 0) (cleanSiteFilters as any)[k] = v;
+    }
+    onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: localFilters, siteFilters: cleanSiteFilters });
+    if (onSiteFiltersChange) onSiteFiltersChange(cleanSiteFilters);
     if (dashboardId && localVisibility !== isShared) {
       await dashboardsApi.update(dashboardId, { is_shared: localVisibility });
       onSetDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, is_shared: localVisibility } : d));
@@ -733,6 +742,43 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                 className="w-full bg-card border-2 border-border rounded-xl px-4 py-2.5 text-sm font-semibold text-foreground outline-none focus:border-primary transition-colors"
                 placeholder={dashboardId ? 'Nom du dashboard...' : 'Nom de la vue...'}
               />
+            </div>
+          )}
+
+          {/* ── Site Filters (dashboards only) ── */}
+          {dashboardId && backendFilterDefs && backendFilterDefs.length > 0 && (
+            <div className="p-4 rounded-xl border border-border bg-background">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">Filtres de sites</label>
+              <p className="text-[9px] text-primary/70 italic mb-3">Sélectionnez les critères pour filtrer les sites affichés sur la carte</p>
+              <div className="space-y-2">
+                {backendFilterDefs.map(dim => {
+                  const selectedValues = localSiteFilters[dim.id as keyof DashboardSiteFilters] || [];
+                  return (
+                    <CreateFilterDropdown
+                      key={dim.id}
+                      label={dim.label}
+                      values={dim.values}
+                      selected={selectedValues}
+                      onChange={(vals) => {
+                        setLocalSiteFilters(prev => ({ ...prev, [dim.id]: vals.length > 0 ? vals : undefined }));
+                        setDirty(true);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              {Object.values(localSiteFilters).some(v => v && v.length > 0) && (
+                <div className="border border-primary/20 rounded-xl bg-primary/5 p-3 mt-3">
+                  <span className="text-[9px] font-bold text-primary uppercase tracking-wider">Filtres actifs</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {Object.entries(localSiteFilters).filter(([, v]) => v && v.length > 0).map(([key, vals]) => (
+                      <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
+                        {backendFilterDefs.find(d => d.id === key)?.label || key}: {vals!.join(', ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1904,6 +1950,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     isSaving={isSaving}
                     onClose={() => { setEditingDashboardId(null); setEditingViewId(null); }}
                     onSetDashboards={setDashboards}
+                    backendFilterDefs={backendFilterDefs}
+                    onSiteFiltersChange={(filters) => {
+                      updateDashboardSettings(db.id, { siteFilters: filters });
+                      onDashboardActiveChange?.(true, extractScope(db), filters);
+                    }}
                   />
                 )}
 
