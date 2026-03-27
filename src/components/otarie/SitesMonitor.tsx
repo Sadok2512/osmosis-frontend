@@ -2202,7 +2202,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [topoNetworkStats, setTopoNetworkStats] = useState<TopoNetworkStats | null>(null);
 
   useEffect(() => {
-    if (sectorColorMode !== 'topo') return;
     let cancelled = false;
 
     const fetchStats = async () => {
@@ -2263,7 +2262,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     fetchStats();
     return () => { cancelled = true; };
-  }, [sectorColorMode]);
+  }, []);
 
   // Dynamic color getters using state
   const getBandColor = useCallback((bande: string, techno?: string): string => {
@@ -5713,6 +5712,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const avgUl = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).p50_thr_up_mbps ?? 0), 0) / totalCells : 0;
             const avgRtt = totalCells > 0 ? allCells.reduce((a, c) => a + ((c as any).p95_rtt_ms ?? 0), 0) / totalCells : 0;
 
+            // Use topoNetworkStats for instant display while sites load
+            const ns = topoNetworkStats;
+            const hasFastStats = ns && (ns.sites4G > 0 || ns.sites5G > 0 || ns.cells4G > 0 || ns.cells5G > 0);
+
             return (
               <div className="divide-y divide-border">
                 {/* ── Header — same style as Site ── */}
@@ -5723,14 +5726,85 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-[18px] font-extrabold text-foreground leading-tight tracking-tight uppercase">Global Network</h3>
-                      <div className="flex items-center gap-1.5 mt-1.5 text-[12px]">
-                        <span className="text-muted-foreground">{totalSites.toLocaleString('fr-FR')} sites</span>
-                        <span className="text-muted-foreground">•</span>
-                        <span className="font-semibold text-primary">{techs.join(' / ')}</span>
-                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">Vue d'ensemble réseau 4G / 5G</p>
                     </div>
                   </div>
                 </div>
+
+                {/* ── Network Summary (from DB, instant) ── */}
+                {hasFastStats && (
+                  <>
+                    <div className="px-5 py-4">
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="bg-muted/40 border border-border rounded-xl p-3">
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
+                          <div className="text-[22px] font-black text-foreground leading-none">{ns!.sites4G.toLocaleString('fr-FR')}</div>
+                        </div>
+                        <div className="bg-muted/40 border border-border rounded-xl p-3">
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
+                          <div className="text-[22px] font-black text-primary leading-none">{ns!.sites5G.toLocaleString('fr-FR')}</div>
+                        </div>
+                        <div className="bg-muted/40 border border-border rounded-xl p-3">
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
+                          <div className="text-[22px] font-black text-foreground leading-none">{ns!.cells4G.toLocaleString('fr-FR')}</div>
+                        </div>
+                        <div className="bg-muted/40 border border-border rounded-xl p-3">
+                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
+                          <div className="text-[22px] font-black text-primary leading-none">{ns!.cells5G.toLocaleString('fr-FR')}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Technology Distribution */}
+                    <div className="px-5 py-4">
+                      <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Technologie</h4>
+                      {[
+                        { label: 'LTE (4G)', count: ns!.cells4G, color: 'hsl(var(--chart-2))' },
+                        { label: 'NR (5G)', count: ns!.cells5G, color: 'hsl(var(--primary))' },
+                      ].map(t => {
+                        const tot = (ns!.cells4G + ns!.cells5G) || 1;
+                        const pct = ((t.count / tot) * 100).toFixed(1);
+                        return (
+                          <div key={t.label} className="flex items-center gap-2 py-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: t.color }} />
+                            <span className="text-[11px] font-bold text-foreground flex-1">{t.label}</span>
+                            <span className="text-[11px] font-black text-foreground">{t.count.toLocaleString('fr-FR')}</span>
+                            <span className="text-[9px] text-muted-foreground w-12 text-right">{pct}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Band Distribution */}
+                    <div className="px-5 py-4">
+                      <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Bandes</h4>
+                      {Object.keys(ns!.bandMap4G).length > 0 && (
+                        <div className="mb-3">
+                          <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>LTE (4G)</div>
+                          {Object.entries(ns!.bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
+                            <div key={band} className="flex items-center gap-2 py-1">
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '4G') }} />
+                              <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
+                              <span className="text-[10px] font-black text-muted-foreground">{count.toLocaleString('fr-FR')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {Object.keys(ns!.bandMap5G).length > 0 && (
+                        <div>
+                          <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#a855f7' }}>NR (5G)</div>
+                          {Object.entries(ns!.bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
+                            <div key={band} className="flex items-center gap-2 py-1">
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '5G') }} />
+                              <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
+                              <span className="text-[10px] font-black text-muted-foreground">{count.toLocaleString('fr-FR')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 {/* ── DMS Metric Cards Row ── */}
                 <div className="px-5 py-4">
