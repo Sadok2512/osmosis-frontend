@@ -363,8 +363,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     return assistantSoFar;
   };
 
-  const extractCellsFromResponse = (responseText: string) => {
-    if (!sites.length || !onShowWorstCells) return;
+  const extractCellsFromResponse = (responseText?: string) => {
+    if (!responseText || !sites.length || !onShowWorstCells) return;
     try {
       const foundIds = allCellIds.filter(id => responseText.includes(id));
       const uniqueIds = [...new Set(foundIds)];
@@ -384,7 +384,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   };
 
   // ─── Dashboard creation from AI response ───
-  const handleDashboardCreation = async (responseText: string) => {
+  const handleDashboardCreation = async (responseText?: string) => {
+    if (!responseText) return;
     // Match CREATE_DASHBOARD whether raw or inside a code block
     const match = responseText.match(/<!--\s*CREATE_DASHBOARD:([\s\S]*?)-->/s);
     if (!match) return;
@@ -434,7 +435,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     setInput('');
     setIsLoading(true);
     try {
-      const finalText = await streamChat(updatedMessages);
+      const finalText = (await streamChat(updatedMessages)) ?? '';
       extractCellsFromResponse(finalText);
       handleDashboardCreation(finalText);
     } catch (e: any) {
