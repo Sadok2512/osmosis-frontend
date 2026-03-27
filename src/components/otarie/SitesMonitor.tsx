@@ -2376,12 +2376,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const persistedId = activeDashboardId;
         if (persistedId && cleaned.some((d: any) => d.id === persistedId)) {
           setDashboardActive(true);
+          // Extract filters from the dashboard widgets
           const db = cleaned.find((d: any) => d.id === persistedId);
           if (db) {
-            const scope = extractScope(db);
-            const filters = extractSiteFilters(db);
+            const widgets = Array.isArray(db.widgets) ? db.widgets : [];
+            const dashSettings = widgets.find((w: any) => w.type === 'dashboard_settings' || w.dashboard_settings);
+            const scope = dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
+            const siteFilters = dashSettings?.siteFilters || dashSettings?.dashboard_settings?.siteFilters || null;
             setActiveSiteScope(scope);
-            setActiveDashboardFilters(filters);
+            setActiveDashboardFilters(siteFilters);
           }
         }
       } catch {}
