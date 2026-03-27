@@ -5355,11 +5355,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               {/* Techno legend */}
                               <div className="flex items-center gap-4 mb-3 px-1">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="w-3 h-3 rounded-full" style={{ background: getBandColor('NR3500', '5G') }} />
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#8b5cf6' }} />
                                   <span className="text-[10px] font-bold text-muted-foreground">5G</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="w-3 h-3 rounded-full" style={{ background: getBandColor('L800', '4G') }} />
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
                                   <span className="text-[10px] font-bold text-muted-foreground">4G</span>
                                 </div>
                               </div>
