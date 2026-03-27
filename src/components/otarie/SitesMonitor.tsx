@@ -3609,7 +3609,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                   </Popup>
                 </Marker>
-                {showSiteLabels && viewport.zoom >= 10 && (
+                {(showSiteLabels || viewport.zoom >= 14) && viewport.zoom >= 10 && (
                   <Marker position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
                     <Tooltip direction="bottom" offset={[0, 8]} permanent className="site-name-label-clean">
                       <span style={{ fontSize: viewport.zoom >= 12 ? '9px' : '7px', fontWeight: 700, color: '#1a1a1a', textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff' }}>{site.site_name}</span>
@@ -3656,7 +3656,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Polygon>
                   );
                 })}
-                {showSiteLabels && (
+                {(showSiteLabels || viewport.zoom >= 14) && (
                   <Marker position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
                     <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
                       <span style={{ fontSize: viewport.zoom >= 12 ? '9px' : '7px', fontWeight: 700, color: '#1a1a1a', textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff' }}>{site.site_name}</span>
@@ -3693,7 +3693,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </Popup>
               </CircleMarker>
-              {showSiteLabels && viewport.zoom >= 10 && (
+              {(showSiteLabels || viewport.zoom >= 14) && viewport.zoom >= 10 && (
                 <Marker position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
                   <Tooltip direction="bottom" offset={[0, 6]} permanent className="site-name-label-clean">
                     <span style={{ fontSize: '7px', fontWeight: 700, color: '#1a1a1a', textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff' }}>{site.site_name}</span>
@@ -3872,7 +3872,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   );
                 })}
                 {/* Site name label */}
-                {showSiteLabels && (
+                {(showSiteLabels || viewport.zoom >= 14) && (
                   <Marker
                     position={site.coordinates}
                     icon={L.divIcon({
@@ -3979,7 +3979,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   mouseout: () => setHoveredSiteId(null),
                 }}
               >
-                {showSiteLabels && (
+                {(showSiteLabels || viewport.zoom >= 14) && (
                   <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
                     <span style={{
                       fontSize: '8px',
