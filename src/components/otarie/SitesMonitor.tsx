@@ -4620,140 +4620,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 ))}
               </div>
 
-              {/* ── TOPO MODE: 4G/5G Network Overview ── */}
               {sectorColorMode === 'topo' && inventoryTab === 'sites' ? (
-                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-                  {/* Section title */}
-                  <div className="flex items-center gap-2 mb-1">
-                    <Radio size={14} className="text-primary" />
-                    <span className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Réseau 4G / 5G — Vue d'ensemble</span>
+                <div className="flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Radio size={18} className="text-primary" />
                   </div>
-
-                  {/* A. Global Summary */}
-                  {(() => {
-                    const allCells = sites.flatMap(s => s.cells || []);
-                    const cells4G = allCells.filter(c => !(c.techno || '').toUpperCase().includes('5G') && !(c.techno || '').toUpperCase().includes('3G') && !(c.techno || '').toUpperCase().includes('2G'));
-                    const cells5G = allCells.filter(c => (c.techno || '').toUpperCase().includes('5G'));
-                    const sites4G = new Set(sites.filter(s => (s.cells || []).some(c => !(c.techno || '').toUpperCase().includes('5G'))).map(s => s.site_id));
-                    const sites5G = new Set(sites.filter(s => (s.cells || []).some(c => (c.techno || '').toUpperCase().includes('5G'))).map(s => s.site_id));
-
-                    // Band distribution
-                    const bandMap4G: Record<string, number> = {};
-                    const bandMap5G: Record<string, number> = {};
-                    cells4G.forEach(c => { const b = c.bande || 'Unknown'; bandMap4G[b] = (bandMap4G[b] || 0) + 1; });
-                    cells5G.forEach(c => { const b = c.bande || 'Unknown'; bandMap5G[b] = (bandMap5G[b] || 0) + 1; });
-
-                    // Vendor distribution
-                    const vendorMap: Record<string, { '4G': number; '5G': number }> = {};
-                    allCells.filter(c => {
-                      const t = (c.techno || '').toUpperCase();
-                      return t.includes('4G') || t.includes('LTE') || t.includes('5G') || t.includes('NR');
-                    }).forEach(c => {
-                      const v = (c as any).vendor || (c as any).constructeur || 'Unknown';
-                      if (!vendorMap[v]) vendorMap[v] = { '4G': 0, '5G': 0 };
-                      if ((c.techno || '').toUpperCase().includes('5G')) vendorMap[v]['5G']++;
-                      else vendorMap[v]['4G']++;
-                    });
-
-                    return (
-                      <>
-                        {/* Summary cards */}
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-muted/40 border border-border rounded-xl p-3">
-                            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
-                            <div className="text-[22px] font-black text-foreground leading-none">{sites4G.size}</div>
-                          </div>
-                          <div className="bg-muted/40 border border-border rounded-xl p-3">
-                            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
-                            <div className="text-[22px] font-black text-primary leading-none">{sites5G.size}</div>
-                          </div>
-                          <div className="bg-muted/40 border border-border rounded-xl p-3">
-                            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
-                            <div className="text-[22px] font-black text-foreground leading-none">{cells4G.length}</div>
-                          </div>
-                          <div className="bg-muted/40 border border-border rounded-xl p-3">
-                            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
-                            <div className="text-[22px] font-black text-primary leading-none">{cells5G.length}</div>
-                          </div>
-                        </div>
-
-                        {/* B. Technology Distribution */}
-                        <div className="border border-border rounded-xl p-3">
-                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Distribution Technologie</div>
-                          {[
-                            { label: 'LTE (4G)', count: cells4G.length, color: 'hsl(var(--chart-2))' },
-                            { label: 'NR (5G)', count: cells5G.length, color: 'hsl(var(--primary))' },
-                          ].map(t => {
-                            const total = cells4G.length + cells5G.length || 1;
-                            const pct = ((t.count / total) * 100).toFixed(1);
-                            return (
-                              <div key={t.label} className="flex items-center gap-2 py-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: t.color }} />
-                                <span className="text-[11px] font-bold text-foreground flex-1">{t.label}</span>
-                                <span className="text-[11px] font-black text-foreground">{t.count}</span>
-                                <span className="text-[9px] text-muted-foreground w-12 text-right">{pct}%</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* C. Band Distribution */}
-                        <div className="border border-border rounded-xl p-3">
-                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Distribution Bandes</div>
-                          {Object.keys(bandMap4G).length > 0 && (
-                            <div className="mb-2">
-                              <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>LTE (4G)</div>
-                              {Object.entries(bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
-                                <div key={band} className="flex items-center gap-2 py-1">
-                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '4G') }} />
-                                  <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
-                                  <span className="text-[10px] font-black text-muted-foreground">{count}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {Object.keys(bandMap5G).length > 0 && (
-                            <div>
-                              <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#a855f7' }}>NR (5G)</div>
-                              {Object.entries(bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
-                                <div key={band} className="flex items-center gap-2 py-1">
-                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '5G') }} />
-                                  <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
-                                  <span className="text-[10px] font-black text-muted-foreground">{count}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {Object.keys(bandMap4G).length === 0 && Object.keys(bandMap5G).length === 0 && (
-                            <div className="text-[10px] text-muted-foreground/60 italic py-2">Aucune donnée de bande disponible</div>
-                          )}
-                        </div>
-
-                        {/* D. Vendor Distribution */}
-                        <div className="border border-border rounded-xl p-3">
-                          <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Distribution Constructeurs</div>
-                          {Object.entries(vendorMap).sort((a, b) => (b[1]['4G'] + b[1]['5G']) - (a[1]['4G'] + a[1]['5G'])).map(([vendor, counts]) => (
-                            <div key={vendor} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
-                              <span className="text-[11px] font-bold text-foreground flex-1 capitalize">{vendor}</span>
-                              <div className="flex items-center gap-3">
-                                <div className="text-right">
-                                  <span className="text-[9px] text-muted-foreground">4G </span>
-                                  <span className="text-[10px] font-black text-foreground">{counts['4G']}</span>
-                                </div>
-                                <div className="text-right">
-                                  <span className="text-[9px] text-muted-foreground">5G </span>
-                                  <span className="text-[10px] font-black text-primary">{counts['5G']}</span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          {Object.keys(vendorMap).length === 0 && (
-                            <div className="text-[10px] text-muted-foreground/60 italic py-2">Chargez un dashboard pour voir les données</div>
-                          )}
-                        </div>
-                      </>
-                    );
-                  })()}
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Mode Topologie</span>
+                  <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
+                    Vue réseau 4G/5G disponible dans le panneau <strong>Global Network</strong> à droite.
+                  </p>
+                  <button
+                    onClick={() => { setShowRightPanel(true); setFocusMode('global'); }}
+                    className="mt-2 flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors"
+                  >
+                    <Network size={14} />
+                    Ouvrir Global Network
+                  </button>
                 </div>
               ) : (
               <>
