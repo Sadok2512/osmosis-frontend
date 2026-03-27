@@ -2412,7 +2412,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     return { prb, mimoLabel, rsPower, bwMhz: bwMhz ? `${bwMhz} MHz` : null };
   };
-  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('dashboard');
+  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard' | 'tagged'>('dashboard');
+
+  // ── Tagged / pinned sites (persistent) ──
+  const [taggedSites, setTaggedSites] = useState<SiteSummary[]>(() => {
+    try {
+      const saved = localStorage.getItem('qoebit_tagged_sites');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const persistTaggedSites = useCallback((next: SiteSummary[]) => {
+    setTaggedSites(next);
+    try { localStorage.setItem('qoebit_tagged_sites', JSON.stringify(next)); } catch {}
+  }, []);
+  const isSiteTagged = useCallback((siteId: string) => taggedSites.some(s => s.site_id === siteId), [taggedSites]);
+  const toggleTagSite = useCallback((site: SiteSummary) => {
+    setTaggedSites(prev => {
+      const exists = prev.some(s => s.site_id === site.site_id);
+      const next = exists ? prev.filter(s => s.site_id !== site.site_id) : [...prev, site];
+      try { localStorage.setItem('qoebit_tagged_sites', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
   const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
     try { return localStorage.getItem('qoebit_active_dashboard_id') || null; } catch { return null; }
   });
