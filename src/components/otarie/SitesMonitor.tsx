@@ -2600,6 +2600,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSiteId]);
 
+  useEffect(() => {
+    if (focusMode !== 'site' || !selectedSiteId || !siteDetail || siteDetail.site_id !== selectedSiteId) return;
+    if (expandedSectors.size > 0) return;
+
+    const sectorNums = new Set(siteDetail.cells.map(c => getSectorNumber(c.cell_id)));
+    if (sectorNums.size > 0) {
+      setExpandedSectors(sectorNums);
+    }
+  }, [focusMode, selectedSiteId, siteDetail, expandedSectors.size]);
+
   // Fetch LTE config from parameter_dump when a cell is focused
   useEffect(() => {
     if (!focusCellId || !siteDetail) {
@@ -4698,9 +4708,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     })().map(site => {
                       const isSelected = selectedSiteId === site.site_id;
                       const isExpanded = isSelected;
+                      const siteCells = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
+                        ? siteDetail.cells
+                        : site.cells;
+                      const displayedCellCount = isSelected && siteDetail?.site_id === site.site_id
+                        ? (siteDetail.cell_count ?? siteDetail.cells.length)
+                        : site.cell_count;
                       // Group cells by sector
-                      const sectors = new Map<number, typeof site.cells>();
-                      site.cells.forEach(c => {
+                      const sectors = new Map<number, typeof siteCells>();
+                      siteCells.forEach(c => {
                         const sNum = getSectorNumber(c.cell_id);
                         if (!sectors.has(sNum)) sectors.set(sNum, []);
                         sectors.get(sNum)!.push(c);
@@ -4743,7 +4759,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
                                 </span>
                               </div>
-                              <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{site.cell_count} cells</div>
+                              <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
                             </div>
                             <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           </button>
