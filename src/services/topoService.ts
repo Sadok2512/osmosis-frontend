@@ -588,6 +588,7 @@ export function invalidateDashboardSitesCache() {
 /**
  * Fetch site summaries for a dashboard context using server-side filtering.
  * Returns lightweight SiteSummary[] with empty cells array.
+ * Tries VPS first (where data actually lives), then Supabase RPC fallback.
  */
 export async function fetchDashboardSites(
   siteFilters: DashboardSiteFilters | null,
@@ -598,6 +599,40 @@ export async function fetchDashboardSites(
     return dashboardSitesCache.sites;
   }
 
+  // Build BboxFilters from dashboard filters for VPS query
+  const bboxFilters: BboxFilters = {};
+  if (siteFilters?.dor?.length) bboxFilters.dor = siteFilters.dor[0];
+  if (siteFilters?.constructeur?.length) bboxFilters.vendor = siteFilters.constructeur[0];
+  if (siteFilters?.plaque?.length) bboxFilters.plaque = siteFilters.plaque[0];
+  if (siteFilters?.zone_arcep?.length) bboxFilters.zone_arcep = siteFilters.zone_arcep[0];
+  if (siteFilters?.techno?.length) bboxFilters.techno = siteFilters.techno[0];
+  if (siteFilters?.bande?.length) bboxFilters.bande = siteFilters.bande[0];
+  if (search) bboxFilters.q = search;
+
+  // 1) Try VPS listSitesByBbox with full-world bbox (data lives on VPS, not Supabase)
+  try {
+    const fullWorldBbox = { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 };
+    const resp = await topoApi.listSitesByBbox(fullWorldBbox, bboxFilters, 10000);
+
+    if ((resp as any)?.unavailable) {
+      throw new Error('VPS unavailable');
+    }
+
+    const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
+
+    const sites: SiteSummary[] = (resp.sites || [])
+      .map(dtoToSiteSummary)
+      .filter((site): site is SiteSummary => site !== null)
+      .map(site => applyQoeData(site, qoeData));
+
+    console.log(`[TopoService] Dashboard sites: ${sites.length} sites via VPS`);
+    dashboardSitesCache = { key, sites, ts: Date.now() };
+    return sites;
+  } catch (err) {
+    console.warn('[TopoService] VPS dashboard fetch failed, trying RPC', err);
+  }
+
+  // 2) Supabase RPC fallback
   try {
     const params: Record<string, any> = {};
     if (siteFilters?.dor?.length) params.p_dor = siteFilters.dor;
@@ -644,10 +679,8 @@ export async function fetchDashboardSites(
     dashboardSitesCache = { key, sites, ts: Date.now() };
     return sites;
   } catch (err) {
-    console.warn('[TopoService] Dashboard RPC failed, falling back to bbox', err);
-    // Fallback to legacy full load
-    const allSites = await fetchTopoSites();
-    return allSites;
+    console.warn('[TopoService] Dashboard RPC also failed', err);
+    return [];
   }
 }
 
