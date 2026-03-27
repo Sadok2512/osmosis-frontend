@@ -3482,13 +3482,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   const renderSites = useMemo(() => {
-    if (!selectedSiteId || !selectedSiteSnapshot) return visibleSites;
-    if (visibleSites.some(site => site.site_id === selectedSiteId)) return visibleSites;
-    if (viewport.bounds && !viewport.bounds.contains(L.latLng(selectedSiteSnapshot.coordinates[0], selectedSiteSnapshot.coordinates[1]))) {
-      return visibleSites;
+    // Merge tagged sites into visible sites so they always appear on map
+    const merged = [...visibleSites];
+    for (const ts of taggedSites) {
+      if (!merged.some(s => s.site_id === ts.site_id)) {
+        merged.push(ts);
+      }
     }
-    return [selectedSiteSnapshot, ...visibleSites];
-  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds]);
+    if (!selectedSiteId || !selectedSiteSnapshot) return merged;
+    if (merged.some(site => site.site_id === selectedSiteId)) return merged;
+    if (viewport.bounds && !viewport.bounds.contains(L.latLng(selectedSiteSnapshot.coordinates[0], selectedSiteSnapshot.coordinates[1]))) {
+      return merged;
+    }
+    return [selectedSiteSnapshot, ...merged];
+  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites]);
 
   const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
   // Filter cells to 4G/5G only for sector rendering
@@ -5343,6 +5350,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {[
                   { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
                   { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
+                  { id: 'tagged' as const, label: `Tagged (${taggedSites.length})`, icon: <Star size={12} /> },
                 ].map(tab => (
                   <button
                     key={tab.id}
