@@ -4509,7 +4509,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 Topo
               </button>
               <button
-                onClick={() => { setParamPanelOpen(!paramPanelOpen); }}
+                onClick={async () => {
+                  if (!paramPanelOpen && !paramMode) {
+                    // Entering param mode: save active dashboard first, then close it
+                    if (activeDashboardId) {
+                      await saveDashboardSettings(activeDashboardId);
+                      setActiveDashboardId(null);
+                      setDashboardActive(false);
+                      setActiveSiteScope(null);
+                      setActiveDashboardFilters(null);
+                    }
+                  }
+                  setParamPanelOpen(!paramPanelOpen);
+                }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
                   paramMode || paramPanelOpen
                     ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-md shadow-emerald-500/20'
