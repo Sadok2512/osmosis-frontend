@@ -3515,8 +3515,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const cellRadius = is5G ? zoomRadius * 0.6 : zoomRadius;
                 const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, cellRadius, 60);
                 const isFaded = (mapTechnoFilter === '5G' && !is5G) || (mapTechnoFilter === '4G' && is5G);
-                const fillColor = isFaded || isFocusFaded ? FADED_COLOR : (sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
-                const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : (sectorColorMode === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
+                const fillColor = isFaded || isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
+                const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
                 const isFocusCell = focusCellId === cell.cell_id;
                 const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
                 const baseOpacity = isFocusFaded ? 0.08 : (isFaded ? 0.08 : (isCellDimmed ? 0.15 : overlapFactor));
