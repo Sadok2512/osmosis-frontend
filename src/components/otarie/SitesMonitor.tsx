@@ -2166,6 +2166,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [viewMode, setViewMode] = useState<'grid' | 'table' | 'map'>('map');
   const [localSearch, setLocalSearch] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchModeSites, setSearchModeSites] = useState<SiteSummary[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const isSearchActive = localSearch.trim().length >= 2;
   const [hoveredSiteId, setHoveredSiteId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [isFlying, setIsFlying] = useState(false);
@@ -2940,12 +2943,91 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }, 450);
   }, [fetchForViewport, currentBboxFilters]);
 
+  // ── Debounced server-side search (independent of dashboard) ──
+  const searchAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const term = localSearch.trim();
+    if (term.length < 2) {
+      setSearchModeSites([]);
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      if (searchAbortRef.current) searchAbortRef.current.abort();
+      const ctrl = new AbortController();
+      searchAbortRef.current = ctrl;
+
+      try {
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites?search=${encodeURIComponent(term)}&limit=10`), {
+          headers: getVpsProxyHeaders(),
+          signal: ctrl.signal,
+        });
+        const data = await resp.json();
+        const siteList = Array.isArray(data) ? data : (data.sites || []);
+        setSearchResults(siteList);
+
+        // Convert to SiteSummary for sidebar display
+        const summaries: SiteSummary[] = siteList
+          .filter((s: any) => {
+            const lat = Number(s.latitude ?? s.lat);
+            const lng = Number(s.longitude ?? s.lng);
+            return Number.isFinite(lat) && Number.isFinite(lng);
+          })
+          .map((s: any) => {
+            const siteName = s.site_name || s.nom_site || s.code_nidt || '';
+            const lat = Number(s.latitude ?? s.lat);
+            const lng = Number(s.longitude ?? s.lng);
+            const cellCount = s.cell_count || s.nb_cells || 0;
+            return {
+              site_id: siteName,
+              site_name: siteName,
+              vendor: s.constructeur || (Array.isArray(s.vendors) ? s.vendors[0] : s.vendor) || 'Unknown',
+              dor: s.dor || '',
+              plaque: s.plaque || '',
+              department: '',
+              cell_count: Number(cellCount),
+              qoe_score_avg: 0, p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0,
+              dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
+              coordinates: [lat, lng] as [number, number],
+              cells: [],
+              zone_arcep: s.zone_arcep || null,
+              lte_cells: s.lte_cells || 0,
+              nr_cells: s.nr_cells || 0,
+            } as SiteSummary;
+          });
+
+        setSearchModeSites(summaries);
+
+        // Auto-fly to first result
+        if (summaries.length > 0) {
+          setFlyTarget(summaries[0].coordinates);
+        }
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.warn('[SitesMonitor] Debounced search failed', err);
+          setSearchResults([]);
+          setSearchModeSites([]);
+        }
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+      if (searchAbortRef.current) searchAbortRef.current.abort();
+    };
+  }, [localSearch]);
+
   // Dashboard-first loading: load site summaries only for the active dashboard context
   useEffect(() => {
     mountedRef.current = true;
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
+      // Don't clear sites if search is active — search results are separate
       setSites([]);
       setBboxTotal(0);
       setBboxLoading(false);
@@ -2960,14 +3042,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setBboxLoading(true);
 
       try {
-        const dashboardSearch = localSearch.trim() || undefined;
         // Merge scope into filters if filters are empty
         let effectiveFilters = activeDashboardFilters;
         if ((!effectiveFilters || Object.keys(effectiveFilters).length === 0) && activeSiteScope && activeSiteScope.type !== 'ALL' && activeSiteScope.value) {
           if (activeSiteScope.type === 'DOR') effectiveFilters = { dor: [activeSiteScope.value] };
           else if (activeSiteScope.type === 'Plaque') effectiveFilters = { plaque: [activeSiteScope.value] };
         }
-        const dashboardSites = await fetchDashboardSites(effectiveFilters, dashboardSearch);
+        const dashboardSites = await fetchDashboardSites(effectiveFilters);
 
         if (cancelled) return;
 
@@ -2993,7 +3074,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       cancelled = true;
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [dashboardActive, activeDashboardFilters, activeSiteScope, localSearch]);
+  }, [dashboardActive, activeDashboardFilters, activeSiteScope]);
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
@@ -3163,14 +3244,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   const filteredSites = useMemo(() => {
+    // When search is active, use search results instead of dashboard sites
+    const baseSites = isSearchActive && searchModeSites.length > 0 ? searchModeSites : sites;
+
     // Debug: log active QOE filters
     const qoeFilters = activeViewFilters.filter(f => f.mode === 'qoe' && f.kpi && f.operator && f.threshold != null);
     if (qoeFilters.length > 0) {
       console.log('[QOE Filter] Active filters:', JSON.stringify(qoeFilters));
-      console.log('[QOE Filter] Total sites before filter:', sites.length);
+      console.log('[QOE Filter] Total sites before filter:', baseSites.length);
     }
-    const searchTerm = localSearch.toLowerCase();
-    const filtered = sites.filter(s => {
+    // Skip local search filter when using searchModeSites (already server-filtered)
+    const searchTerm = isSearchActive && searchModeSites.length > 0 ? '' : localSearch.toLowerCase();
+    const filtered = baseSites.filter(s => {
       const siteName = String(s.site_name ?? '');
       const siteId = String(s.site_id ?? '');
       const siteCells = Array.isArray(s.cells) ? s.cells : [];
@@ -3220,7 +3305,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
       return inventorySortOrder === 'asc' ? va - vb : vb - va;
     });
-  }, [sites, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters]);
+  }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters]);
 
   // Check if a cell's band passes the band filter
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
@@ -3545,19 +3630,72 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     el.scrollBy({ left: dir === 'left' ? -250 : 250, behavior: 'smooth' });
   }, []);
 
-  const handleSiteClick = (site: SiteSummary) => {
+  const handleSiteClick = async (site: SiteSummary) => {
     // Toggle: clicking the already-selected site deselects it
     if (selectedSiteId === site.site_id) {
       handleBackToGlobal();
       return;
     }
-    setSelectedSiteSnapshot(site);
-    setFlyTarget(site.coordinates);
-    setSelectedSiteId(site.site_id);
+
+    // If site has no cells (from search), load them on-demand
+    let siteWithCells = site;
+    if (site.cells.length === 0 && site.site_name) {
+      try {
+        const cellResp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites-with-cells?q=${encodeURIComponent(site.site_name)}&limit=500`), {
+          headers: getVpsProxyHeaders(),
+        });
+        const cellData = await cellResp.json();
+        const matchSite = (cellData.sites || []).find((cs: any) => cs.site_name === site.site_name);
+        if (matchSite) {
+          const cells = (matchSite.cells || []).map((c: any) => ({
+            cell_id: c.nom_cellule || c.cell_name,
+            cell_name: c.nom_cellule || c.cell_name || '',
+            techno: c.techno || '4G',
+            band: c.bande || '',
+            bande: c.bande || '',
+            vendor: c.constructeur || '',
+            azimut: c.azimut != null ? Number(c.azimut) : null,
+            tilt: c.tilt != null ? Number(c.tilt) : null,
+            pci: c.pci || null,
+            eci: c.eci || null,
+            tac: c.tac || null,
+            etat_cellule: c.etat_cellule || null,
+            nci: c.nci || null,
+            freq: c.freq || null,
+            zone_arcep: matchSite.zone_arcep || null,
+            plaque: matchSite.plaque || c.plaque || null,
+          }));
+          siteWithCells = {
+            ...site,
+            cells,
+            cell_count: cells.length || site.cell_count,
+            lte_cells: cells.filter((c: any) => c.techno === '4G' || c.techno === 'LTE').length,
+            nr_cells: cells.filter((c: any) => c.techno === '5G' || c.techno === 'NR').length,
+          };
+          // Update in searchModeSites or sites
+          setSearchModeSites(prev => prev.map(s => s.site_id === siteWithCells.site_id ? siteWithCells : s));
+          setSites(prev => {
+            const idx = prev.findIndex(s => s.site_id === siteWithCells.site_id);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = siteWithCells;
+              return updated;
+            }
+            return [...prev, siteWithCells];
+          });
+        }
+      } catch (err) {
+        console.warn('[SitesMonitor] Failed to load cells for search site', err);
+      }
+    }
+
+    setSelectedSiteSnapshot(siteWithCells);
+    setFlyTarget(siteWithCells.coordinates);
+    setSelectedSiteId(siteWithCells.site_id);
     setFocusMode('site');
     setFocusCellId(null);
     // Auto-expand only the first sector by default
-    const sectorNums = Array.from(new Set(site.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
+    const sectorNums = Array.from(new Set(siteWithCells.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
     setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
     setShowRightPanel(true);
     // Ensure inventory panel is open and on sites tab before scrolling
@@ -3565,7 +3703,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setInventoryTab('sites');
     // Scroll inventory to selected site with delay for DOM update
     setTimeout(() => {
-      const el = siteRowRefs.current.get(site.site_id);
+      const el = siteRowRefs.current.get(siteWithCells.site_id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 350);
   };
@@ -5160,119 +5298,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <Search className="w-4 h-4 text-muted-foreground shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search site... (Enter to find)"
+                    placeholder="Rechercher un site..."
                     value={localSearch}
                     onChange={(e) => setLocalSearch(e.target.value)}
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Escape') { setLocalSearch(''); }
-                      if (e.key === 'Enter' && localSearch.trim().length >= 2) {
-                        // Server-side search: find site and fly to it
-                        try {
-                          const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites?search=${encodeURIComponent(localSearch.trim())}&limit=5`), {
-                            headers: getVpsProxyHeaders(),
-                          });
-                          const data = await resp.json();
-                          const siteList = Array.isArray(data) ? data : (data.sites || []);
-                          if (siteList.length > 0) {
-                            setSearchResults(siteList);
-                          } else {
-                            setSearchResults([]);
-                          }
-                        } catch (err) { console.warn('[SitesMonitor] Server search failed', err); setSearchResults([]); }
-                      }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') { setLocalSearch(''); setSearchResults([]); setSearchModeSites([]); }
                     }}
                     className="flex-1 bg-transparent text-[12px] font-medium text-foreground outline-none placeholder:text-muted-foreground min-w-0"
                   />
+                  {searchLoading && (
+                    <RefreshCw size={12} className="animate-spin text-primary shrink-0" />
+                  )}
                   {localSearch && (
-                    <button onClick={() => { setLocalSearch(''); setSearchResults([]); }} className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0">
+                    <button onClick={() => { setLocalSearch(''); setSearchResults([]); setSearchModeSites([]); }} className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0">
                       <X size={12} />
                     </button>
                   )}
                 </div>
-                {/* Search results dropdown */}
-                {searchResults.length > 0 && (
-                  <div className="absolute left-5 right-5 top-full mt-1 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in">
-                    {searchResults.map((s: any, idx: number) => {
-                      const siteName = s.site_name || s.nom_site || s.code_nidt || '';
-                      const cellCount = s.cell_count || s.nb_cells || 0;
-                      return (
-                        <button
-                          key={idx}
-                          onClick={async () => {
-                            const lat = Number(s.latitude ?? s.lat);
-                            const lng = Number(s.longitude ?? s.lng);
-                            if (Number.isFinite(lat) && Number.isFinite(lng)) {
-                              setFlyTarget([lat, lng]);
-                              let cells: any[] = [];
-                              try {
-                                const cellResp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites-with-cells?q=${encodeURIComponent(siteName)}&limit=500`), {
-                                  headers: getVpsProxyHeaders(),
-                                });
-                                const cellData = await cellResp.json();
-                                const matchSite = (cellData.sites || []).find((cs: any) => cs.site_name === siteName);
-                                if (matchSite) {
-                                  cells = (matchSite.cells || []).map((c: any) => ({
-                                    cell_id: c.nom_cellule || c.cell_name,
-                                    cell_name: c.nom_cellule || c.cell_name || '',
-                                    techno: c.techno || '4G',
-                                    band: c.bande || '',
-                                    vendor: c.constructeur || '',
-                                    azimut: c.azimut != null ? Number(c.azimut) : null,
-                                    tilt: c.tilt != null ? Number(c.tilt) : null,
-                                    pci: c.pci || null,
-                                    eci: c.eci || null,
-                                    tac: c.tac || null,
-                                    etat_cellule: c.etat_cellule || null,
-                                    nci: c.nci || null,
-                                    freq: c.freq || null,
-                                    zone_arcep: matchSite.zone_arcep || null,
-                                    plaque: matchSite.plaque || c.plaque || null,
-                                  }));
-                                }
-                              } catch {}
-                              const siteSummary: SiteSummary = {
-                                site_id: siteName,
-                                site_name: siteName,
-                                vendor: s.constructeur || (Array.isArray(s.vendors) ? s.vendors[0] : s.vendor) || 'Unknown',
-                                dor: s.dor || '',
-                                plaque: s.plaque || '',
-                                department: '',
-                                cell_count: cells.length || Number(cellCount),
-                                qoe_score_avg: 0, p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0,
-                                dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
-                                coordinates: [lat, lng],
-                                cells,
-                                zone_arcep: s.zone_arcep || null,
-                                lte_cells: cells.filter((c: any) => c.techno === '4G' || c.techno === 'LTE').length,
-                                nr_cells: cells.filter((c: any) => c.techno === '5G' || c.techno === 'NR').length,
-                              };
-                              setSites(prev => {
-                                const existing = prev.findIndex(x => x.site_id === siteSummary.site_id);
-                                if (existing >= 0) {
-                                  const updated = [...prev];
-                                  updated[existing] = siteSummary;
-                                  return updated;
-                                }
-                                return [...prev, siteSummary];
-                              });
-                              setLocalSearch('');
-                              setSearchResults([]);
-                              setTimeout(() => handleSiteClick(siteSummary), 500);
-                            }
-                          }}
-                          className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-muted/60 transition-all border-b border-border last:border-b-0"
-                        >
-                          <MapPin size={14} className="text-primary shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[12px] font-bold text-foreground uppercase truncate">{siteName}</div>
-                            <div className="text-[10px] text-muted-foreground">{s.dor || ''} • {cellCount} cells</div>
-                          </div>
-                          <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
 
               {/* ── Tabs: Sites / Dashboard ── */}
@@ -5371,7 +5413,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Site List (sites tab) ── */}
               {inventoryTab === 'sites' && (
               <div className="flex-1 overflow-y-auto px-4 pb-4">
-                {!dashboardActive && !loading && !localSearch.trim() ? (
+                {!dashboardActive && !loading && !isSearchActive && searchModeSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                       <Filter size={18} className="text-primary" />
@@ -5381,10 +5423,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       Sélectionnez ou créez un dashboard dans l'onglet Dashboard pour charger les sites.
                     </p>
                   </div>
+                ) : searchLoading ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                    <RefreshCw size={20} className="mb-3 animate-spin text-primary" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider">Recherche...</span>
+                  </div>
                 ) : filteredSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <Search size={28} className="mb-3 opacity-20" />
-                    <span className="text-[11px] font-bold uppercase tracking-wider">No sites found</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">{isSearchActive ? 'Aucun résultat' : 'No sites found'}</span>
                   </div>
                 ) : (
                   <div className="space-y-2">
