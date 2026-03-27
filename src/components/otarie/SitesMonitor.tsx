@@ -5345,7 +5345,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Site List (sites tab) ── */}
               {inventoryTab === 'sites' && (
               <div className="flex-1 overflow-y-auto px-4 pb-4">
-                {!dashboardActive && !loading ? (
+                {!dashboardActive && !loading && !localSearch.trim() ? (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                       <Filter size={18} className="text-primary" />
