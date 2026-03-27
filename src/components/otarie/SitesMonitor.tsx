@@ -2182,7 +2182,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     return { prb, mimoLabel, rsPower, bwMhz: bwMhz ? `${bwMhz} MHz` : null };
   };
-  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('sites');
+  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('dashboard');
   const [beamVisibility, setBeamVisibility] = useState<number>(() => {
     try { const v = localStorage.getItem('qoebit_beam_visibility'); return v ? Number(v) : 75; } catch { return 75; }
   });
