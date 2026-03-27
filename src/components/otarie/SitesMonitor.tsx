@@ -2412,7 +2412,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     return { prb, mimoLabel, rsPower, bwMhz: bwMhz ? `${bwMhz} MHz` : null };
   };
-  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard'>('dashboard');
+  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard' | 'tagged'>('dashboard');
+
+  // ── Tagged / pinned sites (persistent) ──
+  const [taggedSites, setTaggedSites] = useState<SiteSummary[]>(() => {
+    try {
+      const saved = localStorage.getItem('qoebit_tagged_sites');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const persistTaggedSites = useCallback((next: SiteSummary[]) => {
+    setTaggedSites(next);
+    try { localStorage.setItem('qoebit_tagged_sites', JSON.stringify(next)); } catch {}
+  }, []);
+  const isSiteTagged = useCallback((siteId: string) => taggedSites.some(s => s.site_id === siteId), [taggedSites]);
+  const toggleTagSite = useCallback((site: SiteSummary) => {
+    setTaggedSites(prev => {
+      const exists = prev.some(s => s.site_id === site.site_id);
+      const next = exists ? prev.filter(s => s.site_id !== site.site_id) : [...prev, site];
+      try { localStorage.setItem('qoebit_tagged_sites', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
   const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
     try { return localStorage.getItem('qoebit_active_dashboard_id') || null; } catch { return null; }
   });
@@ -3461,13 +3482,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   const renderSites = useMemo(() => {
-    if (!selectedSiteId || !selectedSiteSnapshot) return visibleSites;
-    if (visibleSites.some(site => site.site_id === selectedSiteId)) return visibleSites;
-    if (viewport.bounds && !viewport.bounds.contains(L.latLng(selectedSiteSnapshot.coordinates[0], selectedSiteSnapshot.coordinates[1]))) {
-      return visibleSites;
+    // Merge tagged sites into visible sites so they always appear on map
+    const merged = [...visibleSites];
+    for (const ts of taggedSites) {
+      if (!merged.some(s => s.site_id === ts.site_id)) {
+        merged.push(ts);
+      }
     }
-    return [selectedSiteSnapshot, ...visibleSites];
-  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds]);
+    if (!selectedSiteId || !selectedSiteSnapshot) return merged;
+    if (merged.some(site => site.site_id === selectedSiteId)) return merged;
+    if (viewport.bounds && !viewport.bounds.contains(L.latLng(selectedSiteSnapshot.coordinates[0], selectedSiteSnapshot.coordinates[1]))) {
+      return merged;
+    }
+    return [selectedSiteSnapshot, ...merged];
+  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites]);
 
   const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
   // Filter cells to 4G/5G only for sector rendering
@@ -3700,7 +3728,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setShowRightPanel(true);
     // Ensure inventory panel is open and on sites tab before scrolling
     setPanelCollapsed(false);
-    setInventoryTab('sites');
+    // Switch to the appropriate tab: tagged if it's a tagged site on that tab, otherwise sites
+    if (inventoryTab !== 'tagged' || !isSiteTagged(siteWithCells.site_id)) {
+      setInventoryTab('sites');
+    }
     // Scroll inventory to selected site with delay for DOM update
     setTimeout(() => {
       const el = siteRowRefs.current.get(siteWithCells.site_id);
@@ -5322,11 +5353,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {[
                   { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
                   { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
+                  { id: 'tagged' as const, label: `Tagged (${taggedSites.length})`, icon: <Star size={12} /> },
                 ].map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setInventoryTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all max-w-[50%] ${
+                    className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
                       inventoryTab === tab.id
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -5501,7 +5533,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               )}
                               <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
                             </div>
-                            <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleTagSite(site); }}
+                                className={`w-6 h-6 flex items-center justify-center rounded-full transition-all ${isSiteTagged(site.site_id) ? 'text-yellow-400' : 'text-muted-foreground/40 hover:text-yellow-400'}`}
+                                title={isSiteTagged(site.site_id) ? 'Retirer du tag' : 'Tagger ce site'}
+                              >
+                                <Star size={14} fill={isSiteTagged(site.site_id) ? 'currentColor' : 'none'} />
+                              </button>
+                              <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </div>
                           </button>
 
                            {/* Expanded: sector cards + cell table */}
@@ -5635,6 +5676,214 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         + {filteredSites.length - 100} more — refine search
                       </div>
                     )}
+                  </div>
+                )}
+              </div>
+              )}
+
+              {/* ── Tagged Sites tab ── */}
+              {inventoryTab === 'tagged' && (
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {taggedSites.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                      <Star size={18} className="text-yellow-500" />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">Aucun site taggé</span>
+                    <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
+                      Cliquez sur l'étoile ★ d'un site pour le tagger et le garder visible en permanence.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {taggedSites.map(site => {
+                      const isSelected = selectedSiteId === site.site_id;
+                      const isExpanded = isSelected;
+                      const siteCells = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
+                        ? siteDetail.cells
+                        : site.cells;
+                      const displayedCellCount = isSelected && siteDetail?.site_id === site.site_id
+                        ? (siteDetail.cell_count ?? siteDetail.cells.length)
+                        : site.cell_count;
+                      const sectors = new Map<number, typeof siteCells>();
+                      siteCells.forEach(c => {
+                        const sNum = getSectorNumber(c.cell_id);
+                        if (!sectors.has(sNum)) sectors.set(sNum, []);
+                        sectors.get(sNum)!.push(c);
+                      });
+                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a - b);
+
+                      return (
+                        <div
+                          key={site.site_id}
+                          ref={(el) => { if (el) siteRowRefs.current.set(site.site_id, el); }}
+                          className={`rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
+                            isSelected
+                              ? 'border-primary/40 bg-card shadow-lg'
+                              : 'border-border bg-card hover:border-primary/20 hover:shadow-md'
+                          }`}
+                        >
+                          <button
+                            onClick={() => { handleSiteClick(site); }}
+                            onMouseEnter={() => setHoveredSiteId(site.site_id)}
+                            onMouseLeave={() => setHoveredSiteId(null)}
+                            className="w-full text-left px-4 py-3.5 flex items-center gap-3"
+                          >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                              isSelected ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'bg-muted text-muted-foreground'
+                            }`}>
+                              <MapPin size={18} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[13px] font-extrabold text-foreground tracking-tight uppercase truncate">{site.site_name}</h4>
+                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                                <span className="font-mono">{site.site_id}</span>
+                                <span>•</span>
+                                <span className="uppercase font-semibold">{site.vendor}</span>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              {sectorColorMode !== 'topo' && (
+                                <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg min-w-[48px]" style={{ background: getKpiColor((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0), color: '#fff' }}>
+                                  <span className="text-[15px] font-black tracking-tight leading-none">
+                                    {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleTagSite(site); }}
+                                className="w-6 h-6 flex items-center justify-center rounded-full transition-all text-yellow-400"
+                                title="Retirer du tag"
+                              >
+                                <Star size={14} fill="currentColor" />
+                              </button>
+                              <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </div>
+                          </button>
+
+                          {isExpanded && (
+                            <div className="px-4 pb-4 pt-1 animate-fade-in">
+                              <div className="flex items-stretch gap-2 mb-3">
+                                {sortedSec.map(([sNum, cells]) => {
+                                  const isSectorExpanded = expandedSectors.has(sNum);
+                                  const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
+                                  const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
+                                  return (
+                                    <button
+                                      key={sNum}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedSectors(prev => {
+                                          const next = new Set(prev);
+                                          if (next.has(sNum)) next.delete(sNum); else next.add(sNum);
+                                          return next;
+                                        });
+                                      }}
+                                      className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
+                                        isSectorExpanded
+                                          ? 'bg-primary text-primary-foreground shadow-lg'
+                                          : 'bg-card text-foreground border border-border hover:border-primary/30 shadow-sm'
+                                      }`}
+                                    >
+                                      <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
+                                      <div className="flex flex-col items-center gap-1 mb-1.5">
+                                        {(() => {
+                                          const nr = cells.filter(c => c.techno?.includes('5G') || c.techno === 'NR');
+                                          const lte = cells.filter(c => !c.techno?.includes('5G') && c.techno !== 'NR');
+                                          return (
+                                            <>
+                                              {nr.length > 0 && (
+                                                <div className="flex items-center justify-center gap-1">
+                                                  {nr.map((_, ci) => (
+                                                    <span key={`nr-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#8b5cf6' }} />
+                                                  ))}
+                                                </div>
+                                              )}
+                                              {lte.length > 0 && (
+                                                <div className="flex items-center justify-center gap-1">
+                                                  {lte.map((_, ci) => (
+                                                    <span key={`lte-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} />
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </>
+                                          );
+                                        })()}
+                                      </div>
+                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{sNum}</span>
+                                      <span className={`text-[9px] mt-0.5 font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{cells.length} cell{cells.length > 1 ? 's' : ''}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="flex items-center gap-4 mb-3 px-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#8b5cf6' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">5G</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">4G</span>
+                                </div>
+                              </div>
+                              {expandedSectors.size > 0 && (() => {
+                                const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
+                                if (!secCells.length) return null;
+                                return (
+                                  <div className="rounded-xl border border-border overflow-hidden animate-fade-in">
+                                    <table className="w-full text-[11px]">
+                                      <thead>
+                                        <tr className="bg-muted/40 border-b border-border">
+                                          <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Hba</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Sec</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {secCells.map((cell) => {
+                                          const isSel = focusCellId === cell.cell_id;
+                                          const sNum = getSectorNumber(cell.cell_id);
+                                          const tilt = (cell as any).tilt as number | null;
+                                          const hba = (cell as any).hba as number | null;
+                                          return (
+                                            <tr
+                                              key={cell.cell_id}
+                                              onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
+                                              className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${
+                                                isSel ? 'bg-primary/10' : 'hover:bg-muted/30'
+                                              }`}
+                                            >
+                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                              <td className="px-2 py-2 text-center">
+                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#8b5cf6]' : 'bg-[#f97316]'}`}>
+                                                  {cell.techno || '—'}
+                                                </span>
+                                              </td>
+                                              <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-extrabold text-primary">S{sNum}</td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
