@@ -3433,7 +3433,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     });
                     if (repCell) kpiColor = getKpiColor(getCellKpiValue(repCell));
                   }
-                  const fillColor = isFocusFaded ? FADED_COLOR : (sectorColorMode === 'topo' ? topoColor : kpiColor);
+                  const fillColor = isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
                   const strokeColor = isFocusFaded ? '#cbd5e1' : deriveStrokeColor(fillColor);
                   const sectorCoords = getSectorCoords(site.coordinates, az, radius, 60);
                   return (
