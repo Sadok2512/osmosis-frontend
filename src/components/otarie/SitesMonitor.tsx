@@ -3954,7 +3954,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           if (showMiniSectors) {
-            const miniRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7;
+            const TAGGED_FIXED_RADIUS = 350; // meters — constant for tagged sites
+            const miniRadius = isTagged ? TAGGED_FIXED_RADIUS * 0.7 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7;
             const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
