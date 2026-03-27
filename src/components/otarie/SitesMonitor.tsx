@@ -241,6 +241,39 @@ const getZoomAwareRadius = (lat: number, zoom: number): number => {
   return Math.max(40, Math.min(1500, TARGET_PX * mpp));
 };
 
+const inferSiteTechState = (site: SiteSummary) => {
+  if (site.cells.length > 0) {
+    const has5G = site.cells.some(cell => is5GTech(cell.techno));
+    const has4G = site.cells.some(cell => is4GTech(cell.techno));
+    return { has4G, has5G };
+  }
+
+  const nrCells = Number(site.nr_cells || 0);
+  const lteCells = Number(site.lte_cells || 0);
+  if (nrCells > 0 || lteCells > 0) {
+    return { has4G: lteCells > 0, has5G: nrCells > 0 };
+  }
+
+  const fallbackTech = String(site.techno || '').toUpperCase();
+  return {
+    has4G: is4GTech(fallbackTech),
+    has5G: is5GTech(fallbackTech),
+  };
+};
+
+const getValidSectorAzimuths = (site: SiteSummary): number[] => {
+  const azimuths = new Set<number>();
+
+  site.cells.forEach((cell) => {
+    const az = Number(cell.azimut);
+    if (Number.isFinite(az) && az >= 0 && az <= 360) {
+      azimuths.add(az);
+    }
+  });
+
+  return Array.from(azimuths).sort((a, b) => a - b);
+};
+
 // Generate sector polygon points (wedge shape)
 const getSectorCoords = (
   center: [number, number],
@@ -3424,8 +3457,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
         {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
-          const has5G = site.cells.length > 0 ? site.cells.some(c => (c.techno || '').toUpperCase().includes('5G')) : site.site_name.toUpperCase().includes('5G');
-          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
+          const { has4G, has5G } = inferSiteTechState(site);
+          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
           const color = (sectorColorMode as string) === 'topo' ? topoColor : kpiColor;
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
@@ -3471,7 +3504,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (showMiniSectors) {
             const miniRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * 0.7;
             const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
-            const azimuths = [...new Set(site.cells.map(c => c.azimut ?? 0))];
+             const azimuths = getValidSectorAzimuths(site);
+             if (azimuths.length === 0) return null;
             return (
               <React.Fragment key={site.site_id}>
                 {azimuths.map(az => {
@@ -3564,8 +3598,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           /* ── Indoor sites: circle with "I" instead of sectors (rendered at all zooms including sector zoom) ── */
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           if (isIndoor) {
-            const has5G = site.cells.length > 0 ? site.cells.some(c => (c.techno || '').toUpperCase().includes('5G')) : site.site_name.toUpperCase().includes('5G');
-            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : (bandColors['4G_GROUP'] || '#f97316');
+            const { has4G, has5G } = inferSiteTechState(site);
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#a855f7') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
             const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
             const color = (sectorColorMode as string) === 'topo' ? topoColor : kpiColor;
             const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
@@ -3632,8 +3666,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const techAzimuths = new Map<string, Set<number>>();
             for (const cell of site.cells) {
               const tech = (cell.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
+              const az = Number(cell.azimut);
+              if (!Number.isFinite(az) || az < 0 || az > 360) continue;
               if (!techAzimuths.has(tech)) techAzimuths.set(tech, new Set());
-              techAzimuths.get(tech)!.add(cell.azimut ?? 0);
+              techAzimuths.get(tech)!.add(az);
             }
             const has4G = techAzimuths.has('4G');
             const has5G = techAzimuths.has('5G');
@@ -3758,7 +3794,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 .map(cell => {
                 const is5G = (cell.techno || '').toUpperCase().includes('5G');
                 const cellRadius = is5G ? zoomRadius * 0.6 : zoomRadius;
-                const sectorCoords = getSectorCoords(site.coordinates, cell.azimut, cellRadius, 60);
+                const az = Number(cell.azimut);
+                if (!Number.isFinite(az) || az < 0 || az > 360) return null;
+                const sectorCoords = getSectorCoords(site.coordinates, az, cellRadius, 60);
                 const isFaded = (mapTechnoFilter === '5G' && !is5G) || (mapTechnoFilter === '4G' && is5G);
                 const fillColor = isFaded || isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
                 const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
