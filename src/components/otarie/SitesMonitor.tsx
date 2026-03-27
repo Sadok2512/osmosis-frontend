@@ -360,14 +360,17 @@ const FitHighlightBounds = ({ coords }: { coords: [number, number][] }) => {
 const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; resetKey: string }) => {
   const map = useMap();
   const lastResetKeyRef = useRef<string | null>(null);
-  const initialDoneRef = useRef(false);
 
-  // Always center on France on very first mount
+  // Always center on France on very first mount, regardless of mode
   useEffect(() => {
-    if (initialDoneRef.current) return;
-    initialDoneRef.current = true;
-    map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
-  }, [map]);
+    // Small delay to ensure map is fully initialized
+    const timer = setTimeout(() => {
+      map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
+      map.invalidateSize();
+    }, 100);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!enabled || lastResetKeyRef.current === resetKey) return;
