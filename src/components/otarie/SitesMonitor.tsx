@@ -2484,7 +2484,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // Also apply scope if no explicit filters
       if (Object.keys(effectiveFilters).length === 0 && activeSiteScope && activeSiteScope.type !== 'ALL' && activeSiteScope.value) {
         if (activeSiteScope.type === 'DOR') filterParams.set('dor', activeSiteScope.value);
-        else if (activeSiteScope.type === 'PLAQUE') filterParams.set('plaque', activeSiteScope.value);
+        else if (activeSiteScope.type === 'Plaque') filterParams.set('plaque', activeSiteScope.value);
       }
       const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/param-map?${filterParams.toString()}`), {
         headers: getVpsProxyHeaders(),
