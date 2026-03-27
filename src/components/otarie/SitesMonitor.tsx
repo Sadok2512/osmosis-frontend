@@ -1893,7 +1893,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 {/* Dashboard row */}
                 <div
                   onClick={() => {
-                    requestDashboardSwitch(isExpanded ? null : db.id);
+                    if (!isExpanded) requestDashboardSwitch(db.id);
                   }}
                   className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
                   style={dbColor ? { borderLeft: `3px solid ${dbColor}` } : undefined}
