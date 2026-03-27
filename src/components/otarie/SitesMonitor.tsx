@@ -235,11 +235,31 @@ const metersPerPixel = (lat: number, zoom: number): number => {
   return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
 };
 
-// Sector radius in meters — constant ~45px visual size, calmer proportions
-const getZoomAwareRadius = (lat: number, zoom: number): number => {
-  const TARGET_PX = 45; // reduced from 60 for cleaner look
+// Sector radius in meters — adaptive to zoom, density, and viewport
+const getZoomAwareRadius = (
+  lat: number,
+  zoom: number,
+  densityFactor: number = 1, // 0..1 — lower = denser area = smaller sectors
+  viewportWidth: number = 1400, // CSS px
+): number => {
+  // Zoom-based target pixel size: compact at low zoom, larger at high zoom
+  let targetPx: number;
+  if (zoom <= 9) targetPx = 22;
+  else if (zoom <= 10) targetPx = 28;
+  else if (zoom <= 11) targetPx = 34;
+  else if (zoom <= 12) targetPx = 38;
+  else targetPx = 42;
+
+  // Viewport scaling: shrink on small screens, slight grow on large
+  const vpScale = Math.max(0.7, Math.min(1.1, viewportWidth / 1400));
+  targetPx *= vpScale;
+
+  // Density scaling: reduce size in crowded areas (densityFactor 0→0.5x, 1→1x)
+  const densityScale = 0.5 + 0.5 * Math.max(0, Math.min(1, densityFactor));
+  targetPx *= densityScale;
+
   const mpp = metersPerPixel(lat, zoom);
-  return Math.max(40, Math.min(1500, TARGET_PX * mpp));
+  return Math.max(30, Math.min(1200, targetPx * mpp));
 };
 
 const inferSiteTechState = (site: SiteSummary) => {
@@ -3122,7 +3142,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds]);
 
-  // Auto-load cells for visible sites via a single bulk bbox call (avoids per-site 503s)
+  // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
+  const sectorDensityFactor = useMemo(() => {
+    const count = visibleSites.length;
+    if (count > 500) return 0;
+    if (count > 300) return 0.15;
+    if (count > 150) return 0.3;
+    if (count > 80) return 0.5;
+    if (count > 30) return 0.7;
+    return 1;
+  }, [visibleSites.length]);
+
+  // Viewport width for responsive sector sizing
+  const vpWidth = typeof window !== 'undefined' ? window.innerWidth : 1400;
+
+
   useEffect(() => {
     if (displayMode !== 'cells' || !dashboardActive) return;
     if (!viewport.bounds) return;
@@ -3587,7 +3621,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           if (showMiniSectors) {
-            const miniRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * 0.7;
+            const miniRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7;
             const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
@@ -3674,7 +3708,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {!paramMode && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
-          const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom) * (0.5 + 0.5 * (beamVisibility / 100));
+          const zoomRadius = getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100));
           const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           const beamScale = beamVisibility / 100;
           const overlapFactor = baseOverlap + (1 - baseOverlap) * beamScale;
