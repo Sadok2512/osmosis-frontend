@@ -1315,7 +1315,22 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const extractSiteFilters = (db: any): DashboardSiteFilters | null => {
     const s = getDashboardSettings(db);
-    return s?.siteFilters || null;
+    if (s?.siteFilters && Object.keys(s.siteFilters).length > 0) return s.siteFilters;
+    // Fallback: derive filters from scope if siteFilters not explicitly saved
+    const scope = s?.siteScope || null;
+    if (scope && scope.type !== 'ALL' && scope.value) {
+      if (scope.type === 'DOR') return { dor: [scope.value] };
+      if (scope.type === 'Plaque') return { plaque: [scope.value] };
+    }
+    // Also check the dashboard name for DOR hints
+    const name = (db.name || '').trim();
+    const dorNames = ['UPR Sud-Ouest', 'UPR Ile-De-France', 'UPR Nord-Est', 'UPR Ouest', 'UPR Sud-Est'];
+    for (const dor of dorNames) {
+      if (name.toLowerCase().includes(dor.toLowerCase().replace('upr ', ''))) {
+        return { dor: [dor] };
+      }
+    }
+    return null;
   };
 
   const requestDashboardSwitch = (newId: string | null) => {
