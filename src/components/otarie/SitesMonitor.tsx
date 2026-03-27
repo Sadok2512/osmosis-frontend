@@ -5295,44 +5295,56 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 })}
                               </div>
 
-                              {/* Expanded sector → cell list */}
+                              {/* Expanded sector → cell table */}
                               {expandedSectors.size > 0 && (() => {
                                 const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
                                 if (!secCells.length) return null;
                                 return (
                                   <div className="border border-border rounded-xl overflow-hidden animate-fade-in">
-                                    {secCells.map((cell, idx) => {
-                                      const isSel = focusCellId === cell.cell_id;
-                                      return (
-                                        <button
-                                          key={cell.cell_id}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleCellClick(cell.cell_id);
-                                          }}
-                                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-all ${
-                                            idx > 0 ? 'border-t border-border/50' : ''
-                                          } ${
-                                            isSel
-                                              ? 'bg-primary/10 border-l-[3px] border-l-primary'
-                                              : 'hover:bg-muted/40 border-l-[3px] border-l-transparent'
-                                          }`}
-                                        >
-                                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: sectorColorMode === 'kpi' ? getKpiColor(getCellKpiValue(cell)) : getBandColor(cell.bande, cell.techno) }} />
-                                          <div className="flex-1 min-w-0">
-                                            <div className={`text-[11px] font-mono truncate ${isSel ? 'font-bold text-foreground' : 'text-foreground'}`}>
-                                              {cell.cell_id}
-                                            </div>
-                                            <div className="text-[9px] text-muted-foreground">
-                                              {cell.techno} • {cell.bande} MHz • Az {cell.azimut}°
-                                            </div>
-                                          </div>
-                                          <div className="text-[12px] font-bold shrink-0" style={{ color: getKpiColor(getCellKpiValue(cell)) }}>
-                                            {(getCellKpiValue(cell) ?? 0).toFixed(1)}
-                                          </div>
-                                        </button>
-                                      );
-                                    })}
+                                    <table className="w-full text-[11px]">
+                                      <thead>
+                                        <tr className="bg-muted/40 text-muted-foreground text-[9px] uppercase tracking-wider">
+                                          <th className="text-left px-3 py-1.5 font-semibold">Cell</th>
+                                          <th className="text-center px-1 py-1.5 font-semibold">Tech</th>
+                                          <th className="text-center px-1 py-1.5 font-semibold">Az</th>
+                                          <th className="text-center px-1 py-1.5 font-semibold">Tilt</th>
+                                          <th className="text-center px-1 py-1.5 font-semibold">Hba</th>
+                                          <th className="text-center px-1 py-1.5 font-semibold">Sec</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {secCells.map((cell, idx) => {
+                                          const isSel = focusCellId === cell.cell_id;
+                                          const sNum = getSectorNumber(cell.cell_id);
+                                          const tilt = (cell as any).tilt as number | null;
+                                          const hba = (cell as any).hba as number | null;
+                                          return (
+                                            <tr
+                                              key={cell.cell_id}
+                                              onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
+                                              className={`cursor-pointer transition-colors ${idx > 0 ? 'border-t border-border/50' : ''} ${
+                                                isSel ? 'bg-primary/10' : 'hover:bg-muted/30'
+                                              }`}
+                                            >
+                                              <td className="px-3 py-1.5 font-mono truncate max-w-[140px]" title={cell.cell_id}>
+                                                {cell.cell_id.length > 18 ? cell.cell_id.slice(0, 18) + '…' : cell.cell_id}
+                                              </td>
+                                              <td className="text-center px-1 py-1.5">
+                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${
+                                                  cell.techno?.includes('5G') || cell.techno === 'NR' ? 'bg-emerald-500' : 'bg-amber-500'
+                                                }`}>
+                                                  {cell.techno || '—'}
+                                                </span>
+                                              </td>
+                                              <td className="text-center px-1 py-1.5 font-mono font-semibold">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
+                                              <td className="text-center px-1 py-1.5 font-mono font-semibold">{tilt != null ? `${tilt}°` : '—'}</td>
+                                              <td className="text-center px-1 py-1.5 font-mono text-muted-foreground">{hba != null ? `${hba}m` : '—m'}</td>
+                                              <td className="text-center px-1 py-1.5 font-semibold text-muted-foreground">S{sNum}</td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
                                   </div>
                                 );
                               })()}
