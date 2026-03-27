@@ -257,6 +257,8 @@ export interface SiteSummary {
   zone_arcep?: string | null;
   techno?: string | null;
   bande?: string | null;
+  lte_cells?: number;
+  nr_cells?: number;
 }
 
 export interface SiteDetail extends SiteSummary {
