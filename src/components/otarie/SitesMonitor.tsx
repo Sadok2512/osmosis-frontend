@@ -3220,7 +3220,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       >
         <TopoFranceViewportReset
           enabled={sectorColorMode === 'topo' && focusMode === 'global' && !selectedSiteId}
-          resetKey={`${sectorColorMode}-${focusMode}-${selectedSiteId ?? 'none'}`}
+          resetKey={`${sectorColorMode}-${focusMode}-${selectedSiteId ?? 'none'}-${topoResetCounter}`}
         />
         <CustomZoomControl />
         <TileLayer
