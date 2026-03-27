@@ -5169,23 +5169,58 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             if (Number.isFinite(lat) && Number.isFinite(lng)) {
                               setFlyTarget([lat, lng]);
                               // Also add to sites list if not present
+                              const siteNameFound = s.site_name || s.nom_site || s.code_nidt;
+                              // Fetch cells for this site
+                              let cells: any[] = [];
+                              try {
+                                const cellResp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites-with-cells?q=${encodeURIComponent(siteNameFound)}&limit=500`), {
+                                  headers: getVpsProxyHeaders(),
+                                });
+                                const cellData = await cellResp.json();
+                                const matchSite = (cellData.sites || []).find((cs: any) => cs.site_name === siteNameFound);
+                                if (matchSite) {
+                                  cells = (matchSite.cells || []).map((c: any) => ({
+                                    cell_id: c.nom_cellule || c.cell_name,
+                                    cell_name: c.nom_cellule || c.cell_name || '',
+                                    techno: c.techno || '4G',
+                                    band: c.bande || '',
+                                    vendor: c.constructeur || '',
+                                    azimut: c.azimut != null ? Number(c.azimut) : null,
+                                    tilt: c.tilt != null ? Number(c.tilt) : null,
+                                    pci: c.pci || null,
+                                    eci: c.eci || null,
+                                    tac: c.tac || null,
+                                    etat_cellule: c.etat_cellule || null,
+                                    nci: c.nci || null,
+                                    freq: c.freq || null,
+                                    zone_arcep: matchSite.zone_arcep || null,
+                                    plaque: matchSite.plaque || c.plaque || null,
+                                  }));
+                                }
+                              } catch {}
                               const siteSummary: SiteSummary = {
-                                site_id: s.site_name || s.code_nidt,
-                                site_name: s.site_name || s.nom_site || s.code_nidt,
+                                site_id: siteNameFound,
+                                site_name: siteNameFound,
                                 vendor: s.constructeur || (Array.isArray(s.vendors) ? s.vendors[0] : s.vendor) || 'Unknown',
                                 dor: s.dor || '',
                                 plaque: s.plaque || '',
                                 department: '',
-                                cell_count: Number(s.cell_count || s.nb_cells || 0),
+                                cell_count: cells.length || Number(s.cell_count || s.nb_cells || 0),
                                 qoe_score_avg: 0, p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0,
                                 dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
                                 coordinates: [lat, lng],
-                                cells: [],
+                                cells,
                                 zone_arcep: s.zone_arcep || null,
-                                lte_cells: 0, nr_cells: 0,
+                                lte_cells: cells.filter((c: any) => c.techno === '4G' || c.techno === 'LTE').length,
+                                nr_cells: cells.filter((c: any) => c.techno === '5G' || c.techno === 'NR').length,
                               };
                               setSites(prev => {
-                                if (prev.find(x => x.site_id === siteSummary.site_id)) return prev;
+                                const existing = prev.findIndex(x => x.site_id === siteSummary.site_id);
+                                if (existing >= 0) {
+                                  const updated = [...prev];
+                                  updated[existing] = siteSummary;
+                                  return updated;
+                                }
                                 return [...prev, siteSummary];
                               });
                               setTimeout(() => handleSiteClick(siteSummary), 500);
