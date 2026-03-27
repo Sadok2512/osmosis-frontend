@@ -6058,6 +6058,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           })()}
 
+          {/* ========== LOADING STATE for site/cell modes ========== */}
+          {(focusMode === 'site' || focusMode === 'cell') && !siteDetail && (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="flex flex-col items-center gap-3">
+                <RefreshCw className="w-6 h-6 text-primary animate-spin" />
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Loading site details…</p>
+              </div>
+            </div>
+          )}
+
           {/* ========== SITE FOCUS MODE ========== */}
           {focusMode === 'site' && siteDetail && (() => {
             // Group cells by sector number
