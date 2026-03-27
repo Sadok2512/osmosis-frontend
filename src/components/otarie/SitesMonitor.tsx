@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallba
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { dashboardsApi, mapViewsApi, qoeMetricsApi, topoApi } from '@/lib/localDb';
+import { useMapSitesStore } from "@/stores/mapSitesStore";
 import { ActiveFilter } from '@/config/filterDimensions';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -2033,7 +2034,25 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 };
 
 const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI }) => {
-  const [sites, setSites] = useState<SiteSummary[]>([]);
+  const mapCache = useMapSitesStore();
+  const [sites, setSitesRaw] = useState<SiteSummary[]>(() => {
+    // Restore from cache if valid
+    if (mapCache.isCacheValid() && mapCache.cachedSites.length > 0) {
+      return mapCache.cachedSites as any;
+    }
+    return [];
+  });
+  // Wrap setSites to also update cache
+  const setSites = useCallback((newSites: SiteSummary[] | ((prev: SiteSummary[]) => SiteSummary[])) => {
+    setSitesRaw((prev) => {
+      const resolved = typeof newSites === 'function' ? newSites(prev) : newSites;
+      // Cache in store (non-blocking)
+      if (resolved.length > 0) {
+        mapCache.setSitesCache(resolved as any, resolved.length, null, null);
+      }
+      return resolved;
+    });
+  }, [mapCache]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [selectedSiteSnapshot, setSelectedSiteSnapshot] = useState<SiteSummary | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
@@ -2073,7 +2092,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [showLegend, setShowLegend] = useState(true);
-  const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: 6 });
+  const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: mapCache.cachedZoom || 6 });
+  const [initialCenter] = useState<[number, number] | null>(mapCache.cachedCenter);
   const displayModeRef = useRef<'sites' | 'cells'>('sites');
   const [mapRendering, setMapRendering] = useState(false);
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
@@ -2768,6 +2788,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
   const handleViewportChange = useCallback((v: ViewportState) => {
     setViewport(v);
+    // Cache map position
+    if (v.bounds) {
+      const c = v.bounds.getCenter?.();
+      if (c) mapCache.setMapPosition([c.lat, c.lng], v.zoom);
+    }
 
     if (!dashboardActive) return;
     if (isFlyingRef.current) return;
@@ -3378,7 +3403,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
       {/* FULL SCREEN MAP */}
       <MapContainer
-        center={FRANCE_CENTER}
+        center={initialCenter || FRANCE_CENTER}
         zoom={FRANCE_DEFAULT_ZOOM}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
