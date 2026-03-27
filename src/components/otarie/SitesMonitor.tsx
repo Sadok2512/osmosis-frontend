@@ -632,6 +632,8 @@ interface DashboardSettingsPanelProps {
   isSaving?: boolean;
   onClose: () => void;
   onSetDashboards: React.Dispatch<React.SetStateAction<any[]>>;
+  backendFilterDefs?: { id: string; label: string; values: string[] }[];
+  onSiteFiltersChange?: (filters: DashboardSiteFilters) => void;
 }
 
 const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, onClose, onSetDashboards }) => {
