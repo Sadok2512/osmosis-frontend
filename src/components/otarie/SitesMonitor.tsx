@@ -659,6 +659,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
   const [freeTextValue, setFreeTextValue] = useState('');
   const [kpiSearch, setKpiSearch] = useState('');
   const [thresholdInput, setThresholdInput] = useState('');
+  const [localSiteFilters, setLocalSiteFilters] = useState<DashboardSiteFilters>(() => settings.siteFilters || {});
 
   const commitFilter = (val?: string) => {
     let newFilters = localFilters;
