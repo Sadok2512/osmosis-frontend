@@ -3255,6 +3255,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       localVendor,
       localDor,
       localPlaque,
+      localSite: localBande,
       localBande: localBande,
       localZoneArcep,
       localTechno,
