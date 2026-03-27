@@ -2943,12 +2943,91 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }, 450);
   }, [fetchForViewport, currentBboxFilters]);
 
+  // ── Debounced server-side search (independent of dashboard) ──
+  const searchAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const term = localSearch.trim();
+    if (term.length < 2) {
+      setSearchModeSites([]);
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      if (searchAbortRef.current) searchAbortRef.current.abort();
+      const ctrl = new AbortController();
+      searchAbortRef.current = ctrl;
+
+      try {
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites?search=${encodeURIComponent(term)}&limit=10`), {
+          headers: getVpsProxyHeaders(),
+          signal: ctrl.signal,
+        });
+        const data = await resp.json();
+        const siteList = Array.isArray(data) ? data : (data.sites || []);
+        setSearchResults(siteList);
+
+        // Convert to SiteSummary for sidebar display
+        const summaries: SiteSummary[] = siteList
+          .filter((s: any) => {
+            const lat = Number(s.latitude ?? s.lat);
+            const lng = Number(s.longitude ?? s.lng);
+            return Number.isFinite(lat) && Number.isFinite(lng);
+          })
+          .map((s: any) => {
+            const siteName = s.site_name || s.nom_site || s.code_nidt || '';
+            const lat = Number(s.latitude ?? s.lat);
+            const lng = Number(s.longitude ?? s.lng);
+            const cellCount = s.cell_count || s.nb_cells || 0;
+            return {
+              site_id: siteName,
+              site_name: siteName,
+              vendor: s.constructeur || (Array.isArray(s.vendors) ? s.vendors[0] : s.vendor) || 'Unknown',
+              dor: s.dor || '',
+              plaque: s.plaque || '',
+              department: '',
+              cell_count: Number(cellCount),
+              qoe_score_avg: 0, p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0,
+              dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
+              coordinates: [lat, lng] as [number, number],
+              cells: [],
+              zone_arcep: s.zone_arcep || null,
+              lte_cells: s.lte_cells || 0,
+              nr_cells: s.nr_cells || 0,
+            } as SiteSummary;
+          });
+
+        setSearchModeSites(summaries);
+
+        // Auto-fly to first result
+        if (summaries.length > 0) {
+          setFlyTarget(summaries[0].coordinates);
+        }
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.warn('[SitesMonitor] Debounced search failed', err);
+          setSearchResults([]);
+          setSearchModeSites([]);
+        }
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+      if (searchAbortRef.current) searchAbortRef.current.abort();
+    };
+  }, [localSearch]);
+
   // Dashboard-first loading: load site summaries only for the active dashboard context
   useEffect(() => {
     mountedRef.current = true;
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
+      // Don't clear sites if search is active — search results are separate
       setSites([]);
       setBboxTotal(0);
       setBboxLoading(false);
@@ -2963,14 +3042,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setBboxLoading(true);
 
       try {
-        const dashboardSearch = localSearch.trim() || undefined;
         // Merge scope into filters if filters are empty
         let effectiveFilters = activeDashboardFilters;
         if ((!effectiveFilters || Object.keys(effectiveFilters).length === 0) && activeSiteScope && activeSiteScope.type !== 'ALL' && activeSiteScope.value) {
           if (activeSiteScope.type === 'DOR') effectiveFilters = { dor: [activeSiteScope.value] };
           else if (activeSiteScope.type === 'Plaque') effectiveFilters = { plaque: [activeSiteScope.value] };
         }
-        const dashboardSites = await fetchDashboardSites(effectiveFilters, dashboardSearch);
+        const dashboardSites = await fetchDashboardSites(effectiveFilters);
 
         if (cancelled) return;
 
