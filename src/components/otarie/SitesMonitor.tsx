@@ -2345,7 +2345,37 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
   const [expandedSectors, setExpandedSectors] = useState<Set<number>>(new Set());
-  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim' | 'config'>('kpi');
+  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim' | 'config' | 'alarms' | 'cm'>('kpi');
+
+  // Alarms and CM History
+  const [siteAlarms, setSiteAlarms] = useState<any[]>([]);
+  const [siteAlarmsLoading, setSiteAlarmsLoading] = useState(false);
+  const [siteCmHistory, setSiteCmHistory] = useState<any[]>([]);
+  const [siteCmLoading, setSiteCmLoading] = useState(false);
+
+  // Fetch alarms when tab is selected
+  useEffect(() => {
+    if (cellDetailTab !== 'alarms' || !siteDetail) return;
+    setSiteAlarmsLoading(true);
+    fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-alarms?site_name=${encodeURIComponent(siteDetail.site_name)}&limit=50`), {
+      headers: getVpsProxyHeaders(),
+    }).then(r => r.json()).then(d => {
+      setSiteAlarms(d.alarms || []);
+    }).catch(() => setSiteAlarms([]))
+    .finally(() => setSiteAlarmsLoading(false));
+  }, [cellDetailTab, siteDetail?.site_name]);
+
+  // Fetch CM history when tab is selected
+  useEffect(() => {
+    if (cellDetailTab !== 'cm' || !siteDetail) return;
+    setSiteCmLoading(true);
+    fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-cm-history?site_name=${encodeURIComponent(siteDetail.site_name)}&limit=50`), {
+      headers: getVpsProxyHeaders(),
+    }).then(r => r.json()).then(d => {
+      setSiteCmHistory(d.changes || []);
+    }).catch(() => setSiteCmHistory([]))
+    .finally(() => setSiteCmLoading(false));
+  }, [cellDetailTab, siteDetail?.site_name]);
 
   // LTE Cell Configuration from parameter_dump
   const [lteConfig, setLteConfig] = useState<{
@@ -6799,6 +6829,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     { id: 'topo' as const, label: 'Topologie', icon: <Radio size={12} /> },
                     { id: 'config' as const, label: 'Config', icon: <Settings2 size={12} /> },
                     { id: 'sim' as const, label: 'Simulation', icon: <Signal size={12} /> },
+                      { id: 'alarms', label: '🔔 Alarms', icon: null },
+                      { id: 'cm', label: '📝 CM', icon: null },
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -7061,6 +7093,64 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     />
                   );
                 })()}
+
+                {/* ── Alarms Tab ── */}
+                {cellDetailTab === 'alarms' && (
+                  <div className="px-5 py-4">
+                    <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <span className="text-red-500">🔔</span> FM Alarms — {siteDetail?.site_name}
+                    </h4>
+                    {siteAlarmsLoading ? (
+                      <div className="text-center py-8 text-muted-foreground text-xs">Chargement...</div>
+                    ) : siteAlarms.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-xs">Aucune alarme pour ce site</div>
+                    ) : (
+                      <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                        {siteAlarms.map((a: any, i: number) => (
+                          <div key={i} className="rounded-lg border border-border p-3 text-[11px]">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className={`font-bold uppercase ${a.severity === 'CRITICAL' ? 'text-red-500' : a.severity === 'MAJOR' ? 'text-orange-500' : a.severity === 'MINOR' ? 'text-yellow-500' : 'text-muted-foreground'}`}>
+                                {a.severity}
+                              </span>
+                              <span className="text-muted-foreground">{a.duration_min != null ? a.duration_min + ' min' : '—'}</span>
+                            </div>
+                            <div className="font-mono text-foreground">{a.problem || a.text || '—'}</div>
+                            <div className="text-muted-foreground mt-1">{a.alarm_time ? new Date(a.alarm_time).toLocaleString('fr-FR') : '—'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── CM History Tab ── */}
+                {cellDetailTab === 'cm' && (
+                  <div className="px-5 py-4">
+                    <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <span>📝</span> CM History — {siteDetail?.site_name}
+                    </h4>
+                    {siteCmLoading ? (
+                      <div className="text-center py-8 text-muted-foreground text-xs">Chargement...</div>
+                    ) : siteCmHistory.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-xs">Aucun changement pour ce site</div>
+                    ) : (
+                      <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                        {siteCmHistory.map((c: any, i: number) => (
+                          <div key={i} className="rounded-lg border border-border p-3 text-[11px]">
+                            <div className="font-mono font-bold text-primary">{c.parameter}</div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-red-400 line-through">{c.old_value || '—'}</span>
+                              <span className="text-muted-foreground">→</span>
+                              <span className="text-green-400 font-bold">{c.new_value || '—'}</span>
+                            </div>
+                            <div className="text-muted-foreground mt-1">{c.changed_at ? new Date(c.changed_at).toLocaleString('fr-FR') : '—'}</div>
+                            {c.user && <div className="text-muted-foreground/60">by {c.user}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="px-4 py-2.5">
                   <button
