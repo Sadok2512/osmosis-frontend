@@ -3056,16 +3056,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
 
-        {/* ── TOPO mode: clean map, no markers ── */}
-        {sectorColorMode === 'topo' && !paramMode && (
-          <div className="leaflet-control" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1000, pointerEvents: 'none' }}>
-            <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl px-8 py-5 shadow-xl text-center">
-              <Radio size={28} className="mx-auto mb-2 text-primary opacity-60" />
-              <p className="text-[13px] font-bold text-foreground">Mode Topologie</p>
-              <p className="text-[11px] text-muted-foreground mt-1">Sélectionnez un mode de vue pour afficher les données 4G/5G</p>
-            </div>
-          </div>
-        )}
+
 
         {/* ── Parameter overlay markers ── */}
         {paramMode && !paramLoading && paramPoints.length > 0 && (
