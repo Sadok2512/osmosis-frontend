@@ -820,24 +820,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             )}
           </div>
 
-          {/* Row C: Filters */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Filter className="w-3 h-3" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Filters</span>
-            </div>
-            {filterChips.map(({ dim, val }) => (
-              <span key={`${dim}-${val}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
-                <span className="text-muted-foreground">{dim}:</span>
-                <span className="font-bold">{val}</span>
-                <button onClick={() => removeFilter(dim, val)} className="ml-0.5 hover:text-destructive transition-colors">
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            ))}
-            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} />
-          </div>
         </div>
       </div>
 
