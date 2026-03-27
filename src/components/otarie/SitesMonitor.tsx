@@ -5373,7 +5373,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
                                       <div className="flex items-center justify-center gap-1.5 mb-1.5">
                                         {cells.map((c, ci) => (
-                                          <span key={ci} className="w-3 h-3 rounded-full border border-white/30" style={{ background: getBandColor(c.bande, c.techno) }} />
+                                          <span key={ci} className="w-3 h-3 rounded-full border border-white/30" style={{ background: c.techno?.includes('5G') ? '#8b5cf6' : '#f97316' }} />
                                         ))}
                                       </div>
                                       <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{sNum}</span>
@@ -5428,7 +5428,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               }`}
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
-                                              <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.techno || '—'}</td>
+                                              <td className="px-2 py-2 text-center">
+                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#8b5cf6]' : 'bg-[#f97316]'}`}>
+                                                  {cell.techno || '—'}
+                                                </span>
+                                              </td>
                                               <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
                                               <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
                                               <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
