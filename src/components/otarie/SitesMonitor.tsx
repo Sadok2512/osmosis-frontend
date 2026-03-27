@@ -4471,7 +4471,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </>
           )}
         </div>
-
+      </div>
 
 
       {/* Floating top bar — single row with scroll, dynamically positioned between sidebars */}
