@@ -2034,7 +2034,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
   const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
-  const [showSiteLabels, setShowSiteLabels] = useState(true);
+  const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [showBeamSectors, setShowBeamSectors] = useState(true);
 
   const getDisplayMode = useCallback((zoom: number) => {
