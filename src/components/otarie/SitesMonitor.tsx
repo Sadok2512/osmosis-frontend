@@ -52,7 +52,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
 import { fetchSites, fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { invalidateSitesCache } from '../../services/mockData';
-import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery } from '../../services/topoService';
+import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters } from '../../types';
 import {
