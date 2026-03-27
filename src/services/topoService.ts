@@ -4,6 +4,21 @@ import { supabase } from '@/integrations/supabase/client';
 import topoRaw from '../data/topoData';
 import { DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
 
+// Only 4G (LTE) and 5G (NR) — ignore 2G/3G
+const ALLOWED_TECHNOS = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
+function is4Gor5G(techno: string | null | undefined): boolean {
+  if (!techno) return true; // include unknowns
+  return ALLOWED_TECHNOS.has(techno.trim());
+}
+function filterSites4G5G(sites: SiteSummary[]): SiteSummary[] {
+  return sites.map(site => {
+    if (!site.cells || site.cells.length === 0) return site;
+    const filtered = site.cells.filter(c => is4Gor5G(c.techno));
+    if (filtered.length === site.cells.length) return site;
+    return { ...site, cells: filtered, cell_count: filtered.length };
+  });
+}
+
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
 // ── QoE Map cache ──
@@ -434,10 +449,11 @@ export async function fetchSitesByBbox(
       throw new Error('BBOX returned only invalid site coordinates');
     }
 
-    bboxCache = { key, sites, total: sites.length };
-    const withQoe = sites.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
-    console.log(`[TopoService] BBOX: ${sites.length}/${resp.total} sites (${withQoe} with live QoE)`);
-    return { sites, total: sites.length };
+    const filtered4G5G = filterSites4G5G(sites);
+    bboxCache = { key, sites: filtered4G5G, total: filtered4G5G.length };
+    const withQoe = filtered4G5G.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
+    console.log(`[TopoService] BBOX: ${filtered4G5G.length}/${resp.total} sites (${withQoe} with live QoE)`);
+    return { sites: filtered4G5G, total: filtered4G5G.length };
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
     console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
@@ -467,7 +483,7 @@ export async function fetchCellsByBbox(
     }
 
     const rows = (resp.cells || []) as TopoRow[];
-    const sites = buildSitesFromRows(rows);
+    const sites = filterSites4G5G(buildSitesFromRows(rows));
     return sites.map(s => applyQoeData(s, qoeData));
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
@@ -625,9 +641,10 @@ export async function fetchDashboardSites(
       .filter((site): site is SiteSummary => site !== null)
       .map(site => applyQoeData(site, qoeData));
 
-    console.log(`[TopoService] Dashboard sites: ${sites.length} sites via VPS`);
-    dashboardSitesCache = { key, sites, ts: Date.now() };
-    return sites;
+    const filteredSites = filterSites4G5G(sites);
+    console.log(`[TopoService] Dashboard sites: ${filteredSites.length} sites via VPS`);
+    dashboardSitesCache = { key, sites: filteredSites, ts: Date.now() };
+    return filteredSites;
   } catch (err) {
     console.warn('[TopoService] VPS dashboard fetch failed, trying RPC', err);
   }

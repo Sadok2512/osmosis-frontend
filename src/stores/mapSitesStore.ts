@@ -88,9 +88,10 @@ export const useMapSitesStore = create<MapSitesState>((set, get) => ({
     cachedZoom: null,
   }),
 
-  isCacheValid: () => {
-    const { cachedAt } = get();
+  isCacheValid: (dashboardId?: string | null) => {
+    const { cachedAt, cachedDashboardId } = get();
     if (!cachedAt) return false;
+    if (dashboardId !== undefined && dashboardId !== cachedDashboardId) return false;
     return (Date.now() - cachedAt) < CACHE_TTL;
   },
 }));
