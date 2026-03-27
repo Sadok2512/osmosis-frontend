@@ -3163,7 +3163,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const siteName = String(s.site_name ?? '');
       const siteId = String(s.site_id ?? '');
       const siteCells = Array.isArray(s.cells) ? s.cells : [];
-      const matchesSearch = siteName.toLowerCase().includes(searchTerm) || siteId.toLowerCase().includes(searchTerm);
+      const matchesSearch = !searchTerm || siteName.toLowerCase().includes(searchTerm) || siteId.toLowerCase().includes(searchTerm) || siteCells.some(c => String(c.cell_id ?? '').toLowerCase().includes(searchTerm) || String(c.cell_name ?? '').toLowerCase().includes(searchTerm) || String(c.techno ?? '').toLowerCase().includes(searchTerm) || String(c.band ?? '').toLowerCase().includes(searchTerm));
       const matchesDor = filters.dor === 'ALL' || s.dor === filters.dor;
       const matchesPlaque = filters.plaque === 'ALL' || s.plaque === filters.plaque;
       const matchesVendor = filters.vendor === 'ALL' || s.vendor === filters.vendor;
