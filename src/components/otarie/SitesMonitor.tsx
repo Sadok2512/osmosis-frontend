@@ -3042,9 +3042,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds]);
 
-  // Auto-load cells for visible sites when zoom reaches sector display threshold
+  // Auto-load cells for visible sites via a single bulk bbox call (avoids per-site 503s)
   useEffect(() => {
     if (displayMode !== 'cells' || !dashboardActive) return;
+    if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
       s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id)
@@ -3054,33 +3055,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     cellLoadDebounceRef.current = setTimeout(async () => {
-      const batch = sitesNeedingCells.slice(0, 30);
-      batch.forEach(s => cellLoadingRef.current.add(s.site_id));
+      // Mark all as loading
+      sitesNeedingCells.forEach(s => cellLoadingRef.current.add(s.site_id));
 
-      const results = await Promise.allSettled(
-        batch.map(s => fetchSiteCells(s.site_id).then(cells => ({ siteId: s.site_id, cells })))
-      );
+      try {
+        const bounds = viewport.bounds!;
+        const bboxQuery: BboxQuery = {
+          minLng: bounds.getWest(),
+          minLat: bounds.getSouth(),
+          maxLng: bounds.getEast(),
+          maxLat: bounds.getNorth(),
+        };
+        // Single bulk call for all cells in current viewport
+        const cellSites = await fetchCellsByBbox(bboxQuery);
 
-      const cellMap = new Map<string, any[]>();
-      for (const r of results) {
-        if (r.status === 'fulfilled') {
-          cellMap.set(r.value.siteId, r.value.cells);
-          cellLoadingRef.current.delete(r.value.siteId);
+        // Build a lookup by site_id
+        const cellMap = new Map<string, any[]>();
+        for (const cs of cellSites) {
+          if (cs.cells && cs.cells.length > 0) {
+            cellMap.set(cs.site_id, cs.cells);
+          }
         }
-      }
 
-      if (cellMap.size > 0) {
-        setSites(prev => prev.map(s => {
-          const cells = cellMap.get(s.site_id);
-          return cells && cells.length > 0 ? { ...s, cells, cell_count: cells.length } : s;
-        }));
+        // Clear loading flags
+        sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
+
+        if (cellMap.size > 0) {
+          setSites(prev => prev.map(s => {
+            const cells = cellMap.get(s.site_id);
+            return cells && cells.length > 0 ? { ...s, cells, cell_count: cells.length } : s;
+          }));
+        }
+      } catch (err) {
+        console.warn('[SitesMonitor] Bulk cell load failed', err);
+        sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
       }
-    }, 250);
+    }, 400);
 
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, dashboardActive]);
+  }, [displayMode, visibleSites, dashboardActive, viewport.bounds]);
 
 
   const renderSites = useMemo(() => {
