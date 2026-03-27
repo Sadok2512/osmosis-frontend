@@ -2468,7 +2468,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const bbox = viewport.bounds
         ? `${viewport.bounds.getWest()},${viewport.bounds.getSouth()},${viewport.bounds.getEast()},${viewport.bounds.getNorth()}`
         : '-180,-90,180,90';
-      const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/param-map?param=${encodeURIComponent(paramSelected)}&bbox=${bbox}&limit=10000`), {
+      // Build filter params from active dashboard filters
+      const filterParams = new URLSearchParams();
+      filterParams.set('param', paramSelected);
+      filterParams.set('bbox', bbox);
+      filterParams.set('limit', '10000');
+      // Apply dashboard filters to parameter query
+      const effectiveFilters = activeDashboardFilters || {};
+      if (effectiveFilters.dor?.length) filterParams.set('dor', effectiveFilters.dor.join(','));
+      if (effectiveFilters.constructeur?.length) filterParams.set('constructeur', effectiveFilters.constructeur.join(','));
+      if (effectiveFilters.plaque?.length) filterParams.set('plaque', effectiveFilters.plaque.join(','));
+      if (effectiveFilters.techno?.length) filterParams.set('techno', effectiveFilters.techno.join(','));
+      if (effectiveFilters.bande?.length) filterParams.set('bande', effectiveFilters.bande.join(','));
+      if (effectiveFilters.zone_arcep?.length) filterParams.set('zone_arcep', effectiveFilters.zone_arcep.join(','));
+      // Also apply scope if no explicit filters
+      if (Object.keys(effectiveFilters).length === 0 && activeSiteScope && activeSiteScope.type !== 'ALL' && activeSiteScope.value) {
+        if (activeSiteScope.type === 'DOR') filterParams.set('dor', activeSiteScope.value);
+        else if (activeSiteScope.type === 'Plaque') filterParams.set('plaque', activeSiteScope.value);
+      }
+      const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/param-map?${filterParams.toString()}`), {
         headers: getVpsProxyHeaders(),
       });
       const data = await resp.json();
@@ -2497,7 +2515,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     } catch (err) { console.warn('[SitesMonitor] param-map fetch failed', err); setParamPoints([]); }
     setParamLoading(false);
-  }, [paramSelected, viewport.bounds]);
+  }, [paramSelected, viewport.bounds, activeDashboardFilters, activeSiteScope]);
 
   const handleParamReset = useCallback(() => {
     setParamMode(false);
@@ -4511,13 +4529,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <button
                 onClick={async () => {
                   if (!paramPanelOpen && !paramMode) {
-                    // Entering param mode: save active dashboard first, then close it
+                    // Entering param mode: save active dashboard but keep filters applied
                     if (activeDashboardId) {
                       await saveDashboardSettings(activeDashboardId);
-                      setActiveDashboardId(null);
-                      setDashboardActive(false);
-                      setActiveSiteScope(null);
-                      setActiveDashboardFilters(null);
                     }
                   }
                   setParamPanelOpen(!paramPanelOpen);
