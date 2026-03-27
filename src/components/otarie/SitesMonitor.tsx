@@ -1466,8 +1466,15 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         if (prev.find(d => d.id === dbId)) return prev;
         return [...prev, db];
       });
+      // Apply directly using the db object (don't rely on stale dashboards state)
+      setExpandedDashboardId(dbId);
+      if (onApplyView) {
+        onApplyView(getDashboardSettings(db));
+      }
+      onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
+    } else {
+      requestDashboardSwitch(dbId);
     }
-    requestDashboardSwitch(dbId);
   };
   const handleCreateView = async (dashboardId: string) => {
     if (!newViewName.trim()) return;
