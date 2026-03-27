@@ -338,31 +338,43 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   );
 
   return (
-    <div className="sticky top-5 z-30 mx-5 mt-4 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/40 shadow-[0_4px_24px_-6px_hsl(var(--foreground)/0.07),0_1px_3px_-1px_hsl(var(--foreground)/0.04)]">
-      {/* Row 1: 3-section toolbar — Title | Filters | Actions */}
-      <div className="max-w-[1600px] mx-auto px-6 py-3.5">
-        <div className="flex items-center gap-4">
-          {/* LEFT — Title */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center">
-              <Settings2 className="w-4 h-4 text-primary" />
+    <div className="sticky top-0 z-30">
+      {/* ═══ LAYER 1: HEADER — Branding ═══ */}
+      <div className="bg-card border-b border-border/60">
+        <div className="max-w-[1600px] mx-auto px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+              <Settings2 className="w-4.5 h-4.5 text-primary" />
             </div>
             <div className="leading-tight">
-              <h1 className="text-xs font-bold text-foreground tracking-tight">QOEBIT Investigator</h1>
-              <p className="text-[9px] text-muted-foreground font-medium tracking-wide">KPI Investigation & RCA</p>
+              <h1 className="text-sm font-bold text-foreground tracking-tight">QOEBIT Investigator</h1>
+              <p className="text-[10px] text-muted-foreground font-medium tracking-wide">KPI Investigation & Root Cause Analysis</p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-green-600 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/15">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-[9px] font-bold uppercase tracking-wider">Live</span>
+            </div>
+            <button onClick={onToggleAIPanel}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all',
+                showAIPanel ? 'bg-cyan-600 text-white shadow-md' : 'bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 border border-cyan-500/20')}>
+              <Sparkles className="w-3.5 h-3.5" />
+              TRACE AI
+            </button>
+          </div>
+        </div>
+      </div>
 
-          {/* Vertical separator */}
-          <div className="h-8 w-px bg-border shrink-0" />
-
-          {/* CENTER — Filters */}
-          <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
-            {/* Date range group */}
+      {/* ═══ LAYER 2: TOOLBAR — Actions & Date Controls ═══ */}
+      <div className="bg-secondary/50 border-b border-border/50">
+        <div className="max-w-[1600px] mx-auto px-6 py-2">
+          <div className="flex items-center gap-3">
+            {/* Date range */}
             <div className="flex items-center gap-1.5 shrink-0">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('h-8 w-[120px] justify-start text-left text-[11px] font-medium rounded-md', !startDate && 'text-muted-foreground')}>
+                  <Button variant="outline" className={cn('h-8 w-[120px] justify-start text-left text-[11px] font-medium rounded-lg bg-card', !startDate && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-1.5 h-3 w-3 text-muted-foreground" />
                     {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
                   </Button>
@@ -371,10 +383,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   <Calendar mode="single" selected={startDate} onSelect={(d) => d && setState(prev => ({ ...prev, startDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
-              <span className="text-[10px] text-muted-foreground">→</span>
+              <span className="text-[10px] text-muted-foreground font-medium">→</span>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('h-8 w-[120px] justify-start text-left text-[11px] font-medium rounded-md', !endDate && 'text-muted-foreground')}>
+                  <Button variant="outline" className={cn('h-8 w-[120px] justify-start text-left text-[11px] font-medium rounded-lg bg-card', !endDate && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-1.5 h-3 w-3 text-muted-foreground" />
                     {endDate ? format(endDate, 'dd/MM/yyyy') : 'Fin'}
                   </Button>
@@ -385,33 +397,42 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               </Popover>
             </div>
 
+            {/* Separator */}
+            <div className="h-6 w-px bg-border/60 shrink-0" />
+
             {/* Period shortcuts */}
-            <div className="flex items-center bg-muted/40 p-0.5 rounded-md border border-border/30 shrink-0">
+            <div className="flex items-center bg-card p-0.5 rounded-lg border border-border/40 shrink-0">
               {PERIODS.map(p => (
                 <button key={p.label} onClick={() => applyPeriod(p.days)}
-                  className="px-2 py-1 rounded text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-background/80 transition-all">
+                  className="px-2.5 py-1 rounded-md text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
                   {p.label}
                 </button>
               ))}
             </div>
 
+            {/* Separator */}
+            <div className="h-6 w-px bg-border/60 shrink-0" />
+
             {/* Granularity */}
-            <div className="flex items-center bg-muted/40 p-0.5 rounded-md border border-border/30 shrink-0">
+            <div className="flex items-center bg-card p-0.5 rounded-lg border border-border/40 shrink-0">
               {GRANULARITIES.map(g => (
                 <button key={g.value} onClick={() => setState(prev => ({ ...prev, granularity: g.value }))}
-                  className={cn('px-2 py-1 rounded text-[10px] font-semibold transition-all',
-                    state.granularity === g.value ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
+                  className={cn('px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all',
+                    state.granularity === g.value ? 'bg-primary/10 text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
                   {g.label}
                 </button>
               ))}
             </div>
 
+            {/* Separator */}
+            <div className="h-6 w-px bg-border/60 shrink-0" />
+
             {/* Jalons */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="h-8 text-[11px] gap-1 px-2.5 rounded-md">
+                <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card">
                   <Flag className="w-3 h-3 text-muted-foreground" />
-                  {state.jalons.length > 0 ? `${state.jalons.length}` : 'Jalons'}
+                  Jalons{state.jalons.length > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{state.jalons.length}</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[280px] p-3 space-y-2" align="start">
@@ -436,7 +457,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
             {/* Jalon chips inline */}
             {state.jalons.map(j => (
-              <span key={j.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border border-border/30 bg-muted/30 text-foreground">
+              <span key={j.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border border-border/30 bg-card text-foreground">
                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: j.color }} />
                 {j.label}
                 <button onClick={() => setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) }))} className="hover:text-destructive ml-0.5">
@@ -444,412 +465,360 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 </button>
               </span>
             ))}
-          </div>
 
-          {/* Vertical separator */}
-          <div className="h-8 w-px bg-border shrink-0" />
+            {/* Spacer */}
+            <div className="flex-1" />
 
-          {/* RIGHT — Actions */}
-          <div className="flex items-center gap-2 shrink-0">
-            <Button onClick={onApply} size="sm" className="h-8 px-5 text-[11px] font-bold uppercase tracking-wider rounded-md shadow-sm">
-              Appliquer
+            {/* Apply button */}
+            <Button onClick={onApply} size="sm" className="h-8 px-6 text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm">
+              {isApplying ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  <span>Chargement...</span>
+                </div>
+              ) : 'Appliquer'}
             </Button>
+          </div>
+        </div>
+      </div>
 
-            {isApplying && (
-              <div className="flex items-center gap-1.5 text-[10px] text-primary font-semibold">
-                <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      {/* ═══ LAYER 3: KPI / FILTERS — Niveau, KPIs, Filters ═══ */}
+      <div className="bg-card border-b border-border/40">
+        <div className="max-w-[1600px] mx-auto px-6 py-3 space-y-2.5">
+          {/* Row A: KPI Level + Profile/Neighbor filters */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Niveau</span>
+              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+                {([
+                  { value: 'CELL' as KpiLevel, label: 'Cell', icon: BarChart },
+                  { value: 'PROFILE' as KpiLevel, label: 'Profile (QCI)', icon: Fingerprint },
+                  { value: 'NEIGHBOR' as KpiLevel, label: 'Neighbor', icon: GitBranch },
+                ]).map(lvl => (
+                  <button
+                    key={lvl.value}
+                    onClick={() => setState(prev => ({ ...prev, kpiLevel: lvl.value, profileQci: null, profileArp: null, neighborType: null }))}
+                    className={cn(
+                      'flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all',
+                      state.kpiLevel === lvl.value
+                        ? 'bg-card text-primary shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    <lvl.icon className="w-3 h-3" />
+                    {lvl.label}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            {/* Profile filters */}
+            {state.kpiLevel === 'PROFILE' && (
+              <>
+                <div className="h-5 w-px bg-border/60 shrink-0" />
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">QCI</span>
+                  <select
+                    value={state.profileQci ?? ''}
+                    onChange={e => setState(prev => ({ ...prev, profileQci: e.target.value === '' ? null : Number(e.target.value) }))}
+                    className="h-7 px-2 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
+                  >
+                    <option value="">Tous</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(q => (
+                      <option key={q} value={q}>QCI {q}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">ARP</span>
+                  <select
+                    value={state.profileArp ?? ''}
+                    onChange={e => setState(prev => ({ ...prev, profileArp: e.target.value === '' ? null : Number(e.target.value) }))}
+                    className="h-7 px-2 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
+                  >
+                    <option value="">Tous</option>
+                    {Array.from({ length: 15 }, (_, i) => i + 1).map(a => (
+                      <option key={a} value={a}>ARP {a}</option>
+                    ))}
+                  </select>
+                </div>
+                {(state.profileQci != null || state.profileArp != null) && (
+                  <div className="flex items-center gap-1">
+                    {state.profileQci != null && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                        QCI: {state.profileQci}
+                        <button onClick={() => setState(prev => ({ ...prev, profileQci: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                      </span>
+                    )}
+                    {state.profileArp != null && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                        ARP: {state.profileArp}
+                        <button onClick={() => setState(prev => ({ ...prev, profileArp: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
-            <div className="flex items-center gap-1 text-green-600 px-2 py-1 rounded-md bg-green-500/10">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[9px] font-bold uppercase tracking-wider">Live</span>
-            </div>
-
-            <button onClick={onToggleAIPanel}
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all',
-                showAIPanel ? 'bg-cyan-600 text-white shadow-md' : 'bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 border border-cyan-500/20')}>
-              <Sparkles className="w-3.5 h-3.5" />
-              TRACE AI
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Row 2: KPI Level + Profile/Neighbor dimension filters */}
-      <div className="max-w-[1600px] mx-auto px-6 py-1.5 border-t border-border/30">
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* KPI Level selector */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Niveau</span>
-            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
-              {([
-                { value: 'CELL' as KpiLevel, label: 'Cell', icon: BarChart },
-                { value: 'PROFILE' as KpiLevel, label: 'Profile (QCI)', icon: Fingerprint },
-                { value: 'NEIGHBOR' as KpiLevel, label: 'Neighbor', icon: GitBranch },
-              ]).map(lvl => (
-                <button
-                  key={lvl.value}
-                  onClick={() => setState(prev => ({ ...prev, kpiLevel: lvl.value, profileQci: null, profileArp: null, neighborType: null }))}
-                  className={cn(
-                    'flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all',
-                    state.kpiLevel === lvl.value
-                      ? 'bg-card text-primary shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <lvl.icon className="w-3 h-3" />
-                  {lvl.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Profile filters (QCI, ARP) — visible when kpiLevel = PROFILE */}
-          {state.kpiLevel === 'PROFILE' && (
-            <>
-              <div className="h-5 w-px bg-border/60 shrink-0" />
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">QCI</span>
-                <select
-                  value={state.profileQci ?? ''}
-                  onChange={e => setState(prev => ({ ...prev, profileQci: e.target.value === '' ? null : Number(e.target.value) }))}
-                  className="h-7 px-2 rounded-md border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
-                >
-                  <option value="">Tous</option>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(q => (
-                    <option key={q} value={q}>QCI {q}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">ARP</span>
-                <select
-                  value={state.profileArp ?? ''}
-                  onChange={e => setState(prev => ({ ...prev, profileArp: e.target.value === '' ? null : Number(e.target.value) }))}
-                  className="h-7 px-2 rounded-md border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
-                >
-                  <option value="">Tous</option>
-                  {Array.from({ length: 15 }, (_, i) => i + 1).map(a => (
-                    <option key={a} value={a}>ARP {a}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Active profile filter chips */}
-              {(state.profileQci != null || state.profileArp != null) && (
-                <div className="flex items-center gap-1">
-                  {state.profileQci != null && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
-                      QCI: {state.profileQci}
-                      <button onClick={() => setState(prev => ({ ...prev, profileQci: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
-                    </span>
-                  )}
-                  {state.profileArp != null && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
-                      ARP: {state.profileArp}
-                      <button onClick={() => setState(prev => ({ ...prev, profileArp: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
-                    </span>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Neighbor filters — visible when kpiLevel = NEIGHBOR */}
-          {state.kpiLevel === 'NEIGHBOR' && (
-            <>
-              <div className="h-5 w-px bg-border/60 shrink-0" />
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Type</span>
-                <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
-                  {([
-                    { value: null, label: 'Tous' },
-                    { value: 'X2', label: 'X2' },
-                    { value: 'HO_LTE', label: 'HO LTE' },
-                    { value: 'HO_UTRAN', label: 'HO UTRAN' },
-                  ] as { value: string | null; label: string }[]).map(nt => (
-                    <button
-                      key={nt.label}
-                      onClick={() => setState(prev => ({ ...prev, neighborType: nt.value }))}
-                      className={cn(
-                        'px-2 py-1 rounded-md text-[10px] font-bold transition-all',
-                        state.neighborType === nt.value
-                          ? 'bg-card text-cyan-600 shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      {nt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Row 3: KPI slots with config popovers */}
-      <div className="max-w-[1600px] mx-auto px-6 pb-1.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">KPIs:</span>
-          {state.graphSlots.filter(slot => slot.kpiIds.length > 0 && slot.id === activeSlotId).flatMap((slot) => {
-            const cfg = slot.config || DEFAULT_GRAPH_CONFIG;
-            const setSlotConfig = (updates: Partial<GraphConfig>) => {
-              setState(prev => ({
-                ...prev,
-                graphSlots: prev.graphSlots.map(s =>
-                  s.id === slot.id ? { ...s, config: { ...cfg, ...updates } } : s
-                ),
-              }));
-            };
-            return slot.kpiIds.map((kpiIdItem) => {
-              const catalogEntry = catalog.find(k => k.kpi_key === kpiIdItem);
-              const defEntry = kpiDefs.find(k => k.id === kpiIdItem);
-              const name = catalogEntry?.display_name || defEntry?.label || kpiIdItem;
-              const color = catalogEntry?.color || defEntry?.color || '#6366f1';
-              // Get split dimension for this KPI
-              const splitVal = cfg.splitByPerKpi?.[kpiIdItem];
-              const hasSplit = splitVal && splitVal !== 'None';
-              const splitLabel = hasSplit ? splitOptions.find(s => s.key === splitVal)?.label || splitVal : null;
-              return (
-                <Popover key={`${slot.id}-${kpiIdItem}`}>
-                  <PopoverTrigger asChild>
-                    <button
-                      onClick={() => onSlotClick?.(slot.id)}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all duration-300',
-                        'bg-primary/20 text-primary border-primary/40 ring-2 ring-primary/20 shadow-sm'
-                      )}
-                    >
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="truncate max-w-[140px]">{name}</span>
-                      {splitLabel && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-accent text-accent-foreground border border-accent/60">
-                          ÷ {splitLabel}
-                        </span>
-                      )}
+            {/* Neighbor filters */}
+            {state.kpiLevel === 'NEIGHBOR' && (
+              <>
+                <div className="h-5 w-px bg-border/60 shrink-0" />
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Type</span>
+                  <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+                    {([
+                      { value: null, label: 'Tous' },
+                      { value: 'X2', label: 'X2' },
+                      { value: 'HO_LTE', label: 'HO LTE' },
+                      { value: 'HO_UTRAN', label: 'HO UTRAN' },
+                    ] as { value: string | null; label: string }[]).map(nt => (
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setState(prev => ({
-                            ...prev,
-                            graphSlots: prev.graphSlots.map(s =>
-                              s.id === slot.id ? { ...s, kpiIds: s.kpiIds.filter(k => k !== kpiIdItem) } : s
-                            ),
-                          }));
-                        }}
-                        className="ml-0.5 hover:text-destructive"
+                        key={nt.label}
+                        onClick={() => setState(prev => ({ ...prev, neighborType: nt.value }))}
+                        className={cn(
+                          'px-2.5 py-1 rounded-md text-[10px] font-bold transition-all',
+                          state.neighborType === nt.value
+                            ? 'bg-card text-cyan-600 shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
                       >
-                        <X className="w-3 h-3" />
+                        {nt.label}
                       </button>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[260px] p-3 space-y-3" align="start">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                        <span className="text-xs font-bold text-foreground truncate max-w-[130px]">{name}</span>
-                      </div>
-                    </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
-                    <div className="h-px bg-border/60" />
-
-                    {/* Chart Type */}
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
-                      <div className="flex gap-1">
-                        {CHART_TYPES.map(ct => (
-                          <button
-                            key={ct.value}
-                            onClick={() => setSlotConfig({ chartType: ct.value })}
-                            className={cn(
-                              'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
-                              cfg.chartType === ct.value
-                                ? 'border-primary/40 bg-primary/10 text-primary'
-                                : 'border-border/40 text-muted-foreground hover:bg-muted/50'
-                            )}
-                          >
-                            <ct.icon className="w-3 h-3" />
-                            {ct.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-medium text-foreground">Smooth Curve</span>
-                      <Switch checked={cfg.smooth} onCheckedChange={v => setSlotConfig({ smooth: v })} className="scale-75" />
-                    </div>
-                    <div className="space-y-1">
+          {/* Row B: KPI chips */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">KPIs</span>
+            {state.graphSlots.filter(slot => slot.kpiIds.length > 0 && slot.id === activeSlotId).flatMap((slot) => {
+              const cfg = slot.config || DEFAULT_GRAPH_CONFIG;
+              const setSlotConfig = (updates: Partial<GraphConfig>) => {
+                setState(prev => ({
+                  ...prev,
+                  graphSlots: prev.graphSlots.map(s =>
+                    s.id === slot.id ? { ...s, config: { ...cfg, ...updates } } : s
+                  ),
+                }));
+              };
+              return slot.kpiIds.map((kpiIdItem) => {
+                const catalogEntry = catalog.find(k => k.kpi_key === kpiIdItem);
+                const defEntry = kpiDefs.find(k => k.id === kpiIdItem);
+                const name = catalogEntry?.display_name || defEntry?.label || kpiIdItem;
+                const color = catalogEntry?.color || defEntry?.color || '#6366f1';
+                const splitVal = cfg.splitByPerKpi?.[kpiIdItem];
+                const hasSplit = splitVal && splitVal !== 'None';
+                const splitLabel = hasSplit ? splitOptions.find(s => s.key === splitVal)?.label || splitVal : null;
+                return (
+                  <Popover key={`${slot.id}-${kpiIdItem}`}>
+                    <PopoverTrigger asChild>
+                      <button
+                        onClick={() => onSlotClick?.(slot.id)}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all duration-200',
+                          'bg-primary/10 text-primary border-primary/30 hover:bg-primary/15'
+                        )}
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                        <span className="truncate max-w-[140px]">{name}</span>
+                        {splitLabel && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-accent text-accent-foreground border border-accent/60">
+                            ÷ {splitLabel}
+                          </span>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setState(prev => ({
+                              ...prev,
+                              graphSlots: prev.graphSlots.map(s =>
+                                s.id === slot.id ? { ...s, kpiIds: s.kpiIds.filter(k => k !== kpiIdItem) } : s
+                              ),
+                            }));
+                          }}
+                          className="ml-0.5 hover:text-destructive"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[260px] p-3 space-y-3" align="start">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-foreground">Line Width</span>
-                        <span className="text-[9px] text-muted-foreground font-mono">{cfg.lineWidth}px</span>
-                      </div>
-                      <Slider value={[cfg.lineWidth]} onValueChange={v => setSlotConfig({ lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="w-full" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-medium text-foreground">Show Markers</span>
-                      <Switch checked={cfg.showSymbols} onCheckedChange={v => setSlotConfig({ showSymbols: v })} className="scale-75" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-medium text-foreground">Area Fill</span>
-                      <Switch checked={cfg.showArea} onCheckedChange={v => setSlotConfig({ showArea: v })} className="scale-75" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-medium text-foreground">Thresholds</span>
-                      <Switch checked={cfg.showThresholds} onCheckedChange={v => setSlotConfig({ showThresholds: v })} className="scale-75" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-medium text-foreground">Grid Lines</span>
-                      <Switch checked={cfg.showGrid} onCheckedChange={v => setSlotConfig({ showGrid: v })} className="scale-75" />
-                    </div>
-
-                    {/* Y-Axis Settings with L/R selector */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Axe Y</span>
-                        <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
-                          {(['L', 'R'] as const).map(side => {
-                            const isActiveAxis = (cfg as any).__activeYTab === side || (!(cfg as any).__activeYTab && side === 'L');
-                            return (
-                              <button
-                                key={side}
-                                onClick={() => setSlotConfig({ __activeYTab: side } as any)}
-                                className={cn(
-                                  'px-2.5 py-0.5 text-[9px] font-bold transition-colors',
-                                  isActiveAxis ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                                )}
-                              >{side}</button>
-                            );
-                          })}
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                          <span className="text-xs font-bold text-foreground truncate max-w-[130px]">{name}</span>
                         </div>
                       </div>
-                      {(() => {
-                        const isRight = (cfg as any).__activeYTab === 'R';
-                        const axisCfg = isRight ? cfg.yAxisRight : cfg.yAxis;
-                        const axisKey = isRight ? 'yAxisRight' : 'yAxis';
-                        return (
-                          <>
-                            <div className="flex gap-1">
-                              {(['auto', 'manual'] as const).map(mode => (
-                                <button
-                                  key={mode}
-                                  onClick={() => setSlotConfig({ [axisKey]: { ...axisCfg, mode } })}
-                                  className={cn(
-                                    'flex-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
-                                    (axisCfg?.mode || 'auto') === mode
-                                      ? 'border-primary/40 bg-primary/10 text-primary'
-                                      : 'border-border/40 text-muted-foreground hover:bg-muted/50'
-                                  )}
-                                >{mode === 'auto' ? 'Auto' : 'Manuel'}</button>
-                              ))}
-                            </div>
-                            {axisCfg?.mode === 'manual' && (
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="space-y-0.5">
-                                  <span className="text-[9px] text-muted-foreground">Min</span>
-                                  <input type="number" value={axisCfg?.min ?? ''} onChange={e => setSlotConfig({ [axisKey]: { ...axisCfg, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
-                                </div>
-                                <div className="space-y-0.5">
-                                  <span className="text-[9px] text-muted-foreground">Max</span>
-                                  <input type="number" value={axisCfg?.max ?? ''} onChange={e => setSlotConfig({ [axisKey]: { ...axisCfg, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
-                                </div>
+                      <div className="h-px bg-border/60" />
+                      {/* Chart Type */}
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
+                        <div className="flex gap-1">
+                          {CHART_TYPES.map(ct => (
+                            <button
+                              key={ct.value}
+                              onClick={() => setSlotConfig({ chartType: ct.value })}
+                              className={cn(
+                                'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
+                                cfg.chartType === ct.value
+                                  ? 'border-primary/40 bg-primary/10 text-primary'
+                                  : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+                              )}
+                            >
+                              <ct.icon className="w-3 h-3" />
+                              {ct.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-foreground">Smooth Curve</span>
+                        <Switch checked={cfg.smooth} onCheckedChange={v => setSlotConfig({ smooth: v })} className="scale-75" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-medium text-foreground">Line Width</span>
+                          <span className="text-[9px] text-muted-foreground font-mono">{cfg.lineWidth}px</span>
+                        </div>
+                        <Slider value={[cfg.lineWidth]} onValueChange={v => setSlotConfig({ lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="w-full" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-foreground">Show Markers</span>
+                        <Switch checked={cfg.showSymbols} onCheckedChange={v => setSlotConfig({ showSymbols: v })} className="scale-75" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-foreground">Area Fill</span>
+                        <Switch checked={cfg.showArea} onCheckedChange={v => setSlotConfig({ showArea: v })} className="scale-75" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-foreground">Thresholds</span>
+                        <Switch checked={cfg.showThresholds} onCheckedChange={v => setSlotConfig({ showThresholds: v })} className="scale-75" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-foreground">Grid Lines</span>
+                        <Switch checked={cfg.showGrid} onCheckedChange={v => setSlotConfig({ showGrid: v })} className="scale-75" />
+                      </div>
+                      {/* Y-Axis */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Axe Y</span>
+                          <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
+                            {(['L', 'R'] as const).map(side => {
+                              const isActiveAxis = (cfg as any).__activeYTab === side || (!(cfg as any).__activeYTab && side === 'L');
+                              return (
+                                <button key={side} onClick={() => setSlotConfig({ __activeYTab: side } as any)}
+                                  className={cn('px-2.5 py-0.5 text-[9px] font-bold transition-colors',
+                                    isActiveAxis ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
+                                >{side}</button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        {(() => {
+                          const isRight = (cfg as any).__activeYTab === 'R';
+                          const axisCfg = isRight ? cfg.yAxisRight : cfg.yAxis;
+                          const axisKey = isRight ? 'yAxisRight' : 'yAxis';
+                          return (
+                            <>
+                              <div className="flex gap-1">
+                                {(['auto', 'manual'] as const).map(mode => (
+                                  <button key={mode} onClick={() => setSlotConfig({ [axisKey]: { ...axisCfg, mode } })}
+                                    className={cn('flex-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
+                                      (axisCfg?.mode || 'auto') === mode ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/40 text-muted-foreground hover:bg-muted/50')}
+                                  >{mode === 'auto' ? 'Auto' : 'Manuel'}</button>
+                                ))}
                               </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Split By — single for all KPIs */}
-                    <div className="space-y-1">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split By</span>
-                      <select
-                        value={(() => {
-                          const vals = Object.values(cfg.splitByPerKpi || {}).filter(v => v && v !== 'None');
-                          return vals.length > 0 ? vals[0] : 'None';
+                              {axisCfg?.mode === 'manual' && (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-0.5">
+                                    <span className="text-[9px] text-muted-foreground">Min</span>
+                                    <input type="number" value={axisCfg?.min ?? ''} onChange={e => setSlotConfig({ [axisKey]: { ...axisCfg, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    <span className="text-[9px] text-muted-foreground">Max</span>
+                                    <input type="number" value={axisCfg?.max ?? ''} onChange={e => setSlotConfig({ [axisKey]: { ...axisCfg, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
                         })()}
-                        onChange={e => {
-                          const val = e.target.value;
-                          const allSplits: Record<string, string> = {};
-                          slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
-                          setState(prev => ({
-                            ...prev,
-                            graphSlots: prev.graphSlots.map(s =>
-                              s.id === slot.id ? {
-                                ...s,
-                                splitBy: 'None',
-                                config: { ...cfg, splitByPerKpi: allSplits },
-                              } : s
-                            ),
-                          }));
+                      </div>
+                      {/* Split By */}
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split By</span>
+                        <select
+                          value={(() => {
+                            const vals = Object.values(cfg.splitByPerKpi || {}).filter(v => v && v !== 'None');
+                            return vals.length > 0 ? vals[0] : 'None';
+                          })()}
+                          onChange={e => {
+                            const val = e.target.value;
+                            const allSplits: Record<string, string> = {};
+                            slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
+                            setState(prev => ({
+                              ...prev,
+                              graphSlots: prev.graphSlots.map(s =>
+                                s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: allSplits } } : s
+                              ),
+                            }));
+                          }}
+                          className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+                        >
+                          <option value="None">Aucun</option>
+                          {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                        </select>
+                      </div>
+                      <div className="h-px bg-border/60" />
+                      <button
+                        onClick={(e) => {
+                          (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
+                            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+                          );
                         }}
-                        className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+                        className="w-full text-[10px] font-semibold text-primary hover:bg-primary/10 py-1.5 rounded-md transition-colors"
                       >
-                        <option value="None">Aucun</option>
-                        {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="h-px bg-border/60" />
-
-                    <button
-                      onClick={(e) => {
-                        // Just close the popover by clicking outside - trigger a blur
-                        (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
-                          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
-                        );
-                      }}
-                      className="w-full text-[10px] font-semibold text-primary hover:bg-primary/10 py-1.5 rounded-md transition-colors"
-                    >
-                      Appliquer
-                    </button>
-                  </PopoverContent>
-                </Popover>
-              );
-            });
-          })}
-          {/* Add KPI — only enabled when a graph exists and is active */}
-          {state.graphSlots.length > 0 && activeSlotId && (
-            <button
-              onClick={() => setSelectorOpen(activeSlotId)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-              Add KPI
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Row 3: Filter chips */}
-      <div className="max-w-[1600px] mx-auto px-6 pb-2.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Filter className="w-3 h-3" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Filters:</span>
+                        Appliquer
+                      </button>
+                    </PopoverContent>
+                  </Popover>
+                );
+              });
+            })}
+            {state.graphSlots.length > 0 && activeSlotId && (
+              <button
+                onClick={() => setSelectorOpen(activeSlotId)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Add KPI
+              </button>
+            )}
           </div>
 
-          {filterChips.map(({ dim, val }) => (
-            <span
-              key={`${dim}-${val}`}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20"
-            >
-              <span className="text-muted-foreground">{dim}:</span>
-              <span className="font-bold">{val}</span>
-              <button
-                onClick={() => removeFilter(dim, val)}
-                className="ml-0.5 hover:text-destructive transition-colors"
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
-            </span>
-          ))}
-
-          <AddFilterDropdown
-            existingKeys={Object.keys(state.filters)}
-            onAdd={addFilter}
-          />
+          {/* Row C: Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Filter className="w-3 h-3" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Filters</span>
+            </div>
+            {filterChips.map(({ dim, val }) => (
+              <span key={`${dim}-${val}`}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
+                <span className="text-muted-foreground">{dim}:</span>
+                <span className="font-bold">{val}</span>
+                <button onClick={() => removeFilter(dim, val)} className="ml-0.5 hover:text-destructive transition-colors">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
+            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} />
+          </div>
         </div>
       </div>
 
