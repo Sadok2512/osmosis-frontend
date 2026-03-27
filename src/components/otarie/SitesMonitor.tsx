@@ -3050,7 +3050,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
       {/* FULL SCREEN MAP */}
       <MapContainer
-        center={sites.length > 0 ? sites[0].coordinates : [43.2965, 5.3698]}
+        center={sites.length > 0 ? sites[0].coordinates : [46.6, 2.2]}
         zoom={sites.length > 0 ? 12 : 6}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
