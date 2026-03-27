@@ -5098,6 +5098,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   isSaving={dashboardSaving}
                   backendFilterDefs={backendFilterDefs}
                 />
+               )}
+              </>
               )}
             </div>
           )}
