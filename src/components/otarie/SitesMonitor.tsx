@@ -5245,119 +5245,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <Search className="w-4 h-4 text-muted-foreground shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search site... (Enter to find)"
+                    placeholder="Rechercher un site..."
                     value={localSearch}
                     onChange={(e) => setLocalSearch(e.target.value)}
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Escape') { setLocalSearch(''); }
-                      if (e.key === 'Enter' && localSearch.trim().length >= 2) {
-                        // Server-side search: find site and fly to it
-                        try {
-                          const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites?search=${encodeURIComponent(localSearch.trim())}&limit=5`), {
-                            headers: getVpsProxyHeaders(),
-                          });
-                          const data = await resp.json();
-                          const siteList = Array.isArray(data) ? data : (data.sites || []);
-                          if (siteList.length > 0) {
-                            setSearchResults(siteList);
-                          } else {
-                            setSearchResults([]);
-                          }
-                        } catch (err) { console.warn('[SitesMonitor] Server search failed', err); setSearchResults([]); }
-                      }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') { setLocalSearch(''); setSearchResults([]); setSearchModeSites([]); }
                     }}
                     className="flex-1 bg-transparent text-[12px] font-medium text-foreground outline-none placeholder:text-muted-foreground min-w-0"
                   />
+                  {searchLoading && (
+                    <RefreshCw size={12} className="animate-spin text-primary shrink-0" />
+                  )}
                   {localSearch && (
-                    <button onClick={() => { setLocalSearch(''); setSearchResults([]); }} className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0">
+                    <button onClick={() => { setLocalSearch(''); setSearchResults([]); setSearchModeSites([]); }} className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0">
                       <X size={12} />
                     </button>
                   )}
                 </div>
-                {/* Search results dropdown */}
-                {searchResults.length > 0 && (
-                  <div className="absolute left-5 right-5 top-full mt-1 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in">
-                    {searchResults.map((s: any, idx: number) => {
-                      const siteName = s.site_name || s.nom_site || s.code_nidt || '';
-                      const cellCount = s.cell_count || s.nb_cells || 0;
-                      return (
-                        <button
-                          key={idx}
-                          onClick={async () => {
-                            const lat = Number(s.latitude ?? s.lat);
-                            const lng = Number(s.longitude ?? s.lng);
-                            if (Number.isFinite(lat) && Number.isFinite(lng)) {
-                              setFlyTarget([lat, lng]);
-                              let cells: any[] = [];
-                              try {
-                                const cellResp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites-with-cells?q=${encodeURIComponent(siteName)}&limit=500`), {
-                                  headers: getVpsProxyHeaders(),
-                                });
-                                const cellData = await cellResp.json();
-                                const matchSite = (cellData.sites || []).find((cs: any) => cs.site_name === siteName);
-                                if (matchSite) {
-                                  cells = (matchSite.cells || []).map((c: any) => ({
-                                    cell_id: c.nom_cellule || c.cell_name,
-                                    cell_name: c.nom_cellule || c.cell_name || '',
-                                    techno: c.techno || '4G',
-                                    band: c.bande || '',
-                                    vendor: c.constructeur || '',
-                                    azimut: c.azimut != null ? Number(c.azimut) : null,
-                                    tilt: c.tilt != null ? Number(c.tilt) : null,
-                                    pci: c.pci || null,
-                                    eci: c.eci || null,
-                                    tac: c.tac || null,
-                                    etat_cellule: c.etat_cellule || null,
-                                    nci: c.nci || null,
-                                    freq: c.freq || null,
-                                    zone_arcep: matchSite.zone_arcep || null,
-                                    plaque: matchSite.plaque || c.plaque || null,
-                                  }));
-                                }
-                              } catch {}
-                              const siteSummary: SiteSummary = {
-                                site_id: siteName,
-                                site_name: siteName,
-                                vendor: s.constructeur || (Array.isArray(s.vendors) ? s.vendors[0] : s.vendor) || 'Unknown',
-                                dor: s.dor || '',
-                                plaque: s.plaque || '',
-                                department: '',
-                                cell_count: cells.length || Number(cellCount),
-                                qoe_score_avg: 0, p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0,
-                                dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
-                                coordinates: [lat, lng],
-                                cells,
-                                zone_arcep: s.zone_arcep || null,
-                                lte_cells: cells.filter((c: any) => c.techno === '4G' || c.techno === 'LTE').length,
-                                nr_cells: cells.filter((c: any) => c.techno === '5G' || c.techno === 'NR').length,
-                              };
-                              setSites(prev => {
-                                const existing = prev.findIndex(x => x.site_id === siteSummary.site_id);
-                                if (existing >= 0) {
-                                  const updated = [...prev];
-                                  updated[existing] = siteSummary;
-                                  return updated;
-                                }
-                                return [...prev, siteSummary];
-                              });
-                              setLocalSearch('');
-                              setSearchResults([]);
-                              setTimeout(() => handleSiteClick(siteSummary), 500);
-                            }
-                          }}
-                          className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-muted/60 transition-all border-b border-border last:border-b-0"
-                        >
-                          <MapPin size={14} className="text-primary shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[12px] font-bold text-foreground uppercase truncate">{siteName}</div>
-                            <div className="text-[10px] text-muted-foreground">{s.dor || ''} • {cellCount} cells</div>
-                          </div>
-                          <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
 
               {/* ── Tabs: Sites / Dashboard ── */}
