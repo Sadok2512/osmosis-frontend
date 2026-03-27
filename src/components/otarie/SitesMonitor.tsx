@@ -3526,7 +3526,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   >
                     {showCellLabels && sectorColorMode !== 'topo' && (
                       <Tooltip direction="right" offset={[8, 0]} permanent className="cell-kpi-label">
-                        <span style={{ color, fontWeight: 800, fontSize: '10px' }}>{val.toFixed(1)}</span>
+                        <span style={{ color, fontWeight: 800, fontSize: '10px' }}>{(val ?? 0).toFixed(1)}</span>
                       </Tooltip>
                     )}
                     <Popup>
@@ -3994,7 +3994,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   }}
                 >
                   <Tooltip direction="right" offset={[12, 0]} permanent className="cell-kpi-label">
-                    <span style={{ color: '#ef4444', fontWeight: 900, fontSize: '11px' }}>#{i + 1} {val.toFixed(1)}</span>
+                    <span style={{ color: '#ef4444', fontWeight: 900, fontSize: '11px' }}>#{i + 1} {(val ?? 0).toFixed(1)}</span>
                   </Tooltip>
                   <Popup>
                     <div className="p-1 min-w-[180px]">
@@ -4003,9 +4003,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <div className="text-xs text-gray-500">{h.cell.cell_id}</div>
                       <div className="text-[10px] text-gray-400 mt-0.5">{h.cell.techno} • {h.cell.bande} MHz • {h.cell.azimut}°</div>
                       <div className="mt-2 space-y-1">
-                        <div className="flex justify-between text-xs"><span>QoE</span><span className="font-bold" style={{ color: getKpiColor(h.cell.qoe_score_avg) }}>{h.cell.qoe_score_avg.toFixed(1)}%</span></div>
-                        <div className="flex justify-between text-xs"><span>Débit DL</span><span className="font-bold">{h.cell.p50_thr_dn_mbps.toFixed(1)} Mbps</span></div>
-                        <div className="flex justify-between text-xs"><span>RTT P95</span><span className="font-bold">{h.cell.p95_rtt_ms.toFixed(0)} ms</span></div>
+                        <div className="flex justify-between text-xs"><span>QoE</span><span className="font-bold" style={{ color: getKpiColor(h.cell.qoe_score_avg) }}>{(h.cell.qoe_score_avg ?? 0).toFixed(1)}%</span></div>
+                        <div className="flex justify-between text-xs"><span>Débit DL</span><span className="font-bold">{(h.cell.p50_thr_dn_mbps ?? 0).toFixed(1)} Mbps</span></div>
+                        <div className="flex justify-between text-xs"><span>RTT P95</span><span className="font-bold">{(h.cell.p95_rtt_ms ?? 0).toFixed(0)} ms</span></div>
                       </div>
                     </div>
                   </Popup>
@@ -5199,7 +5199,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       </span>
                                       {isQoeMode && !(isSectorExpanded || hasFocusedCell) ? (
                                         <span className="text-[10px] font-black" style={{ color: sectorKpiColor }}>
-                                          {sectorAvgKpi.toFixed(1)}
+                                          {(sectorAvgKpi ?? 0).toFixed(1)}
                                         </span>
                                       ) : (
                                         <span className={`text-[8px] font-semibold ${isSectorExpanded || hasFocusedCell ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
@@ -5244,7 +5244,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             </div>
                                           </div>
                                           <div className="text-[12px] font-bold shrink-0" style={{ color: getKpiColor(getCellKpiValue(cell)) }}>
-                                            {getCellKpiValue(cell).toFixed(1)}
+                                            {(getCellKpiValue(cell) ?? 0).toFixed(1)}
                                           </div>
                                         </button>
                                       );
@@ -5379,7 +5379,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <MapPin size={24} />
                     </div>
                     <div className="text-right">
-                      <div className="text-[16px] font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>{site.qoe_score_avg.toFixed(1)}%</div>
+                      <div className="text-[16px] font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>{(site.qoe_score_avg ?? 0).toFixed(1)}%</div>
                       <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Site QoE</div>
                     </div>
                   </div>
@@ -5420,7 +5420,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       </td>
                       <td className="px-6 py-6 text-center font-black text-muted-foreground text-[11px]">{site.cell_count}</td>
                       <td className="px-6 py-6 text-center">
-                        <div className="text-lg font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>{site.qoe_score_avg.toFixed(1)}%</div>
+                        <div className="text-lg font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>{(site.qoe_score_avg ?? 0).toFixed(1)}%</div>
                       </td>
                       <td className="px-10 py-6 text-right">
                         <span className="text-[10px] font-black uppercase text-muted-foreground group-hover:text-primary">View <ChevronRight size={14} className="inline" /></span>
@@ -5692,7 +5692,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     ].map((m, i) => (
                       <div key={i} className="bg-muted/30 rounded-xl border border-border px-2.5 py-3.5 text-center">
                         <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{m.label}</div>
-                        <div className="text-[17px] font-black" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
+                        <div className="text-[17px] font-black" style={{ color: getKpiColor(m.value) }}>{(m.value ?? 0).toFixed(1)}%</div>
                       </div>
                     ))}
                   </div>
@@ -5704,7 +5704,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center">
                       <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-tight">Score QoE<br/>Global</div>
                       <div className="text-[30px] font-black mt-1.5 leading-none" style={{ color: getKpiColor(avgQoE) }}>
-                        {avgQoE.toFixed(1)}%
+                        {(avgQoE ?? 0).toFixed(1)}%
                       </div>
                       <div className="w-14 h-1 rounded-full mx-auto mt-2.5" style={{ background: getKpiColor(avgQoE) }} />
                     </div>
@@ -5714,7 +5714,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       </div>
                       <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Débit DL</div>
                       <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
-                        {avgDl.toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">M</span>
+                        {(avgDl ?? 0).toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">M</span>
                       </div>
                     </div>
                     <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
@@ -5723,7 +5723,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       </div>
                       <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Débit UL</div>
                       <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
-                        {avgUl.toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">M</span>
+                        {(avgUl ?? 0).toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">M</span>
                       </div>
                     </div>
                     <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
@@ -5732,7 +5732,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       </div>
                       <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">RTT</div>
                       <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
-                        {avgRtt.toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">MS</span>
+                        {(avgRtt ?? 0).toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">MS</span>
                       </div>
                     </div>
                   </div>
@@ -5748,7 +5748,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between text-[13px]">
                             <span className="font-bold text-foreground">{ts.tech === '5G' ? '5G NR' : '4G LTE'}</span>
-                            <span className="font-bold" style={{ color: getKpiColor(ts.avgQoE) }}>{ts.avgQoE.toFixed(1)}%</span>
+                            <span className="font-bold" style={{ color: getKpiColor(ts.avgQoE) }}>{ts.(avgQoE ?? 0).toFixed(1)}%</span>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-1">
                             {ts.count.toLocaleString('fr-FR')} cells • {ts.bands.join(' / ')}
@@ -5782,7 +5782,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               </div>
                             </td>
                             <td className="px-3 py-2 text-right font-medium text-foreground">{bs.count.toLocaleString()}</td>
-                            <td className="px-3 py-2 text-right font-semibold" style={{ color: getKpiColor(bs.avgQoE) }}>{bs.avgQoE.toFixed(1)}%</td>
+                            <td className="px-3 py-2 text-right font-semibold" style={{ color: getKpiColor(bs.avgQoE) }}>{bs.(avgQoE ?? 0).toFixed(1)}%</td>
                           </tr>
                         ))}
                       </tbody>
@@ -5988,7 +5988,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   ].map((m, i) => (
                     <div key={i} className="bg-muted/30 rounded-xl border border-border px-2.5 py-3.5 text-center">
                       <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{m.label}</div>
-                      <div className="text-[17px] font-black" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
+                      <div className="text-[17px] font-black" style={{ color: getKpiColor(m.value) }}>{(m.value ?? 0).toFixed(1)}%</div>
                     </div>
                   ))}
                 </div>
@@ -6066,7 +6066,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       ].map((m, i) => (
                         <div key={i} className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
                           <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{m.label}</div>
-                          <div className="text-[14px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
+                          <div className="text-[14px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{(m.value ?? 0).toFixed(1)}%</div>
                         </div>
                       ))}
                     </div>
@@ -6076,7 +6076,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
                         <div className="text-[8px] font-bold text-muted-foreground uppercase">QoE</div>
                         <div className="text-[22px] font-black leading-none mt-1" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
-                          {cell.qoe_score_avg.toFixed(1)}%
+                          {(cell.qoe_score_avg ?? 0).toFixed(1)}%
                         </div>
                       </div>
                       <div className="bg-muted/30 rounded-xl border border-border px-2 py-3 text-center">
@@ -6540,7 +6540,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-[22px] font-black" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
-                        {cell.qoe_score_avg.toFixed(1)}%
+                        {(cell.qoe_score_avg ?? 0).toFixed(1)}%
                       </div>
                       <div className="text-[9px] font-semibold text-muted-foreground uppercase">QoE</div>
                     </div>
@@ -6584,7 +6584,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         ].map((m, i) => (
                           <div key={i} className="bg-muted/40 rounded-xl border border-border px-3 py-3 text-center">
                             <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{m.label}</div>
-                            <div className="text-[16px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{m.value.toFixed(1)}%</div>
+                            <div className="text-[16px] font-extrabold" style={{ color: getKpiColor(m.value) }}>{(m.value ?? 0).toFixed(1)}%</div>
                           </div>
                         ))}
                       </div>
@@ -6597,7 +6597,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <div className="bg-muted/30 rounded-xl border border-border px-3 py-4 text-center">
                           <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider leading-tight">Score QoE<br/>Global</div>
                           <div className="text-[28px] font-black mt-1 leading-none" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
-                            {cell.qoe_score_avg.toFixed(1)}%
+                            {(cell.qoe_score_avg ?? 0).toFixed(1)}%
                           </div>
                           <div className="w-12 h-1 rounded-full mx-auto mt-2" style={{ background: getKpiColor(cell.qoe_score_avg) }} />
                         </div>
