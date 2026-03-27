@@ -5355,7 +5355,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <button
                     key={tab.id}
                     onClick={() => setInventoryTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all max-w-[50%] ${
+                    className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
                       inventoryTab === tab.id
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
