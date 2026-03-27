@@ -2202,7 +2202,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [topoNetworkStats, setTopoNetworkStats] = useState<TopoNetworkStats | null>(null);
 
   useEffect(() => {
-    if (sectorColorMode !== 'topo') return;
     let cancelled = false;
 
     const fetchStats = async () => {
