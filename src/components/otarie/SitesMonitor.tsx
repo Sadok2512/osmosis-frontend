@@ -636,7 +636,7 @@ interface DashboardSettingsPanelProps {
   onSiteFiltersChange?: (filters: DashboardSiteFilters) => void;
 }
 
-const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, onClose, onSetDashboards }) => {
+const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, onClose, onSetDashboards, backendFilterDefs, onSiteFiltersChange }) => {
   const [localName, setLocalName] = useState(currentName || '');
   const [localMapStyle, setLocalMapStyle] = useState(settings.mapStyle || settings.mapLayer || 'street');
   const [localThemeMode, setLocalThemeMode] = useState(settings.themeMode || 'light');
