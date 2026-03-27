@@ -4592,9 +4592,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 ))}
               </div>
 
-              {false ? (
-                <></>
-              ) : (
+              {(
               <>
 
               {/* ── Filters row (sites tab only) ── */}
