@@ -2157,6 +2157,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, [mapCache]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const selectedSiteIdRef = useRef<string | null>(null);
+  useEffect(() => { selectedSiteIdRef.current = selectedSiteId; }, [selectedSiteId]);
   const [selectedSiteSnapshot, setSelectedSiteSnapshot] = useState<SiteSummary | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
   const [loading, setLoading] = useState(false);
