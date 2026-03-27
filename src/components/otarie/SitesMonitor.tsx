@@ -3630,19 +3630,72 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     el.scrollBy({ left: dir === 'left' ? -250 : 250, behavior: 'smooth' });
   }, []);
 
-  const handleSiteClick = (site: SiteSummary) => {
+  const handleSiteClick = async (site: SiteSummary) => {
     // Toggle: clicking the already-selected site deselects it
     if (selectedSiteId === site.site_id) {
       handleBackToGlobal();
       return;
     }
-    setSelectedSiteSnapshot(site);
-    setFlyTarget(site.coordinates);
-    setSelectedSiteId(site.site_id);
+
+    // If site has no cells (from search), load them on-demand
+    let siteWithCells = site;
+    if (site.cells.length === 0 && site.site_name) {
+      try {
+        const cellResp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites-with-cells?q=${encodeURIComponent(site.site_name)}&limit=500`), {
+          headers: getVpsProxyHeaders(),
+        });
+        const cellData = await cellResp.json();
+        const matchSite = (cellData.sites || []).find((cs: any) => cs.site_name === site.site_name);
+        if (matchSite) {
+          const cells = (matchSite.cells || []).map((c: any) => ({
+            cell_id: c.nom_cellule || c.cell_name,
+            cell_name: c.nom_cellule || c.cell_name || '',
+            techno: c.techno || '4G',
+            band: c.bande || '',
+            bande: c.bande || '',
+            vendor: c.constructeur || '',
+            azimut: c.azimut != null ? Number(c.azimut) : null,
+            tilt: c.tilt != null ? Number(c.tilt) : null,
+            pci: c.pci || null,
+            eci: c.eci || null,
+            tac: c.tac || null,
+            etat_cellule: c.etat_cellule || null,
+            nci: c.nci || null,
+            freq: c.freq || null,
+            zone_arcep: matchSite.zone_arcep || null,
+            plaque: matchSite.plaque || c.plaque || null,
+          }));
+          siteWithCells = {
+            ...site,
+            cells,
+            cell_count: cells.length || site.cell_count,
+            lte_cells: cells.filter((c: any) => c.techno === '4G' || c.techno === 'LTE').length,
+            nr_cells: cells.filter((c: any) => c.techno === '5G' || c.techno === 'NR').length,
+          };
+          // Update in searchModeSites or sites
+          setSearchModeSites(prev => prev.map(s => s.site_id === siteWithCells.site_id ? siteWithCells : s));
+          setSites(prev => {
+            const idx = prev.findIndex(s => s.site_id === siteWithCells.site_id);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = siteWithCells;
+              return updated;
+            }
+            return [...prev, siteWithCells];
+          });
+        }
+      } catch (err) {
+        console.warn('[SitesMonitor] Failed to load cells for search site', err);
+      }
+    }
+
+    setSelectedSiteSnapshot(siteWithCells);
+    setFlyTarget(siteWithCells.coordinates);
+    setSelectedSiteId(siteWithCells.site_id);
     setFocusMode('site');
     setFocusCellId(null);
     // Auto-expand only the first sector by default
-    const sectorNums = Array.from(new Set(site.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
+    const sectorNums = Array.from(new Set(siteWithCells.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
     setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
     setShowRightPanel(true);
     // Ensure inventory panel is open and on sites tab before scrolling
@@ -3650,7 +3703,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setInventoryTab('sites');
     // Scroll inventory to selected site with delay for DOM update
     setTimeout(() => {
-      const el = siteRowRefs.current.get(site.site_id);
+      const el = siteRowRefs.current.get(siteWithCells.site_id);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 350);
   };
