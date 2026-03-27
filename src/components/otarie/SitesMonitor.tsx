@@ -1936,6 +1936,60 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [bandColors, setBandColors] = useState<Record<string, string>>(loadCustomBandColors);
   const [editingColorBand, setEditingColorBand] = useState<string | null>(null);
 
+  // ── TOPO mode: fetch global network stats from DB ──
+  const [topoNetworkStats, setTopoNetworkStats] = useState<{
+    sites4G: number; sites5G: number; cells4G: number; cells5G: number;
+    bandMap4G: Record<string, number>; bandMap5G: Record<string, number>;
+    vendorMap: Record<string, { '4G': number; '5G': number }>;
+  } | null>(null);
+
+  useEffect(() => {
+    if (sectorColorMode !== 'topo') return;
+    let cancelled = false;
+    const fetchStats = async () => {
+      try {
+        const { data, error } = await supabase.rpc('topo_inventory_stats');
+        if (error || !data || cancelled) return;
+        const stats = data as any;
+        let s4G = 0, s5G = 0, c4G = 0, c5G = 0;
+        const bm4G: Record<string, number> = {};
+        const bm5G: Record<string, number> = {};
+        const vm: Record<string, { '4G': number; '5G': number }> = {};
+        if (stats.by_techno) {
+          (Array.isArray(stats.by_techno) ? stats.by_techno : []).forEach((t: any) => {
+            const tech = (t.techno || '').toUpperCase();
+            if (tech.includes('5G') || tech.includes('NR')) c5G += Number(t.count || 0);
+            else if (tech.includes('4G') || tech.includes('LTE')) c4G += Number(t.count || 0);
+          });
+        }
+        if (stats.by_band) {
+          (Array.isArray(stats.by_band) ? stats.by_band : []).forEach((b: any) => {
+            const tech = (b.techno || '').toUpperCase();
+            const band = b.bande || 'Unknown';
+            const cnt = Number(b.count || 0);
+            if (tech.includes('5G') || tech.includes('NR')) bm5G[band] = (bm5G[band] || 0) + cnt;
+            else if (tech.includes('4G') || tech.includes('LTE')) bm4G[band] = (bm4G[band] || 0) + cnt;
+          });
+        }
+        if (stats.by_vendor || stats.by_constructeur) {
+          (Array.isArray(stats.by_vendor || stats.by_constructeur) ? (stats.by_vendor || stats.by_constructeur) : []).forEach((v: any) => {
+            const vendor = v.constructeur || v.vendor || 'Unknown';
+            const tech = (v.techno || '').toUpperCase();
+            if (!vm[vendor]) vm[vendor] = { '4G': 0, '5G': 0 };
+            const cnt = Number(v.count || 0);
+            if (tech.includes('5G') || tech.includes('NR')) vm[vendor]['5G'] += cnt;
+            else vm[vendor]['4G'] += cnt;
+          });
+        }
+        s4G = stats.sites_4g ?? stats.sites_4G ?? 0;
+        s5G = stats.sites_5g ?? stats.sites_5G ?? 0;
+        if (!cancelled) setTopoNetworkStats({ sites4G: s4G, sites5G: s5G, cells4G: c4G, cells5G: c5G, bandMap4G: bm4G, bandMap5G: bm5G, vendorMap: vm });
+      } catch (e) { console.error('[TOPO] Failed to fetch network stats:', e); }
+    };
+    fetchStats();
+    return () => { cancelled = true; };
+  }, [sectorColorMode]);
+
   // Dynamic color getters using state
   const getBandColor = useCallback((bande: string, techno?: string): string => {
     const key = normalizeBandKey(bande, techno);
