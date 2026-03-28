@@ -252,7 +252,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
 
     // All queries go through VPS orchestrator :1000 via proxy
     const url = isLocalMode()
-      ? 'http://localhost:1000/orchestrator/stream'
+      ? getVpsProxyUrl('agent', '/orchestrator/stream')
       : getVpsProxyUrl('agent', '/orchestrator/stream');
     const headers = getAgentHeaders();
 

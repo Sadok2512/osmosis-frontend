@@ -259,7 +259,7 @@ export async function startInvestigation(query: string): Promise<ReadableStream 
   let url: string;
   let headers: Record<string, string>;
   if (isLocalMode()) {
-    url = 'http://localhost:1000/orchestrator/stream';
+    url = getVpsProxyUrl('agent', '/orchestrator/stream');
     headers = { 'Content-Type': 'application/json', 'x-api-key': 'agent_secret_key' };
   } else {
     url = getVpsProxyUrl('agent', '/orchestrator/stream');
