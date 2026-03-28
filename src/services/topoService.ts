@@ -605,6 +605,17 @@ export function invalidateDashboardSitesCache() {
   dashboardSitesCache = null;
 }
 
+export function getCachedDashboardSites(
+  siteFilters: DashboardSiteFilters | null,
+  search?: string,
+): SiteSummary[] | null {
+  const key = dashboardFilterKey(siteFilters, search);
+  if (dashboardSitesCache && dashboardSitesCache.key === key && (Date.now() - dashboardSitesCache.ts) < DASHBOARD_SITES_CACHE_TTL) {
+    return dashboardSitesCache.sites;
+  }
+  return null;
+}
+
 /**
  * Fetch site summaries for a dashboard context using server-side filtering.
  * Returns lightweight SiteSummary[] with empty cells array.

@@ -56,7 +56,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
 import { fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { invalidateSitesCache } from '../../services/mockData';
-import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache } from '../../services/topoService';
+import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters } from '../../types';
 import {
@@ -2988,16 +2988,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     let cancelled = false;
 
     const loadDashboardScopedSites = async () => {
+      // Merge scope into filters if filters are empty
+      let effectiveFilters = activeDashboardFilters;
+      if ((!effectiveFilters || Object.keys(effectiveFilters).length === 0) && activeSiteScope && activeSiteScope.type !== 'ALL' && activeSiteScope.value) {
+        if (activeSiteScope.type === 'DOR') effectiveFilters = { dor: [activeSiteScope.value] };
+        else if (activeSiteScope.type === 'Plaque') effectiveFilters = { plaque: [activeSiteScope.value] };
+      }
+
+      const cachedDashboardSites = getCachedDashboardSites(effectiveFilters);
+      if (cachedDashboardSites && cachedDashboardSites.length > 0) {
+        setSites(cachedDashboardSites);
+        setBboxTotal(cachedDashboardSites.length);
+        setBboxLoading(false);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setBboxLoading(true);
 
       try {
-        // Merge scope into filters if filters are empty
-        let effectiveFilters = activeDashboardFilters;
-        if ((!effectiveFilters || Object.keys(effectiveFilters).length === 0) && activeSiteScope && activeSiteScope.type !== 'ALL' && activeSiteScope.value) {
-          if (activeSiteScope.type === 'DOR') effectiveFilters = { dor: [activeSiteScope.value] };
-          else if (activeSiteScope.type === 'Plaque') effectiveFilters = { plaque: [activeSiteScope.value] };
-        }
         const dashboardSites = await fetchDashboardSites(effectiveFilters);
 
         if (cancelled) return;
