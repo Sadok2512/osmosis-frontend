@@ -26,6 +26,7 @@ import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSR
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
 import { InlineSimTab, SiteKpiChart } from './SitesMonitorHelpers';
+import SiteChangesPanel from './SiteChangesPanel';
 
 // Heatmap layer component using leaflet.heat
 const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
@@ -6929,6 +6930,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </div>
               </div>
+
+              {/* ── Parameter Changes ── */}
+              {siteDetail?.site_name && (
+                <div className="px-5 py-4">
+                  <SiteChangesPanel siteName={siteDetail.site_name} days={90} />
+                </div>
+              )}
 
               {isTopoFocus && (
                 <div className="px-5 py-4 space-y-3">
