@@ -3907,39 +3907,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
-            // For mixed sites, render 4G sectors (larger) then 5G sectors (smaller, on top)
-            const isMixedMini = has4G && has5G;
-            const miniRadius4G = miniRadius;
-            const miniRadius5G = isMixedMini ? miniRadius * 0.65 : miniRadius;
-
-            // Build per-tech azimuth sets
-            const techAzMap = new Map<string, Set<number>>();
+            // Build per-cell band-based mini items with size hierarchy
+            const miniItems: { tech: string; az: number; r: number; bandKey: string | null }[] = [];
+            const seenMini = new Set<string>();
             for (const cell of site.cells) {
               const tech = (cell.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
+              if (tech === '4G' && !enabledTechnos.has('4G')) continue;
+              if (tech === '5G' && !enabledTechnos.has('5G')) continue;
               const az = Number(cell.azimut);
               if (!Number.isFinite(az) || az < 0 || az > 360) continue;
-              if (!techAzMap.has(tech)) techAzMap.set(tech, new Set());
-              techAzMap.get(tech)!.add(az);
+              const bandKey = normalizeBandKey(cell.bande, cell.techno);
+              const dedup = `${tech}_${bandKey}_${az}`;
+              if (seenMini.has(dedup)) continue;
+              seenMini.add(dedup);
+              const bandScale = getBandSizeScale(bandKey);
+              miniItems.push({ tech, az, r: miniRadius * bandScale, bandKey });
             }
+            // Sort: bigger first (low freq below), smaller on top
+            miniItems.sort((a, b) => getBandRenderOrder(a.bandKey) - getBandRenderOrder(b.bandKey));
 
-            // Render order: 4G first (bottom), then 5G (top)
-            const miniItems: { tech: string; az: number; r: number }[] = [];
-            if (has4G && enabledTechnos.has('4G')) {
-              (techAzMap.get('4G') || new Set()).forEach(az => miniItems.push({ tech: '4G', az, r: miniRadius4G }));
-            }
-            if (has5G && enabledTechnos.has('5G')) {
-              (techAzMap.get('5G') || new Set()).forEach(az => miniItems.push({ tech: '5G', az, r: miniRadius5G }));
-            }
-            // Fallback: if no tech-specific azimuths found, use all azimuths with site color
+            // Fallback: if no band-specific items, use all azimuths with site color
             if (miniItems.length === 0) {
-              azimuths.forEach(az => miniItems.push({ tech: has5G ? '5G' : '4G', az, r: miniRadius }));
+              azimuths.forEach(az => miniItems.push({ tech: has5G ? '5G' : '4G', az, r: miniRadius, bandKey: null }));
             }
 
             return (
               <React.Fragment key={site.site_id}>
-                {miniItems.map(({ tech, az, r }) => {
+                {miniItems.map(({ tech, az, r, bandKey }) => {
                   const sectorCoords = getSectorCoords(site.coordinates, az, r, 60);
-                  const techColor = tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316');
+                  const techColor = bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'));
                   return (
                     <Polygon
                       key={`${site.site_id}_mini_${tech}_${az}`}
