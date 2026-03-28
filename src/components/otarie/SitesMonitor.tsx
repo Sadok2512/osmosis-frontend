@@ -1588,12 +1588,18 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     if (!newViewName.trim()) return;
     setCreating(true);
     try {
+      // Build clean siteFilters from newViewFilters
+      const cleanFilters: DashboardSiteFilters = {};
+      for (const [k, v] of Object.entries(newViewFilters)) {
+        if (v && (v as string[]).length > 0) (cleanFilters as any)[k] = v;
+      }
       await mapViewsApi.create({
         name: newViewName.trim(),
         description: dashboardId,
-        settings: { center: [43.2965, 5.3698], zoom: 6 },
+        settings: { center: [43.2965, 5.3698], zoom: 6, siteFilters: cleanFilters },
       });
       setNewViewName('');
+      setNewViewFilters({});
       setShowCreateView(null);
       fetchAll();
     } catch (err) { console.warn('[SitesMonitor] createView failed', err); }
