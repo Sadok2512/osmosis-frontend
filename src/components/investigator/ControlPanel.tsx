@@ -193,19 +193,53 @@ const AddFilterDropdown: React.FC<{
   );
 };
 
-/* ── Filter Values (from backend) ── */
+/* ── Filter Values (from backend) with search & paste ── */
 const FilterValuesList: React.FC<{ dim: string; onSelect: (val: string) => void; onBack: () => void }> = ({ dim, onSelect, onBack }) => {
   const values = useBackendFilterValues(dim);
+  const [search, setSearch] = React.useState('');
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const pasted = e.clipboardData.getData('text').trim();
+    if (!pasted) return;
+    // Support pasting multiple values separated by newline, comma, or semicolon
+    const items = pasted.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+    if (items.length > 1) {
+      e.preventDefault();
+      items.forEach(item => {
+        const match = values.find(v => v.toLowerCase() === item.toLowerCase());
+        if (match) onSelect(match);
+      });
+      return;
+    }
+  };
+
+  const filtered = search
+    ? values.filter(v => v.toLowerCase().includes(search.toLowerCase()))
+    : values;
+
   return (
     <>
       <button onClick={onBack} className="w-full text-left px-3 py-1 text-[10px] text-muted-foreground hover:text-foreground">
         ← {dim}
       </button>
-      <div className="border-t border-border/40 mt-1 pt-1 max-h-[200px] overflow-y-auto">
+      <input
+        ref={inputRef}
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        onPaste={handlePaste}
+        placeholder="Rechercher ou coller..."
+        className="w-full px-3 py-1.5 border-b border-border/40 bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+      />
+      <div className="border-t border-border/40 mt-0 pt-1 max-h-[200px] overflow-y-auto">
         {values.length === 0 ? (
           <div className="px-3 py-2 text-[10px] text-muted-foreground animate-pulse">Chargement...</div>
+        ) : filtered.length === 0 ? (
+          <div className="px-3 py-2 text-[10px] text-muted-foreground">Aucun résultat pour "{search}"</div>
         ) : (
-          values.map(val => (
+          filtered.slice(0, 100).map(val => (
             <button key={val} onClick={() => onSelect(val)}
               className="w-full text-left px-3 py-1.5 rounded-md text-xs font-medium text-foreground hover:bg-muted/50 transition-colors">
               {val}
