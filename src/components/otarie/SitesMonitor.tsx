@@ -462,6 +462,8 @@ const FitToDashboardSites = ({ sites, fitKey }: { sites: SiteSummary[]; fitKey: 
       map.fitBounds(bounds.pad(0.15), { duration: 1.2, maxZoom: 13 });
     }
   }, [fitKey, sites, map]);
+  return null;
+};
 
 const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; resetKey: string }) => {
   const map = useMap();
