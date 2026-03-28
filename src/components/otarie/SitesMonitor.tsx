@@ -4103,29 +4103,71 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
           if (!site.cells || site.cells.length === 0) {
             const { has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
-            const fallbackColor = fb5G ? (bandColors['5G_GROUP'] || '#22c55e') : fb4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
-            const radius = isHovered || isSelectedSite ? 7 : 5;
-            const fallbackHas5G = fb5G;
+            const baseR = isHovered || isSelectedSite ? 7 : 5;
+            const fbMixed = fb4G && fb5G;
             return (
-              <CircleMarker
-                key={site.site_id}
-                center={site.coordinates}
-                radius={radius}
-                pane={fallbackHas5G ? 'pane5G' : 'pane4G'}
-                fillColor={fallbackColor}
-                fillOpacity={0.85}
-                weight={isSelectedSite ? 3 : 1.5}
-                color={isSelectedSite ? '#fff' : deriveStrokeColor(fallbackColor)}
-                eventHandlers={{
-                  click: () => handleSiteClick(site),
-                  mouseover: () => setHoveredSiteId(site.site_id),
-                  mouseout: () => setHoveredSiteId(null),
-                }}
-              >
-                <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
-                  <span className="text-[10px] font-bold">{site.site_name}</span>
-                </Tooltip>
-              </CircleMarker>
+              <React.Fragment key={site.site_id}>
+                {fb4G && (
+                  <CircleMarker
+                    center={site.coordinates}
+                    radius={baseR}
+                    pane="pane4G"
+                    fillColor={bandColors['4G_GROUP'] || '#f97316'}
+                    fillOpacity={0.85}
+                    weight={isSelectedSite ? 3 : 1.5}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(bandColors['4G_GROUP'] || '#f97316')}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                      <span className="text-[10px] font-bold">{site.site_name}</span>
+                    </Tooltip>
+                  </CircleMarker>
+                )}
+                {fb5G && (
+                  <CircleMarker
+                    center={site.coordinates}
+                    radius={fbMixed ? Math.round(baseR * 0.65) : baseR}
+                    pane="pane5G"
+                    fillColor={bandColors['5G_GROUP'] || '#22c55e'}
+                    fillOpacity={0.9}
+                    weight={isSelectedSite ? 3 : (fbMixed ? 0 : 1.5)}
+                    color={isSelectedSite ? '#fff' : (fbMixed ? 'transparent' : deriveStrokeColor(bandColors['5G_GROUP'] || '#22c55e'))}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                      <span className="text-[10px] font-bold">{site.site_name}</span>
+                    </Tooltip>
+                  </CircleMarker>
+                )}
+                {!fb4G && !fb5G && (
+                  <CircleMarker
+                    center={site.coordinates}
+                    radius={baseR}
+                    pane="pane4G"
+                    fillColor={FADED_COLOR}
+                    fillOpacity={0.85}
+                    weight={isSelectedSite ? 3 : 1.5}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(FADED_COLOR)}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                      <span className="text-[10px] font-bold">{site.site_name}</span>
+                    </Tooltip>
+                  </CircleMarker>
+                )}
+              </React.Fragment>
             );
           }
 
