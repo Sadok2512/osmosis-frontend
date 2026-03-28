@@ -3938,7 +3938,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   const techColor = bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'));
                   return (
                     <Polygon
-                      key={`${site.site_id}_mini_${tech}_${az}`}
+                      key={`${site.site_id}_mini_${tech}_${bandKey || 'unk'}_${az}`}
                       positions={sectorCoords}
                       pane={tech === '5G' ? 'pane5G' : 'pane4G'}
                       pathOptions={{
