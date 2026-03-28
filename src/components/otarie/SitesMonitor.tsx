@@ -792,7 +792,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
           )}
 
           {/* ── Site Filters ── */}
-          {dashboardId && backendFilterDefs && backendFilterDefs.length > 0 && (
+          {backendFilterDefs && backendFilterDefs.length > 0 && (
             <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
               <SectionHeader icon={<Filter size={12} className="text-primary" />} title="Site Filters" subtitle="Filter sites displayed on the map" />
               <div className="space-y-1.5">
@@ -1986,6 +1986,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                 currentName={view.name}
                                 onClose={() => { setEditingDashboardId(null); setEditingViewId(null); }}
                                 onSetDashboards={setDashboards}
+                                backendFilterDefs={backendFilterDefs}
                               />
                             )}
                           </div>
