@@ -964,8 +964,6 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
             </div>
           </div>
 
-          {/* ── Dashboard-only sections ── */}
-          {dashboardId && (<>
           {/* ── Visibility ── */}
           <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
             <SectionHeader icon={<Network size={12} className="text-primary" />} title="Visibility" subtitle="Dashboard access control" />
