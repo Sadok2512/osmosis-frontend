@@ -117,8 +117,8 @@ export async function fetchTimeSeriesData(
 export async function fetchWorstElements(
   kpiIds: string[],
   limit: number = 10,
-  dateFrom: string = '2026-01-01',
-  dateTo: string = '2026-03-24',
+  dateFrom: string = '2026-03-01',
+  dateTo: string = '2026-03-31',
   filters?: { dimension: string; op: string; values: string[] }[]
 ): Promise<WorstElement[]> {
   if (!kpiIds.length) return [];
@@ -182,8 +182,8 @@ export async function fetchWorstElements(
 export async function fetchWorstByDOR(
   kpiIds: string[],
   limit: number = 10,
-  dateFrom: string = '2026-01-01',
-  dateTo: string = '2026-03-24',
+  dateFrom: string = '2026-03-01',
+  dateTo: string = '2026-03-31',
   filters?: { dimension: string; op: string; values: string[] }[]
 ): Promise<Record<string, WorstElement[]>> {
   if (!kpiIds.length) return {};
@@ -232,8 +232,8 @@ export async function fetchFilterValues(dimension: string): Promise<string[]> {
 // ── Fetch histogram data ──
 export async function fetchHistogramData(
   kpiId: string,
-  dateFrom: string = '2026-01-01',
-  dateTo: string = '2026-03-24',
+  dateFrom: string = '2026-03-01',
+  dateTo: string = '2026-03-31',
   bins: number = 20
 ): Promise<{ bin: number; count: number; label: string }[]> {
   const url = getApiUrl('monitor/query/table');
@@ -265,8 +265,8 @@ export async function fetchHistogramData(
 // ── Fetch breakdown by dimension ──
 export async function fetchBreakdownData(
   kpiId: string,
-  dateFrom: string = '2026-01-01',
-  dateTo: string = '2026-03-24',
+  dateFrom: string = '2026-03-01',
+  dateTo: string = '2026-03-31',
   dimension: string = 'vendor'
 ): Promise<{ name: string; value: number; color: string }[]> {
   const url = getApiUrl('monitor/query/timeseries');
