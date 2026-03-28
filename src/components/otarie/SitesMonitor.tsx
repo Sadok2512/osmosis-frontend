@@ -1340,6 +1340,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [mapViews, setMapViews] = useState<any[]>([]);
   const [showCreateView, setShowCreateView] = useState<string | null>(null);
   const [newViewName, setNewViewName] = useState('');
+  const [newViewFilters, setNewViewFilters] = useState<DashboardSiteFilters>({});
   const [creating, setCreating] = useState(false);
   const expandedDashboardId = activeDashboardId;
   const setExpandedDashboardId = onActiveDashboardIdChange;
@@ -1587,12 +1588,18 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     if (!newViewName.trim()) return;
     setCreating(true);
     try {
+      // Build clean siteFilters from newViewFilters
+      const cleanFilters: DashboardSiteFilters = {};
+      for (const [k, v] of Object.entries(newViewFilters)) {
+        if (v && (v as string[]).length > 0) (cleanFilters as any)[k] = v;
+      }
       await mapViewsApi.create({
         name: newViewName.trim(),
         description: dashboardId,
-        settings: { center: [43.2965, 5.3698], zoom: 6 },
+        settings: { center: [43.2965, 5.3698], zoom: 6, siteFilters: cleanFilters },
       });
       setNewViewName('');
+      setNewViewFilters({});
       setShowCreateView(null);
       fetchAll();
     } catch (err) { console.warn('[SitesMonitor] createView failed', err); }
@@ -1633,6 +1640,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       color: vs.color || dbSettings.color || '',
       center: vs.center || dbSettings.center,
       zoom: vs.zoom || dbSettings.zoom,
+      siteFilters: vs.siteFilters || dbSettings.siteFilters || null,
     };
   };
 
@@ -1972,23 +1980,56 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 {/* Ajouter une vue — always visible */}
                 <div className="px-3 pt-1.5">
                   {showCreateView === db.id ? (
-                    <div className="flex items-center gap-1.5 py-1">
-                      <input
-                        autoFocus
-                        value={newViewName}
-                        onChange={e => setNewViewName(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleCreateView(db.id)}
-                        placeholder="Nom de la vue..."
-                        className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
-                      />
-                      <button onClick={() => handleCreateView(db.id)} disabled={creating || !newViewName.trim()}
-                        className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
-                        <Plus size={12} />
-                      </button>
-                      <button onClick={() => { setShowCreateView(null); setNewViewName(''); }}
-                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-                        <X size={12} />
-                      </button>
+                    <div className="space-y-2 py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          autoFocus
+                          value={newViewName}
+                          onChange={e => setNewViewName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleCreateView(db.id)}
+                          placeholder="Nom de la vue..."
+                          className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
+                        />
+                        <button onClick={() => handleCreateView(db.id)} disabled={creating || !newViewName.trim()}
+                          className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
+                          <Plus size={12} />
+                        </button>
+                        <button onClick={() => { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); }}
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+                          <X size={12} />
+                        </button>
+                      </div>
+                      {/* Techno / DOR / Plaque filter selectors */}
+                      {backendFilterDefs && backendFilterDefs.length > 0 && (
+                        <div className="space-y-1">
+                          {backendFilterDefs
+                            .filter(dim => ['techno', 'dor', 'plaque'].includes(dim.id))
+                            .map(dim => {
+                              const selected = (newViewFilters as any)[dim.id] || [];
+                              return (
+                                <div key={dim.id} className="flex items-center gap-2">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-14 shrink-0">{dim.label}</label>
+                                  <select
+                                    value={selected.length === 1 ? selected[0] : ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setNewViewFilters(prev => ({
+                                        ...prev,
+                                        [dim.id]: val ? [val] : undefined,
+                                      }));
+                                    }}
+                                    className="flex-1 bg-muted border border-border/50 rounded-lg px-2 py-1 text-[10px] text-foreground outline-none focus:border-primary/60 transition-all"
+                                  >
+                                    <option value="">Tous</option>
+                                    {dim.values.map(v => (
+                                      <option key={v} value={v}>{v}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <button
