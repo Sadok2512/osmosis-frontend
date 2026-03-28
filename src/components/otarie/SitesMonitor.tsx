@@ -866,9 +866,8 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
             </div>
           )}
 
-          {/* ── Map Rendering (available for both dashboard & view) ── */}
-
-          {/* ── Map Rendering ── */}
+          {/* ── Map Rendering, Appearance, Labels (dashboard only) ── */}
+          {dashboardId && (<>
           <div className="p-3 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
             <SectionHeader icon={<MapIcon size={12} className="text-primary" />} title="Map Style" subtitle="Base layer rendering" />
             <div className="grid grid-cols-4 gap-1">
