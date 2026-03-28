@@ -2253,54 +2253,41 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     const fetchStats = async () => {
       try {
-        const topoRowsResponse = await topoApi.list(100000);
-        const topoRows = Array.isArray(topoRowsResponse?.rows) ? topoRowsResponse.rows : [];
-
-        if (!cancelled && topoRows.length > 0) {
-          setTopoNetworkStats(buildTopoNetworkStatsFromRows(topoRows));
-          return;
-        }
-
-        const { data, error } = await supabase.rpc('topo_inventory_stats');
+        // Fetch from VPS /global-network API (pre-computed, instant, accurate)
+        const resp = await fetch(getVpsProxyUrl('parser', '/api/v1/topo/global-network'), {
+          headers: getVpsProxyHeaders(),
+        });
+        const stats = await resp.json();
         if (cancelled) return;
-        if (error || !data) {
-          setTopoNetworkStats(EMPTY_TOPO_NETWORK_STATS);
-          return;
-        }
 
-        const stats = data as any;
-        const fallbackStats: TopoNetworkStats = {
+        const result: TopoNetworkStats = {
           ...EMPTY_TOPO_NETWORK_STATS,
           bandMap4G: {},
           bandMap5G: {},
           vendorMap: {},
         };
 
-        // by_techno is { "4G": count, "5G": count, ... }
-        if (stats.by_techno && typeof stats.by_techno === 'object') {
-          Object.entries(stats.by_techno).forEach(([tech, count]: [string, any]) => {
-            if (is5GTech(tech)) fallbackStats.cells5G += Number(count || 0);
-            else if (is4GTech(tech)) fallbackStats.cells4G += Number(count || 0);
-          });
+        for (const t of (stats.by_techno || [])) {
+          if (t.techno === '5G' || t.techno === 'NR') {
+            result.sites5G = t.sites || 0;
+            result.cells5G = t.cells || 0;
+          } else if (t.techno === '4G' || t.techno === 'LTE') {
+            result.sites4G = t.sites || 0;
+            result.cells4G = t.cells || 0;
+          }
         }
 
-        if (stats.by_bande && typeof stats.by_bande === 'object') {
-          Object.entries(stats.by_bande).forEach(([band, count]: [string, any]) => {
-            const bandLabel = String(band || 'Unknown');
-            if (/^N|NR|5G/i.test(bandLabel)) fallbackStats.bandMap5G[bandLabel] = Number(count || 0);
-            else fallbackStats.bandMap4G[bandLabel] = Number(count || 0);
-          });
+        for (const b of (stats.by_band || [])) {
+          const band = b.band || 'Unknown';
+          if (/^NR|^5G/i.test(band)) result.bandMap5G[band] = b.cells || 0;
+          else result.bandMap4G[band] = b.cells || 0;
         }
 
-        if (stats.by_constructeur && typeof stats.by_constructeur === 'object') {
-          Object.entries(stats.by_constructeur).forEach(([vendor, count]: [string, any]) => {
-            fallbackStats.vendorMap[vendor] = { '4G': Number(count || 0), '5G': 0 };
-          });
+        for (const v of (stats.by_vendor || [])) {
+          result.vendorMap[v.vendor] = { '4G': v.cells || 0, '5G': 0 };
         }
 
-        fallbackStats.sites4G = Number(stats.total_sites ?? 0);
-        fallbackStats.sites5G = 0;
-        setTopoNetworkStats(fallbackStats);
+        setTopoNetworkStats(result);
       } catch (e) {
         console.error('[TOPO] Failed to fetch network stats:', e);
         if (!cancelled) setTopoNetworkStats(EMPTY_TOPO_NETWORK_STATS);
