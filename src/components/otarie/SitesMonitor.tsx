@@ -3958,6 +3958,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             // Sort: bigger first (low freq below), smaller on top
             miniItems.sort((a, b) => getBandRenderOrder(a.bandKey) - getBandRenderOrder(b.bandKey));
 
+            // For mixed sites: cap 5G mini-sectors to 65% of 4G at same azimuth
+            const hasMini4G = miniItems.some(i => i.tech === '4G');
+            const hasMini5G = miniItems.some(i => i.tech === '5G');
+            if (hasMini4G && hasMini5G) {
+              const max4GAz = new Map<number, number>();
+              for (const item of miniItems) {
+                if (item.tech === '4G') {
+                  const cur = max4GAz.get(item.az) || 0;
+                  if (item.r > cur) max4GAz.set(item.az, item.r);
+                }
+              }
+              for (const item of miniItems) {
+                if (item.tech === '5G') {
+                  const ref = max4GAz.get(item.az) || miniRadius;
+                  const cap = ref * 0.65;
+                  if (item.r > cap) item.r = cap;
+                }
+              }
+            }
+
             // Fallback: if no band-specific items, use all azimuths with site color
             if (miniItems.length === 0) {
               azimuths.forEach(az => miniItems.push({ tech: has5G ? '5G' : '4G', az, r: miniRadius, bandKey: null }));
