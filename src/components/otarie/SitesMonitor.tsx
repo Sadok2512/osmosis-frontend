@@ -280,9 +280,19 @@ const inferSiteTechState = (site: SiteSummary) => {
     return { has4G: lteCells > 0, has5G: nrCells > 0 };
   }
 
+  // Try to derive tech from techno field (may be comma-separated or contain multiple values)
   const fallbackTech = String(site.techno || '').toUpperCase();
-  const has5G = is5GTech(fallbackTech);
-  const has4G = is4GTech(fallbackTech);
+  let has5G = is5GTech(fallbackTech);
+  let has4G = is4GTech(fallbackTech);
+
+  // Also check bande field for tech hints
+  const bande = String((site as any).bande || '').toUpperCase();
+  if (bande.includes('NR') || bande.includes('N78') || bande.includes('N28') || bande.includes('N1')) {
+    has5G = true;
+  }
+  if (bande.includes('L') || bande.includes('B') || bande.includes('1800') || bande.includes('2600') || bande.includes('800') || bande.includes('700')) {
+    if (!bande.includes('NR')) has4G = true;
+  }
 
   // If no tech info at all, default to 4G (most common)
   if (!has4G && !has5G) return { has4G: true, has5G: false };
