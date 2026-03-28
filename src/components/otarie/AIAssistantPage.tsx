@@ -292,6 +292,22 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     }
 
     if (!resp.body) throw new Error('No body');
+
+    // Check for proxy fallback (200 with unavailable: true)
+    const contentType = resp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const jsonBody = await resp.text();
+      try {
+        const parsed = JSON.parse(jsonBody);
+        if (parsed.unavailable) {
+          const fallbackMsg = `⚠️ ${parsed.content || "Le service Agent est temporairement indisponible. Veuillez réessayer."}`;
+          setMessages(prev => [...prev, { role: 'assistant', content: fallbackMsg }]);
+          setIsLoading(false);
+          return;
+        }
+      } catch { /* not JSON, continue with stream */ }
+    }
+
     addDebugLog('Streaming started...');
 
     const reader = resp.body.getReader();
