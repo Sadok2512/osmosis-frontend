@@ -3773,6 +3773,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
+        {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
 
 
