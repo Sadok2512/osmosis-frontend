@@ -404,6 +404,8 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     zone_arcep: (dto as any).zone_arcep || null,
     techno: (dto as any).techno || null,
     bande: (dto as any).bande || null,
+    lte_cells: dto.lte_cells || 0,
+    nr_cells: dto.nr_cells || 0,
   };
 }
 
