@@ -1340,6 +1340,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [mapViews, setMapViews] = useState<any[]>([]);
   const [showCreateView, setShowCreateView] = useState<string | null>(null);
   const [newViewName, setNewViewName] = useState('');
+  const [newViewFilters, setNewViewFilters] = useState<DashboardSiteFilters>({});
   const [creating, setCreating] = useState(false);
   const expandedDashboardId = activeDashboardId;
   const setExpandedDashboardId = onActiveDashboardIdChange;
