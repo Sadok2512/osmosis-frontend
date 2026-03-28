@@ -6196,38 +6196,78 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== TOPO MODE: Global Network (no KPIs) ========== */}
           {sectorColorMode === 'topo' && focusMode === 'global' && (() => {
-            // Use DB stats if available, fallback to local sites
+            // Prefer VPS aggregates for cells/bands/vendors, but fallback to loaded sites when site totals are missing/wrong
             const dbStats = topoNetworkStats;
-            let sites4GCount = 0, sites5GCount = 0, cells4GCount = 0, cells5GCount = 0;
-            let bandMap4G: Record<string, number> = {};
-            let bandMap5G: Record<string, number> = {};
-            let vendorMap: Record<string, { '4G': number; '5G': number }> = {};
+            const computedStats: TopoNetworkStats = (() => {
+              const s4g = new Set<string>();
+              const s5g = new Set<string>();
+              let c4g = 0;
+              let c5g = 0;
+              const bm4g: Record<string, number> = {};
+              const bm5g: Record<string, number> = {};
+              const vm: Record<string, { '4G': number; '5G': number }> = {};
 
-            if (dbStats && (dbStats.cells4G > 0 || dbStats.cells5G > 0 || dbStats.sites4G > 0 || dbStats.sites5G > 0)) {
-              sites4GCount = dbStats.sites4G;
-              sites5GCount = dbStats.sites5G;
-              cells4GCount = dbStats.cells4G;
-              cells5GCount = dbStats.cells5G;
-              bandMap4G = dbStats.bandMap4G;
-              bandMap5G = dbStats.bandMap5G;
-              vendorMap = dbStats.vendorMap;
-            } else {
-              const allCells = sites.flatMap(s => s.cells || []);
-              const c4G = allCells.filter(c => { const t = (c.techno || '').toUpperCase(); return (t.includes('4G') || t.includes('LTE')) && !t.includes('5G'); });
-              const c5G = allCells.filter(c => (c.techno || '').toUpperCase().includes('5G') || (c.techno || '').toUpperCase().includes('NR'));
-              cells4GCount = c4G.length;
-              cells5GCount = c5G.length;
-              sites4GCount = new Set(sites.filter(s => (s.cells || []).some(c => { const t = (c.techno || '').toUpperCase(); return (t.includes('4G') || t.includes('LTE')) && !t.includes('5G'); })).map(s => s.site_id)).size;
-              sites5GCount = new Set(sites.filter(s => (s.cells || []).some(c => (c.techno || '').toUpperCase().includes('5G'))).map(s => s.site_id)).size;
-              c4G.forEach(c => { const b = c.bande || 'Unknown'; bandMap4G[b] = (bandMap4G[b] || 0) + 1; });
-              c5G.forEach(c => { const b = c.bande || 'Unknown'; bandMap5G[b] = (bandMap5G[b] || 0) + 1; });
-              [...c4G, ...c5G].forEach(c => {
-                const v = (c as any).vendor || (c as any).constructeur || 'Unknown';
-                if (!vendorMap[v]) vendorMap[v] = { '4G': 0, '5G': 0 };
-                if ((c.techno || '').toUpperCase().includes('5G')) vendorMap[v]['5G']++;
-                else vendorMap[v]['4G']++;
+              sites.forEach(site => {
+                const siteKey = String(site.site_id || site.site_name || site.code_nidt || `${site.lat},${site.lng}`);
+                let has4g = false;
+                let has5g = false;
+
+                (site.cells || []).forEach(c => {
+                  const tech = String(c.techno || '').toUpperCase();
+                  const is5g = tech.includes('5G') || tech.includes('NR');
+                  const is4g = !is5g && (tech.includes('4G') || tech.includes('LTE'));
+                  const vendor = (c as any).vendor || (c as any).constructeur || site.vendor || 'Unknown';
+                  const band = c.bande || c.band || 'Unknown';
+
+                  if (!vm[vendor]) vm[vendor] = { '4G': 0, '5G': 0 };
+
+                  if (is5g) {
+                    c5g += 1;
+                    has5g = true;
+                    bm5g[band] = (bm5g[band] || 0) + 1;
+                    vm[vendor]['5G'] += 1;
+                  } else if (is4g) {
+                    c4g += 1;
+                    has4g = true;
+                    bm4g[band] = (bm4g[band] || 0) + 1;
+                    vm[vendor]['4G'] += 1;
+                  }
+                });
+
+                if ((site.cells || []).length === 0) {
+                  if ((site.lte_cells ?? 0) > 0) {
+                    has4g = true;
+                    c4g += Number(site.lte_cells || 0);
+                  }
+                  if ((site.nr_cells ?? 0) > 0) {
+                    has5g = true;
+                    c5g += Number(site.nr_cells || 0);
+                  }
+                }
+
+                if (has4g) s4g.add(siteKey);
+                if (has5g) s5g.add(siteKey);
               });
-            }
+
+              return {
+                sites4G: s4g.size,
+                sites5G: s5g.size,
+                cells4G: c4g,
+                cells5G: c5g,
+                bandMap4G: bm4g,
+                bandMap5G: bm5g,
+                vendorMap: vm,
+              };
+            })();
+
+            const hasDbStats = !!dbStats && (dbStats.cells4G > 0 || dbStats.cells5G > 0 || dbStats.sites4G > 0 || dbStats.sites5G > 0);
+            const sites4GCount = hasDbStats && dbStats!.sites4G > 0 ? dbStats!.sites4G : computedStats.sites4G;
+            const sites5GCount = hasDbStats && dbStats!.sites5G > 0 ? dbStats!.sites5G : computedStats.sites5G;
+            const cells4GCount = hasDbStats && dbStats!.cells4G > 0 ? dbStats!.cells4G : computedStats.cells4G;
+            const cells5GCount = hasDbStats && dbStats!.cells5G > 0 ? dbStats!.cells5G : computedStats.cells5G;
+            const bandMap4G: Record<string, number> = hasDbStats && Object.keys(dbStats!.bandMap4G).length > 0 ? dbStats!.bandMap4G : computedStats.bandMap4G;
+            const bandMap5G: Record<string, number> = hasDbStats && Object.keys(dbStats!.bandMap5G).length > 0 ? dbStats!.bandMap5G : computedStats.bandMap5G;
+            const vendorMap: Record<string, { '4G': number; '5G': number }> = hasDbStats && Object.keys(dbStats!.vendorMap).length > 0 ? dbStats!.vendorMap : computedStats.vendorMap;
             return (
               <div className="divide-y divide-border">
                 {/* Header */}
