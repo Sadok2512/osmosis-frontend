@@ -4310,8 +4310,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const radius = zoomRadius * 1.3 * bandScale;
               cellItems.push({ tech, az, radius, bandKey, cell });
             }
-            const has4G = cellItems.some(c => c.tech === '4G');
-            const has5G = cellItems.some(c => c.tech === '5G');
+            const has4GItems = cellItems.some(c => c.tech === '4G');
+            const has5GItems = cellItems.some(c => c.tech === '5G');
+            const isMixedSite = has4GItems && has5GItems;
 
             // Sort: bigger sectors first (render below), smaller on top
             const renderItems = cellItems.sort((a, b) => getBandRenderOrder(a.bandKey) - getBandRenderOrder(b.bandKey));
@@ -4324,6 +4325,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               seen.add(key);
               return true;
             });
+
+            // For mixed sites: ensure 5G sectors are always smaller than 4G at same azimuth
+            if (isMixedSite) {
+              // Find max 4G radius per azimuth
+              const max4GByAz = new Map<number, number>();
+              for (const item of dedupItems) {
+                if (item.tech === '4G') {
+                  const cur = max4GByAz.get(item.az) || 0;
+                  if (item.radius > cur) max4GByAz.set(item.az, item.radius);
+                }
+              }
+              // Cap 5G radius to 65% of 4G radius at same azimuth
+              for (const item of dedupItems) {
+                if (item.tech === '5G') {
+                  const ref4G = max4GByAz.get(item.az) || (zoomRadius * 1.3);
+                  const maxAllowed = ref4G * 0.65;
+                  if (item.radius > maxAllowed) item.radius = maxAllowed;
+                }
+              }
+            }
 
             return (
               <React.Fragment key={site.site_id}>
