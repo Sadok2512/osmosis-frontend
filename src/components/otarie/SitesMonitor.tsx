@@ -5007,9 +5007,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Floating bottom-right: techno filter + layer switcher + legend */}
+      {/* Floating bottom-left: display mode + layer switcher */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 24 }}>
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16 }}>
           {/* Display mode: Sites / Points / Heatmap */}
           <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
             {([
@@ -5031,7 +5031,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </button>
             ))}
           </div>
+          {/* Layer switcher: L / D / S */}
+          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+            {([
+              { key: 'light' as const, label: 'L' },
+              { key: 'dark' as const, label: 'D' },
+              { key: 'satellite' as const, label: 'S' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setMapLayer(key)}
+                className={`w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all ${
+                  mapLayer === key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
+      {/* Floating bottom-right: techno filter + band legend */}
+      {viewMode === 'map' && (
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 24 }}>
           {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
           {sites.length > 0 && (
             <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
@@ -5063,27 +5088,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               ))}
             </div>
           )}
-
-          {/* Layer switcher: L / D / S */}
-          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
-            {([
-              { key: 'light' as const, label: 'L' },
-              { key: 'dark' as const, label: 'D' },
-              { key: 'satellite' as const, label: 'S' },
-            ]).map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setMapLayer(key)}
-                className={`w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all ${
-                  mapLayer === key
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
 
           {/* Band layer toggle panel */}
           <div className="relative">
