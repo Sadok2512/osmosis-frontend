@@ -3516,6 +3516,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const prevZoom = viewport.zoom;
     // handleViewportChange already calls setViewport
     handleViewportChange(v);
+    if (!dashboardActive) {
+      handleViewportForFetch(v);
+    }
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
@@ -3525,7 +3528,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
     }
-  }, [handleViewportChange, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
+  }, [handleViewportChange, handleViewportForFetch, dashboardActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
