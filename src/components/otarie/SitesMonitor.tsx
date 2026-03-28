@@ -540,9 +540,12 @@ interface ViewportState {
 }
 
 const MapViewportTracker = ({ onViewportChange }: { onViewportChange: (v: ViewportState) => void }) => {
+  const onViewportChangeRef = useRef(onViewportChange);
+  onViewportChangeRef.current = onViewportChange;
+
   const map = useMapEvents({
     moveend: () => {
-      onViewportChange({
+      onViewportChangeRef.current({
         bounds: map.getBounds(),
         zoom: map.getZoom(),
       });
@@ -550,11 +553,11 @@ const MapViewportTracker = ({ onViewportChange }: { onViewportChange: (v: Viewpo
   });
 
   useEffect(() => {
-    onViewportChange({
+    onViewportChangeRef.current({
       bounds: map.getBounds(),
       zoom: map.getZoom(),
     });
-  }, [map, onViewportChange]);
+  }, [map]);
 
   return null;
 };
