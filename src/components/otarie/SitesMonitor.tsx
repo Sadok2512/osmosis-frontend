@@ -833,252 +833,38 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
             </div>
           </div>
 
-          {/* ── Data Source ── */}
+          {/* ── Map Labels ── */}
           <div className="p-4 rounded-xl border border-border bg-background">
-            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">📂 Source de données</label>
-            <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez le type de données à utiliser</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => { setLocalDataSource('qoe'); setDirty(true); }}
-                className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${localDataSource === 'qoe' ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}>
-                <span className="text-lg">📊</span><span className="uppercase tracking-wider">QoE</span>
-              </button>
-              <button onClick={() => { setLocalDataSource('parameters'); setDirty(true); }}
-                className={`flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl text-[12px] font-bold transition-all border-2 ${localDataSource === 'parameters' ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}>
-                <span className="text-lg">⚙️</span><span className="uppercase tracking-wider">Parameters</span>
-              </button>
-            </div>
-          </div>
-
-          {/* ── QoE Indicators ── */}
-          {localDataSource === 'qoe' && (
-          <div className="p-4 rounded-xl border border-border bg-background">
-            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">📊 Indicateurs QoE</label>
-            <p className="text-[9px] text-muted-foreground mb-3">Sélectionnez un ou plusieurs indicateurs à afficher</p>
+            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">🏷️ Labels affichés</label>
+            <p className="text-[9px] text-muted-foreground mb-3">Choisissez les informations à afficher sur la carte</p>
             <div className="grid grid-cols-2 gap-2">
-              {SETTINGS_KPI_OPTIONS.map(kpi => {
-                const isActive = localKpis.includes(kpi.value);
+              {[
+                { key: 'site_name', label: 'Site Name' },
+                { key: 'cell_name', label: 'Cell Name' },
+                { key: 'pci', label: 'PCI' },
+                { key: 'azimut', label: 'Azimut' },
+                { key: 'bande', label: 'Bande' },
+                { key: 'techno', label: 'Techno' },
+              ].map(opt => {
+                const isActive = mapLabelFields.has(opt.key);
                 return (
-                  <button key={kpi.value} onClick={() => toggleKpi(kpi.value)}
+                  <button key={opt.key} onClick={() => {
+                    setMapLabelFields(prev => {
+                      const next = new Set(prev);
+                      if (next.has(opt.key)) next.delete(opt.key); else next.add(opt.key);
+                      return next;
+                    });
+                  }}
                     className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[11px] font-semibold transition-all border-2 ${isActive ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'}`}>
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${isActive ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
                       {isActive && <Check size={10} className="text-primary-foreground" />}
                     </div>
-                    {kpi.label}
+                    {opt.label}
                   </button>
                 );
               })}
             </div>
           </div>
-          )}
-          </>)}
-
-          {/* ── Dashboard Visibility ── */}
-          {dashboardId && (
-            <div className="p-4 rounded-xl border border-border bg-background">
-              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-3">🔒 Visibilité du Dashboard</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => { setLocalVisibility(true); setDirty(true); }}
-                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 ${localVisibility ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}>
-                  <span>🌍</span><span className="uppercase tracking-wider">Public</span>
-                </button>
-                <button onClick={() => { setLocalVisibility(false); setDirty(true); }}
-                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 ${!localVisibility ? 'bg-primary/10 text-primary border-primary shadow-md ring-2 ring-primary/20' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'}`}>
-                  <span>🔐</span><span className="uppercase tracking-wider">Privé</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Beam Visibility Slider ── */}
-          {dashboardId && (
-            <div className="p-4 rounded-xl border border-border bg-background">
-              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">📡 Visibilité des faisceaux (Beam)</label>
-              <p className="text-[9px] text-muted-foreground mb-3">Contrôle l'opacité et la taille des secteurs sur la carte</p>
-              <div className="flex items-center gap-3">
-                <span className="text-[9px] font-mono text-muted-foreground w-6 text-right">0%</span>
-                <Slider value={[beamVis ?? 75]} onValueChange={([v]) => { if (onBeamVisChange) onBeamVisChange(v); }} min={0} max={100} step={5} className="flex-1" />
-                <span className="text-[9px] font-mono text-muted-foreground w-8">{beamVis ?? 75}%</span>
-              </div>
-              <div className="flex justify-between mt-2 text-[8px] text-muted-foreground/60">
-                <span>Invisible</span><span>Max</span>
-              </div>
-            </div>
-          )}
-
-          {/* ── Dashboard Save/Load ── */}
-          {dashboardId && (
-            <div className="p-4 rounded-xl border border-border bg-background">
-              <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest block mb-1">💾 Sauvegarde rapide</label>
-              <p className="text-[9px] text-muted-foreground mb-3">Sauvegarder ou charger l'état complet de la carte dans ce dashboard</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => { if (onSaveDashboard) onSaveDashboard(); }} disabled={isSaving}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary">
-                  {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                  <span className="uppercase tracking-wider">Save</span>
-                </button>
-                <button onClick={() => { if (onLoadDashboard) onLoadDashboard(); }}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[11px] font-bold transition-all border-2 border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted">
-                  <FolderOpen size={14} /><span className="uppercase tracking-wider">Load</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── View Filters (only for views, not dashboards) ── */}
-          {!dashboardId && (
-            <div className="p-4 rounded-xl border border-border bg-background">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">🔍 Filtres</label>
-                {localFilters.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold">{localFilters.length}</span>
-                )}
-              </div>
-              {/* Existing filters display */}
-              {localFilters.length > 0 && (
-                <div className="space-y-1.5 mb-3">
-                  {localFilters.map((f, i) => (
-                    <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-card">
-                      <div className="flex items-center gap-2 text-[11px]">
-                        {f.mode === 'topo' ? (
-                          <>
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-accent/20 text-accent-foreground">TOPO</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${f.tech === '5G' ? 'bg-green-500/15 text-green-600' : 'bg-orange-500/15 text-orange-600'}`}>{f.tech}</span>
-                            <span className="font-medium text-muted-foreground">{SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === f.attribute)?.label}</span>
-                            <span className="text-muted-foreground/50">→</span>
-                            <span className="font-semibold text-foreground">{f.value}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-500/15 text-amber-600">QOE</span>
-                            <span className="font-medium text-muted-foreground">{QOE_FILTER_KPIS.find(k => k.key === f.kpi)?.label}</span>
-                            <span className="font-bold text-foreground">{QOE_OPERATORS.find(o => o.key === f.operator)?.label}</span>
-                            <span className="font-semibold text-primary">{f.threshold}{QOE_FILTER_KPIS.find(k => k.key === f.kpi)?.unit}</span>
-                          </>
-                        )}
-                      </div>
-                      <button onClick={() => removeFilterAt(i)} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X size={12} /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Step: idle — Add filter button */}
-              {filterStep === 'idle' && (
-                <button onClick={() => setFilterStep('pick_mode')}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[11px] font-bold text-primary border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all w-full justify-center">
-                  <Plus size={14} /><span>Ajouter un filtre</span>
-                </button>
-              )}
-
-              {/* Step 1: Choose TOPO or QOE */}
-              {filterStep === 'pick_mode' && (
-                <div className="border border-border rounded-xl bg-card p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Étape 1 — Type de filtre</span>
-                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => { setFilterDraft({ mode: 'topo' }); setFilterStep('pick_tech'); }}
-                      className="group flex flex-col items-center gap-2 px-4 py-5 rounded-xl border-2 border-border hover:border-primary/50 hover:bg-primary/5 transition-all">
-                      <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                        <Network size={20} className="text-accent-foreground group-hover:text-primary transition-colors" />
-                      </div>
-                      <span className="text-[12px] font-black uppercase tracking-wider text-muted-foreground group-hover:text-foreground">TOPO</span>
-                      <span className="text-[9px] text-muted-foreground/70 text-center leading-tight">Filtrer par attribut réseau</span>
-                    </button>
-                    <button onClick={() => { setFilterDraft({ mode: 'qoe' }); setFilterStep('pick_kpi'); }}
-                      className="group flex flex-col items-center gap-2 px-4 py-5 rounded-xl border-2 border-border hover:border-amber-400/50 hover:bg-amber-500/5 transition-all">
-                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/15 transition-colors">
-                        <Activity size={20} className="text-amber-600 group-hover:text-amber-500 transition-colors" />
-                      </div>
-                      <span className="text-[12px] font-black uppercase tracking-wider text-muted-foreground group-hover:text-foreground">QOE</span>
-                      <span className="text-[9px] text-muted-foreground/70 text-center leading-tight">Filtrer par performance KPI</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* TOPO Branch — Step 2: Pick tech */}
-              {filterStep === 'pick_tech' && (
-                <div className="border border-border rounded-xl bg-card p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setFilterStep('pick_mode')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 bg-accent/20 text-accent-foreground">TOPO</span>
-                        Étape 2 — Technologie
-                      </span>
-                    </div>
-                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {['4G', '5G'].map(t => (
-                      <button key={t} onClick={() => { setFilterDraft(prev => ({ ...prev, tech: t })); setFilterStep('pick_attr'); }}
-                        className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[12px] font-bold border-2 border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all">
-                        <span>{t === '5G' ? '🚀' : '📶'}</span><span>{t}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* TOPO Branch — Step 3: Pick attribute */}
-              {filterStep === 'pick_attr' && (
-                <div className="border border-border rounded-xl bg-card p-3 space-y-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setFilterStep('pick_tech')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-green-500/15 text-green-600' : 'bg-orange-500/15 text-orange-600'}`}>{filterDraft.tech}</span>
-                        Étape 3 — Attribut
-                      </span>
-                    </div>
-                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
-                  </div>
-                  {SETTINGS_FILTER_ATTRIBUTES.map(attr => (
-                    <button key={attr.key} onClick={() => { setFilterDraft(prev => ({ ...prev, attribute: attr.key })); setFilterStep('pick_value'); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                      <span>{attr.icon}</span><span>{attr.label}</span>
-                      <ChevronRight size={10} className="ml-auto text-muted-foreground/50" />
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* TOPO Branch — Step 4: Pick value */}
-              {filterStep === 'pick_value' && filterDraft.attribute && (
-                <div className="border border-border rounded-xl bg-card p-3 space-y-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setFilterStep('pick_attr')} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={12} className="rotate-180" /></button>
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold mr-1.5 ${filterDraft.tech === '5G' ? 'bg-green-500/15 text-green-600' : 'bg-orange-500/15 text-orange-600'}`}>{filterDraft.tech}</span>
-                        {SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label} — Valeur
-                      </span>
-                    </div>
-                    <button onClick={resetFilterWizard} className="p-0.5 rounded hover:bg-muted text-muted-foreground"><X size={12} /></button>
-                  </div>
-                  {SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.freeText ? (
-                    <div className="flex gap-2">
-                      <input type="text" value={freeTextValue} onChange={e => setFreeTextValue(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter' && freeTextValue.trim()) { commitFilter(freeTextValue.trim()); } }}
-                        placeholder={`Entrer ${SETTINGS_FILTER_ATTRIBUTES.find(a => a.key === filterDraft.attribute)?.label}...`}
-                        className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" autoFocus />
-                      <button onClick={() => { if (freeTextValue.trim()) commitFilter(freeTextValue.trim()); }}
-                        disabled={!freeTextValue.trim()} className="px-3 py-2 rounded-lg text-[11px] font-bold bg-primary text-primary-foreground disabled:opacity-40 hover:bg-primary/90 transition-all">OK</button>
-                    </div>
-                  ) : (
-                    <div className="max-h-40 overflow-y-auto space-y-0.5">
-                      {(SETTINGS_ATTR_VALUES[filterDraft.attribute] || []).map(val => (
-                        <button key={val} onClick={() => commitFilter(val)}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-all">
-                          <span>{val}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* QOE Branch — Step 2: Pick KPI */}
               {filterStep === 'pick_kpi' && (
@@ -2209,6 +1995,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
   const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
   const [showSiteLabels, setShowSiteLabels] = useState(false);
+  const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
 
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
