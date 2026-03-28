@@ -4673,7 +4673,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Scrollable KPI zone */}
           <div
             ref={toolbarScrollRef}
-            className="flex-1 overflow-x-auto overflow-y-hidden flex items-center gap-3 px-4 scrollbar-hide"
+            className="flex-1 overflow-x-auto overflow-y-hidden flex items-center justify-center gap-3 px-4 scrollbar-hide"
             style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap', scrollbarWidth: 'none' }}
           >
             {/* ── Unified mode selector: QoE / Topo / Parameters ── */}
