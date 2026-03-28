@@ -77,22 +77,34 @@ interface Props {
   onDelete: () => void;
   onUpdateConfig: (updates: Partial<KpiWidgetConfig>) => void;
   jalons?: Jalon[];
+  parentFilters?: MonitorFilter[];
 }
 
 const KpiWidgetCard: React.FC<Props> = ({
   config, catalog, catalogMap, isSelected, editMode,
   onSelect, onDuplicate, onDelete, onUpdateConfig, jalons = [],
+  parentFilters = [],
 }) => {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(config.title);
   const [configExpanded, setConfigExpanded] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  // ── API: per-widget data fetching ──
-  const mergedFilters: MonitorFilter[] = useMemo(() =>
-    config.filters.filter(f => f.values.length > 0).map(f => ({
+  // ── API: per-widget data fetching (merge parent global filters + widget filters) ──
+  const mergedFilters: MonitorFilter[] = useMemo(() => {
+    const widgetFilters = config.filters.filter(f => f.values.length > 0).map(f => ({
       dimension: f.dimension, op: f.op, values: f.values,
-    })), [config.filters]);
+    }));
+    // Merge: parent filters first, then widget-level overrides
+    const seen = new Set(widgetFilters.map(f => f.dimension));
+    const combined = [...widgetFilters];
+    for (const pf of parentFilters) {
+      if (!seen.has(pf.dimension) && pf.values.length > 0) {
+        combined.push(pf);
+      }
+    }
+    return combined;
+  }, [config.filters, parentFilters]);
 
   const tsRequest: TimeseriesRequest | null = useMemo(() => {
     if (config.kpis.length === 0) return null;
