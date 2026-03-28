@@ -764,6 +764,15 @@ async function searchDumpParameters(query: string): Promise<string> {
     const isDistrib = isDistributionQuery(query);
     const siteName = extractSiteName(query);
     const plaqueName = extractPlaqueName(query);
+    const wantsMainParameters =
+      !!siteName &&
+      !paramName &&
+      !isDistrib &&
+      (
+        /\bmain\s+parameters?\b/i.test(query) ||
+        /\bprincip(?:al|aux|ale|ales)\s+param(?:e|è)tres?\b/i.test(query) ||
+        /\bparam(?:e|è)tres?\s+princip(?:al|aux|ale|ales)\b/i.test(query)
+      );
 
     if (plaqueName && !isDistrib) {
       let sql = `SELECT cell_name, site_name, parameter, value, vendor, bande, plaque FROM parameter_dump WHERE plaque ILIKE '%${plaqueName.replace(/'/g, "''")}%'`;
@@ -775,6 +784,16 @@ async function searchDumpParameters(query: string): Promise<string> {
       const header = "cell_name | site_name | parameter | value | vendor | bande";
       const lines = data.map((r: any) => `${r.cell_name || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""} | ${r.vendor || ""} | ${r.bande || ""}`);
       return `PLAQUE ${plaqueName}${paramName ? ` / ${paramName}` : ""} (${data.length}):\n${header}\n${lines.join("\n")}`;
+    }
+
+    if (wantsMainParameters) {
+      const sql = `SELECT parameter, COUNT(*) AS row_count, COUNT(DISTINCT cell_name) AS cell_count, COUNT(DISTINCT value) AS distinct_values, MIN(vendor) AS vendor, MIN(plaque) AS plaque FROM parameter_dump WHERE site_name ILIKE '%${siteName.replace(/'/g, "''")}%' GROUP BY parameter ORDER BY COUNT(*) DESC, parameter LIMIT 80`;
+      const { data, error } = await executeVpsParmySql(sql);
+      if (error) console.error(`parameter_dump main parameters search error:`, error);
+      if (!data?.length) return `AUCUN PARAMÈTRE trouvé pour le site "${siteName}".`;
+      const header = "parameter | rows | cells | distinct_values | vendor | plaque";
+      const lines = data.map((r: any) => `${r.parameter || ""} | ${r.row_count || 0} | ${r.cell_count || 0} | ${r.distinct_values || 0} | ${r.vendor || ""} | ${r.plaque || ""}`);
+      return `PARAMÈTRES PRINCIPAUX du site ${siteName} (${data.length}):\n${header}\n${lines.join("\n")}\n\nINSTRUCTION: Réponds avec un tableau Markdown concis et un court résumé des paramètres les plus présents.`;
     }
 
     if (paramName && siteName && !isDistrib) {
@@ -829,9 +848,7 @@ async function searchDumpParameters(query: string): Promise<string> {
     const rows = Array.from(mergedRows.values());
     if (rows.length === 0) return `AUCUNE DONNÉE pour: ${terms.join(", ")}`;
     const header = "dn | cell_name | vendor | site_name | parameter | value";
-    const lines = rows.slice(0, 50).map((r: any) =>
-      `${r.dn || ""} | ${r.cell_name || ""} | ${r.vendor || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""}`
-    );
+    const lines = rows.slice(0, 50).map((r: any) => `${r.dn || ""} | ${r.cell_name || ""} | ${r.vendor || ""} | ${r.site_name || ""} | ${r.parameter || ""} | ${r.value || ""}`);
     return `Paramètres (${rows.length}):\n${header}\n${lines.join("\n")}`;
   } catch (e) {
     console.error("dump_parameter search failed:", e);
