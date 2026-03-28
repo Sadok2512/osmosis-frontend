@@ -941,6 +941,7 @@ const KPIMonitorPage: React.FC = () => {
                         onDelete={() => deleteWidget(w.config.id)}
                         onUpdateConfig={(updates) => updateWidgetConfig(w.config.id, updates)}
                         jalons={jalons}
+                        parentFilters={globalFiltersAsMonitor}
                       />
                     </div>
                   ))}
