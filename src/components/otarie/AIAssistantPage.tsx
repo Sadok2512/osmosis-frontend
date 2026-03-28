@@ -14,7 +14,7 @@ import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizati
 import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
 import { parseKpiBlocks, KpiSummaryCards, SplitSectionCards } from '../kpi-monitor/AIKpiCards';
-import { getAgentHeaders, isLocalMode, getVpsProxyUrl } from '@/lib/apiConfig';
+import { getAgentHeaders, isLocalMode, getVpsProxyUrl, getVpsUrl } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore';
 import { useAgentLearningStore } from '@/stores/agentLearningStore';
 import { dashboardsApi } from '@/lib/localDb';
@@ -250,8 +250,10 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       ...(forcedAgent ? { forcedAgent } : {}),
     });
 
-    // All queries go through VPS orchestrator :1000
-    const url = getVpsProxyUrl('agent', '/orchestrator/stream');
+    // Agent calls go direct to VPS (SSE doesn't work well through proxy)
+    const url = isLocalMode()
+      ? 'http://localhost:1000/orchestrator/stream'
+      : getVpsUrl('agent', '/orchestrator/stream');
     const headers = getAgentHeaders();
 
     addDebugLog(`Mode: ${isLocalMode() ? 'LOCAL' : 'CLOUD'}`);
