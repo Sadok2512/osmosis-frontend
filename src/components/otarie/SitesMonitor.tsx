@@ -5531,26 +5531,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       }`}
                                     >
                                       <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
-                                      <div className="flex flex-col items-center gap-1 mb-1.5">
+                                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
                                         {(() => {
-                                          const nr = cells.filter(c => c.techno?.includes('5G') || c.techno === 'NR');
-                                          const lte = cells.filter(c => !c.techno?.includes('5G') && c.techno !== 'NR');
+                                          const hasNR = cells.some(c => c.techno?.includes('5G') || c.techno === 'NR');
+                                          const hasLTE = cells.some(c => !c.techno?.includes('5G') && c.techno !== 'NR');
                                           return (
                                             <>
-                                              {nr.length > 0 && (
-                                                <div className="flex items-center justify-center gap-1">
-                                                  {nr.map((_, ci) => (
-                                                    <span key={`nr-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} />
-                                                  ))}
-                                                </div>
-                                              )}
-                                              {lte.length > 0 && (
-                                                <div className="flex items-center justify-center gap-1">
-                                                  {lte.map((_, ci) => (
-                                                    <span key={`lte-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} />
-                                                  ))}
-                                                </div>
-                                              )}
+                                              {hasNR && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} title="5G" />}
+                                              {hasLTE && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} title="4G" />}
                                             </>
                                           );
                                         })()}
@@ -5748,26 +5736,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       }`}
                                     >
                                       <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
-                                      <div className="flex flex-col items-center gap-1 mb-1.5">
+                                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
                                         {(() => {
-                                          const nr = cells.filter(c => c.techno?.includes('5G') || c.techno === 'NR');
-                                          const lte = cells.filter(c => !c.techno?.includes('5G') && c.techno !== 'NR');
+                                          const hasNR = cells.some(c => c.techno?.includes('5G') || c.techno === 'NR');
+                                          const hasLTE = cells.some(c => !c.techno?.includes('5G') && c.techno !== 'NR');
                                           return (
                                             <>
-                                              {nr.length > 0 && (
-                                                <div className="flex items-center justify-center gap-1">
-                                                  {nr.map((_, ci) => (
-                                                    <span key={`nr-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} />
-                                                  ))}
-                                                </div>
-                                              )}
-                                              {lte.length > 0 && (
-                                                <div className="flex items-center justify-center gap-1">
-                                                  {lte.map((_, ci) => (
-                                                    <span key={`lte-${ci}`} className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} />
-                                                  ))}
-                                                </div>
-                                              )}
+                                              {hasNR && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} title="5G" />}
+                                              {hasLTE && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} title="4G" />}
                                             </>
                                           );
                                         })()}
