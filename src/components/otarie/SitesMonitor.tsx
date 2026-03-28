@@ -376,6 +376,12 @@ const FlyToSite = ({
   onDone?: () => void;
 }) => {
   const map = useMap();
+  const onFlyStartRef = useRef(onFlyStart);
+  const onFlyEndRef = useRef(onFlyEnd);
+  const onDoneRef = useRef(onDone);
+  onFlyStartRef.current = onFlyStart;
+  onFlyEndRef.current = onFlyEnd;
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     if (!coords || !isFinite(coords[0]) || !isFinite(coords[1])) return;
@@ -385,11 +391,11 @@ const FlyToSite = ({
     const currentCenter = map.getCenter();
     const dist = map.distance(currentCenter, coords);
 
-    onFlyStart?.();
+    onFlyStartRef.current?.();
 
     const handler = () => {
-      onFlyEnd?.();
-      onDone?.();
+      onFlyEndRef.current?.();
+      onDoneRef.current?.();
     };
 
     if (dist < 500 && Math.abs(currentZoom - targetZoom) < 1) {
@@ -406,7 +412,7 @@ const FlyToSite = ({
     return () => {
       map.off('moveend', handler);
     };
-  }, [coords, map, onFlyStart, onFlyEnd, onDone]);
+  }, [coords, map]);
 
   return null;
 };
