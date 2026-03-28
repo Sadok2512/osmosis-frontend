@@ -20,7 +20,31 @@ export async function fetchKpiDefinitions(): Promise<KpiDefinition[]> {
   }));
 }
 
-// ── Fetch timeseries data ──
+// ── Fetch raw counter timeseries from Parser (fact_counters_15min) ──
+async function fetchCounterTimeSeriesFallback(
+  counterNames: string[],
+  dateFrom: string,
+  dateTo: string,
+  granularity: string = '1d',
+): Promise<DataPoint[]> {
+  try {
+    const url = getApiUrl('pm/counters/timeseries');
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.series || []).map((s: any) => ({
+      timestamp: s.ts,
+      kpi: s.counter,
+      value: s.value,
+    }));
+  } catch { return []; }
+}
+
+// ── Fetch timeseries data (KPI Engine first, fallback to raw counters) ──
 export async function fetchTimeSeriesData(
   kpiIds: string[],
   dateFrom: string,
@@ -67,13 +91,26 @@ export async function fetchTimeSeriesData(
   });
   if (!res.ok) return [];
   const data = await res.json();
+  const kpiSeries = data.series || [];
   const noSplitRequested = !splitBy;
-  return (data.series || []).map((s: any) => ({
+
+  const kpiResults: DataPoint[] = kpiSeries.map((s: any) => ({
     timestamp: s.ts,
     kpi: s.kpi_key,
     value: s.value,
     splitValue: noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value),
   }));
+
+  // Identify which kpiIds returned no data from KPI Engine → try as raw counters
+  const kpisWithData = new Set(kpiSeries.map((s: any) => s.kpi_key?.toLowerCase()));
+  const missingKpis = kpiIds.filter(k => !kpisWithData.has(k.toLowerCase()));
+
+  if (missingKpis.length > 0) {
+    const counterResults = await fetchCounterTimeSeriesFallback(missingKpis, dateFrom, dateTo, granularity);
+    return [...kpiResults, ...counterResults];
+  }
+
+  return kpiResults;
 }
 
 // ── Fetch worst cells using monitor/query/table with split_by=CELL ──
