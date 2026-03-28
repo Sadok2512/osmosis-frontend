@@ -53,7 +53,7 @@ const Index: React.FC = () => {
     return {
       dashboard_overview: true, list: true, sites: true, traffic: true,
       alerts: true, detector: true, ai_assistant: true, radio_profile: true,
-      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true, pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true,
+      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true,
     };
   });
 
