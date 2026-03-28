@@ -567,30 +567,6 @@ export async function fetchCellsByBbox(
 
   if (!sitesFromEndpoint) return [];
 
-  // Enrich: if primary endpoint returned fewer cells than expected, supplement from cells cache
-  try {
-    const cellsResp = await topoApi.listCellsByBbox(bbox, filters, 8000, signal);
-    if (cellsResp.cells && cellsResp.cells.length > 0) {
-      const mergedFromCells = buildSitesFromRows(cellsResp.cells as TopoRow[]);
-      const cellCountMap = new Map<string, number>();
-      for (const ms of mergedFromCells) {
-        cellCountMap.set(ms.site_id, ms.cells.length);
-      }
-      // Replace sites that have fewer cells in primary with the cells-merge version
-      const mergedMap = new Map(mergedFromCells.map(s => [s.site_id, s]));
-      const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
-      sitesFromEndpoint = sitesFromEndpoint.map(site => {
-        const mergedSite = mergedMap.get(site.site_id);
-        if (mergedSite && mergedSite.cells.length > site.cells.length) {
-          return applyQoeData({ ...site, cells: mergedSite.cells, cell_count: mergedSite.cells.length }, qoeData);
-        }
-        return site;
-      });
-    }
-  } catch {
-    // Non-critical — keep primary results
-  }
-
   return filterSites4G5G(sitesFromEndpoint);
 }
 
