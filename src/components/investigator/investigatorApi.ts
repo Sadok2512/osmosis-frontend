@@ -262,8 +262,8 @@ export async function startInvestigation(query: string): Promise<ReadableStream 
     url = 'http://localhost:1000/orchestrator/stream';
     headers = { 'Content-Type': 'application/json', 'x-api-key': 'agent_secret_key' };
   } else {
-    url = getVpsProxyUrl('agent', '/orchestrator/stream');
-    headers = { ...getVpsProxyHeaders(), 'x-api-key': 'agent_secret_key' };
+    url = getVpsUrl('agent', '/orchestrator/stream');
+    headers = { 'Content-Type': 'application/json', 'x-api-key': 'agent_secret_key' };
   }
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ query, session_id: crypto.randomUUID() }) });
   if (!res.ok) throw new Error(`Agent ${res.status}`);
