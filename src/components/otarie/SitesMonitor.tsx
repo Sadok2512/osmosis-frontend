@@ -3021,6 +3021,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         setBboxTotal(cachedDashboardSites.length);
         setBboxLoading(false);
         setLoading(false);
+        setDashboardFitKey(k => k + 1);
         return;
       }
 
@@ -3034,6 +3035,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         setSites(dashboardSites || []);
         setBboxTotal((dashboardSites || []).length);
+        if ((dashboardSites || []).length > 0) setDashboardFitKey(k => k + 1);
       } catch (err) {
         if (!cancelled) {
           console.warn('[SitesMonitor] dashboard site load failed', err);
