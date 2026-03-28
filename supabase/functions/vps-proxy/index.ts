@@ -117,6 +117,12 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      if (isAgentPost) {
+        return new Response(JSON.stringify({ unavailable: true, service, path, error: `Agent service unreachable: ${msg}`, content: "Le service Agent est temporairement indisponible. Veuillez réessayer." }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       return new Response(JSON.stringify({ error: `VPS unreachable: ${msg}` }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
