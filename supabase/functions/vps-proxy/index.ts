@@ -107,6 +107,7 @@ Deno.serve(async (req) => {
       const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
       const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
         (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
+      const isAgentPost = req.method === 'POST' && service === 'agent';
       if (isSafeRead || isSafePost) {
         const fallback = isSafePost
           ? { unavailable: true, service, path, error: msg, series: [], data: [], rows: [], total: 0 }
