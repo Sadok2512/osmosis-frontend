@@ -590,6 +590,14 @@ const KPIMonitorPage: React.FC = () => {
     vals.map(val => ({ dim, val }))
   );
 
+  // Convert globalFilters (Record<string, string[]>) to MonitorFilter[] for widget props
+  const globalFiltersAsMonitor: import('./api/kpiMonitorApi').MonitorFilter[] = useMemo(() =>
+    Object.entries(globalFilters)
+      .filter(([, vals]) => vals.length > 0)
+      .map(([dim, vals]) => ({ dimension: dim, op: 'IN' as const, values: vals })),
+    [globalFilters]
+  );
+
   // Dashboard management
   const handleCreateNew = () => { setNewDashName(''); setShowNameDialog(true); };
   const confirmCreate = () => {
