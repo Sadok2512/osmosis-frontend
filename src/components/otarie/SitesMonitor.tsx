@@ -1899,38 +1899,40 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     </div>
                   </div>
                 )}
+                {/* Ajouter une vue — always visible */}
+                <div className="px-3 pt-1.5">
+                  {showCreateView === db.id ? (
+                    <div className="flex items-center gap-1.5 py-1">
+                      <input
+                        autoFocus
+                        value={newViewName}
+                        onChange={e => setNewViewName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleCreateView(db.id)}
+                        placeholder="Nom de la vue..."
+                        className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
+                      />
+                      <button onClick={() => handleCreateView(db.id)} disabled={creating || !newViewName.trim()}
+                        className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
+                        <Plus size={12} />
+                      </button>
+                      <button onClick={() => { setShowCreateView(null); setNewViewName(''); }}
+                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowCreateView(db.id)}
+                      className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10 text-[10px] font-bold text-primary/80 hover:text-primary transition-all"
+                    >
+                      <Plus size={11} />
+                      Ajouter une vue
+                    </button>
+                  )}
+                </div>
+
                 {isExpanded && (
                   <div className="ml-5 pl-3 border-l-2 border-border/60 space-y-1 py-1.5">
-                    {/* Create new view */}
-                    {showCreateView === db.id ? (
-                      <div className="flex items-center gap-1.5 py-1 px-1">
-                        <input
-                          autoFocus
-                          value={newViewName}
-                          onChange={e => setNewViewName(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleCreateView(db.id)}
-                          placeholder="Nom de la vue..."
-                          className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
-                        />
-                        <button onClick={() => handleCreateView(db.id)} disabled={creating || !newViewName.trim()}
-                          className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
-                          <Plus size={12} />
-                        </button>
-                        <button onClick={() => { setShowCreateView(null); setNewViewName(''); }}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowCreateView(db.id)}
-                        className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary/5 text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors"
-                      >
-                        <Plus size={11} />
-                        Ajouter une vue
-                      </button>
-                    )}
-
                     {dbViews.length === 0 ? (
                       <div className="px-2 py-1.5 text-center text-[9px] text-muted-foreground/50">Aucune vue</div>
                     ) : (
