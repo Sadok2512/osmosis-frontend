@@ -5730,6 +5730,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     } else {
                       setActiveViewFilters([]);
                     }
+                    // Apply map label fields
+                    if (Array.isArray(settings.mapLabelFields)) {
+                      setMapLabelFields(new Set(settings.mapLabelFields));
+                    }
                   }}
                   onDashboardActiveChange={(active, scope, siteFilters) => {
                     setDashboardActive(active);
