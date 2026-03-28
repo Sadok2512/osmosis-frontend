@@ -9,7 +9,7 @@ export const SITES_TO_CELLS_ZOOM = 9;
 /** Zoom level at which we switch FROM cells/sectors back TO sites */
 export const CELLS_TO_SITES_ZOOM = 7;
 /** Zoom level at which mini-sectors appear */
-export const MINI_SECTOR_ZOOM = 7;
+export const MINI_SECTOR_ZOOM = 8;
 /** Zoom level at which site name labels appear automatically */
 export const AUTO_LABEL_ZOOM = 14;
 
