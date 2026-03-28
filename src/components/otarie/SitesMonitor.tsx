@@ -794,9 +794,9 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
 
           {/* ── Site Filters ── */}
           {backendFilterDefs && backendFilterDefs.length > 0 && (
-            <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
+            <div className="p-3 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
               <SectionHeader icon={<Filter size={12} className="text-primary" />} title="Site Filters" subtitle="Filter sites displayed on the map" />
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {backendFilterDefs.map(dim => {
                   const selectedValues = localSiteFilters[dim.id as keyof DashboardSiteFilters] || [];
                   return (
@@ -817,13 +817,47 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                   );
                 })}
               </div>
-              {Object.values(localSiteFilters).some(v => v && v.length > 0) && (
-                <div className="mt-2.5 px-3 py-2 rounded-lg bg-primary/5 border border-primary/15">
+
+              {/* Free-text filters: ECI, PCI, TILT */}
+              <div className="mt-2 pt-2 border-t border-border/30 space-y-1.5">
+                <p className="text-[8px] font-bold text-muted-foreground/60 uppercase tracking-widest mb-1">Manual Filters</p>
+                {(['eci', 'pci', 'tilt'] as const).map(field => {
+                  const key = `manual_${field}` as string;
+                  const currentVal = (localSiteFilters as any)[key] || '';
+                  return (
+                    <div key={field} className="flex items-center gap-2">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider w-10 shrink-0">{field.toUpperCase()}</label>
+                      <input
+                        value={currentVal}
+                        onChange={(e) => {
+                          const updated = { ...localSiteFilters, [key]: e.target.value || undefined };
+                          setLocalSiteFilters(updated);
+                          setDirty(true);
+                        }}
+                        placeholder={`Enter ${field.toUpperCase()} value...`}
+                        className="flex-1 bg-card border border-border/50 rounded-lg px-2.5 py-1.5 text-[11px] text-foreground outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/10 transition-all placeholder:text-muted-foreground/40"
+                      />
+                      {currentVal && (
+                        <button onClick={() => {
+                          const updated = { ...localSiteFilters, [key]: undefined };
+                          setLocalSiteFilters(updated);
+                          setDirty(true);
+                        }} className="p-1 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground">
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {Object.values(localSiteFilters).some(v => v && (Array.isArray(v) ? v.length > 0 : !!v)) && (
+                <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-primary/5 border border-primary/15">
                   <span className="text-[8px] font-bold text-primary/70 uppercase tracking-widest">Active Filters</span>
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {Object.entries(localSiteFilters).filter(([, v]) => v && v.length > 0).map(([key, vals]) => (
-                      <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-[9px] font-semibold text-primary border border-primary/10">
-                        {backendFilterDefs.find(d => d.id === key)?.label || key}: {vals!.join(', ')}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {Object.entries(localSiteFilters).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v)).map(([key, vals]) => (
+                      <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-[8px] font-semibold text-primary border border-primary/10">
+                        {key.startsWith('manual_') ? key.replace('manual_', '').toUpperCase() : (backendFilterDefs.find(d => d.id === key)?.label || key)}: {Array.isArray(vals) ? vals!.join(', ') : vals}
                       </span>
                     ))}
                   </div>
@@ -836,18 +870,18 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
           {dashboardId && (<>
 
           {/* ── Map Rendering ── */}
-          <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
+          <div className="p-3 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
             <SectionHeader icon={<MapIcon size={12} className="text-primary" />} title="Map Style" subtitle="Base layer rendering" />
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-4 gap-1">
               {SETTINGS_MAP_STYLES.map(style => {
                 const isActive = localMapStyle === style.value;
                 return (
                   <button key={style.value} onClick={() => { setLocalMapStyle(style.value); setDirty(true); }}
-                    className={`relative flex flex-col items-center gap-1 px-1.5 py-2.5 rounded-lg text-[9px] font-bold transition-all border ${isActive
-                      ? 'bg-primary/10 text-primary border-primary/40 shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_2px_8px_-2px_hsl(var(--primary)/0.2)]'
+                    className={`relative flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg text-[8px] font-bold transition-all border ${isActive
+                      ? 'bg-primary/10 text-primary border-primary/40 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]'
                       : 'bg-card/60 border-border/30 text-muted-foreground hover:text-foreground hover:border-border hover:bg-card'
                     }`}>
-                    <span className="text-lg leading-none">{style.icon}</span>
+                    <span className="text-sm leading-none">{style.icon}</span>
                     <span className="uppercase tracking-wider">{style.label}</span>
                     {isActive && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border border-card" />}
                   </button>
