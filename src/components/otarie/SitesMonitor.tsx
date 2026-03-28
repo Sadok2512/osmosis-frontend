@@ -766,7 +766,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
               <Settings2 size={16} className="text-primary" />
             </div>
             <div>
-              <h2 className="text-[13px] font-black text-foreground tracking-tight">Dashboard Configuration</h2>
+              <h2 className="text-[13px] font-black text-foreground tracking-tight">{dashboardId ? 'Dashboard Configuration' : 'View Configuration'}</h2>
               <p className="text-[9px] text-muted-foreground/60 font-medium">Map settings & display preferences</p>
             </div>
           </div>
@@ -866,8 +866,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
             </div>
           )}
 
-          {/* ── Dashboard-only sections ── */}
-          {dashboardId && (<>
+          {/* ── Map Rendering (available for both dashboard & view) ── */}
 
           {/* ── Map Rendering ── */}
           <div className="p-3 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
@@ -966,6 +965,8 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
             </div>
           </div>
 
+          {/* ── Dashboard-only sections ── */}
+          {dashboardId && (<>
           {/* ── Visibility ── */}
           <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
             <SectionHeader icon={<Network size={12} className="text-primary" />} title="Visibility" subtitle="Dashboard access control" />
