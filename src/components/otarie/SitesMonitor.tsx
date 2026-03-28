@@ -4150,7 +4150,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       background: 'none',
                       border: 'none',
                       padding: 0,
-                    }}>{site.site_name}</span>
+                    }}>{buildSiteLabel(site, mapLabelFields)}</span>
                   </Tooltip>
                 )}
                 <Popup>
