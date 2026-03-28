@@ -5850,14 +5850,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     }
                   }}
                   onDashboardActiveChange={(active, scope, siteFilters) => {
+                    // Detect if the dashboard context actually changed to avoid unnecessary reloads
+                    const prevFilterKey = JSON.stringify(activeDashboardFilters);
+                    const newFilterKey = JSON.stringify(siteFilters || null);
+                    const filtersChanged = prevFilterKey !== newFilterKey;
+                    const scopeChanged = JSON.stringify(activeSiteScope) !== JSON.stringify(scope || null);
+                    const wasActive = dashboardActive;
+
                     setDashboardActive(active);
                     setActiveSiteScope(scope || null);
                     setActiveDashboardFilters(siteFilters || null);
-                    setDashboardRefreshTick(t => t + 1);
-                    invalidateDashboardSitesCache();
-                    invalidateSiteCellsCache();
-                    invalidateBboxCache();
-                    cellLoadingRef.current.clear();
+
+                    // Only invalidate cache & force reload when filters/scope actually changed or going inactive→active
+                    if (filtersChanged || scopeChanged || !wasActive) {
+                      if (filtersChanged || scopeChanged) {
+                        invalidateDashboardSitesCache();
+                        invalidateBboxCache();
+                      }
+                      setDashboardRefreshTick(t => t + 1);
+                      invalidateSiteCellsCache();
+                      cellLoadingRef.current.clear();
+                    }
+
                     setSelectedSiteId(null);
                     setSelectedSiteSnapshot(null);
                     setSiteDetail(null);
