@@ -2284,7 +2284,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         for (const v of (stats.by_vendor || [])) {
-          result.vendorMap[v.vendor] = { '4G': v.cells || 0, '5G': 0 };
+          result.vendorMap[v.vendor] = { '4G': v.cells_4g || v.cells || 0, '5G': v.cells_5g || 0 };
         }
 
         setTopoNetworkStats(result);
