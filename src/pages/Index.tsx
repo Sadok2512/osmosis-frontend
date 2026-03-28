@@ -53,7 +53,7 @@ const Index: React.FC = () => {
     return {
       dashboard_overview: true, list: true, sites: true, traffic: true,
       alerts: true, detector: true, ai_assistant: true, radio_profile: true,
-      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, kpi_engine_config: true, pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true,
+      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true, pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true,
     };
   });
 
@@ -150,18 +150,6 @@ const Index: React.FC = () => {
         return <TopologiePage />;
       case 'kpi_monitor':
         return <KPIMonitorPage />;
-      case 'kpi_engine_config':
-        return (
-          <div className="flex-1 flex items-center justify-center bg-background">
-            <div className="text-center space-y-4">
-              <p className="text-muted-foreground">KPI Engine Config is managed on the backend admin panel.</p>
-              <a href="http://151.242.147.49:8000/admin/kpi" target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
-                Open Backend Admin
-              </a>
-            </div>
-          </div>
-        );
       case 'pm_dashboard':
         return <PmDashboardPage />;
       case 'parameters':
