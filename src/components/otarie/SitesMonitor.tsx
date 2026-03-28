@@ -3906,18 +3906,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
+            // For mixed sites, render 4G sectors (larger) then 5G sectors (smaller, on top)
+            const isMixedMini = has4G && has5G;
+            const miniRadius4G = miniRadius;
+            const miniRadius5G = isMixedMini ? miniRadius * 0.65 : miniRadius;
+
+            // Build per-tech azimuth sets
+            const techAzMap = new Map<string, Set<number>>();
+            for (const cell of site.cells) {
+              const tech = (cell.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
+              const az = Number(cell.azimut);
+              if (!Number.isFinite(az) || az < 0 || az > 360) continue;
+              if (!techAzMap.has(tech)) techAzMap.set(tech, new Set());
+              techAzMap.get(tech)!.add(az);
+            }
+
+            // Render order: 4G first (bottom), then 5G (top)
+            const miniItems: { tech: string; az: number; r: number }[] = [];
+            if (has4G && enabledTechnos.has('4G')) {
+              (techAzMap.get('4G') || new Set()).forEach(az => miniItems.push({ tech: '4G', az, r: miniRadius4G }));
+            }
+            if (has5G && enabledTechnos.has('5G')) {
+              (techAzMap.get('5G') || new Set()).forEach(az => miniItems.push({ tech: '5G', az, r: miniRadius5G }));
+            }
+            // Fallback: if no tech-specific azimuths found, use all azimuths with site color
+            if (miniItems.length === 0) {
+              azimuths.forEach(az => miniItems.push({ tech: has5G ? '5G' : '4G', az, r: miniRadius }));
+            }
+
             return (
               <React.Fragment key={site.site_id}>
-                {azimuths.map(az => {
-                  const sectorCoords = getSectorCoords(site.coordinates, az, miniRadius, 60);
+                {miniItems.map(({ tech, az, r }) => {
+                  const sectorCoords = getSectorCoords(site.coordinates, az, r, 60);
+                  const techColor = tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316');
                   return (
                     <Polygon
-                      key={`${site.site_id}_mini_${az}`}
+                      key={`${site.site_id}_mini_${tech}_${az}`}
                       positions={sectorCoords}
-                      pane={has5G ? 'pane5G' : 'pane4G'}
+                      pane={tech === '5G' ? 'pane5G' : 'pane4G'}
                       pathOptions={{
-                        color: isHovered ? '#fff' : deriveStrokeColor(color),
-                        fillColor: color,
+                        color: isHovered ? '#fff' : deriveStrokeColor(techColor),
+                        fillColor: techColor,
                         fillOpacity: isHovered ? 0.5 : miniOpacity,
                         weight: isHovered ? 1.5 : 0.8,
                         opacity: isHovered ? 1 : 0.65,
@@ -3948,32 +3977,90 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           }
 
-          const radius = viewport.zoom >= 10 ? (isHovered ? 7 : (isSelectedSite ? 7 : 5)) : (isHovered ? 5 : 3);
+          const baseRadius = viewport.zoom >= 10 ? (isHovered ? 7 : (isSelectedSite ? 7 : 5)) : (isHovered ? 5 : 3);
+          const isMixed = has4G && has5G;
+          const radius4G = isMixed ? baseRadius : baseRadius;
+          const radius5G = isMixed ? Math.round(baseRadius * 0.65) : baseRadius;
           return (
             <React.Fragment key={site.site_id}>
-              <CircleMarker
-                center={site.coordinates}
-                radius={radius}
-                pane={has5G ? 'pane5G' : 'pane4G'}
-                pathOptions={{
-                  color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
-                  fillColor: color,
-                  fillOpacity: 0.85,
-                  weight: isSelectedSite ? 2 : (isHovered ? 2 : 1),
-                }}
-                eventHandlers={{
-                  click: () => handleSiteClick(site),
-                  mouseover: () => setHoveredSiteId(site.site_id),
-                  mouseout: () => setHoveredSiteId(null),
-                }}
-              >
-                <Popup>
-                  <div className="p-1">
-                    <div className="font-bold text-sm">{site.site_name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                  </div>
-                </Popup>
-              </CircleMarker>
+              {/* 4G circle — bottom layer (larger for mixed sites) */}
+              {has4G && enabledTechnos.has('4G') && (
+                <CircleMarker
+                  center={site.coordinates}
+                  radius={radius4G}
+                  pane="pane4G"
+                  pathOptions={{
+                    color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
+                    fillColor: bandColors['4G_GROUP'] || '#f97316',
+                    fillOpacity: 0.85,
+                    weight: isSelectedSite ? 2 : (isHovered ? 2 : 1),
+                  }}
+                  eventHandlers={{
+                    click: () => handleSiteClick(site),
+                    mouseover: () => setHoveredSiteId(site.site_id),
+                    mouseout: () => setHoveredSiteId(null),
+                  }}
+                >
+                  <Popup>
+                    <div className="p-1">
+                      <div className="font-bold text-sm">{site.site_name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              )}
+              {/* 5G circle — top layer (smaller for mixed sites) */}
+              {has5G && enabledTechnos.has('5G') && (
+                <CircleMarker
+                  center={site.coordinates}
+                  radius={radius5G}
+                  pane="pane5G"
+                  pathOptions={{
+                    color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : (isMixed ? 'transparent' : 'hsl(var(--border))')),
+                    fillColor: bandColors['5G_GROUP'] || '#22c55e',
+                    fillOpacity: 0.9,
+                    weight: isSelectedSite ? 2 : (isHovered ? 2 : (isMixed ? 0 : 1)),
+                  }}
+                  eventHandlers={{
+                    click: () => handleSiteClick(site),
+                    mouseover: () => setHoveredSiteId(site.site_id),
+                    mouseout: () => setHoveredSiteId(null),
+                  }}
+                >
+                  <Popup>
+                    <div className="p-1">
+                      <div className="font-bold text-sm">{site.site_name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              )}
+              {/* For 4G-only sites (no 5G), still render if only 4G enabled */}
+              {!has4G && !has5G && (
+                <CircleMarker
+                  center={site.coordinates}
+                  radius={baseRadius}
+                  pane="pane4G"
+                  pathOptions={{
+                    color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
+                    fillColor: FADED_COLOR,
+                    fillOpacity: 0.85,
+                    weight: isSelectedSite ? 2 : (isHovered ? 2 : 1),
+                  }}
+                  eventHandlers={{
+                    click: () => handleSiteClick(site),
+                    mouseover: () => setHoveredSiteId(site.site_id),
+                    mouseout: () => setHoveredSiteId(null),
+                  }}
+                >
+                  <Popup>
+                    <div className="p-1">
+                      <div className="font-bold text-sm">{site.site_name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              )}
               {(showSiteLabels || viewport.zoom >= 14) && viewport.zoom >= 10 && (
                 <Marker position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
                   <Tooltip direction="bottom" offset={[0, 6]} permanent className="site-name-label-clean">
@@ -4045,29 +4132,71 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
           if (!site.cells || site.cells.length === 0) {
             const { has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
-            const fallbackColor = fb5G ? (bandColors['5G_GROUP'] || '#22c55e') : fb4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
-            const radius = isHovered || isSelectedSite ? 7 : 5;
-            const fallbackHas5G = fb5G;
+            const baseR = isHovered || isSelectedSite ? 7 : 5;
+            const fbMixed = fb4G && fb5G;
             return (
-              <CircleMarker
-                key={site.site_id}
-                center={site.coordinates}
-                radius={radius}
-                pane={fallbackHas5G ? 'pane5G' : 'pane4G'}
-                fillColor={fallbackColor}
-                fillOpacity={0.85}
-                weight={isSelectedSite ? 3 : 1.5}
-                color={isSelectedSite ? '#fff' : deriveStrokeColor(fallbackColor)}
-                eventHandlers={{
-                  click: () => handleSiteClick(site),
-                  mouseover: () => setHoveredSiteId(site.site_id),
-                  mouseout: () => setHoveredSiteId(null),
-                }}
-              >
-                <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
-                  <span className="text-[10px] font-bold">{site.site_name}</span>
-                </Tooltip>
-              </CircleMarker>
+              <React.Fragment key={site.site_id}>
+                {fb4G && (
+                  <CircleMarker
+                    center={site.coordinates}
+                    radius={baseR}
+                    pane="pane4G"
+                    fillColor={bandColors['4G_GROUP'] || '#f97316'}
+                    fillOpacity={0.85}
+                    weight={isSelectedSite ? 3 : 1.5}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(bandColors['4G_GROUP'] || '#f97316')}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                      <span className="text-[10px] font-bold">{site.site_name}</span>
+                    </Tooltip>
+                  </CircleMarker>
+                )}
+                {fb5G && (
+                  <CircleMarker
+                    center={site.coordinates}
+                    radius={fbMixed ? Math.round(baseR * 0.65) : baseR}
+                    pane="pane5G"
+                    fillColor={bandColors['5G_GROUP'] || '#22c55e'}
+                    fillOpacity={0.9}
+                    weight={isSelectedSite ? 3 : (fbMixed ? 0 : 1.5)}
+                    color={isSelectedSite ? '#fff' : (fbMixed ? 'transparent' : deriveStrokeColor(bandColors['5G_GROUP'] || '#22c55e'))}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                      <span className="text-[10px] font-bold">{site.site_name}</span>
+                    </Tooltip>
+                  </CircleMarker>
+                )}
+                {!fb4G && !fb5G && (
+                  <CircleMarker
+                    center={site.coordinates}
+                    radius={baseR}
+                    pane="pane4G"
+                    fillColor={FADED_COLOR}
+                    fillOpacity={0.85}
+                    weight={isSelectedSite ? 3 : 1.5}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(FADED_COLOR)}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                      <span className="text-[10px] font-bold">{site.site_name}</span>
+                    </Tooltip>
+                  </CircleMarker>
+                )}
+              </React.Fragment>
             );
           }
 
