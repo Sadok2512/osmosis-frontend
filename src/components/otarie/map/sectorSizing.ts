@@ -88,6 +88,40 @@ export const getSectorCoords = (
   return points;
 };
 
+/**
+ * Band frequency priority — lower frequency = higher priority (bigger sector).
+ * Returns a scale factor: 1.0 = largest, down to ~0.55 = smallest.
+ */
+const BAND_PRIORITY: Record<string, number> = {
+  // 4G bands — low freq = big
+  L700:   1.0,
+  L800:   0.95,
+  L1800:  0.78,
+  L2100:  0.68,
+  L2600:  0.58,
+  // 5G bands — low freq = big
+  NR700:  1.0,
+  NR2100: 0.72,
+  NR3500: 0.55,
+};
+
+/** Get a radius scale factor based on band (lower freq = bigger). Falls back to 0.75. */
+export const getBandSizeScale = (bandKey: string | null): number => {
+  if (!bandKey) return 0.75;
+  return BAND_PRIORITY[bandKey] ?? 0.75;
+};
+
+/**
+ * Get band sort priority for rendering order (lower value = render first = below).
+ * Lower frequency bands get lower priority numbers so they render first (bigger, below).
+ */
+export const getBandRenderOrder = (bandKey: string | null): number => {
+  if (!bandKey) return 50;
+  const scale = BAND_PRIORITY[bandKey] ?? 0.75;
+  // Invert: scale 1.0 → order 0 (render first/below), scale 0.55 → order 45 (render last/above)
+  return Math.round((1 - scale) * 100);
+};
+
 /** Get valid sector azimuths from site cells */
 export const getValidSectorAzimuths = (cells: { azimut?: number | null }[]): number[] => {
   const azimuths = new Set<number>();
