@@ -52,17 +52,27 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
 ];
 const FILTER_DIMENSIONS = ['Cell', 'Site', 'Vendor', 'Technology', 'Band', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
 
-// Filter values fetched from backend
+// Filter values fetched from backend (KPI Engine first, fallback to Parser PM counters)
 const useBackendFilterValues = (dimension: string): string[] => {
   const [values, setValues] = React.useState<string[]>([]);
   React.useEffect(() => {
-    const dimMap: Record<string, string> = { Cell: 'CELL', Site: 'SITE', Vendor: 'Vendor', Technology: 'TECHNO', Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'Plaque', 'Zone ARCEP': 'ARCEP' };
+    const dimMap: Record<string, string> = { Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO', Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', 'Zone ARCEP': 'ARCEP' };
     const key = dimMap[dimension] || dimension;
     import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
+      // Try KPI Engine first
       fetch(getApiUrl(`monitor/filters/values?dimension=${key}`), { headers: getApiHeaders() })
-        .then(r => r.json())
-        .then(d => { if (d.values) setValues(d.values); })
-        .catch(() => {});
+        .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
+        .then(d => {
+          if (d.values && d.values.length > 0) { setValues(d.values); return; }
+          throw new Error('empty');
+        })
+        .catch(() => {
+          // Fallback: read from Parser fact_counters_15min
+          fetch(getApiUrl(`pm/counters/filter-values?dimension=${key}`), { headers: getApiHeaders() })
+            .then(r => r.json())
+            .then(d => { if (d.values) setValues(d.values); })
+            .catch(() => {});
+        });
     });
   }, [dimension]);
   return values;
