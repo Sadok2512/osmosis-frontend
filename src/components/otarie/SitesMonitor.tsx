@@ -865,6 +865,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
               })}
             </div>
           </div>
+          </>)}
 
               {/* QOE Branch — Step 2: Pick KPI */}
               {filterStep === 'pick_kpi' && (
