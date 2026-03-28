@@ -6285,8 +6285,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               sites.forEach(site => {
                 const siteKey = String(site.site_id || site.site_name || `${site.coordinates?.[0]},${site.coordinates?.[1]}`);
-                let has4g = false;
-                let has5g = false;
+                const inferredTechState = inferSiteTechState(site);
+                let has4g = inferredTechState.has4G;
+                let has5g = inferredTechState.has5G;
 
                 (site.cells || []).forEach(c => {
                   const tech = String(c.techno || '').toUpperCase();
@@ -6505,7 +6506,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const bm5g: Record<string, number> = {};
               const vm: Record<string, { '4G': number; '5G': number }> = {};
               filteredSites.forEach(site => {
-                let has4g = false, has5g = false;
+                const inferredTechState = inferSiteTechState(site);
+                let has4g = inferredTechState.has4G, has5g = inferredTechState.has5G;
                 site.cells.forEach(c => {
                   const is5g = c.techno?.includes('5G') || c.techno === 'NR';
                   const v = (c as any).vendor || site.vendor || 'Unknown';
@@ -6523,7 +6525,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               });
               return { sites4G: s4g.size, sites5G: s5g.size, cells4G: c4g, cells5G: c5g, bandMap4G: bm4g, bandMap5G: bm5g, vendorMap: vm };
             })();
-            const displayStats = hasFastStats ? ns! : computedStats;
+            const displayStats: TopoNetworkStats = hasFastStats
+              ? {
+                  ...ns!,
+                  sites4G: ns!.sites4G > 0 ? ns!.sites4G : computedStats.sites4G,
+                  sites5G: ns!.sites5G > 0 ? ns!.sites5G : computedStats.sites5G,
+                  bandMap4G: Object.keys(ns!.bandMap4G || {}).length > 0 ? ns!.bandMap4G : computedStats.bandMap4G,
+                  bandMap5G: Object.keys(ns!.bandMap5G || {}).length > 0 ? ns!.bandMap5G : computedStats.bandMap5G,
+                  vendorMap: Object.keys(ns!.vendorMap || {}).length > 0 ? ns!.vendorMap : computedStats.vendorMap,
+                }
+              : computedStats;
             const hasAnyStats = displayStats.sites4G > 0 || displayStats.sites5G > 0 || displayStats.cells4G > 0 || displayStats.cells5G > 0;
 
             return (
