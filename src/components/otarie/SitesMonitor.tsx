@@ -323,7 +323,35 @@ const getSectorCoords = (
   return points;
 };
 
-// Fly to a site when selected — progressive zoom to avoid forcing cell mode too early
+/** Build label text for a site based on selected label fields */
+const buildSiteLabel = (site: SiteSummary, fields: Set<string>): string => {
+  if (fields.size === 0) return '';
+  const parts: string[] = [];
+  if (fields.has('site_name')) parts.push(site.site_name);
+  if (fields.has('cell_name') && site.cells.length > 0) {
+    const names = site.cells.slice(0, 3).map(c => c.cell_id).join(', ');
+    parts.push(names + (site.cells.length > 3 ? '…' : ''));
+  }
+  if (fields.has('pci') && site.cells.length > 0) {
+    const pcis = [...new Set(site.cells.map(c => (c as any).pci).filter(Boolean))].slice(0, 4);
+    if (pcis.length > 0) parts.push('PCI: ' + pcis.join(','));
+  }
+  if (fields.has('azimut') && site.cells.length > 0) {
+    const azs = [...new Set(site.cells.map(c => c.azimut).filter(a => a != null))].sort((a, b) => a - b);
+    if (azs.length > 0) parts.push('Az: ' + azs.join('°,') + '°');
+  }
+  if (fields.has('bande') && site.cells.length > 0) {
+    const bands = [...new Set(site.cells.map(c => c.bande).filter(Boolean))];
+    if (bands.length > 0) parts.push(bands.join(','));
+  }
+  if (fields.has('techno') && site.cells.length > 0) {
+    const techs = [...new Set(site.cells.map(c => c.techno).filter(Boolean))];
+    if (techs.length > 0) parts.push(techs.join(','));
+  }
+  return parts.join(' · ');
+};
+
+
 const FlyToSite = ({
   coords,
   onFlyStart,
