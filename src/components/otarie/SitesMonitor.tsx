@@ -4470,16 +4470,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const is5G = (cell.techno || '').toUpperCase().includes('5G');
                 const bandKey = normalizeBandKey(cell.bande, cell.techno);
                 const bandScale = getBandSizeScale(bandKey);
-                let cellRadius = zoomRadius * 1.3 * bandScale;
-                // Cap 5G to 65% of 4G at same azimuth for mixed sites
+                let cellAz: number;
                 if (is5G && hasAny4G) {
-                  const az = Number(cell.azimut);
-                  const ref4G = max4GRadiusPerAz.get(az) || (zoomRadius * 1.3);
+                  cellAz = Number(cell.azimut);
+                  const ref4G = max4GRadiusPerAz.get(cellAz) || (zoomRadius * 1.3);
                   const cap = ref4G * 0.65;
                   if (cellRadius > cap) cellRadius = cap;
+                } else {
+                  cellAz = Number(cell.azimut);
                 }
-                const az = Number(cell.azimut);
-                const az = Number(cell.azimut);
+                const az = cellAz;
                 if (!Number.isFinite(az) || az < 0 || az > 360) return null;
                 const sectorCoords = getSectorCoords(site.coordinates, az, cellRadius, 60);
                 const isFaded = (mapTechnoFilter === '5G' && !is5G) || (mapTechnoFilter === '4G' && is5G);
