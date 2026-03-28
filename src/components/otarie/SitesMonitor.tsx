@@ -766,7 +766,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
               <Settings2 size={16} className="text-primary" />
             </div>
             <div>
-              <h2 className="text-[13px] font-black text-foreground tracking-tight">Dashboard Configuration</h2>
+              <h2 className="text-[13px] font-black text-foreground tracking-tight">{dashboardId ? 'Dashboard Configuration' : 'View Configuration'}</h2>
               <p className="text-[9px] text-muted-foreground/60 font-medium">Map settings & display preferences</p>
             </div>
           </div>
