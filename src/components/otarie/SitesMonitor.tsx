@@ -66,7 +66,7 @@ import {
   SlidersHorizontal, ChevronRight, LayoutGrid, List, Map as MapIcon,
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
-  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2,
+  Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
   Bell, FileText, AlertTriangle
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
@@ -5155,7 +5155,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
                 <span className="w-px h-7 bg-border/50 shrink-0" />
 
-                <span className="text-[10px] font-bold text-muted-foreground shrink-0">Couleur par bande de fréquence</span>
+                <button
+                  onClick={() => {
+                    setMapLabelFields(prev => {
+                      const next = new Set(prev);
+                      if (next.has('site_name')) {
+                        next.delete('site_name');
+                      } else {
+                        next.add('site_name');
+                      }
+                      return next;
+                    });
+                  }}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                    mapLabelFields.has('site_name')
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+                  }`}
+                >
+                  <Tag size={12} />
+                  Site Name
+                </button>
 
                 <span className="w-px h-7 bg-border/50 shrink-0" />
 
