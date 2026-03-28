@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
 
       const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
       const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
-        (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
+        (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/'));
       const isAgentPost = req.method === 'POST' && service === 'agent';
       if (isSafeRead || isSafePost) {
         const fallback = isSafePost
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
     const contentType = upstreamRes.headers.get('content-type') || 'application/json';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
-      (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/'));
     const isAgentPost = req.method === 'POST' && service === 'agent';
 
     // Stream SSE responses directly (don't buffer)
@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
     const path = url.searchParams.get('path') || '/health';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
-      (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/'));
 
     if (isSafeRead || isSafePost) {
       const fallback = isSafePost
