@@ -6208,7 +6208,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const vm: Record<string, { '4G': number; '5G': number }> = {};
 
               sites.forEach(site => {
-                const siteKey = String(site.site_id || site.site_name || site.code_nidt || `${site.lat},${site.lng}`);
+                const siteKey = String(site.site_id || site.site_name || `${site.coordinates?.[0]},${site.coordinates?.[1]}`);
                 let has4g = false;
                 let has5g = false;
 
@@ -6217,7 +6217,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   const is5g = tech.includes('5G') || tech.includes('NR');
                   const is4g = !is5g && (tech.includes('4G') || tech.includes('LTE'));
                   const vendor = (c as any).vendor || (c as any).constructeur || site.vendor || 'Unknown';
-                  const band = c.bande || c.band || 'Unknown';
+                  const band = c.bande || 'Unknown';
 
                   if (!vm[vendor]) vm[vendor] = { '4G': 0, '5G': 0 };
 
