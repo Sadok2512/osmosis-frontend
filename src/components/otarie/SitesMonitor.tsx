@@ -3784,12 +3784,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         ))}
 
         {/* Heatmap layer */}
-        {sectorColorMode !== 'topo' && !paramMode && mapDisplayMode === 'heatmap' && (
+        {sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
         {/* Points mode — individual cell markers */}
-        {!paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
+        {mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells.filter(c => {
               const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
@@ -3845,7 +3845,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
-        {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
+        {mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
           // Always use tech-based colors for site dots (circle markers & mini sectors)
@@ -3986,7 +3986,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {!paramMode && showSectors && renderSites.map(site => {
+        {showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isTaggedSite = isSiteTagged(site.site_id);
