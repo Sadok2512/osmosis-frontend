@@ -704,7 +704,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
     for (const [k, v] of Object.entries(localSiteFilters)) {
       if (v && v.length > 0) (cleanSiteFilters as any)[k] = v;
     }
-    onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: localFilters, siteFilters: cleanSiteFilters });
+    onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: localFilters, siteFilters: cleanSiteFilters, mapLabelFields: Array.from(mapLabelFields) });
     if (onSiteFiltersChange) onSiteFiltersChange(cleanSiteFilters);
     if (dashboardId && localVisibility !== isShared) {
       await dashboardsApi.update(dashboardId, { is_shared: localVisibility });
