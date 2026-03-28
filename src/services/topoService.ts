@@ -473,7 +473,9 @@ export async function fetchCellsByBbox(
   filters?: BboxFilters,
   signal?: AbortSignal,
 ): Promise<SiteSummary[]> {
-  // Use server-side /sites-with-cells endpoint — no full cell cache
+  // Strategy: try /sites-with-cells first, then fall back to /cells merge
+  let sitesFromEndpoint: SiteSummary[] | null = null;
+
   try {
     const resp = await topoApi.listSitesWithCells(bbox, filters, 8000, signal);
 
@@ -482,7 +484,7 @@ export async function fetchCellsByBbox(
     }
 
     const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
-    const sites: SiteSummary[] = (resp.sites || [])
+    sitesFromEndpoint = (resp.sites || [])
       .filter((s: any) => Number.isFinite(s.latitude) && Number.isFinite(s.longitude))
       .map((s: any) => {
         const cells = (s.cells || []).map((c: any) => ({
@@ -540,13 +542,56 @@ export async function fetchCellsByBbox(
         return applyQoeData(site, qoeData);
       });
 
-    console.log(`[TopoService] BBOX cells: ${sites.length} sites, ${resp.total_cells || 0} cells (server-side, 4G/5G only)`);
-    return filterSites4G5G(sites);
+    console.log(`[TopoService] BBOX cells: ${sitesFromEndpoint.length} sites, ${resp.total_cells || 0} cells (server-side, 4G/5G only)`);
   } catch (err: any) {
     if (err?.name === 'AbortError') throw err;
-    console.warn('[TopoService] Server-side cells fetch failed', err);
-    return [];
+    console.warn('[TopoService] Server-side cells fetch failed, trying cells-merge fallback', err);
   }
+
+  // Fallback: use /topo/cells cache merged with /topo/sites for complete cell data
+  if (!sitesFromEndpoint || sitesFromEndpoint.length === 0) {
+    try {
+      const cellsResp = await topoApi.listCellsByBbox(bbox, filters, 8000, signal);
+      if (cellsResp.cells && cellsResp.cells.length > 0) {
+        const rows = cellsResp.cells as TopoRow[];
+        const builtSites = buildSitesFromRows(rows);
+        const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
+        sitesFromEndpoint = builtSites.map(site => applyQoeData(site, qoeData));
+        console.log(`[TopoService] BBOX cells fallback: ${sitesFromEndpoint.length} sites, ${cellsResp.total} cells (cells-merge)`);
+      }
+    } catch (err2: any) {
+      if (err2?.name === 'AbortError') throw err2;
+      console.warn('[TopoService] Cells-merge fallback also failed', err2);
+    }
+  }
+
+  if (!sitesFromEndpoint) return [];
+
+  // Enrich: if primary endpoint returned fewer cells than expected, supplement from cells cache
+  try {
+    const cellsResp = await topoApi.listCellsByBbox(bbox, filters, 8000, signal);
+    if (cellsResp.cells && cellsResp.cells.length > 0) {
+      const mergedFromCells = buildSitesFromRows(cellsResp.cells as TopoRow[]);
+      const cellCountMap = new Map<string, number>();
+      for (const ms of mergedFromCells) {
+        cellCountMap.set(ms.site_id, ms.cells.length);
+      }
+      // Replace sites that have fewer cells in primary with the cells-merge version
+      const mergedMap = new Map(mergedFromCells.map(s => [s.site_id, s]));
+      const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
+      sitesFromEndpoint = sitesFromEndpoint.map(site => {
+        const mergedSite = mergedMap.get(site.site_id);
+        if (mergedSite && mergedSite.cells.length > site.cells.length) {
+          return applyQoeData({ ...site, cells: mergedSite.cells, cell_count: mergedSite.cells.length }, qoeData);
+        }
+        return site;
+      });
+    }
+  } catch {
+    // Non-critical — keep primary results
+  }
+
+  return filterSites4G5G(sitesFromEndpoint);
 }
 
 export function invalidateBboxCache() {
