@@ -447,6 +447,22 @@ const FitHighlightBounds = ({ coords }: { coords: [number, number][] }) => {
   return null;
 };
 
+// Fit map to dashboard sites after loading
+const FitToDashboardSites = ({ sites, fitKey }: { sites: SiteSummary[]; fitKey: number }) => {
+  const map = useMap();
+  const lastFitKeyRef = useRef<number>(0);
+  useEffect(() => {
+    if (fitKey <= 0 || fitKey === lastFitKeyRef.current) return;
+    lastFitKeyRef.current = fitKey;
+    const validCoords = sites
+      .filter(s => s.coordinates && Number.isFinite(s.coordinates[0]) && Number.isFinite(s.coordinates[1]) && (s.coordinates[0] !== 0 || s.coordinates[1] !== 0))
+      .map(s => L.latLng(s.coordinates[0], s.coordinates[1]));
+    if (validCoords.length > 0) {
+      const bounds = L.latLngBounds(validCoords);
+      map.fitBounds(bounds.pad(0.15), { duration: 1.2, maxZoom: 13 });
+    }
+  }, [fitKey, sites, map]);
+
 const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; resetKey: string }) => {
   const map = useMap();
   const lastResetKeyRef = useRef<string | null>(null);
