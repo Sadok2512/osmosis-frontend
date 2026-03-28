@@ -2515,8 +2515,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const db = cleaned.find((d: any) => d.id === persistedId);
           if (db) {
             const widgets = Array.isArray(db.widgets) ? db.widgets : [];
-            const dashSettings = widgets.find((w: any) => w.type === 'dashboard_settings' || w.dashboard_settings);
-            const scope = dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
+            const dashSettings = widgets.find((w: any) => w._type === 'dashboard_settings' || w.type === 'dashboard_settings' || w.dashboard_settings);
+            const scope = dashSettings?.siteScope || dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
             const siteFilters = dashSettings?.siteFilters || dashSettings?.dashboard_settings?.siteFilters || null;
             setActiveSiteScope(scope);
             setActiveDashboardFilters(siteFilters);
