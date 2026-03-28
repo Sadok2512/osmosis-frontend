@@ -1640,6 +1640,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       color: vs.color || dbSettings.color || '',
       center: vs.center || dbSettings.center,
       zoom: vs.zoom || dbSettings.zoom,
+      siteFilters: vs.siteFilters || dbSettings.siteFilters || null,
     };
   };
 
