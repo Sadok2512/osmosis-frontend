@@ -118,8 +118,14 @@ export function SpecificDimensionsSection() {
         fetch(vpsUrl(`/pm/nokia/v2/unknowns?limit=30`), { headers: hdrs }),
       ]);
       if (statsRes.ok)    setStats(await statsRes.json());
-      if (dimTypesRes.ok) setDimTypes(await dimTypesRes.json());
-      if (unknownsRes.ok) setUnknowns(await unknownsRes.json());
+      if (dimTypesRes.ok) {
+        const dt = await dimTypesRes.json();
+        setDimTypes(Array.isArray(dt) ? dt : []);
+      }
+      if (unknownsRes.ok) {
+        const uk = await unknownsRes.json();
+        setUnknowns(Array.isArray(uk) ? uk : []);
+      }
     } catch (e) {
       console.error("Error fetching PM V2 data:", e);
     }
