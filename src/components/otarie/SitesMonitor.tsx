@@ -67,7 +67,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
-  Bell, FileText, AlertTriangle
+  Bell, FileText, AlertTriangle, Layers
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
@@ -5244,6 +5244,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 >
                   <Signal size={12} />
                   Network Info
+                </button>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                {/* Views / Dashboard toggle */}
+                <button
+                  onClick={() => {
+                    if (inventoryTab === 'dashboard' && !panelCollapsed) {
+                      setPanelCollapsed(true);
+                    } else {
+                      setInventoryTab('dashboard');
+                      setPanelCollapsed(false);
+                    }
+                  }}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                    inventoryTab === 'dashboard' && !panelCollapsed
+                      ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-sm shadow-primary/20'
+                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+                  }`}
+                >
+                  <Layers size={12} />
+                  Views
                 </button>
               </>
             )}
