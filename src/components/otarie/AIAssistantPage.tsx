@@ -14,7 +14,7 @@ import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizati
 import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
 import { parseKpiBlocks, KpiSummaryCards, SplitSectionCards } from '../kpi-monitor/AIKpiCards';
-import { getAgentHeaders, isLocalMode, getVpsProxyUrl, getVpsUrl } from '@/lib/apiConfig';
+import { getAgentHeaders, isLocalMode, getVpsProxyUrl } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore';
 import { useAgentLearningStore } from '@/stores/agentLearningStore';
 import { dashboardsApi } from '@/lib/localDb';
@@ -250,10 +250,10 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       ...(forcedAgent ? { forcedAgent } : {}),
     });
 
-    // Agent calls go direct to VPS (SSE doesn't work well through proxy)
+    // All queries go through VPS orchestrator :1000 via proxy
     const url = isLocalMode()
       ? 'http://localhost:1000/orchestrator/stream'
-      : getVpsUrl('agent', '/orchestrator/stream');
+      : getVpsProxyUrl('agent', '/orchestrator/stream');
     const headers = getAgentHeaders();
 
     addDebugLog(`Mode: ${isLocalMode() ? 'LOCAL' : 'CLOUD'}`);
@@ -292,6 +292,22 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     }
 
     if (!resp.body) throw new Error('No body');
+
+    // Check for proxy fallback (200 with unavailable: true)
+    const contentType = resp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const jsonBody = await resp.text();
+      try {
+        const parsed = JSON.parse(jsonBody);
+        if (parsed.unavailable) {
+          const fallbackMsg = `⚠️ ${parsed.content || "Le service Agent est temporairement indisponible. Veuillez réessayer."}`;
+          setMessages(prev => [...prev, { role: 'assistant', content: fallbackMsg }]);
+          setIsLoading(false);
+          return;
+        }
+      } catch { /* not JSON, continue with stream */ }
+    }
+
     addDebugLog('Streaming started...');
 
     const reader = resp.body.getReader();
