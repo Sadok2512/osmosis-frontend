@@ -651,6 +651,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
     return ['qoe_score_avg'];
   });
   const [localDataSource, setLocalDataSource] = useState<'qoe' | 'parameters'>(settings.dataSource || 'qoe');
+  const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(settings.mapLabelFields || ['site_name']));
   const [localFilters, setLocalFilters] = useState<ViewFilter[]>(() => {
     // Migrate old format filters
     const raw = settings.viewFilters || [];
