@@ -128,8 +128,14 @@ const InvestigatorPage: React.FC = () => {
       const dateTo = state.endDate.split('T')[0] || '2026-03-24';
       const gran = granMap[state.granularity] || '1h';
 
+      // Convert state.filters to API format
+      const activeFilters = Object.entries(state.filters)
+        .filter(([, vals]) => vals.length > 0)
+        .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }));
+
       let ts = await fetchTimeSeriesData(
-        kpiIds, dateFrom, dateTo, gran, splitValue, undefined,
+        kpiIds, dateFrom, dateTo, gran, splitValue,
+        activeFilters.length > 0 ? activeFilters : undefined,
         state.kpiLevel, state.profileQci, state.profileArp, state.neighborType
       );
 
@@ -137,7 +143,8 @@ const InvestigatorPage: React.FC = () => {
       if (ts.length === 0 && gran === '1h') {
         console.warn('[Investigator] Hourly returned empty, retrying with daily granularity');
         ts = await fetchTimeSeriesData(
-          kpiIds, dateFrom, dateTo, '1d', splitValue, undefined,
+          kpiIds, dateFrom, dateTo, '1d', splitValue,
+          activeFilters.length > 0 ? activeFilters : undefined,
           state.kpiLevel, state.profileQci, state.profileArp, state.neighborType
         );
       }
@@ -231,7 +238,7 @@ const InvestigatorPage: React.FC = () => {
     if (kpiIds.length > 0) {
       handleApply();
     }
-  }, [slotSplitKey, state.splitBy, state.kpiLevel, state.profileQci, state.profileArp, state.neighborType]);
+  }, [slotSplitKey, state.splitBy, state.kpiLevel, state.profileQci, state.profileArp, state.neighborType, JSON.stringify(state.filters)]);
 
   const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig>) => {
     setState(prev => ({
