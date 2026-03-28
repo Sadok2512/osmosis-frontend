@@ -4442,11 +4442,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           /* ── 5G / 4G mode: detailed per-band sectors ── */
+          // Pre-compute max 4G radius per azimuth for capping 5G
+          const detailCells = site.cells.filter(c => isBandEnabled(c.bande, c.techno));
+          const max4GRadiusPerAz = new Map<number, number>();
+          const hasAny4G = detailCells.some(c => !(c.techno || '').toUpperCase().includes('5G'));
+          const hasAny5G = detailCells.some(c => (c.techno || '').toUpperCase().includes('5G'));
+          if (hasAny4G && hasAny5G) {
+            for (const c of detailCells) {
+              if ((c.techno || '').toUpperCase().includes('5G')) continue;
+              const az = Number(c.azimut);
+              if (!Number.isFinite(az)) continue;
+              const bk = normalizeBandKey(c.bande, c.techno);
+              const r = zoomRadius * 1.3 * getBandSizeScale(bk);
+              const cur = max4GRadiusPerAz.get(az) || 0;
+              if (r > cur) max4GRadiusPerAz.set(az, r);
+            }
+          }
           return (
             <React.Fragment key={site.site_id}>
-              {site.cells.filter(c => isBandEnabled(c.bande, c.techno))
+              {detailCells
                 .sort((a, b) => {
-                  // Sort by band render order: bigger sectors (low freq) first, smaller (high freq) last
                   const aKey = normalizeBandKey(a.bande, a.techno);
                   const bKey = normalizeBandKey(b.bande, b.techno);
                   return getBandRenderOrder(aKey) - getBandRenderOrder(bKey);
@@ -4455,7 +4470,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const is5G = (cell.techno || '').toUpperCase().includes('5G');
                 const bandKey = normalizeBandKey(cell.bande, cell.techno);
                 const bandScale = getBandSizeScale(bandKey);
-                const cellRadius = zoomRadius * 1.3 * bandScale;
+                let cellRadius = zoomRadius * 1.3 * bandScale;
+                // Cap 5G to 65% of 4G at same azimuth for mixed sites
+                if (is5G && hasAny4G) {
+                  const az = Number(cell.azimut);
+                  const ref4G = max4GRadiusPerAz.get(az) || (zoomRadius * 1.3);
+                  const cap = ref4G * 0.65;
+                  if (cellRadius > cap) cellRadius = cap;
+                }
+                const az = Number(cell.azimut);
                 const az = Number(cell.azimut);
                 if (!Number.isFinite(az) || az < 0 || az > 360) return null;
                 const sectorCoords = getSectorCoords(site.coordinates, az, cellRadius, 60);
