@@ -50,13 +50,13 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: 'Daily', label: 'Jour' },
   { value: 'Weekly', label: 'Semaine' },
 ];
-const FILTER_DIMENSIONS = ['Site', 'Vendor', 'Technology', 'Band', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
+const FILTER_DIMENSIONS = ['Cell', 'Site', 'Vendor', 'Technology', 'Band', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
 
 // Filter values fetched from backend
 const useBackendFilterValues = (dimension: string): string[] => {
   const [values, setValues] = React.useState<string[]>([]);
   React.useEffect(() => {
-    const dimMap: Record<string, string> = { Site: 'Site', Vendor: 'Vendor', Technology: 'TECHNO', Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'Plaque', 'Zone ARCEP': 'ARCEP' };
+    const dimMap: Record<string, string> = { Cell: 'CELL', Site: 'SITE', Vendor: 'Vendor', Technology: 'TECHNO', Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'Plaque', 'Zone ARCEP': 'ARCEP' };
     const key = dimMap[dimension] || dimension;
     import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
       fetch(getApiUrl(`monitor/filters/values?dimension=${key}`), { headers: getApiHeaders() })
