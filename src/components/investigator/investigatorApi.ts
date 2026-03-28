@@ -1,6 +1,6 @@
 // ── Investigator API — Data from Parser :8000, AI from Agent :1000 ──
 
-import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, getVpsUrl, isLocalMode } from '@/lib/apiConfig';
 import { DataPoint, WorstElement, KpiDefinition } from './types';
 
 // ── Fetch KPI catalog from KPI Engine :8001 ──
