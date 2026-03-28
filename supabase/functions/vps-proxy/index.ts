@@ -107,11 +107,18 @@ Deno.serve(async (req) => {
       const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
       const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
         (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
+      const isAgentPost = req.method === 'POST' && service === 'agent';
       if (isSafeRead || isSafePost) {
         const fallback = isSafePost
           ? { unavailable: true, service, path, error: msg, series: [], data: [], rows: [], total: 0 }
           : buildSafeFallback(service, path, msg);
         return new Response(JSON.stringify(fallback), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (isAgentPost) {
+        return new Response(JSON.stringify({ unavailable: true, service, path, error: `Agent service unreachable: ${msg}`, content: "Le service Agent est temporairement indisponible. Veuillez réessayer." }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -128,6 +135,7 @@ Deno.serve(async (req) => {
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
       (path.includes('/query/') || path.includes('/summary') || path.includes('/table'));
+    const isAgentPost = req.method === 'POST' && service === 'agent';
 
     // Stream SSE responses directly (don't buffer)
     if (contentType.includes('text/event-stream') && upstreamRes.body) {
@@ -151,6 +159,15 @@ Deno.serve(async (req) => {
         ? { unavailable: true, service, path, error: `Upstream ${upstreamRes.status}: ${errorSnippet}`, series: [], data: [], rows: [], total: 0 }
         : buildSafeFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`);
       return new Response(JSON.stringify(fallback), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!upstreamRes.ok && isAgentPost) {
+      const errorSnippet = responseBody.slice(0, 300) || `HTTP ${upstreamRes.status}`;
+      console.warn(`[vps-proxy] Agent fallback for upstream ${upstreamRes.status}: ${errorSnippet}`);
+      return new Response(JSON.stringify({ unavailable: true, service, path, error: `Agent error ${upstreamRes.status}: ${errorSnippet}`, content: "Le service Agent a rencontré une erreur. Veuillez réessayer." }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
