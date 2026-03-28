@@ -870,18 +870,18 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
           {dashboardId && (<>
 
           {/* ── Map Rendering ── */}
-          <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
+          <div className="p-3 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
             <SectionHeader icon={<MapIcon size={12} className="text-primary" />} title="Map Style" subtitle="Base layer rendering" />
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-4 gap-1">
               {SETTINGS_MAP_STYLES.map(style => {
                 const isActive = localMapStyle === style.value;
                 return (
                   <button key={style.value} onClick={() => { setLocalMapStyle(style.value); setDirty(true); }}
-                    className={`relative flex flex-col items-center gap-1 px-1.5 py-2.5 rounded-lg text-[9px] font-bold transition-all border ${isActive
-                      ? 'bg-primary/10 text-primary border-primary/40 shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_2px_8px_-2px_hsl(var(--primary)/0.2)]'
+                    className={`relative flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg text-[8px] font-bold transition-all border ${isActive
+                      ? 'bg-primary/10 text-primary border-primary/40 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]'
                       : 'bg-card/60 border-border/30 text-muted-foreground hover:text-foreground hover:border-border hover:bg-card'
                     }`}>
-                    <span className="text-lg leading-none">{style.icon}</span>
+                    <span className="text-sm leading-none">{style.icon}</span>
                     <span className="uppercase tracking-wider">{style.label}</span>
                     {isActive && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border border-card" />}
                   </button>
