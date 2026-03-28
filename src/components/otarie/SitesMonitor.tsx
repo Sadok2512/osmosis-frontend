@@ -55,6 +55,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
 };
 import { fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
+import { getBandSizeScale, getBandRenderOrder } from './map/sectorSizing';
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
@@ -4200,66 +4201,51 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           }
 
-          /* ── ALL mode: technology-only (no bands), fixed radii ── */
+          /* ── ALL mode: band-based hierarchy ── */
           if (mapTechnoFilter === 'ALL') {
-            // Step 1: Group cells by technology, collect unique azimuths
-            const techAzimuths = new Map<string, Set<number>>();
+            // Group cells by band+azimuth for band-based sizing
+            const cellItems: { tech: string; az: number; radius: number; bandKey: string | null; cell: typeof site.cells[0] }[] = [];
             for (const cell of site.cells) {
               const tech = (cell.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
               const az = Number(cell.azimut);
               if (!Number.isFinite(az) || az < 0 || az > 360) continue;
-              if (!techAzimuths.has(tech)) techAzimuths.set(tech, new Set());
-              techAzimuths.get(tech)!.add(az);
+              if (tech === '4G' && !enabledTechnos.has('4G')) continue;
+              if (tech === '5G' && !enabledTechnos.has('5G')) continue;
+              const bandKey = normalizeBandKey(cell.bande, cell.techno);
+              const bandScale = getBandSizeScale(bandKey);
+              const radius = zoomRadius * 1.3 * bandScale;
+              cellItems.push({ tech, az, radius, bandKey, cell });
             }
-            const has4G = techAzimuths.has('4G');
-            const has5G = techAzimuths.has('5G');
+            const has4G = cellItems.some(c => c.tech === '4G');
+            const has5G = cellItems.some(c => c.tech === '5G');
 
-            // Step 2: Fixed radii (zoom-adaptive base, but constant ratio)
-            const R_4G = zoomRadius * 1.2; // slightly larger than default
-            const R_5G = R_4G * 0.6;       // 60% of 4G
+            // Sort: bigger sectors first (render below), smaller on top
+            const renderItems = cellItems.sort((a, b) => getBandRenderOrder(a.bandKey) - getBandRenderOrder(b.bandKey));
 
-            // Step 3: Merge all azimuths across techs for unified sectors
-            const allAzimuths = new Set<number>();
-            if (has4G) techAzimuths.get('4G')!.forEach(a => allAzimuths.add(a));
-            if (has5G) techAzimuths.get('5G')!.forEach(a => allAzimuths.add(a));
-
-            // Step 4: Build render list — 4G first (below), 5G second (above)
-            const renderItems: { tech: string; az: number; radius: number }[] = [];
-            if (has4G && enabledTechnos.has('4G')) {
-              allAzimuths.forEach(az => {
-                if (techAzimuths.get('4G')!.has(az)) {
-                  renderItems.push({ tech: '4G', az, radius: R_4G });
-                }
-              });
-            }
-            if (has5G && enabledTechnos.has('5G')) {
-              allAzimuths.forEach(az => {
-                if (techAzimuths.get('5G')!.has(az)) {
-                  renderItems.push({ tech: '5G', az, radius: R_5G });
-                }
-              });
-            }
+            // Deduplicate by tech+az — keep only the largest per tech+azimuth
+            const seen = new Set<string>();
+            const dedupItems = renderItems.filter(item => {
+              const key = `${item.tech}_${item.az}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
 
             return (
               <React.Fragment key={site.site_id}>
-                {renderItems.map(({ tech, az, radius }) => {
-                  const groupColorKey = tech === '5G' ? '5G_GROUP' : '4G_GROUP';
-                  // In topo mode: use 5G/4G group colors; in kpi mode: use KPI-based color from representative cell
-                  const topoColor = bandColors[groupColorKey] || (tech === '5G' ? '#22c55e' : '#f97316');
+                {dedupItems.map(({ tech, az, radius, bandKey, cell }) => {
+                  // In topo mode: use band-specific color from legend
+                  const topoColor = bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (bandColors[tech === '5G' ? '5G_GROUP' : '4G_GROUP'] || (tech === '5G' ? '#22c55e' : '#f97316'));
                   let kpiColor = topoColor;
                   if (sectorColorMode === 'kpi') {
-                    const repCell = site.cells.find(c => {
-                      const t = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
-                      return t === tech;
-                    });
-                    if (repCell) kpiColor = getKpiColor(getCellKpiValue(repCell));
+                    kpiColor = getKpiColor(getCellKpiValue(cell));
                   }
                   const fillColor = isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
                   const strokeColor = isFocusFaded ? '#cbd5e1' : deriveStrokeColor(fillColor);
                   const sectorCoords = getSectorCoords(site.coordinates, az, radius, 60);
                   return (
                     <Polygon
-                      key={`${site.site_id}_${tech}_${az}`}
+                      key={`${site.site_id}_${tech}_${bandKey || 'unk'}_${az}`}
                       positions={sectorCoords}
                       pane={tech === '5G' ? 'pane5G' : 'pane4G'}
                       pathOptions={{
@@ -4280,11 +4266,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: fillColor }}>{site.site_name}</div>
                           <div className="text-[9px] opacity-60 font-mono mt-0.5">{site.site_id}</div>
                           <div className="mt-1.5 text-[10px] space-y-0.5">
-                            <div className="flex justify-between"><span className="opacity-50">has4G</span><span className="font-bold">{has4G ? '✓' : '✗'}</span></div>
-                            <div className="flex justify-between"><span className="opacity-50">has5G</span><span className="font-bold">{has5G ? '✓' : '✗'}</span></div>
-                            <div className="flex justify-between"><span className="opacity-50">R4G</span><span className="font-mono font-bold">{Math.round(R_4G)}m</span></div>
-                            <div className="flex justify-between"><span className="opacity-50">R5G</span><span className="font-mono font-bold">{Math.round(R_5G)}m</span></div>
+                            <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{tech}</span></div>
+                            <div className="flex justify-between"><span className="opacity-50">Band</span><span className="font-bold">{bandKey || '—'}</span></div>
                             <div className="flex justify-between"><span className="opacity-50">Azimut</span><span className="font-bold">{az}°</span></div>
+                            <div className="flex justify-between"><span className="opacity-50">Radius</span><span className="font-mono font-bold">{Math.round(radius)}m</span></div>
                           </div>
                         </div>
                       </Tooltip>
@@ -4326,14 +4311,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <React.Fragment key={site.site_id}>
               {site.cells.filter(c => isBandEnabled(c.bande, c.techno))
                 .sort((a, b) => {
-                  // 4G first (below), 5G last (above)
-                  const a5 = (a.techno || '').toUpperCase().includes('5G') ? 1 : 0;
-                  const b5 = (b.techno || '').toUpperCase().includes('5G') ? 1 : 0;
-                  return a5 - b5;
+                  // Sort by band render order: bigger sectors (low freq) first, smaller (high freq) last
+                  const aKey = normalizeBandKey(a.bande, a.techno);
+                  const bKey = normalizeBandKey(b.bande, b.techno);
+                  return getBandRenderOrder(aKey) - getBandRenderOrder(bKey);
                 })
                 .map(cell => {
                 const is5G = (cell.techno || '').toUpperCase().includes('5G');
-                const cellRadius = is5G ? zoomRadius * 1.15 : zoomRadius * 0.85;
+                const bandKey = normalizeBandKey(cell.bande, cell.techno);
+                const bandScale = getBandSizeScale(bandKey);
+                const cellRadius = zoomRadius * 1.3 * bandScale;
                 const az = Number(cell.azimut);
                 if (!Number.isFinite(az) || az < 0 || az > 360) return null;
                 const sectorCoords = getSectorCoords(site.coordinates, az, cellRadius, 60);
