@@ -866,8 +866,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
             </div>
           )}
 
-          {/* ── Dashboard-only sections ── */}
-          {dashboardId && (<>
+          {/* ── Map Rendering (available for both dashboard & view) ── */}
 
           {/* ── Map Rendering ── */}
           <div className="p-3 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
