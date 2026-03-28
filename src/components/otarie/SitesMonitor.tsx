@@ -3906,18 +3906,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
+            // For mixed sites, render 4G sectors (larger) then 5G sectors (smaller, on top)
+            const isMixedMini = has4G && has5G;
+            const miniRadius4G = miniRadius;
+            const miniRadius5G = isMixedMini ? miniRadius * 0.65 : miniRadius;
+
+            // Build per-tech azimuth sets
+            const techAzMap = new Map<string, Set<number>>();
+            for (const cell of site.cells) {
+              const tech = (cell.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
+              const az = Number(cell.azimut);
+              if (!Number.isFinite(az) || az < 0 || az > 360) continue;
+              if (!techAzMap.has(tech)) techAzMap.set(tech, new Set());
+              techAzMap.get(tech)!.add(az);
+            }
+
+            // Render order: 4G first (bottom), then 5G (top)
+            const miniItems: { tech: string; az: number; r: number }[] = [];
+            if (has4G && enabledTechnos.has('4G')) {
+              (techAzMap.get('4G') || new Set()).forEach(az => miniItems.push({ tech: '4G', az, r: miniRadius4G }));
+            }
+            if (has5G && enabledTechnos.has('5G')) {
+              (techAzMap.get('5G') || new Set()).forEach(az => miniItems.push({ tech: '5G', az, r: miniRadius5G }));
+            }
+            // Fallback: if no tech-specific azimuths found, use all azimuths with site color
+            if (miniItems.length === 0) {
+              azimuths.forEach(az => miniItems.push({ tech: has5G ? '5G' : '4G', az, r: miniRadius }));
+            }
+
             return (
               <React.Fragment key={site.site_id}>
-                {azimuths.map(az => {
-                  const sectorCoords = getSectorCoords(site.coordinates, az, miniRadius, 60);
+                {miniItems.map(({ tech, az, r }) => {
+                  const sectorCoords = getSectorCoords(site.coordinates, az, r, 60);
+                  const techColor = tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316');
                   return (
                     <Polygon
-                      key={`${site.site_id}_mini_${az}`}
+                      key={`${site.site_id}_mini_${tech}_${az}`}
                       positions={sectorCoords}
-                      pane={has5G ? 'pane5G' : 'pane4G'}
+                      pane={tech === '5G' ? 'pane5G' : 'pane4G'}
                       pathOptions={{
-                        color: isHovered ? '#fff' : deriveStrokeColor(color),
-                        fillColor: color,
+                        color: isHovered ? '#fff' : deriveStrokeColor(techColor),
+                        fillColor: techColor,
                         fillOpacity: isHovered ? 0.5 : miniOpacity,
                         weight: isHovered ? 1.5 : 0.8,
                         opacity: isHovered ? 1 : 0.65,
