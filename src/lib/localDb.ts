@@ -194,6 +194,8 @@ export interface BboxSiteDTO {
   plaque: string | null;
   dor: string | null;
   region: string | null;
+  lte_cells?: number;
+  nr_cells?: number;
 }
 
 export interface BboxSitesResponse {
@@ -430,8 +432,10 @@ export const topoApi = {
           dor: site.dor ?? null,
           region: site.region ?? null,
           zone_arcep: site.zone_arcep ?? null,
-          techno: site.techno ?? null,
+          techno: site.techno ?? site.technos ?? null,
           bande: site.bande ?? null,
+          lte_cells: Number(site.lte_cells ?? site.nb_lte ?? 0) || 0,
+          nr_cells: Number(site.nr_cells ?? site.nb_nr ?? 0) || 0,
         }))
         .filter((site: BboxSiteDTO) => Number.isFinite(site.lat) && Number.isFinite(site.lng));
 
@@ -470,9 +474,18 @@ export const topoApi = {
             plaque: row.plaque || null,
             dor: row.dor || null,
             region: row.region || null,
+            lte_cells: 0,
+            nr_cells: 0,
           });
         }
-        siteMap.get(key)!.nb_cells += 1;
+        const entry = siteMap.get(key)!;
+        entry.nb_cells += 1;
+        const cellTech = String(row.techno || '').toUpperCase();
+        if (cellTech.includes('5G') || cellTech.includes('NR')) {
+          entry.nr_cells = (entry.nr_cells || 0) + 1;
+        } else {
+          entry.lte_cells = (entry.lte_cells || 0) + 1;
+        }
       }
 
       const sites = Array.from(siteMap.values());
