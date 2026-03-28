@@ -1847,9 +1847,15 @@ function classifyAgent(query: string): AgentId {
 }
 
 function classifyIntent(query: string, scope: Scope): Intent {
+  if (extractParamName(query) || isParmyQuery(query) || isParameterFocusedQuery(query)) {
+    return "param_audit";
+  }
+  if (isChangeHistoryQuery(query)) {
+    return "trace_change";
+  }
   // ═══════════════════════════════════════════════════════════
-  // CHEMIN 2 FORCÉ: Toutes les requêtes passent par deep_investigation
-  // L'Agent Layer (:1000) orchestre les 5 agents en parallèle
+  // CHEMIN 2 FORCÉ: le reste passe par deep_investigation
+  // L'Agent Layer (:1000) orchestre les agents en parallèle
   // ═══════════════════════════════════════════════════════════
   return "deep_investigation";
 }
