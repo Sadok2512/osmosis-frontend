@@ -865,8 +865,10 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
               })}
             </div>
           </div>
-          
 
+          {/* ── Filter Wizard ── */}
+          {filterStep !== 'idle' && (
+            <div className="space-y-3">
               {/* QOE Branch — Step 2: Pick KPI */}
               {filterStep === 'pick_kpi' && (
                 <div className="border border-border rounded-xl bg-card p-3 space-y-2">
