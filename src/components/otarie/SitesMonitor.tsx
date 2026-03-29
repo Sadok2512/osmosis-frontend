@@ -4458,6 +4458,39 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           }
 
+          /* ── Cap check: sites beyond sector limit render as simple dots ── */
+          if (!sectorAllowedIds.has(site.site_id)) {
+            const { has4G: d4G, has5G: d5G } = inferSiteTechState(site);
+            const dotColor = d5G ? (bandColors['5G_GROUP'] || '#22c55e') : d4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
+            const dotR = isHovered || isSelectedSite ? 6 : 4;
+            return (
+              <CircleMarker
+                key={site.site_id}
+                center={site.coordinates}
+                radius={dotR}
+                pane={d5G ? 'pane5G' : 'pane4G'}
+                pathOptions={{
+                  color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
+                  fillColor: dotColor,
+                  fillOpacity: 0.85,
+                  weight: isSelectedSite ? 2 : (isHovered ? 2 : 1),
+                }}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Popup>
+                  <div className="p-1">
+                    <div className="font-bold text-sm">{site.site_name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          }
+
           /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
           if (!site.cells || site.cells.length === 0) {
             const { has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
