@@ -697,7 +697,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 </button>
               </span>
             ))}
-            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} />
+            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} filterDimensions={filterDimensions} />
           </div>
 
           {/* Row C: KPI chips */}
