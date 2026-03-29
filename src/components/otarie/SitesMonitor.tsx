@@ -14,6 +14,7 @@ import 'leaflet.heat';
 import { useTerrainProfile } from '@/hooks/useTerrainProfile';
 import { useFresnel } from '@/hooks/useFresnel';
 import { haversineDistance, LatLng } from '@/utils/geodesicUtils';
+import { is5GTech, is4GTech, getCellTechGroup, normalizeSiteKey, resolveCanonicalSiteId, stableCellKey, computeMapAggregation } from '@/utils/telecomHelpers';
 import ProfileChart from './radio-profile/ProfileChart';
 import InfoPanel from './radio-profile/InfoPanel';
 import { Switch } from '@/components/ui/switch';
@@ -144,15 +145,7 @@ const EMPTY_TOPO_NETWORK_STATS: TopoNetworkStats = {
   vendorMap: {},
 };
 
-const is5GTech = (techno?: string | null) => {
-  const tech = String(techno || '').toUpperCase();
-  return tech.includes('5G') || tech.includes('NR');
-};
-
-const is4GTech = (techno?: string | null) => {
-  const tech = String(techno || '').toUpperCase();
-  return !is5GTech(tech) && (tech.includes('4G') || tech.includes('LTE'));
-};
+// is5GTech, is4GTech, getCellTechGroup are now imported from @/utils/telecomHelpers
 
 const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
   const stats: TopoNetworkStats = {
@@ -300,11 +293,7 @@ const inferSiteTechState = (site: SiteSummary) => {
   return { has4G, has5G };
 };
 
-const getCellTechGroup = (techno?: string | null): '4G' | '5G' | null => {
-  if (is5GTech(techno)) return '5G';
-  if (is4GTech(techno)) return '4G';
-  return null;
-};
+// getCellTechGroup is now imported from @/utils/telecomHelpers
 
 const getValidSectorAzimuths = (site: SiteSummary): number[] => {
   const azimuths = new Set<number>();
@@ -3795,8 +3784,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             ...site,
             cells,
             cell_count: cells.length || site.cell_count,
-            lte_cells: cells.filter((c: any) => c.techno === '4G' || c.techno === 'LTE').length,
-            nr_cells: cells.filter((c: any) => c.techno === '5G' || c.techno === 'NR').length,
+            lte_cells: cells.filter((c: any) => is4GTech(c.techno)).length,
+            nr_cells: cells.filter((c: any) => is5GTech(c.techno)).length,
           };
           // Update in searchModeSites or sites
           setSearchModeSites(prev => prev.map(s => s.site_id === siteWithCells.site_id ? siteWithCells : s));

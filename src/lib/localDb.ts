@@ -839,10 +839,15 @@ export const qoeMapApi = {
       // Transform array of rows into { sites: {siteName: data}, date, dimension } format
       const rows = Array.isArray(data) ? data : (data.rows || data.data || []);
       const sites: Record<string, QoeMapSiteData> = {};
+      // Bug #9: Normalize site keys for reliable QoE matching
+      const normKey = (v: string | null | undefined) => String(v || '').trim().toUpperCase().replace(/[_\s\-]+/g, '');
       for (const row of rows) {
-        const key = row.Dimension_2 || row.dimension_2 || row.site_name || row.nom_site;
-        if (!key) continue;
-        sites[key] = {
+        const rawKey = row.Dimension_2 || row.dimension_2 || row.site_name || row.nom_site || row.code_nidt;
+        if (!rawKey) continue;
+        const key = normKey(rawKey);
+        // Also store under original key for backward compat
+        const originalKey = String(rawKey).trim();
+        const siteData: QoeMapSiteData = {
           qoe_index: row.qoe_index ?? null,
           debit_dl: row.debit_dl ?? null,
           debit_ul: row.debit_ul ?? null,
@@ -860,6 +865,9 @@ export const qoeMapApi = {
           volume_dl: row.volume_totale_dl ?? row.volume_dl ?? null,
           volume_ul: row.volume_totale_ul ?? row.volume_ul ?? null,
         };
+        // Store under both normalized and original keys for matching
+        sites[key] = siteData;
+        if (originalKey !== key) sites[originalKey] = siteData;
       }
       return { sites, date: date || null, dimension: dimension || 'Site' } as QoeMapResponse;
     });

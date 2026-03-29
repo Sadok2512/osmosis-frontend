@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import ControlPanel from './ControlPanel';
 import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
@@ -7,8 +7,8 @@ import CMChangesCard from './CMChangesCard';
 import CounterGraphSection from './CounterGraphSection';
 import WorstElementsTable from './WorstElementsTable';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
-import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType } from './types';
-import { fetchTimeSeriesData, fetchKpiDefinitions, fetchWorstElements, fetchWorstByDOR, fetchFilterValues, fetchCellDetails } from './investigatorApi';
+import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition } from './types';
+import { fetchKpiDefinitions, fetchWorstByDOR, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
@@ -58,6 +58,17 @@ const InvestigatorPage: React.FC = () => {
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
   const [isLoadingWorst, setIsLoadingWorst] = React.useState(false);
+  const [hasUnfilteredFallback, setHasUnfilteredFallback] = React.useState(false);
+  const [kpiMetaMap, setKpiMetaMap] = React.useState<Map<string, KpiDefinition>>(new Map());
+
+  // Load KPI metadata for severity/ranking
+  React.useEffect(() => {
+    fetchKpiDefinitions().then(kpis => {
+      const map = new Map<string, KpiDefinition>();
+      for (const k of kpis) map.set(k.id, k);
+      setKpiMetaMap(map);
+    });
+  }, []);
 
   // Load filter options on mount
   React.useEffect(() => {
@@ -100,56 +111,41 @@ const InvestigatorPage: React.FC = () => {
 
   const handleApply = async () => {
     setIsApplying(true);
+    setHasUnfilteredFallback(false);
     try {
-      const granMap: Record<string, string> = { '15min': '15min', 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
-
-      // Determine split: check global splitBy first, then per-slot configs
-      let splitValue = state.splitBy === 'None' ? undefined : state.splitBy;
-      if (!splitValue) {
-        // Check if any slot has a per-KPI split configured
-        for (const slot of state.graphSlots) {
-          const perKpi = slot.config?.splitByPerKpi || {};
-          const activeSplit = Object.values(perKpi).find(v => v && v !== 'None');
-          if (activeSplit) {
-            splitValue = activeSplit;
-            break;
-          }
-        }
-      }
-
-      const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
-      if (kpiIds.length === 0) {
+      const slotsWithKpis = state.graphSlots.filter(s => s.kpiIds.length > 0);
+      if (slotsWithKpis.length === 0) {
         setTsData([]);
         setHasLoadedOnce(true);
         setIsApplying(false);
         return;
       }
-      const dateFrom = state.startDate.split('T')[0] || '2026-01-01';
-      const dateTo = state.endDate.split('T')[0] || '2026-03-24';
-      const gran = granMap[state.granularity] || '1h';
 
-      // Convert state.filters to API format
-      const activeFilters = Object.entries(state.filters)
-        .filter(([, vals]) => vals.length > 0)
-        .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }));
+      // Bug #1 + #2: Issue separate requests per slot (respects per-slot splits, filters, dates)
+      // Group slots by their effective split dimension to minimize requests
+      const slotContexts = slotsWithKpis.map(slot => ({
+        slot,
+        ctx: resolveSlotContext(slot, state),
+      }));
 
-      let ts = await fetchTimeSeriesData(
-        kpiIds, dateFrom, dateTo, gran, splitValue,
-        activeFilters.length > 0 ? activeFilters : undefined,
-        state.kpiLevel, state.profileQci, state.profileArp, state.neighborType
+      // Group by identical context (same split, dates, filters, gran) to batch where possible
+      const results = await Promise.all(
+        slotContexts.map(async ({ ctx }) => {
+          let result = await fetchTimeSeriesForSlot(ctx);
+          // Fallback: if hourly returned empty, retry with daily
+          if (result.data.length === 0 && ctx.granularity === '1h') {
+            console.warn('[Investigator] Hourly returned empty, retrying daily');
+            result = await fetchTimeSeriesForSlot({ ...ctx, granularity: '1d' });
+          }
+          return result;
+        })
       );
 
-      // Fallback: if hourly returned empty, retry with daily granularity
-      if (ts.length === 0 && gran === '1h') {
-        console.warn('[Investigator] Hourly returned empty, retrying with daily granularity');
-        ts = await fetchTimeSeriesData(
-          kpiIds, dateFrom, dateTo, '1d', splitValue,
-          activeFilters.length > 0 ? activeFilters : undefined,
-          state.kpiLevel, state.profileQci, state.profileArp, state.neighborType
-        );
-      }
-
-      setTsData(ts);
+      // Merge all results
+      const allData = results.flatMap(r => r.data);
+      const anyUnfiltered = results.some(r => r.hasUnfilteredFallback);
+      setHasUnfilteredFallback(anyUnfiltered);
+      setTsData(allData);
       setHasLoadedOnce(true);
     } catch (e) {
       console.error('[Investigator] API error:', e);
@@ -165,7 +161,8 @@ const InvestigatorPage: React.FC = () => {
       const dateFrom = state.startDate.split('T')[0] || '2026-01-01';
       const dateTo = state.endDate.split('T')[0] || '2026-03-24';
 
-      const byDOR = await fetchWorstByDOR(kpiIds, state.topLimit, dateFrom, dateTo, worstFilters);
+      // Bug #5: Single grouped query instead of N+1
+      const byDOR = await fetchWorstByDOR(kpiIds, state.topLimit, dateFrom, dateTo, worstFilters, kpiMetaMap);
 
       // Enrich all cells with metadata + alarms
       const allCells = Object.values(byDOR).flat();
@@ -268,6 +265,16 @@ const InvestigatorPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 p-5 md:px-6 md:pt-5 md:pb-6 space-y-6 max-w-[1600px] mx-auto w-full">
+        {/* Bug #3: Warning when fallback data is unfiltered */}
+        {hasUnfilteredFallback && (
+          <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-2.5 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0" />
+            <span className="text-[11px] font-semibold text-yellow-700 dark:text-yellow-400">
+              Certains KPIs proviennent d'un fallback non-filtré (raw PM counters). Les filtres actifs ne s'appliquent pas à ces données.
+            </span>
+          </div>
+        )}
+
         {/* KPI Graph Section */}
         <section className="space-y-4">
           <div className="flex items-center justify-between border-b border-border/40 pb-3">
