@@ -8574,7 +8574,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   if (neighborCellId !== focusCellId) {
                     const nearbySitesForNeighbors = sites
                       .filter(s => s.site_id !== siteDetail?.site_id && s.cells.length > 0)
-                      .slice(0, 8);
+                      .slice(0, 15);
                     const mockNeighbors = generateMockNeighbors(
                       focusCellId!,
                       siteDetail?.coordinates || [0, 0],
