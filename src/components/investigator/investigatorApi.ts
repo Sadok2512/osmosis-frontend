@@ -152,8 +152,11 @@ export function resolveSlotContext(
   },
 ): SlotRequestContext {
   // Slot-level overrides (use slot values if non-empty, otherwise global)
-  const dateFrom = (slot.startDate || globalState.startDate || '2026-01-01').split('T')[0];
-  const dateTo = (slot.endDate || globalState.endDate || '2026-03-24').split('T')[0];
+  // Ensure empty-string slot dates don't skip the global date; trim whitespace too
+  const rawFrom = (slot.startDate && slot.startDate.trim()) || (globalState.startDate && globalState.startDate.trim()) || '2026-03-22';
+  const rawTo = (slot.endDate && slot.endDate.trim()) || (globalState.endDate && globalState.endDate.trim()) || '2026-03-22';
+  const dateFrom = rawFrom.split('T')[0];
+  const dateTo = rawTo.split('T')[0];
   const gran = GRAN_MAP[slot.granularity || globalState.granularity] || '1h';
 
   // Split: use slot-level splitBy, fall back to per-KPI split, then global
@@ -467,6 +470,19 @@ export async function fetchWorstByDOR(
   // Fallback: single non-DOR query
   const all = await fetchWorstElements(kpiIds, limit, dateFrom, dateTo, filters, kpiMetas);
   return { 'ALL': all };
+}
+
+// ── Fetch KPIs that have data for a given filter (e.g. SITE=xxx) ──
+export async function fetchKpisWithData(dimension: string, value: string): Promise<Set<string>> {
+  const url = getApiUrl(`monitor/catalog/kpis-with-data?dimension=${encodeURIComponent(dimension)}&value=${encodeURIComponent(value)}`);
+  try {
+    const res = await fetch(url, { headers: getApiHeaders() });
+    if (!res.ok) return new Set();
+    const data = await res.json();
+    return new Set((data || []).map((k: any) => k.kpi_key));
+  } catch {
+    return new Set();
+  }
 }
 
 // ── Fetch filter values for a dimension ──

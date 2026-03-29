@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, KpiLevel } from './types';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
-import { fetchKpiDefinitions } from './investigatorApi';
+import { fetchKpiDefinitions, fetchKpisWithData } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -46,6 +46,7 @@ const PERIODS = [
   { label: '90j', days: 90 },
 ];
 const GRANULARITIES: { value: Granularity; label: string }[] = [
+  { value: '15min', label: '15 min' },
   { value: 'Hourly', label: 'Horaire' },
   { value: 'Daily', label: 'Jour' },
   { value: 'Weekly', label: 'Semaine' },
@@ -303,6 +304,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [kpiDefs, setKpiDefs] = useState<KpiDefinition[]>(FALLBACK_KPIS);
   const [selectorOpen, setSelectorOpen] = useState<string | null>(null);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
+  const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
 
   // Load split dimensions from backend
   useEffect(() => {
@@ -344,6 +346,29 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     }).catch(() => {});
     fetchKpiDefinitions().then(k => { if (k.length > 0) setKpiDefs(k); }).catch(() => {});
   }, []);
+
+  // Load KPIs with data when Site/Cell filter is active
+  useEffect(() => {
+    const siteVals = state.filters['Site'] || [];
+    const cellVals = state.filters['Cell'] || [];
+    if (siteVals.length === 1) {
+      fetchKpisWithData('SITE', siteVals[0]).then(setKpisWithData);
+    } else if (cellVals.length === 1) {
+      fetchKpisWithData('CELL', cellVals[0]).then(setKpisWithData);
+    } else {
+      setKpisWithData(null);
+    }
+  }, [state.filters]);
+
+  // Sort catalog: KPIs with data first
+  const sortedCatalog = useMemo(() => {
+    if (!kpisWithData || kpisWithData.size === 0) return catalog;
+    return [...catalog].sort((a, b) => {
+      const aHas = kpisWithData.has(a.kpi_key) ? 0 : 1;
+      const bHas = kpisWithData.has(b.kpi_key) ? 0 : 1;
+      return aHas - bHas;
+    });
+  }, [catalog, kpisWithData]);
 
   const applyPeriod = (days: number) => {
     const end = new Date();
@@ -514,13 +539,22 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             <div className="flex-1" />
 
             {/* Apply button */}
-            <Button onClick={onApply} size="sm" className="h-8 px-6 text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm">
+            <Button
+              onClick={onApply}
+              size="sm"
+              disabled={!Object.values(state.filters).some(v => v.length > 0) || isApplying}
+              className="h-8 px-6 text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               {isApplying ? (
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                   <span>Chargement...</span>
                 </div>
-              ) : 'Appliquer'}
+              ) : !Object.values(state.filters).some(v => v.length > 0)
+                ? 'Ajouter un filtre'
+                : state.graphSlots.some(s => s.kpiIds.length > 0)
+                  ? 'Appliquer'
+                  : 'Appliquer (ajoutez des KPIs)'}
             </Button>
           </div>
         </div>
@@ -853,15 +887,13 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 );
               });
             })}
-            {state.graphSlots.length > 0 && activeSlotId && (
-              <button
-                onClick={() => setSelectorOpen(activeSlotId)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors"
-              >
-                <Plus className="w-3 h-3" />
-                Add KPI
-              </button>
-            )}
+            <button
+              onClick={() => setSelectorOpen(activeSlotId || 'new')}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Add KPI
+            </button>
           </div>
 
         </div>
@@ -872,7 +904,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         <KpiSelectorModal
           open={!!selectorOpen}
           onClose={handleSelectorClose}
-          catalog={catalog}
+          catalog={sortedCatalog}
+          kpisWithData={kpisWithData}
           selectedKeys={selectorOpen && selectorOpen !== 'new'
             ? (state.graphSlots.find(s => s.id === selectorOpen)?.kpiIds || [])
             : []}

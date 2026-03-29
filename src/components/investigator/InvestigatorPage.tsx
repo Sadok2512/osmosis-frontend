@@ -48,6 +48,7 @@ const InvestigatorPage: React.FC = () => {
   } = useInvestigatorStore();
 
   const [isApplying, setIsApplying] = React.useState(false);
+  const [applyError, setApplyError] = React.useState<string | null>(null);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [counterSelectorOpen, setCounterSelectorOpen] = React.useState(false);
   const [counterCatalog, setCounterCatalog] = React.useState<{counter_name:string;display_name:string;family:string;vendor:string;techno:string;object_type:string;count:number}[]>([]);
@@ -90,36 +91,25 @@ const InvestigatorPage: React.FC = () => {
     }
   }, [state.graphSlots, activeSlotId]);
 
-  // Auto-load default KPIs on first visit (no KPIs selected yet)
-  useEffect(() => {
-    if (state.graphSlots.length === 0 || state.graphSlots.every(s => s.kpiIds.length === 0)) {
-      fetchKpiDefinitions().then(kpis => {
-        if (kpis.length === 0) return;
-        // Pick first 3 KPIs as defaults
-        const defaultKpis = kpis.slice(0, 3).map(k => k.id);
-        const slot = createSlot(1, defaultKpis);
-        setState(prev => ({
-          ...prev,
-          graphSlots: [slot],
-        }));
-        setActiveSlotId(slot.id);
-      }).catch(err => {
-        console.warn('[Investigator] Failed to load default KPIs:', err);
-      });
-    }
-  }, []);
+  // No auto-load — user must add filters + KPIs then click Appliquer
+
+  const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
 
   const handleApply = async () => {
+    // Require at least one dimension filter (Site, Cell, etc.)
+    if (!hasFilters) return;
+
+    // Require at least one KPI in a graph slot
+    const slotsWithKpis = state.graphSlots.filter(s => s.kpiIds.length > 0);
+    if (slotsWithKpis.length === 0) {
+      setApplyError('Veuillez ajouter au moins un KPI dans un graphe avant de lancer la requête.');
+      return;
+    }
+
+    setApplyError(null);
     setIsApplying(true);
     setHasUnfilteredFallback(false);
     try {
-      const slotsWithKpis = state.graphSlots.filter(s => s.kpiIds.length > 0);
-      if (slotsWithKpis.length === 0) {
-        setTsData([]);
-        setHasLoadedOnce(true);
-        setIsApplying(false);
-        return;
-      }
 
       // Bug #1 + #2: Issue separate requests per slot (respects per-slot splits, filters, dates)
       // Group slots by their effective split dimension to minimize requests
@@ -224,18 +214,7 @@ const InvestigatorPage: React.FC = () => {
     });
   };
 
-  // Auto-apply when graphSlots KPIs or split config changes
-  const slotSplitKey = state.graphSlots.map(s => {
-    const splits = Object.values(s.config?.splitByPerKpi || {}).join(',');
-    return `${s.kpiIds.join(',')}:${splits}`;
-  }).join('|');
-
-  useEffect(() => {
-    const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
-    if (kpiIds.length > 0) {
-      handleApply();
-    }
-  }, [slotSplitKey, state.splitBy, state.kpiLevel, state.profileQci, state.profileArp, state.neighborType, JSON.stringify(state.filters)]);
+  // Manual apply only — user must click "Appliquer" to load data
 
   const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig>) => {
     setState(prev => ({
@@ -265,6 +244,19 @@ const InvestigatorPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 p-5 md:px-6 md:pt-5 md:pb-6 space-y-6 max-w-[1600px] mx-auto w-full">
+        {/* Error toast when no KPIs selected */}
+        {applyError && (
+          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+            <span className="text-[11px] font-semibold text-red-700 dark:text-red-400 flex-1">
+              {applyError}
+            </span>
+            <button onClick={() => setApplyError(null)} className="text-red-600 hover:text-red-800 dark:hover:text-red-300">
+              <span className="text-xs font-bold">✕</span>
+            </button>
+          </div>
+        )}
+
         {/* Bug #3: Warning when fallback data is unfiltered */}
         {hasUnfilteredFallback && (
           <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-2.5 flex items-center gap-2">

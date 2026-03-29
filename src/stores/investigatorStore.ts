@@ -22,7 +22,7 @@ const INITIAL_STATE: InvestigationState = {
   splitBy: 'None',
   startDate,
   endDate,
-  granularity: 'Hourly',
+  granularity: '15min',
   filters: {},
   topLimit: 10,
   sortBy: null as unknown as string, // typed as string in interface, null semantically
