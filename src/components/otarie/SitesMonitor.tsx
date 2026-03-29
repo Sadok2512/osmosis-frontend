@@ -4036,8 +4036,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   };
 
   /** Robust cell lookup: exact match → trimmed match → case-insensitive → includes fallback */
-  const resolveCellFromDetail = useCallback((detail: SiteDetail, cellId: string): CellProperties | null => {
-    if (!detail?.cells?.length || !cellId) return undefined;
+  const resolveCellFromDetail = useCallback((detail: SiteDetail, cellId: string) => {
+    if (!detail?.cells?.length || !cellId) return undefined as CellProperties | undefined;
     // 1. Exact match
     let found = detail.cells.find(c => c.cell_id === cellId);
     if (found) return found;
