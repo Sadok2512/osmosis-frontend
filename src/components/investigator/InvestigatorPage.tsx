@@ -108,6 +108,7 @@ const InvestigatorPage: React.FC = () => {
 
     setApplyError(null);
     setIsApplying(true);
+    setTsData([]);  // Clear old data before fetching new
     setHasUnfilteredFallback(false);
     try {
 
