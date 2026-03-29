@@ -44,7 +44,7 @@ export function buildColorMap(values: string[]): Record<string, string> {
 
 /** Extract dimension value from a site object */
 export function getSiteDimensionValue(
-  site: { vendor?: string; dor?: string; plaque?: string; cells?: any[]; technos?: string[] },
+  site: { vendor?: string; dor?: string; plaque?: string; cells?: any[]; technos?: string[]; nr_cells?: number; lte_cells?: number },
   mode: ColorViewMode
 ): string {
   switch (mode) {
@@ -55,11 +55,12 @@ export function getSiteDimensionValue(
     case 'plaque':
       return site.plaque || 'Inconnu';
     case 'tech': {
-      const technos = site.technos || [];
       const cells = site.cells || [];
-      const has5G = technos.some((t: string) => t?.toUpperCase().includes('5G') || t?.toUpperCase().startsWith('NR'))
+      const nr = site.nr_cells ?? 0;
+      const lte = site.lte_cells ?? 0;
+      const has5G = nr > 0
         || cells.some((c: any) => c.techno?.toUpperCase().includes('5G') || c.techno?.toUpperCase().startsWith('NR'));
-      const has4G = technos.some((t: string) => t?.toUpperCase().includes('4G') || t?.toUpperCase().startsWith('LTE'))
+      const has4G = lte > 0
         || cells.some((c: any) => c.techno?.toUpperCase().includes('4G') || c.techno?.toUpperCase().startsWith('LTE'));
       if (has5G && has4G) return 'Mixte 4G+5G';
       if (has5G) return '5G';
