@@ -901,7 +901,7 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
       return buildCellProperties(
         cellName,
         (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
-        r.bande || '',
+        r.bande || inferBandFromCellName(cellName, r.techno || '4G'),
         azimut,
         r.hba || 30,
         r,
