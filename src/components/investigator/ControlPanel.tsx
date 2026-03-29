@@ -165,7 +165,8 @@ const KpiDropdown: React.FC<{ selected: string[]; onChange: (ids: string[]) => v
 const AddFilterDropdown: React.FC<{
   existingKeys: string[];
   onAdd: (dim: string, val: string) => void;
-}> = ({ existingKeys, onAdd }) => {
+  filterDimensions: string[];
+}> = ({ existingKeys, onAdd, filterDimensions }) => {
   const [open, setOpen] = useState(false);
   const [selectedDim, setSelectedDim] = useState<string | null>(null);
 
