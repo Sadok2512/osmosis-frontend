@@ -2436,7 +2436,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
   const [expandedSectors, setExpandedSectors] = useState<Set<number>>(new Set());
-  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim' | 'config' | 'alarms' | 'cm'>('kpi');
+  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim' | 'config' | 'alarms' | 'cm' | 'neighbors'>('kpi');
 
   // Alarms and CM History
   const [siteAlarms, setSiteAlarms] = useState<any[]>([]);
