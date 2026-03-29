@@ -8552,7 +8552,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 )}
 
                 {/* ── Neighbors Tab ── */}
-                {(cellDetailTab as string) === 'neighbors' && (() => {
+                {cellDetailTab === 'neighbors' && (() => {
                   // Generate mock neighbors on first access
                   if (neighborCellId !== focusCellId) {
                     const nearbySitesForNeighbors = sites
