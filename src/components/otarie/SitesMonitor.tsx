@@ -5195,6 +5195,48 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
+      {/* ── Link Terrain Profile Panel ── */}
+      {showLinkProfile && linkProfileAnalysis && !linkProfileLoading && (
+        <div
+          className="absolute bottom-4 left-4 right-4 z-[1001] overflow-hidden pointer-events-auto max-h-[40%] flex flex-col animate-fade-in"
+          style={{
+            background: 'rgba(15,23,42,0.55)',
+            backdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 24,
+            boxShadow: '0 12px 48px rgba(0,0,0,0.3)',
+          }}
+        >
+          <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/15 flex items-center justify-center">
+                <Network size={16} className="text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-white tracking-tight">{linkProfileLabel}</h3>
+                <p className="text-[10px] text-white/40">Profil terrain du lien</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setShowLinkProfile(false); setSelectedLinkId(null); }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 pb-4">
+            <div className="h-[200px]">
+              <ProfileChart
+                profilePoints={linkProfilePoints}
+                analysis={linkProfileAnalysis}
+                fresnelData={null}
+                totalDistance={linkProfileAnalysis ? linkProfilePoints[linkProfilePoints.length - 1]?.distance ?? 0 : 0}
+                isLoading={linkProfileLoading}
+              />
+            </div>
+          </div>
+        </div>
+
       {/* Floating worst cells panel */}
       {highlightedCellData.length > 0 && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto">
