@@ -4094,7 +4094,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           const isTagged = isSiteTagged(site.site_id);
-          const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor);
+          const showMiniSectors = ((showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor)) && sectorAllowedIds.has(site.site_id);
 
           if (isIndoor) {
             const iconSize = viewport.zoom >= 10 ? 20 : 14;
@@ -4260,7 +4260,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
             if (isIndoor) return false;
             const isTagged = isSiteTagged(site.site_id);
-            const showMini = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor);
+            const showMini = ((showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor)) && sectorAllowedIds.has(site.site_id);
             return !showMini;
           });
 
