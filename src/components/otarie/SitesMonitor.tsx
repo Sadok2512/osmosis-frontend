@@ -6835,6 +6835,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     } else {
                       setActiveViewFilters([]);
                     }
+                    // Apply advanced view conditions
+                    if (Array.isArray(settings.viewConditions)) {
+                      setActiveViewConditions(settings.viewConditions);
+                    } else {
+                      setActiveViewConditions([]);
+                    }
                     // Apply map label fields
                     if (Array.isArray(settings.mapLabelFields)) {
                       setMapLabelFields(new Set(settings.mapLabelFields));
