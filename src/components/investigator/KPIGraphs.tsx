@@ -61,28 +61,12 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
 
 const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
 
-/** Wrapper that uses replaceMerge so legend pagination state is preserved */
+/** Wrapper — full replace on every update so legend stays in sync */
 const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }) => {
-  const chartRef = useRef<any>(null);
-  const initializedRef = useRef(false);
-
-  useEffect(() => {
-    const instance = chartRef.current?.getEchartsInstance?.();
-    if (instance) {
-      if (!initializedRef.current) {
-        instance.setOption(option, true); // notMerge on first render
-        initializedRef.current = true;
-      } else {
-        instance.setOption(option, { replaceMerge: ['series', 'yAxis'] });
-      }
-    }
-  }, [option]);
-
   return (
     <ReactECharts
-      ref={chartRef}
       option={option}
-      notMerge={false}
+      notMerge={true}
       lazyUpdate={false}
       style={{ height }}
     />
@@ -581,7 +565,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const getYAxisIndex = (kpiId: string) => yAxisAssignments[kpiId] === 1 ? 1 : 0;
 
         const option = {
-          animation: true,
+          animation: false,
           grid: {
             top: 32,
             right: hasRightAxis ? 62 : 28,
@@ -642,7 +626,18 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             axisLabel: {
               formatter: (v: string) => {
                 const d = new Date(v);
-                return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+                // Detect single-day: if first and last timestamp are same day
+                const first = new Date(allTimestamps[0]);
+                const last = new Date(allTimestamps[allTimestamps.length - 1]);
+                const sameDay = first.toDateString() === last.toDateString();
+                const spanDays = (last.getTime() - first.getTime()) / 86400000;
+                if (sameDay || spanDays <= 1) {
+                  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                } else if (spanDays <= 7) {
+                  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit' }) + '\n' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                } else {
+                  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+                }
               },
               fontSize: 10.5,
               color: '#a1a1aa',
