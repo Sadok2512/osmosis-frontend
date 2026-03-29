@@ -3635,9 +3635,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const prevZoom = viewport.zoom;
     // handleViewportChange already calls setViewport
     handleViewportChange(v);
-    if (!dashboardActive) {
-      handleViewportForFetch(v);
-    }
+    // Don't fetch sites without an active dashboard
+    // (previously this called handleViewportForFetch, loading sites via bbox even with no dashboard)
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
