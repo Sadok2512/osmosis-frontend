@@ -8511,6 +8511,109 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 )}
 
+                {/* ── Neighbors Tab ── */}
+                {(cellDetailTab as string) === 'neighbors' && (() => {
+                  // Generate mock neighbors on first access
+                  if (neighborCellId !== focusCellId) {
+                    const nearbySitesForNeighbors = sites
+                      .filter(s => s.site_id !== siteDetail?.site_id && s.cells.length > 0)
+                      .slice(0, 8);
+                    const mockNeighbors = generateMockNeighbors(
+                      focusCellId!,
+                      siteDetail?.coordinates || [0, 0],
+                      nearbySitesForNeighbors,
+                    );
+                    setTimeout(() => {
+                      setNeighborCellId(focusCellId);
+                      setNeighborData(mockNeighbors);
+                      setShowNeighborPanel(true);
+                    }, 0);
+                  }
+                  const filtered = neighborData.filter(n => n.relationDirection === neighborDirection);
+                  const countByType: Record<NeighborRelationType, number> = { intra_freq: 0, inter_freq: 0, inter_system: 0 };
+                  filtered.forEach(n => { countByType[n.relationType] = (countByType[n.relationType] || 0) + 1; });
+                  return (
+                    <div className="px-5 py-4 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Network size={14} className="text-primary" />
+                        <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Voisins</h4>
+                        <span className="text-[10px] text-muted-foreground ml-auto">{filtered.length} relations</span>
+                      </div>
+
+                      {/* Direction toggle */}
+                      <div className="flex gap-2">
+                        {(['out', 'in'] as NeighborDirection[]).map(dir => (
+                          <button
+                            key={dir}
+                            onClick={() => setNeighborDirection(dir)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${
+                              neighborDirection === dir
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'bg-muted text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {dir === 'out' ? <ArrowRight size={12} /> : <ChevronLeft size={12} />}
+                            {dir === 'out' ? 'Sortant' : 'Entrant'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Legend */}
+                      <div className="flex items-center gap-4 flex-wrap">
+                        {(Object.entries(NEIGHBOR_LABELS) as [NeighborRelationType, string][]).map(([type, label]) => (
+                          <div key={type} className="flex items-center gap-1.5">
+                            <span className="w-3 h-3 rounded-full shrink-0" style={{ background: NEIGHBOR_COLORS[type] }} />
+                            <span className="text-[10px] font-bold text-muted-foreground">{label}</span>
+                            <span className="text-[9px] text-muted-foreground/60">({countByType[type]})</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Neighbor list */}
+                      {filtered.length === 0 ? (
+                        <div className="text-center py-6 text-muted-foreground text-[11px]">Aucun voisin {neighborDirection === 'out' ? 'sortant' : 'entrant'}</div>
+                      ) : (
+                        <div className="rounded-xl border border-border overflow-hidden">
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="bg-muted/40 border-b border-border">
+                                <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
+                                <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Type</th>
+                                <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
+                                <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filtered.map((n, i) => (
+                                <tr key={i} className="border-b border-border/30 last:border-0 hover:bg-muted/30">
+                                  <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: NEIGHBOR_COLORS[n.relationType] }} />
+                                      {n.targetCellId}
+                                    </div>
+                                    <div className="text-[9px] text-muted-foreground font-normal">{n.targetSiteName}</div>
+                                  </td>
+                                  <td className="px-2 py-2 text-center">
+                                    <span className="text-[9px] font-bold" style={{ color: NEIGHBOR_COLORS[n.relationType] }}>
+                                      {n.relationType === 'intra_freq' ? 'INTRA' : n.relationType === 'inter_freq' ? 'INTER' : 'INTER-SYS'}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-2 text-center">
+                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${n.targetTechno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
+                                      {n.targetTechno}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-2 text-center text-muted-foreground font-semibold">{n.targetBande}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div className="px-4 py-2.5">
                   <button
                     onClick={handleBackToSite}
