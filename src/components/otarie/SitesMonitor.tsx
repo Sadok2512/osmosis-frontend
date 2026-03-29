@@ -3258,8 +3258,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       } catch (err) {
         if (!cancelled) {
           console.warn('[SitesMonitor] dashboard site load failed', err);
-          setSites([]);
-          setBboxTotal(0);
+          // Don't clear existing sites on error — keep what we have
+          setSites(prev => prev.length > 0 ? prev : []);
         }
       } finally {
         if (!cancelled) {
