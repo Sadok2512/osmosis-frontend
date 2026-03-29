@@ -50,7 +50,9 @@ const AddWidgetMenu: React.FC<{ onAdd: (type: WidgetType) => void }> = ({ onAdd 
 };
 
 const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
-  { value: 'line', label: 'Line', icon: TrendingUp },
+  { value: 'line', label: 'Smooth', icon: TrendingUp },
+  { value: 'line_straight', label: 'Straight', icon: TrendingUp },
+  { value: 'line_points', label: 'Points', icon: CircleDot },
   { value: 'area', label: 'Area', icon: AreaChart },
   { value: 'bar', label: 'Bar', icon: BarChart },
   { value: 'stacked_bar', label: 'Stacked', icon: Layers },
@@ -390,6 +392,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const isStacked = cfg.chartType === 'stacked_bar';
         const seriesType = cfg.chartType === 'scatter' ? 'scatter' : (cfg.chartType === 'bar' || isStacked) ? 'bar' : 'line';
+        const isSmooth = cfg.chartType === 'line' || cfg.chartType === 'area'; // straight/points = not smooth
+        const forceSymbols = cfg.chartType === 'line_points' || cfg.chartType === 'scatter';
 
         let series: any[];
 
@@ -410,9 +414,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 _kpiId: kpiId,
                 type: seriesType as any,
                 data: values,
-                smooth: cfg.smooth,
-                symbol: cfg.showSymbols ? 'circle' : 'none',
-                symbolSize: cfg.showSymbols ? 5 : 0,
+                smooth: isSmooth,
+                symbol: (forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
+                symbolSize: (forceSymbols || cfg.showSymbols) ? 5 : 0,
                 lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
                 itemStyle: { color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
@@ -443,9 +447,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 _kpiId: kpiId,
                 type: seriesType as any,
                 data: values,
-                smooth: cfg.smooth,
-                symbol: cfg.showSymbols ? 'circle' : 'none',
-                symbolSize: cfg.showSymbols ? 5 : 0,
+                smooth: isSmooth,
+                symbol: (forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
+                symbolSize: (forceSymbols || cfg.showSymbols) ? 5 : 0,
                 lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
                 itemStyle: { color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
@@ -475,9 +479,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               _kpiId: kpiId,
               type: seriesType as any,
               data: values,
-              smooth: cfg.smooth,
-              symbol: cfg.showSymbols ? 'circle' : 'none',
-              symbolSize: cfg.showSymbols ? 5 : 0,
+              smooth: isSmooth,
+              symbol: (forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
+              symbolSize: (forceSymbols || cfg.showSymbols) ? 5 : 0,
               lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color: def.color } : undefined,
               itemStyle: { color: def.color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
