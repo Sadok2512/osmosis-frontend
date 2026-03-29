@@ -8093,7 +8093,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               {/* ── Selected Cell Detail (from left panel) ── */}
               {focusCellId && (() => {
-                const cell = resolveCellFromDetail(siteDetail, focusCellId);
+                let cell: CellProperties | undefined;
+                if (siteDetail) cell = resolveCellFromDetail(siteDetail, focusCellId);
+                if (!cell && selectedSiteSnapshot) cell = resolveCellFromDetail(selectedSiteSnapshot as SiteDetail, focusCellId);
+                if (!cell && selectedSiteId) {
+                  const fromSites = sites.find(s => s.site_id === selectedSiteId);
+                  if (fromSites) cell = resolveCellFromDetail(fromSites as SiteDetail, focusCellId);
+                }
                 if (!cell) return null;
                 return (
                   <div className="px-5 py-4 space-y-4">
