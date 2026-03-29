@@ -57,15 +57,33 @@ function useLocal(): boolean {
 }
 
 async function fetchJson<T = any>(fetchUrl: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(fetchUrl, { headers: getHeaders(), ...init });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json();
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const resp = await fetch(fetchUrl, { headers: getHeaders(), ...init });
+    if (resp.status === 503 && attempt < maxRetries) {
+      console.warn(`[localDb] 503 on attempt ${attempt + 1}, retrying in ${300 * (attempt + 1)}ms...`);
+      await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+      continue;
+    }
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.json();
+  }
+  throw new Error('HTTP 503 after retries');
 }
 
 async function fetchJsonSignal<T = any>(fetchUrl: string, signal?: AbortSignal): Promise<T> {
-  const resp = await fetch(fetchUrl, { signal, headers: getHeaders() });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.json();
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const resp = await fetch(fetchUrl, { signal, headers: getHeaders() });
+    if (resp.status === 503 && attempt < maxRetries) {
+      console.warn(`[localDb] 503 on attempt ${attempt + 1}, retrying in ${300 * (attempt + 1)}ms...`);
+      await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+      continue;
+    }
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.json();
+  }
+  throw new Error('HTTP 503 after retries');
 }
 
 // ─── Dashboards — always Cloud (Supabase), never VPS ───
