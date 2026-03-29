@@ -38,6 +38,7 @@ interface Props {
 }
 
 const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
+const FILTER_DIMS_FALLBACK = ['Cell', 'Site', 'Vendor', 'Technology', 'Band', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
 const PERIODS = [
   { label: '24h', days: 1 },
   { label: '7j', days: 7 },
@@ -51,7 +52,7 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: 'Daily', label: 'Jour' },
   { value: 'Weekly', label: 'Semaine' },
 ];
-const FILTER_DIMENSIONS = ['Cell', 'Site', 'Vendor', 'Technology', 'Band', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
+// FILTER_DIMENSIONS now loaded from backend (see filterDimensions state)
 
 // Filter values fetched from backend (KPI Engine first, fallback to Parser PM counters)
 const useBackendFilterValues = (dimension: string): string[] => {
@@ -177,7 +178,7 @@ const AddFilterDropdown: React.FC<{
       </PopoverTrigger>
       <PopoverContent className="min-w-[180px] p-1.5" align="start" sideOffset={4}>
         {!selectedDim ? (
-          FILTER_DIMENSIONS.map(dim => (
+          filterDimensions.map(dim => (
             <button
               key={dim}
               onClick={() => setSelectedDim(dim)}
@@ -304,19 +305,27 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [kpiDefs, setKpiDefs] = useState<KpiDefinition[]>(FALLBACK_KPIS);
   const [selectorOpen, setSelectorOpen] = useState<string | null>(null);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
+  const [filterDimensions, setFilterDimensions] = useState<string[]>(FILTER_DIMS_FALLBACK);
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
 
-  // Load split dimensions from backend
+  // Load split and filter dimensions from backend catalog
   useEffect(() => {
     fetchFilterCatalog().then(filters => {
       if (filters && filters.length > 0) {
-        const opts = filters
-          .filter((f: any) => f.is_active !== false)
+        // Split-by: only aggregatable dimensions
+        const splits = filters
+          .filter((f: any) => f.is_active !== false && f.is_aggregatable)
           .map((f: any) => ({ key: f.dimension_key, label: f.display_name }));
-        setSplitOptions(opts);
+        if (splits.length > 0) setSplitOptions(splits);
+        else setSplitOptions(SPLITS_FALLBACK.filter(s => s !== 'None').map(s => ({ key: s, label: s })));
+
+        // Filter dimensions: only filterable
+        const dims = filters
+          .filter((f: any) => f.is_active !== false && f.is_filterable)
+          .map((f: any) => f.display_name);
+        if (dims.length > 0) setFilterDimensions(dims);
       }
     }).catch(() => {
-      // Fallback to static
       setSplitOptions(SPLITS_FALLBACK.filter(s => s !== 'None').map(s => ({ key: s, label: s })));
     });
   }, []);
