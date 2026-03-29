@@ -4227,11 +4227,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           });
 
-          // Pass 3: unknown tech fallback
-          const passUnknown = circleSites.filter(site => {
+          // Pass 3: unknown tech fallback — hide when a specific techno filter is active
+          const passUnknown = (mapTechnoFilter !== 'ALL' ? [] : circleSites.filter(site => {
             const { has4G, has5G } = inferSiteTechState(site);
             return !has4G && !has5G;
-          }).map(site => {
+          })).map(site => {
             const isHov = hoveredSiteId === site.site_id;
             const isSel = selectedSiteId === site.site_id;
             const br = getRadius(site, isHov, isSel);
@@ -4335,11 +4335,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
           if (!site.cells || site.cells.length === 0) {
             const { has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
+            // Respect techno filter: skip sites that don't match
+            const show4G = fb4G && enabledTechnos.has('4G');
+            const show5G = fb5G && enabledTechnos.has('5G');
+            if (!show4G && !show5G) {
+              // If specific filter active and site doesn't match, skip entirely
+              if (mapTechnoFilter !== 'ALL') return null;
+            }
             const baseR = isHovered || isSelectedSite ? 7 : 5;
-            const fbMixed = fb4G && fb5G;
+            const fbMixed = show4G && show5G;
             return (
               <React.Fragment key={site.site_id}>
-                {fb4G && (
+                {show4G && (
                   <CircleMarker
                     center={site.coordinates}
                     radius={baseR}
@@ -4359,7 +4366,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Tooltip>
                   </CircleMarker>
                 )}
-                {fb5G && (
+                {show5G && (
                   <CircleMarker
                     center={site.coordinates}
                     radius={fbMixed ? Math.round(baseR * 0.65) : baseR}
@@ -4379,7 +4386,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Tooltip>
                   </CircleMarker>
                 )}
-                {!fb4G && !fb5G && (
+                {!show4G && !show5G && mapTechnoFilter === 'ALL' && (
                   <CircleMarker
                     center={site.coordinates}
                     radius={baseR}
