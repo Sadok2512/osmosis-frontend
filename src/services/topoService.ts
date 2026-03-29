@@ -569,7 +569,8 @@ export async function fetchCellsByBbox(
           longitude: c.lng_raw || null,
           zone_arcep: s.zone_arcep || null,
           plaque: s.plaque || c.plaque || null,
-        }));
+        };
+        });
         const site: SiteSummary = {
           site_id: canonicalSiteId,
           site_name: displaySiteName,
