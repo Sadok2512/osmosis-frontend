@@ -3379,16 +3379,31 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Sites filtered by techno (for map rendering only)
   const mapFilteredSites = useMemo(() => {
     if (mapTechnoFilter === 'OFF') return [];
+
+    const siteMatchesTech = (s: SiteSummary, tech: '5G' | '4G'): boolean => {
+      // If cells are loaded, check them
+      if (s.cells.length > 0) {
+        return s.cells.some(c => {
+          const ct = (c.techno || '').toUpperCase();
+          return tech === '5G' ? (ct.includes('5G') || ct.includes('NR')) : (!ct.includes('5G') && !ct.includes('NR'));
+        });
+      }
+      // No cells loaded — use site-level summary fields
+      if (tech === '5G') return (s.nr_cells || 0) > 0 || ((s as any).technos || []).some((t: string) => t?.toUpperCase()?.includes('5G') || t?.toUpperCase()?.includes('NR'));
+      return (s.lte_cells || 0) > 0 || ((s as any).technos || []).some((t: string) => { const u = t?.toUpperCase(); return u && !u.includes('5G') && !u.includes('NR'); });
+    };
+
     if (mapTechnoFilter === 'ALL') {
       if (enabledTechnos.size === 0) return [];
       if (enabledTechnos.size === 2) return filteredSites;
-      // When cells are empty (bbox-loaded), keep the site visible
-      return filteredSites.filter(s => s.cells.length === 0 || s.cells.some(c => {
-        const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
-        return enabledTechnos.has(tech);
-      }));
+      return filteredSites.filter(s => {
+        if (enabledTechnos.has('5G') && siteMatchesTech(s, '5G')) return true;
+        if (enabledTechnos.has('4G') && siteMatchesTech(s, '4G')) return true;
+        return false;
+      });
     }
-    return filteredSites.filter(s => s.cells.length === 0 || s.cells.some(c => c.techno === mapTechnoFilter));
+    const tech = mapTechnoFilter as '5G' | '4G';
+    return filteredSites.filter(s => siteMatchesTech(s, tech));
   }, [filteredSites, mapTechnoFilter, enabledTechnos]);
 
   // Dynamic filter options based on actual data
