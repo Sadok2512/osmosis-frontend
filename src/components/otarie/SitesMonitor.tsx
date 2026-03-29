@@ -3615,7 +3615,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   useEffect(() => {
-    if (displayMode !== 'cells' || !dashboardActive) return;
+    if (displayMode !== 'cells') return;
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
@@ -3650,8 +3650,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         // Fallback: if bulk load returns nothing, load per-site but capped & throttled
         if (cellMap.size === 0 && sitesNeedingCells.length > 0) {
-          const MAX_FALLBACK = 10; // Never fire more than 10 individual requests
-          const CONCURRENCY = 2;
+          const MAX_FALLBACK = 30; // Load up to 30 individual sites
+          const CONCURRENCY = 5;
           const DELAY_MS = 500; // pause between batches
           const queue = sitesNeedingCells.slice(0, MAX_FALLBACK);
 
@@ -3750,7 +3750,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, dashboardActive, viewport.bounds]);
+  }, [displayMode, visibleSites, viewport.bounds]);
 
 
   const renderSites = useMemo(() => {
