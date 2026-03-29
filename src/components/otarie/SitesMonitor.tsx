@@ -3244,9 +3244,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (cancelled) return;
 
         // Final enriched update (with QoE data)
-        setSites(dashboardSites || []);
-        setBboxTotal((dashboardSites || []).length);
-        if ((dashboardSites || []).length > 0) setDashboardFitKey(k => k + 1);
+        // Guard: don't overwrite existing sites with empty results
+        const finalSites = dashboardSites || [];
+        if (finalSites.length > 0) {
+          setSites(finalSites);
+          setBboxTotal(finalSites.length);
+          setDashboardFitKey(k => k + 1);
+        } else {
+          // Only clear if we had no prior data
+          setSites(prev => prev.length > 0 ? prev : []);
+          setBboxTotal(prev => typeof prev === 'number' && prev > 0 ? prev : 0);
+        }
       } catch (err) {
         if (!cancelled) {
           console.warn('[SitesMonitor] dashboard site load failed', err);
