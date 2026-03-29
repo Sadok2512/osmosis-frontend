@@ -2,6 +2,7 @@
  * Single source of truth for technology colors across the entire map system.
  * 5G (NR) = Green, 4G (LTE) = Orange. No purple.
  */
+import { is5GTech } from '@/utils/telecomHelpers';
 
 // ── Technology group colors ──
 export const TECH_COLORS = {
@@ -84,14 +85,12 @@ export const getTechColor = (is5G: boolean, bandColors?: Record<string, string>)
 
 /** Get the CSS class for a 5G/4G tech badge — uses green for 5G, orange for 4G */
 export const getTechBadgeBg = (techno: string | null | undefined): string => {
-  const is5G = (techno || '').toUpperCase().includes('5G') || (techno || '').toUpperCase().includes('NR');
-  return is5G ? 'bg-[#22c55e]' : 'bg-[#f97316]';
+  return is5GTech(techno) ? 'bg-[#22c55e]' : 'bg-[#f97316]';
 };
 
 /** Get inline style background for a 5G/4G tech dot */
 export const getTechDotColor = (techno: string | null | undefined): string => {
-  const is5G = (techno || '').toUpperCase().includes('5G') || (techno || '').toUpperCase().includes('NR');
-  return is5G ? '#22c55e' : '#f97316';
+  return is5GTech(techno) ? '#22c55e' : '#f97316';
 };
 
 /** Get filter chip colors for 5G/4G tech labels */
