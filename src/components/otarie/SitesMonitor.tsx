@@ -3515,57 +3515,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         // Synthesize sectors for ANY site that still has no cells after bulk+fallback
-        {
-          const sitesStillEmpty = sitesNeedingCells.filter(s => !cellMap.has(s.site_id));
-          if (sitesStillEmpty.length > 0) {
-            console.warn(`[SitesMonitor] Generating synthetic sectors for ${sitesStillEmpty.length} sites without cell data`);
-          }
+        const sitesStillEmpty = sitesNeedingCells.filter(s => !cellMap.has(s.site_id));
+        if (sitesStillEmpty.length > 0) {
+          console.warn(`[SitesMonitor] Generating synthetic sectors for ${sitesStillEmpty.length} sites without cell data`);
           for (const site of sitesStillEmpty) {
-            const lte = site.lte_cells || site.technos?.includes('4G') ? Math.max(site.lte_cells || 0, 3) : 0;
-            const nr = site.nr_cells || site.technos?.includes('5G') ? Math.max(site.nr_cells || 0, 3) : 0;
-            if (lte === 0 && nr === 0) {
-              // If no tech info at all, assume at least 4G tri-sector
-              const fallbackLte = 3;
+            const has4G = (site.lte_cells && site.lte_cells > 0) || site.technos?.includes('4G');
+            const has5G = (site.nr_cells && site.nr_cells > 0) || site.technos?.includes('5G');
+            const lte = has4G ? Math.max(site.lte_cells || 0, 3) : 0;
+            const nr = has5G ? Math.max(site.nr_cells || 0, 3) : 0;
+            // If no tech info at all, assume at least 4G tri-sector
+            const effectiveLte = (lte === 0 && nr === 0) ? 3 : lte;
+            const effectiveNr = nr;
             const syntheticCells: any[] = [];
-            const azimuths = [0, 120, 240]; // standard tri-sector
-            // Generate 4G synthetic cells
-            if (lte > 0) {
-              const bandsPerSector = Math.max(1, Math.round(lte / 3));
+            const azimuths = [0, 120, 240];
+            if (effectiveLte > 0) {
+              const bandsPerSector = Math.max(1, Math.round(effectiveLte / 3));
               const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
               for (let s = 0; s < 3; s++) {
                 for (let b = 0; b < bandsPerSector && b < defaultBands4G.length; b++) {
                   syntheticCells.push({
                     cell_id: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
                     cell_name: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
-                    techno: '4G',
-                    bande: defaultBands4G[b],
-                    vendor: site.vendor || 'Unknown',
-                    azimut: azimuths[s],
-                    tilt: null,
-                    pci: null, eci: null, nci: null, cid: null, tac: null,
-                    etat_cellule: null, essentiel: null,
-                    _synthetic: true,
+                    techno: '4G', bande: defaultBands4G[b],
+                    vendor: site.vendor || 'Unknown', azimut: azimuths[s],
+                    tilt: null, pci: null, eci: null, nci: null, cid: null, tac: null,
+                    etat_cellule: null, essentiel: null, _synthetic: true,
                   });
                 }
               }
             }
-            // Generate 5G synthetic cells
-            if (nr > 0) {
-              const bandsPerSector5G = Math.max(1, Math.round(nr / 3));
+            if (effectiveNr > 0) {
+              const bandsPerSector5G = Math.max(1, Math.round(effectiveNr / 3));
               const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
               for (let s = 0; s < 3; s++) {
                 for (let b = 0; b < bandsPerSector5G && b < defaultBands5G.length; b++) {
                   syntheticCells.push({
                     cell_id: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
                     cell_name: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
-                    techno: '5G',
-                    bande: defaultBands5G[b],
-                    vendor: site.vendor || 'Unknown',
-                    azimut: azimuths[s],
-                    tilt: null,
-                    pci: null, eci: null, nci: null, cid: null, tac: null,
-                    etat_cellule: null, essentiel: null,
-                    _synthetic: true,
+                    techno: '5G', bande: defaultBands5G[b],
+                    vendor: site.vendor || 'Unknown', azimut: azimuths[s],
+                    tilt: null, pci: null, eci: null, nci: null, cid: null, tac: null,
+                    etat_cellule: null, essentiel: null, _synthetic: true,
                   });
                 }
               }
