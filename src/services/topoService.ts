@@ -281,7 +281,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       return buildCellProperties(
         cellName,
         (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
-        r.bande || r.band || '',
+        r.bande || r.band || inferBandFromCellName(cellName, r.techno || '4G'),
         azimut,
         r.hba || 30,
         r,
