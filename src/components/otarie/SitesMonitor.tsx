@@ -2271,6 +2271,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
+  const [activeViewConditions, setActiveViewConditions] = useState<ViewFilterCondition[]>([]);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: mapCache.cachedZoom || 6 });
   const [initialCenter] = useState<[number, number] | null>(mapCache.cachedCenter);
