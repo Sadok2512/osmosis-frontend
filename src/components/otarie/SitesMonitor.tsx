@@ -3454,7 +3454,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   useEffect(() => {
-    if (displayMode !== 'cells' || !dashboardActive) return;
+    if (displayMode !== 'cells') return;
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
