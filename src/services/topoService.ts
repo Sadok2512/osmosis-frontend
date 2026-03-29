@@ -487,9 +487,11 @@ export async function fetchCellsByBbox(
     sitesFromEndpoint = (resp.sites || [])
       .filter((s: any) => Number.isFinite(s.latitude) && Number.isFinite(s.longitude))
       .map((s: any) => {
+        const canonicalSiteId = String(s.code_nidt || s.site_id || s.site_name || '').trim();
+        const displaySiteName = String(s.nom_site || s.site_name || canonicalSiteId).trim();
         const cells = (s.cells || []).map((c: any) => ({
           cell_id: c.nom_cellule || c.cell_id,
-          cell_name: c.nom_cellule || '',
+          cell_name: c.nom_cellule || c.cell_id || '',
           techno: c.techno || '4G',
           bande: c.bande || '',
           vendor: c.constructeur || '',
@@ -508,7 +510,7 @@ export async function fetchCellsByBbox(
           couverture: c.couverture || null,
           freq: c.freq || null,
           secteur: c.secteur || null,
-          code_nidt: c.code_nidt || null,
+          code_nidt: c.code_nidt || canonicalSiteId || null,
           hebergeur_leader: c.hebergeur_leader || null,
           saisonnalite: c.saisonnalite || null,
           type_5g: c.type_5g || null,
@@ -519,8 +521,8 @@ export async function fetchCellsByBbox(
           plaque: s.plaque || c.plaque || null,
         }));
         const site: SiteSummary = {
-          site_id: s.site_name,
-          site_name: s.site_name,
+          site_id: canonicalSiteId,
+          site_name: displaySiteName,
           vendor: s.constructeur || cells[0]?.vendor || 'Unknown',
           dor: s.dor || '',
           plaque: s.plaque || '',
@@ -533,7 +535,7 @@ export async function fetchCellsByBbox(
           dms_dl_8: 0,
           dms_dl_30: 0,
           dms_ul_3: 0,
-          coordinates: [s.latitude, s.longitude] as [number, number],
+          coordinates: [Number(s.latitude), Number(s.longitude)] as [number, number],
           cells,
           zone_arcep: s.zone_arcep || null,
           lte_cells: cells.filter((c: any) => c.techno === '4G' || c.techno === 'LTE').length,
@@ -770,13 +772,15 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
       // Convert to cells format expected by downstream code
       const allCells: any[] = [];
       for (const s of (r.sites || [])) {
+        const canonicalSiteId = String(s.code_nidt || s.site_id || s.site_name || '').trim();
+        const displaySiteName = String(s.nom_site || s.site_name || canonicalSiteId).trim();
         for (const c of (s.cells || [])) {
           allCells.push({
             ...c,
-            code_nidt: s.site_name,
-            nom_site: s.site_name,
-            site_name: s.site_name,
-            site_id: s.site_name,
+            code_nidt: c.code_nidt || canonicalSiteId,
+            nom_site: displaySiteName,
+            site_name: displaySiteName,
+            site_id: canonicalSiteId,
             nom_cellule: c.nom_cellule,
             latitude: s.latitude,
             longitude: s.longitude,

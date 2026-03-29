@@ -3150,6 +3150,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Auto-load cells refs (effect placed after visibleSites is defined)
   const cellLoadingRef = useRef(new Set<string>());
+  const cellLoadedRef = useRef(new Set<string>());
   const cellLoadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cellsLoading, setCellsLoading] = useState(false);
 
@@ -3457,7 +3458,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
-      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id)
+      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id) && !cellLoadedRef.current.has(s.site_id)
     );
 
     if (sitesNeedingCells.length === 0) return;
@@ -3571,8 +3572,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
-        // Clear loading flags
-        sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
+        // Clear loading flags and remember attempted sites to avoid endless reload loops
+        sitesNeedingCells.forEach(s => {
+          cellLoadingRef.current.delete(s.site_id);
+          cellLoadedRef.current.add(s.site_id);
+        });
         setCellsLoading(false);
 
         if (cellMap.size > 0) {
@@ -3583,7 +3587,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
-        sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
+        sitesNeedingCells.forEach(s => {
+          cellLoadingRef.current.delete(s.site_id);
+          cellLoadedRef.current.add(s.site_id);
+        });
         setCellsLoading(false);
       }
     }, 400);
