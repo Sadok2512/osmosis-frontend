@@ -8228,10 +8228,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           })()}
 
           {/* ========== CELL FOCUS MODE ========== */}
-          {focusMode === 'cell' && focusCellId && siteDetail && (() => {
-            console.log('[CellResolve] focusCellId:', focusCellId, 'siteDetail.site_id:', siteDetail.site_id, 'siteDetail.site_name:', siteDetail.site_name, 'cells count:', siteDetail.cells?.length, 'cell_ids:', siteDetail.cells?.map(c => c.cell_id));
-            const cell = resolveCellFromDetail(siteDetail, focusCellId);
-            if (!cell) return <div className="p-4 text-muted-foreground text-[12px]">Cell not found. (focusCellId: {focusCellId}, site: {siteDetail.site_name}, cells: {siteDetail.cells?.length})</div>;
+          {focusMode === 'cell' && focusCellId && (() => {
+            // Try multiple sources: siteDetail first, then selectedSiteSnapshot, then sites array
+            let cell: CellProperties | undefined;
+            if (siteDetail) cell = resolveCellFromDetail(siteDetail, focusCellId);
+            if (!cell && selectedSiteSnapshot) cell = resolveCellFromDetail(selectedSiteSnapshot as SiteDetail, focusCellId);
+            if (!cell && selectedSiteId) {
+              const fromSites = sites.find(s => s.site_id === selectedSiteId);
+              if (fromSites) cell = resolveCellFromDetail(fromSites as SiteDetail, focusCellId);
+            }
+            if (!cell) return <div className="p-4 text-muted-foreground text-[12px]">Cell not found.</div>;
             return (
               <div className="divide-y divide-border">
                 {/* Cell Header — prominent */}
