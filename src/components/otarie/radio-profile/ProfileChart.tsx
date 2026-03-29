@@ -1,9 +1,16 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   AreaChart, Area, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceDot, Legend, Label as RLabel
 } from 'recharts';
 import { ProfilePoint, LOSAnalysis, FresnelAnalysis } from '@/utils/geodesicUtils';
+
+export interface ProfileHoverData {
+  distanceKm: number;
+  elevationM: number;
+  lat: number;
+  lng: number;
+}
 
 interface Props {
   profilePoints: ProfilePoint[];
@@ -13,10 +20,12 @@ interface Props {
   showCurvature?: boolean;
   clutterHeight?: number;
   showTilt?: boolean;
+  onHoverPoint?: (data: ProfileHoverData | null) => void;
 }
 
 const ProfileChart: React.FC<Props> = ({
   profilePoints, analysis, fresnel, showFresnel = false, showCurvature = true, clutterHeight = 0, showTilt = false,
+  onHoverPoint,
 }) => {
   const ant = analysis.antennaParams;
   const data = profilePoints.map((p, i) => {
@@ -25,8 +34,8 @@ const ProfileChart: React.FC<Props> = ({
       terrain: Math.round(analysis.effectiveTerrain[i] * 10) / 10,
       beam: Math.round(analysis.beamAltitudes[i] * 10) / 10,
       rawTerrain: Math.round(p.elevation * 10) / 10,
+      _idx: i,
     };
-    // Rx altitude line (terrain + UE height)
     if (ant && ant.rxHeight > 0) {
       entry.rxLine = Math.round((p.elevation + ant.rxHeight) * 10) / 10;
     }
@@ -37,16 +46,13 @@ const ProfileChart: React.FC<Props> = ({
       entry.fresnelUpper = Math.round(fresnel.fresnelUpperBound[i] * 10) / 10;
       entry.fresnelLower = Math.round(fresnel.fresnelLowerBound[i] * 10) / 10;
     }
-    // Tilt beam line: h(x) = antennaAMSL - d * tan(totalTilt)
     if (showTilt && ant) {
       const antennaAMSL = ant.antennaAMSL;
       const tiltRad = ant.totalTilt * Math.PI / 180;
       const tiltAlt = antennaAMSL - p.distance * Math.tan(tiltRad);
-      // Stop rendering below terrain
       if (tiltAlt >= analysis.effectiveTerrain[i]) {
         entry.tiltBeam = Math.round(tiltAlt * 10) / 10;
       }
-      // Beam cone: tilt ± vbw/2
       if (ant.vbw > 0) {
         const upperRad = (ant.totalTilt - ant.vbw / 2) * Math.PI / 180;
         const lowerRad = (ant.totalTilt + ant.vbw / 2) * Math.PI / 180;
@@ -63,7 +69,7 @@ const ProfileChart: React.FC<Props> = ({
     return entry;
   });
 
-  // Find ground impact point: first index where tilt beam drops below terrain
+  // Find ground impact point
   let groundImpact: { distance: number; altitude: number } | null = null;
   if (showTilt && ant && ant.totalTilt > 0) {
     const antennaAMSL = ant.antennaAMSL;
@@ -71,7 +77,6 @@ const ProfileChart: React.FC<Props> = ({
     for (let i = 1; i < profilePoints.length; i++) {
       const tiltAlt = antennaAMSL - profilePoints[i].distance * Math.tan(tiltRad);
       if (tiltAlt <= analysis.effectiveTerrain[i]) {
-        // Interpolate exact crossing
         const prevTilt = antennaAMSL - profilePoints[i - 1].distance * Math.tan(tiltRad);
         const prevTerrain = analysis.effectiveTerrain[i - 1];
         const currTerrain = analysis.effectiveTerrain[i];
@@ -106,10 +111,33 @@ const ProfileChart: React.FC<Props> = ({
   const maxAlt = Math.max(...allValues, 50);
   const minAlt = Math.min(...allValues, 0);
 
+  const handleMouseMove = useCallback((state: any) => {
+    if (!onHoverPoint || !state?.activeTooltipIndex) return;
+    const idx = state.activeTooltipIndex;
+    if (idx >= 0 && idx < profilePoints.length) {
+      const p = profilePoints[idx];
+      onHoverPoint({
+        distanceKm: Math.round(p.distance) / 1000,
+        elevationM: Math.round(p.elevation * 10) / 10,
+        lat: p.lat,
+        lng: p.lng,
+      });
+    }
+  }, [onHoverPoint, profilePoints]);
+
+  const handleMouseLeave = useCallback(() => {
+    onHoverPoint?.(null);
+  }, [onHoverPoint]);
+
   return (
     <div className="w-full h-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+        <AreaChart
+          data={data}
+          margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
+          onMouseMove={onHoverPoint ? handleMouseMove : undefined}
+          onMouseLeave={onHoverPoint ? handleMouseLeave : undefined}
+        >
           <defs>
             <linearGradient id="terrainGradGlass" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="rgba(56,189,248,0.35)" />
@@ -154,6 +182,7 @@ const ProfileChart: React.FC<Props> = ({
               boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
             }}
             formatter={(value: number, name: string) => {
+              if (name === '_idx') return [null, null];
               const labels: Record<string, string> = {
                 terrain: 'Terrain eff.',
                 beam: 'LOS (Ant→UE)',
@@ -173,6 +202,7 @@ const ProfileChart: React.FC<Props> = ({
           <Legend
             wrapperStyle={{ fontSize: 10, opacity: 0.7 }}
             formatter={(value: string) => {
+              if (value === '_idx') return null;
               const labels: Record<string, string> = {
                 terrain: 'Terrain',
                 beam: 'LOS (Ant→UE)',
@@ -265,7 +295,6 @@ const ProfileChart: React.FC<Props> = ({
           {/* Tilt beam line + cone */}
           {showTilt && ant && (
             <>
-              {/* Beam cone shaded area */}
               {ant.vbw > 0 && (
                 <Area
                   type="monotone"
@@ -301,7 +330,6 @@ const ProfileChart: React.FC<Props> = ({
                   />
                 </>
               )}
-              {/* Main tilt beam ray */}
               <Line
                 type="monotone"
                 dataKey="tiltBeam"
@@ -324,6 +352,9 @@ const ProfileChart: React.FC<Props> = ({
             dot={false}
             isAnimationActive={false}
           />
+
+          {/* Hidden _idx field to carry index */}
+          <Line type="monotone" dataKey="_idx" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
 
           {/* Obstruction marker */}
           {obstructionPoint && (
