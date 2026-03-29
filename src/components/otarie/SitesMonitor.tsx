@@ -8188,6 +8188,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       { id: 'sim' as const, label: 'SIMULATION', icon: <Signal size={12} /> },
                       { id: 'alarms' as const, label: 'ALARMS', icon: <Bell size={12} /> },
                       { id: 'cm' as const, label: 'CM', icon: <FileText size={12} /> },
+                      { id: 'neighbors' as const, label: 'NEIGHBORS', icon: <Network size={12} /> },
                     ].map(tab => (
                       <button
                         key={tab.id}
