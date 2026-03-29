@@ -27,6 +27,7 @@ import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSR
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
 import { InlineSimTab, SiteKpiChart } from './SitesMonitorHelpers';
+import { ViewFilterBuilder, ViewFilterCondition, conditionsToSiteFilters, siteFiltersToConditions } from '@/components/sites-monitor/ViewFilterBuilder';
 import SiteChangesPanel from './SiteChangesPanel';
 
 // Heatmap layer component using leaflet.heat
