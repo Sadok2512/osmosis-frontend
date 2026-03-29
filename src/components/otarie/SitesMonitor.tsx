@@ -4253,9 +4253,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <React.Fragment key={site.site_id}>
                 {miniItems.map(({ tech, az, r, bandKey }) => {
                   const sectorCoords = getSectorCoords(site.coordinates, az, r, 60);
-                  const techColor = mapTechnoFilter === 'ALL'
+                  const defaultTechColor = mapTechnoFilter === 'ALL'
                     ? (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'))
                     : (bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316')));
+                  const techColor = colorViewOverride || defaultTechColor;
                   return (
                     <Polygon
                       key={`${site.site_id}_mini_${tech}_${bandKey || 'unk'}_${az}`}
@@ -4481,7 +4482,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const { has4G, has5G } = inferSiteTechState(site);
             const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
             const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
-            const color = (sectorColorMode as string) === 'topo' ? topoColor : kpiColor;
+            const colorViewOverrideIndoor = getColorViewFill(site);
+            const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
             const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
             return (
               <Marker
@@ -4651,7 +4653,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   if (sectorColorMode === 'kpi') {
                     kpiColor = getKpiColor(getCellKpiValue(cell));
                   }
-                  const fillColor = isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
+                  const colorViewOverrideSector = getColorViewFill(site);
+                  const fillColor = colorViewOverrideSector || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor));
                   const strokeColor = isFocusFaded ? '#cbd5e1' : deriveStrokeColor(fillColor);
                   const sectorCoords = getSectorCoords(site.coordinates, az, radius, 60);
                   return (
@@ -4757,8 +4760,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 if (!Number.isFinite(az) || az < 0 || az > 360) return null;
                 const sectorCoords = getSectorCoords(site.coordinates, az, cellRadius, 60);
                 const isFaded = false; // cells already filtered by tech above
-                const fillColor = isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
-                const strokeColor = isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
+                const colorViewOverrideCell = getColorViewFill(site);
+                const fillColor = colorViewOverrideCell || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell))));
+                const strokeColor = isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' && !colorViewOverrideCell ? getBandStrokeColor(cell.bande, cell.techno) : deriveStrokeColor(fillColor));
                 const isFocusCell = focusCellId === cell.cell_id;
                 const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
                 const baseOpacity = isFocusFaded ? 0.08 : (isFaded ? 0.08 : (isCellDimmed ? 0.15 : (is5G ? 0.92 : overlapFactor)));
