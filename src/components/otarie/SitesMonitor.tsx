@@ -3750,7 +3750,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, dashboardActive, viewport.bounds]);
+  }, [displayMode, visibleSites, viewport.bounds]);
 
 
   const renderSites = useMemo(() => {
