@@ -3951,13 +3951,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setFocusCellId(null);
   };
 
-  // Loading overlay rendered inside the map area
-  const loadingOverlay = (loading || mapRendering) ? (
-    <div className="absolute inset-0 z-[1100] flex items-center justify-center bg-background/60 backdrop-blur-sm pointer-events-none animate-fade-in">
-      <div className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-card/90 backdrop-blur-md border border-border shadow-2xl">
-        <RefreshCw className="w-8 h-8 text-primary animate-spin" />
-        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">
-          {loading ? 'Chargement des sites…' : `Rendu de ${visibleSites.length.toLocaleString()} sites…`}
+  // Non-blocking loading banner — map stays interactive
+  const loadingOverlay = (loading || bboxLoading) ? (
+    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1100] pointer-events-none animate-fade-in">
+      <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg">
+        <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          {sites.length > 0
+            ? `Chargement… ${sites.length.toLocaleString()} sites`
+            : 'Chargement des sites…'}
         </p>
       </div>
     </div>
