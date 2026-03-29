@@ -3713,6 +3713,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return [selectedSiteSnapshot, ...merged];
   }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos]);
 
+  // ── Color View Mode: build a value→color map from visible sites ──
+  const colorViewColorMap = useMemo(() => {
+    if (colorViewMode === 'none') return {};
+    const values = renderSites.map(s => getSiteDimensionValue(s, colorViewMode));
+    return buildColorMap(values);
+  }, [renderSites, colorViewMode]);
+
+  /** Get the color-by-dimension fill for a site. Returns null if colorViewMode is 'none'. */
+  const getColorViewFill = useCallback((site: SiteSummary): string | null => {
+    if (colorViewMode === 'none') return null;
+    const val = getSiteDimensionValue(site, colorViewMode);
+    return getColorForValue(val, colorViewColorMap);
+  }, [colorViewMode, colorViewColorMap]);
+
   const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
   // Filter cells to 4G/5G only for sector rendering
   const ALLOWED_TECH = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
