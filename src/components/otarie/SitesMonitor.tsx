@@ -5236,6 +5236,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </div>
           </div>
         </div>
+      )}
 
       {/* Floating worst cells panel */}
       {highlightedCellData.length > 0 && (
