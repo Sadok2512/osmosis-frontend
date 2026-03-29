@@ -53,6 +53,19 @@ export const DEPARTMENTS = ['ALL', 'LITTORAL_DUNKERQUE', 'Zones_Blanches_A1', '5
 export const VENDORS = ['ALL', 'Ericsson', 'Nokia'];
 export const URS = ['ALL'];
 
+// ── PM Relation Type Labels ──
+// Maps backend relation_type values to human-readable labels
+export const RELATION_TYPE_LABELS: Record<string, string> = {
+  LTE_NR:    'LTE → NR (5G)',
+  LTE_UTRAN: 'LTE → UTRAN (3G)',
+  LTE_GERAN: 'LTE → GERAN (2G)',
+  LTE_X2:    'LTE → X2',
+  LTE_INTER: 'LTE Inter-eNB',
+  LTE_INTRA: 'LTE Intra-eNB',
+  NR_LTE:    'NR → LTE (4G)',
+  NR_INTER:  'NR Inter-gNB',
+};
+
 export const getQoEColor = (qoe: number) => {
   if (qoe >= 85) return '#10b981';
   if (qoe >= 70) return '#f59e0b';

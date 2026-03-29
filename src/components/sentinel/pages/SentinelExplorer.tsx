@@ -515,7 +515,7 @@ const SentinelExplorer: React.FC<Props> = ({ date, dateStart, dateEnd, apiConnec
                     <div className="rounded-lg border border-border bg-muted/30 p-2.5 text-center">
                       <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Techno</p>
                       <span className={`text-xs font-bold ${tech === 'NR' ? 'text-purple-500' : tech === 'LTE' ? 'text-blue-500' : 'text-muted-foreground'}`}>
-                        {tech === 'NR' ? '5G NR' : tech === 'LTE' ? '4G LTE' : '—'}
+                        {tech === 'NR' ? '5G NR' : tech === 'LTE' ? '4G LTE' : (tech || 'Unknown')}
                       </span>
                     </div>
                     <div className="rounded-lg border border-border bg-muted/30 p-2.5 text-center">
