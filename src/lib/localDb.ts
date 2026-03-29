@@ -865,6 +865,9 @@ export const qoeMapApi = {
           volume_dl: row.volume_totale_dl ?? row.volume_dl ?? null,
           volume_ul: row.volume_totale_ul ?? row.volume_ul ?? null,
         };
+        // Store under both normalized and original keys for matching
+        sites[key] = siteData;
+        if (originalKey !== key) sites[originalKey] = siteData;
       }
       return { sites, date: date || null, dimension: dimension || 'Site' } as QoeMapResponse;
     });
