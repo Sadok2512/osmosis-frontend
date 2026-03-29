@@ -58,6 +58,8 @@ import { fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { getBandSizeScale, getBandRenderOrder } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
+import { TaggedLink, loadTaggedLinks, persistTaggedLinks, createTaggedLink } from './map/taggedLinks';
+import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, generateMockNeighbors } from './map/neighborTypes';
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
@@ -2434,7 +2436,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
   const [expandedSectors, setExpandedSectors] = useState<Set<number>>(new Set());
-  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim' | 'config' | 'alarms' | 'cm'>('kpi');
+  const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim' | 'config' | 'alarms' | 'cm' | 'neighbors'>('kpi');
 
   // Alarms and CM History
   const [siteAlarms, setSiteAlarms] = useState<any[]>([]);
@@ -2516,6 +2518,67 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return next;
     });
   }, []);
+
+  // ── Tagged Links ──
+  const [taggedLinks, setTaggedLinks] = useState<TaggedLink[]>(loadTaggedLinks);
+  const [linkCreationMode, setLinkCreationMode] = useState(false);
+  const [linkSource, setLinkSource] = useState<{ id: string; type: 'site' | 'point'; label: string; coords: [number, number] } | null>(null);
+  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
+
+  const addTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource) => {
+    if (!from || !to) return;
+    const link = createTaggedLink(from, to);
+    setTaggedLinks(prev => {
+      const next = [...prev, link];
+      persistTaggedLinks(next);
+      return next;
+    });
+    setLinkCreationMode(false);
+    setLinkSource(null);
+  }, []);
+
+  const deleteTaggedLink = useCallback((linkId: string) => {
+    setTaggedLinks(prev => {
+      const next = prev.filter(l => l.id !== linkId);
+      persistTaggedLinks(next);
+      return next;
+    });
+    if (selectedLinkId === linkId) setSelectedLinkId(null);
+  }, [selectedLinkId]);
+
+  const handleSelectTaggedForLink = useCallback((site: SiteSummary) => {
+    const obj = { id: site.site_id, type: 'site' as const, label: site.site_name, coords: site.coordinates };
+    if (!linkSource) {
+      setLinkSource(obj);
+    } else {
+      if (linkSource.id !== obj.id) {
+        addTaggedLink(linkSource, obj);
+      }
+    }
+  }, [linkSource, addTaggedLink]);
+
+  // ── Terrain Profile for Links ──
+  const { loading: linkProfileLoading, profilePoints: linkProfilePoints, analysis: linkProfileAnalysis, computeProfile: linkComputeProfile } = useTerrainProfile();
+  const [showLinkProfile, setShowLinkProfile] = useState(false);
+  const [linkProfileLabel, setLinkProfileLabel] = useState('');
+
+  const openLinkTerrainProfile = useCallback((link: TaggedLink) => {
+    setSelectedLinkId(link.id);
+    setLinkProfileLabel(link.label);
+    setShowLinkProfile(true);
+    linkComputeProfile(
+      { lat: link.fromCoords[0], lng: link.fromCoords[1] },
+      { lat: link.toCoords[0], lng: link.toCoords[1] },
+      { hba: 30, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: 0, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 1.5, siteAltitude: 0, antennaAMSL: 30 },
+      true
+    );
+  }, [linkComputeProfile]);
+
+  // ── Neighbor visualization ──
+  const [neighborCellId, setNeighborCellId] = useState<string | null>(null);
+  const [neighborDirection, setNeighborDirection] = useState<NeighborDirection>('out');
+  const [neighborData, setNeighborData] = useState<CellNeighbor[]>([]);
+  const [showNeighborPanel, setShowNeighborPanel] = useState(false);
   const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
     try { return localStorage.getItem('qoebit_active_dashboard_id') || null; } catch { return null; }
   });
@@ -4909,6 +4972,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             color="hsl(0,84%,60%)" weight={2} dashArray="8 4"
           />
         )}
+        {/* Tagged Link polylines */}
+        {taggedLinks.map(link => (
+          <Polyline
+            key={link.id}
+            positions={[link.fromCoords, link.toCoords]}
+            color={selectedLinkId === link.id ? '#3b82f6' : '#6366f1'}
+            weight={selectedLinkId === link.id ? 3 : 2}
+            opacity={0.8}
+            dashArray={selectedLinkId === link.id ? undefined : '6 4'}
+            eventHandlers={{
+              click: () => setSelectedLinkId(link.id),
+            }}
+          >
+            <Tooltip direction="center" permanent={false}>
+              <span className="text-xs font-bold">{link.label}</span>
+            </Tooltip>
+          </Polyline>
+        ))}
+        {/* Neighbor visualization lines */}
+        {showNeighborPanel && neighborData.filter(n => n.relationDirection === neighborDirection).map((n, i) => {
+          const sourceCell = siteDetail?.cells.find(c => c.cell_id === neighborCellId);
+          const sourceCoords = siteDetail?.coordinates;
+          if (!sourceCoords) return null;
+          return (
+            <Polyline
+              key={`nb-${i}`}
+              positions={[sourceCoords, n.targetCoords]}
+              color={NEIGHBOR_COLORS[n.relationType]}
+              weight={2}
+              opacity={0.7}
+            >
+              <Tooltip direction="center" permanent={false}>
+                <span className="text-xs">{n.targetCellId} ({NEIGHBOR_LABELS[n.relationType]})</span>
+              </Tooltip>
+            </Polyline>
+          );
+        })}
         {/* Coverage simulation overlay */}
         <CoverageCanvasOverlay grid={coverageGrid} opacity={0.55} visible={!!coverageGrid} />
 
@@ -5092,6 +5192,46 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         >
           <RefreshCw className="w-5 h-5 text-sky-400 animate-spin" />
           <span className="text-xs font-bold text-white/80">Calcul du profil terrain...</span>
+        </div>
+      )}
+
+      {/* ── Link Terrain Profile Panel ── */}
+      {showLinkProfile && linkProfileAnalysis && !linkProfileLoading && (
+        <div
+          className="absolute bottom-4 left-4 right-4 z-[1001] overflow-hidden pointer-events-auto max-h-[40%] flex flex-col animate-fade-in"
+          style={{
+            background: 'rgba(15,23,42,0.55)',
+            backdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 24,
+            boxShadow: '0 12px 48px rgba(0,0,0,0.3)',
+          }}
+        >
+          <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/15 flex items-center justify-center">
+                <Network size={16} className="text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-white tracking-tight">{linkProfileLabel}</h3>
+                <p className="text-[10px] text-white/40">Profil terrain du lien</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setShowLinkProfile(false); setSelectedLinkId(null); }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 pb-4">
+            <div className="h-[200px]">
+              <ProfileChart
+                profilePoints={linkProfilePoints}
+                analysis={linkProfileAnalysis}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -6486,6 +6626,95 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         </div>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* ── Link Creation Controls ── */}
+                <div className="mt-3 px-1 space-y-2">
+                  {!linkCreationMode ? (
+                    <button
+                      onClick={() => { setLinkCreationMode(true); setLinkSource(null); }}
+                      disabled={taggedSites.length < 2}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={12} />
+                      Créer un lien
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2">
+                      <div className="text-[10px] font-bold text-primary uppercase tracking-wider">Sélection du lien</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {!linkSource ? 'Cliquez sur un site source ci-dessus' : `Source: ${linkSource.label} — cliquez sur la destination`}
+                      </div>
+                      {taggedSites.map(s => (
+                        <button
+                          key={s.site_id}
+                          onClick={() => handleSelectTaggedForLink(s)}
+                          disabled={linkSource?.id === s.site_id}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+                            linkSource?.id === s.site_id ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80 text-foreground'
+                          } disabled:opacity-50`}
+                        >
+                          {s.site_name}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => { setLinkCreationMode(false); setLinkSource(null); }}
+                        className="w-full text-center text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors py-1"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Tagged Links List ── */}
+                {taggedLinks.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Liens ({taggedLinks.length})</div>
+                    <div className="space-y-1.5">
+                      {taggedLinks.map(link => (
+                        <div
+                          key={link.id}
+                          className={`rounded-xl border transition-all overflow-hidden ${
+                            selectedLinkId === link.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-primary/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 px-3 py-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                              <Network size={14} className="text-blue-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-foreground truncate">{link.label}</div>
+                              <div className="text-[9px] text-muted-foreground">{link.fromType} ↔ {link.toType}</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => openLinkTerrainProfile(link)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-primary transition-colors"
+                                title="Profil terrain"
+                              >
+                                <Crosshair size={12} />
+                              </button>
+                              <button
+                                onClick={() => setSelectedLinkId(selectedLinkId === link.id ? null : link.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors"
+                                title="Sélectionner"
+                              >
+                                <MapPin size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteTaggedLink(link.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -7999,10 +8228,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       { id: 'sim' as const, label: 'SIMULATION', icon: <Signal size={12} /> },
                       { id: 'alarms' as const, label: 'ALARMS', icon: <Bell size={12} /> },
                       { id: 'cm' as const, label: 'CM', icon: <FileText size={12} /> },
+                      { id: 'neighbors' as const, label: 'NEIGHBORS', icon: <Network size={12} /> },
                     ].map(tab => (
                       <button
                         key={tab.id}
-                        onClick={() => setCellDetailTab(tab.id as any)}
+                        onClick={() => setCellDetailTab(tab.id)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all shrink-0 ${
                           cellDetailTab === tab.id
                             ? 'bg-primary text-primary-foreground shadow-sm'
@@ -8320,6 +8550,109 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     )}
                   </div>
                 )}
+
+                {/* ── Neighbors Tab ── */}
+                {cellDetailTab === 'neighbors' && (() => {
+                  // Generate mock neighbors on first access
+                  if (neighborCellId !== focusCellId) {
+                    const nearbySitesForNeighbors = sites
+                      .filter(s => s.site_id !== siteDetail?.site_id && s.cells.length > 0)
+                      .slice(0, 8);
+                    const mockNeighbors = generateMockNeighbors(
+                      focusCellId!,
+                      siteDetail?.coordinates || [0, 0],
+                      nearbySitesForNeighbors,
+                    );
+                    setTimeout(() => {
+                      setNeighborCellId(focusCellId);
+                      setNeighborData(mockNeighbors);
+                      setShowNeighborPanel(true);
+                    }, 0);
+                  }
+                  const filtered = neighborData.filter(n => n.relationDirection === neighborDirection);
+                  const countByType: Record<NeighborRelationType, number> = { intra_freq: 0, inter_freq: 0, inter_system: 0 };
+                  filtered.forEach(n => { countByType[n.relationType] = (countByType[n.relationType] || 0) + 1; });
+                  return (
+                    <div className="px-5 py-4 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Network size={14} className="text-primary" />
+                        <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Voisins</h4>
+                        <span className="text-[10px] text-muted-foreground ml-auto">{filtered.length} relations</span>
+                      </div>
+
+                      {/* Direction toggle */}
+                      <div className="flex gap-2">
+                        {(['out', 'in'] as NeighborDirection[]).map(dir => (
+                          <button
+                            key={dir}
+                            onClick={() => setNeighborDirection(dir)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${
+                              neighborDirection === dir
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'bg-muted text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {dir === 'out' ? <ArrowRight size={12} /> : <ChevronLeft size={12} />}
+                            {dir === 'out' ? 'Sortant' : 'Entrant'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Legend */}
+                      <div className="flex items-center gap-4 flex-wrap">
+                        {(Object.entries(NEIGHBOR_LABELS) as [NeighborRelationType, string][]).map(([type, label]) => (
+                          <div key={type} className="flex items-center gap-1.5">
+                            <span className="w-3 h-3 rounded-full shrink-0" style={{ background: NEIGHBOR_COLORS[type] }} />
+                            <span className="text-[10px] font-bold text-muted-foreground">{label}</span>
+                            <span className="text-[9px] text-muted-foreground/60">({countByType[type]})</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Neighbor list */}
+                      {filtered.length === 0 ? (
+                        <div className="text-center py-6 text-muted-foreground text-[11px]">Aucun voisin {neighborDirection === 'out' ? 'sortant' : 'entrant'}</div>
+                      ) : (
+                        <div className="rounded-xl border border-border overflow-hidden">
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="bg-muted/40 border-b border-border">
+                                <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
+                                <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Type</th>
+                                <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
+                                <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filtered.map((n, i) => (
+                                <tr key={i} className="border-b border-border/30 last:border-0 hover:bg-muted/30">
+                                  <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: NEIGHBOR_COLORS[n.relationType] }} />
+                                      {n.targetCellId}
+                                    </div>
+                                    <div className="text-[9px] text-muted-foreground font-normal">{n.targetSiteName}</div>
+                                  </td>
+                                  <td className="px-2 py-2 text-center">
+                                    <span className="text-[9px] font-bold" style={{ color: NEIGHBOR_COLORS[n.relationType] }}>
+                                      {n.relationType === 'intra_freq' ? 'INTRA' : n.relationType === 'inter_freq' ? 'INTER' : 'INTER-SYS'}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-2 text-center">
+                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${n.targetTechno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
+                                      {n.targetTechno}
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-2 text-center text-muted-foreground font-semibold">{n.targetBande}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="px-4 py-2.5">
                   <button
