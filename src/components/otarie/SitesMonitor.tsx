@@ -4558,8 +4558,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return (
               <React.Fragment key={site.site_id}>
                 {dedupItems.map(({ tech, az, radius, bandKey, cell }) => {
-                  // In topo mode: use band-specific color from legend
-                  const topoColor = bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (bandColors[tech === '5G' ? '5G_GROUP' : '4G_GROUP'] || (tech === '5G' ? '#22c55e' : '#f97316'));
+                  // In ALL mode: tech group color only (green 5G / orange 4G). No band-specific colors.
+                  const topoColor = tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316');
                   let kpiColor = topoColor;
                   if (sectorColorMode === 'kpi') {
                     kpiColor = getKpiColor(getCellKpiValue(cell));
