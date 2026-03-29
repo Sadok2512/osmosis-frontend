@@ -63,7 +63,7 @@ import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS,
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
-import { SiteSummary, SiteDetail, Filters } from '../../types';
+import { SiteSummary, SiteDetail, Filters, CellProperties } from '../../types';
 import {
   Search, RefreshCw, ChevronLeft, MapPin,
   Zap, Network, Database, Activity, ArrowRight,
