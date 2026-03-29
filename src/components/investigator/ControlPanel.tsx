@@ -166,7 +166,7 @@ const AddFilterDropdown: React.FC<{
   existingKeys: string[];
   onAdd: (dim: string, val: string) => void;
   filterDimensions: string[];
-}> = ({ existingKeys, onAdd, filterDimensions }) => {
+}> = ({ existingKeys: _existingKeys, onAdd, filterDimensions }) => {
   const [open, setOpen] = useState(false);
   const [selectedDim, setSelectedDim] = useState<string | null>(null);
 
