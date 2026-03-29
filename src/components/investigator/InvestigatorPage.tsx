@@ -265,6 +265,16 @@ const InvestigatorPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 p-5 md:px-6 md:pt-5 md:pb-6 space-y-6 max-w-[1600px] mx-auto w-full">
+        {/* Bug #3: Warning when fallback data is unfiltered */}
+        {hasUnfilteredFallback && (
+          <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-2.5 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0" />
+            <span className="text-[11px] font-semibold text-yellow-700 dark:text-yellow-400">
+              Certains KPIs proviennent d'un fallback non-filtré (raw PM counters). Les filtres actifs ne s'appliquent pas à ces données.
+            </span>
+          </div>
+        )}
+
         {/* KPI Graph Section */}
         <section className="space-y-4">
           <div className="flex items-center justify-between border-b border-border/40 pb-3">
