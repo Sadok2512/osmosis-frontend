@@ -294,8 +294,8 @@ const inferSiteTechState = (site: SiteSummary) => {
     if (!bande.includes('NR')) has4G = true;
   }
 
-  // If no tech info at all, default to 4G (most common)
-  if (!has4G && !has5G) return { has4G: true, has5G: false };
+  // If no tech info at all, keep it unknown so filters can hide it correctly
+  if (!has4G && !has5G) return { has4G: false, has5G: false };
 
   return { has4G, has5G };
 };
