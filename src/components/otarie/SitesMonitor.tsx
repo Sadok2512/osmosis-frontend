@@ -335,31 +335,94 @@ const getSectorCoords = (
   return points;
 };
 
+const getSiteDisplayBands = (site: SiteSummary): string[] => {
+  const cellBands = site.cells.length > 0
+    ? [...new Set(site.cells.map(c => String(c.bande || '').trim()).filter(Boolean))]
+    : [];
+
+  if (cellBands.length > 0) return cellBands;
+
+  const siteBand = String((site as any).bande || '').trim();
+  return siteBand ? [siteBand] : [];
+};
+
+const getSiteDisplayTechs = (site: SiteSummary): string[] => {
+  const cellTechs = site.cells.length > 0
+    ? [...new Set(site.cells.map(c => String(c.techno || '').trim()).filter(Boolean))]
+    : [];
+
+  if (cellTechs.length > 0) return cellTechs;
+
+  const fallback: string[] = [];
+  const siteTech = String(site.techno || '').trim();
+  if (siteTech) fallback.push(siteTech);
+
+  const { has4G, has5G } = inferSiteTechState(site);
+  if (!siteTech) {
+    if (has4G) fallback.push('4G');
+    if (has5G) fallback.push('5G');
+  }
+
+  return [...new Set(fallback.filter(Boolean))];
+};
+
+const getRenderableCellsForSite = (
+  site: SiteSummary,
+  mapTechnoFilter: 'ALL' | '4G' | '5G' | 'OFF',
+  enabledTechnos: Set<'4G' | '5G'>,
+  isBandEnabled: (bande?: string | null, techno?: string | null) => boolean,
+) => {
+  if (!site.cells?.length || mapTechnoFilter === 'OFF') return [];
+
+  return site.cells.filter(cell => {
+    const techGroup = getCellTechGroup(cell.techno);
+    if (!techGroup) return false;
+
+    if (mapTechnoFilter === 'ALL') {
+      if (!enabledTechnos.has(techGroup)) return false;
+    } else if (techGroup !== mapTechnoFilter) {
+      return false;
+    }
+
+    return isBandEnabled(cell.bande, cell.techno);
+  });
+};
+
 /** Build label text for a site based on selected label fields */
 const buildSiteLabel = (site: SiteSummary, fields: Set<string>): string => {
   if (fields.size === 0) return '';
+
   const parts: string[] = [];
-  if (fields.has('site_name')) parts.push(site.site_name);
-  if (fields.has('cell_name') && site.cells.length > 0) {
-    const names = site.cells.slice(0, 3).map(c => c.cell_id).join(', ');
-    parts.push(names + (site.cells.length > 3 ? '…' : ''));
+  const displayBands = getSiteDisplayBands(site);
+  const displayTechs = getSiteDisplayTechs(site);
+
+  if (fields.has('site_name') && site.site_name) {
+    parts.push(site.site_name);
   }
+
+  if (fields.has('cell_name') && site.cells.length > 0) {
+    const names = site.cells.slice(0, 3).map(c => c.cell_id).filter(Boolean).join(', ');
+    if (names) parts.push(names + (site.cells.length > 3 ? '…' : ''));
+  }
+
   if (fields.has('pci') && site.cells.length > 0) {
     const pcis = [...new Set(site.cells.map(c => (c as any).pci).filter(Boolean))].slice(0, 4);
     if (pcis.length > 0) parts.push('PCI: ' + pcis.join(','));
   }
+
   if (fields.has('azimut') && site.cells.length > 0) {
     const azs = [...new Set(site.cells.map(c => c.azimut).filter(a => a != null))].sort((a, b) => a - b);
     if (azs.length > 0) parts.push('Az: ' + azs.join('°,') + '°');
   }
-  if (fields.has('bande') && site.cells.length > 0) {
-    const bands = [...new Set(site.cells.map(c => c.bande).filter(Boolean))];
-    if (bands.length > 0) parts.push(bands.join(','));
+
+  if (fields.has('bande') && displayBands.length > 0) {
+    parts.push(displayBands.join(','));
   }
-  if (fields.has('techno') && site.cells.length > 0) {
-    const techs = [...new Set(site.cells.map(c => c.techno).filter(Boolean))];
-    if (techs.length > 0) parts.push(techs.join(','));
+
+  if (fields.has('techno') && displayTechs.length > 0) {
+    parts.push(displayTechs.join(','));
   }
+
   return parts.join(' · ');
 };
 
@@ -3150,9 +3213,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Auto-load cells refs (effect placed after visibleSites is defined)
   const cellLoadingRef = useRef(new Set<string>());
-  const cellLoadedRef = useRef(new Set<string>());
   const cellLoadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [cellsLoading, setCellsLoading] = useState(false);
 
   // Cleanup
   useEffect(() => {
@@ -3408,7 +3469,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [sites]);
   const uniqueBandes = useMemo(() => {
     const bandes = new Set<string>();
-    sites.forEach(s => s.cells.forEach(c => { if (c.bande) bandes.add(c.bande); }));
+    sites.forEach(s => {
+      getSiteDisplayBands(s).forEach(b => bandes.add(b));
+    });
     return ['ALL', ...Array.from(bandes).sort()];
   }, [sites]);
 
@@ -3454,11 +3517,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   useEffect(() => {
-    if (displayMode !== 'cells') return;
+    if (displayMode !== 'cells' || !dashboardActive) return;
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
-      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id) && !cellLoadedRef.current.has(s.site_id)
+      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id)
     );
 
     if (sitesNeedingCells.length === 0) return;
@@ -3467,7 +3530,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     cellLoadDebounceRef.current = setTimeout(async () => {
       // Mark all as loading
       sitesNeedingCells.forEach(s => cellLoadingRef.current.add(s.site_id));
-      setCellsLoading(true);
 
       try {
         const bounds = viewport.bounds!;
@@ -3514,48 +3576,54 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
-        // Synthesize sectors for ANY site that still has no cells after bulk+fallback
-        const sitesStillEmpty = sitesNeedingCells.filter(s => !cellMap.has(s.site_id));
-        if (sitesStillEmpty.length > 0) {
-          console.warn(`[SitesMonitor] Generating synthetic sectors for ${sitesStillEmpty.length} sites without cell data`);
-          for (const site of sitesStillEmpty) {
-            const has4G = (site.lte_cells && site.lte_cells > 0) || (site as any).technos?.includes('4G') || site.techno === '4G';
-            const has5G = (site.nr_cells && site.nr_cells > 0) || (site as any).technos?.includes('5G') || site.techno === '5G';
-            const lte = has4G ? Math.max(site.lte_cells || 0, 3) : 0;
-            const nr = has5G ? Math.max(site.nr_cells || 0, 3) : 0;
-            // If no tech info at all, assume at least 4G tri-sector
-            const effectiveLte = (lte === 0 && nr === 0) ? 3 : lte;
-            const effectiveNr = nr;
+        // Ultimate fallback: synthesize approximate sectors from site-level lte_cells/nr_cells
+        // when ALL VPS cell endpoints fail (timeout / empty)
+        if (cellMap.size === 0) {
+          console.warn('[SitesMonitor] All cell endpoints failed — generating synthetic sectors from site metadata');
+          for (const site of sitesNeedingCells) {
+            const lte = site.lte_cells || 0;
+            const nr = site.nr_cells || 0;
+            if (lte === 0 && nr === 0) continue;
             const syntheticCells: any[] = [];
-            const azimuths = [0, 120, 240];
-            if (effectiveLte > 0) {
-              const bandsPerSector = Math.max(1, Math.round(effectiveLte / 3));
+            const azimuths = [0, 120, 240]; // standard tri-sector
+            // Generate 4G synthetic cells
+            if (lte > 0) {
+              const bandsPerSector = Math.max(1, Math.round(lte / 3));
               const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
               for (let s = 0; s < 3; s++) {
                 for (let b = 0; b < bandsPerSector && b < defaultBands4G.length; b++) {
                   syntheticCells.push({
                     cell_id: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
                     cell_name: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
-                    techno: '4G', bande: defaultBands4G[b],
-                    vendor: site.vendor || 'Unknown', azimut: azimuths[s],
-                    tilt: null, pci: null, eci: null, nci: null, cid: null, tac: null,
-                    etat_cellule: null, essentiel: null, _synthetic: true,
+                    techno: '4G',
+                    bande: defaultBands4G[b],
+                    vendor: site.vendor || 'Unknown',
+                    azimut: azimuths[s],
+                    tilt: null,
+                    pci: null, eci: null, nci: null, cid: null, tac: null,
+                    etat_cellule: null, essentiel: null,
+                    _synthetic: true,
                   });
                 }
               }
             }
-            if (effectiveNr > 0) {
-              const bandsPerSector5G = Math.max(1, Math.round(effectiveNr / 3));
+            // Generate 5G synthetic cells
+            if (nr > 0) {
+              const bandsPerSector5G = Math.max(1, Math.round(nr / 3));
               const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
               for (let s = 0; s < 3; s++) {
                 for (let b = 0; b < bandsPerSector5G && b < defaultBands5G.length; b++) {
                   syntheticCells.push({
                     cell_id: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
                     cell_name: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
-                    techno: '5G', bande: defaultBands5G[b],
-                    vendor: site.vendor || 'Unknown', azimut: azimuths[s],
-                    tilt: null, pci: null, eci: null, nci: null, cid: null, tac: null,
-                    etat_cellule: null, essentiel: null, _synthetic: true,
+                    techno: '5G',
+                    bande: defaultBands5G[b],
+                    vendor: site.vendor || 'Unknown',
+                    azimut: azimuths[s],
+                    tilt: null,
+                    pci: null, eci: null, nci: null, cid: null, tac: null,
+                    etat_cellule: null, essentiel: null,
+                    _synthetic: true,
                   });
                 }
               }
@@ -3566,12 +3634,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
-        // Clear loading flags and remember attempted sites to avoid endless reload loops
-        sitesNeedingCells.forEach(s => {
-          cellLoadingRef.current.delete(s.site_id);
-          cellLoadedRef.current.add(s.site_id);
-        });
-        setCellsLoading(false);
+        // Clear loading flags
+        sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
 
         if (cellMap.size > 0) {
           setSites(prev => prev.map(s => {
@@ -3581,18 +3645,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
-        sitesNeedingCells.forEach(s => {
-          cellLoadingRef.current.delete(s.site_id);
-          cellLoadedRef.current.add(s.site_id);
-        });
-        setCellsLoading(false);
+        sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
       }
     }, 400);
 
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, viewport.bounds]);
+  }, [displayMode, visibleSites, dashboardActive, viewport.bounds]);
 
 
   const renderSites = useMemo(() => {
@@ -3631,32 +3691,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Filter cells to 4G/5G only for sector rendering
   const ALLOWED_TECH = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
   const filter4G5GCells = (cells: any[]) => cells.filter(c => !c.techno || ALLOWED_TECH.has(c.techno.trim()));
-
-  // ── Sector cap: limit sector rendering to N sites closest to map center for performance ──
-  const MAX_SECTOR_SITES = 150;
-  const sectorAllowedIds = useMemo(() => {
-    // All sites with cells that could show sectors
-    const candidates = renderSites.filter(s => s.cells && s.cells.length > 0 && !(s.site_name || '').toLowerCase().includes('indoor'));
-    if (candidates.length <= MAX_SECTOR_SITES) {
-      return new Set(candidates.map(s => s.site_id));
-    }
-    // Compute map center
-    const mapCenter = viewport.bounds
-      ? [(viewport.bounds.getNorth() + viewport.bounds.getSouth()) / 2, (viewport.bounds.getEast() + viewport.bounds.getWest()) / 2] as [number, number]
-      : [46.6, 2.2] as [number, number];
-    // Sort by distance to center (squared, no need for sqrt)
-    const withDist = candidates.map(s => {
-      const dlat = s.coordinates[0] - mapCenter[0];
-      const dlng = s.coordinates[1] - mapCenter[1];
-      return { id: s.site_id, d2: dlat * dlat + dlng * dlng, tagged: isSiteTagged(s.site_id) };
-    });
-    // Tagged sites always get priority
-    withDist.sort((a, b) => {
-      if (a.tagged !== b.tagged) return a.tagged ? -1 : 1;
-      return a.d2 - b.d2;
-    });
-    return new Set(withDist.slice(0, MAX_SECTOR_SITES).map(x => x.id));
-  }, [renderSites, viewport.bounds, taggedSites]);
 
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
@@ -3929,18 +3963,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     </div>
   ) : null;
 
-  // Non-blocking cells loading banner (does NOT block map interaction)
-  const cellsLoadingBanner = cellsLoading && !loading && !mapRendering ? (
-    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1200] pointer-events-none animate-fade-in">
-      <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-lg">
-        <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-          Chargement des cellules…
-        </span>
-      </div>
-    </div>
-  ) : null;
-
   // Detail loading is now handled inline — no full-screen takeover
 
   // No early return for siteDetail — rendered as right panel inside the main view
@@ -3949,7 +3971,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
-      {cellsLoadingBanner}
       {/* Empty state — no dashboard, modal closed */}
       {/* Empty overlay removed — message now in sidebar */}
       {/* Bbox loading indicator */}
@@ -4025,11 +4046,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Points mode — individual cell markers */}
         {mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
-          const cellsToRender = (mapTechnoFilter === 'ALL' ? site.cells.filter(c => {
-              const tech = (c.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
-              return enabledTechnos.has(tech);
-            })
-            : site.cells.filter(c => c.techno === mapTechnoFilter)).filter(c => isBandEnabled(c.bande, c.techno));
+          const cellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled);
           return (
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
@@ -4088,7 +4105,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           const isTagged = isSiteTagged(site.site_id);
-          const showMiniSectors = ((showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor)) && sectorAllowedIds.has(site.site_id);
+          const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor);
 
           if (isIndoor) {
             const iconSize = viewport.zoom >= 10 ? 20 : 14;
@@ -4193,9 +4210,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <React.Fragment key={site.site_id}>
                 {miniItems.map(({ tech, az, r, bandKey }) => {
                   const sectorCoords = getSectorCoords(site.coordinates, az, r, 60);
-                  // In ALL mode: use tech group color only (green 5G / orange 4G). Band colors only when filtering a specific tech.
-                  const useBandColor = mapTechnoFilter !== 'ALL' && bandKey;
-                  const techColor = useBandColor ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'));
+                  const techColor = bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'));
                   return (
                     <Polygon
                       key={`${site.site_id}_mini_${tech}_${bandKey || 'unk'}_${az}`}
@@ -4254,7 +4269,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
             if (isIndoor) return false;
             const isTagged = isSiteTagged(site.site_id);
-            const showMini = ((showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor)) && sectorAllowedIds.has(site.site_id);
+            const showMini = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor);
             return !showMini;
           });
 
@@ -4452,39 +4467,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           }
 
-          /* ── Cap check: sites beyond sector limit render as simple dots ── */
-          if (!sectorAllowedIds.has(site.site_id)) {
-            const { has4G: d4G, has5G: d5G } = inferSiteTechState(site);
-            const dotColor = d5G ? (bandColors['5G_GROUP'] || '#22c55e') : d4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
-            const dotR = isHovered || isSelectedSite ? 6 : 4;
-            return (
-              <CircleMarker
-                key={site.site_id}
-                center={site.coordinates}
-                radius={dotR}
-                pane={d5G ? 'pane5G' : 'pane4G'}
-                pathOptions={{
-                  color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
-                  fillColor: dotColor,
-                  fillOpacity: 0.85,
-                  weight: isSelectedSite ? 2 : (isHovered ? 2 : 1),
-                }}
-                eventHandlers={{
-                  click: () => handleSiteClick(site),
-                  mouseover: () => setHoveredSiteId(site.site_id),
-                  mouseout: () => setHoveredSiteId(null),
-                }}
-              >
-                <Popup>
-                  <div className="p-1">
-                    <div className="font-bold text-sm">{site.site_name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            );
-          }
-
           /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
           if (!site.cells || site.cells.length === 0) {
             const { has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
@@ -4618,8 +4600,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return (
               <React.Fragment key={site.site_id}>
                 {dedupItems.map(({ tech, az, radius, bandKey, cell }) => {
-                  // In ALL mode: tech group color only (green 5G / orange 4G). No band-specific colors.
-                  const topoColor = tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316');
+                  // In topo mode: use band-specific color from legend
+                  const topoColor = bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (bandColors[tech === '5G' ? '5G_GROUP' : '4G_GROUP'] || (tech === '5G' ? '#22c55e' : '#f97316'));
                   let kpiColor = topoColor;
                   if (sectorColorMode === 'kpi') {
                     kpiColor = getKpiColor(getCellKpiValue(cell));
@@ -4692,18 +4674,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── 5G / 4G mode: detailed per-band sectors ── */
           // Pre-compute max 4G radius per azimuth for capping 5G
-          const detailCells = site.cells.filter(c => {
-            if (!isBandEnabled(c.bande, c.techno)) return false;
-            // Also filter by tech when a specific tech is selected
-            if (mapTechnoFilter === '5G') {
-              return (c.techno || '').toUpperCase().includes('5G') || (c.techno || '').toUpperCase().includes('NR');
-            }
-            if (mapTechnoFilter === '4G') {
-              const t = (c.techno || '').toUpperCase();
-              return !t.includes('5G') && !t.includes('NR');
-            }
-            return true;
-          });
+          const detailCells = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled);
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
             const hasAny5G = detailCells.some(c => getCellTechGroup(c.techno) === '5G');
@@ -6469,7 +6440,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setDashboardRefreshTick(t => t + 1);
                       invalidateSiteCellsCache();
                       cellLoadingRef.current.clear();
-                      cellLoadedRef.current.clear();
                     }
 
                     setSelectedSiteId(null);
