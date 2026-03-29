@@ -8229,8 +8229,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== CELL FOCUS MODE ========== */}
           {focusMode === 'cell' && focusCellId && siteDetail && (() => {
+            console.log('[CellResolve] focusCellId:', focusCellId, 'siteDetail.site_id:', siteDetail.site_id, 'siteDetail.site_name:', siteDetail.site_name, 'cells count:', siteDetail.cells?.length, 'cell_ids:', siteDetail.cells?.map(c => c.cell_id));
             const cell = resolveCellFromDetail(siteDetail, focusCellId);
-            if (!cell) return <div className="p-4 text-muted-foreground text-[12px]">Cell not found.</div>;
+            if (!cell) return <div className="p-4 text-muted-foreground text-[12px]">Cell not found. (focusCellId: {focusCellId}, site: {siteDetail.site_name}, cells: {siteDetail.cells?.length})</div>;
             return (
               <div className="divide-y divide-border">
                 {/* Cell Header — prominent */}
