@@ -111,56 +111,41 @@ const InvestigatorPage: React.FC = () => {
 
   const handleApply = async () => {
     setIsApplying(true);
+    setHasUnfilteredFallback(false);
     try {
-      const granMap: Record<string, string> = { '15min': '15min', 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
-
-      // Determine split: check global splitBy first, then per-slot configs
-      let splitValue = state.splitBy === 'None' ? undefined : state.splitBy;
-      if (!splitValue) {
-        // Check if any slot has a per-KPI split configured
-        for (const slot of state.graphSlots) {
-          const perKpi = slot.config?.splitByPerKpi || {};
-          const activeSplit = Object.values(perKpi).find(v => v && v !== 'None');
-          if (activeSplit) {
-            splitValue = activeSplit;
-            break;
-          }
-        }
-      }
-
-      const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
-      if (kpiIds.length === 0) {
+      const slotsWithKpis = state.graphSlots.filter(s => s.kpiIds.length > 0);
+      if (slotsWithKpis.length === 0) {
         setTsData([]);
         setHasLoadedOnce(true);
         setIsApplying(false);
         return;
       }
-      const dateFrom = state.startDate.split('T')[0] || '2026-01-01';
-      const dateTo = state.endDate.split('T')[0] || '2026-03-24';
-      const gran = granMap[state.granularity] || '1h';
 
-      // Convert state.filters to API format
-      const activeFilters = Object.entries(state.filters)
-        .filter(([, vals]) => vals.length > 0)
-        .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }));
+      // Bug #1 + #2: Issue separate requests per slot (respects per-slot splits, filters, dates)
+      // Group slots by their effective split dimension to minimize requests
+      const slotContexts = slotsWithKpis.map(slot => ({
+        slot,
+        ctx: resolveSlotContext(slot, state),
+      }));
 
-      let ts = await fetchTimeSeriesData(
-        kpiIds, dateFrom, dateTo, gran, splitValue,
-        activeFilters.length > 0 ? activeFilters : undefined,
-        state.kpiLevel, state.profileQci, state.profileArp, state.neighborType
+      // Group by identical context (same split, dates, filters, gran) to batch where possible
+      const results = await Promise.all(
+        slotContexts.map(async ({ ctx }) => {
+          let result = await fetchTimeSeriesForSlot(ctx);
+          // Fallback: if hourly returned empty, retry with daily
+          if (result.data.length === 0 && ctx.granularity === '1h') {
+            console.warn('[Investigator] Hourly returned empty, retrying daily');
+            result = await fetchTimeSeriesForSlot({ ...ctx, granularity: '1d' });
+          }
+          return result;
+        })
       );
 
-      // Fallback: if hourly returned empty, retry with daily granularity
-      if (ts.length === 0 && gran === '1h') {
-        console.warn('[Investigator] Hourly returned empty, retrying with daily granularity');
-        ts = await fetchTimeSeriesData(
-          kpiIds, dateFrom, dateTo, '1d', splitValue,
-          activeFilters.length > 0 ? activeFilters : undefined,
-          state.kpiLevel, state.profileQci, state.profileArp, state.neighborType
-        );
-      }
-
-      setTsData(ts);
+      // Merge all results
+      const allData = results.flatMap(r => r.data);
+      const anyUnfiltered = results.some(r => r.hasUnfilteredFallback);
+      setHasUnfilteredFallback(anyUnfiltered);
+      setTsData(allData);
       setHasLoadedOnce(true);
     } catch (e) {
       console.error('[Investigator] API error:', e);
@@ -176,7 +161,8 @@ const InvestigatorPage: React.FC = () => {
       const dateFrom = state.startDate.split('T')[0] || '2026-01-01';
       const dateTo = state.endDate.split('T')[0] || '2026-03-24';
 
-      const byDOR = await fetchWorstByDOR(kpiIds, state.topLimit, dateFrom, dateTo, worstFilters);
+      // Bug #5: Single grouped query instead of N+1
+      const byDOR = await fetchWorstByDOR(kpiIds, state.topLimit, dateFrom, dateTo, worstFilters, kpiMetaMap);
 
       // Enrich all cells with metadata + alarms
       const allCells = Object.values(byDOR).flat();
