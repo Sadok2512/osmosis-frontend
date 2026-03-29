@@ -8638,6 +8638,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Type</th>
                                 <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
                                 <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
+                                <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Dist</th>
+                                <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">HO #</th>
+                                <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">HO SR</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -8656,11 +8659,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                     </span>
                                   </td>
                                   <td className="px-2 py-2 text-center">
-                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${n.targetTechno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
-                                      {n.targetTechno}
+                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${n.targetTechno?.includes('5G') || n.targetTechno === 'NR' ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
+                                      {n.targetTechno === 'NR' ? '5G NR' : n.targetTechno?.includes('5G') ? '5G NR' : n.targetTechno === 'LTE' || n.targetTechno?.includes('4G') ? 'LTE' : n.targetTechno}
                                     </span>
                                   </td>
                                   <td className="px-2 py-2 text-center text-muted-foreground font-semibold">{n.targetBande}</td>
+                                  <td className="px-2 py-2 text-center font-mono text-muted-foreground">{n.distanceKm} km</td>
+                                  <td className="px-2 py-2 text-center font-mono font-bold text-foreground">{n.hoCount.toLocaleString()}</td>
+                                  <td className="px-2 py-2 text-center">
+                                    <span className={`font-mono font-bold ${n.hoSuccessRate >= 98 ? 'text-green-400' : n.hoSuccessRate >= 95 ? 'text-amber-400' : 'text-red-400'}`}>
+                                      {n.hoSuccessRate}%
+                                    </span>
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
