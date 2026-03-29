@@ -3487,12 +3487,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
-        // Fallback: if bulk load returns nothing for visible sites, load each site on demand
-        // Throttled to max 3 concurrent requests to avoid BOOT_ERROR on edge functions
+        // Fallback: if bulk load returns nothing, load per-site but capped & throttled
         if (cellMap.size === 0 && sitesNeedingCells.length > 0) {
-          const CONCURRENCY = 3;
-          const queue = [...sitesNeedingCells];
-          const perSiteResults: { siteId: string; cells: any[] }[] = [];
+          const MAX_FALLBACK = 10; // Never fire more than 10 individual requests
+          const CONCURRENCY = 2;
+          const DELAY_MS = 500; // pause between batches
+          const queue = sitesNeedingCells.slice(0, MAX_FALLBACK);
 
           while (queue.length > 0) {
             const batch = queue.splice(0, CONCURRENCY);
@@ -3506,13 +3506,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 }
               })
             );
-            perSiteResults.push(...batchResults);
-          }
-
-          for (const result of perSiteResults) {
-            if (result.cells.length > 0) {
-              cellMap.set(result.siteId, result.cells);
+            for (const r of batchResults) {
+              if (r.cells.length > 0) cellMap.set(r.siteId, r.cells);
             }
+            if (queue.length > 0) await new Promise(r => setTimeout(r, DELAY_MS));
           }
         }
 
