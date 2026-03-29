@@ -4141,8 +4141,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
-          // Always use tech-based colors for site dots (circle markers & mini sectors)
-          const color = topoColor;
+          // Color view override: if a "View by Color" dimension is active, use that instead
+          const colorViewOverride = getColorViewFill(site);
+          const color = colorViewOverride || topoColor;
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
