@@ -4152,17 +4152,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor);
 
           if (isIndoor) {
-            const iconSize = viewport.zoom >= 10 ? 20 : 14;
+            const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
+            const indoorRadius = viewport.zoom >= 10
+              ? (isHovered || isSelectedSite ? 7 : 5)
+              : viewport.zoom >= 8
+                ? (isHovered || isSelectedSite ? 6 : Math.round(4 * densityScale))
+                : (isHovered || isSelectedSite ? 5 : Math.round(3.5 * densityScale));
             return (
               <React.Fragment key={site.site_id}>
-                <Marker
-                  position={site.coordinates}
-                  icon={L.divIcon({
-                    className: '',
-                    iconSize: [iconSize, iconSize],
-                    iconAnchor: [iconSize / 2, iconSize / 2],
-                    html: `<div style="width:${iconSize}px;height:${iconSize}px;border-radius:50%;background:${color};border:2px solid ${isSelectedSite || isHovered ? '#fff' : '#555'};display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.3);"><span style="color:#fff;font-weight:900;font-size:${iconSize * 0.55}px;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,0.5);">I</span></div>`,
-                  })}
+                <CircleMarker
+                  center={site.coordinates}
+                  radius={indoorRadius}
+                  pane="pane4G"
+                  pathOptions={{
+                    color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
+                    fillColor: colorViewOverride || color,
+                    fillOpacity: 0.85,
+                    weight: isSelectedSite ? 2 : (isHovered ? 2 : 1),
+                  }}
                   eventHandlers={{
                     click: () => handleSiteClick(site),
                     mouseover: () => setHoveredSiteId(site.site_id),
@@ -4175,7 +4182,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <div className="text-xs text-muted-foreground mt-1">{site.site_id} • Indoor</div>
                     </div>
                   </Popup>
-                </Marker>
+                </CircleMarker>
                 {(showSiteLabels || viewport.zoom >= 14) && viewport.zoom >= 10 && (
                   <Marker position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
                     <Tooltip direction="bottom" offset={[0, 8]} permanent className="site-name-label-clean">
