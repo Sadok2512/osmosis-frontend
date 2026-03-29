@@ -63,7 +63,7 @@ import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS,
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
-import { SiteSummary, SiteDetail, Filters } from '../../types';
+import { SiteSummary, SiteDetail, Filters, CellProperties } from '../../types';
 import {
   Search, RefreshCw, ChevronLeft, MapPin,
   Zap, Network, Database, Activity, ArrowRight,
@@ -4034,6 +4034,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 350);
   };
+
+  /** Robust cell lookup: exact match → trimmed match → case-insensitive → includes fallback */
+  const resolveCellFromDetail = useCallback((detail: SiteDetail, cellId: string) => {
+    if (!detail?.cells?.length || !cellId) return undefined as CellProperties | undefined;
+    // 1. Exact match
+    let found = detail.cells.find(c => c.cell_id === cellId);
+    if (found) return found;
+    // 2. Trimmed match
+    const trimmed = cellId.trim();
+    found = detail.cells.find(c => c.cell_id?.trim() === trimmed);
+    if (found) return found;
+    // 3. Case-insensitive
+    const upper = trimmed.toUpperCase();
+    found = detail.cells.find(c => c.cell_id?.trim().toUpperCase() === upper);
+    if (found) return found;
+    // 4. Check cell_name or nom_cellule on extended props
+    found = detail.cells.find(c => {
+      const ext = c as any;
+      return (ext.cell_name?.trim().toUpperCase() === upper) ||
+             (ext.nom_cellule?.trim().toUpperCase() === upper);
+    });
+    if (found) return found;
+    // 5. Partial / includes match (last resort)
+    found = detail.cells.find(c => c.cell_id?.toUpperCase().includes(upper) || upper.includes(c.cell_id?.toUpperCase()));
+    return found;
+  }, []);
 
   const handleCellClick = (cellId: string) => {
     setFocusMode('cell');
@@ -8067,7 +8093,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               {/* ── Selected Cell Detail (from left panel) ── */}
               {focusCellId && (() => {
-                const cell = siteDetail.cells.find(c => c.cell_id === focusCellId);
+                const cell = resolveCellFromDetail(siteDetail, focusCellId);
                 if (!cell) return null;
                 return (
                   <div className="px-5 py-4 space-y-4">
@@ -8203,7 +8229,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== CELL FOCUS MODE ========== */}
           {focusMode === 'cell' && focusCellId && siteDetail && (() => {
-            const cell = siteDetail.cells.find(c => c.cell_id === focusCellId);
+            const cell = resolveCellFromDetail(siteDetail, focusCellId);
             if (!cell) return <div className="p-4 text-muted-foreground text-[12px]">Cell not found.</div>;
             return (
               <div className="divide-y divide-border">
