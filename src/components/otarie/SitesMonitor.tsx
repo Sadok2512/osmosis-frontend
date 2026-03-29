@@ -2569,7 +2569,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     linkComputeProfile(
       { lat: link.fromCoords[0], lng: link.fromCoords[1] },
       { lat: link.toCoords[0], lng: link.toCoords[1] },
-      { hba: 30, tilt: 0, mechTilt: 0, gain: 18, frequency: 1800, siteAltitude: 0, antennaAMSL: 30 },
+      { hba: 30, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: 0, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 1.5, siteAltitude: 0, antennaAMSL: 30 },
       true
     );
   }, [linkComputeProfile]);
