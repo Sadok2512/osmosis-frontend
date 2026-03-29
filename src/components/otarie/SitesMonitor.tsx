@@ -3996,7 +3996,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
       {/* FULL SCREEN MAP */}
       <MapContainer
-        key={`map-${mapTechnoFilter}-${Array.from(enabledTechnos).sort().join('-')}-${showBeamSectors ? 'beams' : 'nobeams'}-${mapDisplayMode}`}
+        key={`map-${showBeamSectors ? 'beams' : 'nobeams'}-${mapDisplayMode}`}
         center={initialCenter || FRANCE_CENTER}
         zoom={FRANCE_DEFAULT_ZOOM}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
@@ -4065,7 +4065,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
                 const val = getCellKpiValue(cell);
-                const color = sectorColorMode === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(val);
+                const color = sectorColorMode === 'topo' ? (mapTechnoFilter === 'ALL' ? (is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316')) : getBandColor(cell.bande, cell.techno)) : getKpiColor(val);
                 const isHovered = hoveredSiteId === site.site_id;
                 const offsetDist = 0.0003;
                 const rad = ((cell.azimut || idx * 120) - 90) * (Math.PI / 180);
@@ -4224,7 +4224,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <React.Fragment key={site.site_id}>
                 {miniItems.map(({ tech, az, r, bandKey }) => {
                   const sectorCoords = getSectorCoords(site.coordinates, az, r, 60);
-                  const techColor = bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'));
+                  const techColor = mapTechnoFilter === 'ALL'
+                    ? (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'))
+                    : (bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316')));
                   return (
                     <Polygon
                       key={`${site.site_id}_mini_${tech}_${bandKey || 'unk'}_${az}`}
@@ -4614,8 +4616,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return (
               <React.Fragment key={site.site_id}>
                 {dedupItems.map(({ tech, az, radius, bandKey, cell }) => {
-                  // In topo mode: use band-specific color from legend
-                  const topoColor = bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (bandColors[tech === '5G' ? '5G_GROUP' : '4G_GROUP'] || (tech === '5G' ? '#22c55e' : '#f97316'));
+                  // In ALL mode: use only tech group colors (2 colors total), not per-band colors
+                  const topoColor = tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316');
                   let kpiColor = topoColor;
                   if (sectorColorMode === 'kpi') {
                     kpiColor = getKpiColor(getCellKpiValue(cell));
