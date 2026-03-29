@@ -3784,8 +3784,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             ...site,
             cells,
             cell_count: cells.length || site.cell_count,
-            lte_cells: cells.filter((c: any) => c.techno === '4G' || c.techno === 'LTE').length,
-            nr_cells: cells.filter((c: any) => c.techno === '5G' || c.techno === 'NR').length,
+            lte_cells: cells.filter((c: any) => is4GTech(c.techno)).length,
+            nr_cells: cells.filter((c: any) => is5GTech(c.techno)).length,
           };
           // Update in searchModeSites or sites
           setSearchModeSites(prev => prev.map(s => s.site_id === siteWithCells.site_id ? siteWithCells : s));
