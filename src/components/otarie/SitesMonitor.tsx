@@ -3389,8 +3389,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         });
       }
       // No cells loaded — use site-level summary fields
-      if (tech === '5G') return (s.nr_cells || 0) > 0 || (s.technos || []).some((t: string) => t?.toUpperCase()?.includes('5G') || t?.toUpperCase()?.includes('NR'));
-      return (s.lte_cells || 0) > 0 || (s.technos || []).some((t: string) => { const u = t?.toUpperCase(); return u && !u.includes('5G') && !u.includes('NR'); });
+      if (tech === '5G') return (s.nr_cells || 0) > 0 || ((s as any).technos || []).some((t: string) => t?.toUpperCase()?.includes('5G') || t?.toUpperCase()?.includes('NR'));
+      return (s.lte_cells || 0) > 0 || ((s as any).technos || []).some((t: string) => { const u = t?.toUpperCase(); return u && !u.includes('5G') && !u.includes('NR'); });
     };
 
     if (mapTechnoFilter === 'ALL') {
