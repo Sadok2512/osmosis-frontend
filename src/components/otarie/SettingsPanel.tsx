@@ -489,7 +489,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[11px] font-black text-primary uppercase tracking-wider">V1.0.3 • Orange France</span>
+              <span className="text-[11px] font-black text-primary uppercase tracking-wider">V1.1.0 • Orange France</span>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-xl">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -541,7 +541,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
             <div className="grid grid-cols-2 gap-4">
               <InfoCard icon={<Building2 className="w-5 h-5" />} label="Organisation" value="Orange France" sublabel="Opérateur Télécom" accentColor="text-orange-500" bgColor="bg-orange-500/10" />
               <InfoCard icon={<Users className="w-5 h-5" />} label="Équipe" value="PSN Team" sublabel="Performance & Service Network" accentColor="text-primary" bgColor="bg-primary/10" />
-              <InfoCard icon={<Tag className="w-5 h-5" />} label="Version" value="V1.0.3" sublabel="Build 2026.03.28" accentColor="text-purple-500" bgColor="bg-purple-500/10" />
+              <InfoCard icon={<Tag className="w-5 h-5" />} label="Version" value="V1.1.0" sublabel="Build 2026.03.29" accentColor="text-purple-500" bgColor="bg-purple-500/10" />
               <InfoCard icon={<CalendarDays className="w-5 h-5" />} label="Date Système" value={systemTime.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })} sublabel={systemTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} accentColor="text-cyan-500" bgColor="bg-cyan-500/10" />
             </div>
           </div>
