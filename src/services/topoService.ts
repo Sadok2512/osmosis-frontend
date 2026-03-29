@@ -535,11 +535,15 @@ export async function fetchCellsByBbox(
       .map((s: any) => {
         const canonicalSiteId = String(s.code_nidt || s.site_id || s.site_name || '').trim();
         const displaySiteName = String(s.nom_site || s.site_name || canonicalSiteId).trim();
-        const cells = (s.cells || []).map((c: any) => ({
-          cell_id: c.nom_cellule || c.cell_id,
-          cell_name: c.nom_cellule || c.cell_id || '',
-          techno: c.techno || '4G',
-          bande: c.bande || '',
+        const cells = (s.cells || []).map((c: any) => {
+          const rawTechno = c.techno || '4G';
+          const rawBande = c.bande || '';
+          const effectiveBande = rawBande || inferBandFromCellName(c.nom_cellule || c.cell_id || '', rawTechno);
+          return {
+            cell_id: c.nom_cellule || c.cell_id,
+            cell_name: c.nom_cellule || c.cell_id || '',
+            techno: rawTechno,
+            bande: effectiveBande,
           vendor: c.constructeur || '',
           azimut: c.azimut != null ? Number(c.azimut) : null,
           tilt: c.tilt != null ? Number(c.tilt) : null,
