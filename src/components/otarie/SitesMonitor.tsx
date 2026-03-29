@@ -3151,6 +3151,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Auto-load cells refs (effect placed after visibleSites is defined)
   const cellLoadingRef = useRef(new Set<string>());
   const cellLoadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [cellsLoading, setCellsLoading] = useState(false);
 
   // Cleanup
   useEffect(() => {
@@ -3465,6 +3466,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     cellLoadDebounceRef.current = setTimeout(async () => {
       // Mark all as loading
       sitesNeedingCells.forEach(s => cellLoadingRef.current.add(s.site_id));
+      setCellsLoading(true);
 
       try {
         const bounds = viewport.bounds!;
@@ -3571,6 +3573,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         // Clear loading flags
         sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
+        setCellsLoading(false);
 
         if (cellMap.size > 0) {
           setSites(prev => prev.map(s => {
@@ -3581,6 +3584,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
         sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
+        setCellsLoading(false);
       }
     }, 400);
 
@@ -3894,6 +3898,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em]">
           {loading ? 'Chargement des sites…' : `Rendu de ${visibleSites.length.toLocaleString()} sites…`}
         </p>
+      </div>
+    </div>
+  ) : null;
+
+  // Non-blocking cells loading banner (does NOT block map interaction)
+  const cellsLoadingBanner = cellsLoading && !loading && !mapRendering ? (
+    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1200] pointer-events-none animate-fade-in">
+      <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-lg">
+        <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+          Chargement des cellules…
+        </span>
       </div>
     </div>
   ) : null;
