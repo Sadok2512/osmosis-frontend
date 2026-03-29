@@ -5656,10 +5656,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Technologies</span>
                       <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
                     </div>
-                    {[
-                      { key: '5G_GROUP', tech: '5G', label: '5G', defaultColor: '#22c55e' },
-                      { key: '4G_GROUP', tech: '4G', label: '4G', defaultColor: '#f97316' },
-                    ].map(({ key, tech, label, defaultColor }) => {
+                    {([
+                      { key: '5G_GROUP', tech: '5G' as const, label: '5G', defaultColor: '#22c55e' },
+                      { key: '4G_GROUP', tech: '4G' as const, label: '4G', defaultColor: '#f97316' },
+                    ]).map(({ key, tech, label, defaultColor }) => {
                       const enabled = enabledTechnos.has(tech);
                       const color = bandColors[key] || defaultColor;
                       return (
