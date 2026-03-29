@@ -58,6 +58,17 @@ const InvestigatorPage: React.FC = () => {
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
   const [isLoadingWorst, setIsLoadingWorst] = React.useState(false);
+  const [hasUnfilteredFallback, setHasUnfilteredFallback] = React.useState(false);
+  const [kpiMetaMap, setKpiMetaMap] = React.useState<Map<string, KpiDefinition>>(new Map());
+
+  // Load KPI metadata for severity/ranking
+  React.useEffect(() => {
+    fetchKpiDefinitions().then(kpis => {
+      const map = new Map<string, KpiDefinition>();
+      for (const k of kpis) map.set(k.id, k);
+      setKpiMetaMap(map);
+    });
+  }, []);
 
   // Load filter options on mount
   React.useEffect(() => {
