@@ -4366,7 +4366,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Tooltip>
                   </CircleMarker>
                 )}
-                {fb5G && (
+                {show5G && (
                   <CircleMarker
                     center={site.coordinates}
                     radius={fbMixed ? Math.round(baseR * 0.65) : baseR}
@@ -4386,7 +4386,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Tooltip>
                   </CircleMarker>
                 )}
-                {!fb4G && !fb5G && (
+                {!show4G && !show5G && mapTechnoFilter === 'ALL' && (
                   <CircleMarker
                     center={site.coordinates}
                     radius={baseR}
