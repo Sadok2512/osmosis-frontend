@@ -4972,6 +4972,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             color="hsl(0,84%,60%)" weight={2} dashArray="8 4"
           />
         )}
+        {/* Tagged Link polylines */}
+        {taggedLinks.map(link => (
+          <Polyline
+            key={link.id}
+            positions={[link.fromCoords, link.toCoords]}
+            color={selectedLinkId === link.id ? '#3b82f6' : '#6366f1'}
+            weight={selectedLinkId === link.id ? 3 : 2}
+            opacity={0.8}
+            dashArray={selectedLinkId === link.id ? undefined : '6 4'}
+            eventHandlers={{
+              click: () => setSelectedLinkId(link.id),
+            }}
+          >
+            <Tooltip direction="center" permanent={false}>
+              <span className="text-xs font-bold">{link.label}</span>
+            </Tooltip>
+          </Polyline>
+        ))}
+        {/* Neighbor visualization lines */}
+        {showNeighborPanel && neighborData.filter(n => n.relationDirection === neighborDirection).map((n, i) => {
+          const sourceCell = siteDetail?.cells.find(c => c.cell_id === neighborCellId);
+          const sourceCoords = siteDetail?.coordinates;
+          if (!sourceCoords) return null;
+          return (
+            <Polyline
+              key={`nb-${i}`}
+              positions={[sourceCoords, n.targetCoords]}
+              color={NEIGHBOR_COLORS[n.relationType]}
+              weight={2}
+              opacity={0.7}
+            >
+              <Tooltip direction="center" permanent={false}>
+                <span className="text-xs">{n.targetCellId} ({NEIGHBOR_LABELS[n.relationType]})</span>
+              </Tooltip>
+            </Polyline>
+          );
+        })}
         {/* Coverage simulation overlay */}
         <CoverageCanvasOverlay grid={coverageGrid} opacity={0.55} visible={!!coverageGrid} />
 
