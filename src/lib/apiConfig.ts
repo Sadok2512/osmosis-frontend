@@ -149,6 +149,11 @@ export function getVpsUrl(service: keyof typeof VPS_ENDPOINTS, path: string): st
 export function getApiHeaders(): Record<string, string> {
   const source = getPreferredDataSource();
   if (source === 'vps') {
+    // Direct VPS mode: simple headers (no proxy auth needed)
+    const onVps = typeof window !== 'undefined' && window.location.hostname === VPS_HOST;
+    if (onVps) {
+      return { 'Content-Type': 'application/json' };
+    }
     return getVpsProxyHeaders();
   }
   const headers: Record<string, string> = {
