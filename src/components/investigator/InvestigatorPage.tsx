@@ -101,7 +101,7 @@ const InvestigatorPage: React.FC = () => {
   const handleApply = async () => {
     setIsApplying(true);
     try {
-      const granMap: Record<string, string> = { 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
+      const granMap: Record<string, string> = { '15min': '15min', 'Hourly': '1h', 'Daily': '1d', 'Weekly': '1w' };
 
       // Determine split: check global splitBy first, then per-slot configs
       let splitValue = state.splitBy === 'None' ? undefined : state.splitBy;
