@@ -2518,6 +2518,67 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return next;
     });
   }, []);
+
+  // ── Tagged Links ──
+  const [taggedLinks, setTaggedLinks] = useState<TaggedLink[]>(loadTaggedLinks);
+  const [linkCreationMode, setLinkCreationMode] = useState(false);
+  const [linkSource, setLinkSource] = useState<{ id: string; type: 'site' | 'point'; label: string; coords: [number, number] } | null>(null);
+  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
+
+  const addTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource) => {
+    if (!from || !to) return;
+    const link = createTaggedLink(from, to);
+    setTaggedLinks(prev => {
+      const next = [...prev, link];
+      persistTaggedLinks(next);
+      return next;
+    });
+    setLinkCreationMode(false);
+    setLinkSource(null);
+  }, []);
+
+  const deleteTaggedLink = useCallback((linkId: string) => {
+    setTaggedLinks(prev => {
+      const next = prev.filter(l => l.id !== linkId);
+      persistTaggedLinks(next);
+      return next;
+    });
+    if (selectedLinkId === linkId) setSelectedLinkId(null);
+  }, [selectedLinkId]);
+
+  const handleSelectTaggedForLink = useCallback((site: SiteSummary) => {
+    const obj = { id: site.site_id, type: 'site' as const, label: site.site_name, coords: site.coordinates };
+    if (!linkSource) {
+      setLinkSource(obj);
+    } else {
+      if (linkSource.id !== obj.id) {
+        addTaggedLink(linkSource, obj);
+      }
+    }
+  }, [linkSource, addTaggedLink]);
+
+  // ── Terrain Profile for Links ──
+  const { loading: linkProfileLoading, profilePoints: linkProfilePoints, analysis: linkProfileAnalysis, computeProfile: linkComputeProfile } = useTerrainProfile();
+  const [showLinkProfile, setShowLinkProfile] = useState(false);
+  const [linkProfileLabel, setLinkProfileLabel] = useState('');
+
+  const openLinkTerrainProfile = useCallback((link: TaggedLink) => {
+    setSelectedLinkId(link.id);
+    setLinkProfileLabel(link.label);
+    setShowLinkProfile(true);
+    linkComputeProfile(
+      { lat: link.fromCoords[0], lng: link.fromCoords[1] },
+      { lat: link.toCoords[0], lng: link.toCoords[1] },
+      { hba: 30, tilt: 0, mechTilt: 0, gain: 18, frequency: 1800, siteAltitude: 0, antennaAMSL: 30 },
+      true
+    );
+  }, [linkComputeProfile]);
+
+  // ── Neighbor visualization ──
+  const [neighborCellId, setNeighborCellId] = useState<string | null>(null);
+  const [neighborDirection, setNeighborDirection] = useState<NeighborDirection>('out');
+  const [neighborData, setNeighborData] = useState<CellNeighbor[]>([]);
+  const [showNeighborPanel, setShowNeighborPanel] = useState(false);
   const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
     try { return localStorage.getItem('qoebit_active_dashboard_id') || null; } catch { return null; }
   });
