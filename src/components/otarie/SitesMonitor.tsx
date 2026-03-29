@@ -4496,7 +4496,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── 5G / 4G mode: detailed per-band sectors ── */
           // Pre-compute max 4G radius per azimuth for capping 5G
-          const detailCells = site.cells.filter(c => isBandEnabled(c.bande, c.techno));
+          const detailCells = site.cells.filter(c => {
+            if (!isBandEnabled(c.bande, c.techno)) return false;
+            // Also filter by tech when a specific tech is selected
+            if (mapTechnoFilter === '5G') {
+              return (c.techno || '').toUpperCase().includes('5G') || (c.techno || '').toUpperCase().includes('NR');
+            }
+            if (mapTechnoFilter === '4G') {
+              const t = (c.techno || '').toUpperCase();
+              return !t.includes('5G') && !t.includes('NR');
+            }
+            return true;
+          });
           const max4GRadiusPerAz = new Map<number, number>();
           const hasAny4G = detailCells.some(c => !(c.techno || '').toUpperCase().includes('5G'));
           const hasAny5G = detailCells.some(c => (c.techno || '').toUpperCase().includes('5G'));
