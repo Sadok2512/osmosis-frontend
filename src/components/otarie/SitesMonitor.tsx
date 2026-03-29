@@ -1538,8 +1538,19 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
   };
 
-  // Use backend filter defs for dashboard creation
-  const filterDimensions = backendFilterDefs || [];
+  // Use backend filter defs for dashboard creation — fallback to static FILTER_DIMENSIONS if empty
+  const filterDimensions = useMemo(() => {
+    if (backendFilterDefs && backendFilterDefs.length > 0) return backendFilterDefs;
+    // Fallback: build from static config
+    const FALLBACK_KEYS = ['dor', 'constructeur', 'plaque', 'techno', 'bande', 'zone_arcep'];
+    return FILTER_DIMENSIONS
+      .filter(dim => FALLBACK_KEYS.includes(dim.key))
+      .map(dim => {
+        const vals = resolveAvailableValues(dim.key, []);
+        return { id: dim.key, label: dim.label, values: vals.sort() };
+      })
+      .filter(d => d.values.length > 0);
+  }, [backendFilterDefs]);
 
   const toggleCreateFilterValue = (dimKey: string, val: string) => {
     setCreateFilters(prev => {
