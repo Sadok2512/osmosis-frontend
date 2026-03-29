@@ -3519,8 +3519,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (sitesStillEmpty.length > 0) {
           console.warn(`[SitesMonitor] Generating synthetic sectors for ${sitesStillEmpty.length} sites without cell data`);
           for (const site of sitesStillEmpty) {
-            const has4G = (site.lte_cells && site.lte_cells > 0) || site.technos?.includes('4G');
-            const has5G = (site.nr_cells && site.nr_cells > 0) || site.technos?.includes('5G');
+            const has4G = (site.lte_cells && site.lte_cells > 0) || (site as any).technos?.includes('4G') || site.techno === '4G';
+            const has5G = (site.nr_cells && site.nr_cells > 0) || (site as any).technos?.includes('5G') || site.techno === '5G';
             const lte = has4G ? Math.max(site.lte_cells || 0, 3) : 0;
             const nr = has5G ? Math.max(site.nr_cells || 0, 3) : 0;
             // If no tech info at all, assume at least 4G tri-sector
