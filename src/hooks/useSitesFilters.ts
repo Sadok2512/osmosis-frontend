@@ -13,17 +13,29 @@ export interface ActiveFilter {
   selectedValues: string[];
 }
 
+const FALLBACK_FILTER_DEFS: FilterDefinition[] = [
+  { id: 'dor', label: 'DOR', values: [] },
+  { id: 'plaque', label: 'Plaque', values: [] },
+  { id: 'constructeur', label: 'Constructeur', values: [] },
+  { id: 'techno', label: 'Technologie', values: ['4G', '5G'] },
+  { id: 'bande', label: 'Bande', values: [] },
+  { id: 'zone_arcep', label: 'Zone ARCEP', values: [] },
+];
+
 export function useSitesFilters() {
-  const [filterDefs, setFilterDefs] = useState<FilterDefinition[]>([]);
+  const [filterDefs, setFilterDefs] = useState<FilterDefinition[]>(FALLBACK_FILTER_DEFS);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch available filters from backend
+  // Fetch available filters from backend, keep fallback if unavailable
   useEffect(() => {
     setLoading(true);
     topoApi.filters()
-      .then(data => setFilterDefs(data.filters || []))
-      .catch(console.error)
+      .then(data => {
+        const defs = data.filters || [];
+        if (defs.length > 0) setFilterDefs(defs);
+      })
+      .catch(() => { /* keep fallback */ })
       .finally(() => setLoading(false));
   }, []);
 
