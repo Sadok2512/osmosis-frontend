@@ -700,6 +700,7 @@ export function getCachedDashboardSites(
 export async function fetchDashboardSites(
   siteFilters: DashboardSiteFilters | null,
   search?: string,
+  onProgressiveBatch?: (sites: SiteSummary[]) => void,
 ): Promise<SiteSummary[]> {
   const key = dashboardFilterKey(siteFilters, search);
   if (dashboardSitesCache && dashboardSitesCache.key === key && (Date.now() - dashboardSitesCache.ts) < DASHBOARD_SITES_CACHE_TTL) {
@@ -716,7 +717,7 @@ export async function fetchDashboardSites(
   if (siteFilters?.bande?.length) bboxFilters.bande = siteFilters.bande.join(',');
   if (search) bboxFilters.q = search;
 
-  // 1) Try VPS listSitesByBbox with full-world bbox (data lives on VPS, not Supabase)
+  // 1) Try VPS — progressive: show sites immediately, then enrich with QoE
   try {
     const fullWorldBbox = { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 };
     const resp = await topoApi.listSitesByBbox(fullWorldBbox, bboxFilters, 10000);
@@ -725,17 +726,29 @@ export async function fetchDashboardSites(
       throw new Error('VPS unavailable');
     }
 
-    const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
-
-    const sites: SiteSummary[] = (resp.sites || [])
+    const rawSites: SiteSummary[] = (resp.sites || [])
       .map(dtoToSiteSummary)
-      .filter((site): site is SiteSummary => site !== null)
-      .map(site => applyQoeData(site, qoeData));
+      .filter((site): site is SiteSummary => site !== null);
 
-    const filteredSites = filterSites4G5G(sites);
-    console.log(`[TopoService] Dashboard sites: ${filteredSites.length} sites via VPS`);
-    dashboardSitesCache = { key, sites: filteredSites, ts: Date.now() };
-    return filteredSites;
+    const filteredSites = filterSites4G5G(rawSites);
+
+    // Progressive: push raw sites immediately so map renders them
+    if (onProgressiveBatch && filteredSites.length > 0) {
+      onProgressiveBatch(filteredSites);
+    }
+
+    // Then enrich with QoE data in background
+    let enrichedSites = filteredSites;
+    try {
+      const qoeData = await getQoeMapData();
+      if (Object.keys(qoeData).length > 0) {
+        enrichedSites = filteredSites.map(site => applyQoeData(site, qoeData));
+      }
+    } catch { /* QoE enrichment is optional */ }
+
+    console.log(`[TopoService] Dashboard sites: ${enrichedSites.length} sites via VPS`);
+    dashboardSitesCache = { key, sites: enrichedSites, ts: Date.now() };
+    return enrichedSites;
   } catch (err) {
     console.warn('[TopoService] VPS dashboard fetch failed, trying RPC', err);
   }
