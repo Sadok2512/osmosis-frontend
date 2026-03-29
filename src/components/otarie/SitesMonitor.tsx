@@ -4093,7 +4093,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
                 const val = getCellKpiValue(cell);
-                const color = sectorColorMode === 'topo' ? (mapTechnoFilter === 'ALL' ? (is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316')) : getBandColor(cell.bande, cell.techno)) : getKpiColor(val);
+                const colorViewOverridePoint = getColorViewFill(site);
+                const color = colorViewOverridePoint || (sectorColorMode === 'topo' ? (mapTechnoFilter === 'ALL' ? (is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316')) : getBandColor(cell.bande, cell.techno)) : getKpiColor(val));
                 const isHovered = hoveredSiteId === site.site_id;
                 const offsetDist = 0.0003;
                 const rad = ((cell.azimut || idx * 120) - 90) * (Math.PI / 180);
