@@ -4149,11 +4149,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return br;
           };
 
-          // Pass 1: 4G circles (pane4G — bottom)
-          const pass4G = circleSites.filter(site => {
+          // Pass 1: 4G circles (pane4G — bottom) — skip entirely if filter is 5G-only
+          const pass4G = (mapTechnoFilter === '5G' ? [] : circleSites.filter(site => {
             const { has4G } = inferSiteTechState(site);
             return has4G && enabledTechnos.has('4G');
-          }).map(site => {
+          })).map(site => {
             const { has5G } = inferSiteTechState(site);
             const isHov = hoveredSiteId === site.site_id;
             const isSel = selectedSiteId === site.site_id;
@@ -4188,11 +4188,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           });
 
-          // Pass 2: 5G circles (pane5G — top, always rendered AFTER 4G)
-          const pass5G = circleSites.filter(site => {
+          // Pass 2: 5G circles (pane5G — top, always rendered AFTER 4G) — skip if filter is 4G-only
+          const pass5G = (mapTechnoFilter === '4G' ? [] : circleSites.filter(site => {
             const { has5G } = inferSiteTechState(site);
             return has5G && enabledTechnos.has('5G');
-          }).map(site => {
+          })).map(site => {
             const { has4G } = inferSiteTechState(site);
             const isHov = hoveredSiteId === site.site_id;
             const isSel = selectedSiteId === site.site_id;
