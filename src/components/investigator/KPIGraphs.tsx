@@ -573,17 +573,24 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             icon: 'roundRect',
             itemWidth: 20,
             itemHeight: 5,
-            itemGap: 28,
+            itemGap: 18,
             type: 'scroll' as any,
             pageIconSize: 12,
             textStyle: {
-              fontSize: 11.5,
+              fontSize: 11,
               fontWeight: 500,
               color: '#4b5563',
-              padding: [0, 0, 0, 5],
-              overflow: 'truncate',
-              width: 160,
+              padding: [0, 0, 0, 4],
             },
+            formatter: (name: string) => {
+              // Show a distinguishable short name: last meaningful segment(s)
+              const parts = name.split('_').filter(Boolean);
+              if (parts.length <= 3 || name.length <= 28) return name;
+              // Keep last 3 segments for uniqueness
+              const tail = parts.slice(-3).join('_');
+              return tail.length > 30 ? tail.slice(0, 28) + '…' : tail;
+            },
+            tooltip: { show: true },
           },
           tooltip: {
             trigger: 'axis' as const,
