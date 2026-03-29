@@ -5862,6 +5862,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             )}
           </div>
 
+          {/* ── Color View Legend ── */}
+          {colorViewMode !== 'none' && Object.keys(colorViewColorMap).length > 0 && (
+            <div className="absolute left-4 bottom-4 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] max-w-[220px] z-[500]">
+              <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Palette size={12} className="text-primary" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{COLOR_VIEW_LABELS[colorViewMode]}</span>
+                </div>
+                <button
+                  onClick={() => setColorViewMode('none')}
+                  className="text-muted-foreground/50 hover:text-foreground transition-colors"
+                  title="Réinitialiser"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              <div className="px-4 py-2.5 space-y-1.5 max-h-[200px] overflow-y-auto">
+                {Object.entries(colorViewColorMap).sort(([a], [b]) => a.localeCompare(b)).map(([value, color]) => (
+                  <div key={value} className="flex items-center gap-2.5">
+                    <span className="w-4 h-4 rounded shrink-0 border border-border/30" style={{ background: color }} />
+                    <span className="text-[11px] font-semibold text-foreground truncate">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
