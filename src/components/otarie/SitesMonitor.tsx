@@ -8067,7 +8067,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               {/* ── Selected Cell Detail (from left panel) ── */}
               {focusCellId && (() => {
-                const cell = siteDetail.cells.find(c => c.cell_id === focusCellId);
+                const cell = resolveCellFromDetail(siteDetail, focusCellId);
                 if (!cell) return null;
                 return (
                   <div className="px-5 py-4 space-y-4">
@@ -8203,7 +8203,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== CELL FOCUS MODE ========== */}
           {focusMode === 'cell' && focusCellId && siteDetail && (() => {
-            const cell = siteDetail.cells.find(c => c.cell_id === focusCellId);
+            const cell = resolveCellFromDetail(siteDetail, focusCellId);
             if (!cell) return <div className="p-4 text-muted-foreground text-[12px]">Cell not found.</div>;
             return (
               <div className="divide-y divide-border">
