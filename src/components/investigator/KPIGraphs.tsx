@@ -346,30 +346,24 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Filter data to only this slot's KPIs
         const slotData = data.filter(d => kpiIds.includes(d.kpi));
 
-        // Per-KPI split detection — check both per-KPI config AND global split
+        // Per-KPI split detection — only split if user explicitly configured it
         const splitByPerKpi = cfg.splitByPerKpi || {};
-        const hasGlobalSplit = slotData.some(d => d.splitValue && d.splitValue !== 'ALL');
-        const getKpiHasSplit = (kpiId: string) => {
-          const perKpi = splitByPerKpi[kpiId];
-          if (perKpi && perKpi !== 'None') return true;
-          return hasGlobalSplit;
-        };
-
-        // Filter data per-KPI based on split settings
-        const effectiveData = hasGlobalSplit
-          ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
-          : slotData.filter(d => {
-              const kpiSplit = splitByPerKpi[d.kpi];
-              if (kpiSplit && kpiSplit !== 'None') {
-                return d.splitValue && d.splitValue !== 'ALL';
-              }
-              return !d.splitValue || d.splitValue === 'ALL';
-            });
-
-        const hasSplit = hasGlobalSplit || kpiIds.some(id => {
+        const slotSplit = slot.splitBy && slot.splitBy !== 'None';
+        const hasPerKpiSplit = kpiIds.some(id => {
           const p = splitByPerKpi[id];
           return p && p !== 'None';
         });
+        const hasSplit = slotSplit || hasPerKpiSplit;
+        const getKpiHasSplit = (kpiId: string) => {
+          if (slotSplit) return true;
+          const perKpi = splitByPerKpi[kpiId];
+          return perKpi != null && perKpi !== 'None';
+        };
+
+        // Filter data: if no split configured, aggregate (ignore splitValue)
+        const effectiveData = hasSplit
+          ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
+          : slotData.map(d => ({ ...d, splitValue: undefined }));
 
         // Collect all unique timestamps across all KPIs
         const allTimestamps = [...new Set(kpiIds.flatMap(id => effectiveData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
