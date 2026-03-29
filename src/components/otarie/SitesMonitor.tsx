@@ -3476,8 +3476,46 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             default: return true;
           }
         });
+
+      // Apply advanced view conditions (from ViewFilterBuilder)
+      const matchesViewConditions = activeViewConditions.length === 0 || activeViewConditions.every(cond => {
+        if (cond.values.length === 0) return true;
+        // Get site-level or cell-level values for dimension
+        const dimKey = cond.dimension;
+        let siteVal: string | undefined;
+        let cellVals: string[] = [];
+        // Site-level fields
+        siteVal = String((s as any)[dimKey] ?? (s as any).site_name ?? '');
+        if (dimKey === 'site_name') siteVal = String(s.site_name ?? '');
+        else if (dimKey === 'code_nidt') siteVal = String((s as any).code_nidt ?? s.site_id ?? '');
+        else siteVal = String((s as any)[dimKey] ?? '');
+        // Cell-level fields
+        if (siteCells.length > 0) {
+          cellVals = siteCells.map(c => String((c as any)[dimKey] ?? '')).filter(Boolean);
+        }
+        const allVals = [siteVal, ...cellVals].filter(Boolean).map(v => v.toLowerCase());
+        const condVals = cond.values.map(v => v.toLowerCase());
+
+        if (cond.operator === 'IN' || cond.operator === '=') {
+          return condVals.some(cv => allVals.some(av => av.includes(cv) || cv.includes(av) || av === cv));
+        } else if (cond.operator === 'NOT_IN') {
+          return !condVals.some(cv => allVals.some(av => av === cv));
+        } else {
+          // Numeric comparison
+          const numVal = parseFloat(siteVal || '0') || (cellVals.length > 0 ? parseFloat(cellVals[0]) : NaN);
+          const threshold = parseFloat(cond.values[0]);
+          if (isNaN(numVal) || isNaN(threshold)) return false;
+          switch (cond.operator) {
+            case '>': return numVal > threshold;
+            case '>=': return numVal >= threshold;
+            case '<': return numVal < threshold;
+            case '<=': return numVal <= threshold;
+            default: return true;
+          }
+        }
+      });
       
-      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno && matchesQoeFilters;
+      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno && matchesQoeFilters && matchesViewConditions;
     });
     if (qoeFilters.length > 0) {
       console.log('[QOE Filter] Sites after filter:', filtered.length);
@@ -3488,7 +3526,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
       return inventorySortOrder === 'asc' ? va - vb : vb - va;
     });
-  }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters]);
+  }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters, activeViewConditions]);
 
   // Check if a cell's band passes the band filter
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
