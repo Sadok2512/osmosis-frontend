@@ -2105,6 +2105,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         const viewColor = eff.color;
                         const isEditing = editingViewId === view.id;
                         const hasOwnSettings = vs.mapLayer || vs.mapKpi || vs.color;
+                        const condCount = Array.isArray(vs.viewConditions) ? vs.viewConditions.length : 0;
 
                         return (
                           <div key={view.id} className="rounded-lg border border-border/60 bg-card hover:border-primary/30 transition-all overflow-hidden">
