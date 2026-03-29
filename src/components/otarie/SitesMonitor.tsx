@@ -1745,7 +1745,6 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   </div>
               </div>
               )}
-              </div>
 
               {/* Active filter summary */}
               {hasAnyCreateFilter && (
