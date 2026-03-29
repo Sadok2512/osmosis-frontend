@@ -300,6 +300,12 @@ const inferSiteTechState = (site: SiteSummary) => {
   return { has4G, has5G };
 };
 
+const getCellTechGroup = (techno?: string | null): '4G' | '5G' | null => {
+  if (is5GTech(techno)) return '5G';
+  if (is4GTech(techno)) return '4G';
+  return null;
+};
+
 const getValidSectorAzimuths = (site: SiteSummary): number[] => {
   const azimuths = new Set<number>();
 
@@ -4066,7 +4072,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const miniItems: { tech: string; az: number; r: number; bandKey: string | null }[] = [];
             const seenMini = new Set<string>();
             for (const cell of site.cells) {
-              const tech = (cell.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
+              const tech = getCellTechGroup(cell.techno);
+              if (!tech) continue;
               if (tech === '4G' && !enabledTechnos.has('4G')) continue;
               if (tech === '5G' && !enabledTechnos.has('5G')) continue;
               const az = Number(cell.azimut);
@@ -4103,7 +4110,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
             // Fallback: if no band-specific items, use all azimuths with site color
             if (miniItems.length === 0) {
-              azimuths.forEach(az => miniItems.push({ tech: has5G ? '5G' : '4G', az, r: miniRadius, bandKey: null }));
+              if (has4G && !has5G && enabledTechnos.has('4G')) {
+                azimuths.forEach(az => miniItems.push({ tech: '4G', az, r: miniRadius, bandKey: null }));
+              } else if (has5G && !has4G && enabledTechnos.has('5G')) {
+                azimuths.forEach(az => miniItems.push({ tech: '5G', az, r: miniRadius, bandKey: null }));
+              }
             }
 
             return (
@@ -4450,7 +4461,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             // Group cells by band+azimuth for band-based sizing
             const cellItems: { tech: string; az: number; radius: number; bandKey: string | null; cell: typeof site.cells[0] }[] = [];
             for (const cell of site.cells) {
-              const tech = (cell.techno || '').toUpperCase().includes('5G') ? '5G' : '4G';
+              const tech = getCellTechGroup(cell.techno);
+              if (!tech) continue;
               const az = Number(cell.azimut);
               if (!Number.isFinite(az) || az < 0 || az > 360) continue;
               if (tech === '4G' && !enabledTechnos.has('4G')) continue;
@@ -4586,11 +4598,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return true;
           });
           const max4GRadiusPerAz = new Map<number, number>();
-          const hasAny4G = detailCells.some(c => !(c.techno || '').toUpperCase().includes('5G'));
-          const hasAny5G = detailCells.some(c => (c.techno || '').toUpperCase().includes('5G'));
+            const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
+            const hasAny5G = detailCells.some(c => getCellTechGroup(c.techno) === '5G');
           if (hasAny4G && hasAny5G) {
             for (const c of detailCells) {
-              if ((c.techno || '').toUpperCase().includes('5G')) continue;
+                if (getCellTechGroup(c.techno) !== '4G') continue;
               const az = Number(c.azimut);
               if (!Number.isFinite(az)) continue;
               const bk = normalizeBandKey(c.bande, c.techno);
@@ -4608,7 +4620,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   return getBandRenderOrder(aKey) - getBandRenderOrder(bKey);
                 })
                 .map(cell => {
-                const is5G = (cell.techno || '').toUpperCase().includes('5G') || (cell.techno || '').toUpperCase().includes('NR');
+                const is5G = getCellTechGroup(cell.techno) === '5G';
                 const bandKey = normalizeBandKey(cell.bande, cell.techno);
                 const bandScale = getBandSizeScale(bandKey);
                 let cellRadius = zoomRadius * 1.3 * bandScale;
@@ -7084,8 +7096,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const sortedSectors = Array.from(sectorMap.entries()).sort(([a], [b]) => a - b);
 
             // Get unique techs for badge
-            const uniqueTechs = [...new Set(siteDetail.cells.map((c: any) => c.techno))].filter(Boolean).sort();
-            const techBadgeStr = uniqueTechs.map(t => t === '5G' ? '5G' : '4G').join(' / ');
+            const uniqueTechs = [...new Set(siteDetail.cells.map((c: any) => getCellTechGroup(c.techno)).filter(Boolean))].sort();
+            const techBadgeStr = uniqueTechs.join(' / ');
             const primaryBand = siteDetail.cells[0]?.bande || '';
             const primaryTech = siteDetail.cells[0]?.techno || '';
             const isTopoFocus = sectorColorMode === 'topo';
@@ -7150,7 +7162,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     { label: 'Profile', value: (() => {
                       const hba = siteDetail.cells[0]?.hba ?? 30;
                       const bands = [...new Set(siteDetail.cells.map(c => c.bande))];
-                      const has5G = siteDetail.cells.some(c => (c.techno || '').includes('5G'));
+                      const has5G = siteDetail.cells.some(c => getCellTechGroup(c.techno) === '5G');
                       if (has5G && hba >= 30) return 'Macro 5G/4G Co-located';
                       if (has5G) return 'Small Cell 5G + Macro 4G';
                       if (bands.length >= 4) return 'Macro Multi-Band 4G';
@@ -7188,7 +7200,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           <tr key={c.cell_id} className={`hover:bg-muted/30 transition-colors ${i % 2 === 0 ? 'bg-muted/10' : ''}`}>
                             <td className="px-3 py-1.5 font-mono text-[10px] text-foreground truncate max-w-[120px]">{c.cell_id}</td>
                             <td className="px-2 py-1.5 text-center">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${(c.techno || '').includes('5G') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${getCellTechGroup(c.techno) === '5G' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
                                 {c.techno}
                               </span>
                             </td>
@@ -7382,14 +7394,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       }
 
                       // 6. 5G/4G co-location
-                      const has5G = siteDetail.cells.some(c => (c.techno || '').includes('5G'));
-                      const has4G = siteDetail.cells.some(c => !(c.techno || '').includes('5G'));
+                      const has5G = siteDetail.cells.some(c => getCellTechGroup(c.techno) === '5G');
+                      const has4G = siteDetail.cells.some(c => getCellTechGroup(c.techno) === '4G');
                       if (has5G && has4G) {
                         // Check if 5G tilt < 4G tilt on same sector
                         let coLocOk = true;
                         sortedSectors.forEach(([, cells]) => {
-                          const t5g = cells.filter(c => (c.techno || '').includes('5G')).map(c => (c as any).tilt as number | null).filter((t): t is number => t != null);
-                          const t4g = cells.filter(c => !(c.techno || '').includes('5G')).map(c => (c as any).tilt as number | null).filter((t): t is number => t != null);
+                          const t5g = cells.filter(c => getCellTechGroup(c.techno) === '5G').map(c => (c as any).tilt as number | null).filter((t): t is number => t != null);
+                          const t4g = cells.filter(c => getCellTechGroup(c.techno) === '4G').map(c => (c as any).tilt as number | null).filter((t): t is number => t != null);
                           if (t5g.length > 0 && t4g.length > 0) {
                             const avg5 = t5g.reduce((a, b) => a + b, 0) / t5g.length;
                             const avg4 = t4g.reduce((a, b) => a + b, 0) / t4g.length;
