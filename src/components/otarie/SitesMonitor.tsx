@@ -5215,7 +5215,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <div
           className="absolute bottom-4 right-4 z-[1001] overflow-hidden pointer-events-auto max-h-[40%] flex flex-col animate-fade-in"
           style={{
-            left: 'calc(var(--tagged-sidebar-width, 0px) + 16px)',
+            left: `${(panelCollapsed ? 56 : 400) + 16}px`,
             background: 'rgba(15,23,42,0.55)',
             backdropFilter: 'blur(24px)',
             border: '1px solid rgba(255,255,255,0.1)',
