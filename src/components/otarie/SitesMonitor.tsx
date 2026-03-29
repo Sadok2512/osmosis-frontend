@@ -4166,7 +4166,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <React.Fragment key={site.site_id}>
                 {miniItems.map(({ tech, az, r, bandKey }) => {
                   const sectorCoords = getSectorCoords(site.coordinates, az, r, 60);
-                  const techColor = bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'));
+                  // In ALL mode: use tech group color only (green 5G / orange 4G). Band colors only when filtering a specific tech.
+                  const useBandColor = mapTechnoFilter !== 'ALL' && bandKey;
+                  const techColor = useBandColor ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'));
                   return (
                     <Polygon
                       key={`${site.site_id}_mini_${tech}_${bandKey || 'unk'}_${az}`}
