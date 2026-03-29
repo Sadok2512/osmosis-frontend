@@ -114,6 +114,52 @@ interface TopoRow {
   relative_id?: number | string | null;
 }
 
+/**
+ * Infer band from cell name when backend doesn't provide it.
+ * Common patterns: ENB1 → B1/1800, ENB3 → B3/1800, GNB1 → NR2100, etc.
+ */
+function inferBandFromCellName(cellName: string, techno: string): string {
+  if (!cellName) return '';
+  const upper = cellName.toUpperCase();
+  const is5G = techno.toUpperCase().includes('5G') || techno.toUpperCase().includes('NR') || upper.includes('GNB');
+
+  // Try to extract band indicator from cell name patterns like _ENB1_, _GNB1_, _B28_, _N78_
+  const enbMatch = upper.match(/ENB(\d+)/);
+  const gnbMatch = upper.match(/GNB(\d+)/);
+  const bandNumMatch = upper.match(/[_\-]B(\d+)[_\-]/);
+  const nrBandMatch = upper.match(/[_\-]N(\d+)[_\-]/);
+
+  if (gnbMatch || is5G) {
+    // 5G cell
+    if (upper.includes('3500') || upper.includes('N78')) return 'NR3500';
+    if (upper.includes('2100') || upper.includes('N1')) return 'NR2100';
+    if (upper.includes('700') || upper.includes('N28')) return 'NR700';
+    if (nrBandMatch) {
+      const n = nrBandMatch[1];
+      if (n === '78') return 'NR3500';
+      if (n === '1') return 'NR2100';
+      if (n === '28') return 'NR700';
+    }
+    return 'NR3500'; // default 5G band
+  }
+
+  // 4G cell
+  if (upper.includes('2600') || upper.includes('B7')) return 'L2600';
+  if (upper.includes('1800') || upper.includes('B3')) return 'L1800';
+  if (upper.includes('2100') || upper.includes('B1')) return 'L2100';
+  if (upper.includes('800') || upper.includes('B20')) return 'L800';
+  if (upper.includes('700') || upper.includes('B28')) return 'L700';
+  if (bandNumMatch) {
+    const b = bandNumMatch[1];
+    if (b === '7') return 'L2600';
+    if (b === '3') return 'L1800';
+    if (b === '1') return 'L2100';
+    if (b === '20') return 'L800';
+    if (b === '28') return 'L700';
+  }
+  return 'L1800'; // default 4G band
+}
+
 function buildCellProperties(cellName: string, techno: string, bande: string, azimut: number, hba: number, extra?: Partial<TopoRow>): CellProperties {
   const base: CellProperties = {
     cell_id: cellName,
