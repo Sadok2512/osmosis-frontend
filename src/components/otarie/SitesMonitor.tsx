@@ -4439,7 +4439,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       pathOptions={{
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
-                        fillOpacity: isHovered ? 0.45 : (isFocusFaded ? 0.08 : (tech === '5G' ? Math.min(overlapFactor + 0.35, 0.85) : overlapFactor)),
+                        fillOpacity: isHovered ? 0.5 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.92 : overlapFactor)),
                         weight: isHovered ? 2 : 1.2,
                         opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : 0.8),
                       }}
@@ -4538,7 +4538,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
                 const isFocusCell = focusCellId === cell.cell_id;
                 const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
-                const baseOpacity = isFocusFaded ? 0.08 : (isFaded ? 0.08 : (isCellDimmed ? 0.15 : (is5G ? Math.min(overlapFactor + 0.35, 0.85) : overlapFactor)));
+                const baseOpacity = isFocusFaded ? 0.08 : (isFaded ? 0.08 : (isCellDimmed ? 0.15 : (is5G ? 0.92 : overlapFactor)));
                 const strokeWeight = isFocusCell ? 2 : (isHovered ? 1.5 : 1);
                 return (
                   <Polygon
