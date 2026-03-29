@@ -293,6 +293,11 @@ const inferSiteTechState = (site: SiteSummary) => {
   return { has4G, has5G };
 };
 
+const siteMatchesRequestedTech = (site: SiteSummary, tech: '5G' | '4G'): boolean => {
+  const { has4G, has5G } = inferSiteTechState(site);
+  return tech === '5G' ? has5G : has4G;
+};
+
 // getCellTechGroup is now imported from @/utils/telecomHelpers
 
 const getValidSectorAzimuths = (site: SiteSummary): number[] => {
@@ -3301,14 +3306,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const matchesPlaque = filters.plaque === 'ALL' || s.plaque === filters.plaque;
       const matchesVendor = filters.vendor === 'ALL' || s.vendor === filters.vendor;
       const matchesDep = filters.department === 'ALL' || s.department === filters.department;
-      // When cells are empty (bbox-loaded), bypass RAT filter
-      const matchesRat = filters.rat === 'ALL' || siteCells.length === 0 || siteCells.some(c => c.techno === filters.rat);
+      // When cells are empty (bbox-loaded), rely on normalized site tech inference instead of hiding valid NR/LTE sites
+      const matchesRat = filters.rat === 'ALL' || (siteCells.length > 0
+        ? siteCells.some(c => getCellTechGroup(c.techno) === filters.rat)
+        : siteMatchesRequestedTech(s, filters.rat as '4G' | '5G'));
       const matchesLocalVendor = localVendor === 'ALL' || s.vendor === localVendor;
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
       const matchesLocalBande = localBande === 'ALL' || (siteCells.length > 0 ? siteCells.some(c => c.bande === localBande) : !(s as any).bande || (s as any).bande === localBande);
       const matchesLocalZoneArcep = localZoneArcep === 'ALL' || (siteCells.length > 0 ? siteCells.some(c => (c as any).zone_arcep === localZoneArcep) : !(s as any).zone_arcep || (s as any).zone_arcep === localZoneArcep);
-      const matchesLocalTechno = localTechno === 'ALL' || (siteCells.length > 0 ? siteCells.some(c => c.techno === localTechno) : !(s as any).techno || (s as any).techno === localTechno);
+      const matchesLocalTechno = localTechno === 'ALL' || (siteCells.length > 0
+        ? siteCells.some(c => getCellTechGroup(c.techno) === localTechno)
+        : siteMatchesRequestedTech(s, localTechno));
       
       // Apply QOE view filters
       const matchesQoeFilters = activeViewFilters
@@ -3375,30 +3384,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const mapFilteredSites = useMemo(() => {
     if (mapTechnoFilter === 'OFF') return [];
 
-    const siteMatchesTech = (s: SiteSummary, tech: '5G' | '4G'): boolean => {
-      // If cells are loaded, check them
-      if (s.cells.length > 0) {
-        return s.cells.some(c => {
-          const ct = (c.techno || '').toUpperCase();
-          return tech === '5G' ? (ct.includes('5G') || ct.includes('NR')) : (!ct.includes('5G') && !ct.includes('NR'));
-        });
-      }
-      // No cells loaded — use site-level summary fields
-      if (tech === '5G') return (s.nr_cells || 0) > 0 || ((s as any).technos || []).some((t: string) => t?.toUpperCase()?.includes('5G') || t?.toUpperCase()?.includes('NR'));
-      return (s.lte_cells || 0) > 0 || ((s as any).technos || []).some((t: string) => { const u = t?.toUpperCase(); return u && !u.includes('5G') && !u.includes('NR'); });
-    };
-
     if (mapTechnoFilter === 'ALL') {
       if (enabledTechnos.size === 0) return [];
       if (enabledTechnos.size === 2) return filteredSites;
       return filteredSites.filter(s => {
-        if (enabledTechnos.has('5G') && siteMatchesTech(s, '5G')) return true;
-        if (enabledTechnos.has('4G') && siteMatchesTech(s, '4G')) return true;
+        if (enabledTechnos.has('5G') && siteMatchesRequestedTech(s, '5G')) return true;
+        if (enabledTechnos.has('4G') && siteMatchesRequestedTech(s, '4G')) return true;
         return false;
       });
     }
     const tech = mapTechnoFilter as '5G' | '4G';
-    return filteredSites.filter(s => siteMatchesTech(s, tech));
+    return filteredSites.filter(s => siteMatchesRequestedTech(s, tech));
   }, [filteredSites, mapTechnoFilter, enabledTechnos]);
 
   // Dynamic filter options based on actual data
@@ -3536,31 +3532,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const siteMatchesCurrentTechFilter = (site: SiteSummary) => {
       if (mapTechnoFilter === 'OFF') return false;
 
-      const matchesTech = (s: SiteSummary, tech: '5G' | '4G'): boolean => {
-        if (s.cells.length > 0) {
-          return s.cells.some(cell => {
-            const ct = (cell.techno || '').toUpperCase();
-            return tech === '5G' ? (ct.includes('5G') || ct.includes('NR')) : (!ct.includes('5G') && !ct.includes('NR'));
-          });
-        }
-
-        if (tech === '5G') {
-          return (s.nr_cells || 0) > 0 || ((s as any).technos || []).some((t: string) => t?.toUpperCase()?.includes('5G') || t?.toUpperCase()?.includes('NR'));
-        }
-
-        return (s.lte_cells || 0) > 0 || ((s as any).technos || []).some((t: string) => {
-          const u = t?.toUpperCase();
-          return u && !u.includes('5G') && !u.includes('NR');
-        });
-      };
-
       if (mapTechnoFilter === 'ALL') {
         if (enabledTechnos.size === 0) return false;
         if (enabledTechnos.size === 2) return true;
-        return (enabledTechnos.has('5G') && matchesTech(site, '5G')) || (enabledTechnos.has('4G') && matchesTech(site, '4G'));
+        return (enabledTechnos.has('5G') && siteMatchesRequestedTech(site, '5G')) || (enabledTechnos.has('4G') && siteMatchesRequestedTech(site, '4G'));
       }
 
-      return matchesTech(site, mapTechnoFilter as '5G' | '4G');
+      return siteMatchesRequestedTech(site, mapTechnoFilter as '5G' | '4G');
     };
 
     const merged = [...visibleSites];
