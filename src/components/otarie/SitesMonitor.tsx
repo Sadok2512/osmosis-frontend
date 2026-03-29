@@ -6551,6 +6551,95 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     })}
                   </div>
                 )}
+
+                {/* ── Link Creation Controls ── */}
+                <div className="mt-3 px-1 space-y-2">
+                  {!linkCreationMode ? (
+                    <button
+                      onClick={() => { setLinkCreationMode(true); setLinkSource(null); }}
+                      disabled={taggedSites.length < 2}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={12} />
+                      Créer un lien
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2">
+                      <div className="text-[10px] font-bold text-primary uppercase tracking-wider">Sélection du lien</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {!linkSource ? 'Cliquez sur un site source ci-dessus' : `Source: ${linkSource.label} — cliquez sur la destination`}
+                      </div>
+                      {taggedSites.map(s => (
+                        <button
+                          key={s.site_id}
+                          onClick={() => handleSelectTaggedForLink(s)}
+                          disabled={linkSource?.id === s.site_id}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+                            linkSource?.id === s.site_id ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80 text-foreground'
+                          } disabled:opacity-50`}
+                        >
+                          {s.site_name}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => { setLinkCreationMode(false); setLinkSource(null); }}
+                        className="w-full text-center text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors py-1"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Tagged Links List ── */}
+                {taggedLinks.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Liens ({taggedLinks.length})</div>
+                    <div className="space-y-1.5">
+                      {taggedLinks.map(link => (
+                        <div
+                          key={link.id}
+                          className={`rounded-xl border transition-all overflow-hidden ${
+                            selectedLinkId === link.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-primary/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 px-3 py-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                              <Network size={14} className="text-blue-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-foreground truncate">{link.label}</div>
+                              <div className="text-[9px] text-muted-foreground">{link.fromType} ↔ {link.toType}</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => openLinkTerrainProfile(link)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-primary transition-colors"
+                                title="Profil terrain"
+                              >
+                                <Crosshair size={12} />
+                              </button>
+                              <button
+                                onClick={() => setSelectedLinkId(selectedLinkId === link.id ? null : link.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors"
+                                title="Sélectionner"
+                              >
+                                <MapPin size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteTaggedLink(link.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               )}
 
