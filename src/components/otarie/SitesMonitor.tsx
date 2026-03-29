@@ -1684,6 +1684,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setCreating(false);
   };
 
+  const handleCreateViewWithConditions = async (dashboardId: string, conditions: ViewFilterCondition[]) => {
+    if (!newViewName.trim()) return;
+    setCreating(true);
+    try {
+      const siteFilters = conditionsToSiteFilters(conditions);
+      await mapViewsApi.create({
+        name: newViewName.trim(),
+        description: dashboardId,
+        settings: { center: [43.2965, 5.3698], zoom: 6, siteFilters, viewConditions: conditions },
+      });
+      setNewViewName('');
+      setNewViewFilters({});
+      setShowCreateView(null);
+      fetchAll();
+    } catch (err) { console.warn('[SitesMonitor] createView failed', err); }
+    setCreating(false);
+  };
+
   const handleDeleteView = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await mapViewsApi.remove(id);
