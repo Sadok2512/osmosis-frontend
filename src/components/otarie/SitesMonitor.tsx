@@ -3638,6 +3638,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const ALLOWED_TECH = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
   const filter4G5GCells = (cells: any[]) => cells.filter(c => !c.techno || ALLOWED_TECH.has(c.techno.trim()));
 
+  // ── Sector cap: limit sector rendering to N sites closest to map center for performance ──
+  const MAX_SECTOR_SITES = 150;
+  const sectorAllowedIds = useMemo(() => {
+    // All sites with cells that could show sectors
+    const candidates = renderSites.filter(s => s.cells && s.cells.length > 0 && !(s.site_name || '').toLowerCase().includes('indoor'));
+    if (candidates.length <= MAX_SECTOR_SITES) {
+      return new Set(candidates.map(s => s.site_id));
+    }
+    // Compute map center
+    const mapCenter = viewport.bounds
+      ? [(viewport.bounds.getNorth() + viewport.bounds.getSouth()) / 2, (viewport.bounds.getEast() + viewport.bounds.getWest()) / 2] as [number, number]
+      : [46.6, 2.2] as [number, number];
+    // Sort by distance to center (squared, no need for sqrt)
+    const withDist = candidates.map(s => {
+      const dlat = s.coordinates[0] - mapCenter[0];
+      const dlng = s.coordinates[1] - mapCenter[1];
+      return { id: s.site_id, d2: dlat * dlat + dlng * dlng, tagged: isSiteTagged(s.site_id) };
+    });
+    // Tagged sites always get priority
+    withDist.sort((a, b) => {
+      if (a.tagged !== b.tagged) return a.tagged ? -1 : 1;
+      return a.d2 - b.d2;
+    });
+    return new Set(withDist.slice(0, MAX_SECTOR_SITES).map(x => x.id));
+  }, [renderSites, viewport.bounds, taggedSites]);
+
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
     if (mapDisplayMode !== 'heatmap') return [];
@@ -4068,7 +4094,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           const isTagged = isSiteTagged(site.site_id);
-          const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor);
+          const showMiniSectors = ((showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor)) && sectorAllowedIds.has(site.site_id);
 
           if (isIndoor) {
             const iconSize = viewport.zoom >= 10 ? 20 : 14;
@@ -4234,7 +4260,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
             if (isIndoor) return false;
             const isTagged = isSiteTagged(site.site_id);
-            const showMini = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor);
+            const showMini = ((showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor)) && sectorAllowedIds.has(site.site_id);
             return !showMini;
           });
 
@@ -4429,6 +4455,39 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </Popup>
               </Marker>
+            );
+          }
+
+          /* ── Cap check: sites beyond sector limit render as simple dots ── */
+          if (!sectorAllowedIds.has(site.site_id)) {
+            const { has4G: d4G, has5G: d5G } = inferSiteTechState(site);
+            const dotColor = d5G ? (bandColors['5G_GROUP'] || '#22c55e') : d4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
+            const dotR = isHovered || isSelectedSite ? 6 : 4;
+            return (
+              <CircleMarker
+                key={site.site_id}
+                center={site.coordinates}
+                radius={dotR}
+                pane={d5G ? 'pane5G' : 'pane4G'}
+                pathOptions={{
+                  color: isSelectedSite ? '#fff' : (isHovered ? '#fff' : 'hsl(var(--border))'),
+                  fillColor: dotColor,
+                  fillOpacity: 0.85,
+                  weight: isSelectedSite ? 2 : (isHovered ? 2 : 1),
+                }}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Popup>
+                  <div className="p-1">
+                    <div className="font-bold text-sm">{site.site_name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                  </div>
+                </Popup>
+              </CircleMarker>
             );
           }
 
