@@ -3488,17 +3488,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         // Fallback: if bulk load returns nothing for visible sites, load each site on demand
+        // Throttled to max 3 concurrent requests to avoid BOOT_ERROR on edge functions
         if (cellMap.size === 0 && sitesNeedingCells.length > 0) {
-          const perSiteResults = await Promise.all(
-            sitesNeedingCells.map(async (site) => {
-              try {
-                const cells = await fetchSiteCells(site.site_id);
-                return { siteId: site.site_id, cells };
-              } catch {
-                return { siteId: site.site_id, cells: [] };
-              }
-            })
-          );
+          const CONCURRENCY = 3;
+          const queue = [...sitesNeedingCells];
+          const perSiteResults: { siteId: string; cells: any[] }[] = [];
+
+          while (queue.length > 0) {
+            const batch = queue.splice(0, CONCURRENCY);
+            const batchResults = await Promise.all(
+              batch.map(async (site) => {
+                try {
+                  const cells = await fetchSiteCells(site.site_id);
+                  return { siteId: site.site_id, cells };
+                } catch {
+                  return { siteId: site.site_id, cells: [] as any[] };
+                }
+              })
+            );
+            perSiteResults.push(...batchResults);
+          }
 
           for (const result of perSiteResults) {
             if (result.cells.length > 0) {
