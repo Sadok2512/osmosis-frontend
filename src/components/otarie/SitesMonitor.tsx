@@ -3638,6 +3638,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const ALLOWED_TECH = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
   const filter4G5GCells = (cells: any[]) => cells.filter(c => !c.techno || ALLOWED_TECH.has(c.techno.trim()));
 
+  // ── Sector cap: limit sector rendering to N sites closest to map center for performance ──
+  const MAX_SECTOR_SITES = 150;
+  const sectorAllowedIds = useMemo(() => {
+    // All sites with cells that could show sectors
+    const candidates = renderSites.filter(s => s.cells && s.cells.length > 0 && !(s.site_name || '').toLowerCase().includes('indoor'));
+    if (candidates.length <= MAX_SECTOR_SITES) {
+      return new Set(candidates.map(s => s.site_id));
+    }
+    // Compute map center
+    const mapCenter = viewport.bounds
+      ? [(viewport.bounds.getNorth() + viewport.bounds.getSouth()) / 2, (viewport.bounds.getEast() + viewport.bounds.getWest()) / 2] as [number, number]
+      : [46.6, 2.2] as [number, number];
+    // Sort by distance to center (squared, no need for sqrt)
+    const withDist = candidates.map(s => {
+      const dlat = s.coordinates[0] - mapCenter[0];
+      const dlng = s.coordinates[1] - mapCenter[1];
+      return { id: s.site_id, d2: dlat * dlat + dlng * dlng, tagged: isSiteTagged(s.site_id) };
+    });
+    // Tagged sites always get priority
+    withDist.sort((a, b) => {
+      if (a.tagged !== b.tagged) return a.tagged ? -1 : 1;
+      return a.d2 - b.d2;
+    });
+    return new Set(withDist.slice(0, MAX_SECTOR_SITES).map(x => x.id));
+  }, [renderSites, viewport.bounds, taggedSites]);
+
   // Heatmap data points: [lat, lng, intensity]
   const heatmapPoints = useMemo((): [number, number, number][] => {
     if (mapDisplayMode !== 'heatmap') return [];
