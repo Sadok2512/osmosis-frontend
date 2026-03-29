@@ -3514,14 +3514,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
-        // Ultimate fallback: synthesize approximate sectors from site-level lte_cells/nr_cells
-        // when ALL VPS cell endpoints fail (timeout / empty)
-        if (cellMap.size === 0) {
-          console.warn('[SitesMonitor] All cell endpoints failed — generating synthetic sectors from site metadata');
-          for (const site of sitesNeedingCells) {
-            const lte = site.lte_cells || 0;
-            const nr = site.nr_cells || 0;
-            if (lte === 0 && nr === 0) continue;
+        // Synthesize sectors for ANY site that still has no cells after bulk+fallback
+        {
+          const sitesStillEmpty = sitesNeedingCells.filter(s => !cellMap.has(s.site_id));
+          if (sitesStillEmpty.length > 0) {
+            console.warn(`[SitesMonitor] Generating synthetic sectors for ${sitesStillEmpty.length} sites without cell data`);
+          }
+          for (const site of sitesStillEmpty) {
+            const lte = site.lte_cells || site.technos?.includes('4G') ? Math.max(site.lte_cells || 0, 3) : 0;
+            const nr = site.nr_cells || site.technos?.includes('5G') ? Math.max(site.nr_cells || 0, 3) : 0;
+            if (lte === 0 && nr === 0) {
+              // If no tech info at all, assume at least 4G tri-sector
+              const fallbackLte = 3;
             const syntheticCells: any[] = [];
             const azimuths = [0, 120, 240]; // standard tri-sector
             // Generate 4G synthetic cells
