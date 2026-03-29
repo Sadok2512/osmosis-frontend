@@ -1724,13 +1724,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 />
               </div>
 
-              {/* Filter dimensions from backend */}
+              {/* Filter dimensions from backend (optional) */}
+              {filterDimensions.length > 0 && (
               <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">Filtres de sites</label>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">Filtres de sites <span className="text-muted-foreground/50 font-normal">(optionnel)</span></label>
                 <p className="text-[9px] text-primary/70 italic mb-3">Sélectionnez les critères pour filtrer les sites affichés sur la carte</p>
-                {filterDimensions.length === 0 ? (
-                  <div className="text-[10px] text-muted-foreground/60 text-center py-3">Chargement des filtres...</div>
-                ) : (
                   <div className="space-y-2">
                     {filterDimensions.map(dim => {
                       const selectedValues = createFilters[dim.id as keyof DashboardSiteFilters] || [];
@@ -1745,7 +1743,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       );
                     })}
                   </div>
-                )}
+              </div>
+              )}
               </div>
 
               {/* Active filter summary */}
