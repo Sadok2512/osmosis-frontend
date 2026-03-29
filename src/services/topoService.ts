@@ -491,7 +491,7 @@ export async function fetchCellsByBbox(
           cell_id: c.nom_cellule || c.cell_id,
           cell_name: c.nom_cellule || '',
           techno: c.techno || '4G',
-          band: c.bande || '',
+          bande: c.bande || '',
           vendor: c.constructeur || '',
           azimut: c.azimut != null ? Number(c.azimut) : null,
           tilt: c.tilt != null ? Number(c.tilt) : null,
