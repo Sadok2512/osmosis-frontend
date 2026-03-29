@@ -915,7 +915,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           open={!!selectorOpen}
           onClose={handleSelectorClose}
           catalog={sortedCatalog}
-          kpisWithData={kpisWithData ?? undefined}
+          
           selectedKeys={selectorOpen && selectorOpen !== 'new'
             ? (state.graphSlots.find(s => s.id === selectorOpen)?.kpiIds || [])
             : []}
