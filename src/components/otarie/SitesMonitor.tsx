@@ -5396,9 +5396,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           )}
           <span className="w-px h-4 bg-border" />
           <div className="flex items-center gap-1.5 shrink-0">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className={`w-2 h-2 rounded-full ${filteredSites.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-              Backend connectivity V1.0 Beta • Orange France
+              {filteredSites.length > 0 ? 'Connected' : 'Disconnected'} • V1.0 Beta • Orange France
             </span>
           </div>
         </div>
