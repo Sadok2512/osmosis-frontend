@@ -4533,7 +4533,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 .map(cell => {
                 const is5G = (cell.techno || '').toUpperCase().includes('5G') || (cell.techno || '').toUpperCase().includes('NR');
                 const bandKey = normalizeBandKey(cell.bande, cell.techno);
-                if (!bandKey) console.warn('[SectorDebug] Unknown band:', cell.bande, 'techno:', cell.techno, 'cell:', cell.cell_id);
                 const bandScale = getBandSizeScale(bandKey);
                 let cellRadius = zoomRadius * 1.3 * bandScale;
                 const az = Number(cell.azimut);
