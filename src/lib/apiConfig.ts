@@ -115,13 +115,22 @@ export function getApiUrl(functionName: string): string {
     if (isCloudOnly) {
       return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
     }
-    // Topo/data endpoints → Parser :8000 with /api/v1/ prefix
-    const parserPrefixes = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range', 'sentinel', 'monitor', 'alarms', 'cm', 'pm'];
+    // When browser is on the VPS itself, call services directly (no proxy needed)
+    const onVps = typeof window !== 'undefined' && window.location.hostname === VPS_HOST;
+
+    // KPI Engine endpoints → :8001
+    const kpiPrefixes = ['monitor', 'catalog', 'kpi/', 'anomalies', 'clusters', 'config/aggregation', 'config/jobs', 'config/ne-scope', 'config/quality', 'config/stats', 'internal/'];
+    const isKpi = kpiPrefixes.some(p => clean.startsWith(p));
+    if (isKpi) {
+      return onVps ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${clean}`);
+    }
+    // Parser endpoints → :8000
+    const parserPrefixes = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range', 'sentinel', 'alarms', 'cm', 'pm'];
     const isParser = parserPrefixes.some(p => clean.startsWith(p));
     if (isParser) {
-      return getVpsProxyUrl('parser', `/api/v1/${clean}`);
+      return onVps ? `${VPS_ENDPOINTS.parser}/api/v1/${clean}` : getVpsProxyUrl('parser', `/api/v1/${clean}`);
     }
-    return getVpsProxyUrl('kpi', `/${clean}`);
+    return onVps ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${clean}`);
   }
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
 }
