@@ -3471,13 +3471,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           maxLat: bounds.getNorth(),
         };
         // Single bulk call for all cells in current viewport
-        const cellSites = await fetchCellsByBbox(bboxQuery);
+        const cellSites = await fetchCellsByBbox(bboxQuery, currentBboxFilters);
 
         // Build a lookup by site_id
         const cellMap = new Map<string, any[]>();
         for (const cs of cellSites) {
           if (cs.cells && cs.cells.length > 0) {
             cellMap.set(cs.site_id, cs.cells);
+          }
+        }
+
+        // Fallback: if bulk load returns nothing for visible sites, load each site on demand
+        if (cellMap.size === 0 && sitesNeedingCells.length > 0) {
+          const perSiteResults = await Promise.all(
+            sitesNeedingCells.map(async (site) => {
+              try {
+                const cells = await fetchSiteCells(site.site_id);
+                return { siteId: site.site_id, cells };
+              } catch {
+                return { siteId: site.site_id, cells: [] };
+              }
+            })
+          );
+
+          for (const result of perSiteResults) {
+            if (result.cells.length > 0) {
+              cellMap.set(result.siteId, result.cells);
+            }
           }
         }
 
