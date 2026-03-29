@@ -5229,7 +5229,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <ProfileChart
                 profilePoints={linkProfilePoints}
                 analysis={linkProfileAnalysis}
-                fresnelData={null}
                 totalDistance={linkProfileAnalysis ? linkProfilePoints[linkProfilePoints.length - 1]?.distance ?? 0 : 0}
                 isLoading={linkProfileLoading}
               />
