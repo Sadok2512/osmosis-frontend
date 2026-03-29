@@ -4341,6 +4341,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const isMixed = has5G;
             const br = getRadius(site, isHov, isSel);
             const r = isMixed ? Math.max(br, 4) : br;
+            const colorOverride = getColorViewFill(site);
             return (
               <CircleMarker
                 key={`4g_${site.site_id}`}
@@ -4349,7 +4350,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 pane="pane4G"
                 pathOptions={{
                   color: isSel ? '#fff' : (isHov ? '#fff' : 'hsl(var(--border))'),
-                  fillColor: bandColors['4G_GROUP'] || '#f97316',
+                  fillColor: colorOverride || (bandColors['4G_GROUP'] || '#f97316'),
                   fillOpacity: 0.85,
                   weight: isSel ? 2 : (isHov ? 2 : 1),
                 }}
@@ -4380,6 +4381,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const isMixed = has4G;
             const br = getRadius(site, isHov, isSel);
             const r = isMixed ? Math.max(Math.round(br * 0.6), 2.5) : br;
+            const colorOverride = getColorViewFill(site);
             return (
               <CircleMarker
                 key={`5g_${site.site_id}`}
@@ -4387,10 +4389,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 radius={r}
                 pane="pane5G"
                 pathOptions={{
-                  color: isSel ? '#fff' : (isHov ? '#fff' : (isMixed ? 'transparent' : 'hsl(var(--border))')),
-                  fillColor: bandColors['5G_GROUP'] || '#22c55e',
+                  color: isSel ? '#fff' : (isHov ? '#fff' : (isMixed && !colorOverride ? 'transparent' : 'hsl(var(--border))')),
+                  fillColor: colorOverride || (bandColors['5G_GROUP'] || '#22c55e'),
                   fillOpacity: 0.9,
-                  weight: isSel ? 2 : (isHov ? 2 : (isMixed ? 0 : 1)),
+                  weight: isSel ? 2 : (isHov ? 2 : (isMixed && !colorOverride ? 0 : 1)),
                 }}
                 eventHandlers={{
                   click: () => handleSiteClick(site),
@@ -4416,6 +4418,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const isHov = hoveredSiteId === site.site_id;
             const isSel = selectedSiteId === site.site_id;
             const br = getRadius(site, isHov, isSel);
+            const colorOverride = getColorViewFill(site);
             return (
               <CircleMarker
                 key={`unk_${site.site_id}`}
@@ -4424,7 +4427,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 pane="pane4G"
                 pathOptions={{
                   color: isSel ? '#fff' : (isHov ? '#fff' : 'hsl(var(--border))'),
-                  fillColor: FADED_COLOR,
+                  fillColor: colorOverride || FADED_COLOR,
                   fillOpacity: 0.85,
                   weight: isSel ? 2 : (isHov ? 2 : 1),
                 }}
