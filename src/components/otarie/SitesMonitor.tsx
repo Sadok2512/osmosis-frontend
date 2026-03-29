@@ -27,6 +27,7 @@ import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSR
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
 import { InlineSimTab, SiteKpiChart } from './SitesMonitorHelpers';
+import { ViewFilterBuilder, ViewFilterCondition, conditionsToSiteFilters, siteFiltersToConditions } from '@/components/sites-monitor/ViewFilterBuilder';
 import SiteChangesPanel from './SiteChangesPanel';
 
 // Heatmap layer component using leaflet.heat
@@ -1683,6 +1684,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setCreating(false);
   };
 
+  const handleCreateViewWithConditions = async (dashboardId: string, conditions: ViewFilterCondition[]) => {
+    if (!newViewName.trim()) return;
+    setCreating(true);
+    try {
+      const siteFilters = conditionsToSiteFilters(conditions);
+      await mapViewsApi.create({
+        name: newViewName.trim(),
+        description: dashboardId,
+        settings: { center: [43.2965, 5.3698], zoom: 6, siteFilters, viewConditions: conditions },
+      });
+      setNewViewName('');
+      setNewViewFilters({});
+      setShowCreateView(null);
+      fetchAll();
+    } catch (err) { console.warn('[SitesMonitor] createView failed', err); }
+    setCreating(false);
+  };
+
   const handleDeleteView = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await mapViewsApi.remove(id);
@@ -2052,60 +2071,18 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     </div>
                   </div>
                 )}
-                {/* Ajouter une vue — always visible */}
-                <div className="px-3 pt-1.5">
+                {/* Ajouter une vue — advanced filter builder */}
+                <div className="px-3 pt-1.5 pb-2">
                   {showCreateView === db.id ? (
-                    <div className="space-y-2 py-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          autoFocus
-                          value={newViewName}
-                          onChange={e => setNewViewName(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleCreateView(db.id)}
-                          placeholder="Nom de la vue..."
-                          className="flex-1 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary"
-                        />
-                        <button onClick={() => handleCreateView(db.id)} disabled={creating || !newViewName.trim()}
-                          className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
-                          <Plus size={12} />
-                        </button>
-                        <button onClick={() => { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); }}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-                          <X size={12} />
-                        </button>
-                      </div>
-                      {/* Techno / DOR / Plaque filter selectors */}
-                      {backendFilterDefs && backendFilterDefs.length > 0 && (
-                        <div className="space-y-1">
-                          {backendFilterDefs
-                            .filter(dim => ['techno', 'dor', 'plaque'].includes(dim.id))
-                            .map(dim => {
-                              const selected = (newViewFilters as any)[dim.id] || [];
-                              return (
-                                <div key={dim.id} className="flex items-center gap-2">
-                                  <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-14 shrink-0">{dim.label}</label>
-                                  <select
-                                    value={selected.length === 1 ? selected[0] : ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setNewViewFilters(prev => ({
-                                        ...prev,
-                                        [dim.id]: val ? [val] : undefined,
-                                      }));
-                                    }}
-                                    className="flex-1 bg-muted border border-border/50 rounded-lg px-2 py-1 text-[10px] text-foreground outline-none focus:border-primary/60 transition-all"
-                                  >
-                                    <option value="">Tous</option>
-                                    {dim.values.map(v => (
-                                      <option key={v} value={v}>{v}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      )}
-                    </div>
+                    <ViewFilterBuilder
+                      viewName={newViewName}
+                      onViewNameChange={setNewViewName}
+                      backendFilterDefs={backendFilterDefs}
+                      initialConditions={siteFiltersToConditions(newViewFilters)}
+                      saving={creating}
+                      onSave={(conditions) => handleCreateViewWithConditions(db.id, conditions)}
+                      onCancel={() => { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); }}
+                    />
                   ) : (
                     <button
                       onClick={() => setShowCreateView(db.id)}
@@ -2128,6 +2105,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         const viewColor = eff.color;
                         const isEditing = editingViewId === view.id;
                         const hasOwnSettings = vs.mapLayer || vs.mapKpi || vs.color;
+                        const condCount = Array.isArray(vs.viewConditions) ? vs.viewConditions.length : 0;
 
                         return (
                           <div key={view.id} className="rounded-lg border border-border/60 bg-card hover:border-primary/30 transition-all overflow-hidden">
@@ -2142,6 +2120,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   {view.is_default && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
                                   <span className="text-[11px] font-semibold text-foreground truncate">{view.name}</span>
                                   {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
+                                  {condCount > 0 && <span className="text-[7px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold">{condCount} filtre{condCount > 1 ? 's' : ''}</span>}
                                 </div>
                                 <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
                                   <span>{SETTINGS_MAP_STYLES.find(l => l.value === (eff.mapStyle || eff.mapLayer))?.label || 'Street'}</span>
@@ -2294,6 +2273,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
+  const [activeViewConditions, setActiveViewConditions] = useState<ViewFilterCondition[]>([]);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: mapCache.cachedZoom || 6 });
   const [initialCenter] = useState<[number, number] | null>(mapCache.cachedCenter);
@@ -3498,8 +3478,46 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             default: return true;
           }
         });
+
+      // Apply advanced view conditions (from ViewFilterBuilder)
+      const matchesViewConditions = activeViewConditions.length === 0 || activeViewConditions.every(cond => {
+        if (cond.values.length === 0) return true;
+        // Get site-level or cell-level values for dimension
+        const dimKey = cond.dimension;
+        let siteVal: string | undefined;
+        let cellVals: string[] = [];
+        // Site-level fields
+        siteVal = String((s as any)[dimKey] ?? (s as any).site_name ?? '');
+        if (dimKey === 'site_name') siteVal = String(s.site_name ?? '');
+        else if (dimKey === 'code_nidt') siteVal = String((s as any).code_nidt ?? s.site_id ?? '');
+        else siteVal = String((s as any)[dimKey] ?? '');
+        // Cell-level fields
+        if (siteCells.length > 0) {
+          cellVals = siteCells.map(c => String((c as any)[dimKey] ?? '')).filter(Boolean);
+        }
+        const allVals = [siteVal, ...cellVals].filter(Boolean).map(v => v.toLowerCase());
+        const condVals = cond.values.map(v => v.toLowerCase());
+
+        if (cond.operator === 'IN' || cond.operator === '=') {
+          return condVals.some(cv => allVals.some(av => av.includes(cv) || cv.includes(av) || av === cv));
+        } else if (cond.operator === 'NOT_IN') {
+          return !condVals.some(cv => allVals.some(av => av === cv));
+        } else {
+          // Numeric comparison
+          const numVal = parseFloat(siteVal || '0') || (cellVals.length > 0 ? parseFloat(cellVals[0]) : NaN);
+          const threshold = parseFloat(cond.values[0]);
+          if (isNaN(numVal) || isNaN(threshold)) return false;
+          switch (cond.operator) {
+            case '>': return numVal > threshold;
+            case '>=': return numVal >= threshold;
+            case '<': return numVal < threshold;
+            case '<=': return numVal <= threshold;
+            default: return true;
+          }
+        }
+      });
       
-      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno && matchesQoeFilters;
+      return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno && matchesQoeFilters && matchesViewConditions;
     });
     if (qoeFilters.length > 0) {
       console.log('[QOE Filter] Sites after filter:', filtered.length);
@@ -3510,7 +3528,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
       return inventorySortOrder === 'asc' ? va - vb : vb - va;
     });
-  }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters]);
+  }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters, activeViewConditions]);
 
   // Check if a cell's band passes the band filter
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
@@ -6818,6 +6836,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       }
                     } else {
                       setActiveViewFilters([]);
+                    }
+                    // Apply advanced view conditions
+                    if (Array.isArray(settings.viewConditions)) {
+                      setActiveViewConditions(settings.viewConditions);
+                    } else {
+                      setActiveViewConditions([]);
                     }
                     // Apply map label fields
                     if (Array.isArray(settings.mapLabelFields)) {
