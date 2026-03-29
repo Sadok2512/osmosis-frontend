@@ -76,6 +76,7 @@ async function fetchCounterTimeSeriesFallback(
         if (dim === 'TECHNO' && f.values?.length) body.object_type = f.values[0];
       }
     }
+    console.log('[CounterFallback] Request:', url, JSON.stringify(body));
 
     const res = await fetch(url, {
       method: 'POST',
@@ -83,7 +84,9 @@ async function fetchCounterTimeSeriesFallback(
       body: JSON.stringify(body),
     });
 
+    console.log('[CounterFallback] Response status:', res.status);
     if (!res.ok) {
+      console.warn('[CounterFallback] Failed:', res.status, await res.text().catch(() => ''));
       // If endpoint doesn't support filters, retry without and mark as unfiltered
       if (res.status === 400 || res.status === 422) {
         const fallbackRes = await fetch(url, {

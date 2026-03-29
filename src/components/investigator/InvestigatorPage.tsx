@@ -119,21 +119,23 @@ const InvestigatorPage: React.FC = () => {
         ctx: resolveSlotContext(slot, state),
       }));
 
-      // Group by identical context (same split, dates, filters, gran) to batch where possible
+      console.log('[Investigator] Slots:', slotContexts.map(s => ({
+        kpis: s.ctx.kpiIds, dateFrom: s.ctx.dateFrom, dateTo: s.ctx.dateTo,
+        gran: s.ctx.granularity, filters: s.ctx.filters,
+      })));
+
       const results = await Promise.all(
         slotContexts.map(async ({ ctx }) => {
-          let result = await fetchTimeSeriesForSlot(ctx);
-          // Fallback: if hourly returned empty, retry with daily
-          if (result.data.length === 0 && ctx.granularity === '1h') {
-            console.warn('[Investigator] Hourly returned empty, retrying daily');
-            result = await fetchTimeSeriesForSlot({ ...ctx, granularity: '1d' });
-          }
+          console.log('[Investigator] Fetching slot:', ctx.kpiIds, 'from', ctx.dateFrom, 'to', ctx.dateTo, 'gran', ctx.granularity);
+          const result = await fetchTimeSeriesForSlot(ctx);
+          console.log('[Investigator] Result:', result.data.length, 'points');
           return result;
         })
       );
 
       // Merge all results
       const allData = results.flatMap(r => r.data);
+      console.log('[Investigator] Total data points:', allData.length);
       const anyUnfiltered = results.some(r => r.hasUnfilteredFallback);
       setHasUnfilteredFallback(anyUnfiltered);
       setTsData(allData);

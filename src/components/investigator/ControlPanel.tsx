@@ -391,8 +391,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     }));
   };
 
-  const startDate = state.startDate ? new Date(state.startDate) : undefined;
-  const endDate = state.endDate ? new Date(state.endDate) : undefined;
+  // Parse dates as local (add T12:00 to avoid UTC midnight timezone shift)
+  const startDate = state.startDate ? new Date(state.startDate + 'T12:00:00') : undefined;
+  const endDate = state.endDate ? new Date(state.endDate + 'T12:00:00') : undefined;
 
   const addFilter = (dim: string, val: string) => {
     setState(prev => {
