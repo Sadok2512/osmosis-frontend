@@ -57,6 +57,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
 import { fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { getBandSizeScale, getBandRenderOrder } from './map/sectorSizing';
+import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
@@ -68,7 +69,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
-  Bell, FileText, AlertTriangle, Layers
+  Bell, FileText, AlertTriangle, Layers, Palette
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
@@ -2302,6 +2303,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
+  const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
+  const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
 
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
     ? 'cells'
@@ -3710,6 +3713,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return [selectedSiteSnapshot, ...merged];
   }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos]);
 
+  // ── Color View Mode: build a value→color map from visible sites ──
+  const colorViewColorMap = useMemo(() => {
+    if (colorViewMode === 'none') return {};
+    const values = renderSites.map(s => getSiteDimensionValue(s, colorViewMode));
+    return buildColorMap(values);
+  }, [renderSites, colorViewMode]);
+
+  /** Get the color-by-dimension fill for a site. Returns null if colorViewMode is 'none'. */
+  const getColorViewFill = useCallback((site: SiteSummary): string | null => {
+    if (colorViewMode === 'none') return null;
+    const val = getSiteDimensionValue(site, colorViewMode);
+    return getColorForValue(val, colorViewColorMap);
+  }, [colorViewMode, colorViewColorMap]);
+
   const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
   // Filter cells to 4G/5G only for sector rendering
   const ALLOWED_TECH = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
@@ -4124,8 +4141,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
-          // Always use tech-based colors for site dots (circle markers & mini sectors)
-          const color = topoColor;
+          // Color view override: if a "View by Color" dimension is active, use that instead
+          const colorViewOverride = getColorViewFill(site);
+          const color = colorViewOverride || topoColor;
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
@@ -4235,9 +4253,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <React.Fragment key={site.site_id}>
                 {miniItems.map(({ tech, az, r, bandKey }) => {
                   const sectorCoords = getSectorCoords(site.coordinates, az, r, 60);
-                  const techColor = mapTechnoFilter === 'ALL'
+                  const defaultTechColor = mapTechnoFilter === 'ALL'
                     ? (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'))
                     : (bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#22c55e' : '#f97316')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316')));
+                  const techColor = colorViewOverride || defaultTechColor;
                   return (
                     <Polygon
                       key={`${site.site_id}_mini_${tech}_${bandKey || 'unk'}_${az}`}
@@ -4463,7 +4482,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const { has4G, has5G } = inferSiteTechState(site);
             const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
             const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
-            const color = (sectorColorMode as string) === 'topo' ? topoColor : kpiColor;
+            const colorViewOverrideIndoor = getColorViewFill(site);
+            const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
             const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
             return (
               <Marker
@@ -4633,7 +4653,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   if (sectorColorMode === 'kpi') {
                     kpiColor = getKpiColor(getCellKpiValue(cell));
                   }
-                  const fillColor = isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
+                  const colorViewOverrideSector = getColorViewFill(site);
+                  const fillColor = colorViewOverrideSector || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor));
                   const strokeColor = isFocusFaded ? '#cbd5e1' : deriveStrokeColor(fillColor);
                   const sectorCoords = getSectorCoords(site.coordinates, az, radius, 60);
                   return (
@@ -4739,8 +4760,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 if (!Number.isFinite(az) || az < 0 || az > 360) return null;
                 const sectorCoords = getSectorCoords(site.coordinates, az, cellRadius, 60);
                 const isFaded = false; // cells already filtered by tech above
-                const fillColor = isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
-                const strokeColor = isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
+                const colorViewOverrideCell = getColorViewFill(site);
+                const fillColor = colorViewOverrideCell || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell))));
+                const strokeColor = isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' && !colorViewOverrideCell ? getBandStrokeColor(cell.bande, cell.techno) : deriveStrokeColor(fillColor));
                 const isFocusCell = focusCellId === cell.cell_id;
                 const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
                 const baseOpacity = isFocusFaded ? 0.08 : (isFaded ? 0.08 : (isCellDimmed ? 0.15 : (is5G ? 0.92 : overlapFactor)));
@@ -5472,6 +5494,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <Layers size={12} />
                   Views
                 </button>
+
+                {/* View by Color selector */}
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => setShowColorViewDropdown(!showColorViewDropdown)}
+                    className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg flex items-center gap-1.5 ${
+                      colorViewMode !== 'none'
+                        ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm shadow-violet-500/20'
+                        : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+                    }`}
+                  >
+                    <Palette size={12} />
+                    {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Couleur'}
+                  </button>
+                  {showColorViewDropdown && (
+                    <div className="absolute top-full left-0 mt-1.5 z-[1200] bg-card/98 backdrop-blur-xl border border-border rounded-xl shadow-2xl min-w-[180px] py-1 animate-in fade-in-0 zoom-in-95 duration-150">
+                      <div className="px-3 py-2 border-b border-border/40">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Colorer par</span>
+                      </div>
+                      {(['none', 'vendor', 'dor', 'plaque', 'tech'] as ColorViewMode[]).map(mode => (
+                        <button
+                          key={mode}
+                          onClick={() => { setColorViewMode(mode); setShowColorViewDropdown(false); }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[11px] transition-colors ${
+                            colorViewMode === mode
+                              ? 'bg-primary/10 text-primary font-bold'
+                              : 'text-foreground hover:bg-muted font-medium'
+                          }`}
+                        >
+                          {colorViewMode === mode && <Check size={12} className="text-primary shrink-0" />}
+                          {colorViewMode !== mode && <span className="w-3 shrink-0" />}
+                          {COLOR_VIEW_LABELS[mode]}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
@@ -5802,6 +5861,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
             )}
           </div>
+
+          {/* ── Color View Legend ── */}
+          {colorViewMode !== 'none' && Object.keys(colorViewColorMap).length > 0 && (
+            <div className="absolute left-4 bottom-4 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] max-w-[220px] z-[500]">
+              <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Palette size={12} className="text-primary" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{COLOR_VIEW_LABELS[colorViewMode]}</span>
+                </div>
+                <button
+                  onClick={() => setColorViewMode('none')}
+                  className="text-muted-foreground/50 hover:text-foreground transition-colors"
+                  title="Réinitialiser"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              <div className="px-4 py-2.5 space-y-1.5 max-h-[200px] overflow-y-auto">
+                {Object.entries(colorViewColorMap).sort(([a], [b]) => a.localeCompare(b)).map(([value, color]) => (
+                  <div key={value} className="flex items-center gap-2.5">
+                    <span className="w-4 h-4 rounded shrink-0 border border-border/30" style={{ background: color }} />
+                    <span className="text-[11px] font-semibold text-foreground truncate">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
       )}
