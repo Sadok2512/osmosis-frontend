@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { topoApi } from '@/lib/localDb';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
+import { FILTER_DIMENSIONS, REF_DOR_TREE, REF_TECHNO_BANDE, resolveAvailableValues as resolveVals } from '@/config/filterDimensions';
 
 export interface FilterDefinition {
   id: string;
@@ -24,6 +25,22 @@ const FILTER_LABELS: Record<string, string> = {
 };
 
 const FILTER_KEYS = ['dor', 'plaque', 'constructeur', 'techno', 'bande', 'zone_arcep'];
+
+/** Build static fallback filter definitions from filterDimensions config */
+function buildStaticFilterDefs(): FilterDefinition[] {
+  const defs: FilterDefinition[] = [];
+  for (const key of FILTER_KEYS) {
+    const values = resolveVals(key, []);
+    if (values.length > 0) {
+      defs.push({ id: key, label: FILTER_LABELS[key] || key, values: values.sort() });
+    }
+  }
+  // Ensure at least techno exists
+  if (!defs.find(d => d.id === 'techno')) {
+    defs.push({ id: 'techno', label: 'Technologie', values: ['4G', '5G'] });
+  }
+  return defs;
+}
 
 export function useSitesFilters() {
   const [filterDefs, setFilterDefs] = useState<FilterDefinition[]>([]);
@@ -51,11 +68,11 @@ export function useSitesFilters() {
         const url = getVpsProxyUrl('parser', '/api/v1/topo/sites?limit=50000');
         const resp = await fetch(url, { headers: getVpsProxyHeaders() });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const sites: any[] = await resp.json();
-        if (!Array.isArray(sites) || sites.length === 0) {
-          setFilterDefs([{ id: 'techno', label: 'Technologie', values: ['4G', '5G'] }]);
-          return;
-        }
+        const json = await resp.json();
+        // VPS proxy returns { unavailable: true } when backend is down
+        if (json?.unavailable) throw new Error('VPS unavailable');
+        const sites: any[] = Array.isArray(json) ? json : (json?.sites || []);
+        if (sites.length === 0) throw new Error('No sites');
 
         const sets: Record<string, Set<string>> = {};
         FILTER_KEYS.forEach(k => sets[k] = new Set());
@@ -80,10 +97,10 @@ export function useSitesFilters() {
           }));
 
         if (defs.length > 0) setFilterDefs(defs);
-        else setFilterDefs([{ id: 'techno', label: 'Technologie', values: ['4G', '5G'] }]);
+        else setFilterDefs(buildStaticFilterDefs());
       } catch (err) {
-        console.warn('[useSitesFilters] fallback extraction failed', err);
-        setFilterDefs([{ id: 'techno', label: 'Technologie', values: ['4G', '5G'] }]);
+        console.warn('[useSitesFilters] VPS unavailable, using static filter definitions');
+        setFilterDefs(buildStaticFilterDefs());
       }
     }
   }, []);
