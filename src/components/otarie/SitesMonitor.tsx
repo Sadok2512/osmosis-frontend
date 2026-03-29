@@ -3513,6 +3513,64 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
+        // Ultimate fallback: synthesize approximate sectors from site-level lte_cells/nr_cells
+        // when ALL VPS cell endpoints fail (timeout / empty)
+        if (cellMap.size === 0) {
+          console.warn('[SitesMonitor] All cell endpoints failed — generating synthetic sectors from site metadata');
+          for (const site of sitesNeedingCells) {
+            const lte = site.lte_cells || 0;
+            const nr = site.nr_cells || 0;
+            if (lte === 0 && nr === 0) continue;
+            const syntheticCells: any[] = [];
+            const azimuths = [0, 120, 240]; // standard tri-sector
+            // Generate 4G synthetic cells
+            if (lte > 0) {
+              const bandsPerSector = Math.max(1, Math.round(lte / 3));
+              const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
+              for (let s = 0; s < 3; s++) {
+                for (let b = 0; b < bandsPerSector && b < defaultBands4G.length; b++) {
+                  syntheticCells.push({
+                    cell_id: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
+                    cell_name: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
+                    techno: '4G',
+                    bande: defaultBands4G[b],
+                    vendor: site.vendor || 'Unknown',
+                    azimut: azimuths[s],
+                    tilt: null,
+                    pci: null, eci: null, nci: null, cid: null, tac: null,
+                    etat_cellule: null, essentiel: null,
+                    _synthetic: true,
+                  });
+                }
+              }
+            }
+            // Generate 5G synthetic cells
+            if (nr > 0) {
+              const bandsPerSector5G = Math.max(1, Math.round(nr / 3));
+              const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
+              for (let s = 0; s < 3; s++) {
+                for (let b = 0; b < bandsPerSector5G && b < defaultBands5G.length; b++) {
+                  syntheticCells.push({
+                    cell_id: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
+                    cell_name: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
+                    techno: '5G',
+                    bande: defaultBands5G[b],
+                    vendor: site.vendor || 'Unknown',
+                    azimut: azimuths[s],
+                    tilt: null,
+                    pci: null, eci: null, nci: null, cid: null, tac: null,
+                    etat_cellule: null, essentiel: null,
+                    _synthetic: true,
+                  });
+                }
+              }
+            }
+            if (syntheticCells.length > 0) {
+              cellMap.set(site.site_id, syntheticCells);
+            }
+          }
+        }
+
         // Clear loading flags
         sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
 
