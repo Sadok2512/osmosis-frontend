@@ -15,7 +15,7 @@ import { useTerrainProfile } from '@/hooks/useTerrainProfile';
 import { useFresnel } from '@/hooks/useFresnel';
 import { haversineDistance, LatLng } from '@/utils/geodesicUtils';
 import { is5GTech, is4GTech, getCellTechGroup, normalizeSiteKey, resolveCanonicalSiteId, stableCellKey, computeMapAggregation } from '@/utils/telecomHelpers';
-import ProfileChart from './radio-profile/ProfileChart';
+import ProfileChart, { ProfileHoverData } from './radio-profile/ProfileChart';
 import InfoPanel from './radio-profile/InfoPanel';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -2561,6 +2561,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const { loading: linkProfileLoading, profilePoints: linkProfilePoints, analysis: linkProfileAnalysis, computeProfile: linkComputeProfile } = useTerrainProfile();
   const [showLinkProfile, setShowLinkProfile] = useState(false);
   const [linkProfileLabel, setLinkProfileLabel] = useState('');
+  const [linkProfileHover, setLinkProfileHover] = useState<ProfileHoverData | null>(null);
 
   const openLinkTerrainProfile = useCallback((link: TaggedLink) => {
     setSelectedLinkId(link.id);
@@ -4990,6 +4991,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </Tooltip>
           </Polyline>
         ))}
+        {/* Hover marker on link profile */}
+        {linkProfileHover && showLinkProfile && (
+          <CircleMarker
+            center={[linkProfileHover.lat, linkProfileHover.lng]}
+            radius={8}
+            pathOptions={{ color: '#fff', fillColor: '#f43f5e', fillOpacity: 1, weight: 3 }}
+          >
+            <Tooltip direction="top" permanent>
+              <span className="text-[10px] font-bold">
+                {linkProfileHover.distanceKm.toFixed(2)} km — {linkProfileHover.elevationM.toFixed(0)} m
+              </span>
+            </Tooltip>
+          </CircleMarker>
+        )}
         {/* Neighbor visualization lines */}
         {showNeighborPanel && neighborData.filter(n => n.relationDirection === neighborDirection).map((n, i) => {
           const sourceCell = siteDetail?.cells.find(c => c.cell_id === neighborCellId);
@@ -5198,8 +5213,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* ── Link Terrain Profile Panel ── */}
       {showLinkProfile && linkProfileAnalysis && !linkProfileLoading && (
         <div
-          className="absolute bottom-4 left-4 right-4 z-[1001] overflow-hidden pointer-events-auto max-h-[40%] flex flex-col animate-fade-in"
+          className="absolute bottom-4 right-4 z-[1001] overflow-hidden pointer-events-auto max-h-[40%] flex flex-col animate-fade-in"
           style={{
+            left: `${(panelCollapsed ? 56 : 400) + 16}px`,
             background: 'rgba(15,23,42,0.55)',
             backdropFilter: 'blur(24px)',
             border: '1px solid rgba(255,255,255,0.1)',
@@ -5218,7 +5234,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
             </div>
             <button
-              onClick={() => { setShowLinkProfile(false); setSelectedLinkId(null); }}
+              onClick={() => { setShowLinkProfile(false); setSelectedLinkId(null); setLinkProfileHover(null); }}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
             >
               <X size={16} />
@@ -5229,6 +5245,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <ProfileChart
                 profilePoints={linkProfilePoints}
                 analysis={linkProfileAnalysis}
+                onHoverPoint={setLinkProfileHover}
               />
             </div>
           </div>
