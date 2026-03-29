@@ -3244,14 +3244,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (cancelled) return;
 
         // Final enriched update (with QoE data)
-        setSites(dashboardSites || []);
-        setBboxTotal((dashboardSites || []).length);
-        if ((dashboardSites || []).length > 0) setDashboardFitKey(k => k + 1);
+        // Guard: don't overwrite existing sites with empty results
+        const finalSites = dashboardSites || [];
+        if (finalSites.length > 0) {
+          setSites(finalSites);
+          setBboxTotal(finalSites.length);
+          setDashboardFitKey(k => k + 1);
+        } else {
+          // Only clear if we had no prior data
+          setSites(prev => prev.length > 0 ? prev : []);
+          setBboxTotal(prev => typeof prev === 'number' && prev > 0 ? prev : 0);
+        }
       } catch (err) {
         if (!cancelled) {
           console.warn('[SitesMonitor] dashboard site load failed', err);
-          setSites([]);
-          setBboxTotal(0);
+          // Don't clear existing sites on error — keep what we have
+          setSites(prev => prev.length > 0 ? prev : []);
         }
       } finally {
         if (!cancelled) {
@@ -5386,6 +5394,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </button>
             </>
           )}
+          <span className="w-px h-4 bg-border" />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+              Backend connectivity V1.0 Beta • Orange France
+            </span>
+          </div>
         </div>
       </div>
 
