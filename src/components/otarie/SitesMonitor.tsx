@@ -3538,20 +3538,54 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   const renderSites = useMemo(() => {
-    // Merge tagged sites into visible sites so they always appear on map
+    const siteMatchesCurrentTechFilter = (site: SiteSummary) => {
+      if (mapTechnoFilter === 'OFF') return false;
+
+      const matchesTech = (s: SiteSummary, tech: '5G' | '4G'): boolean => {
+        if (s.cells.length > 0) {
+          return s.cells.some(cell => {
+            const ct = (cell.techno || '').toUpperCase();
+            return tech === '5G' ? (ct.includes('5G') || ct.includes('NR')) : (!ct.includes('5G') && !ct.includes('NR'));
+          });
+        }
+
+        if (tech === '5G') {
+          return (s.nr_cells || 0) > 0 || ((s as any).technos || []).some((t: string) => t?.toUpperCase()?.includes('5G') || t?.toUpperCase()?.includes('NR'));
+        }
+
+        return (s.lte_cells || 0) > 0 || ((s as any).technos || []).some((t: string) => {
+          const u = t?.toUpperCase();
+          return u && !u.includes('5G') && !u.includes('NR');
+        });
+      };
+
+      if (mapTechnoFilter === 'ALL') {
+        if (enabledTechnos.size === 0) return false;
+        if (enabledTechnos.size === 2) return true;
+        return (enabledTechnos.has('5G') && matchesTech(site, '5G')) || (enabledTechnos.has('4G') && matchesTech(site, '4G'));
+      }
+
+      return matchesTech(site, mapTechnoFilter as '5G' | '4G');
+    };
+
     const merged = [...visibleSites];
+
     for (const ts of taggedSites) {
+      if (!siteMatchesCurrentTechFilter(ts)) continue;
       if (!merged.some(s => s.site_id === ts.site_id)) {
         merged.push(ts);
       }
     }
+
     if (!selectedSiteId || !selectedSiteSnapshot) return merged;
+    if (!siteMatchesCurrentTechFilter(selectedSiteSnapshot)) return merged;
     if (merged.some(site => site.site_id === selectedSiteId)) return merged;
     if (viewport.bounds && !viewport.bounds.contains(L.latLng(selectedSiteSnapshot.coordinates[0], selectedSiteSnapshot.coordinates[1]))) {
       return merged;
     }
+
     return [selectedSiteSnapshot, ...merged];
-  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites]);
+  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos]);
 
   const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
   // Filter cells to 4G/5G only for sector rendering
