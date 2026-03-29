@@ -5495,42 +5495,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   Views
                 </button>
 
-                {/* View by Color selector */}
-                <div className="relative shrink-0">
-                  <button
-                    onClick={() => setShowColorViewDropdown(!showColorViewDropdown)}
-                    className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg flex items-center gap-1.5 ${
-                      colorViewMode !== 'none'
-                        ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm shadow-violet-500/20'
-                        : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
-                    }`}
-                  >
-                    <Palette size={12} />
-                    {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Couleur'}
-                  </button>
-                  {showColorViewDropdown && (
-                    <div className="absolute top-full left-0 mt-1.5 z-[1200] bg-card/98 backdrop-blur-xl border border-border rounded-xl shadow-2xl min-w-[180px] py-1 animate-in fade-in-0 zoom-in-95 duration-150">
-                      <div className="px-3 py-2 border-b border-border/40">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Colorer par</span>
-                      </div>
-                      {(['none', 'vendor', 'dor', 'plaque', 'tech'] as ColorViewMode[]).map(mode => (
-                        <button
-                          key={mode}
-                          onClick={() => { setColorViewMode(mode); setShowColorViewDropdown(false); }}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[11px] transition-colors ${
-                            colorViewMode === mode
-                              ? 'bg-primary/10 text-primary font-bold'
-                              : 'text-foreground hover:bg-muted font-medium'
-                          }`}
-                        >
-                          {colorViewMode === mode && <Check size={12} className="text-primary shrink-0" />}
-                          {colorViewMode !== mode && <span className="w-3 shrink-0" />}
-                          {COLOR_VIEW_LABELS[mode]}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {/* View by Color selector — button only (dropdown rendered outside overflow container) */}
+                <button
+                  ref={(el) => { (window as any).__colorViewBtnRef = el; }}
+                  onClick={() => setShowColorViewDropdown(!showColorViewDropdown)}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg flex items-center gap-1.5 shrink-0 ${
+                    colorViewMode !== 'none'
+                      ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm shadow-violet-500/20'
+                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+                  }`}
+                >
+                  <Palette size={12} />
+                  {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Couleur'}
+                </button>
               </>
             )}
 
