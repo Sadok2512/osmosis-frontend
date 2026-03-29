@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { topoApi } from '@/lib/localDb';
+import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 
 export interface FilterDefinition {
   id: string;
@@ -13,30 +14,78 @@ export interface ActiveFilter {
   selectedValues: string[];
 }
 
-const FALLBACK_FILTER_DEFS: FilterDefinition[] = [
-  { id: 'dor', label: 'DOR', values: [] },
-  { id: 'plaque', label: 'Plaque', values: [] },
-  { id: 'constructeur', label: 'Constructeur', values: [] },
-  { id: 'techno', label: 'Technologie', values: ['4G', '5G'] },
-  { id: 'bande', label: 'Bande', values: [] },
-  { id: 'zone_arcep', label: 'Zone ARCEP', values: [] },
-];
+const FILTER_LABELS: Record<string, string> = {
+  dor: 'DOR',
+  plaque: 'Plaque',
+  constructeur: 'Constructeur',
+  techno: 'Technologie',
+  bande: 'Bande',
+  zone_arcep: 'Zone ARCEP',
+};
+
+const FILTER_KEYS = ['dor', 'plaque', 'constructeur', 'techno', 'bande', 'zone_arcep'];
 
 export function useSitesFilters() {
-  const [filterDefs, setFilterDefs] = useState<FilterDefinition[]>(FALLBACK_FILTER_DEFS);
+  const [filterDefs, setFilterDefs] = useState<FilterDefinition[]>([]);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch available filters from backend, keep fallback if unavailable
   useEffect(() => {
     setLoading(true);
+
     topoApi.filters()
       .then(data => {
         const defs = data.filters || [];
-        if (defs.length > 0) setFilterDefs(defs);
+        if (defs.length > 0) {
+          setFilterDefs(defs);
+          setLoading(false);
+          return;
+        }
+        return extractFiltersFromSites();
       })
-      .catch(() => { /* keep fallback */ })
+      .catch(() => extractFiltersFromSites())
       .finally(() => setLoading(false));
+
+    async function extractFiltersFromSites() {
+      try {
+        const url = getVpsProxyUrl('parser', '/api/v1/topo/sites?limit=50000');
+        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const sites: any[] = await resp.json();
+        if (!Array.isArray(sites) || sites.length === 0) {
+          setFilterDefs([{ id: 'techno', label: 'Technologie', values: ['4G', '5G'] }]);
+          return;
+        }
+
+        const sets: Record<string, Set<string>> = {};
+        FILTER_KEYS.forEach(k => sets[k] = new Set());
+
+        for (const s of sites) {
+          if (s.dor) sets.dor.add(s.dor);
+          if (s.plaque) sets.plaque.add(s.plaque);
+          if (s.constructeur) sets.constructeur.add(s.constructeur);
+          if (s.zone_arcep) sets.zone_arcep.add(s.zone_arcep);
+          if (Array.isArray(s.technos)) s.technos.forEach((t: string) => sets.techno.add(t));
+          else if (s.techno) sets.techno.add(s.techno);
+          if (Array.isArray(s.bandes)) s.bandes.forEach((b: string) => sets.bande.add(b));
+          else if (s.bande) sets.bande.add(s.bande);
+        }
+
+        const defs: FilterDefinition[] = FILTER_KEYS
+          .filter(k => sets[k].size > 0)
+          .map(k => ({
+            id: k,
+            label: FILTER_LABELS[k] || k,
+            values: [...sets[k]].sort(),
+          }));
+
+        if (defs.length > 0) setFilterDefs(defs);
+        else setFilterDefs([{ id: 'techno', label: 'Technologie', values: ['4G', '5G'] }]);
+      } catch (err) {
+        console.warn('[useSitesFilters] fallback extraction failed', err);
+        setFilterDefs([{ id: 'techno', label: 'Technologie', values: ['4G', '5G'] }]);
+      }
+    }
   }, []);
 
   const addFilter = useCallback((filterId: string) => {
