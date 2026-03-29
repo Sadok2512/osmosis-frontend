@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { dashboardsApi, mapViewsApi, qoeMetricsApi, topoApi } from '@/lib/localDb';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { useMapSitesStore } from "@/stores/mapSitesStore";
-import { ActiveFilter } from '@/config/filterDimensions';
+import { ActiveFilter, FILTER_DIMENSIONS, resolveAvailableValues } from '@/config/filterDimensions';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import MarkerClusterGroup from 'react-leaflet-cluster';
