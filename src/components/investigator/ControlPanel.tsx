@@ -165,7 +165,8 @@ const KpiDropdown: React.FC<{ selected: string[]; onChange: (ids: string[]) => v
 const AddFilterDropdown: React.FC<{
   existingKeys: string[];
   onAdd: (dim: string, val: string) => void;
-}> = ({ existingKeys, onAdd }) => {
+  filterDimensions: string[];
+}> = ({ existingKeys, onAdd, filterDimensions }) => {
   const [open, setOpen] = useState(false);
   const [selectedDim, setSelectedDim] = useState<string | null>(null);
 
@@ -696,7 +697,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 </button>
               </span>
             ))}
-            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} />
+            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} filterDimensions={filterDimensions} />
           </div>
 
           {/* Row C: KPI chips */}
@@ -914,7 +915,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           open={!!selectorOpen}
           onClose={handleSelectorClose}
           catalog={sortedCatalog}
-          kpisWithData={kpisWithData}
+          
           selectedKeys={selectorOpen && selectorOpen !== 'new'
             ? (state.graphSlots.find(s => s.id === selectorOpen)?.kpiIds || [])
             : []}
