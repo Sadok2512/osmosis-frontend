@@ -57,6 +57,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
 import { fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { getBandSizeScale, getBandRenderOrder } from './map/sectorSizing';
+import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
