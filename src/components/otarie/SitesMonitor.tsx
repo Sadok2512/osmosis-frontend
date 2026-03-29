@@ -5414,28 +5414,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   ))}
                 </div>
 
-                <span className="w-px h-7 bg-border/50 shrink-0" />
-
-                {/* Layer switcher: L / D / S */}
-                <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
-                  {([
-                    { key: 'light' as const, label: 'L' },
-                    { key: 'dark' as const, label: 'D' },
-                    { key: 'satellite' as const, label: 'S' },
-                  ]).map(({ key, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => setMapLayer(key)}
-                      className={`px-3 py-2 text-[10px] font-black tracking-wider transition-all ${
-                        mapLayer === key
-                          ? 'bg-primary text-primary-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
 
                 <span className="w-px h-7 bg-border/50 shrink-0" />
 
