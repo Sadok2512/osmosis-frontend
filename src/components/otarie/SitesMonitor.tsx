@@ -3150,10 +3150,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setBboxLoading(true);
 
       try {
-        const dashboardSites = await fetchDashboardSites(effectiveFilters);
+        const dashboardSites = await fetchDashboardSites(
+          effectiveFilters,
+          undefined,
+          // Progressive callback: show sites on map immediately before QoE enrichment
+          (batchSites) => {
+            if (!cancelled && batchSites.length > 0) {
+              setSites(batchSites);
+              setBboxTotal(batchSites.length);
+              setLoading(false); // map is usable now
+            }
+          },
+        );
 
         if (cancelled) return;
 
+        // Final enriched update (with QoE data)
         setSites(dashboardSites || []);
         setBboxTotal((dashboardSites || []).length);
         if ((dashboardSites || []).length > 0) setDashboardFitKey(k => k + 1);
