@@ -66,9 +66,16 @@ async function fetchCounterTimeSeriesFallback(
       granularity,
     };
 
-    // Forward filter context to raw counter endpoint
-    if (splitBy) body.split_by = splitBy;
-    if (filters && filters.length > 0) body.filters = filters;
+    // Translate dimension filters to Parser format
+    if (splitBy && splitBy !== 'None') body.split_by_dimension = true;
+    if (filters && filters.length > 0) {
+      for (const f of filters) {
+        const dim = (f.dimension || '').toUpperCase();
+        if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
+        if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
+        if (dim === 'TECHNO' && f.values?.length) body.object_type = f.values[0];
+      }
+    }
 
     const res = await fetch(url, {
       method: 'POST',
