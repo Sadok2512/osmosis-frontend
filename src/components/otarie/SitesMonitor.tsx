@@ -4496,7 +4496,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── 5G / 4G mode: detailed per-band sectors ── */
           // Pre-compute max 4G radius per azimuth for capping 5G
-          const detailCells = site.cells.filter(c => isBandEnabled(c.bande, c.techno));
+          const detailCells = site.cells.filter(c => {
+            if (!isBandEnabled(c.bande, c.techno)) return false;
+            // Also filter by tech when a specific tech is selected
+            if (mapTechnoFilter === '5G') {
+              return (c.techno || '').toUpperCase().includes('5G') || (c.techno || '').toUpperCase().includes('NR');
+            }
+            if (mapTechnoFilter === '4G') {
+              const t = (c.techno || '').toUpperCase();
+              return !t.includes('5G') && !t.includes('NR');
+            }
+            return true;
+          });
           const max4GRadiusPerAz = new Map<number, number>();
           const hasAny4G = detailCells.some(c => !(c.techno || '').toUpperCase().includes('5G'));
           const hasAny5G = detailCells.some(c => (c.techno || '').toUpperCase().includes('5G'));
@@ -4533,9 +4544,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 }
                 if (!Number.isFinite(az) || az < 0 || az > 360) return null;
                 const sectorCoords = getSectorCoords(site.coordinates, az, cellRadius, 60);
-                const isFaded = (mapTechnoFilter === '5G' && !is5G) || (mapTechnoFilter === '4G' && is5G);
-                const fillColor = isFaded || isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
-                const strokeColor = isFaded || isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
+                const isFaded = false; // cells already filtered by tech above
+                const fillColor = isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell)));
+                const strokeColor = isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' ? getBandStrokeColor(cell.bande, cell.techno) : fillColor);
                 const isFocusCell = focusCellId === cell.cell_id;
                 const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
                 const baseOpacity = isFocusFaded ? 0.08 : (isFaded ? 0.08 : (isCellDimmed ? 0.15 : (is5G ? 0.92 : overlapFactor)));
