@@ -4035,6 +4035,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }, 350);
   };
 
+  /** Robust cell lookup: exact match → trimmed match → case-insensitive → includes fallback */
+  const resolveCellFromDetail = useCallback((detail: SiteDetail, cellId: string): CellProperties | undefined => {
+    if (!detail?.cells?.length || !cellId) return undefined;
+    // 1. Exact match
+    let found = detail.cells.find(c => c.cell_id === cellId);
+    if (found) return found;
+    // 2. Trimmed match
+    const trimmed = cellId.trim();
+    found = detail.cells.find(c => c.cell_id?.trim() === trimmed);
+    if (found) return found;
+    // 3. Case-insensitive
+    const upper = trimmed.toUpperCase();
+    found = detail.cells.find(c => c.cell_id?.trim().toUpperCase() === upper);
+    if (found) return found;
+    // 4. Check cell_name or nom_cellule on extended props
+    found = detail.cells.find(c => {
+      const ext = c as any;
+      return (ext.cell_name?.trim().toUpperCase() === upper) ||
+             (ext.nom_cellule?.trim().toUpperCase() === upper);
+    });
+    if (found) return found;
+    // 5. Partial / includes match (last resort)
+    found = detail.cells.find(c => c.cell_id?.toUpperCase().includes(upper) || upper.includes(c.cell_id?.toUpperCase()));
+    return found;
+  }, []);
+
   const handleCellClick = (cellId: string) => {
     setFocusMode('cell');
     setFocusCellId(cellId);
