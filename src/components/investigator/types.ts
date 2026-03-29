@@ -71,7 +71,7 @@ export interface InvestigationState {
   granularity: Granularity;
   filters: Record<string, string[]>;
   topLimit: number;
-  sortBy: string;
+  sortBy: string | null;
   graphLayout: 1 | 2 | 4;
   activeGraphTab: GraphTab;
   jalons: Jalon[];
