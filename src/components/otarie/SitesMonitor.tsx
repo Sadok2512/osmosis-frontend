@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { dashboardsApi, mapViewsApi, qoeMetricsApi, topoApi } from '@/lib/localDb';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { useMapSitesStore } from "@/stores/mapSitesStore";
-import { ActiveFilter } from '@/config/filterDimensions';
+import { ActiveFilter, FILTER_DIMENSIONS, resolveAvailableValues } from '@/config/filterDimensions';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import MarkerClusterGroup from 'react-leaflet-cluster';
@@ -1538,8 +1538,19 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
   };
 
-  // Use backend filter defs for dashboard creation
-  const filterDimensions = backendFilterDefs || [];
+  // Use backend filter defs for dashboard creation — fallback to static FILTER_DIMENSIONS if empty
+  const filterDimensions = useMemo(() => {
+    if (backendFilterDefs && backendFilterDefs.length > 0) return backendFilterDefs;
+    // Fallback: build from static config
+    const FALLBACK_KEYS = ['dor', 'constructeur', 'plaque', 'techno', 'bande', 'zone_arcep'];
+    return FILTER_DIMENSIONS
+      .filter(dim => FALLBACK_KEYS.includes(dim.key))
+      .map(dim => {
+        const vals = resolveAvailableValues(dim.key, []);
+        return { id: dim.key, label: dim.label, values: vals.sort() };
+      })
+      .filter(d => d.values.length > 0);
+  }, [backendFilterDefs]);
 
   const toggleCreateFilterValue = (dimKey: string, val: string) => {
     setCreateFilters(prev => {
