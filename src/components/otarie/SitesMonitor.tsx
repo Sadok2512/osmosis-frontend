@@ -4451,10 +4451,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             // Sort: bigger sectors first (render below), smaller on top
             const renderItems = cellItems.sort((a, b) => getBandRenderOrder(a.bandKey) - getBandRenderOrder(b.bandKey));
 
-            // Deduplicate by tech+az — keep only the largest per tech+azimuth
+            // Deduplicate by tech+band+az — keep one per band layer per azimuth
             const seen = new Set<string>();
             const dedupItems = renderItems.filter(item => {
-              const key = `${item.tech}_${item.az}`;
+              const key = `${item.tech}_${item.bandKey || 'unk'}_${item.az}`;
               if (seen.has(key)) return false;
               seen.add(key);
               return true;
