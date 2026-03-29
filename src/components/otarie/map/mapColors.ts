@@ -59,7 +59,7 @@ export const loadCustomBandColors = (): Record<string, string> => {
 export const normalizeBandKey = (bande: string, techno?: string): string | null => {
   if (!bande) return null;
   const normalized = bande.replace(/\s+/g, '').replace(/MHZ/gi, '').toUpperCase();
-  const is5G = (techno || '').toUpperCase().includes('5G') || normalized.includes('NR') || /^N\d+$/i.test(normalized);
+  const is5G = is5GTech(techno) || normalized.includes('NR') || /^N\d+$/i.test(normalized);
 
   if (normalized.includes('3500') || normalized.includes('NR3500') || normalized.includes('N78')) return 'NR3500';
   if (normalized.includes('2600') || normalized.includes('L2600') || normalized.includes('B7')) return 'L2600';
