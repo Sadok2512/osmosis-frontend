@@ -7699,80 +7699,55 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       const maxTilt = tilts.length ? Math.max(...tilts) : null;
                       const minTilt = tilts.length ? Math.min(...tilts) : null;
                       const deltaTilt = maxTilt != null && minTilt != null ? maxTilt - minTilt : null;
-                      const azDeltas = cells.map(c => Math.abs((c.azimut ?? avgAz) - avgAz));
-                      const maxAzDelta = azDeltas.length ? Math.max(...azDeltas) : 0;
 
                       return (
                         <div key={sNum} className="rounded-xl border border-border overflow-hidden bg-card">
                           {/* Sector header */}
-                          <div className="px-4 py-2.5 bg-muted/40 flex items-center justify-between">
+                          <div className="px-4 py-2 bg-muted/40 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-black">S{sNum}</div>
                               <span className="text-[11px] font-bold text-foreground">Sector {sNum}</span>
                               <span className="text-[10px] text-muted-foreground">• {cells.length} cell{cells.length > 1 ? 's' : ''} • Az avg {avgAz}°</span>
                             </div>
                             {deltaTilt != null && (
-                              <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                deltaTilt === 0 ? 'bg-emerald-500/20 text-emerald-400' :
-                                deltaTilt <= 2 ? 'bg-amber-500/20 text-amber-400' :
-                                'bg-red-500/20 text-red-400'
+                              <div className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
+                                deltaTilt === 0 ? 'bg-emerald-500/15 text-emerald-500' :
+                                deltaTilt <= 2 ? 'bg-amber-500/15 text-amber-500' :
+                                'bg-red-500/15 text-red-500'
                               }`}>
                                 ΔTilt: {deltaTilt}°
                               </div>
                             )}
                           </div>
-                          {/* Cells in this sector */}
-                          <div className="divide-y divide-border/40">
+                          {/* Cells list */}
+                          <div className="divide-y divide-border/30">
                             {cells.map((c, ci) => {
                               const eTilt = (c as any).tilt as number | null;
                               const refTilt = tilts.length > 0 ? tilts[0] : null;
                               const cellDelta = eTilt != null && refTilt != null && ci > 0 ? eTilt - refTilt : null;
                               return (
-                                <div key={c.cell_id} className={`flex items-center gap-3 px-4 py-2 text-[11px] ${ci % 2 === 0 ? 'bg-muted/10' : ''}`}>
-                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(c.bande, c.techno) }} />
+                                <div key={c.cell_id} className="flex items-center px-4 py-2.5 gap-3">
+                                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: getBandColor(c.bande, c.techno) }} />
                                   <div className="flex-1 min-w-0">
-                                    <span className="font-mono text-[10px] text-foreground truncate block">{c.cell_id}</span>
-                                    <span className="text-[9px] text-muted-foreground">{c.techno} • {c.bande}</span>
+                                    <div className="text-[11px] font-semibold text-foreground truncate">{c.cell_id}</div>
+                                    <div className="text-[9px] text-muted-foreground">{c.techno} • {c.bande}</div>
                                   </div>
-                                  <div className="flex items-center gap-3 shrink-0">
-                                    <div className="text-center">
-                                      <div className="text-[9px] text-muted-foreground">Az</div>
-                                      <div className="text-[11px] font-bold text-foreground">{c.azimut ?? '—'}°</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="text-[9px] text-muted-foreground">E-Tilt</div>
-                                      <div className="text-[11px] font-bold text-foreground">{eTilt ?? '—'}°</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="text-[9px] text-muted-foreground">HBA</div>
-                                      <div className="text-[11px] font-bold text-muted-foreground">{c.hba ?? '—'}m</div>
-                                    </div>
-                                    {cellDelta != null && (
-                                      <div className="text-center">
-                                        <div className="text-[9px] text-muted-foreground">Δ</div>
-                                        <div className={`text-[11px] font-bold ${
-                                          cellDelta === 0 ? 'text-emerald-400' :
-                                          Math.abs(cellDelta) <= 2 ? 'text-amber-400' :
-                                          'text-red-400'
-                                        }`}>{cellDelta > 0 ? '+' : ''}{cellDelta}°</div>
-                                      </div>
-                                    )}
+                                  <div className="flex items-baseline gap-4 shrink-0 text-[11px]">
+                                    <div><span className="text-muted-foreground text-[9px] mr-1">Az</span><span className="font-bold text-foreground">{c.azimut ?? '—'}°</span></div>
+                                    <div><span className="text-muted-foreground text-[9px] mr-1">E-Tilt</span><span className="font-bold text-foreground">{eTilt ?? '—'}°</span></div>
+                                    <div><span className="text-muted-foreground text-[9px] mr-1">HBA</span><span className="font-bold text-muted-foreground">{c.hba ?? '—'}m</span></div>
+                                    {ci > 0 && cellDelta != null ? (
+                                      <div><span className="text-muted-foreground text-[9px] mr-1">Δ</span><span className={`font-bold ${
+                                        cellDelta === 0 ? 'text-emerald-500' :
+                                        Math.abs(cellDelta) <= 2 ? 'text-amber-500' :
+                                        'text-red-500'
+                                      }`}>{cellDelta > 0 ? '+' : ''}{cellDelta}°</span></div>
+                                    ) : ci === 0 ? <div className="w-8" /> : null}
                                   </div>
                                 </div>
                               );
                             })}
                           </div>
-                          {/* Sector design verdict */}
-                          {maxAzDelta > 5 && (
-                            <div className="px-4 py-2 bg-amber-500/10 border-t border-amber-500/20 text-[10px] font-semibold text-amber-400">
-                              ⚠ Azimuth misalignment detected: max deviation {maxAzDelta}° from sector average
-                            </div>
-                          )}
-                          {deltaTilt != null && deltaTilt > 3 && (
-                            <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/20 text-[10px] font-semibold text-red-400">
-                              ⚠ High tilt delta ({deltaTilt}°) between co-sector cells — check site design coherence
-                            </div>
-                          )}
                         </div>
                       );
                     })}
