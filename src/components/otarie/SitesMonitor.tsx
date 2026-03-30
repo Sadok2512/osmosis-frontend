@@ -5234,6 +5234,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 showCurvature={losEnableCurvature}
                 clutterHeight={losEnableClutter ? losClutterHeight : 0}
                 showTilt
+                siteName={siteDetail?.site_name}
               />
             </div>
             {/* Info panel */}
