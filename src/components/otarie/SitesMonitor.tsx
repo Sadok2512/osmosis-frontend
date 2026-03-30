@@ -1747,10 +1747,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     if (!view) return;
     const currentSettings = typeof view.settings === 'object' ? view.settings : {};
     const newSettings = { ...currentSettings, ...updates };
+    const updatedView = { ...view, settings: newSettings };
     await mapViewsApi.update(viewId, { settings: newSettings });
     setMapViews(prev => prev.map(v => v.id === viewId ? { ...v, settings: newSettings } : v));
-    // Also apply filters immediately
-    if (onApplyView) onApplyView(newSettings);
+    if (onApplyView && activeViewId === viewId && expandedDashboardId) {
+      const activeDashboard = dashboards.find(d => d.id === expandedDashboardId);
+      const dashboardSettings = activeDashboard ? getDashboardSettings(activeDashboard) : {};
+      onApplyView(getEffectiveViewSettings(updatedView, dashboardSettings));
+    }
   };
 
   const handleRenameView = async (viewId: string, newName: string) => {
@@ -1776,6 +1780,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       color: vs.color || dbSettings.color || '',
       center: vs.center || dbSettings.center,
       zoom: vs.zoom || dbSettings.zoom,
+      siteScope: dbSettings.siteScope || null,
       siteFilters: mergedSiteFilters,
       viewFilters: vs.viewFilters || dbSettings.viewFilters || [],
       viewConditions: vs.viewConditions || [],
@@ -2089,7 +2094,21 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 {isEditingDb && (
                   <DashboardSettingsPanel
                     settings={dbSettings}
-                    onUpdate={(u) => { updateDashboardSettings(db.id, u); if (onApplyView) onApplyView(u); }}
+                    onUpdate={async (u) => {
+                      await updateDashboardSettings(db.id, u);
+                      if (!onApplyView || activeDashboardId !== db.id) return;
+
+                      const resolvedDashboardSettings = { ...dbSettings, ...u };
+                      const activeView = activeViewId
+                        ? mapViews.find(v => v.id === activeViewId && v.description === db.id)
+                        : null;
+
+                      if (activeView) {
+                        onApplyView(getEffectiveViewSettings(activeView, resolvedDashboardSettings));
+                      } else {
+                        onApplyView({ ...resolvedDashboardSettings, _viewId: null, _isDashboardOnly: true });
+                      }
+                    }}
                     onRename={(name) => renameDashboard(db.id, name)}
                     currentName={db.name}
                     dashboardId={db.id}
@@ -7003,6 +7022,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const newFilters = (settings.siteFilters && Object.keys(settings.siteFilters).length > 0)
                       ? settings.siteFilters as DashboardSiteFilters
                       : null;
+                    const nextScope = settings.siteScope || null;
 
                     // Invalidate cache & force reload when filters change
                     const prevKey = JSON.stringify(activeDashboardFilters);
@@ -7016,6 +7036,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     }
 
                     // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
+                    setActiveSiteScope(nextScope);
                     if (newFilters) {
                       setActiveDashboardFilters(newFilters);
                       if (newFilters.dor?.length) setLocalDor(newFilters.dor[0]);
