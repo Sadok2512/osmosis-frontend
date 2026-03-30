@@ -3762,8 +3762,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const vpWidth = typeof window !== 'undefined' ? window.innerWidth : 1400;
 
 
+  // Determine if we have cell-level view conditions that require cell data
+  const hasCellLevelConditions = useMemo(() => {
+    const CELL_LEVEL_DIMS = new Set(['eci', 'pci', 'nci', 'cid', 'tac', 'nom_cellule', 'bande', 'techno', 'azimut', 'tilt', 'hba', 'etat_cellule', 'essentiel']);
+    return activeViewConditions.some(c => CELL_LEVEL_DIMS.has(c.dimension) && c.values.length > 0);
+  }, [activeViewConditions]);
+
   useEffect(() => {
-    if (displayMode !== 'cells') return;
+    // Load cells when in cells display mode OR when cell-level view conditions are active
+    if (displayMode !== 'cells' && !hasCellLevelConditions) return;
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
