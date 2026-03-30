@@ -1754,9 +1754,15 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   };
 
   // Resolve effective settings for a view (dashboard parent + view overrides)
+  // siteFilters are MERGED with AND logic (intersection)
   const getEffectiveViewSettings = (view: any, dbSettings: any) => {
     const vs = typeof view.settings === 'object' ? view.settings : {};
+    const dbSiteFilters = dbSettings.siteFilters || null;
+    const viewSiteFilters = vs.siteFilters || null;
+    const mergedSiteFilters = mergeSiteFilters(dbSiteFilters, viewSiteFilters);
     return {
+      _viewId: view.id,
+      _isDashboardOnly: false,
       mapLayer: vs.mapLayer || dbSettings.mapLayer || 'street',
       mapStyle: vs.mapStyle || dbSettings.mapStyle || vs.mapLayer || dbSettings.mapLayer || 'street',
       themeMode: vs.themeMode || dbSettings.themeMode || 'light',
@@ -1764,7 +1770,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       color: vs.color || dbSettings.color || '',
       center: vs.center || dbSettings.center,
       zoom: vs.zoom || dbSettings.zoom,
-      siteFilters: vs.siteFilters || dbSettings.siteFilters || null,
+      siteFilters: mergedSiteFilters,
+      viewFilters: vs.viewFilters || dbSettings.viewFilters || [],
+      viewConditions: vs.viewConditions || [],
+      mapLabelFields: vs.mapLabelFields || dbSettings.mapLabelFields,
     };
   };
 
