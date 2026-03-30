@@ -7694,6 +7694,58 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
 
 
+                {/* SECTORS & CELLS — tabbed */}
+                {(() => {
+                  const sectorNums = sortedSectors.map(([s]) => s);
+                  const defaultSector = sectorNums[0] ?? '1';
+                  return (
+                    <div>
+                      <h5 className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <Radio size={12} className="text-primary" /> SECTORS & CELLS
+                      </h5>
+                      <Tabs defaultValue={String(defaultSector)} className="w-full">
+                        <TabsList className="w-full h-auto p-1 bg-muted/30 rounded-lg flex gap-1 border border-border">
+                          {sortedSectors.map(([sNum, cells]) => (
+                            <TabsTrigger key={sNum} value={String(sNum)} className="flex-1 text-[11px] font-bold py-1.5 px-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm">
+                              SECTOR <span className="font-black ml-0.5">S{sNum}</span>
+                              <span className="text-[9px] font-normal ml-1 opacity-60">{cells.length} cells</span>
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+                        {sortedSectors.map(([sNum, cells]) => (
+                          <TabsContent key={sNum} value={String(sNum)} className="mt-2">
+                            <div className="rounded-lg border border-border overflow-hidden bg-card">
+                              {/* Table header */}
+                              <div className="grid grid-cols-[1fr_50px_70px_45px_45px] gap-1 px-3 py-2 bg-muted/40 border-b border-border">
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Cell</span>
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Tech</span>
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Band</span>
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Az°</span>
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Tilt°</span>
+                              </div>
+                              {/* Rows */}
+                              <div className="divide-y divide-border/30">
+                                {cells.map((c) => {
+                                  const eTilt = (c as any).tilt as number | null;
+                                  return (
+                                    <div key={c.cell_id} className="grid grid-cols-[1fr_50px_70px_45px_45px] gap-1 px-3 py-2 items-center hover:bg-muted/20 transition-colors">
+                                      <span className="text-[11px] font-semibold text-foreground truncate">{c.cell_id}</span>
+                                      <span className="text-[10px] font-bold text-center" style={{ color: c.techno === '5G' ? '#22c55e' : '#f97316' }}>{c.techno}</span>
+                                      <span className="text-[10px] text-muted-foreground text-center">{c.bande}</span>
+                                      <span className="text-[10px] font-semibold text-foreground text-center">{c.azimut ?? '—'}°</span>
+                                      <span className="text-[10px] font-semibold text-foreground text-center">{eTilt ?? '—'}°</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </TabsContent>
+                        ))}
+                      </Tabs>
+                    </div>
+                  );
+                })()}
+
                 {/* Design Summary */}
                 {/* ── Site Design Verification ── */}
                 <div className="rounded-xl border border-border overflow-hidden">
