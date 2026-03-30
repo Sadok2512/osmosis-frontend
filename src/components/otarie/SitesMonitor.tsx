@@ -8280,33 +8280,55 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </div>
 
-                {/* Tabs: KPIs / Topologie — fixed horizontal scroll */}
-                <div className="px-3 py-2 bg-muted/30 border-b border-border sticky top-0 z-10">
-                  <div className="flex items-center gap-1 overflow-x-auto scrollbar-none whitespace-nowrap">
-                    {[
-                      { id: 'kpi' as const, label: 'KPIS', icon: <BarChart2 size={12} /> },
-                      { id: 'topo' as const, label: 'TOPOLOGIE', icon: <Radio size={12} /> },
-                      { id: 'config' as const, label: 'CONFIG', icon: <Settings2 size={12} /> },
-                      { id: 'sim' as const, label: 'SIMULATION', icon: <Signal size={12} /> },
-                      { id: 'alarms' as const, label: 'ALARMS', icon: <Bell size={12} /> },
-                      { id: 'cm' as const, label: 'CM', icon: <FileText size={12} /> },
-                      { id: 'neighbors' as const, label: 'NEIGHBORS', icon: <Network size={12} /> },
-                    ].map(tab => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setCellDetailTab(tab.id)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all shrink-0 ${
-                          cellDetailTab === tab.id
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                        }`}
-                      >
-                        {tab.icon}
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {/* Tabs: KPIs / Topologie — smart nav */}
+                {(() => {
+                  const cellTabs = [
+                    { id: 'kpi' as const, label: 'KPIS', icon: <BarChart2 size={12} /> },
+                    { id: 'topo' as const, label: 'TOPOLOGIE', icon: <Radio size={12} /> },
+                    { id: 'config' as const, label: 'CONFIG', icon: <Settings2 size={12} /> },
+                    { id: 'sim' as const, label: 'SIMULATION', icon: <Signal size={12} /> },
+                    { id: 'alarms' as const, label: 'ALARMS', icon: <Bell size={12} /> },
+                    { id: 'cm' as const, label: 'CM', icon: <FileText size={12} /> },
+                    { id: 'neighbors' as const, label: 'NEIGHBORS', icon: <Network size={12} /> },
+                  ];
+                  const curIdx = cellTabs.findIndex(t => t.id === cellDetailTab);
+                  return (
+                    <div className="px-3 py-2 border-b border-border sticky top-0 z-10 bg-background/80 backdrop-blur-sm">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => { if (curIdx > 0) setCellDetailTab(cellTabs[curIdx - 1].id); }}
+                          disabled={curIdx <= 0}
+                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 disabled:opacity-20 disabled:cursor-default transition-colors"
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <div className="flex-1 flex items-center gap-0.5 overflow-hidden">
+                          {cellTabs.map(tab => (
+                            <button
+                              key={tab.id}
+                              onClick={() => setCellDetailTab(tab.id)}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${
+                                cellDetailTab === tab.id
+                                  ? 'bg-primary text-primary-foreground shadow-md'
+                                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                              }`}
+                            >
+                              {tab.icon}
+                              {tab.label}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => { if (curIdx < cellTabs.length - 1) setCellDetailTab(cellTabs[curIdx + 1].id); }}
+                          disabled={curIdx >= cellTabs.length - 1}
+                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 disabled:opacity-20 disabled:cursor-default transition-colors"
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* ── KPI Tab — same style as Site Focus ── */}
                 {cellDetailTab === 'kpi' && (
