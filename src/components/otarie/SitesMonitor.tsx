@@ -6503,7 +6503,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                   : 'hover:bg-muted/30'
                                               }`}
                                             >
-                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                              <td className="px-3 py-2 font-mono font-bold truncate max-w-[140px]"><span className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary cursor-pointer">{cell.cell_id}</span></td>
                                               <td className="px-2 py-2 text-center">
                                                 <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
                                                   {cell.techno || '—'}
@@ -6700,7 +6700,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                 isSel ? 'bg-primary/10' : 'hover:bg-muted/30'
                                               }`}
                                             >
-                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                              <td className="px-3 py-2 font-mono font-bold truncate max-w-[140px]"><span className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary cursor-pointer">{cell.cell_id}</span></td>
                                               <td className="px-2 py-2 text-center">
                                                 <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
                                                   {cell.techno || '—'}
