@@ -33,7 +33,7 @@ interface Props {
 
 const ProfileChart: React.FC<Props> = ({
   profilePoints, analysis, fresnel, showFresnel = false, showCurvature = true, clutterHeight = 0, showTilt = false,
-  onHoverPoint,
+  remoteAntenna, onHoverPoint,
 }) => {
   const ant = analysis.antennaParams;
   const data = profilePoints.map((p, i) => {
