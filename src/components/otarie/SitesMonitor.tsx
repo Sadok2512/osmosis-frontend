@@ -3925,6 +3925,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     for (const ts of taggedSites) {
       if (!siteMatchesCurrentTechFilter(ts)) continue;
+      // Respect zone_arcep filter for tagged sites
+      if (localZoneArcep !== 'ALL') {
+        const tsCells = ts.cells ?? [];
+        const tsZoneMatch = tsCells.length > 0
+          ? tsCells.some((c: any) => c.zone_arcep === localZoneArcep)
+          : (ts as any).zone_arcep === localZoneArcep;
+        if (!tsZoneMatch) continue;
+      }
       if (!merged.some(s => s.site_id === ts.site_id)) {
         merged.push(ts);
       }
@@ -3938,7 +3946,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
 
     return [selectedSiteSnapshot, ...merged];
-  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos]);
+  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos, localZoneArcep]);
 
   // ── Color View Mode: build a value→color map from visible sites ──
   const colorViewColorMap = useMemo(() => {
