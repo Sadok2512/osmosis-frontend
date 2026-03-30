@@ -7899,14 +7899,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     })()}
                   </div>
                 </div>
-              </div>
+                  </TabsContent>
 
-              {/* ── Parameter Changes ── */}
-              {siteDetail?.site_name && (
-                <div className="px-5 py-4">
-                  <SiteChangesPanel siteName={siteDetail.site_name} days={90} />
-                </div>
-              )}
+                  <TabsContent value="conf" className="mt-3">
+                    <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Site Configuration — coming soon</div>
+                  </TabsContent>
+
+                  <TabsContent value="alarm" className="mt-3">
+                    <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Alarms — coming soon</div>
+                  </TabsContent>
+
+                  <TabsContent value="cmhistory" className="mt-3">
+                    {siteDetail?.site_name ? (
+                      <SiteChangesPanel siteName={siteDetail.site_name} days={90} />
+                    ) : (
+                      <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">No CM history available</div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="params" className="mt-3">
+                    <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Parameters — coming soon</div>
+                  </TabsContent>
+                </Tabs>
+              </div>
 
               {isTopoFocus && (
                 <div className="px-5 py-4 space-y-3">
