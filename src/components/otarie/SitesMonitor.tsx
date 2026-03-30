@@ -3998,40 +3998,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const cellData = await cellResp.json();
         const matchSite = (cellData.sites || []).find((cs: any) => cs.site_name === site.site_name);
         if (matchSite) {
-          const rawCells = matchSite.cells || [];
-          // Check if any cell has a real azimut
-          const hasRealAzimut = rawCells.some((c: any) => c.azimut != null && Number(c.azimut) !== 0);
-          // Build sector azimut heuristic if no real azimut
-          let sectorAzimutMap: Map<number, number> | null = null;
-          if (!hasRealAzimut && rawCells.length > 0) {
-            const sectorIndices = new Set<number>();
-            for (const c of rawCells) {
-              const name = c.nom_cellule || c.cell_name || '';
-              const lastChar = name.slice(-1);
-              if (/^[1-9]$/.test(lastChar)) sectorIndices.add(parseInt(lastChar));
-            }
-            const sorted = Array.from(sectorIndices).sort((a, b) => a - b);
-            sectorAzimutMap = new Map();
-            sorted.forEach((idx, i) => {
-              sectorAzimutMap!.set(idx, Math.round((360 / Math.max(sorted.length, 1)) * i));
-            });
-          }
-          const cells = rawCells.map((c: any) => {
-            const cellName = c.nom_cellule || c.cell_name || '';
-            let azimut = c.azimut != null ? Number(c.azimut) : 0;
-            if (!hasRealAzimut && sectorAzimutMap) {
-              const lastChar = cellName.slice(-1);
-              const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
-              azimut = sectorAzimutMap.get(sectorIdx) ?? 0;
-            }
-            return {
-            cell_id: cellName,
-            cell_name: cellName,
+          const cells = (matchSite.cells || []).map((c: any) => ({
+            cell_id: c.nom_cellule || c.cell_name,
+            cell_name: c.nom_cellule || c.cell_name || '',
             techno: c.techno || '4G',
             band: c.bande || '',
             bande: c.bande || '',
             vendor: c.constructeur || '',
-            azimut,
+            azimut: c.azimut != null ? Number(c.azimut) : null,
             tilt: c.tilt != null ? Number(c.tilt) : null,
             pci: c.pci || null,
             eci: c.eci || null,
@@ -4041,8 +4015,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             freq: c.freq || null,
             zone_arcep: matchSite.zone_arcep || null,
             plaque: matchSite.plaque || c.plaque || null,
-            };
-          });
+          }));
           siteWithCells = {
             ...site,
             cells,
@@ -6431,7 +6404,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       key={sNum}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setExpandedSectors(prev => prev.has(sNum) ? new Set() : new Set([sNum]));
+                                        setExpandedSectors(prev => {
+                                          const next = new Set(prev);
+                                          if (next.has(sNum)) next.delete(sNum); else next.add(sNum);
+                                          return next;
+                                        });
                                       }}
                                       className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
                                         isSectorExpanded
@@ -6503,7 +6480,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                   : 'hover:bg-muted/30'
                                               }`}
                                             >
-                                              <td className="px-3 py-2 font-mono font-bold truncate max-w-[140px]"><span className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary cursor-pointer">{cell.cell_id}</span></td>
+                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
                                                 <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
                                                   {cell.techno || '—'}
@@ -6632,7 +6609,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       key={sNum}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setExpandedSectors(prev => prev.has(sNum) ? new Set() : new Set([sNum]));
+                                        setExpandedSectors(prev => {
+                                          const next = new Set(prev);
+                                          if (next.has(sNum)) next.delete(sNum); else next.add(sNum);
+                                          return next;
+                                        });
                                       }}
                                       className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
                                         isSectorExpanded
@@ -6700,7 +6681,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                 isSel ? 'bg-primary/10' : 'hover:bg-muted/30'
                                               }`}
                                             >
-                                              <td className="px-3 py-2 font-mono font-bold truncate max-w-[140px]"><span className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary cursor-pointer">{cell.cell_id}</span></td>
+                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
                                                 <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
                                                   {cell.techno || '—'}
