@@ -7700,7 +7700,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <Tabs defaultValue={String(defaultSector)} className="w-full">
                         <TabsList className="w-full h-auto p-1 bg-muted/50 rounded-xl flex gap-1">
                           {sortedSectors.map(([sNum, cells]) => (
-                            <TabsTrigger key={sNum} value={sNum} className="flex-1 text-[11px] font-bold py-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                            <TabsTrigger key={sNum} value={String(sNum)} className="flex-1 text-[11px] font-bold py-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                               Sector <span className="font-black ml-0.5">S{sNum}</span>
                               <span className="text-[9px] font-normal ml-1 opacity-70">{cells.length} cells</span>
                             </TabsTrigger>
@@ -7714,7 +7714,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           const deltaTilt = maxTilt != null && minTilt != null ? maxTilt - minTilt : null;
 
                           return (
-                            <TabsContent key={sNum} value={sNum} className="mt-2">
+                            <TabsContent key={sNum} value={String(sNum)} className="mt-2">
                               <div className="rounded-xl border border-border overflow-hidden bg-card">
                                 {/* Sector summary header */}
                                 <div className="px-4 py-2 bg-muted/30 flex items-center justify-between">
