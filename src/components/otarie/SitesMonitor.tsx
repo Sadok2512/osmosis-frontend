@@ -4318,12 +4318,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         ))}
 
         {/* Heatmap layer */}
-        {sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
+        {!paramMode && sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
         {/* Points mode — individual cell markers */}
-        {mapDisplayMode === 'points' && renderSites.map(site => {
+        {!paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled);
           return (
@@ -4376,7 +4376,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
-        {mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
+        {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
           // Color view override: if a "View by Color" dimension is active, use that instead
@@ -4705,7 +4705,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {showSectors && renderSites.map(site => {
+        {!paramMode && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isTaggedSite = isSiteTagged(site.site_id);
