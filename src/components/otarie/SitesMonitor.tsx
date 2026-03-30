@@ -7688,80 +7688,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
 
 
-                {/* Sector-by-sector tilt delta analysis — tabbed */}
+                {/* SECTORS & CELLS — tabbed */}
                 {(() => {
                   const sectorNums = sortedSectors.map(([s]) => s);
                   const defaultSector = sectorNums[0] ?? '1';
                   return (
                     <div>
-                      <h5 className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest mb-2">
-                        Sector Tilt Delta Analysis
+                      <h5 className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <Radio size={12} className="text-primary" /> SECTORS & CELLS
                       </h5>
                       <Tabs defaultValue={String(defaultSector)} className="w-full">
-                        <TabsList className="w-full h-auto p-1 bg-muted/50 rounded-xl flex gap-1">
+                        <TabsList className="w-full h-auto p-1 bg-muted/30 rounded-lg flex gap-1 border border-border">
                           {sortedSectors.map(([sNum, cells]) => (
-                            <TabsTrigger key={sNum} value={String(sNum)} className="flex-1 text-[11px] font-bold py-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                              Sector <span className="font-black ml-0.5">S{sNum}</span>
-                              <span className="text-[9px] font-normal ml-1 opacity-70">{cells.length} cells</span>
+                            <TabsTrigger key={sNum} value={String(sNum)} className="flex-1 text-[11px] font-bold py-1.5 px-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm">
+                              SECTOR <span className="font-black ml-0.5">S{sNum}</span>
+                              <span className="text-[9px] font-normal ml-1 opacity-60">{cells.length} cells</span>
                             </TabsTrigger>
                           ))}
                         </TabsList>
-                        {sortedSectors.map(([sNum, cells]) => {
-                          const avgAz = cells.length > 0 ? Math.round(cells.reduce((s, c) => s + (c.azimut ?? 0), 0) / cells.length) : 0;
-                          const tilts = cells.map(c => (c as any).tilt as number | null).filter((t): t is number => t != null);
-                          const maxTilt = tilts.length ? Math.max(...tilts) : null;
-                          const minTilt = tilts.length ? Math.min(...tilts) : null;
-                          const deltaTilt = maxTilt != null && minTilt != null ? maxTilt - minTilt : null;
-
-                          return (
-                            <TabsContent key={sNum} value={String(sNum)} className="mt-2">
-                              <div className="rounded-xl border border-border overflow-hidden bg-card">
-                                {/* Sector summary header */}
-                                <div className="px-4 py-2 bg-muted/30 flex items-center justify-between">
-                                  <span className="text-[10px] text-muted-foreground">Az avg <span className="font-bold text-foreground">{avgAz}°</span></span>
-                                  {deltaTilt != null && (
-                                    <div className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
-                                      deltaTilt === 0 ? 'bg-emerald-500/15 text-emerald-500' :
-                                      deltaTilt <= 2 ? 'bg-amber-500/15 text-amber-500' :
-                                      'bg-red-500/15 text-red-500'
-                                    }`}>
-                                      ΔTilt: {deltaTilt}°
+                        {sortedSectors.map(([sNum, cells]) => (
+                          <TabsContent key={sNum} value={String(sNum)} className="mt-2">
+                            <div className="divide-y divide-border/40">
+                              {cells.map((c) => {
+                                const eTilt = (c as any).tilt as number | null;
+                                return (
+                                  <div key={c.cell_id} className="flex items-center py-2.5 gap-3">
+                                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: getBandColor(c.bande, c.techno) }} />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-[11px] font-semibold text-foreground truncate">{c.cell_id}</div>
+                                      <div className="text-[9px] text-muted-foreground">{c.techno} • {c.bande} • Az {c.azimut ?? '—'}° • Tilt {eTilt ?? '—'}°</div>
                                     </div>
-                                  )}
-                                </div>
-                                {/* Cells list */}
-                                <div className="divide-y divide-border/30">
-                                  {cells.map((c, ci) => {
-                                    const eTilt = (c as any).tilt as number | null;
-                                    const refTilt = tilts.length > 0 ? tilts[0] : null;
-                                    const cellDelta = eTilt != null && refTilt != null && ci > 0 ? eTilt - refTilt : null;
-                                    return (
-                                      <div key={c.cell_id} className="flex items-center px-4 py-2.5 gap-3">
-                                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: getBandColor(c.bande, c.techno) }} />
-                                        <div className="flex-1 min-w-0">
-                                          <div className="text-[11px] font-semibold text-foreground truncate">{c.cell_id}</div>
-                                          <div className="text-[9px] text-muted-foreground">{c.techno} • {c.bande}</div>
-                                        </div>
-                                        <div className="flex items-baseline gap-4 shrink-0 text-[11px]">
-                                          <div><span className="text-muted-foreground text-[9px] mr-1">Az</span><span className="font-bold text-foreground">{c.azimut ?? '—'}°</span></div>
-                                          <div><span className="text-muted-foreground text-[9px] mr-1">E-Tilt</span><span className="font-bold text-foreground">{eTilt ?? '—'}°</span></div>
-                                          <div><span className="text-muted-foreground text-[9px] mr-1">HBA</span><span className="font-bold text-muted-foreground">{c.hba ?? '—'}m</span></div>
-                                          {ci > 0 && cellDelta != null ? (
-                                            <div><span className="text-muted-foreground text-[9px] mr-1">Δ</span><span className={`font-bold ${
-                                              cellDelta === 0 ? 'text-emerald-500' :
-                                              Math.abs(cellDelta) <= 2 ? 'text-amber-500' :
-                                              'text-red-500'
-                                            }`}>{cellDelta > 0 ? '+' : ''}{cellDelta}°</span></div>
-                                          ) : ci === 0 ? <div className="w-8" /> : null}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </TabsContent>
-                          );
-                        })}
+                                    <span className="text-[10px] font-bold text-muted-foreground shrink-0">S{sNum}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </TabsContent>
+                        ))}
                       </Tabs>
                     </div>
                   );
