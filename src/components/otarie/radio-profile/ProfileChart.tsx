@@ -523,8 +523,46 @@ const ProfileChart: React.FC<Props> = ({
             </ReferenceDot>
           )}
 
-          {/* UE target point marker */}
-          {data.length > 1 && (
+          {/* Remote antenna marker (link mode) */}
+          {remoteAntenna && data.length > 1 && (
+            <ReferenceDot
+              x={data[data.length - 1].distance}
+              y={(analysis.effectiveTerrain[profilePoints.length - 1] ?? 0) + remoteAntenna.hba}
+              r={7}
+              fill="rgba(34,197,94,0.9)"
+              stroke="rgba(255,255,255,0.8)"
+              strokeWidth={2}
+            >
+              <RLabel
+                value={`📡 T:${remoteAntenna.totalTilt}° H:${remoteAntenna.hba}m`}
+                position="top"
+                style={{ fontSize: 9, fill: 'rgba(34,197,94,0.9)', fontWeight: 700 }}
+                offset={10}
+              />
+            </ReferenceDot>
+          )}
+
+          {/* Remote ground impact marker */}
+          {remoteAntenna && remoteGroundImpact && (
+            <ReferenceDot
+              x={remoteGroundImpact.distance}
+              y={remoteGroundImpact.altitude}
+              r={7}
+              fill="rgba(34,197,94,0.95)"
+              stroke="rgba(255,255,255,0.8)"
+              strokeWidth={2}
+            >
+              <RLabel
+                value={`🎯 Remote ${remoteGroundImpact.distance.toFixed(2)} km`}
+                position="top"
+                style={{ fontSize: 9, fill: 'rgba(34,197,94,0.9)', fontWeight: 700 }}
+                offset={10}
+              />
+            </ReferenceDot>
+          )}
+
+          {/* UE target point marker (only when no remote antenna) */}
+          {!remoteAntenna && data.length > 1 && (
             <ReferenceDot
               x={data[data.length - 1].distance}
               y={data[data.length - 1].rxLine ?? data[data.length - 1].terrain}
