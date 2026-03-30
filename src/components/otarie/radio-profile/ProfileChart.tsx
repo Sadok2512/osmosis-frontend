@@ -74,6 +74,30 @@ const ProfileChart: React.FC<Props> = ({
         }
       }
     }
+    // Remote antenna beam (link mode) — computed from the far end
+    if (remoteAntenna && profilePoints.length > 1) {
+      const totalDist = profilePoints[profilePoints.length - 1].distance;
+      const remoteGroundAlt = analysis.effectiveTerrain[profilePoints.length - 1];
+      const remoteAMSL = remoteGroundAlt + remoteAntenna.hba;
+      const distFromRemote = totalDist - p.distance;
+      const remoteTiltRad = remoteAntenna.totalTilt * Math.PI / 180;
+      const remoteBeamAlt = remoteAMSL - distFromRemote * Math.tan(remoteTiltRad);
+      if (remoteBeamAlt >= analysis.effectiveTerrain[i]) {
+        entry.remoteTiltBeam = Math.round(remoteBeamAlt * 10) / 10;
+      }
+      if (remoteAntenna.vbw > 0) {
+        const rUpperRad = (remoteAntenna.totalTilt - remoteAntenna.vbw / 2) * Math.PI / 180;
+        const rLowerRad = (remoteAntenna.totalTilt + remoteAntenna.vbw / 2) * Math.PI / 180;
+        const rUpperAlt = remoteAMSL - distFromRemote * Math.tan(rUpperRad);
+        const rLowerAlt = remoteAMSL - distFromRemote * Math.tan(rLowerRad);
+        if (rUpperAlt >= analysis.effectiveTerrain[i]) {
+          entry.remoteConeUpper = Math.round(rUpperAlt * 10) / 10;
+        }
+        if (rLowerAlt >= analysis.effectiveTerrain[i]) {
+          entry.remoteConeLower = Math.round(rLowerAlt * 10) / 10;
+        }
+      }
+    }
     return entry;
   });
 
