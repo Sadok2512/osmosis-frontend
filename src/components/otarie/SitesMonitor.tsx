@@ -7643,12 +7643,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               </div>
 
-              {/* ── Site Design & Topology Analysis ── */}
-              <div className="px-5 py-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Radio size={14} className="text-primary" />
-                  <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Site Design — Topology & Tilt Analysis</h4>
-                </div>
+              {/* ── Site Detail Tabs ── */}
+              <div className="px-5 py-4 space-y-3">
+                <Tabs defaultValue="design" className="w-full">
+                  <TabsList className="w-full h-auto p-1 bg-muted/30 rounded-lg flex gap-0.5 border border-border">
+                    <TabsTrigger value="design" className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Site Design</TabsTrigger>
+                    <TabsTrigger value="conf" className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Site Conf</TabsTrigger>
+                    <TabsTrigger value="alarm" className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Alarm</TabsTrigger>
+                    <TabsTrigger value="cmhistory" className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">CM History</TabsTrigger>
+                    <TabsTrigger value="params" className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Parameters</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="design" className="mt-3 space-y-4">
 
                 {/* Site info summary */}
                 <div className="rounded-xl border border-border overflow-hidden bg-card">
