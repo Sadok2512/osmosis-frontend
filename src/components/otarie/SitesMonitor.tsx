@@ -6859,12 +6859,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                <div style={{ display: inventoryTab === 'dashboard' ? 'contents' : 'none' }}>
                 <DashboardInventoryTab
                   onApplyView={(settings) => {
+                    // Track view activation
+                    if (settings._viewId) {
+                      setActiveViewId(settings._viewId);
+                    } else if (settings._isDashboardOnly) {
+                      setActiveViewId(null);
+                    }
+
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
                     if (settings.mapKpi) setMapKpi(settings.mapKpi);
                     if (settings.center && Array.isArray(settings.center)) {
                       if (settings.center && (settings.center as [number, number])[0] > 41 && (settings.center as [number, number])[0] < 52) setFlyTarget(settings.center as [number, number]);
                     }
-                    // Apply site filters from dashboard
+
+                    // Reset all local filters first, then apply merged siteFilters
+                    setLocalDor('ALL');
+                    setLocalVendor('ALL');
+                    setLocalPlaque('ALL');
+                    setLocalBande('ALL');
+                    setLocalTechno('ALL');
+                    setLocalZoneArcep('ALL');
+
+                    // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
                     if (settings.siteFilters && Object.keys(settings.siteFilters).length > 0) {
                       const sf = settings.siteFilters as DashboardSiteFilters;
                       if (sf.dor?.length) setLocalDor(sf.dor[0]);
@@ -6894,14 +6910,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         }
                       }
                     } else {
-                      // View deleted or no filters — reset all local filters to defaults
                       setActiveViewFilters([]);
-                      setLocalDor('ALL');
-                      setLocalVendor('ALL');
-                      setLocalPlaque('ALL');
-                      setLocalBande('ALL');
-                      setLocalTechno('ALL');
-                      setLocalZoneArcep('ALL');
                     }
                     // Apply advanced view conditions
                     if (Array.isArray(settings.viewConditions) && settings.viewConditions.length > 0) {
@@ -6948,6 +6957,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     setLocalBande('ALL');
                     setLocalZoneArcep('ALL');
                     setLocalTechno('ALL');
+                    // Reset active view on dashboard switch
+                    setActiveViewId(null);
                     if (!active) {
                       setSites([]);
                       setActiveDashboardId(null);
@@ -6973,6 +6984,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   backendFilterDefs={backendFilterDefs}
                   activeDashboardId={activeDashboardId}
                   onActiveDashboardIdChange={setActiveDashboardId}
+                  activeViewId={activeViewId}
+                  onActiveViewIdChange={setActiveViewId}
                 />
                </div>
               </>
