@@ -7025,15 +7025,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const nextScope = settings.siteScope || null;
 
                     // Invalidate cache & force reload when filters change
-                    const prevKey = JSON.stringify(activeDashboardFilters);
-                    const newKey = JSON.stringify(newFilters);
-                    if (prevKey !== newKey) {
-                      invalidateDashboardSitesCache();
-                      invalidateBboxCache();
-                      invalidateSiteCellsCache();
-                      cellLoadingRef.current.clear();
-                      cellLoadAttemptedRef.current.clear();
-                    }
+                    // Always invalidate caches on view/dashboard apply to avoid stale data
+                    invalidateDashboardSitesCache();
+                    invalidateBboxCache();
+                    invalidateSiteCellsCache();
+                    cellLoadingRef.current.clear();
+                    cellLoadAttemptedRef.current.clear();
 
                     // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
                     setActiveSiteScope(nextScope);
