@@ -3946,7 +3946,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
 
     return [selectedSiteSnapshot, ...merged];
-  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos]);
+  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos, localZoneArcep]);
 
   // ── Color View Mode: build a value→color map from visible sites ──
   const colorViewColorMap = useMemo(() => {
