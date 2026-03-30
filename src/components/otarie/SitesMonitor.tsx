@@ -2468,6 +2468,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           result.vendorMap[v.vendor] = { '4G': v.cells_4g || v.cells || 0, '5G': v.cells_5g || 0 };
         }
 
+        // VPS returns cells but sites=0 → get site counts from DB RPC
+        if (result.sites4G === 0 && result.sites5G === 0 && (result.cells4G > 0 || result.cells5G > 0)) {
+          try {
+            const { data: rpcResult } = await supabase.rpc('topo_inventory_stats');
+            if (!cancelled && rpcResult && typeof rpcResult === 'object') {
+              const r = rpcResult as Record<string, unknown>;
+              result.sites4G = Number(r.sites_4g) || 0;
+              result.sites5G = Number(r.sites_5g) || 0;
+              // Also override cell counts if more accurate
+              if (Number(r.cells_4g) > 0) result.cells4G = Number(r.cells_4g);
+              if (Number(r.cells_5g) > 0) result.cells5G = Number(r.cells_5g);
+            }
+          } catch (rpcErr) {
+            console.warn('[TOPO] topo_inventory_stats RPC failed:', rpcErr);
+          }
+        }
+
         setTopoNetworkStats(result);
       } catch (e) {
         console.error('[TOPO] Failed to fetch network stats from VPS, computing from local cells…', e);
