@@ -7860,6 +7860,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       if (hba >= 15) return 'Suburban';
                       return 'Rural';
                     })() },
+                    { label: 'Zone ARCEP', value: (() => {
+                      const zones = [...new Set(filteredCells.map(c => (c as any).zone_arcep).filter(Boolean))];
+                      return zones.length > 0 ? zones.join(', ') : (siteDetail as any).zone_arcep || '—';
+                    })() },
                     { label: 'Profile', value: (() => {
                       const hba = filteredCells[0]?.hba ?? 30;
                       const bands = [...new Set(filteredCells.map(c => c.bande))];
