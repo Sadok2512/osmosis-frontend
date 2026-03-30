@@ -157,21 +157,32 @@ const ProfileChart: React.FC<Props> = ({
   } : null;
 
   const allValues = data.flatMap(d => {
-    const vals = [d.terrain, d.beam, d.rawTerrain];
-    if (d.rxLine) vals.push(d.rxLine);
-    if (d.clutter) vals.push(d.clutter);
-    if (d.fresnelUpper) vals.push(d.fresnelUpper);
-    if (d.fresnelLower) vals.push(d.fresnelLower);
-    if (d.tiltBeam) vals.push(d.tiltBeam);
-    if (d.tiltConeUpper) vals.push(d.tiltConeUpper);
-    if (d.tiltConeLower) vals.push(d.tiltConeLower);
-    if (d.remoteTiltBeam) vals.push(d.remoteTiltBeam);
-    if (d.remoteConeUpper) vals.push(d.remoteConeUpper);
-    if (d.remoteConeLower) vals.push(d.remoteConeLower);
+    const vals = [d.terrain, d.rawTerrain];
+    if (d.beam != null) vals.push(d.beam);
+    if (d.rxLine != null) vals.push(d.rxLine);
+    if (d.clutter != null) vals.push(d.clutter);
+    if (d.fresnelUpper != null) vals.push(d.fresnelUpper);
+    if (d.fresnelLower != null) vals.push(d.fresnelLower);
+    if (d.tiltBeam != null) vals.push(d.tiltBeam);
+    if (d.tiltConeUpper != null) vals.push(d.tiltConeUpper);
+    if (d.tiltConeLower != null) vals.push(d.tiltConeLower);
+    if (d.remoteTiltBeam != null) vals.push(d.remoteTiltBeam);
+    if (d.remoteConeUpper != null) vals.push(d.remoteConeUpper);
+    if (d.remoteConeLower != null) vals.push(d.remoteConeLower);
     return vals;
   });
-  const maxAlt = Math.max(...allValues, 50);
-  const minAlt = Math.min(...allValues, 0);
+  // Include antenna AMSL heights
+  if (ant) allValues.push(ant.antennaAMSL);
+  if (remoteAntenna && profilePoints.length > 1) {
+    const remoteGroundAlt2 = analysis.effectiveTerrain[profilePoints.length - 1];
+    allValues.push(remoteGroundAlt2 + remoteAntenna.hba);
+  }
+  const rawMax = Math.max(...allValues);
+  const rawMin = Math.min(...allValues);
+  const range = rawMax - rawMin || 50;
+  const padding = Math.max(15, range * 0.12);
+  const maxAlt = rawMax + padding;
+  const minAlt = Math.max(0, rawMin - padding);
 
   const handleMouseMove = useCallback((state: any) => {
     if (!onHoverPoint || !state?.activeTooltipIndex) return;
@@ -226,7 +237,7 @@ const ProfileChart: React.FC<Props> = ({
             tickLine={{ stroke: 'rgba(255,255,255,0.08)' }}
           />
           <YAxis
-            domain={[Math.floor(minAlt - 10), Math.ceil(maxAlt + 20)]}
+            domain={[Math.floor(minAlt), Math.ceil(maxAlt)]}
             label={{ value: 'Alt (m)', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: 'rgba(255,255,255,0.5)', fontWeight: 600 } }}
             tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.45)' }}
             stroke="rgba(255,255,255,0.1)"
