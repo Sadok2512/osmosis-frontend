@@ -1830,6 +1830,30 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         return activeName ? (
           <div className="px-2 mb-2">
             <span className="text-[11px] font-bold text-primary truncate block">{activeName}</span>
+            {/* Active filters summary */}
+            {(() => {
+              const db = dashboards.find(d => d.id === expandedDashboardId);
+              const dbFilters = db ? extractSiteFilters(db) : null;
+              const activeView = activeViewId ? mapViews.find(v => v.id === activeViewId) : null;
+              const viewFilters = activeView?.settings?.siteFilters || null;
+              const merged = mergeSiteFilters(dbFilters, viewFilters);
+              const entries = Object.entries(merged).filter(([, v]) => v && (v as string[]).length > 0);
+              if (entries.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {entries.map(([key, vals]) => (
+                    <span key={key} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-[8px] font-semibold text-primary border border-primary/10">
+                      {key.toUpperCase()}: {(vals as string[]).join(', ')}
+                    </span>
+                  ))}
+                  {activeView && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-accent/20 text-[8px] font-semibold text-accent-foreground border border-accent/20">
+                      Vue: {activeView.name}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         ) : null;
       })()}
