@@ -6409,12 +6409,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     })().map(site => {
                       const isSelected = selectedSiteId === site.site_id;
                       const isExpanded = isSelected;
-                      const siteCells = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
+                      const rawCells = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
                         ? siteDetail.cells
                         : site.cells;
-                      const displayedCellCount = isSelected && siteDetail?.site_id === site.site_id
-                        ? (siteDetail.cell_count ?? siteDetail.cells.length)
-                        : site.cell_count;
+                      // Apply dashboard/view filters on cells
+                      const siteCells = rawCells.filter(c => {
+                        if (localBande !== 'ALL' && c.bande !== localBande) return false;
+                        if (localTechno !== 'ALL' && getCellTechGroup(c.techno) !== localTechno) return false;
+                        if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(c.bande)) return false;
+                        if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => getCellTechGroup(c.techno) === t || c.techno === t)) return false;
+                        return true;
+                      });
+                      const displayedCellCount = siteCells.length;
                       // Group cells by sector
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
