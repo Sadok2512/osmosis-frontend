@@ -124,6 +124,33 @@ const ProfileChart: React.FC<Props> = ({
     }
   }
 
+  // Find remote antenna ground impact
+  let remoteGroundImpact: { distance: number; altitude: number } | null = null;
+  if (remoteAntenna && remoteAntenna.totalTilt > 0 && profilePoints.length > 1) {
+    const totalDist = profilePoints[profilePoints.length - 1].distance;
+    const remoteGroundAlt = analysis.effectiveTerrain[profilePoints.length - 1];
+    const remoteAMSL = remoteGroundAlt + remoteAntenna.hba;
+    const remoteTiltRad = remoteAntenna.totalTilt * Math.PI / 180;
+    for (let i = profilePoints.length - 2; i >= 0; i--) {
+      const distFromRemote = totalDist - profilePoints[i].distance;
+      const remoteBeamAlt = remoteAMSL - distFromRemote * Math.tan(remoteTiltRad);
+      if (remoteBeamAlt <= analysis.effectiveTerrain[i]) {
+        const nextDistFromRemote = totalDist - profilePoints[i + 1].distance;
+        const prevBeam = remoteAMSL - nextDistFromRemote * Math.tan(remoteTiltRad);
+        const prevTerrain = analysis.effectiveTerrain[i + 1];
+        const currTerrain = analysis.effectiveTerrain[i];
+        const t = (prevBeam - prevTerrain) / ((prevBeam - prevTerrain) - (remoteBeamAlt - currTerrain));
+        const impactDist = profilePoints[i + 1].distance + t * (profilePoints[i].distance - profilePoints[i + 1].distance);
+        const impactAlt = prevTerrain + t * (currTerrain - prevTerrain);
+        remoteGroundImpact = {
+          distance: Math.round(impactDist) / 1000,
+          altitude: Math.round(impactAlt * 10) / 10,
+        };
+        break;
+      }
+    }
+  }
+
   const obstructionPoint = analysis.obstructionIndex !== null ? {
     distance: data[analysis.obstructionIndex]?.distance,
     altitude: data[analysis.obstructionIndex]?.terrain,
@@ -138,6 +165,9 @@ const ProfileChart: React.FC<Props> = ({
     if (d.tiltBeam) vals.push(d.tiltBeam);
     if (d.tiltConeUpper) vals.push(d.tiltConeUpper);
     if (d.tiltConeLower) vals.push(d.tiltConeLower);
+    if (d.remoteTiltBeam) vals.push(d.remoteTiltBeam);
+    if (d.remoteConeUpper) vals.push(d.remoteConeUpper);
+    if (d.remoteConeLower) vals.push(d.remoteConeLower);
     return vals;
   });
   const maxAlt = Math.max(...allValues, 50);
@@ -226,6 +256,9 @@ const ProfileChart: React.FC<Props> = ({
                 tiltBeam: `Tilt ${ant?.totalTilt ?? 0}°`,
                 tiltConeUpper: 'Beam sup',
                 tiltConeLower: 'Beam inf',
+                remoteTiltBeam: `Remote Tilt ${remoteAntenna?.totalTilt ?? 0}°`,
+                remoteConeUpper: 'Remote Beam sup',
+                remoteConeLower: 'Remote Beam inf',
               };
               return [`${value.toFixed(1)} m`, labels[name] || name];
             }}
@@ -246,6 +279,10 @@ const ProfileChart: React.FC<Props> = ({
                 tiltBeam: `Tilt ${ant?.totalTilt ?? 0}°`,
                 tiltConeUpper: 'Beam cone',
                 tiltConeLower: 'Beam cone',
+                remoteTiltBeam: `Remote Tilt`,
+                remoteConeUpper: 'Remote Beam',
+                remoteConeLower: 'Remote Beam',
+              };
               };
               return labels[value] || value;
             }}
