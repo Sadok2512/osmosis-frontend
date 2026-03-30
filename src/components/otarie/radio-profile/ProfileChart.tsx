@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   AreaChart, Area, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceDot, ReferenceLine, Legend, Label as RLabel,
@@ -61,7 +61,8 @@ const ProfileChart: React.FC<Props> = ({
   remoteAntenna, siteName, onHoverPoint,
 }) => {
   const ant = analysis.antennaParams;
-
+  const [hoverTx, setHoverTx] = useState(false);
+  const [hoverRx, setHoverRx] = useState(false);
   const derived = useMemo(() => {
     if (!profilePoints.length) {
       return {
@@ -267,15 +268,24 @@ const ProfileChart: React.FC<Props> = ({
         {statusText}
       </div>
 
-      {/* TX Site info panel (like photo - left side) */}
+      {/* TX hover zone — invisible area near left edge */}
       {ant && data.length > 0 && ant.antennaAMSL > 0 && (
-        <div className="absolute top-10 left-14 z-10 px-3.5 py-2.5 rounded-lg pointer-events-none animate-in fade-in slide-in-from-left-2 duration-500"
+        <div
+          className="absolute top-0 left-0 z-10 w-16 h-full"
+          onMouseEnter={() => setHoverTx(true)}
+          onMouseLeave={() => setHoverTx(false)}
+        />
+      )}
+
+      {/* TX Site info panel — appears on antenna hover */}
+      {hoverTx && ant && data.length > 0 && (
+        <div className="absolute top-10 left-16 z-20 px-3.5 py-2.5 rounded-lg pointer-events-none animate-in fade-in zoom-in-95 duration-200"
           style={{
-            background: 'rgba(15,23,42,0.8)',
-            border: '1px solid rgba(56,189,248,0.25)',
+            background: 'rgba(15,23,42,0.85)',
+            border: '1px solid rgba(56,189,248,0.3)',
             backdropFilter: 'blur(12px)',
             color: 'rgba(255,255,255,0.9)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
           }}>
           <div className="text-[12px] font-bold text-white mb-1.5">
             Site: <span className="text-sky-400">{siteName || 'TX'}</span>
@@ -288,15 +298,24 @@ const ProfileChart: React.FC<Props> = ({
         </div>
       )}
 
-      {/* RX Site info panel (like photo - right side) */}
+      {/* RX hover zone — invisible area near right edge */}
       {data.length > 1 && ant && (
-        <div className="absolute top-10 right-14 z-10 px-3 py-2 rounded-lg pointer-events-none animate-in fade-in slide-in-from-right-2 duration-500"
+        <div
+          className="absolute top-0 right-0 z-10 w-16 h-full"
+          onMouseEnter={() => setHoverRx(true)}
+          onMouseLeave={() => setHoverRx(false)}
+        />
+      )}
+
+      {/* RX Site info panel — appears on RX hover */}
+      {hoverRx && data.length > 1 && ant && (
+        <div className="absolute top-10 right-16 z-20 px-3 py-2 rounded-lg pointer-events-none animate-in fade-in zoom-in-95 duration-200"
           style={{
-            background: 'rgba(15,23,42,0.8)',
+            background: 'rgba(15,23,42,0.85)',
             border: '1px solid rgba(255,255,255,0.2)',
             backdropFilter: 'blur(12px)',
             color: 'rgba(255,255,255,0.9)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
           }}>
           <div className="text-[11px] font-bold text-white mb-0.5">
             Site: <span className="text-emerald-400">RX</span>
