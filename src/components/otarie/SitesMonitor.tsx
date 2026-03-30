@@ -7078,6 +7078,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setDashboardRefreshTick(t => t + 1);
                       invalidateSiteCellsCache();
                       cellLoadingRef.current.clear();
+                      cellLoadAttemptedRef.current.clear();
                     }
 
                     setSelectedSiteId(null);
