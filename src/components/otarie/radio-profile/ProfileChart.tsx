@@ -175,6 +175,8 @@ const ProfileChart: React.FC<Props> = ({
       if (showFresnel && fresnel) {
         entry.fresnelUpper = clampNumber(Math.round(fresnel.fresnelUpperBound[i] * 10) / 10, yMin, yMax);
         entry.fresnelLower = clampNumber(Math.round(fresnel.fresnelLowerBound[i] * 10) / 10, yMin, yMax);
+        // Band height for stacked area rendering
+        entry.fresnelBand = Math.max(0, entry.fresnelUpper - entry.fresnelLower);
       }
 
       // LOS line (orange dashed like photo)
