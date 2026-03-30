@@ -6478,10 +6478,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         : site.cells;
                       // Apply dashboard/view filters on cells
                       const siteCells = rawCells.filter(c => {
+                        const cellTech = getCellTechGroup(c.techno);
+                        if (mapTechnoFilter === '4G' && cellTech !== '4G') return false;
+                        if (mapTechnoFilter === '5G' && cellTech !== '5G') return false;
+                        if (mapTechnoFilter === 'ALL' && cellTech && !enabledTechnos.has(cellTech)) return false;
                         if (localBande !== 'ALL' && c.bande !== localBande) return false;
-                        if (localTechno !== 'ALL' && getCellTechGroup(c.techno) !== localTechno) return false;
+                        if (localTechno !== 'ALL' && cellTech !== localTechno) return false;
                         if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(c.bande)) return false;
-                        if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => getCellTechGroup(c.techno) === t || c.techno === t)) return false;
+                        if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
                         return true;
                       });
                       const displayedCellCount = siteCells.length;
