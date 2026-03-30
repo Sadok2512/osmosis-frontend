@@ -3998,14 +3998,40 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const cellData = await cellResp.json();
         const matchSite = (cellData.sites || []).find((cs: any) => cs.site_name === site.site_name);
         if (matchSite) {
-          const cells = (matchSite.cells || []).map((c: any) => ({
-            cell_id: c.nom_cellule || c.cell_name,
-            cell_name: c.nom_cellule || c.cell_name || '',
+          const rawCells = matchSite.cells || [];
+          // Check if any cell has a real azimut
+          const hasRealAzimut = rawCells.some((c: any) => c.azimut != null && Number(c.azimut) !== 0);
+          // Build sector azimut heuristic if no real azimut
+          let sectorAzimutMap: Map<number, number> | null = null;
+          if (!hasRealAzimut && rawCells.length > 0) {
+            const sectorIndices = new Set<number>();
+            for (const c of rawCells) {
+              const name = c.nom_cellule || c.cell_name || '';
+              const lastChar = name.slice(-1);
+              if (/^[1-9]$/.test(lastChar)) sectorIndices.add(parseInt(lastChar));
+            }
+            const sorted = Array.from(sectorIndices).sort((a, b) => a - b);
+            sectorAzimutMap = new Map();
+            sorted.forEach((idx, i) => {
+              sectorAzimutMap!.set(idx, Math.round((360 / Math.max(sorted.length, 1)) * i));
+            });
+          }
+          const cells = rawCells.map((c: any) => {
+            const cellName = c.nom_cellule || c.cell_name || '';
+            let azimut = c.azimut != null ? Number(c.azimut) : 0;
+            if (!hasRealAzimut && sectorAzimutMap) {
+              const lastChar = cellName.slice(-1);
+              const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+              azimut = sectorAzimutMap.get(sectorIdx) ?? 0;
+            }
+            return {
+            cell_id: cellName,
+            cell_name: cellName,
             techno: c.techno || '4G',
             band: c.bande || '',
             bande: c.bande || '',
             vendor: c.constructeur || '',
-            azimut: c.azimut != null ? Number(c.azimut) : null,
+            azimut,
             tilt: c.tilt != null ? Number(c.tilt) : null,
             pci: c.pci || null,
             eci: c.eci || null,
