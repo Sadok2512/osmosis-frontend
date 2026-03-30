@@ -262,11 +262,7 @@ const ProfileChart: React.FC<Props> = ({
 
   return (
     <div className="w-full h-full relative">
-      {/* Status badge top-right (like photo: "LOS / Fresnel Blocked") */}
-      <div className="absolute top-2 right-4 z-10 px-3 py-1.5 rounded-md text-[11px] font-bold tracking-wide"
-        style={{ background: 'rgba(15,23,42,0.6)', border: `1px solid ${statusColor}`, color: statusColor, backdropFilter: 'blur(8px)' }}>
-        {statusText}
-      </div>
+      {/* Status badge removed per user request */}
 
       {/* TX hover zone — invisible area near left edge */}
       {ant && data.length > 0 && ant.antennaAMSL > 0 && (
