@@ -7244,48 +7244,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             // Use VPS global-network stats (full network, fetched once on mount)
             const dbStats = topoNetworkStats;
             const hasDbStats = !!dbStats && (dbStats.cells4G > 0 || dbStats.cells5G > 0 || dbStats.sites4G > 0 || dbStats.sites5G > 0);
-            const sites4GCount = hasDbStats ? dbStats!.sites4G : 0;
-            const sites5GCount = hasDbStats ? dbStats!.sites5G : 0;
-            const cells4GCount = hasDbStats ? dbStats!.cells4G : 0;
-            const cells5GCount = hasDbStats ? dbStats!.cells5G : 0;
+            const rawSites4G = hasDbStats ? dbStats!.sites4G : 0;
+            const rawSites5G = hasDbStats ? dbStats!.sites5G : 0;
+            const rawCells4G = hasDbStats ? dbStats!.cells4G : 0;
+            const rawCells5G = hasDbStats ? dbStats!.cells5G : 0;
             const bandMap4G: Record<string, number> = hasDbStats ? dbStats!.bandMap4G : {};
             const bandMap5G: Record<string, number> = hasDbStats ? dbStats!.bandMap5G : {};
-            const vendorMap: Record<string, { '4G': number; '5G': number }> = hasDbStats ? dbStats!.vendorMap : {};
-            return (
-              <div className="divide-y divide-border">
-                {/* Header */}
-                <div className="px-5 py-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <Network size={24} className="text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-[18px] font-extrabold text-foreground leading-tight tracking-tight uppercase">Global Network</h3>
-                      <p className="text-[11px] text-muted-foreground mt-1">Vue d'ensemble réseau 4G / 5G</p>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Summary cards */}
-                <div className="px-5 py-4">
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div className="bg-muted/40 border border-border rounded-xl p-3">
-                      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
-                      <div className="text-[22px] font-black text-foreground leading-none">{sites4GCount}</div>
-                    </div>
-                    <div className="bg-muted/40 border border-border rounded-xl p-3">
-                      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
-                      <div className="text-[22px] font-black text-primary leading-none">{sites5GCount}</div>
-                    </div>
-                    <div className="bg-muted/40 border border-border rounded-xl p-3">
-                      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
-                      <div className="text-[22px] font-black text-foreground leading-none">{cells4GCount}</div>
-                    </div>
-                    <div className="bg-muted/40 border border-border rounded-xl p-3">
-                      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
-                      <div className="text-[22px] font-black text-primary leading-none">{cells5GCount}</div>
-                    </div>
-                  </div>
+            // Apply tech filter to inventory stats
+            const show4G = mapTechnoFilter === 'ALL' ? enabledTechnos.has('4G') : mapTechnoFilter === '4G';
+            const show5G = mapTechnoFilter === 'ALL' ? enabledTechnos.has('5G') : mapTechnoFilter === '5G';
+            const sites4GCount = show4G ? rawSites4G : 0;
+            const sites5GCount = show5G ? rawSites5G : 0;
+            const cells4GCount = show4G ? rawCells4G : 0;
+            const cells5GCount = show5G ? rawCells5G : 0;
                 </div>
 
                 {/* Technology Distribution */}
