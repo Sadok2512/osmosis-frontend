@@ -7686,44 +7686,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   ))}
                 </div>
 
-                {/* All cells azimuth / tilt table */}
-                <div>
-                  <h5 className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest mb-2">
-                    All Cells — Azimuth & Tilt Overview
-                  </h5>
-                  <div className="rounded-xl border border-border overflow-hidden">
-                    <table className="w-full text-[11px]">
-                      <thead>
-                        <tr className="bg-muted/50 text-muted-foreground text-[9px] uppercase tracking-wider">
-                          <th className="text-left px-3 py-2 font-semibold">Cell</th>
-                          <th className="text-center px-2 py-2 font-semibold">Tech</th>
-                          <th className="text-center px-2 py-2 font-semibold">Band</th>
-                          <th className="text-center px-2 py-2 font-semibold">Az°</th>
-                          <th className="text-center px-2 py-2 font-semibold">E-Tilt°</th>
-                          <th className="text-center px-2 py-2 font-semibold">HBA</th>
-                          <th className="text-center px-2 py-2 font-semibold">Sector</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/40">
-                        {siteDetail.cells.map((c, i) => (
-                          <tr key={c.cell_id} className={`hover:bg-muted/30 transition-colors ${i % 2 === 0 ? 'bg-muted/10' : ''}`}>
-                            <td className="px-3 py-1.5 font-mono text-[10px] text-foreground truncate max-w-[120px]">{c.cell_id}</td>
-                            <td className="px-2 py-1.5 text-center">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${getCellTechGroup(c.techno) === '5G' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                {c.techno}
-                              </span>
-                            </td>
-                            <td className="px-2 py-1.5 text-center text-muted-foreground">{c.bande}</td>
-                            <td className="px-2 py-1.5 text-center font-bold text-foreground">{c.azimut ?? '—'}°</td>
-                            <td className="px-2 py-1.5 text-center font-bold text-foreground">{(c as any).tilt ?? '—'}°</td>
-                            <td className="px-2 py-1.5 text-center text-muted-foreground">{c.hba ?? '—'}m</td>
-                            <td className="px-2 py-1.5 text-center font-bold text-primary">S{getSectorNumber(c.cell_id)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
 
                 {/* Sector-by-sector tilt delta analysis */}
                 <div>
