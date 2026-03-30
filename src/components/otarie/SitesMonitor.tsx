@@ -3618,7 +3618,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (siteCells.length > 0) {
           cellVals = siteCells.map(c => String((c as any)[dimKey] ?? '')).filter(Boolean);
         } else if (CELL_LEVEL_DIMS.has(dimKey)) {
-          // Cells not loaded yet — don't exclude this site (pass through)
+          // If cell loading was attempted but returned nothing → exclude
+          if (cellLoadAttemptedRef.current.has(s.site_id)) return false;
+          // Cells not loaded yet — don't exclude this site (pass through temporarily)
           return true;
         }
         const allVals = [siteVal, ...cellVals].filter(Boolean).map(v => v.trim().toLowerCase());
