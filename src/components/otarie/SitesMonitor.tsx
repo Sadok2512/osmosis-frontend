@@ -3413,6 +3413,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Auto-load cells refs (effect placed after visibleSites is defined)
   const cellLoadingRef = useRef(new Set<string>());
+  const cellLoadAttemptedRef = useRef(new Set<string>());
   const cellLoadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cleanup
@@ -3617,7 +3618,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (siteCells.length > 0) {
           cellVals = siteCells.map(c => String((c as any)[dimKey] ?? '')).filter(Boolean);
         } else if (CELL_LEVEL_DIMS.has(dimKey)) {
-          // Cells not loaded yet — don't exclude this site (pass through)
+          // If cell loading was attempted but returned nothing → exclude
+          if (cellLoadAttemptedRef.current.has(s.site_id)) return false;
+          // Cells not loaded yet — don't exclude this site (pass through temporarily)
           return true;
         }
         const allVals = [siteVal, ...cellVals].filter(Boolean).map(v => v.trim().toLowerCase());
@@ -3774,7 +3777,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
-      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id)
+      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id) && !cellLoadAttemptedRef.current.has(s.site_id)
     );
 
     if (sitesNeedingCells.length === 0) return;
@@ -3887,18 +3890,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
-        // Clear loading flags
-        sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
+        // Mark all as attempted (whether cells found or not) and clear loading flags
+        sitesNeedingCells.forEach(s => {
+          cellLoadingRef.current.delete(s.site_id);
+          cellLoadAttemptedRef.current.add(s.site_id);
+        });
 
-        if (cellMap.size > 0) {
-          setSites(prev => prev.map(s => {
-            const cells = cellMap.get(s.site_id);
-            return cells && cells.length > 0 ? { ...s, cells, cell_count: cells.length } : s;
-          }));
-        }
+        // Always trigger setSites to re-evaluate filters (cellLoadAttemptedRef changed)
+        setSites(prev => prev.map(s => {
+          const cells = cellMap.get(s.site_id);
+          return cells && cells.length > 0 ? { ...s, cells, cell_count: cells.length } : s;
+        }));
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
-        sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
+        sitesNeedingCells.forEach(s => {
+          cellLoadingRef.current.delete(s.site_id);
+          cellLoadAttemptedRef.current.add(s.site_id);
+        });
+        // Force re-render so filters re-evaluate with attempted flags
+        setSites(prev => [...prev]);
       }
     }, 400);
 
@@ -6996,6 +7006,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       invalidateBboxCache();
                       invalidateSiteCellsCache();
                       cellLoadingRef.current.clear();
+                      cellLoadAttemptedRef.current.clear();
                     }
 
                     // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
@@ -7068,6 +7079,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setDashboardRefreshTick(t => t + 1);
                       invalidateSiteCellsCache();
                       cellLoadingRef.current.clear();
+                      cellLoadAttemptedRef.current.clear();
                     }
 
                     setSelectedSiteId(null);
