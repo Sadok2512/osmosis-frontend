@@ -261,9 +261,9 @@ const ProfileChart: React.FC<Props> = ({
         {statusText}
       </div>
 
-      {/* Site info panel overlay (Atoll style) */}
-      {ant && (
-        <div className="absolute top-8 left-16 z-10 px-3 py-2 rounded-lg text-[10px] leading-relaxed pointer-events-none"
+      {/* Site info panel overlay (Atoll style) — only when profile data exists */}
+      {ant && data.length > 0 && ant.antennaAMSL > 0 && (
+        <div className="absolute top-8 left-16 z-10 px-3 py-2 rounded-lg text-[10px] leading-relaxed pointer-events-none animate-in fade-in slide-in-from-left-2 duration-500"
           style={{ background: 'rgba(15,23,42,0.75)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', color: 'rgba(255,255,255,0.85)' }}>
           <div className="font-bold text-[11px] text-sky-400 mb-1">
             Site: {siteName || 'TX'}
