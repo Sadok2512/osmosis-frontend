@@ -6516,9 +6516,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setExpandedSectors(prev => {
-                                          const next = new Set(prev);
-                                          if (next.has(sNum)) next.delete(sNum); else next.add(sNum);
-                                          return next;
+                                          if (prev.has(sNum) && prev.size === 1) return new Set();
+                                          return new Set([sNum]);
                                         });
                                       }}
                                       className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
@@ -6726,9 +6725,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setExpandedSectors(prev => {
-                                          const next = new Set(prev);
-                                          if (next.has(sNum)) next.delete(sNum); else next.add(sNum);
-                                          return next;
+                                          if (prev.has(sNum) && prev.size === 1) return new Set();
+                                          return new Set([sNum]);
                                         });
                                       }}
                                       className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
