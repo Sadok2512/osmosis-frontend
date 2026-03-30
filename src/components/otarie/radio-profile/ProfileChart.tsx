@@ -435,9 +435,14 @@ const ProfileChart: React.FC<Props> = ({
             }}
           />
 
-          {/* Fresnel zone fill */}
+          {/* Fresnel zone — rendered as stacked band between lower and upper */}
           {showFresnel && fresnel && (
-            <Area type="monotone" dataKey="fresnelUpper" stroke="none" fill="url(#fresnelGradGlass)" dot={false} isAnimationActive={false} />
+            <>
+              {/* Invisible base: fresnelLower (transparent fill, no stroke) */}
+              <Area type="monotone" dataKey="fresnelLower" stackId="fresnel" stroke="none" fill="transparent" dot={false} isAnimationActive={false} />
+              {/* Visible band: fresnelBand stacked on top of lower */}
+              <Area type="monotone" dataKey="fresnelBand" stackId="fresnel" stroke="none" fill="url(#fresnelBandGrad)" dot={false} isAnimationActive={false} />
+            </>
           )}
 
           {/* Terrain fill */}
