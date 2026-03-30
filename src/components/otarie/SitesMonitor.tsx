@@ -3578,31 +3578,34 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         });
 
       // Apply advanced view conditions (from ViewFilterBuilder)
+      const CELL_LEVEL_DIMS = new Set(['eci', 'pci', 'nci', 'cid', 'tac', 'nom_cellule', 'bande', 'techno', 'azimut', 'tilt', 'hba', 'etat_cellule', 'essentiel']);
       const matchesViewConditions = activeViewConditions.length === 0 || activeViewConditions.every(cond => {
         if (cond.values.length === 0) return true;
-        // Get site-level or cell-level values for dimension
         const dimKey = cond.dimension;
         let siteVal: string | undefined;
         let cellVals: string[] = [];
         // Site-level fields
-        siteVal = String((s as any)[dimKey] ?? (s as any).site_name ?? '');
         if (dimKey === 'site_name') siteVal = String(s.site_name ?? '');
         else if (dimKey === 'code_nidt') siteVal = String((s as any).code_nidt ?? s.site_id ?? '');
         else siteVal = String((s as any)[dimKey] ?? '');
         // Cell-level fields
         if (siteCells.length > 0) {
           cellVals = siteCells.map(c => String((c as any)[dimKey] ?? '')).filter(Boolean);
+        } else if (CELL_LEVEL_DIMS.has(dimKey)) {
+          // Cells not loaded yet — don't exclude this site (pass through)
+          return true;
         }
         const allVals = [siteVal, ...cellVals].filter(Boolean).map(v => v.toLowerCase());
+        if (allVals.length === 0) return false;
         const condVals = cond.values.map(v => v.toLowerCase());
 
         if (cond.operator === 'IN' || cond.operator === '=') {
-          return condVals.some(cv => allVals.some(av => av.includes(cv) || cv.includes(av) || av === cv));
+          return condVals.some(cv => allVals.some(av => av === cv || av.includes(cv) || cv.includes(av)));
         } else if (cond.operator === 'NOT_IN') {
           return !condVals.some(cv => allVals.some(av => av === cv));
         } else {
-          // Numeric comparison
-          const numVal = parseFloat(siteVal || '0') || (cellVals.length > 0 ? parseFloat(cellVals[0]) : NaN);
+          // Numeric comparison — use exact numeric match for '='
+          const numVal = cellVals.length > 0 ? parseFloat(cellVals[0]) : parseFloat(siteVal || '');
           const threshold = parseFloat(cond.values[0]);
           if (isNaN(numVal) || isNaN(threshold)) return false;
           switch (cond.operator) {
