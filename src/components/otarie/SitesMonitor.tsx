@@ -1380,6 +1380,25 @@ export interface DashboardSiteFilters {
   saisonnier?: string[];
 }
 
+/** Merge two DashboardSiteFilters with AND logic (intersection for same keys) */
+function mergeSiteFilters(dashboardFilters: DashboardSiteFilters | null, viewFilters: DashboardSiteFilters | null): DashboardSiteFilters {
+  if (!dashboardFilters || Object.keys(dashboardFilters).length === 0) return viewFilters || {};
+  if (!viewFilters || Object.keys(viewFilters).length === 0) return dashboardFilters;
+  const merged: DashboardSiteFilters = { ...dashboardFilters };
+  for (const [key, viewVals] of Object.entries(viewFilters)) {
+    if (!viewVals || viewVals.length === 0) continue;
+    const dashVals = (merged as any)[key];
+    if (dashVals && dashVals.length > 0) {
+      // Intersection: keep only values present in both
+      const intersection = dashVals.filter((v: string) => viewVals.includes(v));
+      (merged as any)[key] = intersection.length > 0 ? intersection : viewVals; // If empty intersection, use view (will show no results)
+    } else {
+      (merged as any)[key] = viewVals;
+    }
+  }
+  return merged;
+}
+
 interface DashboardInventoryTabProps {
   onApplyView?: (settings: any) => void;
   onDashboardActiveChange?: (active: boolean, scope?: SiteScope | null, siteFilters?: DashboardSiteFilters | null) => void;
@@ -1391,6 +1410,8 @@ interface DashboardInventoryTabProps {
   backendFilterDefs?: FilterDefinition[];
   activeDashboardId: string | null;
   onActiveDashboardIdChange: (id: string | null) => void;
+  activeViewId: string | null;
+  onActiveViewIdChange: (id: string | null) => void;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
