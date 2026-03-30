@@ -424,7 +424,7 @@ const ProfileChart: React.FC<Props> = ({
           <Legend
             wrapperStyle={{ fontSize: 10, opacity: 0.7 }}
             formatter={(value: string) => {
-              if (value === '_idx' || value === 'antennaMast') return null;
+              if (value === '_idx' || value === 'antennaMast' || value === 'fresnelBand') return null;
               const labels: Record<string, string> = {
                 terrain: 'Terrain', beam: 'LOS', rawTerrain: 'Terrain brut', rxLine: 'Hauteur RX',
                 clutter: 'Clutter', fresnelUpper: 'Fresnel F1', fresnelLower: 'Fresnel F1',
