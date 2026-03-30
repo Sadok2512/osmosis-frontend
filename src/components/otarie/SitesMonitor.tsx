@@ -3617,16 +3617,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (siteCells.length > 0) {
           cellVals = siteCells.map(c => String((c as any)[dimKey] ?? '')).filter(Boolean);
         } else if (CELL_LEVEL_DIMS.has(dimKey)) {
-          // Cells not loaded yet — EXCLUDE site (strict filtering)
-          // This prevents showing all sites when cell data isn't available
-          return false;
+          // Cells not loaded yet — don't exclude this site (pass through)
+          return true;
         }
         const allVals = [siteVal, ...cellVals].filter(Boolean).map(v => v.trim().toLowerCase());
         if (allVals.length === 0) return false;
         const condVals = cond.values.map(v => v.trim().toLowerCase());
 
         if (cond.operator === 'IN' || cond.operator === '=') {
-          // For numeric dimensions, use strict exact matching (no substring)
+          // For numeric dimensions (PCI, ECI, etc.), use strict exact matching only
           if (NUMERIC_DIMS.has(dimKey)) {
             return condVals.some(cv => allVals.some(av => av === cv));
           }
@@ -3763,8 +3762,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const vpWidth = typeof window !== 'undefined' ? window.innerWidth : 1400;
 
 
+  // Determine if we have cell-level view conditions that require cell data
+  const hasCellLevelConditions = useMemo(() => {
+    const CELL_LEVEL_DIMS = new Set(['eci', 'pci', 'nci', 'cid', 'tac', 'nom_cellule', 'bande', 'techno', 'azimut', 'tilt', 'hba', 'etat_cellule', 'essentiel']);
+    return activeViewConditions.some(c => CELL_LEVEL_DIMS.has(c.dimension) && c.values.length > 0);
+  }, [activeViewConditions]);
+
   useEffect(() => {
-    if (displayMode !== 'cells') return;
+    // Load cells when in cells display mode OR when cell-level view conditions are active
+    if (displayMode !== 'cells' && !hasCellLevelConditions) return;
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
@@ -3899,7 +3905,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, viewport.bounds]);
+  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions]);
 
 
   const renderSites = useMemo(() => {
