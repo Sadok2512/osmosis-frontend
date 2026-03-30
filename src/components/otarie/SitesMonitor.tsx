@@ -7660,9 +7660,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== SITE FOCUS MODE ========== */}
           {focusMode === 'site' && siteDetail && (() => {
+            // Filter cells by active dashboard/view filters
+            const filteredCells = siteDetail.cells.filter(cell => {
+              if (localBande !== 'ALL' && cell.bande !== localBande) return false;
+              if (localTechno !== 'ALL' && getCellTechGroup(cell.techno) !== localTechno) return false;
+              if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(cell.bande)) return false;
+              if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => getCellTechGroup(cell.techno) === t || cell.techno === t)) return false;
+              return true;
+            });
             // Group cells by sector number
             const sectorMap = new Map<number, typeof siteDetail.cells>();
-            siteDetail.cells.forEach(cell => {
+            filteredCells.forEach(cell => {
               const sNum = getSectorNumber(cell.cell_id);
               if (!sectorMap.has(sNum)) sectorMap.set(sNum, []);
               sectorMap.get(sNum)!.push(cell);
