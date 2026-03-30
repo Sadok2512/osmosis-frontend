@@ -3386,11 +3386,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
-  const viewportUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewportGuardRef = useRef(false);
   const handleViewportChange = useCallback((v: ViewportState) => {
-    // Debounce setViewport to break the moveend → setState → re-render → moveend loop
-    if (viewportUpdateRef.current) clearTimeout(viewportUpdateRef.current);
-    viewportUpdateRef.current = setTimeout(() => setViewport(v), 50);
+    // Guard: break moveend → setViewport → re-render → moveend infinite loop
+    if (viewportGuardRef.current) return;
+    viewportGuardRef.current = true;
+    setViewport(v);
+    requestAnimationFrame(() => { viewportGuardRef.current = false; });
     // Cache map position (non-blocking)
     if (v.bounds) {
       const c = v.bounds.getCenter?.();
