@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import {
   AreaChart, Area, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceDot, Legend, ReferenceArea, Label as RLabel
+  Tooltip, ResponsiveContainer, ReferenceDot, ReferenceLine, Legend, Label as RLabel,
+  Customized,
 } from 'recharts';
 import { ProfilePoint, LOSAnalysis, FresnelAnalysis } from '@/utils/geodesicUtils';
 
@@ -28,6 +29,7 @@ interface Props {
   clutterHeight?: number;
   showTilt?: boolean;
   remoteAntenna?: RemoteAntennaParams | null;
+  siteName?: string;
   onHoverPoint?: (data: ProfileHoverData | null) => void;
 }
 
@@ -35,9 +37,28 @@ type LinkState = 'LOS_CLEAR' | 'LOS_FRESNEL_BLOCKED' | 'NLOS';
 
 const clampNumber = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
+/* ── SVG antenna tower icon drawn at pixel coords ── */
+const AntennaTowerSVG: React.FC<{ cx: number; cy: number }> = ({ cx, cy }) => (
+  <g>
+    {/* Mast */}
+    <line x1={cx} y1={cy} x2={cx} y2={cy - 28} stroke="rgba(56,189,248,0.9)" strokeWidth={2} />
+    {/* Cross bars */}
+    <line x1={cx - 5} y1={cy - 10} x2={cx + 5} y2={cy - 10} stroke="rgba(56,189,248,0.7)" strokeWidth={1.5} />
+    <line x1={cx - 3} y1={cy - 18} x2={cx + 3} y2={cy - 18} stroke="rgba(56,189,248,0.7)" strokeWidth={1.5} />
+    {/* Base legs */}
+    <line x1={cx} y1={cy} x2={cx - 6} y2={cy + 4} stroke="rgba(56,189,248,0.7)" strokeWidth={1.5} />
+    <line x1={cx} y1={cy} x2={cx + 6} y2={cy + 4} stroke="rgba(56,189,248,0.7)" strokeWidth={1.5} />
+    {/* Signal waves */}
+    <path d={`M${cx + 4},${cy - 26} Q${cx + 8},${cy - 30} ${cx + 4},${cy - 34}`} fill="none" stroke="rgba(56,189,248,0.5)" strokeWidth={1} />
+    <path d={`M${cx + 7},${cy - 24} Q${cx + 12},${cy - 30} ${cx + 7},${cy - 36}`} fill="none" stroke="rgba(56,189,248,0.35)" strokeWidth={1} />
+    {/* Antenna tip dot */}
+    <circle cx={cx} cy={cy - 28} r={2.5} fill="rgba(56,189,248,0.9)" stroke="white" strokeWidth={1} />
+  </g>
+);
+
 const ProfileChart: React.FC<Props> = ({
   profilePoints, analysis, fresnel, showFresnel = false, showCurvature = true, clutterHeight = 0, showTilt = false,
-  remoteAntenna, onHoverPoint,
+  remoteAntenna, siteName, onHoverPoint,
 }) => {
   const ant = analysis.antennaParams;
 
@@ -45,15 +66,11 @@ const ProfileChart: React.FC<Props> = ({
     if (!profilePoints.length) {
       return {
         data: [] as Record<string, any>[],
-        yMin: 0,
-        yMax: 100,
+        yMin: 0, yMax: 100,
         groundImpact: null as null | { index: number; distance: number; altitude: number },
         remoteGroundImpact: null as null | { index: number; distance: number; altitude: number },
         firstFresnelBlockIndex: null as number | null,
         linkState: 'LOS_CLEAR' as LinkState,
-        beamColor: 'rgba(34,197,94,0.95)',
-        beamConeStroke: 'rgba(34,197,94,0.35)',
-        beamConeFill: 'rgba(34,197,94,0.08)',
       };
     }
 
@@ -64,94 +81,75 @@ const ProfileChart: React.FC<Props> = ({
     // ─── Y-AXIS SCALING: terrain + antenna ONLY ───
     const terrainMin = Math.min(...terrainEffective);
     const terrainMax = Math.max(...terrainEffective);
-
     const antennaAMSL = ant?.antennaAMSL ?? terrainMax;
-    const rxAMSL =
-      ant && ant.rxHeight > 0
-        ? profilePoints[profilePoints.length - 1].elevation + ant.rxHeight
-        : terrainEffective[terrainEffective.length - 1];
+    const rxAMSL = ant && ant.rxHeight > 0
+      ? profilePoints[profilePoints.length - 1].elevation + ant.rxHeight
+      : terrainEffective[terrainEffective.length - 1];
 
     let remoteAlt = terrainMax;
     if (remoteAntenna && profilePoints.length > 1) {
-      const remoteGroundAlt = terrainEffective[profilePoints.length - 1];
-      remoteAlt = remoteGroundAlt + remoteAntenna.hba;
+      remoteAlt = terrainEffective[profilePoints.length - 1] + remoteAntenna.hba;
     }
 
     const rfMin = Math.min(terrainMin, rxAMSL);
     const rfMax = Math.max(terrainMax, antennaAMSL, remoteAlt);
-
     const range = Math.max(20, rfMax - rfMin);
-    const bottomPadding = Math.max(5, range * 0.08);
-    const topPadding = Math.max(15, range * 0.28);
+    const yMin = Math.max(0, Math.floor(rfMin - Math.max(5, range * 0.08)));
+    const yMax = Math.ceil(rfMax + Math.max(15, range * 0.28));
 
-    const yMin = Math.max(0, Math.floor(rfMin - bottomPadding));
-    const yMax = Math.ceil(rfMax + topPadding);
-
-    // ─── GROUND IMPACT: local antenna ───
+    // ─── GROUND IMPACT: local ───
     let groundImpact: { index: number; distance: number; altitude: number } | null = null;
     if (showTilt && ant) {
       const tiltRad = (ant.totalTilt * Math.PI) / 180;
       for (let i = 1; i < profilePoints.length; i++) {
-        const tiltAltPrev = antennaAMSL - profilePoints[i - 1].distance * Math.tan(tiltRad);
-        const tiltAltCurr = antennaAMSL - profilePoints[i].distance * Math.tan(tiltRad);
-        const terrPrev = terrainEffective[i - 1];
-        const terrCurr = terrainEffective[i];
-        const prevDiff = tiltAltPrev - terrPrev;
-        const currDiff = tiltAltCurr - terrCurr;
+        const prevDiff = (antennaAMSL - profilePoints[i - 1].distance * Math.tan(tiltRad)) - terrainEffective[i - 1];
+        const currDiff = (antennaAMSL - profilePoints[i].distance * Math.tan(tiltRad)) - terrainEffective[i];
         if (prevDiff >= 0 && currDiff <= 0) {
           const denom = prevDiff - currDiff || 1e-6;
           const t = prevDiff / denom;
-          const impactDist = profilePoints[i - 1].distance + t * (profilePoints[i].distance - profilePoints[i - 1].distance);
-          const impactAltitude = terrPrev + t * (terrCurr - terrPrev);
-          groundImpact = { index: i, distance: Math.round(impactDist) / 1000, altitude: Math.round(impactAltitude * 10) / 10 };
+          const d = profilePoints[i - 1].distance + t * (profilePoints[i].distance - profilePoints[i - 1].distance);
+          const a = terrainEffective[i - 1] + t * (terrainEffective[i] - terrainEffective[i - 1]);
+          groundImpact = { index: i, distance: Math.round(d) / 1000, altitude: Math.round(a * 10) / 10 };
           break;
         }
       }
     }
 
-    // ─── GROUND IMPACT: remote antenna ───
+    // ─── GROUND IMPACT: remote ───
     let remoteGroundImpact: { index: number; distance: number; altitude: number } | null = null;
     if (remoteAntenna && remoteAntenna.totalTilt > 0 && profilePoints.length > 1) {
       const totalDist = profilePoints[profilePoints.length - 1].distance;
-      const remoteGroundAltVal = terrainEffective[profilePoints.length - 1];
-      const remoteAMSL = remoteGroundAltVal + remoteAntenna.hba;
+      const remoteAMSL = terrainEffective[profilePoints.length - 1] + remoteAntenna.hba;
       const remoteTiltRad = (remoteAntenna.totalTilt * Math.PI) / 180;
       for (let i = profilePoints.length - 2; i >= 0; i--) {
-        const distFromRemote = totalDist - profilePoints[i].distance;
-        const remoteBeamAlt = remoteAMSL - distFromRemote * Math.tan(remoteTiltRad);
-        if (remoteBeamAlt <= terrainEffective[i]) {
-          const nextDistFromRemote = totalDist - profilePoints[i + 1].distance;
-          const prevBeam = remoteAMSL - nextDistFromRemote * Math.tan(remoteTiltRad);
-          const prevTerrain = terrainEffective[i + 1];
-          const currTerrain = terrainEffective[i];
-          const t = (prevBeam - prevTerrain) / ((prevBeam - prevTerrain) - (remoteBeamAlt - currTerrain));
-          const impactDist = profilePoints[i + 1].distance + t * (profilePoints[i].distance - profilePoints[i + 1].distance);
-          const impactAlt = prevTerrain + t * (currTerrain - prevTerrain);
-          remoteGroundImpact = { index: i, distance: Math.round(impactDist) / 1000, altitude: Math.round(impactAlt * 10) / 10 };
+        const d = totalDist - profilePoints[i].distance;
+        const beam = remoteAMSL - d * Math.tan(remoteTiltRad);
+        if (beam <= terrainEffective[i]) {
+          const nd = totalDist - profilePoints[i + 1].distance;
+          const pb = remoteAMSL - nd * Math.tan(remoteTiltRad);
+          const pt = terrainEffective[i + 1];
+          const ct = terrainEffective[i];
+          const t = (pb - pt) / ((pb - pt) - (beam - ct));
+          const impDist = profilePoints[i + 1].distance + t * (profilePoints[i].distance - profilePoints[i + 1].distance);
+          const impAlt = pt + t * (ct - pt);
+          remoteGroundImpact = { index: i, distance: Math.round(impDist) / 1000, altitude: Math.round(impAlt * 10) / 10 };
           break;
         }
       }
     }
 
-    // ─── FRESNEL BLOCK ───
+    // ─── FRESNEL ───
     let firstFresnelBlockIndex: number | null = null;
     if (showFresnel && fresnel) {
       for (let i = 0; i < profilePoints.length; i++) {
-        if (terrainEffective[i] > fresnel.fresnelLowerBound[i]) {
-          firstFresnelBlockIndex = i;
-          break;
-        }
+        if (terrainEffective[i] > fresnel.fresnelLowerBound[i]) { firstFresnelBlockIndex = i; break; }
       }
     }
 
     // ─── LINK STATE ───
-    const hasLOSObstruction = analysis.obstructionIndex !== null;
+    const hasLOS = analysis.obstructionIndex !== null;
     const fresnelBlocked = firstFresnelBlockIndex !== null;
-    const linkState: LinkState = hasLOSObstruction ? 'NLOS' : fresnelBlocked ? 'LOS_FRESNEL_BLOCKED' : 'LOS_CLEAR';
-
-    const beamColor = linkState === 'LOS_CLEAR' ? 'rgba(34,197,94,0.95)' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'rgba(251,146,60,0.95)' : 'rgba(239,68,68,0.95)';
-    const beamConeStroke = linkState === 'LOS_CLEAR' ? 'rgba(34,197,94,0.35)' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'rgba(251,146,60,0.35)' : 'rgba(239,68,68,0.35)';
-    const beamConeFill = linkState === 'LOS_CLEAR' ? 'rgba(34,197,94,0.08)' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'rgba(251,146,60,0.08)' : 'rgba(239,68,68,0.08)';
+    const linkState: LinkState = hasLOS ? 'NLOS' : fresnelBlocked ? 'LOS_FRESNEL_BLOCKED' : 'LOS_CLEAR';
 
     // ─── BUILD DATA ───
     const data = profilePoints.map((p, i) => {
@@ -160,91 +158,84 @@ const ProfileChart: React.FC<Props> = ({
         terrain: Math.round(terrainEffective[i] * 10) / 10,
         rawTerrain: Math.round(terrainRaw[i] * 10) / 10,
         _idx: i,
-        beam: null,
-        tiltBeam: null,
-        tiltConeUpper: null,
-        tiltConeLower: null,
-        fresnelUpper: null,
-        fresnelLower: null,
-        clutter: null,
-        rxLine: null,
-        remoteTiltBeam: null,
-        remoteConeUpper: null,
-        remoteConeLower: null,
+        beam: null, tiltBeam: null, tiltConeUpper: null, tiltConeLower: null,
+        fresnelUpper: null, fresnelLower: null, clutter: null, rxLine: null,
+        remoteTiltBeam: null, remoteConeUpper: null, remoteConeLower: null,
+        antennaMast: null,
       };
 
-      if (ant && ant.rxHeight > 0) {
-        entry.rxLine = Math.round((p.elevation + ant.rxHeight) * 10) / 10;
+      // Antenna mast: vertical line at first point only
+      if (i === 0 && ant) {
+        entry.antennaMast = clampNumber(antennaAMSL, yMin, yMax);
       }
-      if (clutterHeight > 0) {
-        entry.clutter = Math.round((terrainEffective[i] + clutterHeight) * 10) / 10;
-      }
+
+      if (ant && ant.rxHeight > 0) entry.rxLine = Math.round((p.elevation + ant.rxHeight) * 10) / 10;
+      if (clutterHeight > 0) entry.clutter = Math.round((terrainEffective[i] + clutterHeight) * 10) / 10;
+
       if (showFresnel && fresnel) {
         entry.fresnelUpper = clampNumber(Math.round(fresnel.fresnelUpperBound[i] * 10) / 10, yMin, yMax);
         entry.fresnelLower = clampNumber(Math.round(fresnel.fresnelLowerBound[i] * 10) / 10, yMin, yMax);
       }
 
-      // LOS line — clamped to chart domain
+      // LOS line (red dashed) — always shown
       entry.beam = clampNumber(Math.round(beamAltitudes[i] * 10) / 10, yMin, yMax);
 
-      // Local tilt beam + cone — stop at ground impact
+      // Local tilt beam + cone — BLUE, stop at ground impact
       if (showTilt && ant) {
         const tiltRad = (ant.totalTilt * Math.PI) / 180;
         const tiltAlt = antennaAMSL - p.distance * Math.tan(tiltRad);
-        const visibleUntilGround = !groundImpact || i <= groundImpact.index;
-
-        if (visibleUntilGround && tiltAlt >= terrainEffective[i]) {
+        const vis = !groundImpact || i <= groundImpact.index;
+        if (vis && tiltAlt >= terrainEffective[i]) {
           entry.tiltBeam = clampNumber(Math.round(tiltAlt * 10) / 10, yMin, yMax);
         }
-
-        if (ant.vbw > 0 && visibleUntilGround) {
-          const upperRad = ((ant.totalTilt - ant.vbw / 2) * Math.PI) / 180;
-          const lowerRad = ((ant.totalTilt + ant.vbw / 2) * Math.PI) / 180;
-          const upperAlt = antennaAMSL - p.distance * Math.tan(upperRad);
-          const lowerAlt = antennaAMSL - p.distance * Math.tan(lowerRad);
-          if (upperAlt >= terrainEffective[i]) {
-            entry.tiltConeUpper = clampNumber(Math.round(upperAlt * 10) / 10, yMin, yMax);
-          }
-          if (lowerAlt >= terrainEffective[i]) {
-            entry.tiltConeLower = clampNumber(Math.round(lowerAlt * 10) / 10, yMin, yMax);
-          }
+        if (ant.vbw > 0 && vis) {
+          const uRad = ((ant.totalTilt - ant.vbw / 2) * Math.PI) / 180;
+          const lRad = ((ant.totalTilt + ant.vbw / 2) * Math.PI) / 180;
+          const uAlt = antennaAMSL - p.distance * Math.tan(uRad);
+          const lAlt = antennaAMSL - p.distance * Math.tan(lRad);
+          if (uAlt >= terrainEffective[i]) entry.tiltConeUpper = clampNumber(Math.round(uAlt * 10) / 10, yMin, yMax);
+          if (lAlt >= terrainEffective[i]) entry.tiltConeLower = clampNumber(Math.round(lAlt * 10) / 10, yMin, yMax);
         }
       }
 
-      // Remote antenna beam (link mode) — stop at remote ground impact
+      // Remote beam (link mode)
       if (remoteAntenna && profilePoints.length > 1) {
         const totalDist = profilePoints[profilePoints.length - 1].distance;
-        const remoteGroundAltVal = terrainEffective[profilePoints.length - 1];
-        const remoteAMSL = remoteGroundAltVal + remoteAntenna.hba;
-        const distFromRemote = totalDist - p.distance;
-        const remoteTiltRad = (remoteAntenna.totalTilt * Math.PI) / 180;
-        const remoteBeamAlt = remoteAMSL - distFromRemote * Math.tan(remoteTiltRad);
-        const remoteVisible = !remoteGroundImpact || i >= remoteGroundImpact.index;
-
-        if (remoteVisible && remoteBeamAlt >= terrainEffective[i]) {
-          entry.remoteTiltBeam = clampNumber(Math.round(remoteBeamAlt * 10) / 10, yMin, yMax);
+        const remoteAMSL = terrainEffective[profilePoints.length - 1] + remoteAntenna.hba;
+        const dFR = totalDist - p.distance;
+        const rTiltRad = (remoteAntenna.totalTilt * Math.PI) / 180;
+        const rBeam = remoteAMSL - dFR * Math.tan(rTiltRad);
+        const rVis = !remoteGroundImpact || i >= remoteGroundImpact.index;
+        if (rVis && rBeam >= terrainEffective[i]) {
+          entry.remoteTiltBeam = clampNumber(Math.round(rBeam * 10) / 10, yMin, yMax);
         }
-        if (remoteAntenna.vbw > 0 && remoteVisible) {
-          const rUpperRad = ((remoteAntenna.totalTilt - remoteAntenna.vbw / 2) * Math.PI) / 180;
-          const rLowerRad = ((remoteAntenna.totalTilt + remoteAntenna.vbw / 2) * Math.PI) / 180;
-          const rUpperAlt = remoteAMSL - distFromRemote * Math.tan(rUpperRad);
-          const rLowerAlt = remoteAMSL - distFromRemote * Math.tan(rLowerRad);
-          if (rUpperAlt >= terrainEffective[i]) {
-            entry.remoteConeUpper = clampNumber(Math.round(rUpperAlt * 10) / 10, yMin, yMax);
-          }
-          if (rLowerAlt >= terrainEffective[i]) {
-            entry.remoteConeLower = clampNumber(Math.round(rLowerAlt * 10) / 10, yMin, yMax);
-          }
+        if (remoteAntenna.vbw > 0 && rVis) {
+          const ruRad = ((remoteAntenna.totalTilt - remoteAntenna.vbw / 2) * Math.PI) / 180;
+          const rlRad = ((remoteAntenna.totalTilt + remoteAntenna.vbw / 2) * Math.PI) / 180;
+          const ruAlt = remoteAMSL - dFR * Math.tan(ruRad);
+          const rlAlt = remoteAMSL - dFR * Math.tan(rlRad);
+          if (ruAlt >= terrainEffective[i]) entry.remoteConeUpper = clampNumber(Math.round(ruAlt * 10) / 10, yMin, yMax);
+          if (rlAlt >= terrainEffective[i]) entry.remoteConeLower = clampNumber(Math.round(rlAlt * 10) / 10, yMin, yMax);
         }
       }
 
       return entry;
     });
 
-    return { data, yMin, yMax, groundImpact, remoteGroundImpact, firstFresnelBlockIndex, linkState, beamColor, beamConeFill, beamConeStroke };
+    return { data, yMin, yMax, groundImpact, remoteGroundImpact, firstFresnelBlockIndex, linkState };
   }, [profilePoints, analysis, fresnel, showFresnel, clutterHeight, showTilt, ant, remoteAntenna]);
 
-  const { data, yMin, yMax, groundImpact, remoteGroundImpact, firstFresnelBlockIndex, linkState, beamColor, beamConeFill, beamConeStroke } = derived;
+  const { data, yMin, yMax, groundImpact, remoteGroundImpact, firstFresnelBlockIndex, linkState } = derived;
+
+  // LOS line always red dashed (like photo)
+  const losLineColor = 'rgba(239,68,68,0.85)';
+  // Beam cone always blue (Atoll style)
+  const beamConeBlue = 'rgba(56,130,220,0.15)';
+  const beamConeStrokeBlue = 'rgba(56,130,220,0.4)';
+  const beamCenterBlue = 'rgba(56,130,220,0.7)';
+
+  const statusText = linkState === 'LOS_CLEAR' ? 'LOS OK' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'LOS / Fresnel Blocked' : 'NLOS';
+  const statusColor = linkState === 'LOS_CLEAR' ? 'rgba(34,197,94,0.95)' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'rgba(251,146,60,0.95)' : 'rgba(239,68,68,0.95)';
 
   const obstructionPoint = analysis.obstructionIndex !== null ? {
     distance: data[analysis.obstructionIndex]?.distance,
@@ -262,15 +253,26 @@ const ProfileChart: React.FC<Props> = ({
 
   const handleMouseLeave = useCallback(() => { onHoverPoint?.(null); }, [onHoverPoint]);
 
-  const statusText = linkState === 'LOS_CLEAR' ? 'LOS OK' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'LOS / Fresnel Blocked' : 'NLOS';
-  const statusColor = linkState === 'LOS_CLEAR' ? 'rgba(34,197,94,0.95)' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'rgba(251,146,60,0.95)' : 'rgba(239,68,68,0.95)';
-
   return (
     <div className="w-full h-full relative">
       {/* Status badge */}
-      <div className="absolute top-2 right-4 z-10 px-3 py-1 rounded-full text-[10px] font-bold tracking-wide" style={{ background: 'rgba(15,23,42,0.7)', border: `1px solid ${statusColor}`, color: statusColor, backdropFilter: 'blur(8px)' }}>
+      <div className="absolute top-2 right-4 z-10 px-3 py-1 rounded-full text-[10px] font-bold tracking-wide"
+        style={{ background: 'rgba(15,23,42,0.7)', border: `1px solid ${statusColor}`, color: statusColor, backdropFilter: 'blur(8px)' }}>
         {statusText}
       </div>
+
+      {/* Site info panel overlay (Atoll style) */}
+      {ant && (
+        <div className="absolute top-8 left-16 z-10 px-3 py-2 rounded-lg text-[10px] leading-relaxed pointer-events-none"
+          style={{ background: 'rgba(15,23,42,0.75)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', color: 'rgba(255,255,255,0.85)' }}>
+          <div className="font-bold text-[11px] text-sky-400 mb-1">
+            Site: {siteName || 'TX'}
+          </div>
+          <div>HBA: <span className="font-semibold text-white/90">{ant.hba}m</span></div>
+          <div>Tilt: <span className="font-semibold text-white/90">{ant.totalTilt}°</span></div>
+          <div>Azimuth: <span className="font-semibold text-white/90">{ant.azimuth}°</span></div>
+        </div>
+      )}
 
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
@@ -284,6 +286,10 @@ const ProfileChart: React.FC<Props> = ({
               <stop offset="0%" stopColor="rgba(56,189,248,0.35)" />
               <stop offset="60%" stopColor="rgba(56,189,248,0.12)" />
               <stop offset="100%" stopColor="rgba(56,189,248,0.02)" />
+            </linearGradient>
+            <linearGradient id="beamConeGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="rgba(56,130,220,0.25)" />
+              <stop offset="100%" stopColor="rgba(56,130,220,0.03)" />
             </linearGradient>
             <linearGradient id="fresnelGradGlass" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="rgba(250,204,21,0.18)" />
@@ -319,7 +325,7 @@ const ProfileChart: React.FC<Props> = ({
               fontSize: 11, color: 'rgba(255,255,255,0.9)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
             }}
             formatter={(value: number, name: string) => {
-              if (name === '_idx') return [null, null];
+              if (name === '_idx' || name === 'antennaMast') return [null, null];
               const labels: Record<string, string> = {
                 terrain: 'Terrain eff.', beam: 'LOS (TX→RX)', rawTerrain: 'Terrain brut',
                 rxLine: `RX (${ant?.rxHeight ?? 1.5}m)`, clutter: 'Terrain+Clutter',
@@ -335,7 +341,7 @@ const ProfileChart: React.FC<Props> = ({
           <Legend
             wrapperStyle={{ fontSize: 10, opacity: 0.7 }}
             formatter={(value: string) => {
-              if (value === '_idx') return null;
+              if (value === '_idx' || value === 'antennaMast') return null;
               const labels: Record<string, string> = {
                 terrain: 'Terrain', beam: 'LOS', rawTerrain: 'Terrain brut', rxLine: 'Hauteur RX',
                 clutter: 'Clutter', fresnelUpper: 'Fresnel F1', fresnelLower: 'Fresnel F1',
@@ -346,7 +352,7 @@ const ProfileChart: React.FC<Props> = ({
             }}
           />
 
-          {/* Fresnel zone fill between upper and lower */}
+          {/* Fresnel zone fill */}
           {showFresnel && fresnel && (
             <Area type="monotone" dataKey="fresnelUpper" stroke="none" fill="url(#fresnelGradGlass)" dot={false} isAnimationActive={false} />
           )}
@@ -356,7 +362,7 @@ const ProfileChart: React.FC<Props> = ({
 
           {/* Raw terrain */}
           {showCurvature && (
-            <Line type="monotone" dataKey="rawTerrain" stroke="rgba(255,255,255,0.2)" strokeWidth={1} strokeDasharray="4 4" dot={false} opacity={0.6} isAnimationActive={false} />
+            <Line type="monotone" dataKey="rawTerrain" stroke="rgba(255,255,255,0.35)" strokeWidth={1.2} dot={false} isAnimationActive={false} />
           )}
 
           {/* RX line */}
@@ -375,21 +381,21 @@ const ProfileChart: React.FC<Props> = ({
             </>
           )}
 
-          {/* Beam cone fill + lines */}
+          {/* Beam cone — BLUE (Atoll style) */}
           {showTilt && ant && ant.vbw > 0 && (
             <>
-              <Area type="monotone" dataKey="tiltConeUpper" stroke="none" fill={beamConeFill} dot={false} isAnimationActive={false} connectNulls={false} />
-              <Line type="monotone" dataKey="tiltConeUpper" stroke={beamConeStroke} strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} connectNulls={false} />
-              <Line type="monotone" dataKey="tiltConeLower" stroke={beamConeStroke} strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} connectNulls={false} />
+              <Area type="monotone" dataKey="tiltConeUpper" stroke="none" fill="url(#beamConeGrad)" dot={false} isAnimationActive={false} connectNulls={false} />
+              <Line type="monotone" dataKey="tiltConeUpper" stroke={beamConeStrokeBlue} strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} connectNulls={false} />
+              <Line type="monotone" dataKey="tiltConeLower" stroke={beamConeStrokeBlue} strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} connectNulls={false} />
             </>
           )}
 
-          {/* Centre beam (tilt) */}
+          {/* Centre beam — BLUE */}
           {showTilt && (
-            <Line type="monotone" dataKey="tiltBeam" stroke={beamColor} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls={false} />
+            <Line type="monotone" dataKey="tiltBeam" stroke={beamCenterBlue} strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
           )}
 
-          {/* Remote antenna beam (link mode) */}
+          {/* Remote beam (link mode) */}
           {remoteAntenna && (
             <>
               {remoteAntenna.vbw > 0 && (
@@ -405,13 +411,38 @@ const ProfileChart: React.FC<Props> = ({
             </>
           )}
 
-          {/* LOS line */}
-          <Line type="monotone" dataKey="beam" stroke={beamColor} strokeWidth={2} strokeDasharray="8 4" dot={false} isAnimationActive={false} />
+          {/* LOS line — RED dashed (like Atoll photo) */}
+          <Line type="monotone" dataKey="beam" stroke={losLineColor} strokeWidth={2} strokeDasharray="8 4" dot={false} isAnimationActive={false} />
 
-          {/* Hidden _idx */}
+          {/* Hidden fields */}
           <Line type="monotone" dataKey="_idx" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
+          <Line type="monotone" dataKey="antennaMast" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
 
-          {/* LOS obstruction */}
+          {/* Antenna mast vertical line (terrain → antenna AMSL) */}
+          {data.length > 0 && ant && (
+            <ReferenceLine
+              segment={[
+                { x: data[0].distance, y: data[0].terrain },
+                { x: data[0].distance, y: ant.antennaAMSL },
+              ]}
+              stroke="rgba(56,189,248,0.8)"
+              strokeWidth={2}
+              strokeDasharray="none"
+            />
+          )}
+
+          {/* TX antenna tower icon */}
+          {data.length > 0 && ant && (
+            <ReferenceDot x={data[0].distance} y={ant.antennaAMSL} r={0} fill="none" stroke="none">
+              <Customized component={(props: any) => {
+                const { viewBox } = props;
+                if (!viewBox) return null;
+                return <AntennaTowerSVG cx={viewBox.x} cy={viewBox.y} />;
+              }} />
+            </ReferenceDot>
+          )}
+
+          {/* LOS obstruction marker */}
           {obstructionPoint && (
             <ReferenceDot x={obstructionPoint.distance} y={obstructionPoint.altitude} r={7} fill="rgba(239,68,68,0.9)" stroke="rgba(255,255,255,0.6)" strokeWidth={2}>
               <RLabel value="⛔ NLOS" position="top" style={{ fontSize: 9, fill: 'rgba(239,68,68,0.9)', fontWeight: 700 }} offset={10} />
@@ -425,25 +456,28 @@ const ProfileChart: React.FC<Props> = ({
             </ReferenceDot>
           )}
 
-          {/* TX antenna marker */}
-          {data.length > 0 && ant && (
-            <ReferenceDot x={data[0].distance} y={ant.antennaAMSL} r={7} fill="rgba(56,189,248,0.9)" stroke="rgba(255,255,255,0.8)" strokeWidth={2}>
-              <RLabel value={`📡 Az:${ant.azimuth}° T:${ant.totalTilt}° H:${ant.hba}m`} position="top" style={{ fontSize: 9, fill: 'rgba(56,189,248,0.9)', fontWeight: 700 }} offset={10} />
-            </ReferenceDot>
-          )}
-
           {/* Ground impact marker */}
           {showTilt && groundImpact && (
             <ReferenceDot x={groundImpact.distance} y={groundImpact.altitude} r={7} fill="rgba(239,68,68,0.95)" stroke="rgba(255,255,255,0.8)" strokeWidth={2}>
-              <RLabel value={`🎯 Impact ${groundImpact.distance.toFixed(2)} km`} position="top" style={{ fontSize: 9, fill: 'rgba(239,68,68,0.9)', fontWeight: 700 }} offset={10} />
+              <RLabel value={`🎯 ${groundImpact.distance.toFixed(2)} km`} position="top" style={{ fontSize: 9, fill: 'rgba(239,68,68,0.9)', fontWeight: 700 }} offset={10} />
             </ReferenceDot>
           )}
 
           {/* Remote antenna marker (link mode) */}
           {remoteAntenna && data.length > 1 && (
-            <ReferenceDot x={data[data.length - 1].distance} y={(analysis.effectiveTerrain[profilePoints.length - 1] ?? 0) + remoteAntenna.hba} r={7} fill="rgba(34,197,94,0.9)" stroke="rgba(255,255,255,0.8)" strokeWidth={2}>
-              <RLabel value={`📡 T:${remoteAntenna.totalTilt}° H:${remoteAntenna.hba}m`} position="top" style={{ fontSize: 9, fill: 'rgba(34,197,94,0.9)', fontWeight: 700 }} offset={10} />
-            </ReferenceDot>
+            <>
+              <ReferenceLine
+                segment={[
+                  { x: data[data.length - 1].distance, y: data[data.length - 1].terrain },
+                  { x: data[data.length - 1].distance, y: (analysis.effectiveTerrain[profilePoints.length - 1] ?? 0) + remoteAntenna.hba },
+                ]}
+                stroke="rgba(34,197,94,0.8)"
+                strokeWidth={2}
+              />
+              <ReferenceDot x={data[data.length - 1].distance} y={(analysis.effectiveTerrain[profilePoints.length - 1] ?? 0) + remoteAntenna.hba} r={7} fill="rgba(34,197,94,0.9)" stroke="rgba(255,255,255,0.8)" strokeWidth={2}>
+                <RLabel value={`📡 T:${remoteAntenna.totalTilt}° H:${remoteAntenna.hba}m`} position="top" style={{ fontSize: 9, fill: 'rgba(34,197,94,0.9)', fontWeight: 700 }} offset={10} />
+              </ReferenceDot>
+            </>
           )}
 
           {/* Remote ground impact */}
