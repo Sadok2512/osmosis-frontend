@@ -3905,7 +3905,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, viewport.bounds]);
+  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions]);
 
 
   const renderSites = useMemo(() => {
