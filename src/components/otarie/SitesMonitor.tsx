@@ -7677,11 +7677,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             });
             const sortedSectors = Array.from(sectorMap.entries()).sort(([a], [b]) => a - b);
 
-            // Get unique techs for badge
-            const uniqueTechs = [...new Set(siteDetail.cells.map((c: any) => getCellTechGroup(c.techno)).filter(Boolean))].sort();
+            // Get unique techs for badge (from filtered cells)
+            const uniqueTechs = [...new Set(filteredCells.map((c: any) => getCellTechGroup(c.techno)).filter(Boolean))].sort();
             const techBadgeStr = uniqueTechs.join(' / ');
-            const primaryBand = siteDetail.cells[0]?.bande || '';
-            const primaryTech = siteDetail.cells[0]?.techno || '';
+            const primaryBand = filteredCells[0]?.bande || '';
+            const primaryTech = filteredCells[0]?.techno || '';
             const isTopoFocus = sectorColorMode === 'topo';
 
             return (
