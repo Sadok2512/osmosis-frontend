@@ -6409,12 +6409,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     })().map(site => {
                       const isSelected = selectedSiteId === site.site_id;
                       const isExpanded = isSelected;
-                      const siteCells = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
+                      const rawCells = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
                         ? siteDetail.cells
                         : site.cells;
-                      const displayedCellCount = isSelected && siteDetail?.site_id === site.site_id
-                        ? (siteDetail.cell_count ?? siteDetail.cells.length)
-                        : site.cell_count;
+                      // Apply dashboard/view filters on cells
+                      const siteCells = rawCells.filter(c => {
+                        if (localBande !== 'ALL' && c.bande !== localBande) return false;
+                        if (localTechno !== 'ALL' && getCellTechGroup(c.techno) !== localTechno) return false;
+                        if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(c.bande)) return false;
+                        if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => getCellTechGroup(c.techno) === t || c.techno === t)) return false;
+                        return true;
+                      });
+                      const displayedCellCount = siteCells.length;
                       // Group cells by sector
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
@@ -6618,12 +6624,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {taggedSites.map(site => {
                       const isSelected = selectedSiteId === site.site_id;
                       const isExpanded = isSelected;
-                      const siteCells = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
+                      const rawCells2 = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
                         ? siteDetail.cells
                         : site.cells;
-                      const displayedCellCount = isSelected && siteDetail?.site_id === site.site_id
-                        ? (siteDetail.cell_count ?? siteDetail.cells.length)
-                        : site.cell_count;
+                      const siteCells = rawCells2.filter(c => {
+                        if (localBande !== 'ALL' && c.bande !== localBande) return false;
+                        if (localTechno !== 'ALL' && getCellTechGroup(c.techno) !== localTechno) return false;
+                        if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(c.bande)) return false;
+                        if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => getCellTechGroup(c.techno) === t || c.techno === t)) return false;
+                        return true;
+                      });
+                      const displayedCellCount = siteCells.length;
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
                         const sNum = getSectorNumber(c.cell_id);
@@ -7660,20 +7671,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== SITE FOCUS MODE ========== */}
           {focusMode === 'site' && siteDetail && (() => {
+            // Filter cells by active dashboard/view filters
+            const filteredCells = siteDetail.cells.filter(cell => {
+              if (localBande !== 'ALL' && cell.bande !== localBande) return false;
+              if (localTechno !== 'ALL' && getCellTechGroup(cell.techno) !== localTechno) return false;
+              if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(cell.bande)) return false;
+              if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => getCellTechGroup(cell.techno) === t || cell.techno === t)) return false;
+              return true;
+            });
             // Group cells by sector number
             const sectorMap = new Map<number, typeof siteDetail.cells>();
-            siteDetail.cells.forEach(cell => {
+            filteredCells.forEach(cell => {
               const sNum = getSectorNumber(cell.cell_id);
               if (!sectorMap.has(sNum)) sectorMap.set(sNum, []);
               sectorMap.get(sNum)!.push(cell);
             });
             const sortedSectors = Array.from(sectorMap.entries()).sort(([a], [b]) => a - b);
 
-            // Get unique techs for badge
-            const uniqueTechs = [...new Set(siteDetail.cells.map((c: any) => getCellTechGroup(c.techno)).filter(Boolean))].sort();
+            // Get unique techs for badge (from filtered cells)
+            const uniqueTechs = [...new Set(filteredCells.map((c: any) => getCellTechGroup(c.techno)).filter(Boolean))].sort();
             const techBadgeStr = uniqueTechs.join(' / ');
-            const primaryBand = siteDetail.cells[0]?.bande || '';
-            const primaryTech = siteDetail.cells[0]?.techno || '';
+            const primaryBand = filteredCells[0]?.bande || '';
+            const primaryTech = filteredCells[0]?.techno || '';
             const isTopoFocus = sectorColorMode === 'topo';
 
             return (
@@ -7727,22 +7746,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     { label: 'Site ID', value: siteDetail.site_id },
                     { label: 'Vendor', value: siteDetail.vendor },
                     { label: 'Coordinates', value: `${siteDetail.coordinates[0].toFixed(5)}, ${siteDetail.coordinates[1].toFixed(5)}` },
-                    { label: 'Altitude (HBA)', value: siteDetail.cells[0]?.hba != null ? `${siteDetail.cells[0].hba} m AGL` : '—' },
-                    { label: 'Total Cells', value: `${siteDetail.cell_count}` },
+                    { label: 'Altitude (HBA)', value: filteredCells[0]?.hba != null ? `${filteredCells[0].hba} m AGL` : '—' },
+                    { label: 'Total Cells', value: `${filteredCells.length}${filteredCells.length !== siteDetail.cell_count ? ` / ${siteDetail.cell_count}` : ''}` },
                     { label: 'Sectors', value: `${sortedSectors.length}` },
                     { label: 'Technologies', value: techBadgeStr },
                     { label: 'Terrain Type', value: (() => {
                       const lat = siteDetail.coordinates[0];
-                      const hba = siteDetail.cells[0]?.hba ?? 30;
+                      const hba = filteredCells[0]?.hba ?? 30;
                       if (hba >= 40) return 'Dense Urban';
                       if (hba >= 25) return 'Urban';
                       if (hba >= 15) return 'Suburban';
                       return 'Rural';
                     })() },
                     { label: 'Profile', value: (() => {
-                      const hba = siteDetail.cells[0]?.hba ?? 30;
-                      const bands = [...new Set(siteDetail.cells.map(c => c.bande))];
-                      const has5G = siteDetail.cells.some(c => getCellTechGroup(c.techno) === '5G');
+                      const hba = filteredCells[0]?.hba ?? 30;
+                      const bands = [...new Set(filteredCells.map(c => c.bande))];
+                      const has5G = filteredCells.some(c => getCellTechGroup(c.techno) === '5G');
                       if (has5G && hba >= 30) return 'Macro 5G/4G Co-located';
                       if (has5G) return 'Small Cell 5G + Macro 4G';
                       if (bands.length >= 4) return 'Macro Multi-Band 4G';
