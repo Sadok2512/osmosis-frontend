@@ -75,6 +75,15 @@ export function getVpsProxyUrl(
   path: string,
   extraParams?: Record<string, string>,
 ): string {
+  // Direct VPS mode: skip proxy when browser is on VPS
+  const onVps = typeof window !== 'undefined' && window.location.hostname === VPS_HOST;
+  if (onVps) {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const ep = VPS_ENDPOINTS[service];
+    const params = new URLSearchParams(extraParams || {});
+    const qs = params.toString();
+    return `${ep}${cleanPath}${qs ? (cleanPath.includes('?') ? '&' : '?') + qs : ''}`;
+  }
   const base = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/vps-proxy`;
   const params = new URLSearchParams();
   params.set('service', service);
