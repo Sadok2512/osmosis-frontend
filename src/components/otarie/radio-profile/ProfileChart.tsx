@@ -164,7 +164,6 @@ const ProfileChart: React.FC<Props> = ({
         antennaMast: null,
       };
 
-      // Antenna mast: vertical line at first point only
       if (i === 0 && ant) {
         entry.antennaMast = clampNumber(antennaAMSL, yMin, yMax);
       }
@@ -177,10 +176,10 @@ const ProfileChart: React.FC<Props> = ({
         entry.fresnelLower = clampNumber(Math.round(fresnel.fresnelLowerBound[i] * 10) / 10, yMin, yMax);
       }
 
-      // LOS line (red dashed) — always shown
+      // LOS line (orange dashed like photo)
       entry.beam = clampNumber(Math.round(beamAltitudes[i] * 10) / 10, yMin, yMax);
 
-      // Local tilt beam + cone — BLUE, stop at ground impact
+      // Local tilt beam + cone
       if (showTilt && ant) {
         const tiltRad = (ant.totalTilt * Math.PI) / 180;
         const tiltAlt = antennaAMSL - p.distance * Math.tan(tiltRad);
@@ -227,20 +226,27 @@ const ProfileChart: React.FC<Props> = ({
 
   const { data, yMin, yMax, groundImpact, remoteGroundImpact, firstFresnelBlockIndex, linkState } = derived;
 
-  // LOS line always red dashed (like photo)
-  const losLineColor = 'rgba(239,68,68,0.85)';
-  // Beam cone always blue (Atoll style)
-  const beamConeBlue = 'rgba(56,130,220,0.15)';
-  const beamConeStrokeBlue = 'rgba(56,130,220,0.4)';
-  const beamCenterBlue = 'rgba(56,130,220,0.7)';
+  // Colors matching the reference photo
+  const losLineColor = 'rgba(249,115,22,0.9)'; // orange dashed LOS
+  const beamConeBlue = 'rgba(56,130,220,0.12)';
+  const beamConeStroke = 'rgba(180,220,80,0.5)'; // green-yellow cone lines like photo
+  const beamCenterStroke = 'rgba(180,220,80,0.7)'; // green-yellow center beam
 
   const statusText = linkState === 'LOS_CLEAR' ? 'LOS OK' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'LOS / Fresnel Blocked' : 'NLOS';
-  const statusColor = linkState === 'LOS_CLEAR' ? 'rgba(34,197,94,0.95)' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'rgba(251,146,60,0.95)' : 'rgba(239,68,68,0.95)';
+  const statusColor = linkState === 'LOS_CLEAR' ? 'rgba(34,197,94,0.95)' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'rgba(56,189,248,0.95)' : 'rgba(239,68,68,0.95)';
 
   const obstructionPoint = analysis.obstructionIndex !== null ? {
     distance: data[analysis.obstructionIndex]?.distance,
     altitude: data[analysis.obstructionIndex]?.terrain,
   } : null;
+
+  const fresnelBlockPoint = firstFresnelBlockIndex !== null && data[firstFresnelBlockIndex] ? {
+    distance: data[firstFresnelBlockIndex].distance,
+    altitude: data[firstFresnelBlockIndex].terrain,
+  } : null;
+
+  const rxTerrainAlt = data.length > 1 ? data[data.length - 1].terrain : 0;
+  const rxAlt = data.length > 1 ? (data[data.length - 1].rxLine ?? rxTerrainAlt) : 0;
 
   const handleMouseMove = useCallback((state: any) => {
     if (!onHoverPoint || state?.activeTooltipIndex == null) return;
@@ -255,22 +261,70 @@ const ProfileChart: React.FC<Props> = ({
 
   return (
     <div className="w-full h-full relative">
-      {/* Status badge */}
-      <div className="absolute top-2 right-4 z-10 px-3 py-1 rounded-full text-[10px] font-bold tracking-wide"
-        style={{ background: 'rgba(15,23,42,0.7)', border: `1px solid ${statusColor}`, color: statusColor, backdropFilter: 'blur(8px)' }}>
+      {/* Status badge top-right (like photo: "LOS / Fresnel Blocked") */}
+      <div className="absolute top-2 right-4 z-10 px-3 py-1.5 rounded-md text-[11px] font-bold tracking-wide"
+        style={{ background: 'rgba(15,23,42,0.6)', border: `1px solid ${statusColor}`, color: statusColor, backdropFilter: 'blur(8px)' }}>
         {statusText}
       </div>
 
-      {/* Site info panel overlay (Atoll style) — only when profile data exists */}
+      {/* TX Site info panel (like photo - left side) */}
       {ant && data.length > 0 && ant.antennaAMSL > 0 && (
-        <div className="absolute top-8 left-16 z-10 px-3 py-2 rounded-lg text-[10px] leading-relaxed pointer-events-none animate-in fade-in slide-in-from-left-2 duration-500"
-          style={{ background: 'rgba(15,23,42,0.75)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', color: 'rgba(255,255,255,0.85)' }}>
-          <div className="font-bold text-[11px] text-sky-400 mb-1">
-            Site: {siteName || 'TX'}
+        <div className="absolute top-10 left-14 z-10 px-3.5 py-2.5 rounded-lg pointer-events-none animate-in fade-in slide-in-from-left-2 duration-500"
+          style={{
+            background: 'rgba(15,23,42,0.8)',
+            border: '1px solid rgba(56,189,248,0.25)',
+            backdropFilter: 'blur(12px)',
+            color: 'rgba(255,255,255,0.9)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          }}>
+          <div className="text-[12px] font-bold text-white mb-1.5">
+            Site: <span className="text-sky-400">{siteName || 'TX'}</span>
           </div>
-          <div>HBA: <span className="font-semibold text-white/90">{ant.hba}m</span></div>
-          <div>Tilt: <span className="font-semibold text-white/90">{ant.totalTilt}°</span></div>
-          <div>Azimuth: <span className="font-semibold text-white/90">{ant.azimuth}°</span></div>
+          <div className="text-[11px] leading-5">
+            <div>HBA: <span className="font-bold">{ant.hba}m</span></div>
+            <div>Tilt: <span className="font-bold">{ant.totalTilt}°</span></div>
+            <div>Azimuth: <span className="font-bold">{ant.azimuth}°</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* RX Site info panel (like photo - right side) */}
+      {data.length > 1 && ant && (
+        <div className="absolute top-10 right-14 z-10 px-3 py-2 rounded-lg pointer-events-none animate-in fade-in slide-in-from-right-2 duration-500"
+          style={{
+            background: 'rgba(15,23,42,0.8)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(12px)',
+            color: 'rgba(255,255,255,0.9)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          }}>
+          <div className="text-[11px] font-bold text-white mb-0.5">
+            Site: <span className="text-emerald-400">RX</span>
+          </div>
+          <div className="text-[10px]">
+            H: <span className="font-bold">{ant.rxHeight ?? 1.5} m</span>
+          </div>
+        </div>
+      )}
+
+      {/* Fresnel blocked tooltip badge (like photo - dark badge with ⚠) */}
+      {!obstructionPoint && fresnelBlockPoint && (
+        <div className="absolute z-10 pointer-events-none animate-in fade-in zoom-in-95 duration-300"
+          style={{
+            left: '55%',
+            top: '45%',
+            transform: 'translate(-50%, -50%)',
+          }}>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+            style={{
+              background: 'rgba(15,23,42,0.85)',
+              border: '1px solid rgba(251,146,60,0.5)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 4px 20px rgba(251,146,60,0.15)',
+            }}>
+            <span className="text-amber-400 text-sm">⚠</span>
+            <span className="text-amber-400 text-[11px] font-bold">Fresnel blocked</span>
+          </div>
         </div>
       )}
 
@@ -288,16 +342,22 @@ const ProfileChart: React.FC<Props> = ({
               <stop offset="100%" stopColor="rgba(56,189,248,0.02)" />
             </linearGradient>
             <linearGradient id="beamConeGrad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="rgba(56,130,220,0.25)" />
+              <stop offset="0%" stopColor="rgba(56,130,220,0.22)" />
               <stop offset="100%" stopColor="rgba(56,130,220,0.03)" />
             </linearGradient>
             <linearGradient id="fresnelGradGlass" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="rgba(250,204,21,0.18)" />
               <stop offset="100%" stopColor="rgba(250,204,21,0.03)" />
             </linearGradient>
+            {/* Orange glow radial gradient for Fresnel obstruction */}
+            <radialGradient id="fresnelGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="rgba(249,115,22,0.5)" />
+              <stop offset="50%" stopColor="rgba(249,115,22,0.2)" />
+              <stop offset="100%" stopColor="rgba(249,115,22,0)" />
+            </radialGradient>
           </defs>
 
-          <CartesianGrid strokeDasharray="3 6" stroke="rgba(255,255,255,0.08)" vertical={false} />
+          <CartesianGrid strokeDasharray="3 6" stroke="rgba(255,255,255,0.06)" vertical={false} />
 
           <XAxis
             dataKey="distance"
@@ -358,7 +418,7 @@ const ProfileChart: React.FC<Props> = ({
           )}
 
           {/* Terrain fill */}
-          <Area type="monotone" dataKey="terrain" stroke="rgba(56,189,248,0.7)" fill="url(#terrainGradGlass)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+          <Area type="monotone" dataKey="terrain" stroke="rgba(255,255,255,0.85)" fill="url(#terrainGradGlass)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
 
           {/* Raw terrain */}
           {showCurvature && (
@@ -373,7 +433,7 @@ const ProfileChart: React.FC<Props> = ({
             <Line type="monotone" dataKey="clutter" stroke="rgba(251,146,60,0.7)" strokeWidth={1.5} strokeDasharray="5 3" dot={false} isAnimationActive={false} />
           )}
 
-          {/* Fresnel boundaries */}
+          {/* Fresnel boundaries - yellow dashed */}
           {showFresnel && fresnel && (
             <>
               <Line type="monotone" dataKey="fresnelUpper" stroke="rgba(250,204,21,0.5)" strokeWidth={1} strokeDasharray="4 2" dot={false} isAnimationActive={false} />
@@ -381,18 +441,18 @@ const ProfileChart: React.FC<Props> = ({
             </>
           )}
 
-          {/* Beam cone — BLUE (Atoll style) */}
+          {/* Beam cone fill — BLUE semi-transparent (Atoll photo style) */}
           {showTilt && ant && ant.vbw > 0 && (
             <>
               <Area type="monotone" dataKey="tiltConeUpper" stroke="none" fill="url(#beamConeGrad)" dot={false} isAnimationActive={false} connectNulls={false} />
-              <Line type="monotone" dataKey="tiltConeUpper" stroke={beamConeStrokeBlue} strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} connectNulls={false} />
-              <Line type="monotone" dataKey="tiltConeLower" stroke={beamConeStrokeBlue} strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} connectNulls={false} />
+              <Line type="monotone" dataKey="tiltConeUpper" stroke={beamConeStroke} strokeWidth={1} strokeDasharray="4 3" dot={false} isAnimationActive={false} connectNulls={false} />
+              <Line type="monotone" dataKey="tiltConeLower" stroke={beamConeStroke} strokeWidth={1} strokeDasharray="4 3" dot={false} isAnimationActive={false} connectNulls={false} />
             </>
           )}
 
-          {/* Centre beam — BLUE */}
+          {/* Centre beam — green-yellow (like photo) */}
           {showTilt && (
-            <Line type="monotone" dataKey="tiltBeam" stroke={beamCenterBlue} strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
+            <Line type="monotone" dataKey="tiltBeam" stroke={beamCenterStroke} strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
           )}
 
           {/* Remote beam (link mode) */}
@@ -411,23 +471,23 @@ const ProfileChart: React.FC<Props> = ({
             </>
           )}
 
-          {/* LOS line — RED dashed (like Atoll photo) */}
+          {/* LOS line — ORANGE dashed (matching photo exactly) */}
           <Line type="monotone" dataKey="beam" stroke={losLineColor} strokeWidth={2} strokeDasharray="8 4" dot={false} isAnimationActive={false} />
 
           {/* Hidden fields */}
           <Line type="monotone" dataKey="_idx" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
           <Line type="monotone" dataKey="antennaMast" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
 
-          {/* Antenna mast vertical line (terrain → antenna AMSL) */}
+          {/* Antenna mast vertical line (terrain → antenna AMSL) — dashed gray like photo */}
           {data.length > 0 && ant && (
             <ReferenceLine
               segment={[
                 { x: data[0].distance, y: data[0].terrain },
                 { x: data[0].distance, y: ant.antennaAMSL },
               ]}
-              stroke="rgba(56,189,248,0.8)"
-              strokeWidth={2}
-              strokeDasharray="none"
+              stroke="rgba(255,255,255,0.5)"
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
             />
           )}
 
@@ -442,6 +502,17 @@ const ProfileChart: React.FC<Props> = ({
             </ReferenceDot>
           )}
 
+          {/* TX base terrain dot */}
+          {data.length > 0 && (
+            <ReferenceDot x={data[0].distance} y={data[0].terrain} r={4} fill="rgba(56,189,248,0.8)" stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} />
+          )}
+
+          {/* Orange glow at Fresnel obstruction (like photo) */}
+          {!obstructionPoint && fresnelBlockPoint && (
+            <ReferenceDot x={fresnelBlockPoint.distance} y={fresnelBlockPoint.altitude} r={10} fill="rgba(249,115,22,0.6)" stroke="none">
+            </ReferenceDot>
+          )}
+
           {/* LOS obstruction marker */}
           {obstructionPoint && (
             <ReferenceDot x={obstructionPoint.distance} y={obstructionPoint.altitude} r={7} fill="rgba(239,68,68,0.9)" stroke="rgba(255,255,255,0.6)" strokeWidth={2}>
@@ -449,11 +520,9 @@ const ProfileChart: React.FC<Props> = ({
             </ReferenceDot>
           )}
 
-          {/* Fresnel obstruction (only if LOS is clear) */}
-          {!obstructionPoint && firstFresnelBlockIndex !== null && (
-            <ReferenceDot x={data[firstFresnelBlockIndex]?.distance} y={data[firstFresnelBlockIndex]?.terrain} r={6} fill="rgba(251,146,60,0.9)" stroke="rgba(255,255,255,0.6)" strokeWidth={2}>
-              <RLabel value="⚠ Fresnel" position="top" style={{ fontSize: 9, fill: 'rgba(251,146,60,0.9)', fontWeight: 700 }} offset={10} />
-            </ReferenceDot>
+          {/* Fresnel obstruction dot — orange */}
+          {!obstructionPoint && fresnelBlockPoint && (
+            <ReferenceDot x={fresnelBlockPoint.distance} y={fresnelBlockPoint.altitude} r={6} fill="rgba(249,115,22,0.9)" stroke="rgba(255,255,255,0.7)" strokeWidth={2} />
           )}
 
           {/* Ground impact marker */}
@@ -463,7 +532,7 @@ const ProfileChart: React.FC<Props> = ({
             </ReferenceDot>
           )}
 
-          {/* Remote antenna marker (link mode) */}
+          {/* Remote antenna (link mode) */}
           {remoteAntenna && data.length > 1 && (
             <>
               <ReferenceLine
@@ -487,9 +556,12 @@ const ProfileChart: React.FC<Props> = ({
             </ReferenceDot>
           )}
 
-          {/* RX target (non-link mode) */}
+          {/* RX target — green circle with white border (like photo) */}
           {!remoteAntenna && data.length > 1 && ant && (
-            <ReferenceDot x={data[data.length - 1].distance} y={data[data.length - 1].rxLine ?? data[data.length - 1].terrain} r={5} fill="rgba(168,85,247,0.9)" stroke="rgba(255,255,255,0.8)" strokeWidth={2} />
+            <>
+              <ReferenceDot x={data[data.length - 1].distance} y={rxAlt} r={7} fill="rgba(34,197,94,0.9)" stroke="rgba(255,255,255,0.9)" strokeWidth={2.5} />
+              <ReferenceDot x={data[data.length - 1].distance} y={rxAlt} r={3} fill="white" stroke="none" />
+            </>
           )}
         </AreaChart>
       </ResponsiveContainer>
