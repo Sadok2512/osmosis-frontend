@@ -972,8 +972,8 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
             </div>
           )}
 
-          {/* ── Map Rendering, Appearance, Labels (dashboard only) ── */}
-          {dashboardId && (<>
+          {/* ── Map Rendering, Appearance, Labels ── */}
+          {<>
           <div className="p-3 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
             <SectionHeader icon={<MapIcon size={12} className="text-primary" />} title="Map Style" subtitle="Base layer rendering" />
             <div className="grid grid-cols-4 gap-1">
@@ -1070,8 +1070,8 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
             </div>
           </div>
 
-          {/* ── Visibility ── */}
-          <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
+          {/* ── Visibility (dashboard only) ── */}
+          {dashboardId && <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
             <SectionHeader icon={<Network size={12} className="text-primary" />} title="Visibility" subtitle="Dashboard access control" />
             <div className="grid grid-cols-2 gap-1.5">
               {[
@@ -1092,7 +1092,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                 );
               })}
             </div>
-          </div>
+          </div>}
 
           {/* ── Beam Visibility ── */}
           {beamVis != null && onBeamVisChange && (
@@ -1221,7 +1221,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
               )}
             </div>
           )}
-          </>)}
+          </>}
         </div>
 
         {/* ── Sticky Footer ── */}
