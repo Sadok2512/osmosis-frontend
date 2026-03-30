@@ -105,14 +105,24 @@ export function useSitesFilters() {
     }
   }, []);
 
+  const CELL_LEVEL_FILTER_IDS = useMemo(() => new Set([
+    'pci', 'eci', 'nci', 'bande', 'earfcn', 'nrarfcn', 'cid', 'tac',
+    'nom_cellule', 'techno', 'azimut', 'tilt', 'hba', 'etat_cellule', 'essentiel',
+  ]), []);
+
+  const hasCellLevelFilters = useMemo(
+    () => activeFilters.some(f => CELL_LEVEL_FILTER_IDS.has(f.id) && f.selectedValues.length > 0),
+    [activeFilters, CELL_LEVEL_FILTER_IDS],
+  );
+
   const addFilter = useCallback((filterId: string) => {
     const def = filterDefs.find(f => f.id === filterId);
-    if (!def || activeFilters.find(f => f.id === filterId)) return;
-    setActiveFilters(prev => [
-      ...prev,
-      { id: def.id, label: def.label, selectedValues: [] },
-    ]);
-  }, [filterDefs, activeFilters]);
+    if (!def) return;
+    setActiveFilters(prev => {
+      if (prev.find(f => f.id === filterId)) return prev;
+      return [...prev, { id: def.id, label: def.label, selectedValues: [] }];
+    });
+  }, [filterDefs]);
 
   const toggleValue = useCallback((filterId: string, value: string) => {
     setActiveFilters(prev =>
