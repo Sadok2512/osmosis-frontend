@@ -161,35 +161,41 @@ const ProfileChart: React.FC<Props> = ({
   ///////////////////////////////
   const terrainValues = data.map(d => d.terrain);
 
-  // 1. Terrain base
+  // 1. Terrain base (ONLY reference for scaling)
   const terrainMin = Math.min(...terrainValues);
   const terrainMax = Math.max(...terrainValues);
 
-  // 2. Antenna height
+  // 2. Antenna heights (must be visible)
   const antennaAlt = ant?.antennaAMSL ?? terrainMax;
-
-  // 3. Beam impact (if exists)
-  const beamImpactAlt = groundImpact?.altitude ?? terrainMin;
-
-  // 4. Remote antenna (if link mode)
   let remoteAlt = terrainMax;
   if (remoteAntenna && profilePoints.length > 1) {
     const remoteGroundAlt2 = analysis.effectiveTerrain[profilePoints.length - 1];
     remoteAlt = remoteGroundAlt2 + remoteAntenna.hba;
   }
 
-  // 5. Global RF bounds (terrain + antennas + beam impact only — beam path excluded)
-  const rfMin = Math.min(terrainMin, beamImpactAlt);
+  // 3. Scale from terrain + antenna ONLY (beam/cone excluded)
+  const rfMin = terrainMin;
   const rfMax = Math.max(terrainMax, antennaAlt, remoteAlt);
 
-  // 6. Dynamic padding (smart, Atoll-like)
+  // 4. Dynamic padding (10% bottom, 30% top)
   const range = rfMax - rfMin || 50;
-  const bottomPadding = Math.max(5, range * 0.05);
-  const topPadding = Math.max(15, range * 0.25);
+  const bottomPadding = Math.max(5, range * 0.10);
+  const topPadding = Math.max(15, range * 0.30);
 
-  // 7. Final domain
+  // 5. Final domain
   const minAlt = Math.max(0, Math.floor(rfMin - bottomPadding));
   const maxAlt = Math.ceil(rfMax + topPadding);
+
+  // 6. Clamp beam/cone data to chart limits
+  data.forEach(d => {
+    const clampKeys = ['beam', 'tiltBeam', 'tiltConeUpper', 'tiltConeLower', 'remoteTiltBeam', 'remoteConeUpper', 'remoteConeLower', 'fresnelUpper', 'fresnelLower'];
+    for (const k of clampKeys) {
+      if (d[k] != null) {
+        d[k] = Math.min(d[k], maxAlt);
+        d[k] = Math.max(d[k], minAlt);
+      }
+    }
+  });
 
   const handleMouseMove = useCallback((state: any) => {
     if (!onHoverPoint || !state?.activeTooltipIndex) return;
