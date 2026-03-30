@@ -1423,7 +1423,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
