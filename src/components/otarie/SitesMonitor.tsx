@@ -2322,13 +2322,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     return [];
   });
-  // Wrap setSites to also update cache
+  // Wrap setSites to also update cache (cache update deferred to avoid setState-during-render)
   const setSites = useCallback((newSites: SiteSummary[] | ((prev: SiteSummary[]) => SiteSummary[])) => {
     setSitesRaw((prev) => {
       const resolved = typeof newSites === 'function' ? newSites(prev) : newSites;
-      // Cache in store (non-blocking)
+      // Defer cache update outside React's render cycle
       if (resolved.length > 0) {
-        mapCache.setSitesCache(resolved as any, resolved.length, null, null);
+        queueMicrotask(() => mapCache.setSitesCache(resolved as any, resolved.length, null, null));
       }
       return resolved;
     });
@@ -2792,45 +2792,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const bbox = viewport.bounds
         ? `${viewport.bounds.getWest()},${viewport.bounds.getSouth()},${viewport.bounds.getEast()},${viewport.bounds.getNorth()}`
         : '-180,-90,180,90';
-      // Build filter params from active dashboard filters
+      // Parameter overlay fetches ALL matching data in viewport (no dashboard filters)
       const filterParams = new URLSearchParams();
       filterParams.set('param', paramSelected);
       filterParams.set('bbox', bbox);
       filterParams.set('limit', '10000');
-      // Apply dashboard filters to parameter query
-      const effectiveFilters = activeDashboardFilters || {};
-      if (effectiveFilters.dor?.length) filterParams.set('dor', Array.isArray(effectiveFilters.dor) ? effectiveFilters.dor.join(',') : String(effectiveFilters.dor));
-      if (effectiveFilters.constructeur?.length) filterParams.set('constructeur', Array.isArray(effectiveFilters.constructeur) ? effectiveFilters.constructeur.join(',') : String(effectiveFilters.constructeur));
-      if (effectiveFilters.plaque?.length) filterParams.set('plaque', Array.isArray(effectiveFilters.plaque) ? effectiveFilters.plaque.join(',') : String(effectiveFilters.plaque));
-      if (effectiveFilters.techno?.length) filterParams.set('techno', Array.isArray(effectiveFilters.techno) ? effectiveFilters.techno.join(',') : String(effectiveFilters.techno));
-      if (effectiveFilters.bande?.length) filterParams.set('bande', Array.isArray(effectiveFilters.bande) ? effectiveFilters.bande.join(',') : String(effectiveFilters.bande));
-      if (effectiveFilters.zone_arcep?.length) filterParams.set('zone_arcep', Array.isArray(effectiveFilters.zone_arcep) ? effectiveFilters.zone_arcep.join(',') : String(effectiveFilters.zone_arcep));
-      // Apply active view conditions as additional filters
-      if (activeViewConditions.length > 0) {
-        for (const cond of activeViewConditions) {
-          if (cond.values.length === 0) continue;
-          const dim = cond.dimension;
-          const vals = cond.values.join(',');
-          // Map dimension keys to param-map API query params
-          const paramKey = dim === 'constructeur' ? 'constructeur' : dim === 'site_name' ? 'site_name' : dim;
-          // Only set if not already set by dashboard filters (view conditions refine further)
-          if (!filterParams.has(paramKey)) {
-            filterParams.set(paramKey, vals);
-          } else {
-            // Intersect: keep only values present in both
-            const existing = new Set(filterParams.get(paramKey)!.split(','));
-            const intersection = cond.values.filter(v => existing.has(v));
-            if (intersection.length > 0) {
-              filterParams.set(paramKey, intersection.join(','));
-            }
-          }
-        }
-      }
-      // Also apply scope if no explicit filters
-      if (Object.keys(effectiveFilters).length === 0 && activeSiteScope && activeSiteScope.type !== 'ALL' && activeSiteScope.value) {
-        if (activeSiteScope.type === 'DOR') filterParams.set('dor', activeSiteScope.value);
-        else if (activeSiteScope.type === 'Plaque') filterParams.set('plaque', activeSiteScope.value);
-      }
       const paramMapUrl = getVpsProxyUrl('parser', `/api/v1/topo/param-map?${filterParams.toString()}`);
       console.log('[SitesMonitor] param-map request:', { param: paramSelected, bbox, filters: filterParams.toString(), url: paramMapUrl });
       const resp = await fetch(paramMapUrl, {
