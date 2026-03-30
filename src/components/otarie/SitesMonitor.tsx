@@ -4726,7 +4726,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {!paramMode && showSectors && renderSites.map(site => {
+        {!paramMode && !paramPanelOpen && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isTaggedSite = isSiteTagged(site.site_id);
