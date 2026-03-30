@@ -7735,22 +7735,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     { label: 'Site ID', value: siteDetail.site_id },
                     { label: 'Vendor', value: siteDetail.vendor },
                     { label: 'Coordinates', value: `${siteDetail.coordinates[0].toFixed(5)}, ${siteDetail.coordinates[1].toFixed(5)}` },
-                    { label: 'Altitude (HBA)', value: siteDetail.cells[0]?.hba != null ? `${siteDetail.cells[0].hba} m AGL` : '—' },
-                    { label: 'Total Cells', value: `${siteDetail.cell_count}` },
+                    { label: 'Altitude (HBA)', value: filteredCells[0]?.hba != null ? `${filteredCells[0].hba} m AGL` : '—' },
+                    { label: 'Total Cells', value: `${filteredCells.length}${filteredCells.length !== siteDetail.cell_count ? ` / ${siteDetail.cell_count}` : ''}` },
                     { label: 'Sectors', value: `${sortedSectors.length}` },
                     { label: 'Technologies', value: techBadgeStr },
                     { label: 'Terrain Type', value: (() => {
                       const lat = siteDetail.coordinates[0];
-                      const hba = siteDetail.cells[0]?.hba ?? 30;
+                      const hba = filteredCells[0]?.hba ?? 30;
                       if (hba >= 40) return 'Dense Urban';
                       if (hba >= 25) return 'Urban';
                       if (hba >= 15) return 'Suburban';
                       return 'Rural';
                     })() },
                     { label: 'Profile', value: (() => {
-                      const hba = siteDetail.cells[0]?.hba ?? 30;
-                      const bands = [...new Set(siteDetail.cells.map(c => c.bande))];
-                      const has5G = siteDetail.cells.some(c => getCellTechGroup(c.techno) === '5G');
+                      const hba = filteredCells[0]?.hba ?? 30;
+                      const bands = [...new Set(filteredCells.map(c => c.bande))];
+                      const has5G = filteredCells.some(c => getCellTechGroup(c.techno) === '5G');
                       if (has5G && hba >= 30) return 'Macro 5G/4G Co-located';
                       if (has5G) return 'Small Cell 5G + Macro 4G';
                       if (bands.length >= 4) return 'Macro Multi-Band 4G';
