@@ -7327,7 +7327,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {/* Band Distribution */}
                 <div className="px-5 py-4">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Bandes</h4>
-                  {Object.keys(bandMap4G).length > 0 && (
+                  {show4G && Object.keys(bandMap4G).length > 0 && (
                     <div className="mb-3">
                       <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>LTE (4G)</div>
                       {Object.entries(bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
@@ -7339,7 +7339,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       ))}
                     </div>
                   )}
-                  {Object.keys(bandMap5G).length > 0 && (
+                  {show5G && Object.keys(bandMap5G).length > 0 && (
                     <div>
                       <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#22c55e' }}>NR (5G)</div>
                       {Object.entries(bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
@@ -7356,21 +7356,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {/* Vendor Distribution */}
                 <div className="px-5 py-4">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Constructeurs</h4>
-                  {Object.entries(vendorMap).sort((a, b) => (b[1]['4G'] + b[1]['5G']) - (a[1]['4G'] + a[1]['5G'])).map(([vendor, counts]) => (
-                    <div key={vendor} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
-                      <span className="text-[11px] font-bold text-foreground flex-1 capitalize">{vendor}</span>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <span className="text-[9px] text-muted-foreground">4G </span>
-                          <span className="text-[10px] font-black text-foreground">{counts['4G']}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[9px] text-muted-foreground">5G </span>
-                          <span className="text-[10px] font-black text-primary">{counts['5G']}</span>
+                  {Object.entries(vendorMap).sort((a, b) => (b[1]['4G'] + b[1]['5G']) - (a[1]['4G'] + a[1]['5G'])).map(([vendor, counts]) => {
+                    const v4g = show4G ? counts['4G'] : 0;
+                    const v5g = show5G ? counts['5G'] : 0;
+                    if (v4g === 0 && v5g === 0) return null;
+                    return (
+                      <div key={vendor} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
+                        <span className="text-[11px] font-bold text-foreground flex-1 capitalize">{vendor}</span>
+                        <div className="flex items-center gap-3">
+                          {show4G && (
+                            <div className="text-right">
+                              <span className="text-[9px] text-muted-foreground">4G </span>
+                              <span className="text-[10px] font-black text-foreground">{v4g}</span>
+                            </div>
+                          )}
+                          {show5G && (
+                            <div className="text-right">
+                              <span className="text-[9px] text-muted-foreground">5G </span>
+                              <span className="text-[10px] font-black text-primary">{v5g}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
