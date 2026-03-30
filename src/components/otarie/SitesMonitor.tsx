@@ -3604,52 +3604,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         });
 
       // Apply advanced view conditions (from ViewFilterBuilder)
-      const CELL_LEVEL_DIMS = new Set(['eci', 'pci', 'nci', 'cid', 'tac', 'nom_cellule', 'bande', 'techno', 'azimut', 'tilt', 'hba', 'etat_cellule', 'essentiel']);
-      const NUMERIC_DIMS = new Set(['eci', 'pci', 'nci', 'cid', 'tac', 'azimut', 'tilt', 'hba']);
-      const matchesViewConditions = activeViewConditions.length === 0 || activeViewConditions.every(cond => {
-        if (cond.values.length === 0) return true;
-        const dimKey = cond.dimension;
-        let siteVal: string | undefined;
-        let cellVals: string[] = [];
-        // Site-level fields
-        if (dimKey === 'site_name') siteVal = String(s.site_name ?? '');
-        else if (dimKey === 'code_nidt') siteVal = String((s as any).code_nidt ?? s.site_id ?? '');
-        else siteVal = String((s as any)[dimKey] ?? '');
-        // Cell-level fields
-        if (siteCells.length > 0) {
-          cellVals = siteCells.map(c => String((c as any)[dimKey] ?? '')).filter(Boolean);
-        } else if (CELL_LEVEL_DIMS.has(dimKey)) {
-          // If cell loading was attempted but returned nothing → exclude
-          if (cellLoadAttemptedRef.current.has(s.site_id)) return false;
-          // Cells not loaded yet — don't exclude this site (pass through temporarily)
-          return true;
-        }
-        const allVals = [siteVal, ...cellVals].filter(Boolean).map(v => v.trim().toLowerCase());
-        if (allVals.length === 0) return false;
-        const condVals = cond.values.map(v => v.trim().toLowerCase());
-
-        if (cond.operator === 'IN' || cond.operator === '=') {
-          // For numeric dimensions (PCI, ECI, etc.), use strict exact matching only
-          if (NUMERIC_DIMS.has(dimKey)) {
-            return condVals.some(cv => allVals.some(av => av === cv));
-          }
-          return condVals.some(cv => allVals.some(av => av === cv || av.includes(cv) || cv.includes(av)));
-        } else if (cond.operator === 'NOT_IN') {
-          return !condVals.some(cv => allVals.some(av => av === cv));
-        } else {
-          // Numeric comparison
-          const numVal = cellVals.length > 0 ? parseFloat(cellVals[0]) : parseFloat(siteVal || '');
-          const threshold = parseFloat(cond.values[0]);
-          if (isNaN(numVal) || isNaN(threshold)) return false;
-          switch (cond.operator) {
-            case '>': return numVal > threshold;
-            case '>=': return numVal >= threshold;
-            case '<': return numVal < threshold;
-            case '<=': return numVal <= threshold;
-            default: return true;
-          }
-        }
-      });
+      const viewResult = siteMatchesViewConditions(
+        s,
+        siteCells,
+        activeViewConditions,
+        cellLoadAttemptedRef.current.has(s.site_id),
+      );
+      // 'pending' means cells not loaded yet — temporary pass-through
+      const matchesViewConditions = viewResult === 'pending' ? true : viewResult;
       
       return matchesSearch && matchesDor && matchesPlaque && matchesVendor && matchesDep && matchesRat && matchesLocalVendor && matchesLocalDor && matchesLocalPlaque && matchesLocalBande && matchesLocalZoneArcep && matchesLocalTechno && matchesQoeFilters && matchesViewConditions;
     });
