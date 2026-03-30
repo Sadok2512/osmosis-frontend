@@ -1837,7 +1837,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               const activeView = activeViewId ? mapViews.find(v => v.id === activeViewId) : null;
               const viewFilters = activeView?.settings?.siteFilters || null;
               const merged = mergeSiteFilters(dbFilters, viewFilters);
-              const entries = Object.entries(merged).filter(([, v]) => v && (v as string[]).length > 0);
+              const entries = Object.entries(merged).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v));
               if (entries.length === 0) return null;
               return (
                 <div className="flex flex-wrap gap-1 mt-1">
