@@ -175,6 +175,8 @@ const ProfileChart: React.FC<Props> = ({
       if (showFresnel && fresnel) {
         entry.fresnelUpper = clampNumber(Math.round(fresnel.fresnelUpperBound[i] * 10) / 10, yMin, yMax);
         entry.fresnelLower = clampNumber(Math.round(fresnel.fresnelLowerBound[i] * 10) / 10, yMin, yMax);
+        // Band height for stacked area rendering
+        entry.fresnelBand = Math.max(0, entry.fresnelUpper - entry.fresnelLower);
       }
 
       // LOS line (orange dashed like photo)
@@ -360,10 +362,15 @@ const ProfileChart: React.FC<Props> = ({
               <stop offset="0%" stopColor="rgba(56,130,220,0.22)" />
               <stop offset="100%" stopColor="rgba(56,130,220,0.03)" />
             </linearGradient>
-            <linearGradient id="fresnelGradGlass" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(250,204,21,0.45)" />
+            <linearGradient id="fresnelGradGlass" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="rgba(250,204,21,0.5)" />
+              <stop offset="50%" stopColor="rgba(250,180,21,0.35)" />
+              <stop offset="100%" stopColor="rgba(250,204,21,0.15)" />
+            </linearGradient>
+            <linearGradient id="fresnelBandGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="rgba(250,204,21,0.4)" />
               <stop offset="50%" stopColor="rgba(250,180,21,0.25)" />
-              <stop offset="100%" stopColor="rgba(250,204,21,0.08)" />
+              <stop offset="100%" stopColor="rgba(250,204,21,0.1)" />
             </linearGradient>
             {/* Orange glow radial gradient for Fresnel obstruction */}
             <radialGradient id="fresnelGlow" cx="50%" cy="50%" r="50%">
@@ -401,7 +408,7 @@ const ProfileChart: React.FC<Props> = ({
               fontSize: 11, color: 'rgba(255,255,255,0.9)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
             }}
             formatter={(value: number, name: string) => {
-              if (name === '_idx' || name === 'antennaMast') return [null, null];
+              if (name === '_idx' || name === 'antennaMast' || name === 'fresnelBand') return [null, null];
               const labels: Record<string, string> = {
                 terrain: 'Terrain eff.', beam: 'LOS (TX→RX)', rawTerrain: 'Terrain brut',
                 rxLine: `RX (${ant?.rxHeight ?? 1.5}m)`, clutter: 'Terrain+Clutter',
@@ -417,7 +424,7 @@ const ProfileChart: React.FC<Props> = ({
           <Legend
             wrapperStyle={{ fontSize: 10, opacity: 0.7 }}
             formatter={(value: string) => {
-              if (value === '_idx' || value === 'antennaMast') return null;
+              if (value === '_idx' || value === 'antennaMast' || value === 'fresnelBand') return null;
               const labels: Record<string, string> = {
                 terrain: 'Terrain', beam: 'LOS', rawTerrain: 'Terrain brut', rxLine: 'Hauteur RX',
                 clutter: 'Clutter', fresnelUpper: 'Fresnel F1', fresnelLower: 'Fresnel F1',
@@ -428,9 +435,14 @@ const ProfileChart: React.FC<Props> = ({
             }}
           />
 
-          {/* Fresnel zone fill */}
+          {/* Fresnel zone — rendered as stacked band between lower and upper */}
           {showFresnel && fresnel && (
-            <Area type="monotone" dataKey="fresnelUpper" stroke="none" fill="url(#fresnelGradGlass)" dot={false} isAnimationActive={false} />
+            <>
+              {/* Invisible base: fresnelLower (transparent fill, no stroke) */}
+              <Area type="monotone" dataKey="fresnelLower" stackId="fresnel" stroke="none" fill="transparent" dot={false} isAnimationActive={false} />
+              {/* Visible band: fresnelBand stacked on top of lower */}
+              <Area type="monotone" dataKey="fresnelBand" stackId="fresnel" stroke="none" fill="url(#fresnelBandGrad)" dot={false} isAnimationActive={false} />
+            </>
           )}
 
           {/* Terrain fill */}
