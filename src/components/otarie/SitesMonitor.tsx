@@ -7697,7 +7697,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <h5 className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest mb-2">
                         Sector Tilt Delta Analysis
                       </h5>
-                      <Tabs defaultValue={defaultSector} className="w-full">
+                      <Tabs defaultValue={String(defaultSector)} className="w-full">
                         <TabsList className="w-full h-auto p-1 bg-muted/50 rounded-xl flex gap-1">
                           {sortedSectors.map(([sNum, cells]) => (
                             <TabsTrigger key={sNum} value={sNum} className="flex-1 text-[11px] font-bold py-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
