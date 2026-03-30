@@ -100,33 +100,47 @@ const InfoPanel: React.FC<Props> = ({ analysis, totalDistance, enableCurvature, 
       )}
 
       {/* Fresnel status */}
-      {fresnel && (
-        <div
-          className="flex items-center gap-3 p-3 rounded-2xl border transition-all duration-300 hover:scale-[1.01]"
-          style={{
-            background: fresnel.isClearFresnel ? 'rgba(56,189,248,0.06)' : 'rgba(251,191,36,0.08)',
-            borderColor: fresnel.isClearFresnel ? 'rgba(56,189,248,0.15)' : 'rgba(251,191,36,0.2)',
-            backdropFilter: 'blur(8px)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-          }}
-        >
-          {fresnel.isClearFresnel
-            ? <CircleDot className="w-4 h-4 text-sky-400 shrink-0" />
-            : <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-          }
-          <div>
-            <div className={`text-[11px] font-bold ${fresnel.isClearFresnel ? 'text-sky-400' : 'text-amber-400'}`}>
-              {fresnel.isClearFresnel ? 'Fresnel F1 dégagé' : `Intrusion Fresnel: ${fresnel.maxIntrusionPercent}%`}
-            </div>
-            <div className="text-[10px] text-white/35">
-              {fresnel.isClearFresnel
-                ? `Intrusion max: ${fresnel.maxIntrusionPercent}% (<40%)`
-                : `Seuil 40% dépassé — dégradation signal`
-              }
+      {fresnel && (() => {
+        const pct = fresnel.maxIntrusionPercent;
+        const isClear = fresnel.isClearFresnel;
+        const isCritical = !isClear && pct > 100;
+        const isWarning = !isClear && !isCritical;
+        const bgColor = isClear ? 'rgba(56,189,248,0.06)' : isCritical ? 'rgba(239,68,68,0.12)' : 'rgba(251,191,36,0.08)';
+        const borderColor = isClear ? 'rgba(56,189,248,0.15)' : isCritical ? 'rgba(239,68,68,0.35)' : 'rgba(251,191,36,0.2)';
+        const textColor = isClear ? 'text-sky-400' : isCritical ? 'text-red-400' : 'text-amber-400';
+        const iconColor = isClear ? 'text-sky-400' : isCritical ? 'text-red-400' : 'text-amber-400';
+        return (
+          <div
+            className="flex items-center gap-3 p-3 rounded-2xl border transition-all duration-300 hover:scale-[1.01]"
+            style={{
+              background: bgColor,
+              borderColor,
+              backdropFilter: 'blur(8px)',
+              boxShadow: isCritical
+                ? '0 0 16px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.04)'
+                : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+            }}
+          >
+            {isClear
+              ? <CircleDot className={`w-4 h-4 ${iconColor} shrink-0`} />
+              : <AlertTriangle className={`w-5 h-5 ${iconColor} shrink-0 ${isCritical ? 'animate-pulse' : ''}`} />
+            }
+            <div className="flex-1">
+              <div className={`font-bold ${textColor} ${isCritical ? 'text-[13px]' : 'text-[11px]'}`}>
+                {isClear ? 'Fresnel F1 dégagé' : `Intrusion Fresnel: ${pct}%`}
+              </div>
+              <div className="text-[10px] text-white/40">
+                {isClear
+                  ? `Intrusion max: ${pct}% (<40%)`
+                  : isCritical
+                    ? `⛔ Obstruction majeure — liaison fortement dégradée`
+                    : `Seuil 40% dépassé — dégradation signal`
+                }
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Antenna Info — glass card */}
       <div
