@@ -3386,13 +3386,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
-  const viewportGuardRef = useRef(false);
+  const viewportGuardRef = useRef(0);
   const handleViewportChange = useCallback((v: ViewportState) => {
-    // Guard: break moveend → setViewport → re-render → moveend infinite loop
-    if (viewportGuardRef.current) return;
-    viewportGuardRef.current = true;
+    // Throttle: allow max one viewport update per 100ms to prevent infinite loop
+    // while still allowing zoom/pan interactions
+    const now = Date.now();
+    if (now - viewportGuardRef.current < 100) return;
+    viewportGuardRef.current = now;
     setViewport(v);
-    requestAnimationFrame(() => { viewportGuardRef.current = false; });
     // Cache map position (non-blocking)
     if (v.bounds) {
       const c = v.bounds.getCenter?.();
