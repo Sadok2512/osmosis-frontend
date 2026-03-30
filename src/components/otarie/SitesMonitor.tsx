@@ -3617,16 +3617,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (siteCells.length > 0) {
           cellVals = siteCells.map(c => String((c as any)[dimKey] ?? '')).filter(Boolean);
         } else if (CELL_LEVEL_DIMS.has(dimKey)) {
-          // Cells not loaded yet — EXCLUDE site (strict filtering)
-          // This prevents showing all sites when cell data isn't available
-          return false;
+          // Cells not loaded yet — don't exclude this site (pass through)
+          return true;
         }
         const allVals = [siteVal, ...cellVals].filter(Boolean).map(v => v.trim().toLowerCase());
         if (allVals.length === 0) return false;
         const condVals = cond.values.map(v => v.trim().toLowerCase());
 
         if (cond.operator === 'IN' || cond.operator === '=') {
-          // For numeric dimensions, use strict exact matching (no substring)
+          // For numeric dimensions (PCI, ECI, etc.), use strict exact matching only
           if (NUMERIC_DIMS.has(dimKey)) {
             return condVals.some(cv => allVals.some(av => av === cv));
           }
