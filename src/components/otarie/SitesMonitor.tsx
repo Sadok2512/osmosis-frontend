@@ -1221,7 +1221,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
               )}
             </div>
           )}
-          </>)}
+          </>}
         </div>
 
         {/* ── Sticky Footer ── */}
