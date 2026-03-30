@@ -7714,20 +7714,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         </TabsList>
                         {sortedSectors.map(([sNum, cells]) => (
                           <TabsContent key={sNum} value={String(sNum)} className="mt-2">
-                            <div className="divide-y divide-border/40">
-                              {cells.map((c) => {
-                                const eTilt = (c as any).tilt as number | null;
-                                return (
-                                  <div key={c.cell_id} className="flex items-center py-2.5 gap-3">
-                                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: getBandColor(c.bande, c.techno) }} />
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-[11px] font-semibold text-foreground truncate">{c.cell_id}</div>
-                                      <div className="text-[9px] text-muted-foreground">{c.techno} • {c.bande} • Az {c.azimut ?? '—'}° • Tilt {eTilt ?? '—'}°</div>
+                            <div className="rounded-lg border border-border overflow-hidden bg-card">
+                              {/* Table header */}
+                              <div className="grid grid-cols-[1fr_50px_70px_45px_45px] gap-1 px-3 py-2 bg-muted/40 border-b border-border">
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Cell</span>
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Tech</span>
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Band</span>
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Az°</span>
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Tilt°</span>
+                              </div>
+                              {/* Rows */}
+                              <div className="divide-y divide-border/30">
+                                {cells.map((c) => {
+                                  const eTilt = (c as any).tilt as number | null;
+                                  return (
+                                    <div key={c.cell_id} className="grid grid-cols-[1fr_50px_70px_45px_45px] gap-1 px-3 py-2 items-center hover:bg-muted/20 transition-colors">
+                                      <span className="text-[11px] font-semibold text-foreground truncate">{c.cell_id}</span>
+                                      <span className="text-[10px] font-bold text-center" style={{ color: c.techno === '5G' ? '#22c55e' : '#f97316' }}>{c.techno}</span>
+                                      <span className="text-[10px] text-muted-foreground text-center">{c.bande}</span>
+                                      <span className="text-[10px] font-semibold text-foreground text-center">{c.azimut ?? '—'}°</span>
+                                      <span className="text-[10px] font-semibold text-foreground text-center">{eTilt ?? '—'}°</span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-muted-foreground shrink-0">S{sNum}</span>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
                           </TabsContent>
                         ))}
