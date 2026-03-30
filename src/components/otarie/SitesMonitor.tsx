@@ -1706,6 +1706,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const handleDeleteView = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await mapViewsApi.remove(id);
+    // Clear any filters that were applied by this view
+    if (onApplyView) {
+      onApplyView({ viewFilters: [], viewConditions: [], mapLabelFields: undefined });
+    }
     fetchAll();
   };
 
