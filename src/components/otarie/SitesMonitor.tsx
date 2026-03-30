@@ -2731,7 +2731,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         });
         const data = await resp.json();
         if (Array.isArray(data) && data.length > 0) {
-          setParamAvailable(data.map((r: any) => r.name).filter(Boolean).sort());
+          // Support both string[] and {name:string}[] formats
+          const names = data.map((r: any) => typeof r === 'string' ? r : r.name).filter(Boolean);
+          console.log('[SitesMonitor] param-list loaded:', names.length, 'params');
+          setParamAvailable(names.sort());
           loaded = true;
         }
       } catch (err) { console.warn('[SitesMonitor] paramAvailable VPS fetch failed', err); }
@@ -2768,7 +2771,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         });
         const data = await resp.json();
         if (Array.isArray(data)) {
-          const newNames = data.map((r: any) => r.name).filter(Boolean);
+          const newNames = data.map((r: any) => typeof r === 'string' ? r : r.name).filter(Boolean);
           setParamAvailable(prev => {
             const merged = [...new Set([...prev, ...newNames])].sort();
             return merged;
@@ -2832,7 +2835,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         headers: getVpsProxyHeaders(),
       });
       const data = await resp.json();
-      if (data.sites) {
+      console.log('[SitesMonitor] param-map response:', { total_sites: data.total_sites, total_values: data.total_values, sites_len: data.sites?.length, error: data.error, unavailable: data.unavailable });
+      if (data.sites && data.sites.length > 0) {
         const points: any[] = [];
         let id = 0;
         for (const site of data.sites) {
