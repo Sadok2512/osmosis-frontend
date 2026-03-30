@@ -4344,7 +4344,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         )}
 
         {/* Points mode — individual cell markers */}
-        {!paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
+        {!paramMode && !paramPanelOpen && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const cellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled);
           return (
