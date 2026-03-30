@@ -8271,12 +8271,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <span className="text-muted-foreground">Az {cell.azimut}°</span>
                       </div>
                     </div>
-                    <div className="text-right shrink-0 min-w-[60px]">
-                      <div className="text-[20px] font-black leading-none" style={{ color: getKpiColor(cell.qoe_score_avg) }}>
-                        {(cell.qoe_score_avg ?? 0).toFixed(1)}%
-                      </div>
-                      <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-0.5">QoE</div>
-                    </div>
                   </div>
                 </div>
 
