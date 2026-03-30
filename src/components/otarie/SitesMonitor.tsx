@@ -1380,6 +1380,25 @@ export interface DashboardSiteFilters {
   saisonnier?: string[];
 }
 
+/** Merge two DashboardSiteFilters with AND logic (intersection for same keys) */
+function mergeSiteFilters(dashboardFilters: DashboardSiteFilters | null, viewFilters: DashboardSiteFilters | null): DashboardSiteFilters {
+  if (!dashboardFilters || Object.keys(dashboardFilters).length === 0) return viewFilters || {};
+  if (!viewFilters || Object.keys(viewFilters).length === 0) return dashboardFilters;
+  const merged: DashboardSiteFilters = { ...dashboardFilters };
+  for (const [key, viewVals] of Object.entries(viewFilters)) {
+    if (!viewVals || viewVals.length === 0) continue;
+    const dashVals = (merged as any)[key];
+    if (dashVals && dashVals.length > 0) {
+      // Intersection: keep only values present in both
+      const intersection = dashVals.filter((v: string) => viewVals.includes(v));
+      (merged as any)[key] = intersection.length > 0 ? intersection : viewVals; // If empty intersection, use view (will show no results)
+    } else {
+      (merged as any)[key] = viewVals;
+    }
+  }
+  return merged;
+}
+
 interface DashboardInventoryTabProps {
   onApplyView?: (settings: any) => void;
   onDashboardActiveChange?: (active: boolean, scope?: SiteScope | null, siteFilters?: DashboardSiteFilters | null) => void;
@@ -1391,6 +1410,8 @@ interface DashboardInventoryTabProps {
   backendFilterDefs?: FilterDefinition[];
   activeDashboardId: string | null;
   onActiveDashboardIdChange: (id: string | null) => void;
+  activeViewId: string | null;
+  onActiveViewIdChange: (id: string | null) => void;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
@@ -1402,7 +1423,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -1455,6 +1476,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const requestDashboardSwitch = (newId: string | null) => {
     setExpandedDashboardId(newId);
+    // Reset active view when switching dashboard
+    onActiveViewIdChange(null);
     if (newId && onApplyView) {
       const db = dashboards.find(d => d.id === newId);
       if (db) {
@@ -1706,9 +1729,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const handleDeleteView = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await mapViewsApi.remove(id);
-    // Clear any filters that were applied by this view
-    if (onApplyView) {
-      onApplyView({ viewFilters: [], viewConditions: [], mapLabelFields: undefined });
+    // Reset active view and revert to dashboard-only filters
+    onActiveViewIdChange(null);
+    if (onApplyView && expandedDashboardId) {
+      const db = dashboards.find(d => d.id === expandedDashboardId);
+      if (db) {
+        const dbSettings = getDashboardSettings(db);
+        onApplyView({ ...dbSettings, _viewId: null, _isDashboardOnly: true });
+      }
     }
     fetchAll();
   };
@@ -1731,9 +1759,15 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   };
 
   // Resolve effective settings for a view (dashboard parent + view overrides)
+  // siteFilters are MERGED with AND logic (intersection)
   const getEffectiveViewSettings = (view: any, dbSettings: any) => {
     const vs = typeof view.settings === 'object' ? view.settings : {};
+    const dbSiteFilters = dbSettings.siteFilters || null;
+    const viewSiteFilters = vs.siteFilters || null;
+    const mergedSiteFilters = mergeSiteFilters(dbSiteFilters, viewSiteFilters);
     return {
+      _viewId: view.id,
+      _isDashboardOnly: false,
       mapLayer: vs.mapLayer || dbSettings.mapLayer || 'street',
       mapStyle: vs.mapStyle || dbSettings.mapStyle || vs.mapLayer || dbSettings.mapLayer || 'street',
       themeMode: vs.themeMode || dbSettings.themeMode || 'light',
@@ -1741,7 +1775,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       color: vs.color || dbSettings.color || '',
       center: vs.center || dbSettings.center,
       zoom: vs.zoom || dbSettings.zoom,
-      siteFilters: vs.siteFilters || dbSettings.siteFilters || null,
+      siteFilters: mergedSiteFilters,
+      viewFilters: vs.viewFilters || dbSettings.viewFilters || [],
+      viewConditions: vs.viewConditions || [],
+      mapLabelFields: vs.mapLabelFields || dbSettings.mapLabelFields,
     };
   };
 
@@ -1793,6 +1830,30 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         return activeName ? (
           <div className="px-2 mb-2">
             <span className="text-[11px] font-bold text-primary truncate block">{activeName}</span>
+            {/* Active filters summary */}
+            {(() => {
+              const db = dashboards.find(d => d.id === expandedDashboardId);
+              const dbFilters = db ? extractSiteFilters(db) : null;
+              const activeView = activeViewId ? mapViews.find(v => v.id === activeViewId) : null;
+              const viewFilters = activeView?.settings?.siteFilters || null;
+              const merged = mergeSiteFilters(dbFilters, viewFilters);
+              const entries = Object.entries(merged).filter(([, v]) => v && (v as string[]).length > 0);
+              if (entries.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {entries.map(([key, vals]) => (
+                    <span key={key} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-[8px] font-semibold text-primary border border-primary/10">
+                      {key.toUpperCase()}: {(vals as string[]).join(', ')}
+                    </span>
+                  ))}
+                  {activeView && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-accent/20 text-[8px] font-semibold text-accent-foreground border border-accent/20">
+                      Vue: {activeView.name}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         ) : null;
       })()}
@@ -2112,18 +2173,31 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         const hasOwnSettings = vs.mapLayer || vs.mapKpi || vs.color;
                         const condCount = Array.isArray(vs.viewConditions) ? vs.viewConditions.length : 0;
 
+                          const isViewActive = activeViewId === view.id;
+
                         return (
-                          <div key={view.id} className="rounded-lg border border-border/60 bg-card hover:border-primary/30 transition-all overflow-hidden">
+                          <div key={view.id} className={`rounded-lg border overflow-hidden transition-all ${isViewActive ? 'border-primary/60 ring-1 ring-primary/20 bg-primary/[0.04]' : 'border-border/60 bg-card hover:border-primary/30'}`}>
                             <div
-                              className="flex items-center gap-2 px-2.5 py-2 cursor-pointer"
+                              className={`flex items-center gap-2 px-2.5 py-2 cursor-pointer ${isViewActive ? 'bg-primary/5' : ''}`}
                               style={viewColor ? { borderLeft: `3px solid ${viewColor}` } : undefined}
-                              onClick={() => { if (onApplyView) onApplyView(eff); }}
+                              onClick={() => {
+                                onActiveViewIdChange(isViewActive ? null : view.id);
+                                if (onApplyView) {
+                                  if (isViewActive) {
+                                    // Deactivate view → revert to dashboard-only filters
+                                    onApplyView({ ...getDashboardSettings(dashboards.find(d => d.id === expandedDashboardId) || {}), _viewId: null, _isDashboardOnly: true });
+                                  } else {
+                                    onApplyView(eff);
+                                  }
+                                }
+                              }}
                             >
                               <MapIcon size={12} className="text-primary shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   {view.is_default && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
-                                  <span className="text-[11px] font-semibold text-foreground truncate">{view.name}</span>
+                                  <span className={`text-[11px] font-semibold truncate ${isViewActive ? 'text-primary font-bold' : 'text-foreground'}`}>{view.name}</span>
+                                  {isViewActive && <span className="text-[7px] px-1 py-0.5 rounded bg-primary/15 text-primary font-bold uppercase">actif</span>}
                                   {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
                                   {condCount > 0 && <span className="text-[7px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold">{condCount} filtre{condCount > 1 ? 's' : ''}</span>}
                                 </div>
@@ -2568,8 +2642,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
     try { return localStorage.getItem('qoebit_active_dashboard_id') || null; } catch { return null; }
   });
+  const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const setActiveDashboardId = useCallback((id: string | null) => {
     _setActiveDashboardId(id);
+    // Reset active view when switching dashboard
+    setActiveViewId(null);
     try {
       if (id) localStorage.setItem('qoebit_active_dashboard_id', id);
       else localStorage.removeItem('qoebit_active_dashboard_id');
@@ -6812,12 +6889,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                <div style={{ display: inventoryTab === 'dashboard' ? 'contents' : 'none' }}>
                 <DashboardInventoryTab
                   onApplyView={(settings) => {
+                    // Track view activation
+                    if (settings._viewId) {
+                      setActiveViewId(settings._viewId);
+                    } else if (settings._isDashboardOnly) {
+                      setActiveViewId(null);
+                    }
+
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
                     if (settings.mapKpi) setMapKpi(settings.mapKpi);
                     if (settings.center && Array.isArray(settings.center)) {
                       if (settings.center && (settings.center as [number, number])[0] > 41 && (settings.center as [number, number])[0] < 52) setFlyTarget(settings.center as [number, number]);
                     }
-                    // Apply site filters from dashboard
+
+                    // Reset all local filters first, then apply merged siteFilters
+                    setLocalDor('ALL');
+                    setLocalVendor('ALL');
+                    setLocalPlaque('ALL');
+                    setLocalBande('ALL');
+                    setLocalTechno('ALL');
+                    setLocalZoneArcep('ALL');
+
+                    // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
                     if (settings.siteFilters && Object.keys(settings.siteFilters).length > 0) {
                       const sf = settings.siteFilters as DashboardSiteFilters;
                       if (sf.dor?.length) setLocalDor(sf.dor[0]);
@@ -6847,14 +6940,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         }
                       }
                     } else {
-                      // View deleted or no filters — reset all local filters to defaults
                       setActiveViewFilters([]);
-                      setLocalDor('ALL');
-                      setLocalVendor('ALL');
-                      setLocalPlaque('ALL');
-                      setLocalBande('ALL');
-                      setLocalTechno('ALL');
-                      setLocalZoneArcep('ALL');
                     }
                     // Apply advanced view conditions
                     if (Array.isArray(settings.viewConditions) && settings.viewConditions.length > 0) {
@@ -6901,6 +6987,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     setLocalBande('ALL');
                     setLocalZoneArcep('ALL');
                     setLocalTechno('ALL');
+                    // Reset active view on dashboard switch
+                    setActiveViewId(null);
                     if (!active) {
                       setSites([]);
                       setActiveDashboardId(null);
@@ -6926,6 +7014,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   backendFilterDefs={backendFilterDefs}
                   activeDashboardId={activeDashboardId}
                   onActiveDashboardIdChange={setActiveDashboardId}
+                  activeViewId={activeViewId}
+                  onActiveViewIdChange={setActiveViewId}
                 />
                </div>
               </>
