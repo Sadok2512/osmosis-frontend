@@ -3890,8 +3890,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
-        // Clear loading flags
-        sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
+        // Mark all as attempted (whether cells found or not) and clear loading flags
+        sitesNeedingCells.forEach(s => {
+          cellLoadingRef.current.delete(s.site_id);
+          cellLoadAttemptedRef.current.add(s.site_id);
+        });
 
         if (cellMap.size > 0) {
           setSites(prev => prev.map(s => {
