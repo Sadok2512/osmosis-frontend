@@ -2612,8 +2612,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
     try { return localStorage.getItem('qoebit_active_dashboard_id') || null; } catch { return null; }
   });
+  const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const setActiveDashboardId = useCallback((id: string | null) => {
     _setActiveDashboardId(id);
+    // Reset active view when switching dashboard
+    setActiveViewId(null);
     try {
       if (id) localStorage.setItem('qoebit_active_dashboard_id', id);
       else localStorage.removeItem('qoebit_active_dashboard_id');
