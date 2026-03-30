@@ -156,47 +156,37 @@ const ProfileChart: React.FC<Props> = ({
     altitude: data[analysis.obstructionIndex]?.terrain,
   } : null;
 
-  // Primary values: terrain drives the Y-axis range
+  // Terrain values drive the base range
   const terrainValues = data.flatMap(d => [d.terrain, d.rawTerrain].filter(v => v != null));
-  // Secondary values: antenna markers, beams, etc — included but capped to avoid extreme compression
-  const secondaryValues: number[] = [];
-  data.forEach(d => {
-    if (d.rxLine != null) secondaryValues.push(d.rxLine);
-    if (d.clutter != null) secondaryValues.push(d.clutter);
-    if (d.fresnelUpper != null) secondaryValues.push(d.fresnelUpper);
-    if (d.fresnelLower != null) secondaryValues.push(d.fresnelLower);
-    if (d.tiltBeam != null) secondaryValues.push(d.tiltBeam);
-    if (d.tiltConeUpper != null) secondaryValues.push(d.tiltConeUpper);
-    if (d.tiltConeLower != null) secondaryValues.push(d.tiltConeLower);
-    if (d.remoteTiltBeam != null) secondaryValues.push(d.remoteTiltBeam);
-    if (d.remoteConeUpper != null) secondaryValues.push(d.remoteConeUpper);
-    if (d.remoteConeLower != null) secondaryValues.push(d.remoteConeLower);
-  });
-  // Antenna AMSL heights
-  if (ant) secondaryValues.push(ant.antennaAMSL);
+  // Antenna endpoints must always be visible
+  const antennaValues: number[] = [];
+  if (ant) antennaValues.push(ant.antennaAMSL);
   if (remoteAntenna && profilePoints.length > 1) {
     const remoteGroundAlt2 = analysis.effectiveTerrain[profilePoints.length - 1];
-    secondaryValues.push(remoteGroundAlt2 + remoteAntenna.hba);
+    antennaValues.push(remoteGroundAlt2 + remoteAntenna.hba);
   }
+  // Ancillary values (rx, clutter, fresnel, tilt beams) — but NOT the LOS beam intermediate points
+  const ancillaryValues: number[] = [];
+  data.forEach(d => {
+    if (d.rxLine != null) ancillaryValues.push(d.rxLine);
+    if (d.clutter != null) ancillaryValues.push(d.clutter);
+    if (d.fresnelUpper != null) ancillaryValues.push(d.fresnelUpper);
+    if (d.fresnelLower != null) ancillaryValues.push(d.fresnelLower);
+    if (d.tiltBeam != null) ancillaryValues.push(d.tiltBeam);
+    if (d.tiltConeUpper != null) ancillaryValues.push(d.tiltConeUpper);
+    if (d.tiltConeLower != null) ancillaryValues.push(d.tiltConeLower);
+    if (d.remoteTiltBeam != null) ancillaryValues.push(d.remoteTiltBeam);
+    if (d.remoteConeUpper != null) ancillaryValues.push(d.remoteConeUpper);
+    if (d.remoteConeLower != null) ancillaryValues.push(d.remoteConeLower);
+  });
 
-  const terrainMin = Math.min(...terrainValues);
-  const terrainMax = Math.max(...terrainValues);
-  const terrainRange = terrainMax - terrainMin || 50;
-
-  // Include secondary values but cap so they don't compress terrain below 40% of chart height
-  const allVals = [...terrainValues, ...secondaryValues];
-  const rawMax = Math.max(...allVals);
-  const rawMin = Math.min(...allVals);
-  const fullRange = rawMax - rawMin || 50;
-
-  // If beam/LOS makes the range > 2.5x the terrain range, cap it
-  const maxAllowedRange = Math.max(terrainRange * 2.5, 100);
-  const effectiveMax = fullRange > maxAllowedRange
-    ? terrainMin + maxAllowedRange
-    : rawMax;
-
-  const padding = Math.max(15, (effectiveMax - rawMin) * 0.1);
-  const maxAlt = Math.max(effectiveMax, rawMax > effectiveMax ? effectiveMax : rawMax) + padding;
+  // Domain: terrain + antenna endpoints + ancillaries (beam LOS excluded — it follows naturally)
+  const domainValues = [...terrainValues, ...antennaValues, ...ancillaryValues];
+  const rawMax = Math.max(...domainValues);
+  const rawMin = Math.min(...domainValues);
+  const range = rawMax - rawMin || 50;
+  const padding = Math.max(15, range * 0.1);
+  const maxAlt = rawMax + padding;
   const minAlt = Math.max(0, rawMin - padding);
 
   const handleMouseMove = useCallback((state: any) => {
