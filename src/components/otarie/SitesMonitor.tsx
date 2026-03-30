@@ -3896,12 +3896,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           cellLoadAttemptedRef.current.add(s.site_id);
         });
 
-        if (cellMap.size > 0) {
-          setSites(prev => prev.map(s => {
-            const cells = cellMap.get(s.site_id);
-            return cells && cells.length > 0 ? { ...s, cells, cell_count: cells.length } : s;
-          }));
-        }
+        // Always trigger setSites to re-evaluate filters (cellLoadAttemptedRef changed)
+        setSites(prev => prev.map(s => {
+          const cells = cellMap.get(s.site_id);
+          return cells && cells.length > 0 ? { ...s, cells, cell_count: cells.length } : s;
+        }));
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
         sitesNeedingCells.forEach(s => {
