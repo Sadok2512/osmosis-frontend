@@ -2744,12 +2744,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       filterParams.set('limit', '10000');
       // Apply dashboard filters to parameter query
       const effectiveFilters = activeDashboardFilters || {};
-      if (effectiveFilters.dor?.length) filterParams.set('dor', effectiveFilters.dor.join(','));
-      if (effectiveFilters.constructeur?.length) filterParams.set('constructeur', effectiveFilters.constructeur.join(','));
-      if (effectiveFilters.plaque?.length) filterParams.set('plaque', effectiveFilters.plaque.join(','));
-      if (effectiveFilters.techno?.length) filterParams.set('techno', effectiveFilters.techno.join(','));
-      if (effectiveFilters.bande?.length) filterParams.set('bande', effectiveFilters.bande.join(','));
-      if (effectiveFilters.zone_arcep?.length) filterParams.set('zone_arcep', effectiveFilters.zone_arcep.join(','));
+      if (effectiveFilters.dor?.length) filterParams.set('dor', Array.isArray(effectiveFilters.dor) ? effectiveFilters.dor.join(',') : String(effectiveFilters.dor));
+      if (effectiveFilters.constructeur?.length) filterParams.set('constructeur', Array.isArray(effectiveFilters.constructeur) ? effectiveFilters.constructeur.join(',') : String(effectiveFilters.constructeur));
+      if (effectiveFilters.plaque?.length) filterParams.set('plaque', Array.isArray(effectiveFilters.plaque) ? effectiveFilters.plaque.join(',') : String(effectiveFilters.plaque));
+      if (effectiveFilters.techno?.length) filterParams.set('techno', Array.isArray(effectiveFilters.techno) ? effectiveFilters.techno.join(',') : String(effectiveFilters.techno));
+      if (effectiveFilters.bande?.length) filterParams.set('bande', Array.isArray(effectiveFilters.bande) ? effectiveFilters.bande.join(',') : String(effectiveFilters.bande));
+      if (effectiveFilters.zone_arcep?.length) filterParams.set('zone_arcep', Array.isArray(effectiveFilters.zone_arcep) ? effectiveFilters.zone_arcep.join(',') : String(effectiveFilters.zone_arcep));
       // Also apply scope if no explicit filters
       if (Object.keys(effectiveFilters).length === 0 && activeSiteScope && activeSiteScope.type !== 'ALL' && activeSiteScope.value) {
         if (activeSiteScope.type === 'DOR') filterParams.set('dor', activeSiteScope.value);
