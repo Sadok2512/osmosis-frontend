@@ -5233,6 +5233,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 showFresnel={losEnableFresnel}
                 showCurvature={losEnableCurvature}
                 clutterHeight={losEnableClutter ? losClutterHeight : 0}
+                showTilt
               />
             </div>
             {/* Info panel */}
@@ -5301,6 +5302,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 profilePoints={linkProfilePoints}
                 analysis={linkProfileAnalysis}
                 onHoverPoint={setLinkProfileHover}
+                showTilt
+                remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
               />
             </div>
           </div>
