@@ -3603,6 +3603,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       // Apply advanced view conditions (from ViewFilterBuilder)
       const CELL_LEVEL_DIMS = new Set(['eci', 'pci', 'nci', 'cid', 'tac', 'nom_cellule', 'bande', 'techno', 'azimut', 'tilt', 'hba', 'etat_cellule', 'essentiel']);
+      const NUMERIC_DIMS = new Set(['eci', 'pci', 'nci', 'cid', 'tac', 'azimut', 'tilt', 'hba']);
       const matchesViewConditions = activeViewConditions.length === 0 || activeViewConditions.every(cond => {
         if (cond.values.length === 0) return true;
         const dimKey = cond.dimension;
@@ -3616,19 +3617,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (siteCells.length > 0) {
           cellVals = siteCells.map(c => String((c as any)[dimKey] ?? '')).filter(Boolean);
         } else if (CELL_LEVEL_DIMS.has(dimKey)) {
-          // Cells not loaded yet — don't exclude this site (pass through)
-          return true;
+          // Cells not loaded yet — EXCLUDE site (strict filtering)
+          // This prevents showing all sites when cell data isn't available
+          return false;
         }
-        const allVals = [siteVal, ...cellVals].filter(Boolean).map(v => v.toLowerCase());
+        const allVals = [siteVal, ...cellVals].filter(Boolean).map(v => v.trim().toLowerCase());
         if (allVals.length === 0) return false;
-        const condVals = cond.values.map(v => v.toLowerCase());
+        const condVals = cond.values.map(v => v.trim().toLowerCase());
 
         if (cond.operator === 'IN' || cond.operator === '=') {
+          // For numeric dimensions, use strict exact matching (no substring)
+          if (NUMERIC_DIMS.has(dimKey)) {
+            return condVals.some(cv => allVals.some(av => av === cv));
+          }
           return condVals.some(cv => allVals.some(av => av === cv || av.includes(cv) || cv.includes(av)));
         } else if (cond.operator === 'NOT_IN') {
           return !condVals.some(cv => allVals.some(av => av === cv));
         } else {
-          // Numeric comparison — use exact numeric match for '='
+          // Numeric comparison
           const numVal = cellVals.length > 0 ? parseFloat(cellVals[0]) : parseFloat(siteVal || '');
           const threshold = parseFloat(cond.values[0]);
           if (isNaN(numVal) || isNaN(threshold)) return false;
