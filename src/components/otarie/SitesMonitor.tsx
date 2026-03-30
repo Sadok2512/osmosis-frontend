@@ -3907,6 +3907,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           cellLoadingRef.current.delete(s.site_id);
           cellLoadAttemptedRef.current.add(s.site_id);
         });
+        // Force re-render so filters re-evaluate with attempted flags
+        setSites(prev => [...prev]);
       }
     }, 400);
 
