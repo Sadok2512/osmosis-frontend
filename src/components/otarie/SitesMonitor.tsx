@@ -7308,8 +7308,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="px-5 py-4">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Technologie</h4>
                   {[
-                    { label: 'LTE (4G)', count: cells4GCount, color: 'hsl(var(--chart-2))' },
-                    { label: 'NR (5G)', count: cells5GCount, color: 'hsl(var(--primary))' },
+                    ...(show4G ? [{ label: 'LTE (4G)', count: cells4GCount, color: 'hsl(var(--chart-2))' }] : []),
+                    ...(show5G ? [{ label: 'NR (5G)', count: cells5GCount, color: 'hsl(var(--primary))' }] : []),
                   ].map(t => {
                     const total = cells4GCount + cells5GCount || 1;
                     const pct = ((t.count / total) * 100).toFixed(1);
