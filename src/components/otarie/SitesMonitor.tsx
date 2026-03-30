@@ -1729,9 +1729,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const handleDeleteView = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await mapViewsApi.remove(id);
-    // Clear any filters that were applied by this view
-    if (onApplyView) {
-      onApplyView({ viewFilters: [], viewConditions: [], mapLabelFields: undefined });
+    // Reset active view and revert to dashboard-only filters
+    onActiveViewIdChange(null);
+    if (onApplyView && expandedDashboardId) {
+      const db = dashboards.find(d => d.id === expandedDashboardId);
+      if (db) {
+        const dbSettings = getDashboardSettings(db);
+        onApplyView({ ...dbSettings, _viewId: null, _isDashboardOnly: true });
+      }
     }
     fetchAll();
   };
