@@ -452,8 +452,8 @@ const ProfileChart: React.FC<Props> = ({
           {/* Fresnel boundaries - yellow dashed */}
           {showFresnel && fresnel && (
             <>
-              <Line type="monotone" dataKey="fresnelUpper" stroke="rgba(250,204,21,0.5)" strokeWidth={1} strokeDasharray="4 2" dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="fresnelLower" stroke="rgba(250,204,21,0.5)" strokeWidth={1} strokeDasharray="4 2" dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="fresnelUpper" stroke="rgba(250,204,21,0.8)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="fresnelLower" stroke="rgba(250,204,21,0.8)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} isAnimationActive={false} />
             </>
           )}
 
