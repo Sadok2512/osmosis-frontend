@@ -169,6 +169,7 @@ export function useSitesFilters() {
     removeFilter,
     clearAll,
     buildQueryParams,
+    hasCellLevelFilters,
     loading,
   };
 }
