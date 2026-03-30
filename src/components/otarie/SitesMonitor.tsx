@@ -7244,12 +7244,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             // Use VPS global-network stats (full network, fetched once on mount)
             const dbStats = topoNetworkStats;
             const hasDbStats = !!dbStats && (dbStats.cells4G > 0 || dbStats.cells5G > 0 || dbStats.sites4G > 0 || dbStats.sites5G > 0);
-            const sites4GCount = hasDbStats ? dbStats!.sites4G : 0;
-            const sites5GCount = hasDbStats ? dbStats!.sites5G : 0;
-            const cells4GCount = hasDbStats ? dbStats!.cells4G : 0;
-            const cells5GCount = hasDbStats ? dbStats!.cells5G : 0;
+            const rawSites4G = hasDbStats ? dbStats!.sites4G : 0;
+            const rawSites5G = hasDbStats ? dbStats!.sites5G : 0;
+            const rawCells4G = hasDbStats ? dbStats!.cells4G : 0;
+            const rawCells5G = hasDbStats ? dbStats!.cells5G : 0;
             const bandMap4G: Record<string, number> = hasDbStats ? dbStats!.bandMap4G : {};
             const bandMap5G: Record<string, number> = hasDbStats ? dbStats!.bandMap5G : {};
+
+            // Apply tech filter to inventory stats
+            const show4G = mapTechnoFilter === 'ALL' ? enabledTechnos.has('4G') : mapTechnoFilter === '4G';
+            const show5G = mapTechnoFilter === 'ALL' ? enabledTechnos.has('5G') : mapTechnoFilter === '5G';
+            const sites4GCount = show4G ? rawSites4G : 0;
+            const sites5GCount = show5G ? rawSites5G : 0;
+            const cells4GCount = show4G ? rawCells4G : 0;
+            const cells5GCount = show5G ? rawCells5G : 0;
             const vendorMap: Record<string, { '4G': number; '5G': number }> = hasDbStats ? dbStats!.vendorMap : {};
             return (
               <div className="divide-y divide-border">
@@ -7261,7 +7269,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-[18px] font-extrabold text-foreground leading-tight tracking-tight uppercase">Global Network</h3>
-                      <p className="text-[11px] text-muted-foreground mt-1">Vue d'ensemble réseau 4G / 5G</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Vue d'ensemble réseau {show4G && show5G ? '4G / 5G' : show4G ? '4G' : '5G'}</p>
                     </div>
                   </div>
                 </div>
@@ -7269,22 +7277,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {/* Summary cards */}
                 <div className="px-5 py-4">
                   <div className="grid grid-cols-2 gap-2.5">
-                    <div className="bg-muted/40 border border-border rounded-xl p-3">
-                      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
-                      <div className="text-[22px] font-black text-foreground leading-none">{sites4GCount}</div>
-                    </div>
-                    <div className="bg-muted/40 border border-border rounded-xl p-3">
-                      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
-                      <div className="text-[22px] font-black text-primary leading-none">{sites5GCount}</div>
-                    </div>
-                    <div className="bg-muted/40 border border-border rounded-xl p-3">
-                      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
-                      <div className="text-[22px] font-black text-foreground leading-none">{cells4GCount}</div>
-                    </div>
-                    <div className="bg-muted/40 border border-border rounded-xl p-3">
-                      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
-                      <div className="text-[22px] font-black text-primary leading-none">{cells5GCount}</div>
-                    </div>
+                    {show4G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
+                        <div className="text-[22px] font-black text-foreground leading-none">{sites4GCount}</div>
+                      </div>
+                    )}
+                    {show5G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
+                        <div className="text-[22px] font-black text-primary leading-none">{sites5GCount}</div>
+                      </div>
+                    )}
+                    {show4G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
+                        <div className="text-[22px] font-black text-foreground leading-none">{cells4GCount}</div>
+                      </div>
+                    )}
+                    {show5G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
+                        <div className="text-[22px] font-black text-primary leading-none">{cells5GCount}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -7292,8 +7308,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="px-5 py-4">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Technologie</h4>
                   {[
-                    { label: 'LTE (4G)', count: cells4GCount, color: 'hsl(var(--chart-2))' },
-                    { label: 'NR (5G)', count: cells5GCount, color: 'hsl(var(--primary))' },
+                    ...(show4G ? [{ label: 'LTE (4G)', count: cells4GCount, color: 'hsl(var(--chart-2))' }] : []),
+                    ...(show5G ? [{ label: 'NR (5G)', count: cells5GCount, color: 'hsl(var(--primary))' }] : []),
                   ].map(t => {
                     const total = cells4GCount + cells5GCount || 1;
                     const pct = ((t.count / total) * 100).toFixed(1);
@@ -7311,7 +7327,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {/* Band Distribution */}
                 <div className="px-5 py-4">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Bandes</h4>
-                  {Object.keys(bandMap4G).length > 0 && (
+                  {show4G && Object.keys(bandMap4G).length > 0 && (
                     <div className="mb-3">
                       <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>LTE (4G)</div>
                       {Object.entries(bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
@@ -7323,7 +7339,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       ))}
                     </div>
                   )}
-                  {Object.keys(bandMap5G).length > 0 && (
+                  {show5G && Object.keys(bandMap5G).length > 0 && (
                     <div>
                       <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#22c55e' }}>NR (5G)</div>
                       {Object.entries(bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
@@ -7340,21 +7356,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {/* Vendor Distribution */}
                 <div className="px-5 py-4">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Constructeurs</h4>
-                  {Object.entries(vendorMap).sort((a, b) => (b[1]['4G'] + b[1]['5G']) - (a[1]['4G'] + a[1]['5G'])).map(([vendor, counts]) => (
-                    <div key={vendor} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
-                      <span className="text-[11px] font-bold text-foreground flex-1 capitalize">{vendor}</span>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <span className="text-[9px] text-muted-foreground">4G </span>
-                          <span className="text-[10px] font-black text-foreground">{counts['4G']}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[9px] text-muted-foreground">5G </span>
-                          <span className="text-[10px] font-black text-primary">{counts['5G']}</span>
+                  {Object.entries(vendorMap).sort((a, b) => (b[1]['4G'] + b[1]['5G']) - (a[1]['4G'] + a[1]['5G'])).map(([vendor, counts]) => {
+                    const v4g = show4G ? counts['4G'] : 0;
+                    const v5g = show5G ? counts['5G'] : 0;
+                    if (v4g === 0 && v5g === 0) return null;
+                    return (
+                      <div key={vendor} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
+                        <span className="text-[11px] font-bold text-foreground flex-1 capitalize">{vendor}</span>
+                        <div className="flex items-center gap-3">
+                          {show4G && (
+                            <div className="text-right">
+                              <span className="text-[9px] text-muted-foreground">4G </span>
+                              <span className="text-[10px] font-black text-foreground">{v4g}</span>
+                            </div>
+                          )}
+                          {show5G && (
+                            <div className="text-right">
+                              <span className="text-[9px] text-muted-foreground">5G </span>
+                              <span className="text-[10px] font-black text-primary">{v5g}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
