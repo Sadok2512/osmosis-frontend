@@ -7005,6 +7005,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       invalidateBboxCache();
                       invalidateSiteCellsCache();
                       cellLoadingRef.current.clear();
+                      cellLoadAttemptedRef.current.clear();
                     }
 
                     // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
