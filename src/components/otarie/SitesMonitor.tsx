@@ -2145,11 +2145,23 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         const condCount = Array.isArray(vs.viewConditions) ? vs.viewConditions.length : 0;
 
                           const isViewActive = activeViewId === view.id;
-                          <div key={view.id} className="rounded-lg border border-border/60 bg-card hover:border-primary/30 transition-all overflow-hidden">
+
+                        return (
+                          <div key={view.id} className={`rounded-lg border overflow-hidden transition-all ${isViewActive ? 'border-primary/60 ring-1 ring-primary/20 bg-primary/[0.04]' : 'border-border/60 bg-card hover:border-primary/30'}`}>
                             <div
-                              className="flex items-center gap-2 px-2.5 py-2 cursor-pointer"
+                              className={`flex items-center gap-2 px-2.5 py-2 cursor-pointer ${isViewActive ? 'bg-primary/5' : ''}`}
                               style={viewColor ? { borderLeft: `3px solid ${viewColor}` } : undefined}
-                              onClick={() => { if (onApplyView) onApplyView(eff); }}
+                              onClick={() => {
+                                onActiveViewIdChange(isViewActive ? null : view.id);
+                                if (onApplyView) {
+                                  if (isViewActive) {
+                                    // Deactivate view → revert to dashboard-only filters
+                                    onApplyView({ ...getDashboardSettings(dashboards.find(d => d.id === expandedDashboardId) || {}), _viewId: null, _isDashboardOnly: true });
+                                  } else {
+                                    onApplyView(eff);
+                                  }
+                                }
+                              }}
                             >
                               <MapIcon size={12} className="text-primary shrink-0" />
                               <div className="flex-1 min-w-0">
