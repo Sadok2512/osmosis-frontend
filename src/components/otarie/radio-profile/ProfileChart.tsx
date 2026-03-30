@@ -283,7 +283,6 @@ const ProfileChart: React.FC<Props> = ({
                 remoteConeUpper: 'Remote Beam',
                 remoteConeLower: 'Remote Beam',
               };
-              };
               return labels[value] || value;
             }}
           />
