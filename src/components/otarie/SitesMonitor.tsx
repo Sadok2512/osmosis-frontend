@@ -2831,11 +2831,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (activeSiteScope.type === 'DOR') filterParams.set('dor', activeSiteScope.value);
         else if (activeSiteScope.type === 'Plaque') filterParams.set('plaque', activeSiteScope.value);
       }
-      const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/param-map?${filterParams.toString()}`), {
+      const paramMapUrl = getVpsProxyUrl('parser', `/api/v1/topo/param-map?${filterParams.toString()}`);
+      console.log('[SitesMonitor] param-map request:', { param: paramSelected, bbox, filters: filterParams.toString(), url: paramMapUrl });
+      const resp = await fetch(paramMapUrl, {
         headers: getVpsProxyHeaders(),
       });
       const data = await resp.json();
-      console.log('[SitesMonitor] param-map response:', { total_sites: data.total_sites, total_values: data.total_values, sites_len: data.sites?.length, error: data.error, unavailable: data.unavailable });
+      console.log('[SitesMonitor] param-map response:', { status: resp.status, total_sites: data.total_sites, total_values: data.total_values, sites_len: data.sites?.length, error: data.error, unavailable: data.unavailable });
       if (data.sites && data.sites.length > 0) {
         const points: any[] = [];
         let id = 0;
