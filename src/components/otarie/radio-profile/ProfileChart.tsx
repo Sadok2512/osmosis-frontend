@@ -487,7 +487,13 @@ const ProfileChart: React.FC<Props> = ({
           <Line
             type="monotone"
             dataKey="beam"
-            stroke="rgba(248,113,113,0.85)"
+            stroke={
+              !analysis.isLOS
+                ? 'rgba(239,68,68,0.85)'   // red = LOS blocked
+                : (showFresnel && fresnel && !fresnel.isClearFresnel)
+                  ? 'rgba(251,191,36,0.85)' // orange = LOS ok but Fresnel blocked
+                  : 'rgba(34,197,94,0.85)'  // green = LOS + Fresnel clear
+            }
             strokeWidth={2}
             strokeDasharray="8 4"
             dot={false}
