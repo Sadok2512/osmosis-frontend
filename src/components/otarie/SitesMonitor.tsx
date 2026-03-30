@@ -1843,7 +1843,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 <div className="flex flex-wrap gap-1 mt-1">
                   {entries.map(([key, vals]) => (
                     <span key={key} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-[8px] font-semibold text-primary border border-primary/10">
-                      {key.toUpperCase()}: {(vals as string[]).join(', ')}
+                      {key.toUpperCase()}: {Array.isArray(vals) ? vals.join(', ') : String(vals)}
                     </span>
                   ))}
                   {activeView && (
