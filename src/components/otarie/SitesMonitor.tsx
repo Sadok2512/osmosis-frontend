@@ -7747,8 +7747,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 {cells.map((c) => {
                                   const eTilt = (c as any).tilt as number | null;
                                   return (
-                                    <div key={c.cell_id} className="grid grid-cols-[1fr_50px_70px_45px_45px] gap-1 px-3 py-2 items-center hover:bg-muted/20 transition-colors">
-                                      <span className="text-[11px] font-semibold text-foreground truncate">{c.cell_id}</span>
+                                    <div key={c.cell_id} onClick={() => handleCellClick(c.cell_id)} className={`grid grid-cols-[1fr_50px_70px_45px_45px] gap-1 px-3 py-2 items-center cursor-pointer transition-colors ${focusCellId === c.cell_id ? 'bg-primary/10' : 'hover:bg-muted/20'}`}>
+                                      <span className="text-[11px] font-semibold text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary truncate cursor-pointer">{c.cell_id}</span>
                                       <span className="text-[10px] font-bold text-center" style={{ color: c.techno === '5G' ? '#22c55e' : '#f97316' }}>{c.techno}</span>
                                       <span className="text-[10px] text-muted-foreground text-center">{c.bande}</span>
                                       <span className="text-[10px] font-semibold text-foreground text-center">{c.azimut ?? '—'}°</span>
