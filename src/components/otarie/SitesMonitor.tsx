@@ -3729,10 +3729,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   // Determine if we have cell-level view conditions that require cell data
-  const hasCellLevelConditions = useMemo(() => {
-    const CELL_LEVEL_DIMS = new Set(['eci', 'pci', 'nci', 'cid', 'tac', 'nom_cellule', 'bande', 'techno', 'azimut', 'tilt', 'hba', 'etat_cellule', 'essentiel']);
-    return activeViewConditions.some(c => CELL_LEVEL_DIMS.has(c.dimension) && c.values.length > 0);
-  }, [activeViewConditions]);
+  const hasCellLevelConditions = useMemo(
+    () => hasAnyCellLevelCondition(activeViewConditions),
+    [activeViewConditions],
+  );
 
   useEffect(() => {
     // Load cells when in cells display mode OR when cell-level view conditions are active
