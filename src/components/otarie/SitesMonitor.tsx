@@ -2682,20 +2682,36 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [paramLoading, setParamLoading] = useState(false);
   const [paramSearch, setParamSearch] = useState('');
 
-  // Load available parameters from VPS backend
+  // Load available parameters from VPS backend, fallback to Supabase parameter_dump
   useEffect(() => {
     if (!paramPanelOpen || paramAvailable.length > 0) return;
     (async () => {
       setParamAvailableLoading(true);
+      let loaded = false;
+      // Try VPS first
       try {
         const resp = await fetch(getVpsProxyUrl('parser', '/api/v1/topo/param-list?object_type=CELL&limit=500'), {
           headers: getVpsProxyHeaders(),
         });
         const data = await resp.json();
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setParamAvailable(data.map((r: any) => r.name).filter(Boolean).sort());
+          loaded = true;
         }
-      } catch (err) { console.warn('[SitesMonitor] paramAvailable fetch failed', err); }
+      } catch (err) { console.warn('[SitesMonitor] paramAvailable VPS fetch failed', err); }
+      // Fallback: load distinct parameters from parameter_dump table
+      if (!loaded) {
+        try {
+          const { data: dbParams } = await supabase
+            .from('parameter_dump')
+            .select('parameter')
+            .limit(1000);
+          if (dbParams && dbParams.length > 0) {
+            const unique = [...new Set(dbParams.map((r: any) => r.parameter).filter(Boolean))].sort() as string[];
+            setParamAvailable(unique);
+          }
+        } catch (err) { console.warn('[SitesMonitor] paramAvailable DB fallback failed', err); }
+      }
       setParamAvailableLoading(false);
     })();
   }, [paramPanelOpen]);
