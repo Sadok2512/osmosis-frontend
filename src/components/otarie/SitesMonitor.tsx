@@ -1476,6 +1476,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const requestDashboardSwitch = (newId: string | null) => {
     setExpandedDashboardId(newId);
+    // Reset active view when switching dashboard
+    onActiveViewIdChange(null);
     if (newId && onApplyView) {
       const db = dashboards.find(d => d.id === newId);
       if (db) {
