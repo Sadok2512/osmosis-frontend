@@ -6624,12 +6624,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {taggedSites.map(site => {
                       const isSelected = selectedSiteId === site.site_id;
                       const isExpanded = isSelected;
-                      const siteCells = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
+                      const rawCells2 = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
                         ? siteDetail.cells
                         : site.cells;
-                      const displayedCellCount = isSelected && siteDetail?.site_id === site.site_id
-                        ? (siteDetail.cell_count ?? siteDetail.cells.length)
-                        : site.cell_count;
+                      const siteCells = rawCells2.filter(c => {
+                        if (localBande !== 'ALL' && c.bande !== localBande) return false;
+                        if (localTechno !== 'ALL' && getCellTechGroup(c.techno) !== localTechno) return false;
+                        if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(c.bande)) return false;
+                        if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => getCellTechGroup(c.techno) === t || c.techno === t)) return false;
+                        return true;
+                      });
+                      const displayedCellCount = siteCells.length;
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
                         const sNum = getSectorNumber(c.cell_id);
