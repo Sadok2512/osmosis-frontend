@@ -408,7 +408,7 @@ const ProfileChart: React.FC<Props> = ({
               fontSize: 11, color: 'rgba(255,255,255,0.9)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
             }}
             formatter={(value: number, name: string) => {
-              if (name === '_idx' || name === 'antennaMast') return [null, null];
+              if (name === '_idx' || name === 'antennaMast' || name === 'fresnelBand') return [null, null];
               const labels: Record<string, string> = {
                 terrain: 'Terrain eff.', beam: 'LOS (TX→RX)', rawTerrain: 'Terrain brut',
                 rxLine: `RX (${ant?.rxHeight ?? 1.5}m)`, clutter: 'Terrain+Clutter',
