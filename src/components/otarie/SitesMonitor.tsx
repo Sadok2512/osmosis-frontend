@@ -2226,15 +2226,39 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                             </div>
 
                             {isEditing && (
-                              <DashboardSettingsPanel
-                                settings={vs}
-                                onUpdate={(u) => handleUpdateViewSettings(view.id, u)}
-                                onRename={(name) => handleRenameView(view.id, name)}
-                                currentName={view.name}
-                                onClose={() => { setEditingDashboardId(null); setEditingViewId(null); }}
-                                onSetDashboards={setDashboards}
-                                backendFilterDefs={backendFilterDefs}
-                              />
+                              <div className="border-t border-border/40">
+                                {/* Filter conditions editor */}
+                                <div className="px-3 py-2.5 border-b border-border/30">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Filter size={11} className="text-primary" />
+                                    <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">View Filters</span>
+                                    <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">{condCount}</span>
+                                  </div>
+                                  <ViewFilterBuilder
+                                    viewName={view.name}
+                                    onViewNameChange={(name) => handleRenameView(view.id, name)}
+                                    backendFilterDefs={backendFilterDefs}
+                                    initialConditions={Array.isArray(vs.viewConditions) ? vs.viewConditions : siteFiltersToConditions(vs.siteFilters || {})}
+                                    saving={false}
+                                    onSave={async (conditions) => {
+                                      const siteFilters = conditionsToSiteFilters(conditions);
+                                      await handleUpdateViewSettings(view.id, { viewConditions: conditions, siteFilters });
+                                      setEditingViewId(null);
+                                    }}
+                                    onCancel={() => setEditingViewId(null)}
+                                  />
+                                </div>
+                                {/* Visual settings */}
+                                <DashboardSettingsPanel
+                                  settings={vs}
+                                  onUpdate={(u) => handleUpdateViewSettings(view.id, u)}
+                                  onRename={(name) => handleRenameView(view.id, name)}
+                                  currentName={view.name}
+                                  onClose={() => { setEditingDashboardId(null); setEditingViewId(null); }}
+                                  onSetDashboards={setDashboards}
+                                  backendFilterDefs={backendFilterDefs}
+                                />
+                              </div>
                             )}
                           </div>
                         );
