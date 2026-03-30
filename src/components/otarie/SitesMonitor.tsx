@@ -2802,6 +2802,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (effectiveFilters.techno?.length) filterParams.set('techno', Array.isArray(effectiveFilters.techno) ? effectiveFilters.techno.join(',') : String(effectiveFilters.techno));
       if (effectiveFilters.bande?.length) filterParams.set('bande', Array.isArray(effectiveFilters.bande) ? effectiveFilters.bande.join(',') : String(effectiveFilters.bande));
       if (effectiveFilters.zone_arcep?.length) filterParams.set('zone_arcep', Array.isArray(effectiveFilters.zone_arcep) ? effectiveFilters.zone_arcep.join(',') : String(effectiveFilters.zone_arcep));
+      // Apply active view conditions as additional filters
+      if (activeViewConditions.length > 0) {
+        for (const cond of activeViewConditions) {
+          if (cond.values.length === 0) continue;
+          const dim = cond.dimension;
+          const vals = cond.values.join(',');
+          // Map dimension keys to param-map API query params
+          const paramKey = dim === 'constructeur' ? 'constructeur' : dim === 'site_name' ? 'site_name' : dim;
+          // Only set if not already set by dashboard filters (view conditions refine further)
+          if (!filterParams.has(paramKey)) {
+            filterParams.set(paramKey, vals);
+          } else {
+            // Intersect: keep only values present in both
+            const existing = new Set(filterParams.get(paramKey)!.split(','));
+            const intersection = cond.values.filter(v => existing.has(v));
+            if (intersection.length > 0) {
+              filterParams.set(paramKey, intersection.join(','));
+            }
+          }
+        }
+      }
       // Also apply scope if no explicit filters
       if (Object.keys(effectiveFilters).length === 0 && activeSiteScope && activeSiteScope.type !== 'ALL' && activeSiteScope.value) {
         if (activeSiteScope.type === 'DOR') filterParams.set('dor', activeSiteScope.value);
@@ -2836,7 +2857,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     } catch (err) { console.warn('[SitesMonitor] param-map fetch failed', err); setParamPoints([]); }
     setParamLoading(false);
-  }, [paramSelected, viewport.bounds, activeDashboardFilters, activeSiteScope]);
+  }, [paramSelected, viewport.bounds, activeDashboardFilters, activeSiteScope, activeViewConditions]);
 
   const handleParamReset = useCallback(() => {
     setParamMode(false);
