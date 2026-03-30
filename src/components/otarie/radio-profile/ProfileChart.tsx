@@ -237,7 +237,7 @@ const ProfileChart: React.FC<Props> = ({
             tickLine={{ stroke: 'rgba(255,255,255,0.08)' }}
           />
           <YAxis
-            domain={[Math.floor(minAlt - 10), Math.ceil(maxAlt + 20)]}
+            domain={[Math.floor(minAlt), Math.ceil(maxAlt)]}
             label={{ value: 'Alt (m)', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: 'rgba(255,255,255,0.5)', fontWeight: 600 } }}
             tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.45)' }}
             stroke="rgba(255,255,255,0.1)"
