@@ -3904,7 +3904,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
-        sitesNeedingCells.forEach(s => cellLoadingRef.current.delete(s.site_id));
+        sitesNeedingCells.forEach(s => {
+          cellLoadingRef.current.delete(s.site_id);
+          cellLoadAttemptedRef.current.add(s.site_id);
+        });
       }
     }, 400);
 
