@@ -7258,6 +7258,50 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const sites5GCount = show5G ? rawSites5G : 0;
             const cells4GCount = show4G ? rawCells4G : 0;
             const cells5GCount = show5G ? rawCells5G : 0;
+            const vendorMap: Record<string, { '4G': number; '5G': number }> = hasDbStats ? dbStats!.vendorMap : {};
+            return (
+              <div className="divide-y divide-border">
+                {/* Header */}
+                <div className="px-5 py-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Network size={24} className="text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-[18px] font-extrabold text-foreground leading-tight tracking-tight uppercase">Global Network</h3>
+                      <p className="text-[11px] text-muted-foreground mt-1">Vue d'ensemble réseau {show4G && show5G ? '4G / 5G' : show4G ? '4G' : '5G'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary cards */}
+                <div className="px-5 py-4">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {show4G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
+                        <div className="text-[22px] font-black text-foreground leading-none">{sites4GCount}</div>
+                      </div>
+                    )}
+                    {show5G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
+                        <div className="text-[22px] font-black text-primary leading-none">{sites5GCount}</div>
+                      </div>
+                    )}
+                    {show4G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
+                        <div className="text-[22px] font-black text-foreground leading-none">{cells4GCount}</div>
+                      </div>
+                    )}
+                    {show5G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
+                        <div className="text-[22px] font-black text-primary leading-none">{cells5GCount}</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Technology Distribution */}
