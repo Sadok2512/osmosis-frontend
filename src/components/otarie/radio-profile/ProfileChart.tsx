@@ -61,7 +61,8 @@ const ProfileChart: React.FC<Props> = ({
   remoteAntenna, siteName, onHoverPoint,
 }) => {
   const ant = analysis.antennaParams;
-
+  const [hoverTx, setHoverTx] = useState(false);
+  const [hoverRx, setHoverRx] = useState(false);
   const derived = useMemo(() => {
     if (!profilePoints.length) {
       return {
