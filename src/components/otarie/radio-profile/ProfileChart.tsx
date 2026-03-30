@@ -12,6 +12,13 @@ export interface ProfileHoverData {
   lng: number;
 }
 
+interface RemoteAntennaParams {
+  hba: number;
+  totalTilt: number;
+  vbw: number;
+  azimuth: number;
+}
+
 interface Props {
   profilePoints: ProfilePoint[];
   analysis: LOSAnalysis;
@@ -20,6 +27,7 @@ interface Props {
   showCurvature?: boolean;
   clutterHeight?: number;
   showTilt?: boolean;
+  remoteAntenna?: RemoteAntennaParams | null;
   onHoverPoint?: (data: ProfileHoverData | null) => void;
 }
 
