@@ -138,9 +138,9 @@ const ProfileChart: React.FC<Props> = ({
       }
     }
 
-    // ─── FRESNEL ───
+    // ─── FRESNEL ─── (always compute for status, even if not visually shown)
     let firstFresnelBlockIndex: number | null = null;
-    if (showFresnel && fresnel) {
+    if (fresnel) {
       for (let i = 0; i < profilePoints.length; i++) {
         if (terrainEffective[i] > fresnel.fresnelLowerBound[i]) { firstFresnelBlockIndex = i; break; }
       }
