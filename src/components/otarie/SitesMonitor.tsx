@@ -1092,7 +1092,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                 );
               })}
             </div>
-          </div>
+          </div>}
 
           {/* ── Beam Visibility ── */}
           {beamVis != null && onBeamVisChange && (
