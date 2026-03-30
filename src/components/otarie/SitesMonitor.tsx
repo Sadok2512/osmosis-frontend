@@ -2468,40 +2468,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           result.vendorMap[v.vendor] = { '4G': v.cells_4g || v.cells || 0, '5G': v.cells_5g || 0 };
         }
 
-        // VPS returns cells but sites=0 → compute site counts from Supabase topo table
+        // VPS returns cells but sites=0 → count distinct sites from Supabase topo table
         if (result.sites4G === 0 && result.sites5G === 0 && (result.cells4G > 0 || result.cells5G > 0)) {
           try {
-            const { data: siteCounts } = await supabase.rpc('count_sites_by_techno');
-            if (!cancelled && siteCounts && Array.isArray(siteCounts)) {
-              for (const row of siteCounts) {
-                const t = String(row.techno || '').toUpperCase();
-                if (is5GTech(t)) result.sites5G = Number(row.site_count) || 0;
-                else if (is4GTech(t)) result.sites4G = Number(row.site_count) || 0;
-              }
-            }
-          } catch (rpcErr) {
-            console.warn('[TOPO] RPC count_sites_by_techno failed, counting from topo table…', rpcErr);
+            const [res4G, res5G] = await Promise.all([
+              supabase.from('topo').select('code_nidt').or('techno.ilike.%LTE%,techno.ilike.%4G%').limit(100000),
+              supabase.from('topo').select('code_nidt').or('techno.ilike.%NR%,techno.ilike.%5G%').limit(100000),
+            ]);
             if (!cancelled) {
-              try {
-                // Fallback: count distinct code_nidt per techno from topo table
-                const { data: rows4G } = await supabase
-                  .from('topo')
-                  .select('code_nidt')
-                  .or('techno.ilike.%LTE%,techno.ilike.%4G%')
-                  .limit(100000);
-                const { data: rows5G } = await supabase
-                  .from('topo')
-                  .select('code_nidt')
-                  .or('techno.ilike.%NR%,techno.ilike.%5G%')
-                  .limit(100000);
-                if (!cancelled) {
-                  result.sites4G = new Set((rows4G || []).map(r => r.code_nidt)).size;
-                  result.sites5G = new Set((rows5G || []).map(r => r.code_nidt)).size;
-                }
-              } catch (e3) {
-                console.error('[TOPO] Direct topo count also failed:', e3);
-              }
+              result.sites4G = new Set((res4G.data || []).map(r => r.code_nidt)).size;
+              result.sites5G = new Set((res5G.data || []).map(r => r.code_nidt)).size;
             }
+          } catch (e3) {
+            console.warn('[TOPO] Site count from topo table failed:', e3);
           }
         }
 
