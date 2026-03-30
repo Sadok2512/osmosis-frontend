@@ -5103,11 +5103,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {showLosPanel && losAnalysis && !losLoading && (
         <div
            className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[48%] flex flex-col animate-fade-in"
-           style={{
-             left: (panelCollapsed ? 56 : 400) + 16,
-             right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16,
-             ...({
           style={{
+            left: (panelCollapsed ? 56 : 400) + 16,
+            right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16,
             background: 'rgba(15,23,42,0.55)',
             backdropFilter: 'blur(22px)',
             WebkitBackdropFilter: 'blur(22px)',
