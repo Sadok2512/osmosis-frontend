@@ -156,38 +156,40 @@ const ProfileChart: React.FC<Props> = ({
     altitude: data[analysis.obstructionIndex]?.terrain,
   } : null;
 
-  // Terrain values drive the base range
-  const terrainValues = data.flatMap(d => [d.terrain, d.rawTerrain].filter(v => v != null));
-  // Antenna endpoints must always be visible
-  const antennaValues: number[] = [];
-  if (ant) antennaValues.push(ant.antennaAMSL);
+  ///////////////////////////////
+  // 🔥 SMART RF SCALING
+  ///////////////////////////////
+  const terrainValues = data.map(d => d.terrain);
+
+  // 1. Terrain base
+  const terrainMin = Math.min(...terrainValues);
+  const terrainMax = Math.max(...terrainValues);
+
+  // 2. Antenna height
+  const antennaAlt = ant?.antennaAMSL ?? terrainMax;
+
+  // 3. Beam impact (if exists)
+  const beamImpactAlt = groundImpact?.altitude ?? terrainMin;
+
+  // 4. Remote antenna (if link mode)
+  let remoteAlt = terrainMax;
   if (remoteAntenna && profilePoints.length > 1) {
     const remoteGroundAlt2 = analysis.effectiveTerrain[profilePoints.length - 1];
-    antennaValues.push(remoteGroundAlt2 + remoteAntenna.hba);
+    remoteAlt = remoteGroundAlt2 + remoteAntenna.hba;
   }
-  // Ancillary values (rx, clutter, fresnel, tilt beams) — but NOT the LOS beam intermediate points
-  const ancillaryValues: number[] = [];
-  data.forEach(d => {
-    if (d.rxLine != null) ancillaryValues.push(d.rxLine);
-    if (d.clutter != null) ancillaryValues.push(d.clutter);
-    if (d.fresnelUpper != null) ancillaryValues.push(d.fresnelUpper);
-    if (d.fresnelLower != null) ancillaryValues.push(d.fresnelLower);
-    if (d.tiltBeam != null) ancillaryValues.push(d.tiltBeam);
-    if (d.tiltConeUpper != null) ancillaryValues.push(d.tiltConeUpper);
-    if (d.tiltConeLower != null) ancillaryValues.push(d.tiltConeLower);
-    if (d.remoteTiltBeam != null) ancillaryValues.push(d.remoteTiltBeam);
-    if (d.remoteConeUpper != null) ancillaryValues.push(d.remoteConeUpper);
-    if (d.remoteConeLower != null) ancillaryValues.push(d.remoteConeLower);
-  });
 
-  // Domain: terrain + antenna endpoints + ancillaries (beam LOS excluded — it follows naturally)
-  const domainValues = [...terrainValues, ...antennaValues, ...ancillaryValues];
-  const rawMax = Math.max(...domainValues);
-  const rawMin = Math.min(...domainValues);
-  const range = rawMax - rawMin || 50;
-  const padding = Math.max(15, range * 0.1);
-  const maxAlt = rawMax + padding;
-  const minAlt = Math.max(0, rawMin - padding);
+  // 5. Global RF bounds (terrain + antennas + beam impact only — beam path excluded)
+  const rfMin = Math.min(terrainMin, beamImpactAlt);
+  const rfMax = Math.max(terrainMax, antennaAlt, remoteAlt);
+
+  // 6. Dynamic padding (smart, Atoll-like)
+  const range = rfMax - rfMin || 50;
+  const bottomPadding = Math.max(5, range * 0.05);
+  const topPadding = Math.max(15, range * 0.25);
+
+  // 7. Final domain
+  const minAlt = Math.max(0, Math.floor(rfMin - bottomPadding));
+  const maxAlt = Math.ceil(rfMax + topPadding);
 
   const handleMouseMove = useCallback((state: any) => {
     if (!onHoverPoint || !state?.activeTooltipIndex) return;
