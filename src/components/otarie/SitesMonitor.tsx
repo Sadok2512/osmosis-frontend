@@ -6833,7 +6833,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
                     }
                     // Apply view filters (topo + qoe)
-                    if (Array.isArray(settings.viewFilters)) {
+                    if (Array.isArray(settings.viewFilters) && settings.viewFilters.length > 0) {
                       setActiveViewFilters(settings.viewFilters);
                       for (const f of settings.viewFilters) {
                         if (f.mode === 'topo') {
@@ -6847,10 +6847,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         }
                       }
                     } else {
+                      // View deleted or no filters — reset all local filters to defaults
                       setActiveViewFilters([]);
+                      setLocalDor('ALL');
+                      setLocalVendor('ALL');
+                      setLocalPlaque('ALL');
+                      setLocalBande('ALL');
+                      setLocalTechno('ALL');
+                      setLocalZoneArcep('ALL');
                     }
                     // Apply advanced view conditions
-                    if (Array.isArray(settings.viewConditions)) {
+                    if (Array.isArray(settings.viewConditions) && settings.viewConditions.length > 0) {
                       setActiveViewConditions(settings.viewConditions);
                     } else {
                       setActiveViewConditions([]);
