@@ -3413,6 +3413,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Auto-load cells refs (effect placed after visibleSites is defined)
   const cellLoadingRef = useRef(new Set<string>());
+  const cellLoadAttemptedRef = useRef(new Set<string>());
   const cellLoadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cleanup
