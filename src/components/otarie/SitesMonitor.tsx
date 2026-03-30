@@ -5305,6 +5305,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 onHoverPoint={setLinkProfileHover}
                 showTilt
                 remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
+                siteName={siteDetail?.site_name}
               />
             </div>
           </div>
