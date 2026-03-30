@@ -4041,7 +4041,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             freq: c.freq || null,
             zone_arcep: matchSite.zone_arcep || null,
             plaque: matchSite.plaque || c.plaque || null,
-          }));
+            };
+          });
           siteWithCells = {
             ...site,
             cells,
