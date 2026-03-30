@@ -4339,7 +4339,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         ))}
 
         {/* Heatmap layer */}
-        {!paramMode && sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
+        {!paramMode && !paramPanelOpen && sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
