@@ -4983,14 +4983,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const bandKey = normalizeBandKey(cell.bande, cell.techno);
                 const bandScale = getBandSizeScale(bandKey);
                 let cellRadius = zoomRadius * 1.3 * bandScale;
-                const az = Number(cell.azimut);
+                let az = Number(cell.azimut);
+                if (!Number.isFinite(az) || az < 0 || az > 360) {
+                  const sNum = getSectorNumber(cell.cell_id);
+                  const heuristicAz = [0, 0, 120, 240];
+                  az = heuristicAz[sNum] ?? ((sNum - 1) * 120) % 360;
+                }
                 // Cap 5G to 65% of 4G at same azimuth for mixed sites
                 if (is5G && hasAny4G) {
                   const ref4G = max4GRadiusPerAz.get(az) || (zoomRadius * 1.3);
                   const cap = ref4G * 0.65;
                   if (cellRadius > cap) cellRadius = cap;
                 }
-                if (!Number.isFinite(az) || az < 0 || az > 360) return null;
                 const sectorCoords = getSectorCoords(site.coordinates, az, cellRadius, 60);
                 const isFaded = false; // cells already filtered by tech above
                 const colorViewOverrideCell = getColorViewFill(site);
