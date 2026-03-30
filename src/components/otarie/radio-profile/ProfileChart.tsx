@@ -410,7 +410,56 @@ const ProfileChart: React.FC<Props> = ({
             </>
           )}
 
-          {/* LOS line (Antenna → UE) */}
+          {/* Remote antenna beam (link mode) */}
+          {remoteAntenna && (
+            <>
+              {remoteAntenna.vbw > 0 && (
+                <Area
+                  type="monotone"
+                  dataKey="remoteConeUpper"
+                  stroke="none"
+                  fill="rgba(34,197,94,0.08)"
+                  dot={false}
+                  isAnimationActive={false}
+                  connectNulls={false}
+                />
+              )}
+              {remoteAntenna.vbw > 0 && (
+                <>
+                  <Line
+                    type="monotone"
+                    dataKey="remoteConeUpper"
+                    stroke="rgba(34,197,94,0.35)"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    dot={false}
+                    isAnimationActive={false}
+                    connectNulls={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="remoteConeLower"
+                    stroke="rgba(34,197,94,0.35)"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    dot={false}
+                    isAnimationActive={false}
+                    connectNulls={false}
+                  />
+                </>
+              )}
+              <Line
+                type="monotone"
+                dataKey="remoteTiltBeam"
+                stroke="rgba(34,197,94,0.9)"
+                strokeWidth={2.5}
+                dot={false}
+                isAnimationActive={false}
+                connectNulls={false}
+              />
+            </>
+          )}
+
           <Line
             type="monotone"
             dataKey="beam"
