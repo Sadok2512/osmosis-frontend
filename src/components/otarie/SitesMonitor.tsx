@@ -2470,8 +2470,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         setTopoNetworkStats(result);
       } catch (e) {
-        console.error('[TOPO] Failed to fetch network stats:', e);
-        if (!cancelled) setTopoNetworkStats(EMPTY_TOPO_NETWORK_STATS);
+        console.error('[TOPO] Failed to fetch network stats from VPS, computing from local cells…', e);
+        if (cancelled) return;
+        // Fallback: compute from local topo cell cache
+        try {
+          const cells = await topoApi.list(50000, 0).then(d => d.rows || []);
+          if (cancelled) return;
+          const fallback = buildTopoNetworkStatsFromRows(cells);
+          console.log('[TOPO] Fallback stats computed from', cells.length, 'local cells:', fallback);
+          setTopoNetworkStats(fallback);
+        } catch (e2) {
+          console.error('[TOPO] Fallback stats also failed:', e2);
+          setTopoNetworkStats(EMPTY_TOPO_NETWORK_STATS);
+        }
       }
     };
 
