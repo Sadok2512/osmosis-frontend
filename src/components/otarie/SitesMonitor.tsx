@@ -2857,7 +2857,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     } catch (err) { console.warn('[SitesMonitor] param-map fetch failed', err); setParamPoints([]); }
     setParamLoading(false);
-  }, [paramSelected, viewport.bounds, activeDashboardFilters, activeSiteScope]);
+  }, [paramSelected, viewport.bounds, activeDashboardFilters, activeSiteScope, activeViewConditions]);
 
   const handleParamReset = useCallback(() => {
     setParamMode(false);
