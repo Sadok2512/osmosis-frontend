@@ -6911,8 +6911,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     setLocalZoneArcep('ALL');
 
                     // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
+                    // Update activeDashboardFilters so data loading uses the merged filters
                     if (settings.siteFilters && Object.keys(settings.siteFilters).length > 0) {
                       const sf = settings.siteFilters as DashboardSiteFilters;
+                      setActiveDashboardFilters(sf);
                       if (sf.dor?.length) setLocalDor(sf.dor[0]);
                       if (sf.constructeur?.length) setLocalVendor(sf.constructeur[0]);
                       if (sf.plaque?.length) setLocalPlaque(sf.plaque[0]);
@@ -6921,9 +6923,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       if (sf.zone_arcep?.length) setLocalZoneArcep(sf.zone_arcep[0]);
                     } else if (settings.siteScope) {
                       setActiveSiteScope(settings.siteScope);
+                      setActiveDashboardFilters(null);
                       const scope = settings.siteScope as SiteScope;
                       if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
                       else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
+                    } else {
+                      // No siteFilters and no scope — could be dashboard-only reset
+                      if (settings._isDashboardOnly) {
+                        setActiveDashboardFilters(null);
+                      }
                     }
                     // Apply view filters (topo + qoe)
                     if (Array.isArray(settings.viewFilters) && settings.viewFilters.length > 0) {
