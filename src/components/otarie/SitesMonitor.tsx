@@ -7762,10 +7762,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {focusMode === 'site' && siteDetail && (() => {
             // Filter cells by active dashboard/view filters
             const filteredCells = siteDetail.cells.filter(cell => {
+              const cellTech = getCellTechGroup(cell.techno);
+              // Apply map techno filter (toolbar 4G/5G toggle)
+              if (mapTechnoFilter === '4G' && cellTech !== '4G') return false;
+              if (mapTechnoFilter === '5G' && cellTech !== '5G') return false;
+              if (mapTechnoFilter === 'ALL' && cellTech && !enabledTechnos.has(cellTech)) return false;
               if (localBande !== 'ALL' && cell.bande !== localBande) return false;
-              if (localTechno !== 'ALL' && getCellTechGroup(cell.techno) !== localTechno) return false;
+              if (localTechno !== 'ALL' && cellTech !== localTechno) return false;
               if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(cell.bande)) return false;
-              if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => getCellTechGroup(cell.techno) === t || cell.techno === t)) return false;
+              if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || cell.techno === t)) return false;
               return true;
             });
             // Group cells by sector number
