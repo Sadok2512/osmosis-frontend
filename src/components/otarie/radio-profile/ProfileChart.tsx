@@ -361,8 +361,9 @@ const ProfileChart: React.FC<Props> = ({
               <stop offset="100%" stopColor="rgba(56,130,220,0.03)" />
             </linearGradient>
             <linearGradient id="fresnelGradGlass" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(250,204,21,0.18)" />
-              <stop offset="100%" stopColor="rgba(250,204,21,0.03)" />
+              <stop offset="0%" stopColor="rgba(250,204,21,0.45)" />
+              <stop offset="50%" stopColor="rgba(250,180,21,0.25)" />
+              <stop offset="100%" stopColor="rgba(250,204,21,0.08)" />
             </linearGradient>
             {/* Orange glow radial gradient for Fresnel obstruction */}
             <radialGradient id="fresnelGlow" cx="50%" cy="50%" r="50%">
