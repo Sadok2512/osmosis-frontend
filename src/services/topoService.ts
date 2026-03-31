@@ -315,7 +315,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       site_id: first.code_nidt || siteId,
       site_name: first.nom_site || first.site_name || first.code_nidt || siteId,
       vendor,
-      dor: first.dor || DOR_MAP[first.region || ''] || 'DOR IDF',
+      dor: normalizeDorValue(first.dor, first.region),
       plaque: first.plaque || '',
       department: (first.plaque || '').replace('DEPT_', ''),
       cell_count: cells.length,
