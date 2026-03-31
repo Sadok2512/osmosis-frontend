@@ -5657,7 +5657,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Floating LOS Analysis Panel — Glassmorphism */}
+      {/* Point creation mode banner */}
+      {pointCreationMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-violet-600 text-white px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 text-sm font-semibold animate-pulse pointer-events-auto">
+          <CircleDot className="w-4 h-4" />
+          Cliquez sur la carte pour placer un point
+          <button onClick={() => setPointCreationMode(false)} className="ml-3 px-2 py-0.5 bg-white/20 rounded-lg text-xs font-bold hover:bg-white/30 transition-colors">
+            Annuler
+          </button>
+        </div>
+      )}
+
+
       {showLosPanel && losAnalysis && !losLoading && (
         <div
            className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[48%] flex flex-col animate-fade-in"
