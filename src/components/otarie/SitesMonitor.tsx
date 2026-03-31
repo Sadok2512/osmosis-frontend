@@ -3605,6 +3605,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (term.length < 2) {
       setSearchModeSites([]);
       setSearchResults([]);
+      setSearchCoordMarker(null);
       return;
     }
 
