@@ -7184,7 +7184,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <span className="text-[9px] font-black text-muted-foreground uppercase">{site.vendor}</span>
                   </div>
                   <div className="pt-6 border-t border-border flex items-center justify-between">
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tight">{site.cell_count} CELLS</span>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tight">{site.cells?.length > 0 || site.cell_count > 0 ? `${site.cell_count} CELLS` : '—'}</span>
                     <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all"><ArrowRight size={16} /></div>
                   </div>
                 </div>
@@ -7212,7 +7212,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <td className="px-6 py-6 text-center">
                         <span className="px-2.5 py-1 bg-sidebar text-sidebar-foreground rounded-lg text-[8px] font-black uppercase">{site.vendor}</span>
                       </td>
-                      <td className="px-6 py-6 text-center font-black text-muted-foreground text-[11px]">{site.cell_count}</td>
+                      <td className="px-6 py-6 text-center font-black text-muted-foreground text-[11px]">{site.cells?.length > 0 || site.cell_count > 0 ? site.cell_count : '—'}</td>
                       <td className="px-6 py-6 text-center">
                         <div className="text-lg font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>{(site.qoe_score_avg ?? 0).toFixed(1)}%</div>
                       </td>
