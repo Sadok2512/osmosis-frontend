@@ -3531,6 +3531,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return;
     }
 
+    // ── Detect coordinate input (lat, lon) ──
+    const coordMatch = term.match(/^\s*(-?\d+\.?\d*)\s*[,;\s]+\s*(-?\d+\.?\d*)\s*$/);
+    if (coordMatch) {
+      const lat = parseFloat(coordMatch[1]);
+      const lon = parseFloat(coordMatch[2]);
+      if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+        setSearchResults([]);
+        setSearchModeSites([]);
+        setFlyTarget([lat, lon]);
+        return;
+      }
+    }
+
     const timer = setTimeout(async () => {
       setSearchLoading(true);
       if (searchAbortRef.current) searchAbortRef.current.abort();
