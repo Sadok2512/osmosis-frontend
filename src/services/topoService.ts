@@ -452,7 +452,7 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     site_id: siteId,
     site_name: dto.nom_site,
     vendor,
-    dor: dto.dor || DOR_MAP[dto.region || ''] || 'DOR IDF',
+    dor: normalizeDorValue(dto.dor, dto.region),
     plaque: dto.plaque || '',
     department: (dto.plaque || '').replace('DEPT_', ''),
     cell_count: Number(dto.nb_cells) || 0,
