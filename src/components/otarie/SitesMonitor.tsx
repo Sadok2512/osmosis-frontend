@@ -3036,18 +3036,39 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showLinkProfile, setShowLinkProfile] = useState(false);
   const [linkProfileLabel, setLinkProfileLabel] = useState('');
   const [linkProfileHover, setLinkProfileHover] = useState<ProfileHoverData | null>(null);
+  const [linkEnableCurvature, setLinkEnableCurvature] = useState(true);
+  const [linkEnableFresnel, setLinkEnableFresnel] = useState(false);
+  const [linkEnableClutter, setLinkEnableClutter] = useState(false);
+  const [linkClutterHeight, setLinkClutterHeight] = useState(0);
+  const [linkActiveCoords, setLinkActiveCoords] = useState<{ from: [number, number]; to: [number, number] } | null>(null);
+
+  const linkTotalDistance = useMemo(() => {
+    if (!linkActiveCoords) return 0;
+    return haversineDistance(
+      { lat: linkActiveCoords.from[0], lng: linkActiveCoords.from[1] },
+      { lat: linkActiveCoords.to[0], lng: linkActiveCoords.to[1] }
+    );
+  }, [linkActiveCoords]);
+
+  const linkFresnel = useFresnel(linkProfilePoints, linkProfileAnalysis, linkTotalDistance, 1.8, linkEnableFresnel);
+
+  const recomputeLinkProfile = useCallback((coords: { from: [number, number]; to: [number, number] }, curvature: boolean) => {
+    linkComputeProfile(
+      { lat: coords.from[0], lng: coords.from[1] },
+      { lat: coords.to[0], lng: coords.to[1] },
+      { hba: 30, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: 0, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 1.5, siteAltitude: 0, antennaAMSL: 30 },
+      curvature
+    );
+  }, [linkComputeProfile]);
 
   const openLinkTerrainProfile = useCallback((link: TaggedLink) => {
     setSelectedLinkId(link.id);
     setLinkProfileLabel(link.label);
     setShowLinkProfile(true);
-    linkComputeProfile(
-      { lat: link.fromCoords[0], lng: link.fromCoords[1] },
-      { lat: link.toCoords[0], lng: link.toCoords[1] },
-      { hba: 30, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: 0, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 1.5, siteAltitude: 0, antennaAMSL: 30 },
-      true
-    );
-  }, [linkComputeProfile]);
+    const coords = { from: link.fromCoords, to: link.toCoords };
+    setLinkActiveCoords(coords);
+    recomputeLinkProfile(coords, linkEnableCurvature);
+  }, [recomputeLinkProfile, linkEnableCurvature]);
 
   // ── Neighbor visualization ──
   const [neighborCellId, setNeighborCellId] = useState<string | null>(null);
@@ -5863,7 +5884,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* ── Link Terrain Profile Panel ── */}
       {showLinkProfile && linkProfileAnalysis && !linkProfileLoading && (
         <div
-          className="absolute bottom-4 right-4 z-[1001] overflow-hidden pointer-events-auto max-h-[40%] flex flex-col animate-fade-in"
+          className="absolute bottom-4 right-4 z-[1001] overflow-hidden pointer-events-auto max-h-[50%] flex flex-col animate-fade-in"
           style={{
             left: `${(panelCollapsed ? 56 : 400) + 16}px`,
             background: 'rgba(15,23,42,0.55)',
@@ -5873,6 +5894,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             boxShadow: '0 12px 48px rgba(0,0,0,0.3)',
           }}
         >
+          {/* Header */}
           <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-blue-500/15 flex items-center justify-center">
@@ -5880,25 +5902,88 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
               <div>
                 <h3 className="text-sm font-extrabold text-white tracking-tight">{linkProfileLabel}</h3>
-                <p className="text-[10px] text-white/40">Profil terrain du lien</p>
+                <p className="text-[10px] text-white/40">Profil terrain du lien · {linkTotalDistance > 0 ? (linkTotalDistance / 1000).toFixed(2) + ' km' : ''}</p>
               </div>
             </div>
-            <button
-              onClick={() => { setShowLinkProfile(false); setSelectedLinkId(null); setLinkProfileHover(null); }}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              <X size={16} />
-            </button>
+            {/* Controls */}
+            <div className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                style={{
+                  background: linkEnableCurvature ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <Switch checked={linkEnableCurvature} onCheckedChange={(v) => {
+                  setLinkEnableCurvature(v);
+                  if (linkActiveCoords) recomputeLinkProfile(linkActiveCoords, v);
+                }} />
+                <Label className="text-[10px] text-white/60">k=4/3</Label>
+              </div>
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                style={{
+                  background: linkEnableFresnel ? 'rgba(250,204,21,0.08)' : 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <Switch checked={linkEnableFresnel} onCheckedChange={setLinkEnableFresnel} />
+                <Label className="text-[10px] text-white/60">Fresnel</Label>
+              </div>
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                style={{
+                  background: linkEnableClutter ? 'rgba(251,146,60,0.08)' : 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <Switch checked={linkEnableClutter} onCheckedChange={(v) => {
+                  setLinkEnableClutter(v);
+                  if (!v) setLinkClutterHeight(0);
+                  else setLinkClutterHeight(10);
+                }} />
+                <Label className="text-[10px] text-white/60">Clutter</Label>
+              </div>
+              {linkEnableClutter && (
+                <div className="flex items-center gap-1.5">
+                  <input type="range" min="0" max="30" step="1" value={linkClutterHeight}
+                    onChange={e => setLinkClutterHeight(Number(e.target.value))}
+                    className="w-14 accent-sky-400" />
+                  <span className="text-[9px] font-mono text-white/50">{linkClutterHeight}m</span>
+                </div>
+              )}
+              <button
+                onClick={() => { setShowLinkProfile(false); setSelectedLinkId(null); setLinkProfileHover(null); setLinkActiveCoords(null); }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 pb-4">
-            <div className="h-[200px]">
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5 flex gap-5">
+            {/* Chart */}
+            <div className="flex-1 h-[260px] min-w-0">
               <ProfileChart
                 profilePoints={linkProfilePoints}
                 analysis={linkProfileAnalysis}
+                fresnel={linkFresnel}
+                showFresnel={linkEnableFresnel}
+                showCurvature={linkEnableCurvature}
+                clutterHeight={linkEnableClutter ? linkClutterHeight : 0}
                 onHoverPoint={setLinkProfileHover}
                 showTilt
                 remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
-                siteName={siteDetail?.site_name}
+                siteName={linkProfileLabel}
+              />
+            </div>
+            {/* Info panel */}
+            <div className="w-[300px] shrink-0 overflow-y-auto pr-1">
+              <InfoPanel
+                analysis={linkProfileAnalysis}
+                totalDistance={linkTotalDistance}
+                enableCurvature={linkEnableCurvature}
+                fresnel={linkFresnel}
               />
             </div>
           </div>
