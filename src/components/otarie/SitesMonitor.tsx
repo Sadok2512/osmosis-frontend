@@ -2713,11 +2713,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
   const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
 
-  const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
-    ? 'cells'
-    : viewport.zoom <= CELLS_TO_SITES_ZOOM
-      ? 'sites'
-      : displayModeRef.current;
+  const displayMode = isFlying
+    ? displayModeRef.current
+    : viewport.zoom >= SITES_TO_CELLS_ZOOM
+      ? 'cells'
+      : viewport.zoom <= CELLS_TO_SITES_ZOOM
+        ? 'sites'
+        : displayModeRef.current;
 
   useEffect(() => {
     displayModeRef.current = displayMode;
