@@ -7217,6 +7217,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Tagged Sites tab ── */}
               {inventoryTab === 'tagged' && (
               <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto px-4 pb-4">
                 {taggedSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
                     <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center">
