@@ -3280,7 +3280,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         } else if (cleaned.length > 0) {
           // No persisted dashboard — auto-activate the first one
           targetDb = cleaned[0];
-          onActiveDashboardIdChange(targetDb.id);
+          setActiveDashboardId(targetDb.id);
         }
         if (targetDb) {
           setDashboardActive(true);
