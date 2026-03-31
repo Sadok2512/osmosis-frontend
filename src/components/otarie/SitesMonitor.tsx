@@ -6889,7 +6889,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {[
                   { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
                   { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
-                  { id: 'tagged' as const, label: `Tagged (${taggedSites.length})`, icon: <Star size={12} /> },
                 ].map(tab => (
                   <button
                     key={tab.id}
