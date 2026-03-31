@@ -2747,6 +2747,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [bandColors, setBandColors] = useState<Record<string, string>>(loadCustomBandColors);
   const [editingColorBand, setEditingColorBand] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (enabledTechnos.size === 0) {
+      setEnabledTechnos(new Set(['5G', '4G']));
+    }
+  }, [enabledTechnos]);
+
   // ── TOPO mode: fetch global network stats from DB ──
   const [topoNetworkStats, setTopoNetworkStats] = useState<TopoNetworkStats | null>(null);
 
