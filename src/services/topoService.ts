@@ -752,7 +752,9 @@ export async function fetchDashboardSites(
     } catch { /* QoE enrichment is optional */ }
 
     console.log(`[TopoService] Dashboard sites: ${enrichedSites.length} sites via VPS`);
-    dashboardSitesCache = { key, sites: enrichedSites, ts: Date.now() };
+    if (enrichedSites.length > 0) {
+      dashboardSitesCache = { key, sites: enrichedSites, ts: Date.now() };
+    }
     return enrichedSites;
   } catch (err) {
     console.warn('[TopoService] VPS dashboard fetch failed, trying RPC', err);
