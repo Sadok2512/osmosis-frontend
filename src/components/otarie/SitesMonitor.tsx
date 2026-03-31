@@ -7491,8 +7491,62 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         </div>
                       ))}
                     </div>
-                  )}
+                   )}
+                </div>
 
+                {/* ── Tagged Links List ── */}
+                {taggedLinks.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Liens ({taggedLinks.length})</div>
+                    <div className="space-y-1.5">
+                      {taggedLinks.map(link => (
+                        <div
+                          key={link.id}
+                          className={`rounded-xl border transition-all overflow-hidden ${
+                            selectedLinkId === link.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-primary/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 px-3 py-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                              <Network size={14} className="text-blue-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-foreground truncate">{link.label}</div>
+                              <div className="text-[9px] text-muted-foreground">{link.fromType} ↔ {link.toType}</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => openLinkTerrainProfile(link)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-primary transition-colors"
+                                title="Profil terrain"
+                              >
+                                <Crosshair size={12} />
+                              </button>
+                              <button
+                                onClick={() => setSelectedLinkId(selectedLinkId === link.id ? null : link.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors"
+                                title="Sélectionner"
+                              >
+                                <MapPin size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteTaggedLink(link.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                </div>
+
+                {/* ── Sticky bottom buttons ── */}
+                <div className="shrink-0 border-t border-border bg-card px-4 py-3 space-y-2">
                   <button
                     onClick={() => setPointCreationMode(!pointCreationMode)}
                     className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-colors ${
@@ -7507,10 +7561,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <><Plus size={12} /> Ajouter un point</>
                     )}
                   </button>
-                </div>
 
-
-                <div className="mt-3 px-1 space-y-2">
                   {!linkCreationMode ? (
                     <button
                       onClick={() => { setLinkCreationMode(true); setLinkSource(null); }}
@@ -7568,56 +7619,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                   )}
                 </div>
-
-                {/* ── Tagged Links List ── */}
-                {taggedLinks.length > 0 && (
-                  <div className="mt-4">
-                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Liens ({taggedLinks.length})</div>
-                    <div className="space-y-1.5">
-                      {taggedLinks.map(link => (
-                        <div
-                          key={link.id}
-                          className={`rounded-xl border transition-all overflow-hidden ${
-                            selectedLinkId === link.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-primary/20'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 px-3 py-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                              <Network size={14} className="text-blue-500" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-[11px] font-bold text-foreground truncate">{link.label}</div>
-                              <div className="text-[9px] text-muted-foreground">{link.fromType} ↔ {link.toType}</div>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                onClick={() => openLinkTerrainProfile(link)}
-                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-primary transition-colors"
-                                title="Profil terrain"
-                              >
-                                <Crosshair size={12} />
-                              </button>
-                              <button
-                                onClick={() => setSelectedLinkId(selectedLinkId === link.id ? null : link.id)}
-                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors"
-                                title="Sélectionner"
-                              >
-                                <MapPin size={12} />
-                              </button>
-                              <button
-                                onClick={() => deleteTaggedLink(link.id)}
-                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                title="Supprimer"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               )}
 
