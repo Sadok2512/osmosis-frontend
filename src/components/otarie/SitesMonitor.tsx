@@ -4723,14 +4723,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             position={searchCoordMarker}
             icon={L.divIcon({
               className: '',
-              html: `<div style="width:20px;height:20px;border-radius:50%;background:hsl(0,80%,50%);border:3px solid #fff;box-shadow:0 2px 12px rgba(0,0,0,0.4);animation:pulse 1.5s infinite;"></div>
+              html: `<div style="width:20px;height:20px;border-radius:50%;background:hsl(0,80%,50%);border:3px solid #fff;box-shadow:0 2px 12px rgba(0,0,0,0.4);animation:pulse 1.5s infinite;cursor:pointer;"></div>
                      <style>@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:0.7}}</style>`,
               iconSize: [20, 20],
               iconAnchor: [10, 10],
             })}
+            eventHandlers={{
+              click: () => {
+                addCustomPoint(searchCoordMarker[0], searchCoordMarker[1]);
+                setSearchCoordMarker(null);
+              },
+            }}
           >
             <Tooltip direction="top" offset={[0, -12]} opacity={0.95} permanent>
-              <span className="text-xs font-semibold">{searchCoordMarker[0].toFixed(4)}, {searchCoordMarker[1].toFixed(4)}</span>
+              <span className="text-xs font-semibold">📌 Cliquez pour taguer · {searchCoordMarker[0].toFixed(4)}, {searchCoordMarker[1].toFixed(4)}</span>
             </Tooltip>
           </Marker>
         )}
