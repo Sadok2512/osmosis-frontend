@@ -2951,7 +2951,48 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, []);
 
-  // ── Tagged Links ──
+  // ── Custom Map Points ──
+  const [customPoints, setCustomPoints] = useState<CustomMapPoint[]>(loadCustomPoints);
+  const [pointCreationMode, setPointCreationMode] = useState(false);
+  const [renamingPointId, setRenamingPointId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const addCustomPoint = useCallback((lat: number, lon: number) => {
+    setCustomPoints(prev => {
+      const idx = prev.length + 1;
+      const pt: CustomMapPoint = {
+        id: `cp_${Date.now()}`,
+        name: `Point ${idx}`,
+        type: 'custom_point',
+        lat,
+        lon,
+        createdAt: new Date().toISOString(),
+      };
+      const next = [...prev, pt];
+      persistCustomPoints(next);
+      return next;
+    });
+    setPointCreationMode(false);
+  }, []);
+
+  const deleteCustomPoint = useCallback((id: string) => {
+    setCustomPoints(prev => {
+      const next = prev.filter(p => p.id !== id);
+      persistCustomPoints(next);
+      return next;
+    });
+  }, []);
+
+  const renameCustomPoint = useCallback((id: string, newName: string) => {
+    if (!newName.trim()) return;
+    setCustomPoints(prev => {
+      const next = prev.map(p => p.id === id ? { ...p, name: newName.trim() } : p);
+      persistCustomPoints(next);
+      return next;
+    });
+    setRenamingPointId(null);
+    setRenameValue('');
+  }, []);
   const [taggedLinks, setTaggedLinks] = useState<TaggedLink[]>(loadTaggedLinks);
   const [linkCreationMode, setLinkCreationMode] = useState(false);
   const [linkSource, setLinkSource] = useState<{ id: string; type: 'site' | 'point'; label: string; coords: [number, number] } | null>(null);
