@@ -76,18 +76,110 @@ async function duplicateDashboardInDB(source: EnhancedDashboard, allDashboards: 
   });
 }
 
+/* ─── Dashboard type color mapping ─── */
+interface DashboardTypeStyle {
+  iconBg: string;
+  iconBgHover: string;
+  iconColor: string;
+  badgeBg: string;
+  badgeText: string;
+  cardAccent: string;      // left border color
+  hoverBg: string;         // subtle tinted hover
+  label: string;
+  icon: React.ReactNode;
+}
+
+const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
+  map: {
+    iconBg: 'bg-sky-500/10',
+    iconBgHover: 'group-hover:bg-sky-500/20',
+    iconColor: 'text-sky-600',
+    badgeBg: 'bg-sky-500/10',
+    badgeText: 'text-sky-600',
+    cardAccent: 'border-l-sky-400',
+    hoverBg: 'hover:bg-sky-50/40 dark:hover:bg-sky-950/10',
+    label: 'Map',
+    icon: <MapIcon className="w-4 h-4" />,
+  },
+  analytic_qoe: {
+    iconBg: 'bg-violet-500/10',
+    iconBgHover: 'group-hover:bg-violet-500/20',
+    iconColor: 'text-violet-600',
+    badgeBg: 'bg-violet-500/10',
+    badgeText: 'text-violet-600',
+    cardAccent: 'border-l-violet-400',
+    hoverBg: 'hover:bg-violet-50/40 dark:hover:bg-violet-950/10',
+    label: 'QOE',
+    icon: <BarChart2 className="w-4 h-4" />,
+  },
+  kpi: {
+    iconBg: 'bg-emerald-500/10',
+    iconBgHover: 'group-hover:bg-emerald-500/20',
+    iconColor: 'text-emerald-600',
+    badgeBg: 'bg-emerald-500/10',
+    badgeText: 'text-emerald-600',
+    cardAccent: 'border-l-emerald-400',
+    hoverBg: 'hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10',
+    label: 'KPI',
+    icon: <BarChart2 className="w-4 h-4" />,
+  },
+  fm: {
+    iconBg: 'bg-rose-500/10',
+    iconBgHover: 'group-hover:bg-rose-500/20',
+    iconColor: 'text-rose-600',
+    badgeBg: 'bg-rose-500/10',
+    badgeText: 'text-rose-600',
+    cardAccent: 'border-l-rose-400',
+    hoverBg: 'hover:bg-rose-50/40 dark:hover:bg-rose-950/10',
+    label: 'FM',
+    icon: <BarChart2 className="w-4 h-4" />,
+  },
+  cm: {
+    iconBg: 'bg-amber-500/10',
+    iconBgHover: 'group-hover:bg-amber-500/20',
+    iconColor: 'text-amber-600',
+    badgeBg: 'bg-amber-500/10',
+    badgeText: 'text-amber-600',
+    cardAccent: 'border-l-amber-400',
+    hoverBg: 'hover:bg-amber-50/40 dark:hover:bg-amber-950/10',
+    label: 'CM',
+    icon: <BarChart2 className="w-4 h-4" />,
+  },
+  pm: {
+    iconBg: 'bg-teal-500/10',
+    iconBgHover: 'group-hover:bg-teal-500/20',
+    iconColor: 'text-teal-600',
+    badgeBg: 'bg-teal-500/10',
+    badgeText: 'text-teal-600',
+    cardAccent: 'border-l-teal-400',
+    hoverBg: 'hover:bg-teal-50/40 dark:hover:bg-teal-950/10',
+    label: 'PM',
+    icon: <BarChart2 className="w-4 h-4" />,
+  },
+};
+
+const FALLBACK_STYLE: DashboardTypeStyle = {
+  iconBg: 'bg-muted',
+  iconBgHover: 'group-hover:bg-muted/80',
+  iconColor: 'text-muted-foreground',
+  badgeBg: 'bg-muted',
+  badgeText: 'text-muted-foreground',
+  cardAccent: 'border-l-border',
+  hoverBg: 'hover:bg-muted/30',
+  label: 'Other',
+  icon: <BarChart2 className="w-4 h-4" />,
+};
+
+function getDashboardTypeStyle(type: string): DashboardTypeStyle {
+  return DASHBOARD_TYPE_STYLES[type] || FALLBACK_STYLE;
+}
+
 /* ─── Type badge ─── */
 const TypeBadge: React.FC<{ type: DashboardType }> = ({ type }) => {
-  if (type === 'map') {
-    return (
-      <span className="text-[11px] bg-blue-500/10 text-blue-500 px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1">
-        <MapIcon className="w-3 h-3" /> Map
-      </span>
-    );
-  }
+  const s = getDashboardTypeStyle(type);
   return (
-    <span className="text-[11px] bg-purple-500/10 text-purple-500 px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1">
-      <BarChart2 className="w-3 h-3" /> QOE
+    <span className={`text-[11px] ${s.badgeBg} ${s.badgeText} px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1`}>
+      {React.cloneElement(s.icon as React.ReactElement, { className: 'w-3 h-3' })} {s.label}
     </span>
   );
 };
@@ -839,10 +931,10 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             {filtered.map(db => (
               <div key={db.id}
                 onClick={() => setSelectedId(db.id)}
-                className="group cursor-pointer bg-card border border-border rounded-2xl p-5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all">
+                className={`group cursor-pointer bg-card border border-border border-l-[3px] ${getDashboardTypeStyle(db.dashboardType).cardAccent} rounded-2xl p-5 hover:shadow-lg transition-all ${getDashboardTypeStyle(db.dashboardType).hoverBg}`}>
                 <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                    {db.dashboardType === 'map' ? <MapIcon className="w-4.5 h-4.5 text-primary" /> : <BarChart2 className="w-4.5 h-4.5 text-primary" />}
+                  <div className={`w-10 h-10 rounded-xl ${getDashboardTypeStyle(db.dashboardType).iconBg} ${getDashboardTypeStyle(db.dashboardType).iconBgHover} flex items-center justify-center transition-colors`}>
+                    {React.cloneElement(getDashboardTypeStyle(db.dashboardType).icon as React.ReactElement, { className: `w-[18px] h-[18px] ${getDashboardTypeStyle(db.dashboardType).iconColor}` })}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <TypeBadge type={db.dashboardType} />
@@ -904,11 +996,11 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             {filtered.map(db => (
               <div key={db.id}
                 onClick={() => setSelectedId(db.id)}
-                className="group cursor-pointer bg-card border border-border rounded-xl grid grid-cols-1 md:grid-cols-[1fr_minmax(120px,1.2fr)_130px_100px_150px_110px] gap-2 md:gap-4 items-center px-5 py-4 hover:shadow-md hover:-translate-y-[1px] transition-all duration-150">
+                className={`group cursor-pointer bg-card border border-border border-l-[3px] ${getDashboardTypeStyle(db.dashboardType).cardAccent} rounded-xl grid grid-cols-1 md:grid-cols-[1fr_minmax(120px,1.2fr)_130px_100px_150px_110px] gap-2 md:gap-4 items-center px-5 py-4 hover:shadow-md hover:-translate-y-[1px] transition-all duration-150 ${getDashboardTypeStyle(db.dashboardType).hoverBg}`}>
                 {/* Name + type badge */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                    {db.dashboardType === 'map' ? <MapIcon className="w-4 h-4 text-primary" /> : <BarChart2 className="w-4 h-4 text-primary" />}
+                  <div className={`w-9 h-9 rounded-lg ${getDashboardTypeStyle(db.dashboardType).iconBg} ${getDashboardTypeStyle(db.dashboardType).iconBgHover} flex items-center justify-center shrink-0 transition-colors`}>
+                    {React.cloneElement(getDashboardTypeStyle(db.dashboardType).icon as React.ReactElement, { className: `w-4 h-4 ${getDashboardTypeStyle(db.dashboardType).iconColor}` })}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
