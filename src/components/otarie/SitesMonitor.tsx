@@ -7420,7 +7420,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   {!linkCreationMode ? (
                     <button
                       onClick={() => { setLinkCreationMode(true); setLinkSource(null); }}
-                      disabled={taggedSites.length < 2}
+                      disabled={(taggedSites.length + customPoints.length) < 2}
                       className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Plus size={12} />
