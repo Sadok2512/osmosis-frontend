@@ -889,30 +889,30 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             ))}
           </div>
         ) : (
-          /* ── List View ── */
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            {/* Header */}
-            <div className="hidden md:grid grid-cols-[1fr_1fr_auto_auto_auto_auto] gap-4 px-5 py-3 bg-muted/30 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          /* ── List View – Modern SaaS rows ── */
+          <div className="space-y-2.5">
+            {/* Column header */}
+            <div className="hidden md:grid grid-cols-[1fr_minmax(120px,1.2fr)_130px_100px_150px_110px] gap-4 px-5 py-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               <span>Dashboard</span>
               <span>Description</span>
-              <span className="w-28 text-center">Créé par</span>
-              <span className="w-24 text-center">Visibilité</span>
-              <span className="w-36 text-right">Dernière modification</span>
-              <span className="w-28 text-center">Actions</span>
+              <span className="text-center">Créé par</span>
+              <span className="text-center">Visibilité</span>
+              <span className="text-right">Dernière modification</span>
+              <span className="text-center">Actions</span>
             </div>
 
             {filtered.map(db => (
               <div key={db.id}
                 onClick={() => setSelectedId(db.id)}
-                className="group cursor-pointer grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_auto_auto_auto] gap-2 md:gap-4 items-center px-5 py-3.5 border-b border-border/30 hover:bg-muted/20 transition-all">
-                {/* Name cell */}
+                className="group cursor-pointer bg-card border border-border rounded-xl grid grid-cols-1 md:grid-cols-[1fr_minmax(120px,1.2fr)_130px_100px_150px_110px] gap-2 md:gap-4 items-center px-5 py-4 hover:shadow-md hover:-translate-y-[1px] transition-all duration-150">
+                {/* Name + type badge */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
                     {db.dashboardType === 'map' ? <MapIcon className="w-4 h-4 text-primary" /> : <BarChart2 className="w-4 h-4 text-primary" />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-semibold text-foreground truncate">{db.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[15px] font-semibold text-foreground truncate">{db.name}</span>
                       <TypeBadge type={db.dashboardType} />
                     </div>
                   </div>
@@ -920,31 +920,33 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
 
                 {/* Description */}
                 <div className="min-w-0">
-                  <span className="text-xs text-muted-foreground truncate block">{db.description || '—'}</span>
+                  <span className="text-xs text-muted-foreground truncate block leading-relaxed">{db.description || '—'}</span>
                 </div>
 
-                {/* Créé par */}
-                <div className="w-28 flex justify-center">
+                {/* Created by */}
+                <div className="flex justify-center">
                   <span className="text-xs text-foreground font-medium flex items-center gap-1.5 truncate">
-                    <User className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <User className="w-3 h-3 text-primary" />
+                    </div>
                     {db.ownerUsername}
                   </span>
                 </div>
 
                 {/* Visibility */}
-                <div className="w-24 flex justify-center">
+                <div className="flex justify-center">
                   <VisibilityBadge visibility={db.visibility} sharedWith={db.sharedWith} />
                 </div>
 
                 {/* Date */}
-                <div className="w-36 text-right">
+                <div className="text-right">
                   <span className="text-xs text-muted-foreground">
                     {new Date(db.updatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </span>
                 </div>
 
                 {/* Actions */}
-                <div className="w-28 flex justify-center items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-center items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                   <TooltipProvider delayDuration={200}>
                     <Tooltip><TooltipTrigger asChild>
                       <button onClick={() => setSelectedId(db.id)}
