@@ -2564,20 +2564,6 @@ const SiteConfigTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => 
           </div>
         ))}
       </div>
-      {sc.cells?.length > 0 && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-3 py-2 border-b border-border bg-muted/30 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Cellules ({sc.cells.length})</div>
-          <div className="max-h-[200px] overflow-y-auto">
-            {sc.cells.map((c: any, i: number) => (
-              <div key={i} className={`px-3 py-1.5 text-[10px] border-b border-border/30 last:border-0 flex items-center gap-2 ${i%2===0?'bg-muted/10':''}`}>
-                <span className={`inline-block w-1.5 h-1.5 rounded-full ${c.techno==='5G'||c.techno==='NR'?'bg-purple-400':'bg-blue-400'}`} />
-                <span className="font-mono font-semibold flex-1 truncate">{c.cell_name}</span>
-                <span className="text-muted-foreground">{c.band}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
