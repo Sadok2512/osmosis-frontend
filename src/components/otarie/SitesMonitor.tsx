@@ -4694,8 +4694,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
+        <CustomPointClickHandler active={pointCreationMode} onAdd={addCustomPoint} />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
+        {/* ── Custom Points markers ── */}
+        {customPoints.map(pt => (
+          <Marker
+            key={pt.id}
+            position={[pt.lat, pt.lon]}
+            icon={L.divIcon({
+              className: '',
+              html: `<div style="width:16px;height:16px;border-radius:50%;background:hsl(280,70%,55%);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
+              iconSize: [16, 16],
+              iconAnchor: [8, 8],
+            })}
+          >
+            <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+              <span className="text-xs font-bold">{pt.name}</span>
+            </Tooltip>
+          </Marker>
+        ))}
 
 
         {/* ── Parameter overlay markers ── */}
