@@ -2668,6 +2668,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const isSearchActive = localSearch.trim().length >= 2;
   const [hoveredSiteId, setHoveredSiteId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const [searchCoordMarker, setSearchCoordMarker] = useState<[number, number] | null>(null);
   const [isFlying, setIsFlying] = useState(false);
   const isFlyingRef = useRef(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
