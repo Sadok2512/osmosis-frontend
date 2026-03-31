@@ -8838,7 +8838,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                     </span>
                                   </td>
                                   <td className="px-2 py-2 text-center">
-                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${n.targetTechno?.includes('5G') || n.targetTechno === 'NR' ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: is5GTech(n.targetTechno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
                                       {n.targetTechno === 'NR' ? '5G NR' : n.targetTechno?.includes('5G') ? '5G NR' : n.targetTechno === 'LTE' || n.targetTechno?.includes('4G') ? 'LTE' : n.targetTechno}
                                     </span>
                                   </td>
