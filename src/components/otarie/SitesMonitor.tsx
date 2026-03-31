@@ -7212,7 +7212,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <td className="px-6 py-6 text-center">
                         <span className="px-2.5 py-1 bg-sidebar text-sidebar-foreground rounded-lg text-[8px] font-black uppercase">{site.vendor}</span>
                       </td>
-                      <td className="px-6 py-6 text-center font-black text-muted-foreground text-[11px]">{site.cell_count}</td>
+                      <td className="px-6 py-6 text-center font-black text-muted-foreground text-[11px]">{site.cells?.length > 0 || site.cell_count > 0 ? site.cell_count : '—'}</td>
                       <td className="px-6 py-6 text-center">
                         <div className="text-lg font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>{(site.qoe_score_avg ?? 0).toFixed(1)}%</div>
                       </td>
