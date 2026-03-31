@@ -2668,6 +2668,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const isSearchActive = localSearch.trim().length >= 2;
   const [hoveredSiteId, setHoveredSiteId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const [searchCoordMarker, setSearchCoordMarker] = useState<[number, number] | null>(null);
   const [isFlying, setIsFlying] = useState(false);
   const isFlyingRef = useRef(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
@@ -3604,6 +3605,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (term.length < 2) {
       setSearchModeSites([]);
       setSearchResults([]);
+      setSearchCoordMarker(null);
       return;
     }
 
@@ -3615,6 +3617,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
         setSearchResults([]);
         setSearchModeSites([]);
+        setSearchCoordMarker([lat, lon]);
         setFlyTarget([lat, lon]);
         return;
       }
@@ -4714,7 +4717,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </Tooltip>
           </Marker>
         ))}
-
+        {/* ── Search coordinate marker ── */}
+        {searchCoordMarker && (
+          <Marker
+            position={searchCoordMarker}
+            icon={L.divIcon({
+              className: '',
+              html: `<div style="width:20px;height:20px;border-radius:50%;background:hsl(0,80%,50%);border:3px solid #fff;box-shadow:0 2px 12px rgba(0,0,0,0.4);animation:pulse 1.5s infinite;"></div>
+                     <style>@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:0.7}}</style>`,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            })}
+          >
+            <Tooltip direction="top" offset={[0, -12]} opacity={0.95} permanent>
+              <span className="text-xs font-semibold">{searchCoordMarker[0].toFixed(4)}, {searchCoordMarker[1].toFixed(4)}</span>
+            </Tooltip>
+          </Marker>
+        )}
 
         {/* ── Parameter overlay markers ── */}
         {paramMode && !paramLoading && paramPoints.length > 0 && (
