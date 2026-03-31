@@ -8762,7 +8762,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     setTimeout(() => {
                       setNeighborCellId(focusCellId);
                       setNeighborData(mockNeighbors);
-                      setShowNeighborPanel(true);
+                      setShowNeighborPanel(false);
                     }, 0);
                   }
                   const filtered = neighborData.filter(n => n.relationDirection === neighborDirection);
