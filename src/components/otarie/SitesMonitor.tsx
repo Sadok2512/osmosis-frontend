@@ -7950,7 +7950,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   return (
                                     <div key={c.cell_id} onClick={() => handleCellClick(c.cell_id)} className={`grid grid-cols-[1fr_50px_70px_45px_45px] gap-1 px-3 py-2 items-center cursor-pointer transition-colors ${focusCellId === c.cell_id ? 'bg-primary/10' : 'hover:bg-muted/20'}`}>
                                       <span className="text-[11px] font-semibold text-foreground truncate cursor-pointer hover:text-primary transition-colors">{c.cell_id}</span>
-                                      <span className="text-[10px] font-bold text-center" style={{ color: c.techno === '5G' ? '#22c55e' : '#f97316' }}>{c.techno}</span>
+                                      <span className="text-[10px] font-bold text-center" style={{ color: is5GTech(c.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>{c.techno}</span>
                                       <span className="text-[10px] text-muted-foreground text-center">{c.bande}</span>
                                       <span className="text-[10px] font-semibold text-foreground text-center">{c.azimut ?? '—'}°</span>
                                       <span className="text-[10px] font-semibold text-foreground text-center">{eTilt ?? '—'}°</span>
