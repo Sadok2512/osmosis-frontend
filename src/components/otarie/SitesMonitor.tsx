@@ -8410,7 +8410,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </TabsContent>
 
                   <TabsContent value="params" className="mt-3">
-                    <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Parameters — coming soon</div>
+                    <SiteParametersTab siteName={siteDetail?.site_name} />
                   </TabsContent>
                 </Tabs>
               </div>
