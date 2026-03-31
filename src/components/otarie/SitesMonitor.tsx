@@ -2334,77 +2334,41 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
 /** Extracted sub-component for Parameters tab in the right sidebar */
 const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => {
-  const [paramList, setParamList] = React.useState<string[]>([]);
-  const [listLoading, setListLoading] = React.useState(false);
-  const [listLoaded, setListLoaded] = React.useState(false);
   const [search, setSearch] = React.useState('');
-  const [selectedParam, setSelectedParam] = React.useState<string | null>(null);
+  const [searchedParam, setSearchedParam] = React.useState<string | null>(null);
   const [paramData, setParamData] = React.useState<{ parameter: string; cell_name: string | null; value: string | null; bande: string | null; dn: string | null }[]>([]);
   const [dataLoading, setDataLoading] = React.useState(false);
+  const [hasSearched, setHasSearched] = React.useState(false);
 
-  // Step 1: Load distinct parameter names for this site
+  // Reset on site change
   React.useEffect(() => {
-    if (!siteName) { setParamList([]); setListLoaded(false); setSelectedParam(null); return; }
-    setListLoading(true);
-    setListLoaded(false);
-    setSelectedParam(null);
+    setSearch('');
+    setSearchedParam(null);
     setParamData([]);
+    setHasSearched(false);
+  }, [siteName]);
+
+  // Fetch when searchedParam changes
+  React.useEffect(() => {
+    if (!siteName || !searchedParam) { setParamData([]); return; }
+    setDataLoading(true);
+    setHasSearched(true);
     (async () => {
-      let names: string[] = [];
+      let fetched = false;
       try {
-        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}`), {
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}?parameter=${encodeURIComponent(searchedParam)}`), {
           headers: getVpsProxyHeaders(),
         });
         const data = await resp.json();
         if (Array.isArray(data) && data.length > 0) {
-          const set = new Set<string>();
-          data.forEach((r: any) => { const n = r.parameter || r.param_name || ''; if (n) set.add(n); });
-          names = Array.from(set).sort();
-        }
-      } catch {}
-      if (names.length === 0) {
-        try {
-          const { data: dbRows } = await supabase
-            .from('parameter_dump')
-            .select('parameter')
-            .ilike('site_name', siteName)
-            .limit(1000);
-          if (dbRows) {
-            const set = new Set<string>();
-            dbRows.forEach((r: any) => { if (r.parameter) set.add(r.parameter); });
-            names = Array.from(set).sort();
-          }
-        } catch {}
-      }
-      setParamList(names);
-      setListLoading(false);
-      setListLoaded(true);
-    })();
-  }, [siteName]);
-
-  // Step 2: When a parameter is selected, load its values
-  React.useEffect(() => {
-    if (!siteName || !selectedParam) { setParamData([]); return; }
-    setDataLoading(true);
-    (async () => {
-      let fetched = false;
-      try {
-        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}`), {
-          headers: getVpsProxyHeaders(),
-        });
-        const data = await resp.json();
-        if (Array.isArray(data)) {
-          const filtered = data.filter((r: any) => (r.parameter || r.param_name) === selectedParam);
-          if (filtered.length > 0) {
-            setParamData(filtered.map((r: any) => ({
-              parameter: r.parameter || r.param_name || '',
-              cell_name: r.cell_name || r.nom_cellule || null,
-              value: r.value ?? null,
-              bande: r.bande || null,
-              dn: r.dn || r.cell_dn || null,
-            })));
-            fetched = true;
-          }
+          setParamData(data.map((r: any) => ({
+            parameter: r.parameter || r.param_name || '',
+            cell_name: r.cell_name || r.nom_cellule || null,
+            value: r.value ?? null,
+            bande: r.bande || null,
+            dn: r.dn || r.cell_dn || null,
+          })));
+          fetched = true;
         }
       } catch {}
       if (!fetched) {
@@ -2413,7 +2377,7 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
             .from('parameter_dump')
             .select('parameter, cell_name, value, bande, dn')
             .ilike('site_name', siteName)
-            .eq('parameter', selectedParam)
+            .ilike('parameter', `%${searchedParam}%`)
             .limit(1000);
           if (dbRows) {
             setParamData(dbRows.map((r: any) => ({
@@ -2428,82 +2392,88 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
       }
       setDataLoading(false);
     })();
-  }, [siteName, selectedParam]);
+  }, [siteName, searchedParam]);
 
-  const filteredList = React.useMemo(() => {
-    if (!search) return paramList;
-    const s = search.toLowerCase();
-    return paramList.filter(p => p.toLowerCase().includes(s));
-  }, [paramList, search]);
+  const doSearch = () => {
+    if (search.trim()) setSearchedParam(search.trim());
+  };
+
+  // Group results by parameter name
+  const grouped = React.useMemo(() => {
+    const map = new Map<string, typeof paramData>();
+    for (const p of paramData) {
+      const key = p.parameter;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(p);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [paramData]);
 
   if (!siteName) return <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Sélectionnez un site</div>;
 
-  // If no parameter selected yet, show the selector
-  if (!selectedParam) {
-    return (
-      <div className="space-y-2">
-        <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1">Sélectionner un paramètre</div>
-        <div className="relative">
+  return (
+    <div className="space-y-3">
+      {/* Search input + button */}
+      <div className="flex gap-1.5">
+        <div className="relative flex-1">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher..."
+            onKeyDown={e => { if (e.key === 'Enter') doSearch(); }}
+            placeholder="Nom du paramètre..."
             className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
-        {listLoading ? (
-          <div className="flex items-center justify-center py-8"><RefreshCw className="w-4 h-4 animate-spin text-primary" /></div>
-        ) : listLoaded && paramList.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Aucun paramètre trouvé</div>
-        ) : (
-          <div className="max-h-[calc(100vh-480px)] overflow-y-auto space-y-0.5 pr-0.5">
-            {filteredList.map(name => (
-              <button
-                key={name}
-                onClick={() => { setSelectedParam(name); setSearch(''); }}
-                className="w-full text-left px-3 py-2 rounded-lg text-[11px] font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-2 border border-transparent hover:border-primary/20"
-              >
-                <span className="w-2 h-2 rounded-full border border-muted-foreground/40 shrink-0" />
-                <span className="truncate">{name}</span>
-              </button>
-            ))}
-            {filteredList.length === 0 && search && (
-              <div className="text-[10px] text-muted-foreground text-center py-4">Aucun résultat pour « {search} »</div>
-            )}
-          </div>
-        )}
-        <div className="text-[9px] text-muted-foreground text-center">{paramList.length} paramètre{paramList.length !== 1 ? 's' : ''} disponible{paramList.length !== 1 ? 's' : ''}</div>
-      </div>
-    );
-  }
-
-  // Parameter selected: show values
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <button onClick={() => setSelectedParam(null)} className="text-primary hover:text-primary/80 transition-colors">
-          <ChevronLeft size={16} />
+        <button
+          onClick={doSearch}
+          disabled={!search.trim()}
+          className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+        >
+          Chercher
         </button>
-        <span className="text-[11px] font-black text-foreground truncate flex-1">{selectedParam}</span>
-        <span className="text-[9px] text-muted-foreground font-mono">{paramData.length} valeur{paramData.length !== 1 ? 's' : ''}</span>
       </div>
+
+      {/* Results */}
       {dataLoading ? (
         <div className="flex items-center justify-center py-8"><RefreshCw className="w-4 h-4 animate-spin text-primary" /></div>
+      ) : !hasSearched ? (
+        <div className="rounded-xl border border-border bg-card p-6 text-center space-y-2">
+          <Search size={20} className="mx-auto text-muted-foreground/40" />
+          <p className="text-[11px] text-muted-foreground">Entrez un nom de paramètre et appuyez sur <strong>Chercher</strong></p>
+        </div>
       ) : paramData.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Aucune donnée</div>
+        <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">
+          Aucun résultat pour « {searchedParam} »
+        </div>
       ) : (
-        <div className="max-h-[calc(100vh-460px)] overflow-y-auto space-y-0.5 pr-0.5">
-          <div className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border/30">
-            {paramData.map((e, i) => (
-              <div key={i} className="px-3 py-1.5 flex items-center gap-2 text-[10px]">
-                {e.cell_name && <span className="text-muted-foreground truncate max-w-[120px]" title={e.cell_name}>{e.cell_name}</span>}
-                {e.bande && <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[9px] font-medium text-foreground/60 shrink-0">{e.bande}</span>}
-                <span className="ml-auto font-mono font-semibold text-foreground/90 truncate max-w-[120px] text-right" title={e.value || '—'}>{e.value || '—'}</span>
+        <>
+          <div className="text-[9px] text-muted-foreground px-1">
+            {paramData.length} entrée{paramData.length !== 1 ? 's' : ''} · {grouped.length} paramètre{grouped.length !== 1 ? 's' : ''}
+          </div>
+          <div className="max-h-[calc(100vh-480px)] overflow-y-auto space-y-1.5 pr-0.5">
+            {grouped.map(([paramName, entries]) => (
+              <div key={paramName} className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="px-3 py-1.5 bg-muted/30 border-b border-border/50 flex items-center justify-between">
+                  <span className="text-[10px] font-black text-foreground truncate">{paramName}</span>
+                  <span className="text-[9px] text-muted-foreground font-mono">{entries.length}</span>
+                </div>
+                <div className="divide-y divide-border/30">
+                  {entries.slice(0, 30).map((e, i) => (
+                    <div key={i} className="px-3 py-1.5 flex items-center gap-2 text-[10px]">
+                      {e.cell_name && <span className="text-muted-foreground truncate max-w-[120px]" title={e.cell_name}>{e.cell_name}</span>}
+                      {e.bande && <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[9px] font-medium text-foreground/60 shrink-0">{e.bande}</span>}
+                      <span className="ml-auto font-mono font-semibold text-foreground/90 truncate max-w-[120px] text-right" title={e.value || '—'}>{e.value || '—'}</span>
+                    </div>
+                  ))}
+                  {entries.length > 30 && (
+                    <div className="px-3 py-1 text-[9px] text-muted-foreground text-center">+{entries.length - 30} de plus</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        </>
       )}
     </div>
   );
