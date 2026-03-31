@@ -7046,6 +7046,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 <span>•</span>
                                 <span className="uppercase font-semibold">{site.vendor}</span>
                               </div>
+                              {(() => {
+                                const coords = normalizeCoordinates(site);
+                                if (!coords) return null;
+                                return (
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0 mt-1 text-[9px] font-mono text-muted-foreground/70">
+                                    {coords.lat != null && <span>Lat: {fmtCoord(coords.lat)}</span>}
+                                    {coords.lon != null && <span>Lon: {fmtCoord(coords.lon)}</span>}
+                                    {coords.x != null && <span>X: {fmtCoord(coords.x, 2)}</span>}
+                                    {coords.y != null && <span>Y: {fmtCoord(coords.y, 2)}</span>}
+                                  </div>
+                                );
+                              })()}
                             </div>
                             <div className="text-right shrink-0">
                               {sectorColorMode !== 'topo' && (
