@@ -3616,6 +3616,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
         setSearchResults([]);
         setSearchModeSites([]);
+        setSearchCoordMarker([lat, lon]);
         setFlyTarget([lat, lon]);
         return;
       }
