@@ -804,7 +804,9 @@ export async function fetchDashboardSites(
       });
 
     console.log(`[TopoService] Dashboard sites: ${sites.length} sites via RPC`);
-    dashboardSitesCache = { key, sites, ts: Date.now() };
+    if (sites.length > 0) {
+      dashboardSitesCache = { key, sites, ts: Date.now() };
+    }
     return sites;
   } catch (err) {
     console.warn('[TopoService] Dashboard RPC also failed', err);
