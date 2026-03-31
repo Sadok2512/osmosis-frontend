@@ -4218,11 +4218,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         // Single bulk call for all cells in current viewport
         const cellSites = await fetchCellsByBbox(bboxQuery, currentBboxFilters);
 
-        // Build a lookup by site_id
+        const getLookupKeys = (siteLike: { site_id?: string | null; site_name?: string | null }) => {
+          const candidates = [siteLike.site_id, siteLike.site_name]
+            .map(value => String(value || '').trim())
+            .filter(Boolean);
+
+          return Array.from(new Set(
+            candidates.flatMap(value => {
+              const normalized = normalizeSiteKey(value);
+              return normalized && normalized !== value ? [value, normalized] : [value];
+            })
+          ));
+        };
+
+        // Build a lookup by stable id and normalized site name
         const cellMap = new Map<string, any[]>();
         for (const cs of cellSites) {
           if (cs.cells && cs.cells.length > 0) {
-            cellMap.set(cs.site_id, cs.cells);
+            getLookupKeys(cs).forEach(key => cellMap.set(key, cs.cells));
           }
         }
 
@@ -4318,7 +4331,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         // Merge cells into sites — keep original cell_count (don't overwrite with 4G/5G-only count)
         setSites(prev => prev.map(s => {
-          const cells = cellMap.get(s.site_id);
+          const cells = getLookupKeys(s)
+            .map(key => cellMap.get(key))
+            .find((value): value is any[] => Array.isArray(value) && value.length > 0);
           return cells && cells.length > 0 ? { ...s, cells } : s;
         }));
       } catch (err) {
