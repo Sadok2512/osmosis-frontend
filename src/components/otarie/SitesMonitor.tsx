@@ -7420,7 +7420,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   {!linkCreationMode ? (
                     <button
                       onClick={() => { setLinkCreationMode(true); setLinkSource(null); }}
-                      disabled={taggedSites.length < 2}
+                      disabled={(taggedSites.length + customPoints.length) < 2}
                       className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Plus size={12} />
@@ -7430,7 +7430,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2">
                       <div className="text-[10px] font-bold text-primary uppercase tracking-wider">Sélection du lien</div>
                       <div className="text-[10px] text-muted-foreground">
-                        {!linkSource ? 'Cliquez sur un site source ci-dessus' : `Source: ${linkSource.label} — cliquez sur la destination`}
+                        {!linkSource ? 'Cliquez sur un objet source' : `Source: ${linkSource.label} — cliquez sur la destination`}
                       </div>
                       {taggedSites.map(s => (
                         <button
@@ -7441,9 +7441,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             linkSource?.id === s.site_id ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80 text-foreground'
                           } disabled:opacity-50`}
                         >
-                          {s.site_name}
+                          🏗 {s.site_name}
                         </button>
                       ))}
+                      {customPoints.map(pt => {
+                        const ptObj = { id: pt.id, type: 'point' as const, label: pt.name, coords: [pt.lat, pt.lon] as [number, number] };
+                        return (
+                          <button
+                            key={pt.id}
+                            onClick={() => {
+                              if (!linkSource) {
+                                setLinkSource(ptObj);
+                              } else if (linkSource.id !== pt.id) {
+                                addTaggedLink(linkSource, ptObj);
+                              }
+                            }}
+                            disabled={linkSource?.id === pt.id}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+                              linkSource?.id === pt.id ? 'bg-primary text-primary-foreground' : 'bg-violet-500/10 hover:bg-violet-500/20 text-foreground'
+                            } disabled:opacity-50`}
+                          >
+                            📌 {pt.name}
+                          </button>
+                        );
+                      })}
                       <button
                         onClick={() => { setLinkCreationMode(false); setLinkSource(null); }}
                         className="w-full text-center text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors py-1"
