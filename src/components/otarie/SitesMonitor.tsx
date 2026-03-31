@@ -6668,7 +6668,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
-                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
+                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
                                                   {cell.techno || '—'}
                                                 </span>
                                               </td>
@@ -6877,7 +6877,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
-                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
+                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
                                                   {cell.techno || '—'}
                                                 </span>
                                               </td>
@@ -7950,7 +7950,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   return (
                                     <div key={c.cell_id} onClick={() => handleCellClick(c.cell_id)} className={`grid grid-cols-[1fr_50px_70px_45px_45px] gap-1 px-3 py-2 items-center cursor-pointer transition-colors ${focusCellId === c.cell_id ? 'bg-primary/10' : 'hover:bg-muted/20'}`}>
                                       <span className="text-[11px] font-semibold text-foreground truncate cursor-pointer hover:text-primary transition-colors">{c.cell_id}</span>
-                                      <span className="text-[10px] font-bold text-center" style={{ color: c.techno === '5G' ? '#22c55e' : '#f97316' }}>{c.techno}</span>
+                                      <span className="text-[10px] font-bold text-center" style={{ color: is5GTech(c.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>{c.techno}</span>
                                       <span className="text-[10px] text-muted-foreground text-center">{c.bande}</span>
                                       <span className="text-[10px] font-semibold text-foreground text-center">{c.azimut ?? '—'}°</span>
                                       <span className="text-[10px] font-semibold text-foreground text-center">{eTilt ?? '—'}°</span>
@@ -8383,7 +8383,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <div className="flex flex-wrap items-center gap-1 mt-1 text-[11px]">
                         <span className="text-muted-foreground truncate max-w-[120px]">{siteDetail.site_name}</span>
                         <span className="text-muted-foreground">•</span>
-                        <span className={`font-bold px-1.5 py-0.5 rounded text-[9px] text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>{cell.techno}</span>
+                        <span className="font-bold px-1.5 py-0.5 rounded text-[9px] text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>{cell.techno}</span>
                         <span className="font-semibold text-foreground">{cell.bande}</span>
                         <span className="text-muted-foreground">•</span>
                         <span className="text-muted-foreground">Az {cell.azimut}°</span>
@@ -8838,7 +8838,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                     </span>
                                   </td>
                                   <td className="px-2 py-2 text-center">
-                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${n.targetTechno?.includes('5G') || n.targetTechno === 'NR' ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: is5GTech(n.targetTechno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
                                       {n.targetTechno === 'NR' ? '5G NR' : n.targetTechno?.includes('5G') ? '5G NR' : n.targetTechno === 'LTE' || n.targetTechno?.includes('4G') ? 'LTE' : n.targetTechno}
                                     </span>
                                   </td>
