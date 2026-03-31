@@ -4712,7 +4712,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               iconAnchor: [8, 8],
             })}
           >
-            <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+            <Tooltip direction="top" offset={[0, -10]} opacity={0.95} permanent>
               <span className="text-xs font-bold">{pt.name}</span>
             </Tooltip>
           </Marker>
