@@ -75,7 +75,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
-  Bell, FileText, AlertTriangle, Layers, Palette
+  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
@@ -509,6 +509,41 @@ const LOSMapClickHandler: React.FC<{ onMapClick: (latlng: LatLng) => void; drawi
   useMapEvents({
     click(e) {
       if (drawing) onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+  });
+  return null;
+};
+
+// ── Custom Point type ──
+export interface CustomMapPoint {
+  id: string;
+  name: string;
+  type: 'custom_point';
+  lat: number;
+  lon: number;
+  x?: number;
+  y?: number;
+  createdAt: string;
+}
+
+const CUSTOM_POINTS_KEY = 'qoebit_custom_points';
+
+function loadCustomPoints(): CustomMapPoint[] {
+  try {
+    const saved = localStorage.getItem(CUSTOM_POINTS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch { return []; }
+}
+
+function persistCustomPoints(points: CustomMapPoint[]) {
+  try { localStorage.setItem(CUSTOM_POINTS_KEY, JSON.stringify(points)); } catch {}
+}
+
+// Map click handler for custom point creation
+const CustomPointClickHandler: React.FC<{ active: boolean; onAdd: (lat: number, lon: number) => void }> = ({ active, onAdd }) => {
+  useMapEvents({
+    click(e) {
+      if (active) onAdd(e.latlng.lat, e.latlng.lng);
     },
   });
   return null;
@@ -2916,7 +2951,48 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, []);
 
-  // ── Tagged Links ──
+  // ── Custom Map Points ──
+  const [customPoints, setCustomPoints] = useState<CustomMapPoint[]>(loadCustomPoints);
+  const [pointCreationMode, setPointCreationMode] = useState(false);
+  const [renamingPointId, setRenamingPointId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const addCustomPoint = useCallback((lat: number, lon: number) => {
+    setCustomPoints(prev => {
+      const idx = prev.length + 1;
+      const pt: CustomMapPoint = {
+        id: `cp_${Date.now()}`,
+        name: `Point ${idx}`,
+        type: 'custom_point',
+        lat,
+        lon,
+        createdAt: new Date().toISOString(),
+      };
+      const next = [...prev, pt];
+      persistCustomPoints(next);
+      return next;
+    });
+    setPointCreationMode(false);
+  }, []);
+
+  const deleteCustomPoint = useCallback((id: string) => {
+    setCustomPoints(prev => {
+      const next = prev.filter(p => p.id !== id);
+      persistCustomPoints(next);
+      return next;
+    });
+  }, []);
+
+  const renameCustomPoint = useCallback((id: string, newName: string) => {
+    if (!newName.trim()) return;
+    setCustomPoints(prev => {
+      const next = prev.map(p => p.id === id ? { ...p, name: newName.trim() } : p);
+      persistCustomPoints(next);
+      return next;
+    });
+    setRenamingPointId(null);
+    setRenameValue('');
+  }, []);
   const [taggedLinks, setTaggedLinks] = useState<TaggedLink[]>(loadTaggedLinks);
   const [linkCreationMode, setLinkCreationMode] = useState(false);
   const [linkSource, setLinkSource] = useState<{ id: string; type: 'site' | 'point'; label: string; coords: [number, number] } | null>(null);
@@ -4618,8 +4694,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
+        <CustomPointClickHandler active={pointCreationMode} onAdd={addCustomPoint} />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
+        {/* ── Custom Points markers ── */}
+        {customPoints.map(pt => (
+          <Marker
+            key={pt.id}
+            position={[pt.lat, pt.lon]}
+            icon={L.divIcon({
+              className: '',
+              html: `<div style="width:16px;height:16px;border-radius:50%;background:hsl(280,70%,55%);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
+              iconSize: [16, 16],
+              iconAnchor: [8, 8],
+            })}
+          >
+            <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+              <span className="text-xs font-bold">{pt.name}</span>
+            </Tooltip>
+          </Marker>
+        ))}
 
 
         {/* ── Parameter overlay markers ── */}
@@ -5563,7 +5657,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Floating LOS Analysis Panel — Glassmorphism */}
+      {/* Point creation mode banner */}
+      {pointCreationMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-violet-600 text-white px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 text-sm font-semibold animate-pulse pointer-events-auto">
+          <CircleDot className="w-4 h-4" />
+          Cliquez sur la carte pour placer un point
+          <button onClick={() => setPointCreationMode(false)} className="ml-3 px-2 py-0.5 bg-white/20 rounded-lg text-xs font-bold hover:bg-white/30 transition-colors">
+            Annuler
+          </button>
+        </div>
+      )}
+
+
       {showLosPanel && losAnalysis && !losLoading && (
         <div
            className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[48%] flex flex-col animate-fade-in"
@@ -7205,7 +7310,87 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 )}
 
-                {/* ── Link Creation Controls ── */}
+                {/* ── Custom Points Section ── */}
+                <div className="mt-4">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Points personnalisés ({customPoints.length})</div>
+
+                  {customPoints.length > 0 && (
+                    <div className="space-y-1.5 mb-2">
+                      {customPoints.map(pt => (
+                        <div key={pt.id} className="rounded-xl border border-border bg-card hover:border-primary/20 transition-all overflow-hidden">
+                          <div className="flex items-center gap-2 px-3 py-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                              <CircleDot size={14} className="text-violet-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {renamingPointId === pt.id ? (
+                                <form onSubmit={(e) => { e.preventDefault(); renameCustomPoint(pt.id, renameValue); }} className="flex items-center gap-1">
+                                  <input
+                                    autoFocus
+                                    value={renameValue}
+                                    onChange={e => setRenameValue(e.target.value)}
+                                    onBlur={() => renameCustomPoint(pt.id, renameValue)}
+                                    className="text-[11px] font-bold bg-muted rounded px-1.5 py-0.5 w-full outline-none border border-primary/30 text-foreground"
+                                  />
+                                </form>
+                              ) : (
+                                <>
+                                  <div className="text-[11px] font-bold text-foreground truncate">{pt.name}</div>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0 mt-0.5 text-[9px] font-mono text-muted-foreground/70">
+                                    <span>Lat: {pt.lat.toFixed(6)}</span>
+                                    <span>Lon: {pt.lon.toFixed(6)}</span>
+                                    {pt.x != null && <span>X: {pt.x.toFixed(2)}</span>}
+                                    {pt.y != null && <span>Y: {pt.y.toFixed(2)}</span>}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => { setRenamingPointId(pt.id); setRenameValue(pt.name); }}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                title="Renommer"
+                              >
+                                <Pencil size={11} />
+                              </button>
+                              <button
+                                onClick={() => setFlyTarget([pt.lat, pt.lon])}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                                title="Centrer"
+                              >
+                                <Crosshair size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteCustomPoint(pt.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setPointCreationMode(!pointCreationMode)}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                      pointCreationMode
+                        ? 'border-violet-500 bg-violet-500/10 text-violet-600'
+                        : 'border-primary/30 text-primary hover:bg-primary/10'
+                    }`}
+                  >
+                    {pointCreationMode ? (
+                      <><X size={12} /> Annuler le placement</>
+                    ) : (
+                      <><Plus size={12} /> Ajouter un point</>
+                    )}
+                  </button>
+                </div>
+
+
                 <div className="mt-3 px-1 space-y-2">
                   {!linkCreationMode ? (
                     <button
