@@ -14,7 +14,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import { useTerrainProfile } from '@/hooks/useTerrainProfile';
 import { useFresnel } from '@/hooks/useFresnel';
-import { haversineDistance, LatLng } from '@/utils/geodesicUtils';
+import { haversineDistance, LatLng, bearing } from '@/utils/geodesicUtils';
 import { is5GTech, is4GTech, getCellTechGroup, normalizeSiteKey, resolveCanonicalSiteId, stableCellKey, computeMapAggregation } from '@/utils/telecomHelpers';
 import ProfileChart, { ProfileHoverData } from './radio-profile/ProfileChart';
 import InfoPanel from './radio-profile/InfoPanel';
