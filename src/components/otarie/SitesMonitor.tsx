@@ -6668,7 +6668,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
-                                                <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-[10px] font-extrabold text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
+                                                <span className="inline-flex items-center justify-center min-w-[38px] px-3 py-1 rounded-full text-[11px] font-extrabold text-white shadow-sm" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
                                                   {is5GTech(cell.techno) ? '5G' : '4G'}
                                                 </span>
                                               </td>
@@ -6877,8 +6877,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
-                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
-                                                  {cell.techno || '—'}
+                                                <span className="inline-flex items-center justify-center min-w-[38px] px-3 py-1 rounded-full text-[11px] font-extrabold text-white shadow-sm" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
+                                                  {is5GTech(cell.techno) ? '5G' : '4G'}
                                                 </span>
                                               </td>
                                               <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
