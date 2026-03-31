@@ -2157,28 +2157,36 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     </div>
                   </div>
                 )}
-                {/* Ajouter une vue — advanced filter builder */}
+                {/* Ajouter une vue — opens dialog */}
                 <div className="px-3 pt-1.5 pb-2">
-                  {showCreateView === db.id ? (
-                    <ViewFilterBuilder
-                      viewName={newViewName}
-                      onViewNameChange={setNewViewName}
-                      backendFilterDefs={backendFilterDefs}
-                      initialConditions={siteFiltersToConditions(newViewFilters)}
-                      saving={creating}
-                      onSave={(conditions) => handleCreateViewWithConditions(db.id, conditions)}
-                      onCancel={() => { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); }}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => setShowCreateView(db.id)}
-                      className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10 text-[10px] font-bold text-primary/80 hover:text-primary transition-all"
-                    >
-                      <Plus size={11} />
-                      Ajouter une vue
-                    </button>
-                  )}
+                  <button
+                    onClick={() => { setShowCreateView(db.id); setNewViewName(''); setNewViewFilters({}); }}
+                    className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10 text-[10px] font-bold text-primary/80 hover:text-primary transition-all"
+                  >
+                    <Plus size={11} />
+                    Ajouter une vue
+                  </button>
                 </div>
+                {/* Create View Dialog */}
+                <Dialog open={showCreateView === db.id} onOpenChange={(open) => { if (!open) { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); } }}>
+                  <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="text-sm font-black uppercase tracking-wider">View Configuration</DialogTitle>
+                      <DialogDescription className="text-[10px] text-muted-foreground">Configure filters and display settings for the new view</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-2">
+                      <ViewFilterBuilder
+                        viewName={newViewName}
+                        onViewNameChange={setNewViewName}
+                        backendFilterDefs={backendFilterDefs}
+                        initialConditions={siteFiltersToConditions(newViewFilters)}
+                        saving={creating}
+                        onSave={(conditions) => handleCreateViewWithConditions(db.id, conditions)}
+                        onCancel={() => { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); }}
+                      />
+                    </div>
+                  </DialogContent>
+                </Dialog>
 
                 {isExpanded && (
                   <div className="ml-5 pl-3 border-l-2 border-border/60 space-y-1 py-1.5">
