@@ -996,11 +996,11 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             {filtered.map(db => (
               <div key={db.id}
                 onClick={() => setSelectedId(db.id)}
-                className="group cursor-pointer bg-card border border-border rounded-xl grid grid-cols-1 md:grid-cols-[1fr_minmax(120px,1.2fr)_130px_100px_150px_110px] gap-2 md:gap-4 items-center px-5 py-4 hover:shadow-md hover:-translate-y-[1px] transition-all duration-150">
+                className={`group cursor-pointer bg-card border border-border border-l-[3px] ${getDashboardTypeStyle(db.dashboardType).cardAccent} rounded-xl grid grid-cols-1 md:grid-cols-[1fr_minmax(120px,1.2fr)_130px_100px_150px_110px] gap-2 md:gap-4 items-center px-5 py-4 hover:shadow-md hover:-translate-y-[1px] transition-all duration-150 ${getDashboardTypeStyle(db.dashboardType).hoverBg}`}>
                 {/* Name + type badge */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                    {db.dashboardType === 'map' ? <MapIcon className="w-4 h-4 text-primary" /> : <BarChart2 className="w-4 h-4 text-primary" />}
+                  <div className={`w-9 h-9 rounded-lg ${getDashboardTypeStyle(db.dashboardType).iconBg} ${getDashboardTypeStyle(db.dashboardType).iconBgHover} flex items-center justify-center shrink-0 transition-colors`}>
+                    {React.cloneElement(getDashboardTypeStyle(db.dashboardType).icon as React.ReactElement, { className: `w-4 h-4 ${getDashboardTypeStyle(db.dashboardType).iconColor}` })}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
