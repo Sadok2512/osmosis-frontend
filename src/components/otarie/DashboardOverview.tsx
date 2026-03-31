@@ -931,10 +931,10 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             {filtered.map(db => (
               <div key={db.id}
                 onClick={() => setSelectedId(db.id)}
-                className="group cursor-pointer bg-card border border-border rounded-2xl p-5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all">
+                className={`group cursor-pointer bg-card border border-border border-l-[3px] ${getDashboardTypeStyle(db.dashboardType).cardAccent} rounded-2xl p-5 hover:shadow-lg transition-all ${getDashboardTypeStyle(db.dashboardType).hoverBg}`}>
                 <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                    {db.dashboardType === 'map' ? <MapIcon className="w-4.5 h-4.5 text-primary" /> : <BarChart2 className="w-4.5 h-4.5 text-primary" />}
+                  <div className={`w-10 h-10 rounded-xl ${getDashboardTypeStyle(db.dashboardType).iconBg} ${getDashboardTypeStyle(db.dashboardType).iconBgHover} flex items-center justify-center transition-colors`}>
+                    {React.cloneElement(getDashboardTypeStyle(db.dashboardType).icon as React.ReactElement, { className: `w-[18px] h-[18px] ${getDashboardTypeStyle(db.dashboardType).iconColor}` })}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <TypeBadge type={db.dashboardType} />
