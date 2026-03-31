@@ -6877,7 +6877,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
-                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>
+                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
                                                   {cell.techno || '—'}
                                                 </span>
                                               </td>
