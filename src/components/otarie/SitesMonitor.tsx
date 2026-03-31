@@ -514,6 +514,40 @@ const LOSMapClickHandler: React.FC<{ onMapClick: (latlng: LatLng) => void; drawi
   return null;
 };
 
+// ── Custom Point type ──
+export interface CustomMapPoint {
+  id: string;
+  name: string;
+  type: 'custom_point';
+  lat: number;
+  lon: number;
+  x?: number;
+  y?: number;
+  createdAt: string;
+}
+
+const CUSTOM_POINTS_KEY = 'qoebit_custom_points';
+
+function loadCustomPoints(): CustomMapPoint[] {
+  try {
+    const saved = localStorage.getItem(CUSTOM_POINTS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch { return []; }
+}
+
+function persistCustomPoints(points: CustomMapPoint[]) {
+  try { localStorage.setItem(CUSTOM_POINTS_KEY, JSON.stringify(points)); } catch {}
+}
+
+// Map click handler for custom point creation
+const CustomPointClickHandler: React.FC<{ active: boolean; onAdd: (lat: number, lon: number) => void }> = ({ active, onAdd }) => {
+  useMapEvents({
+    click(e) {
+      if (active) onAdd(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+
 const losTargetIcon = L.divIcon({
   className: '',
   html: `<div style="width:14px;height:14px;border-radius:50%;background:hsl(0,84%,60%);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
