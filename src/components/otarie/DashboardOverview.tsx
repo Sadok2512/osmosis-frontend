@@ -76,18 +76,110 @@ async function duplicateDashboardInDB(source: EnhancedDashboard, allDashboards: 
   });
 }
 
+/* ─── Dashboard type color mapping ─── */
+interface DashboardTypeStyle {
+  iconBg: string;
+  iconBgHover: string;
+  iconColor: string;
+  badgeBg: string;
+  badgeText: string;
+  cardAccent: string;      // left border color
+  hoverBg: string;         // subtle tinted hover
+  label: string;
+  icon: React.ReactNode;
+}
+
+const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
+  map: {
+    iconBg: 'bg-sky-500/10',
+    iconBgHover: 'group-hover:bg-sky-500/20',
+    iconColor: 'text-sky-600',
+    badgeBg: 'bg-sky-500/10',
+    badgeText: 'text-sky-600',
+    cardAccent: 'border-l-sky-400',
+    hoverBg: 'hover:bg-sky-50/40 dark:hover:bg-sky-950/10',
+    label: 'Map',
+    icon: <MapIcon className="w-4 h-4" />,
+  },
+  analytic_qoe: {
+    iconBg: 'bg-violet-500/10',
+    iconBgHover: 'group-hover:bg-violet-500/20',
+    iconColor: 'text-violet-600',
+    badgeBg: 'bg-violet-500/10',
+    badgeText: 'text-violet-600',
+    cardAccent: 'border-l-violet-400',
+    hoverBg: 'hover:bg-violet-50/40 dark:hover:bg-violet-950/10',
+    label: 'QOE',
+    icon: <BarChart2 className="w-4 h-4" />,
+  },
+  kpi: {
+    iconBg: 'bg-emerald-500/10',
+    iconBgHover: 'group-hover:bg-emerald-500/20',
+    iconColor: 'text-emerald-600',
+    badgeBg: 'bg-emerald-500/10',
+    badgeText: 'text-emerald-600',
+    cardAccent: 'border-l-emerald-400',
+    hoverBg: 'hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10',
+    label: 'KPI',
+    icon: <BarChart2 className="w-4 h-4" />,
+  },
+  fm: {
+    iconBg: 'bg-rose-500/10',
+    iconBgHover: 'group-hover:bg-rose-500/20',
+    iconColor: 'text-rose-600',
+    badgeBg: 'bg-rose-500/10',
+    badgeText: 'text-rose-600',
+    cardAccent: 'border-l-rose-400',
+    hoverBg: 'hover:bg-rose-50/40 dark:hover:bg-rose-950/10',
+    label: 'FM',
+    icon: <BarChart2 className="w-4 h-4" />,
+  },
+  cm: {
+    iconBg: 'bg-amber-500/10',
+    iconBgHover: 'group-hover:bg-amber-500/20',
+    iconColor: 'text-amber-600',
+    badgeBg: 'bg-amber-500/10',
+    badgeText: 'text-amber-600',
+    cardAccent: 'border-l-amber-400',
+    hoverBg: 'hover:bg-amber-50/40 dark:hover:bg-amber-950/10',
+    label: 'CM',
+    icon: <BarChart2 className="w-4 h-4" />,
+  },
+  pm: {
+    iconBg: 'bg-teal-500/10',
+    iconBgHover: 'group-hover:bg-teal-500/20',
+    iconColor: 'text-teal-600',
+    badgeBg: 'bg-teal-500/10',
+    badgeText: 'text-teal-600',
+    cardAccent: 'border-l-teal-400',
+    hoverBg: 'hover:bg-teal-50/40 dark:hover:bg-teal-950/10',
+    label: 'PM',
+    icon: <BarChart2 className="w-4 h-4" />,
+  },
+};
+
+const FALLBACK_STYLE: DashboardTypeStyle = {
+  iconBg: 'bg-muted',
+  iconBgHover: 'group-hover:bg-muted/80',
+  iconColor: 'text-muted-foreground',
+  badgeBg: 'bg-muted',
+  badgeText: 'text-muted-foreground',
+  cardAccent: 'border-l-border',
+  hoverBg: 'hover:bg-muted/30',
+  label: 'Other',
+  icon: <BarChart2 className="w-4 h-4" />,
+};
+
+function getDashboardTypeStyle(type: string): DashboardTypeStyle {
+  return DASHBOARD_TYPE_STYLES[type] || FALLBACK_STYLE;
+}
+
 /* ─── Type badge ─── */
 const TypeBadge: React.FC<{ type: DashboardType }> = ({ type }) => {
-  if (type === 'map') {
-    return (
-      <span className="text-[11px] bg-blue-500/10 text-blue-500 px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1">
-        <MapIcon className="w-3 h-3" /> Map
-      </span>
-    );
-  }
+  const s = getDashboardTypeStyle(type);
   return (
-    <span className="text-[11px] bg-purple-500/10 text-purple-500 px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1">
-      <BarChart2 className="w-3 h-3" /> QOE
+    <span className={`text-[11px] ${s.badgeBg} ${s.badgeText} px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1`}>
+      {React.cloneElement(s.icon as React.ReactElement, { className: 'w-3 h-3' })} {s.label}
     </span>
   );
 };
