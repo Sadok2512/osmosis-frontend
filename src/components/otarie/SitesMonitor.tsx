@@ -7909,15 +7909,88 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== TOPO MODE: Global Network (no KPIs) ========== */}
           {sectorColorMode === 'topo' && focusMode === 'global' && (() => {
-            // Use VPS global-network stats (full network, fetched once on mount)
+            // Prefer VPS global-network stats, but fall back to the currently loaded site inventory
             const dbStats = topoNetworkStats;
             const hasDbStats = !!dbStats && (dbStats.cells4G > 0 || dbStats.cells5G > 0 || dbStats.sites4G > 0 || dbStats.sites5G > 0);
-            const rawSites4G = hasDbStats ? dbStats!.sites4G : 0;
-            const rawSites5G = hasDbStats ? dbStats!.sites5G : 0;
-            const rawCells4G = hasDbStats ? dbStats!.cells4G : 0;
-            const rawCells5G = hasDbStats ? dbStats!.cells5G : 0;
-            const bandMap4G: Record<string, number> = hasDbStats ? dbStats!.bandMap4G : {};
-            const bandMap5G: Record<string, number> = hasDbStats ? dbStats!.bandMap5G : {};
+            const computedStats: TopoNetworkStats = (() => {
+              const s4g = new Set<string>();
+              const s5g = new Set<string>();
+              let c4g = 0;
+              let c5g = 0;
+              const bm4g: Record<string, number> = {};
+              const bm5g: Record<string, number> = {};
+              const vm: Record<string, { '4G': number; '5G': number }> = {};
+
+              filteredSites.forEach(site => {
+                const inferredTechState = inferSiteTechState(site);
+                let has4g = inferredTechState.has4G;
+                let has5g = inferredTechState.has5G;
+
+                site.cells.forEach(cell => {
+                  const is5g = is5GTech(cell.techno);
+                  const vendor = (cell as any).vendor || site.vendor || 'Unknown';
+                  if (!vm[vendor]) vm[vendor] = { '4G': 0, '5G': 0 };
+
+                  if (is5g) {
+                    c5g += 1;
+                    has5g = true;
+                    const band = cell.bande || 'Unknown';
+                    bm5g[band] = (bm5g[band] || 0) + 1;
+                    vm[vendor]['5G'] += 1;
+                  } else {
+                    c4g += 1;
+                    has4g = true;
+                    const band = cell.bande || 'Unknown';
+                    bm4g[band] = (bm4g[band] || 0) + 1;
+                    vm[vendor]['4G'] += 1;
+                  }
+                });
+
+                if (has4g) s4g.add(site.site_id);
+                if (has5g) s5g.add(site.site_id);
+
+                if (site.cells.length === 0) {
+                  if ((site.lte_cells ?? 0) > 0) {
+                    s4g.add(site.site_id);
+                    c4g += site.lte_cells ?? 0;
+                  }
+                  if ((site.nr_cells ?? 0) > 0) {
+                    s5g.add(site.site_id);
+                    c5g += site.nr_cells ?? 0;
+                  }
+                }
+              });
+
+              return {
+                sites4G: s4g.size,
+                sites5G: s5g.size,
+                cells4G: c4g,
+                cells5G: c5g,
+                bandMap4G: bm4g,
+                bandMap5G: bm5g,
+                vendorMap: vm,
+              };
+            })();
+
+            const displayStats: TopoNetworkStats = hasDbStats
+              ? {
+                  ...dbStats!,
+                  sites4G: dbStats!.sites4G > 0 ? dbStats!.sites4G : computedStats.sites4G,
+                  sites5G: dbStats!.sites5G > 0 ? dbStats!.sites5G : computedStats.sites5G,
+                  cells4G: dbStats!.cells4G > 0 ? dbStats!.cells4G : computedStats.cells4G,
+                  cells5G: dbStats!.cells5G > 0 ? dbStats!.cells5G : computedStats.cells5G,
+                  bandMap4G: Object.keys(dbStats!.bandMap4G || {}).length > 0 ? dbStats!.bandMap4G : computedStats.bandMap4G,
+                  bandMap5G: Object.keys(dbStats!.bandMap5G || {}).length > 0 ? dbStats!.bandMap5G : computedStats.bandMap5G,
+                  vendorMap: Object.keys(dbStats!.vendorMap || {}).length > 0 ? dbStats!.vendorMap : computedStats.vendorMap,
+                }
+              : computedStats;
+
+            const rawSites4G = displayStats.sites4G;
+            const rawSites5G = displayStats.sites5G;
+            const rawCells4G = displayStats.cells4G;
+            const rawCells5G = displayStats.cells5G;
+            const bandMap4G: Record<string, number> = displayStats.bandMap4G;
+            const bandMap5G: Record<string, number> = displayStats.bandMap5G;
 
             // Apply tech filter to inventory stats
             const show4G = mapTechnoFilter === 'ALL' ? enabledTechnos.has('4G') : mapTechnoFilter === '4G';
@@ -7926,7 +7999,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const sites5GCount = show5G ? rawSites5G : 0;
             const cells4GCount = show4G ? rawCells4G : 0;
             const cells5GCount = show5G ? rawCells5G : 0;
-            const vendorMap: Record<string, { '4G': number; '5G': number }> = hasDbStats ? dbStats!.vendorMap : {};
+            const vendorMap: Record<string, { '4G': number; '5G': number }> = displayStats.vendorMap;
             return (
               <div className="divide-y divide-border">
                 {/* Header */}
