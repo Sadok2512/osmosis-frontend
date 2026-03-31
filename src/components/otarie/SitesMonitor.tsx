@@ -7184,7 +7184,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <span className="text-[9px] font-black text-muted-foreground uppercase">{site.vendor}</span>
                   </div>
                   <div className="pt-6 border-t border-border flex items-center justify-between">
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tight">{site.cell_count} CELLS</span>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tight">{site.cells?.length > 0 || site.cell_count > 0 ? `${site.cell_count} CELLS` : '—'}</span>
                     <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all"><ArrowRight size={16} /></div>
                   </div>
                 </div>
