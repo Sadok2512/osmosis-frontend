@@ -703,7 +703,12 @@ export async function fetchDashboardSites(
   onProgressiveBatch?: (sites: SiteSummary[]) => void,
 ): Promise<SiteSummary[]> {
   const key = dashboardFilterKey(siteFilters, search);
-  if (dashboardSitesCache && dashboardSitesCache.key === key && (Date.now() - dashboardSitesCache.ts) < DASHBOARD_SITES_CACHE_TTL) {
+  if (
+    dashboardSitesCache &&
+    dashboardSitesCache.key === key &&
+    (Date.now() - dashboardSitesCache.ts) < DASHBOARD_SITES_CACHE_TTL &&
+    dashboardSitesCache.sites.length > 0
+  ) {
     return dashboardSitesCache.sites;
   }
 
