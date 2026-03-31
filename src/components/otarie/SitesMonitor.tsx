@@ -8383,7 +8383,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <div className="flex flex-wrap items-center gap-1 mt-1 text-[11px]">
                         <span className="text-muted-foreground truncate max-w-[120px]">{siteDetail.site_name}</span>
                         <span className="text-muted-foreground">•</span>
-                        <span className={`font-bold px-1.5 py-0.5 rounded text-[9px] text-white ${cell.techno?.includes('5G') ? 'bg-[#22c55e]' : 'bg-[#f97316]'}`}>{cell.techno}</span>
+                        <span className="font-bold px-1.5 py-0.5 rounded text-[9px] text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>{cell.techno}</span>
                         <span className="font-semibold text-foreground">{cell.bande}</span>
                         <span className="text-muted-foreground">•</span>
                         <span className="text-muted-foreground">Az {cell.azimut}°</span>
