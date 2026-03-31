@@ -695,6 +695,108 @@ function dashboardFilterKey(filters: DashboardSiteFilters | null, search?: strin
   return JSON.stringify(filters) + '|' + (search || '');
 }
 
+function normalizeFilterValue(value: unknown): string {
+  return String(value ?? '').trim().toUpperCase();
+}
+
+function matchesRequestedValues(candidates: unknown[], requested?: string[]): boolean {
+  if (!requested || requested.length === 0) return true;
+  const candidateSet = new Set(candidates.map(normalizeFilterValue).filter(Boolean));
+  if (candidateSet.size === 0) return false;
+
+  return requested.some((value) => {
+    const normalized = normalizeFilterValue(value);
+    if (!normalized) return false;
+    if (candidateSet.has(normalized)) return true;
+    if (normalized === '4G') return candidateSet.has('4G') || candidateSet.has('LTE');
+    if (normalized === '5G') return candidateSet.has('5G') || candidateSet.has('NR');
+    if (normalized === 'LTE') return candidateSet.has('4G') || candidateSet.has('LTE');
+    if (normalized === 'NR') return candidateSet.has('5G') || candidateSet.has('NR');
+    return false;
+  });
+}
+
+function getSiteTechCandidates(site: SiteSummary): string[] {
+  const candidates = new Set<string>();
+
+  const registerTech = (value: unknown) => {
+    const tech = normalizeFilterValue(value);
+    if (!tech) return;
+    candidates.add(tech);
+    if (tech.includes('5G') || tech.includes('NR')) {
+      candidates.add('5G');
+      candidates.add('NR');
+    }
+    if (tech.includes('4G') || tech.includes('LTE')) {
+      candidates.add('4G');
+      candidates.add('LTE');
+    }
+  };
+
+  registerTech((site as any).techno);
+  site.cells?.forEach((cell) => registerTech(cell.techno));
+
+  if (Number(site.nr_cells || 0) > 0) {
+    candidates.add('5G');
+    candidates.add('NR');
+  }
+  if (Number(site.lte_cells || 0) > 0) {
+    candidates.add('4G');
+    candidates.add('LTE');
+  }
+
+  return Array.from(candidates);
+}
+
+function getSiteBandCandidates(site: SiteSummary): string[] {
+  const candidates = new Set<string>();
+  const siteBand = normalizeFilterValue((site as any).bande);
+  if (siteBand) candidates.add(siteBand);
+  site.cells?.forEach((cell) => {
+    const band = normalizeFilterValue(cell.bande);
+    if (band) candidates.add(band);
+  });
+  return Array.from(candidates);
+}
+
+function siteMatchesDashboardFilters(
+  site: SiteSummary,
+  siteFilters: DashboardSiteFilters | null,
+  search?: string,
+): boolean {
+  const searchValue = normalizeFilterValue(search);
+  if (searchValue) {
+    const haystack = [site.site_name, site.site_id].map(normalizeFilterValue).join(' ');
+    if (!haystack.includes(searchValue)) return false;
+  }
+
+  if (!siteFilters) return true;
+
+  if (!matchesRequestedValues([site.dor], siteFilters.dor)) return false;
+  if (!matchesRequestedValues([site.vendor], siteFilters.constructeur)) return false;
+  if (!matchesRequestedValues([site.plaque], siteFilters.plaque)) return false;
+  if (!matchesRequestedValues([site.zone_arcep], siteFilters.zone_arcep)) return false;
+  if (!matchesRequestedValues(getSiteTechCandidates(site), siteFilters.techno)) return false;
+  if (!matchesRequestedValues(getSiteBandCandidates(site), siteFilters.bande)) return false;
+
+  return true;
+}
+
+async function fetchEmbeddedDashboardSites(
+  key: string,
+  siteFilters: DashboardSiteFilters | null,
+  search?: string,
+): Promise<SiteSummary[]> {
+  const fallbackSites = filterSites4G5G(await fetchTopoSites())
+    .filter((site) => siteMatchesDashboardFilters(site, siteFilters, search));
+
+  console.log(`[TopoService] Dashboard sites: ${fallbackSites.length} sites via embedded fallback`);
+  if (fallbackSites.length > 0) {
+    dashboardSitesCache = { key, sites: fallbackSites, ts: Date.now() };
+  }
+  return fallbackSites;
+}
+
 export function invalidateDashboardSitesCache() {
   dashboardSitesCache = null;
 }
@@ -772,8 +874,9 @@ export async function fetchDashboardSites(
     console.log(`[TopoService] Dashboard sites: ${enrichedSites.length} sites via VPS`);
     if (enrichedSites.length > 0) {
       dashboardSitesCache = { key, sites: enrichedSites, ts: Date.now() };
+      return enrichedSites;
     }
-    return enrichedSites;
+    console.warn('[TopoService] VPS dashboard fetch returned 0 sites, trying RPC fallback');
   } catch (err) {
     console.warn('[TopoService] VPS dashboard fetch failed, trying RPC', err);
   }
@@ -824,11 +927,13 @@ export async function fetchDashboardSites(
     console.log(`[TopoService] Dashboard sites: ${sites.length} sites via RPC`);
     if (sites.length > 0) {
       dashboardSitesCache = { key, sites, ts: Date.now() };
+      return sites;
     }
-    return sites;
+    console.warn('[TopoService] Dashboard RPC returned 0 sites, using embedded fallback');
+    return fetchEmbeddedDashboardSites(key, siteFilters, search);
   } catch (err) {
     console.warn('[TopoService] Dashboard RPC also failed', err);
-    return [];
+    return fetchEmbeddedDashboardSites(key, siteFilters, search);
   }
 }
 
