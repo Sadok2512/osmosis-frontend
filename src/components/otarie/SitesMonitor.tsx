@@ -8584,23 +8584,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <SiteKpiChart siteDetail={siteDetail} />
               </div>
 
-              {/* ── Radio Profile & Coverage Sim buttons ── */}
-              <div className="px-5 py-3 space-y-2">
-                <button
-                  onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider"
-                >
-                  <Crosshair size={14} />
-                  Radio Profile
-                </button>
-                <button
-                  onClick={() => { if (siteDetail) handleLaunchCoverageSim(siteDetail); }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-accent/30 bg-accent/5 text-[11px] font-bold text-accent-foreground hover:bg-accent/15 transition-colors uppercase tracking-wider"
-                >
-                  <Signal size={14} />
-                  Simulation Couverture
-                </button>
-              </div>
             </div>
           );
           })()}
