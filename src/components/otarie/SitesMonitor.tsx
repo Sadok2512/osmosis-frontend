@@ -14,7 +14,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import { useTerrainProfile } from '@/hooks/useTerrainProfile';
 import { useFresnel } from '@/hooks/useFresnel';
-import { haversineDistance, LatLng } from '@/utils/geodesicUtils';
+import { haversineDistance, LatLng, bearing } from '@/utils/geodesicUtils';
 import { is5GTech, is4GTech, getCellTechGroup, normalizeSiteKey, resolveCanonicalSiteId, stableCellKey, computeMapAggregation } from '@/utils/telecomHelpers';
 import ProfileChart, { ProfileHoverData } from './radio-profile/ProfileChart';
 import InfoPanel from './radio-profile/InfoPanel';
@@ -3053,10 +3053,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const linkFresnel = useFresnel(linkProfilePoints, linkProfileAnalysis, linkTotalDistance, 1.8, linkEnableFresnel);
 
   const recomputeLinkProfile = useCallback((coords: { from: [number, number]; to: [number, number] }, curvature: boolean) => {
+    const fromLL = { lat: coords.from[0], lng: coords.from[1] };
+    const toLL = { lat: coords.to[0], lng: coords.to[1] };
+    // Compute actual bearing so azimuth analysis is correct for point-to-point links
+    const linkBearing = Math.round(bearing(fromLL, toLL) * 10) / 10;
     linkComputeProfile(
-      { lat: coords.from[0], lng: coords.from[1] },
-      { lat: coords.to[0], lng: coords.to[1] },
-      { hba: 30, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: 0, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 1.5, siteAltitude: 0, antennaAMSL: 30 },
+      fromLL,
+      toLL,
+      { hba: 30, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: linkBearing, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 30, siteAltitude: 0, antennaAMSL: 30 },
       curvature
     );
   }, [linkComputeProfile]);
