@@ -3036,18 +3036,39 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showLinkProfile, setShowLinkProfile] = useState(false);
   const [linkProfileLabel, setLinkProfileLabel] = useState('');
   const [linkProfileHover, setLinkProfileHover] = useState<ProfileHoverData | null>(null);
+  const [linkEnableCurvature, setLinkEnableCurvature] = useState(true);
+  const [linkEnableFresnel, setLinkEnableFresnel] = useState(false);
+  const [linkEnableClutter, setLinkEnableClutter] = useState(false);
+  const [linkClutterHeight, setLinkClutterHeight] = useState(0);
+  const [linkActiveCoords, setLinkActiveCoords] = useState<{ from: [number, number]; to: [number, number] } | null>(null);
+
+  const linkTotalDistance = useMemo(() => {
+    if (!linkActiveCoords) return 0;
+    return haversineDistance(
+      { lat: linkActiveCoords.from[0], lng: linkActiveCoords.from[1] },
+      { lat: linkActiveCoords.to[0], lng: linkActiveCoords.to[1] }
+    );
+  }, [linkActiveCoords]);
+
+  const linkFresnel = useFresnel(linkProfilePoints, linkProfileAnalysis, linkTotalDistance, 1.8, linkEnableFresnel);
+
+  const recomputeLinkProfile = useCallback((coords: { from: [number, number]; to: [number, number] }, curvature: boolean) => {
+    linkComputeProfile(
+      { lat: coords.from[0], lng: coords.from[1] },
+      { lat: coords.to[0], lng: coords.to[1] },
+      { hba: 30, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: 0, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 1.5, siteAltitude: 0, antennaAMSL: 30 },
+      curvature
+    );
+  }, [linkComputeProfile]);
 
   const openLinkTerrainProfile = useCallback((link: TaggedLink) => {
     setSelectedLinkId(link.id);
     setLinkProfileLabel(link.label);
     setShowLinkProfile(true);
-    linkComputeProfile(
-      { lat: link.fromCoords[0], lng: link.fromCoords[1] },
-      { lat: link.toCoords[0], lng: link.toCoords[1] },
-      { hba: 30, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: 0, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 1.5, siteAltitude: 0, antennaAMSL: 30 },
-      true
-    );
-  }, [linkComputeProfile]);
+    const coords = { from: link.fromCoords, to: link.toCoords };
+    setLinkActiveCoords(coords);
+    recomputeLinkProfile(coords, linkEnableCurvature);
+  }, [recomputeLinkProfile, linkEnableCurvature]);
 
   // ── Neighbor visualization ──
   const [neighborCellId, setNeighborCellId] = useState<string | null>(null);
