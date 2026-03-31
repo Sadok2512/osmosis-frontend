@@ -8762,7 +8762,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     setTimeout(() => {
                       setNeighborCellId(focusCellId);
                       setNeighborData(mockNeighbors);
-                      setShowNeighborPanel(true);
+                      setShowNeighborPanel(false);
                     }, 0);
                   }
                   const filtered = neighborData.filter(n => n.relationDirection === neighborDirection);
@@ -8781,7 +8781,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         {(['out', 'in'] as NeighborDirection[]).map(dir => (
                           <button
                             key={dir}
-                            onClick={() => setNeighborDirection(dir)}
+                            onClick={() => { setNeighborDirection(dir); setShowNeighborPanel(true); }}
                             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${
                               neighborDirection === dir
                                 ? 'bg-primary text-primary-foreground shadow-sm'
