@@ -547,6 +547,7 @@ const CustomPointClickHandler: React.FC<{ active: boolean; onAdd: (lat: number, 
     },
   });
   return null;
+};
 
 const losTargetIcon = L.divIcon({
   className: '',
