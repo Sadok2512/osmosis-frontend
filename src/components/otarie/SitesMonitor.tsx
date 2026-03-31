@@ -2332,7 +2332,132 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   );
 };
 
-/** Extracted sub-component so hooks aren't called inside an IIFE */
+/** Extracted sub-component for Parameters tab in the right sidebar */
+const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => {
+  const [search, setSearch] = React.useState('');
+  const [params, setParams] = React.useState<{ parameter: string; cell_name: string | null; value: string | null; bande: string | null; dn: string | null }[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [loaded, setLoaded] = React.useState(false);
+
+  // Load parameters for this site from VPS, fallback to Supabase
+  React.useEffect(() => {
+    if (!siteName) { setParams([]); setLoaded(false); return; }
+    setLoading(true);
+    setLoaded(false);
+    (async () => {
+      let fetched = false;
+      try {
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}`), {
+          headers: getVpsProxyHeaders(),
+        });
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setParams(data.map((r: any) => ({
+            parameter: r.parameter || r.param_name || '',
+            cell_name: r.cell_name || r.nom_cellule || null,
+            value: r.value ?? null,
+            bande: r.bande || null,
+            dn: r.dn || r.cell_dn || null,
+          })));
+          fetched = true;
+        }
+      } catch {}
+      if (!fetched) {
+        try {
+          const { data: dbRows } = await supabase
+            .from('parameter_dump')
+            .select('parameter, cell_name, value, bande, dn')
+            .ilike('site_name', siteName)
+            .limit(1000);
+          if (dbRows && dbRows.length > 0) {
+            setParams(dbRows.map((r: any) => ({
+              parameter: r.parameter || '',
+              cell_name: r.cell_name || null,
+              value: r.value ?? null,
+              bande: r.bande || null,
+              dn: r.dn || null,
+            })));
+          }
+        } catch {}
+      }
+      setLoading(false);
+      setLoaded(true);
+    })();
+  }, [siteName]);
+
+  const filtered = React.useMemo(() => {
+    if (!search) return params;
+    const s = search.toLowerCase();
+    return params.filter(p =>
+      p.parameter.toLowerCase().includes(s) ||
+      (p.cell_name && p.cell_name.toLowerCase().includes(s)) ||
+      (p.value && p.value.toLowerCase().includes(s))
+    );
+  }, [params, search]);
+
+  // Group by parameter name
+  const grouped = React.useMemo(() => {
+    const map = new Map<string, typeof filtered>();
+    for (const p of filtered) {
+      const key = p.parameter;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(p);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [filtered]);
+
+  if (!siteName) return <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Sélectionnez un site</div>;
+
+  return (
+    <div className="space-y-2">
+      {/* Search bar */}
+      <div className="relative">
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Rechercher paramètre, cellule, valeur..."
+          className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+      {/* Stats */}
+      <div className="flex items-center justify-between text-[9px] text-muted-foreground px-1">
+        <span>{filtered.length} entrée{filtered.length !== 1 ? 's' : ''} · {grouped.length} paramètre{grouped.length !== 1 ? 's' : ''}</span>
+        {search && <span className="text-primary font-bold cursor-pointer" onClick={() => setSearch('')}>Effacer</span>}
+      </div>
+      {/* Content */}
+      {loading ? (
+        <div className="flex items-center justify-center py-8"><RefreshCw className="w-4 h-4 animate-spin text-primary" /></div>
+      ) : loaded && params.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Aucun paramètre trouvé pour ce site</div>
+      ) : (
+        <div className="max-h-[calc(100vh-500px)] overflow-y-auto space-y-1.5 pr-0.5">
+          {grouped.map(([paramName, entries]) => (
+            <div key={paramName} className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="px-3 py-1.5 bg-muted/30 border-b border-border/50 flex items-center justify-between">
+                <span className="text-[10px] font-black text-foreground truncate">{paramName}</span>
+                <span className="text-[9px] text-muted-foreground font-mono">{entries.length}</span>
+              </div>
+              <div className="divide-y divide-border/30">
+                {entries.slice(0, 20).map((e, i) => (
+                  <div key={i} className="px-3 py-1.5 flex items-center gap-2 text-[10px]">
+                    {e.cell_name && <span className="text-muted-foreground truncate max-w-[120px]" title={e.cell_name}>{e.cell_name}</span>}
+                    {e.bande && <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[9px] font-medium text-foreground/60 shrink-0">{e.bande}</span>}
+                    <span className="ml-auto font-mono font-semibold text-foreground/90 truncate max-w-[120px] text-right" title={e.value || '—'}>{e.value || '—'}</span>
+                  </div>
+                ))}
+                {entries.length > 20 && (
+                  <div className="px-3 py-1 text-[9px] text-muted-foreground text-center">+{entries.length - 20} de plus</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SiteConfigTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => {
   const [siteConfig, setSiteConfig] = React.useState<any>(null);
   const [configLoading, setConfigLoading] = React.useState(false);
@@ -8285,7 +8410,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </TabsContent>
 
                   <TabsContent value="params" className="mt-3">
-                    <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Parameters — coming soon</div>
+                    <SiteParametersTab siteName={siteDetail?.site_name} />
                   </TabsContent>
                 </Tabs>
               </div>
