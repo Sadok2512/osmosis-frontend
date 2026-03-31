@@ -3780,6 +3780,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     [activeViewConditions],
   );
 
+  // Clear cell cache when filters change
+  const prevBboxFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const filterKey = JSON.stringify(currentBboxFilters);
+    if (prevBboxFiltersRef.current && prevBboxFiltersRef.current !== filterKey) {
+      cellLoadAttemptedRef.current.clear();
+      cellLoadingRef.current.clear();
+      invalidateBboxCache();
+    }
+    prevBboxFiltersRef.current = filterKey;
+  }, [currentBboxFilters]);
+
   useEffect(() => {
     // Load cells when in cells display mode OR when cell-level view conditions are active
     if (displayMode !== 'cells' && !hasCellLevelConditions) return;
@@ -3905,10 +3917,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           cellLoadAttemptedRef.current.add(s.site_id);
         });
 
-        // Always trigger setSites to re-evaluate filters (cellLoadAttemptedRef changed)
+        // Merge cells into sites — keep original cell_count (don't overwrite with 4G/5G-only count)
         setSites(prev => prev.map(s => {
           const cells = cellMap.get(s.site_id);
-          return cells && cells.length > 0 ? { ...s, cells, cell_count: cells.length } : s;
+          return cells && cells.length > 0 ? { ...s, cells } : s;
         }));
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
@@ -3924,7 +3936,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions]);
+  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, currentBboxFilters]);
 
 
   const renderSites = useMemo(() => {
