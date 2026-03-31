@@ -3607,6 +3607,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       if (controller.signal.aborted) return;
 
+      // Clear cell-load tracking so cells reload for new viewport sites
+      cellLoadAttemptedRef.current.clear();
+      cellLoadingRef.current.clear();
+
       // Preserve the currently selected site if it was added via search and isn't in the new bbox results
       setSites(prev => {
         const selectedId = selectedSiteIdRef.current;
