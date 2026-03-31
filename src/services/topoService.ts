@@ -78,11 +78,29 @@ function seededRand(seed: string, min: number, max: number): number {
 const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
 
 const DOR_MAP: Record<string, string> = {
-  'UPR Nord-Est': 'DOR EST',
-  'UPR Sud-Est': 'DOR SUD',
-  'UPR Ouest': 'DOR OUEST',
-  'UPR Sud-Ouest': 'DOR SUD',
+  'UPR Ile-De-France': 'UPR Ile-De-France',
+  'UPR Nord-Est': 'UPR Nord-Est',
+  'UPR Ouest': 'UPR Ouest',
+  'UPR Sud-Est': 'UPR Sud-Est',
+  'UPR Sud-Ouest': 'UPR Sud-Ouest',
+  'DOR IDF': 'UPR Ile-De-France',
+  'DOR EST': 'UPR Nord-Est',
+  'DOR OUEST': 'UPR Ouest',
 };
+
+function normalizeDorValue(dor?: string | null, region?: string | null): string {
+  const candidates = [dor, region]
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .filter(Boolean);
+
+  const uprMatch = candidates.find((value) => value.startsWith('UPR '));
+  if (uprMatch) return uprMatch;
+
+  const mapped = candidates.find((value) => DOR_MAP[value]);
+  if (mapped) return DOR_MAP[mapped];
+
+  return candidates[0] || 'UPR Ile-De-France';
+}
 
 interface TopoRow {
   code_nidt: string;
@@ -297,7 +315,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       site_id: first.code_nidt || siteId,
       site_name: first.nom_site || first.site_name || first.code_nidt || siteId,
       vendor,
-      dor: first.dor || DOR_MAP[first.region || ''] || 'DOR IDF',
+      dor: normalizeDorValue(first.dor, first.region),
       plaque: first.plaque || '',
       department: (first.plaque || '').replace('DEPT_', ''),
       cell_count: cells.length,
@@ -434,7 +452,7 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     site_id: siteId,
     site_name: dto.nom_site,
     vendor,
-    dor: dto.dor || DOR_MAP[dto.region || ''] || 'DOR IDF',
+    dor: normalizeDorValue(dto.dor, dto.region),
     plaque: dto.plaque || '',
     department: (dto.plaque || '').replace('DEPT_', ''),
     cell_count: Number(dto.nb_cells) || 0,
