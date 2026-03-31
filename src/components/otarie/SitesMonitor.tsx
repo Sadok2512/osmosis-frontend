@@ -2366,16 +2366,66 @@ const SiteConfigTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => 
       </div>
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="px-3 py-2 border-b border-border bg-muted/30 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Bandes</div>
-        {sc.bands_4g && <div className="px-3 py-2 text-[11px] border-b border-border/40"><span className="text-blue-400 font-bold mr-2">4G</span>{sc.bands_4g}</div>}
-        {sc.bands_5g && <div className="px-3 py-2 text-[11px]"><span className="text-purple-400 font-bold mr-2">5G</span>{sc.bands_5g}</div>}
+        {sc.bands_4g && (
+          <div className="px-3 py-2.5 text-[11px] border-b border-border/40 flex items-start gap-2">
+            <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm shrink-0 mt-0.5 bg-orange-500">4G</span>
+            <span className="text-foreground/80 leading-relaxed flex flex-wrap gap-1">
+              {sc.bands_4g.split(',').map((b: string, i: number) => (
+                <span key={i} className="inline-block rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground/70">{b.trim()}</span>
+              ))}
+            </span>
+          </div>
+        )}
+        {sc.bands_5g && (
+          <div className="px-3 py-2.5 text-[11px] flex items-start gap-2">
+            <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm shrink-0 mt-0.5 bg-green-500">5G</span>
+            <span className="text-foreground/80 leading-relaxed flex flex-wrap gap-1">
+              {sc.bands_5g.split(',').map((b: string, i: number) => (
+                <span key={i} className="inline-block rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground/70">{b.trim()}</span>
+              ))}
+            </span>
+          </div>
+        )}
       </div>
-      {(sc.baseband_model || sc.rru_model || sc.sw_version) && (
+      {(sc.baseband_model || sc.rru_model || sc.antenna_model || sc.sw_version) && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-3 py-2 border-b border-border bg-muted/30 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Hardware</div>
-          {sc.baseband_model && <div className="px-3 py-2 text-[11px] border-b border-border/40 flex justify-between"><span className="text-muted-foreground">Baseband</span><span className="font-mono font-semibold">{sc.baseband_model}</span></div>}
-          {sc.antenna_model && <div className="px-3 py-2 text-[11px] border-b border-border/40 flex justify-between"><span className="text-muted-foreground">Antenna</span><span className="font-mono font-semibold">{sc.antenna_model}</span></div>}
-          {sc.rru_model && <div className="px-3 py-2 text-[11px] border-b border-border/40 flex justify-between"><span className="text-muted-foreground">RRU/Radio</span><span className="font-mono font-semibold">{sc.rru_model}</span></div>}
-          {sc.sw_version && <div className="px-3 py-2 text-[11px] flex justify-between"><span className="text-muted-foreground">SW Version</span><span className="font-mono font-semibold">{sc.sw_version}</span></div>}
+          {sc.baseband_model && (
+            <div className="px-3 py-2.5 text-[11px] border-b border-border/40">
+              <div className="text-[9px] font-semibold text-muted-foreground uppercase mb-1">Baseband</div>
+              <div className="flex flex-wrap gap-1">
+                {sc.baseband_model.split(',').map((m: string, i: number) => (
+                  <span key={i} className="inline-block rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono font-medium text-foreground/80">{m.trim()}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {sc.antenna_model && (
+            <div className="px-3 py-2.5 text-[11px] border-b border-border/40">
+              <div className="text-[9px] font-semibold text-muted-foreground uppercase mb-1">Antenna</div>
+              <div className="flex flex-wrap gap-1">
+                {sc.antenna_model.split(',').map((m: string, i: number) => (
+                  <span key={i} className="inline-block rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono font-medium text-foreground/80">{m.trim()}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {sc.rru_model && (
+            <div className="px-3 py-2.5 text-[11px] border-b border-border/40">
+              <div className="text-[9px] font-semibold text-muted-foreground uppercase mb-1">RRU/Radio</div>
+              <div className="flex flex-wrap gap-1">
+                {sc.rru_model.split(',').map((m: string, i: number) => (
+                  <span key={i} className="inline-block rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono font-medium text-foreground/80">{m.trim()}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {sc.sw_version && (
+            <div className="px-3 py-2.5 text-[11px] flex justify-between">
+              <span className="text-muted-foreground">SW Version</span>
+              <span className="font-mono font-semibold text-foreground/80">{sc.sw_version}</span>
+            </div>
+          )}
         </div>
       )}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
