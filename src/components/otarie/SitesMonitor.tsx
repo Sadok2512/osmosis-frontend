@@ -6889,6 +6889,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {[
                   { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
                   { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
+                  { id: 'tagged' as const, label: `Tagged (${taggedSites.length})`, icon: <Star size={12} /> },
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -7213,8 +7214,413 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
               )}
 
+              {/* ── Tagged Sites tab ── */}
+              {inventoryTab === 'tagged' && (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {taggedSites.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                      <Star size={18} className="text-yellow-500" />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">Aucun site taggé</span>
+                    <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
+                      Cliquez sur l'étoile ★ d'un site pour le tagger et le garder visible en permanence.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {taggedSites.map(site => {
+                      const isSelected = selectedSiteId === site.site_id;
+                      const isExpanded = isSelected;
+                      const rawCells2 = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
+                        ? siteDetail.cells
+                        : site.cells;
+                      const siteCells = rawCells2.filter(c => {
+                        const cellTech = getCellTechGroup(c.techno);
+                        if (mapTechnoFilter === '4G' && cellTech !== '4G') return false;
+                        if (mapTechnoFilter === '5G' && cellTech !== '5G') return false;
+                        if (mapTechnoFilter === 'ALL' && cellTech && !enabledTechnos.has(cellTech)) return false;
+                        if (localBande !== 'ALL' && c.bande !== localBande) return false;
+                        if (localTechno !== 'ALL' && cellTech !== localTechno) return false;
+                        if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(c.bande)) return false;
+                        if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
+                        return true;
+                      });
+                      const displayedCellCount = siteCells.length;
+                      const sectors = new Map<number, typeof siteCells>();
+                      siteCells.forEach(c => {
+                        const sNum = getSectorNumber(c.cell_id);
+                        if (!sectors.has(sNum)) sectors.set(sNum, []);
+                        sectors.get(sNum)!.push(c);
+                      });
+                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a - b);
 
+                      return (
+                        <div
+                          key={site.site_id}
+                          ref={(el) => { if (el) siteRowRefs.current.set(site.site_id, el); }}
+                          className={`rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
+                            isSelected
+                              ? 'border-primary/40 bg-card shadow-lg'
+                              : 'border-border bg-card hover:border-primary/20 hover:shadow-md'
+                          }`}
+                        >
+                          <button
+                            onClick={() => { handleSiteClick(site); }}
+                            onMouseEnter={() => setHoveredSiteId(site.site_id)}
+                            onMouseLeave={() => setHoveredSiteId(null)}
+                            className="w-full text-left px-4 py-3.5 flex items-center gap-3"
+                          >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                              isSelected ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'bg-muted text-muted-foreground'
+                            }`}>
+                              <MapPin size={18} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[13px] font-extrabold text-foreground tracking-tight uppercase truncate">{site.site_name}</h4>
+                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                                <span className="font-mono">{site.site_id}</span>
+                                <span>•</span>
+                                <span className="uppercase font-semibold">{site.vendor}</span>
+                              </div>
+                              {(() => {
+                                const coords = normalizeCoordinates(site);
+                                if (!coords) return null;
+                                return (
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0 mt-1 text-[9px] font-mono text-muted-foreground/70">
+                                    {coords.lat != null && <span>Lat: {fmtCoord(coords.lat)}</span>}
+                                    {coords.lon != null && <span>Lon: {fmtCoord(coords.lon)}</span>}
+                                    {coords.x != null && <span>X: {fmtCoord(coords.x, 2)}</span>}
+                                    {coords.y != null && <span>Y: {fmtCoord(coords.y, 2)}</span>}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            <div className="text-right shrink-0">
+                              {sectorColorMode !== 'topo' && (
+                                <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg min-w-[48px]" style={{ background: getKpiColor((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0), color: '#fff' }}>
+                                  <span className="text-[15px] font-black tracking-tight leading-none">
+                                    {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleTagSite(site); }}
+                                className="w-6 h-6 flex items-center justify-center rounded-full transition-all text-yellow-400"
+                                title="Retirer du tag"
+                              >
+                                <Star size={14} fill="currentColor" />
+                              </button>
+                              <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </div>
+                          </button>
 
+                          {isExpanded && (
+                            <div className="px-4 pb-4 pt-1 animate-fade-in">
+                              <div className="flex items-stretch gap-2 mb-3">
+                                {sortedSec.map(([sNum, cells]) => {
+                                  const isSectorExpanded = expandedSectors.has(sNum);
+                                  const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
+                                  const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
+                                  return (
+                                    <button
+                                      key={sNum}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedSectors(prev => {
+                                          if (prev.has(sNum) && prev.size === 1) return new Set();
+                                          return new Set([sNum]);
+                                        });
+                                      }}
+                                      className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
+                                        isSectorExpanded
+                                          ? 'bg-primary text-primary-foreground shadow-lg'
+                                          : 'bg-card text-foreground border border-border hover:border-primary/30 shadow-sm'
+                                      }`}
+                                    >
+                                      <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
+                                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                                        {(() => {
+                                          const hasNR = cells.some(c => c.techno?.includes('5G') || c.techno === 'NR');
+                                          const hasLTE = cells.some(c => !c.techno?.includes('5G') && c.techno !== 'NR');
+                                          return (
+                                            <>
+                                              {hasNR && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} title="5G" />}
+                                              {hasLTE && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} title="4G" />}
+                                            </>
+                                          );
+                                        })()}
+                                      </div>
+                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{sNum}</span>
+                                      <span className={`text-[9px] mt-0.5 font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{cells.length} cell{cells.length > 1 ? 's' : ''}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="flex items-center gap-4 mb-3 px-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">5G</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">4G</span>
+                                </div>
+                              </div>
+                              {expandedSectors.size > 0 && (() => {
+                                const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
+                                if (!secCells.length) return null;
+                                return (
+                                  <div className="rounded-xl border border-border overflow-hidden animate-fade-in">
+                                    <table className="w-full text-[11px]">
+                                      <thead>
+                                        <tr className="bg-muted/40 border-b border-border">
+                                          <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Hba</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Sec</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {secCells.map((cell) => {
+                                          const isSel = focusCellId === cell.cell_id;
+                                          const sNum = getSectorNumber(cell.cell_id);
+                                          const tilt = (cell as any).tilt as number | null;
+                                          const hba = (cell as any).hba as number | null;
+                                          return (
+                                            <tr
+                                              key={cell.cell_id}
+                                              onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
+                                              className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${
+                                                isSel ? 'bg-primary/10' : 'hover:bg-muted/30'
+                                              }`}
+                                            >
+                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                              <td className="px-2 py-2 text-center">
+                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
+                                                  {cell.techno || '—'}
+                                                </span>
+                                              </td>
+                                              <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-extrabold text-primary">S{sNum}</td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── Custom Points Section ── */}
+                <div className="mt-4">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Points personnalisés ({customPoints.length})</div>
+
+                  {customPoints.length > 0 && (
+                    <div className="space-y-1.5 mb-2">
+                      {customPoints.map(pt => (
+                        <div key={pt.id} className="rounded-xl border border-border bg-card hover:border-primary/20 transition-all overflow-hidden">
+                          <div className="flex items-center gap-2 px-3 py-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                              <CircleDot size={14} className="text-violet-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {renamingPointId === pt.id ? (
+                                <form onSubmit={(e) => { e.preventDefault(); renameCustomPoint(pt.id, renameValue); }} className="flex items-center gap-1">
+                                  <input
+                                    autoFocus
+                                    value={renameValue}
+                                    onChange={e => setRenameValue(e.target.value)}
+                                    onBlur={() => renameCustomPoint(pt.id, renameValue)}
+                                    className="text-[11px] font-bold bg-muted rounded px-1.5 py-0.5 w-full outline-none border border-primary/30 text-foreground"
+                                  />
+                                </form>
+                              ) : (
+                                <>
+                                  <div className="text-[11px] font-bold text-foreground truncate">{pt.name}</div>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0 mt-0.5 text-[9px] font-mono text-muted-foreground/70">
+                                    <span>Lat: {pt.lat.toFixed(6)}</span>
+                                    <span>Lon: {pt.lon.toFixed(6)}</span>
+                                    {pt.x != null && <span>X: {pt.x.toFixed(2)}</span>}
+                                    {pt.y != null && <span>Y: {pt.y.toFixed(2)}</span>}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => { setRenamingPointId(pt.id); setRenameValue(pt.name); }}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                title="Renommer"
+                              >
+                                <Pencil size={11} />
+                              </button>
+                              <button
+                                onClick={() => setFlyTarget([pt.lat, pt.lon])}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                                title="Centrer"
+                              >
+                                <Crosshair size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteCustomPoint(pt.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                   )}
+                </div>
+
+                {/* ── Tagged Links List ── */}
+                {taggedLinks.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Liens ({taggedLinks.length})</div>
+                    <div className="space-y-1.5">
+                      {taggedLinks.map(link => (
+                        <div
+                          key={link.id}
+                          className={`rounded-xl border transition-all overflow-hidden ${
+                            selectedLinkId === link.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-primary/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 px-3 py-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                              <Network size={14} className="text-blue-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-foreground truncate">{link.label}</div>
+                              <div className="text-[9px] text-muted-foreground">{link.fromType} ↔ {link.toType}</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => openLinkTerrainProfile(link)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-primary transition-colors"
+                                title="Profil terrain"
+                              >
+                                <Crosshair size={12} />
+                              </button>
+                              <button
+                                onClick={() => setSelectedLinkId(selectedLinkId === link.id ? null : link.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors"
+                                title="Sélectionner"
+                              >
+                                <MapPin size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteTaggedLink(link.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                </div>
+
+                {/* ── Sticky bottom buttons ── */}
+                <div className="shrink-0 border-t border-border bg-card px-4 py-3 space-y-2">
+                  <button
+                    onClick={() => setPointCreationMode(!pointCreationMode)}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                      pointCreationMode
+                        ? 'border-violet-500 bg-violet-500/10 text-violet-600'
+                        : 'border-primary/30 text-primary hover:bg-primary/10'
+                    }`}
+                  >
+                    {pointCreationMode ? (
+                      <><X size={12} /> Annuler le placement</>
+                    ) : (
+                      <><Plus size={12} /> Ajouter un point</>
+                    )}
+                  </button>
+
+                  {!linkCreationMode ? (
+                    <button
+                      onClick={() => { setLinkCreationMode(true); setLinkSource(null); }}
+                      disabled={(taggedSites.length + customPoints.length) < 2}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={12} />
+                      Créer un lien
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2">
+                      <div className="text-[10px] font-bold text-primary uppercase tracking-wider">Sélection du lien</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {!linkSource ? 'Cliquez sur un objet source' : `Source: ${linkSource.label} — cliquez sur la destination`}
+                      </div>
+                      {taggedSites.map(s => (
+                        <button
+                          key={s.site_id}
+                          onClick={() => handleSelectTaggedForLink(s)}
+                          disabled={linkSource?.id === s.site_id}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+                            linkSource?.id === s.site_id ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80 text-foreground'
+                          } disabled:opacity-50`}
+                        >
+                          🏗 {s.site_name}
+                        </button>
+                      ))}
+                      {customPoints.map(pt => {
+                        const ptObj = { id: pt.id, type: 'point' as const, label: pt.name, coords: [pt.lat, pt.lon] as [number, number] };
+                        return (
+                          <button
+                            key={pt.id}
+                            onClick={() => {
+                              if (!linkSource) {
+                                setLinkSource(ptObj);
+                              } else if (linkSource.id !== pt.id) {
+                                addTaggedLink(linkSource, ptObj);
+                              }
+                            }}
+                            disabled={linkSource?.id === pt.id}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+                              linkSource?.id === pt.id ? 'bg-primary text-primary-foreground' : 'bg-violet-500/10 hover:bg-violet-500/20 text-foreground'
+                            } disabled:opacity-50`}
+                          >
+                            📌 {pt.name}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => { setLinkCreationMode(false); setLinkSource(null); }}
+                        className="w-full text-center text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors py-1"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              )}
 
               {/* ── Dashboard tab ── */}
                <div style={{ display: inventoryTab === 'dashboard' ? 'contents' : 'none' }}>
