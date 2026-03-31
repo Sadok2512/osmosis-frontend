@@ -3272,20 +3272,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const cleaned = data.filter((d: any) => !autoFilterRegex.test((d.name || '').trim()) && !d.is_archived);
         setDashboardList(cleaned);
 
-        // Auto-restore persisted dashboard if it exists in the list
+        // Auto-activate: restore persisted dashboard OR auto-select first available
         const persistedId = activeDashboardId;
+        let targetDb: any = null;
         if (persistedId && cleaned.some((d: any) => d.id === persistedId)) {
+          targetDb = cleaned.find((d: any) => d.id === persistedId);
+        } else if (cleaned.length > 0) {
+          // No persisted dashboard — auto-activate the first one
+          targetDb = cleaned[0];
+          onActiveDashboardIdChange(targetDb.id);
+        }
+        if (targetDb) {
           setDashboardActive(true);
-          // Extract filters from the dashboard widgets
-          const db = cleaned.find((d: any) => d.id === persistedId);
-          if (db) {
-            const widgets = Array.isArray(db.widgets) ? db.widgets : [];
-            const dashSettings = widgets.find((w: any) => w._type === 'dashboard_settings' || w.type === 'dashboard_settings' || w.dashboard_settings);
-            const scope = dashSettings?.siteScope || dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
-            const siteFilters = dashSettings?.siteFilters || dashSettings?.dashboard_settings?.siteFilters || null;
-            setActiveSiteScope(scope);
-            setActiveDashboardFilters(siteFilters);
-          }
+          const widgets = Array.isArray(targetDb.widgets) ? targetDb.widgets : [];
+          const dashSettings = widgets.find((w: any) => w._type === 'dashboard_settings' || w.type === 'dashboard_settings' || w.dashboard_settings);
+          const scope = dashSettings?.siteScope || dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
+          const siteFilters = dashSettings?.siteFilters || dashSettings?.dashboard_settings?.siteFilters || null;
+          setActiveSiteScope(scope);
+          setActiveDashboardFilters(siteFilters);
         }
       } catch (err) { console.warn('[SitesMonitor] fetchDashboards failed', err); }
     };
