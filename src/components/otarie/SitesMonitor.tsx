@@ -7805,11 +7805,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               if (localTechno !== 'ALL' && cellTech !== localTechno) return false;
               if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(cell.bande)) return false;
               if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || cell.techno === t)) return false;
-              // Apply zone_arcep filter from dashboard/view
-              if (localZoneArcep !== 'ALL' && (cell as any).zone_arcep !== localZoneArcep) return false;
-              if (activeDashboardFilters?.zone_arcep?.length && !activeDashboardFilters.zone_arcep.includes((cell as any).zone_arcep)) return false;
-              // Apply dor filter from dashboard/view
-              if (activeDashboardFilters?.dor?.length && !activeDashboardFilters.dor.includes((cell as any).dor)) return false;
+              // Apply zone_arcep filter from dashboard/view (only if cell has the field)
+              if (localZoneArcep !== 'ALL' && (cell as any).zone_arcep && (cell as any).zone_arcep !== localZoneArcep) return false;
+              if (activeDashboardFilters?.zone_arcep?.length && (cell as any).zone_arcep && !activeDashboardFilters.zone_arcep.includes((cell as any).zone_arcep)) return false;
+              // Apply dor filter from dashboard/view (only if cell has the field)
+              if (activeDashboardFilters?.dor?.length && (cell as any).dor && !activeDashboardFilters.dor.includes((cell as any).dor)) return false;
               return true;
             });
             // Group cells by sector number
