@@ -7557,8 +7557,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <div className="px-5 py-4">
                       <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Technologie</h4>
                       {[
-                        { label: 'LTE (4G)', count: displayStats.cells4G, color: 'hsl(var(--chart-2))' },
-                        { label: 'NR (5G)', count: displayStats.cells5G, color: 'hsl(var(--primary))' },
+                        { label: 'LTE (4G)', count: displayStats.cells4G, color: bandColors['4G_GROUP'] || '#f97316' },
+                        { label: 'NR (5G)', count: displayStats.cells5G, color: bandColors['5G_GROUP'] || '#22c55e' },
                       ].map(t => {
                         const tot = (displayStats.cells4G + displayStats.cells5G) || 1;
                         const pct = ((t.count / tot) * 100).toFixed(1);
