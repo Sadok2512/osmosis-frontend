@@ -2332,6 +2332,81 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   );
 };
 
+/** Extracted sub-component so hooks aren't called inside an IIFE */
+const SiteConfigTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => {
+  const [siteConfig, setSiteConfig] = React.useState<any>(null);
+  const [configLoading, setConfigLoading] = React.useState(false);
+  React.useEffect(() => {
+    if (!siteName) return;
+    setConfigLoading(true);
+    fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-config/${encodeURIComponent(siteName)}`), {
+      headers: getVpsProxyHeaders(),
+    }).then(r => r.json()).then(d => { setSiteConfig(d); setConfigLoading(false); })
+      .catch(() => setConfigLoading(false));
+  }, [siteName]);
+  if (configLoading) return <div className="p-4 text-center"><RefreshCw className="w-4 h-4 animate-spin mx-auto text-primary" /></div>;
+  if (!siteConfig?.found) return <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">No site configuration data</div>;
+  const sc = siteConfig;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-lg border border-border bg-card p-3 text-center">
+          <div className="text-[9px] font-bold text-muted-foreground uppercase">Total Cells</div>
+          <div className="text-[22px] font-black text-primary">{sc.total_cells}</div>
+          <div className="text-[9px] text-muted-foreground">{sc.cells_4g} 4G · {sc.cells_5g} 5G</div>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-3 text-center">
+          <div className="text-[9px] font-bold text-muted-foreground uppercase">Sectors</div>
+          <div className="text-[22px] font-black text-foreground">{sc.sector_count || '—'}</div>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-3 text-center">
+          <div className="text-[9px] font-bold text-muted-foreground uppercase">Vendor</div>
+          <div className="text-[14px] font-black text-foreground mt-1">{sc.vendor || '—'}</div>
+        </div>
+      </div>
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-3 py-2 border-b border-border bg-muted/30 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Bandes</div>
+        {sc.bands_4g && <div className="px-3 py-2 text-[11px] border-b border-border/40"><span className="text-blue-400 font-bold mr-2">4G</span>{sc.bands_4g}</div>}
+        {sc.bands_5g && <div className="px-3 py-2 text-[11px]"><span className="text-purple-400 font-bold mr-2">5G</span>{sc.bands_5g}</div>}
+      </div>
+      {(sc.baseband_model || sc.rru_model || sc.sw_version) && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="px-3 py-2 border-b border-border bg-muted/30 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Hardware</div>
+          {sc.baseband_model && <div className="px-3 py-2 text-[11px] border-b border-border/40 flex justify-between"><span className="text-muted-foreground">Baseband</span><span className="font-mono font-semibold">{sc.baseband_model}</span></div>}
+          {sc.antenna_model && <div className="px-3 py-2 text-[11px] border-b border-border/40 flex justify-between"><span className="text-muted-foreground">Antenna</span><span className="font-mono font-semibold">{sc.antenna_model}</span></div>}
+          {sc.rru_model && <div className="px-3 py-2 text-[11px] border-b border-border/40 flex justify-between"><span className="text-muted-foreground">RRU/Radio</span><span className="font-mono font-semibold">{sc.rru_model}</span></div>}
+          {sc.sw_version && <div className="px-3 py-2 text-[11px] flex justify-between"><span className="text-muted-foreground">SW Version</span><span className="font-mono font-semibold">{sc.sw_version}</span></div>}
+        </div>
+      )}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-3 py-2 border-b border-border bg-muted/30 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Localisation</div>
+        {[
+          {l: 'Plaque', v: sc.plaque}, {l: 'Région', v: sc.region}, {l: 'Zone ARCEP', v: sc.zone_arcep},
+          {l: 'Latitude', v: sc.latitude?.toFixed(5)}, {l: 'Longitude', v: sc.longitude?.toFixed(5)},
+        ].filter(x => x.v).map((x, i) => (
+          <div key={i} className={`px-3 py-2 text-[11px] border-b border-border/40 last:border-0 flex justify-between ${i%2===0?'bg-muted/10':''}`}>
+            <span className="text-muted-foreground">{x.l}</span><span className="font-semibold">{x.v}</span>
+          </div>
+        ))}
+      </div>
+      {sc.cells?.length > 0 && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="px-3 py-2 border-b border-border bg-muted/30 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Cellules ({sc.cells.length})</div>
+          <div className="max-h-[200px] overflow-y-auto">
+            {sc.cells.map((c: any, i: number) => (
+              <div key={i} className={`px-3 py-1.5 text-[10px] border-b border-border/30 last:border-0 flex items-center gap-2 ${i%2===0?'bg-muted/10':''}`}>
+                <span className={`inline-block w-1.5 h-1.5 rounded-full ${c.techno==='5G'||c.techno==='NR'?'bg-purple-400':'bg-blue-400'}`} />
+                <span className="font-mono font-semibold flex-1 truncate">{c.cell_name}</span>
+                <span className="text-muted-foreground">{c.band}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI }) => {
   const mapCache = useMapSitesStore();
   const [sites, setSitesRaw] = useState<SiteSummary[]>(() => {
