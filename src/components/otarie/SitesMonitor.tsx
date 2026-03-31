@@ -2334,16 +2334,58 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
 /** Extracted sub-component for Parameters tab in the right sidebar */
 const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => {
+  const [paramList, setParamList] = React.useState<string[]>([]);
+  const [listLoading, setListLoading] = React.useState(false);
+  const [listLoaded, setListLoaded] = React.useState(false);
   const [search, setSearch] = React.useState('');
-  const [params, setParams] = React.useState<{ parameter: string; cell_name: string | null; value: string | null; bande: string | null; dn: string | null }[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [loaded, setLoaded] = React.useState(false);
+  const [selectedParam, setSelectedParam] = React.useState<string | null>(null);
+  const [paramData, setParamData] = React.useState<{ parameter: string; cell_name: string | null; value: string | null; bande: string | null; dn: string | null }[]>([]);
+  const [dataLoading, setDataLoading] = React.useState(false);
 
-  // Load parameters for this site from VPS, fallback to Supabase
+  // Step 1: Load distinct parameter names for this site
   React.useEffect(() => {
-    if (!siteName) { setParams([]); setLoaded(false); return; }
-    setLoading(true);
-    setLoaded(false);
+    if (!siteName) { setParamList([]); setListLoaded(false); setSelectedParam(null); return; }
+    setListLoading(true);
+    setListLoaded(false);
+    setSelectedParam(null);
+    setParamData([]);
+    (async () => {
+      let names: string[] = [];
+      try {
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}`), {
+          headers: getVpsProxyHeaders(),
+        });
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const set = new Set<string>();
+          data.forEach((r: any) => { const n = r.parameter || r.param_name || ''; if (n) set.add(n); });
+          names = Array.from(set).sort();
+        }
+      } catch {}
+      if (names.length === 0) {
+        try {
+          const { data: dbRows } = await supabase
+            .from('parameter_dump')
+            .select('parameter')
+            .ilike('site_name', siteName)
+            .limit(1000);
+          if (dbRows) {
+            const set = new Set<string>();
+            dbRows.forEach((r: any) => { if (r.parameter) set.add(r.parameter); });
+            names = Array.from(set).sort();
+          }
+        } catch {}
+      }
+      setParamList(names);
+      setListLoading(false);
+      setListLoaded(true);
+    })();
+  }, [siteName]);
+
+  // Step 2: When a parameter is selected, load its values
+  React.useEffect(() => {
+    if (!siteName || !selectedParam) { setParamData([]); return; }
+    setDataLoading(true);
     (async () => {
       let fetched = false;
       try {
@@ -2351,15 +2393,18 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
           headers: getVpsProxyHeaders(),
         });
         const data = await resp.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setParams(data.map((r: any) => ({
-            parameter: r.parameter || r.param_name || '',
-            cell_name: r.cell_name || r.nom_cellule || null,
-            value: r.value ?? null,
-            bande: r.bande || null,
-            dn: r.dn || r.cell_dn || null,
-          })));
-          fetched = true;
+        if (Array.isArray(data)) {
+          const filtered = data.filter((r: any) => (r.parameter || r.param_name) === selectedParam);
+          if (filtered.length > 0) {
+            setParamData(filtered.map((r: any) => ({
+              parameter: r.parameter || r.param_name || '',
+              cell_name: r.cell_name || r.nom_cellule || null,
+              value: r.value ?? null,
+              bande: r.bande || null,
+              dn: r.dn || r.cell_dn || null,
+            })));
+            fetched = true;
+          }
         }
       } catch {}
       if (!fetched) {
@@ -2368,9 +2413,10 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
             .from('parameter_dump')
             .select('parameter, cell_name, value, bande, dn')
             .ilike('site_name', siteName)
+            .eq('parameter', selectedParam)
             .limit(1000);
-          if (dbRows && dbRows.length > 0) {
-            setParams(dbRows.map((r: any) => ({
+          if (dbRows) {
+            setParamData(dbRows.map((r: any) => ({
               parameter: r.parameter || '',
               cell_name: r.cell_name || null,
               value: r.value ?? null,
@@ -2380,78 +2426,83 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
           }
         } catch {}
       }
-      setLoading(false);
-      setLoaded(true);
+      setDataLoading(false);
     })();
-  }, [siteName]);
+  }, [siteName, selectedParam]);
 
-  const filtered = React.useMemo(() => {
-    if (!search) return params;
+  const filteredList = React.useMemo(() => {
+    if (!search) return paramList;
     const s = search.toLowerCase();
-    return params.filter(p =>
-      p.parameter.toLowerCase().includes(s) ||
-      (p.cell_name && p.cell_name.toLowerCase().includes(s)) ||
-      (p.value && p.value.toLowerCase().includes(s))
-    );
-  }, [params, search]);
-
-  // Group by parameter name
-  const grouped = React.useMemo(() => {
-    const map = new Map<string, typeof filtered>();
-    for (const p of filtered) {
-      const key = p.parameter;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(p);
-    }
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [filtered]);
+    return paramList.filter(p => p.toLowerCase().includes(s));
+  }, [paramList, search]);
 
   if (!siteName) return <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Sélectionnez un site</div>;
 
+  // If no parameter selected yet, show the selector
+  if (!selectedParam) {
+    return (
+      <div className="space-y-2">
+        <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1">Sélectionner un paramètre</div>
+        <div className="relative">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher..."
+            className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+        {listLoading ? (
+          <div className="flex items-center justify-center py-8"><RefreshCw className="w-4 h-4 animate-spin text-primary" /></div>
+        ) : listLoaded && paramList.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Aucun paramètre trouvé</div>
+        ) : (
+          <div className="max-h-[calc(100vh-480px)] overflow-y-auto space-y-0.5 pr-0.5">
+            {filteredList.map(name => (
+              <button
+                key={name}
+                onClick={() => { setSelectedParam(name); setSearch(''); }}
+                className="w-full text-left px-3 py-2 rounded-lg text-[11px] font-medium text-foreground hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-2 border border-transparent hover:border-primary/20"
+              >
+                <span className="w-2 h-2 rounded-full border border-muted-foreground/40 shrink-0" />
+                <span className="truncate">{name}</span>
+              </button>
+            ))}
+            {filteredList.length === 0 && search && (
+              <div className="text-[10px] text-muted-foreground text-center py-4">Aucun résultat pour « {search} »</div>
+            )}
+          </div>
+        )}
+        <div className="text-[9px] text-muted-foreground text-center">{paramList.length} paramètre{paramList.length !== 1 ? 's' : ''} disponible{paramList.length !== 1 ? 's' : ''}</div>
+      </div>
+    );
+  }
+
+  // Parameter selected: show values
   return (
     <div className="space-y-2">
-      {/* Search bar */}
-      <div className="relative">
-        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher paramètre, cellule, valeur..."
-          className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
-        />
+      <div className="flex items-center gap-2">
+        <button onClick={() => setSelectedParam(null)} className="text-primary hover:text-primary/80 transition-colors">
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-[11px] font-black text-foreground truncate flex-1">{selectedParam}</span>
+        <span className="text-[9px] text-muted-foreground font-mono">{paramData.length} valeur{paramData.length !== 1 ? 's' : ''}</span>
       </div>
-      {/* Stats */}
-      <div className="flex items-center justify-between text-[9px] text-muted-foreground px-1">
-        <span>{filtered.length} entrée{filtered.length !== 1 ? 's' : ''} · {grouped.length} paramètre{grouped.length !== 1 ? 's' : ''}</span>
-        {search && <span className="text-primary font-bold cursor-pointer" onClick={() => setSearch('')}>Effacer</span>}
-      </div>
-      {/* Content */}
-      {loading ? (
+      {dataLoading ? (
         <div className="flex items-center justify-center py-8"><RefreshCw className="w-4 h-4 animate-spin text-primary" /></div>
-      ) : loaded && params.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Aucun paramètre trouvé pour ce site</div>
+      ) : paramData.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Aucune donnée</div>
       ) : (
-        <div className="max-h-[calc(100vh-500px)] overflow-y-auto space-y-1.5 pr-0.5">
-          {grouped.map(([paramName, entries]) => (
-            <div key={paramName} className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="px-3 py-1.5 bg-muted/30 border-b border-border/50 flex items-center justify-between">
-                <span className="text-[10px] font-black text-foreground truncate">{paramName}</span>
-                <span className="text-[9px] text-muted-foreground font-mono">{entries.length}</span>
+        <div className="max-h-[calc(100vh-460px)] overflow-y-auto space-y-0.5 pr-0.5">
+          <div className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border/30">
+            {paramData.map((e, i) => (
+              <div key={i} className="px-3 py-1.5 flex items-center gap-2 text-[10px]">
+                {e.cell_name && <span className="text-muted-foreground truncate max-w-[120px]" title={e.cell_name}>{e.cell_name}</span>}
+                {e.bande && <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[9px] font-medium text-foreground/60 shrink-0">{e.bande}</span>}
+                <span className="ml-auto font-mono font-semibold text-foreground/90 truncate max-w-[120px] text-right" title={e.value || '—'}>{e.value || '—'}</span>
               </div>
-              <div className="divide-y divide-border/30">
-                {entries.slice(0, 20).map((e, i) => (
-                  <div key={i} className="px-3 py-1.5 flex items-center gap-2 text-[10px]">
-                    {e.cell_name && <span className="text-muted-foreground truncate max-w-[120px]" title={e.cell_name}>{e.cell_name}</span>}
-                    {e.bande && <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[9px] font-medium text-foreground/60 shrink-0">{e.bande}</span>}
-                    <span className="ml-auto font-mono font-semibold text-foreground/90 truncate max-w-[120px] text-right" title={e.value || '—'}>{e.value || '—'}</span>
-                  </div>
-                ))}
-                {entries.length > 20 && (
-                  <div className="px-3 py-1 text-[9px] text-muted-foreground text-center">+{entries.length - 20} de plus</div>
-                )}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
