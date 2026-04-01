@@ -437,19 +437,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     }
   }, [state.filters]);
 
-  // Detect PM dimension types from selected KPIs → add to filter dimensions
-  const activePmDimensions = useMemo(() => {
-    const dims = new Set<string>();
-    for (const slot of state.graphSlots) {
-      for (const kpiId of slot.kpiIds) {
-        const def = kpiDefs.find(k => k.id === kpiId);
-        if (def?.dimension_type && PM_DIMENSION_TYPES.has(def.dimension_type)) {
-          dims.add(def.dimension_type);
-        }
-      }
-    }
-    return dims;
-  }, [state.graphSlots, kpiDefs]);
+  // (activePmDimensions already declared above)
 
   // Merge PM dimensions into filter dimensions (after standard ones)
   const allFilterDimensions = useMemo(() => {
