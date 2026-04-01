@@ -5284,15 +5284,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return !showMini;
           });
 
-          const densityScale = circleSites.length > 2000 ? 0.7 : circleSites.length > 800 ? 0.8 : circleSites.length > 400 ? 0.9 : 1;
+          const densityScale = circleSites.length > 2000 ? 0.75 : circleSites.length > 800 ? 0.85 : circleSites.length > 400 ? 0.92 : 1;
 
-          const getRadius = (site: any, isHov: boolean, isSel: boolean) => {
-            const br = viewport.zoom >= 10
-              ? (isHov || isSel ? 7 : 5)
-              : viewport.zoom >= 8
-                ? (isHov || isSel ? 6 : Math.round(4 * densityScale))
-                : (isHov || isSel ? 5 : Math.round(3.5 * densityScale));
-            return br;
+          // Zoom-aware marker sizing: readable at every zoom level
+          const getRadius = (_site: any, isHov: boolean, isSel: boolean) => {
+            let base: number;
+            if (viewport.zoom >= 13) base = 7;
+            else if (viewport.zoom >= 11) base = 6;
+            else if (viewport.zoom >= 9) base = 5.5;
+            else if (viewport.zoom >= 7) base = 5;
+            else if (viewport.zoom >= 5) base = 4;
+            else base = 3.5;
+            base = Math.round(base * densityScale * 10) / 10;
+            if (isSel) return Math.max(base + 3, 8);
+            if (isHov) return Math.max(base + 2, 7);
+            return Math.max(base, 3);
           };
 
           // Pass 1: 4G circles (pane4G — bottom) — skip entirely if filter is 5G-only
