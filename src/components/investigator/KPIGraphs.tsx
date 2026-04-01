@@ -205,6 +205,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
 };
 
 
+interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
   layout: 1 | 2 | 4;
