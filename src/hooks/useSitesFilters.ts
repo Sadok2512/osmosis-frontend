@@ -66,7 +66,7 @@ export function useSitesFilters() {
     async function extractFiltersFromSites() {
       try {
         const url = getVpsProxyUrl('parser', '/api/v1/topo/sites?limit=50000');
-        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+        const resp = await fetchWithRetry(url, { headers: getVpsProxyHeaders() });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const json = await resp.json();
         // VPS proxy returns { unavailable: true } when backend is down
