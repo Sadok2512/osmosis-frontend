@@ -9,6 +9,7 @@ import {
 import { clearSession } from '@/services/adminAuth';
 import { useNavigate } from 'react-router-dom';
 import { Filters, AppTab } from '../../types';
+import { useMapSitesStore } from '@/stores/mapSitesStore';
 
 interface SidebarProps {
   filters: Filters;
@@ -47,6 +48,8 @@ const AppSidebar: React.FC<SidebarProps> = ({
   filters, setFilters, activeTab, setActiveTab, isCollapsed, setIsCollapsed, theme, setTheme, enabledModules
 }) => {
   const navigate = useNavigate();
+  const siteCount = useMapSitesStore(s => s.cachedSites.length);
+  const isConnected = siteCount > 0;
   const visibleNavItems = navItems.filter(item => !enabledModules || enabledModules[item.id] !== false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -181,12 +184,14 @@ const AppSidebar: React.FC<SidebarProps> = ({
           <LogOut className="w-4 h-4" />
           {!isCollapsed && <span className="text-xs font-semibold">Logout</span>}
         </button>
-        {!isCollapsed && (
-          <div className="flex items-center gap-2 mt-2 px-3 opacity-50">
-            <div className="w-2 h-2 rounded-full bg-sidebar-primary" />
-            <span className="text-[10px] font-medium text-sidebar-foreground">V1.0 Beta • Orange France</span>
-          </div>
-        )}
+        <div className={`flex items-center gap-2 mt-2 ${isCollapsed ? 'justify-center' : 'px-3'}`}>
+          <div className={`w-2 h-2 rounded-full shrink-0 ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+          {!isCollapsed && (
+            <span className="text-[10px] font-bold text-sidebar-foreground/60 uppercase tracking-wider">
+              {isConnected ? 'Connected' : 'Disconnected'} • V1.0 Beta • Orange France
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
