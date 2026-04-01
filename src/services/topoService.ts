@@ -522,9 +522,8 @@ export async function fetchSitesByBbox(
     return { sites: filtered4G5G, total: filtered4G5G.length };
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
-    console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
-    const allSites = await fetchTopoSites();
-    return { sites: allSites, total: allSites.length };
+    console.warn('[TopoService] BBOX fetch failed (VPS only, no fallback)', err);
+    return { sites: [], total: 0 };
   }
 }
 
@@ -619,22 +618,7 @@ export async function fetchCellsByBbox(
     console.warn('[TopoService] Server-side cells fetch failed, trying cells-merge fallback', err);
   }
 
-  // Fallback: use /topo/cells cache merged with /topo/sites for complete cell data
-  if (!sitesFromEndpoint || sitesFromEndpoint.length === 0) {
-    try {
-      const cellsResp = await topoApi.listCellsByBbox(bbox, filters, 8000, signal);
-      if (cellsResp.cells && cellsResp.cells.length > 0) {
-        const rows = cellsResp.cells as TopoRow[];
-        const builtSites = buildSitesFromRows(rows);
-        const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
-        sitesFromEndpoint = builtSites.map(site => applyQoeData(site, qoeData));
-        console.log(`[TopoService] BBOX cells fallback: ${sitesFromEndpoint.length} sites, ${cellsResp.total} cells (cells-merge)`);
-      }
-    } catch (err2: any) {
-      if (err2?.name === 'AbortError') throw err2;
-      console.warn('[TopoService] Cells-merge fallback also failed', err2);
-    }
-  }
+  // No fallback — VPS only
 
   if (!sitesFromEndpoint) return [];
 
@@ -775,59 +759,7 @@ export async function fetchDashboardSites(
     }
     return enrichedSites;
   } catch (err) {
-    console.warn('[TopoService] VPS dashboard fetch failed, trying RPC', err);
-  }
-
-  // 2) Supabase RPC fallback
-  try {
-    const params: Record<string, any> = {};
-    if (siteFilters?.dor?.length) params.p_dor = siteFilters.dor;
-    if (siteFilters?.plaque?.length) params.p_plaque = siteFilters.plaque;
-    if (siteFilters?.zone_arcep?.length) params.p_zone_arcep = siteFilters.zone_arcep;
-    if (siteFilters?.constructeur?.length) params.p_constructeur = siteFilters.constructeur;
-    if (siteFilters?.techno?.length) params.p_techno = siteFilters.techno;
-    if (siteFilters?.bande?.length) params.p_bande = siteFilters.bande;
-    if (search) params.p_search = search;
-
-    const { data, error } = await supabase.rpc('get_dashboard_sites', params);
-    if (error) throw error;
-
-    const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
-
-    const sites: SiteSummary[] = ((data as any[]) || [])
-      .filter((row: any) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude))
-      .map((row: any) => {
-        const site: SiteSummary = {
-          site_id: row.code_nidt,
-          site_name: row.nom_site,
-          vendor: row.vendor || 'Unknown',
-          dor: row.dor || '',
-          plaque: row.plaque || '',
-          department: (row.plaque || '').replace('DEPT_', ''),
-          cell_count: Number(row.total_cells) || 0,
-          qoe_score_avg: 0,
-          p50_thr_dn_mbps: 0,
-          p50_thr_up_mbps: 0,
-          dms_dl_3: 0,
-          dms_dl_8: 0,
-          dms_dl_30: 0,
-          dms_ul_3: 0,
-          coordinates: [row.latitude, row.longitude] as [number, number],
-          cells: [],
-          zone_arcep: row.zone_arcep || null,
-          lte_cells: Number(row.lte_cells) || 0,
-          nr_cells: Number(row.nr_cells) || 0,
-        };
-        return applyQoeData(site, qoeData);
-      });
-
-    console.log(`[TopoService] Dashboard sites: ${sites.length} sites via RPC`);
-    if (sites.length > 0) {
-      dashboardSitesCache = { key, sites, ts: Date.now() };
-    }
-    return sites;
-  } catch (err) {
-    console.warn('[TopoService] Dashboard RPC also failed', err);
+    console.warn('[TopoService] VPS dashboard fetch failed (VPS only, no fallback)', err);
     return [];
   }
 }
@@ -905,54 +837,10 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
         return matchedSite.cells;
       }
     }
-  } catch {}
-
-  // Supabase RPC fallback
-  try {
-    const { data, error } = await supabase.rpc('get_site_cells', { p_code_nidt: siteId });
-    if (error) throw error;
-
-    const rows = (data as any[]) || [];
-    // Detect if any row has a real azimut
-    const hasRealAzimut = rows.some(r => r.azimut != null && r.azimut !== 0);
-    let sectorAzimutMap: Map<number, number> | null = null;
-    if (!hasRealAzimut && rows.length > 0) {
-      const sectorIndices = new Set<number>();
-      for (const r of rows) {
-        const cellName = r.nom_cellule || '';
-        const lastChar = cellName.slice(-1);
-        sectorIndices.add(/^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1);
-      }
-      const sorted = Array.from(sectorIndices).sort((a, b) => a - b);
-      sectorAzimutMap = new Map();
-      sorted.forEach((idx, i) => {
-        sectorAzimutMap!.set(idx, Math.round((360 / Math.max(sorted.length, 1)) * i));
-      });
-    }
-
-    const cells: CellProperties[] = rows.map((r: any) => {
-      const cellName = r.nom_cellule || '';
-      let azimut = r.azimut || 0;
-      if (!hasRealAzimut && sectorAzimutMap) {
-        const lastChar = cellName.slice(-1);
-        const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
-        azimut = sectorAzimutMap.get(sectorIdx) ?? 0;
-      }
-      return buildCellProperties(
-        cellName,
-        (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
-        r.bande || inferBandFromCellName(cellName, r.techno || '4G'),
-        azimut,
-        r.hba || 30,
-        r,
-      );
-    });
-
-    siteCellsCache.set(siteId, { cells, ts: Date.now() });
-    console.log(`[TopoService] Site cells (RPC): ${cells.length} cells for ${siteId}`);
-    return cells;
   } catch (err) {
-    console.warn(`[TopoService] Failed to fetch cells for ${siteId}:`, err);
+    console.warn(`[TopoService] Failed to fetch cells for ${siteId} (VPS only):`, err);
     return [];
   }
+
+  return [];
 }
