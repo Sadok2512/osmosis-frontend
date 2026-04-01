@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { BarChart3, Plus, X, RefreshCw, Cpu } from 'lucide-react';
@@ -79,6 +79,16 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
     setSelectedCounters(prev => prev.filter(c => c !== name));
   };
 
+  // Build name lookup: counter_name (ID) → display_name
+  const nameMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of catalog) {
+      if (c.display_name && c.display_name !== c.counter_name) m.set(c.counter_name, c.display_name);
+    }
+    return m;
+  }, [catalog]);
+  const displayName = (id: string) => nameMap.get(id) || id;
+
   // Build chart
   const counters = [...new Set(tsData.map(d => d.counter))];
   const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
@@ -101,7 +111,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
     legend: {
       bottom: 0,
       textStyle: { color: '#9ca3af', fontSize: 9 },
-      data: counters,
+      data: counters.map(c => displayName(c)),
     },
     grid: { left: 60, right: 20, top: 10, bottom: 40 },
     xAxis: {
@@ -119,7 +129,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
       splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
     },
     series: counters.map((counter, i) => ({
-      name: counter,
+      name: displayName(counter),
       type: 'line' as const,
       smooth: true,
       data: timestamps.map(ts => {

@@ -372,19 +372,19 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                               {isSelected && <Check className="w-2 h-2 text-white" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[10px] font-medium text-foreground truncate font-mono">
-                                {c.counter_name}
+                              <p className="text-[10px] font-medium text-foreground truncate">
+                                {c.display_name && c.display_name !== c.counter_name ? c.display_name : c.counter_name}
                               </p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
+                              {c.display_name && c.display_name !== c.counter_name && (
+                                <span className="text-[8px] px-1 py-0.5 rounded bg-slate-500/10 text-slate-400 font-mono font-medium">{c.counter_name}</span>
+                              )}
                               {c.vendor && (
                                 <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">{c.vendor}</span>
                               )}
                               {c.techno && (
                                 <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-400 font-medium">{c.techno}</span>
-                              )}
-                              {c.family && (
-                                <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground truncate max-w-[100px]">{c.family}</span>
                               )}
                             </div>
                           </button>
@@ -410,7 +410,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
               const c = catalog.find(x => x.counter_name === key);
               return (
                 <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-[9px] font-semibold font-mono">
-                  {c?.display_name || key}
+                  {c?.display_name && c.display_name !== c.counter_name ? c.display_name : key}
                   <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive">
                     <X className="w-2.5 h-2.5" />
                   </button>
