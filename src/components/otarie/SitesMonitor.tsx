@@ -415,6 +415,49 @@ const mergeCellsIntoSiteList = (
   };
 });
 
+const preserveLoadedCellsInSites = (
+  incomingSites: SiteSummary[],
+  previousSites: SiteSummary[],
+): SiteSummary[] => {
+  const previousByKey = new Map<string, SiteSummary>();
+
+  previousSites.forEach((site) => {
+    const keys = [site.site_id, site.site_name]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .flatMap((value) => {
+        const normalized = normalizeSiteKey(value);
+        return normalized && normalized !== value ? [value, normalized] : [value];
+      });
+
+    keys.forEach((key) => {
+      if (!previousByKey.has(key)) previousByKey.set(key, site);
+    });
+  });
+
+  return incomingSites.map((site) => {
+    const previous = [site.site_id, site.site_name]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .flatMap((value) => {
+        const normalized = normalizeSiteKey(value);
+        return normalized && normalized !== value ? [value, normalized] : [value];
+      })
+      .map((key) => previousByKey.get(key))
+      .find((candidate): candidate is SiteSummary => Boolean(candidate));
+
+    if (!previous?.cells?.length) return site;
+
+    return {
+      ...site,
+      cells: previous.cells,
+      cell_count: Math.max(site.cell_count || 0, previous.cells.length),
+      lte_cells: previous.cells.filter((cell) => is4GTech(cell.techno)).length,
+      nr_cells: previous.cells.filter((cell) => is5GTech(cell.techno)).length,
+    };
+  });
+};
+
 /** Build label text for a site based on selected label fields */
 const buildSiteLabel = (site: SiteSummary, fields: Set<string>): string => {
   if (fields.size === 0) return '';
@@ -3705,12 +3748,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       // Preserve the currently selected site if it was added via search and isn't in the new bbox results
       setSites(prev => {
+        const nextSites = preserveLoadedCellsInSites(newSites || [], prev);
         const selectedId = selectedSiteIdRef.current;
         const selectedSite = selectedId ? prev.find(s => s.site_id === selectedId) : null;
-        if (selectedSite && !(newSites || []).some(s => s.site_id === selectedId)) {
-          return [selectedSite, ...(newSites || [])];
+        if (selectedSite && !nextSites.some(s => s.site_id === selectedId)) {
+          return [selectedSite, ...nextSites];
         }
-        return newSites || [];
+        return nextSites;
       });
       setBboxTotal(total || 0);
       setBboxLoading(false);
