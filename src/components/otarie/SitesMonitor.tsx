@@ -6300,64 +6300,39 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </>
       )}
 
-      {/* Floating info badge — site count + zoom level */}
-      <div className="absolute bottom-6 z-[1000] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`, transform: 'translateX(-50%)' }}>
-        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-5 py-2.5 flex items-center gap-4">
-          {paramMode ? (
-            <>
-              <span className="text-[10px] font-black text-primary uppercase tracking-widest">
-                ⬡ Param: {paramConfirmed}
-              </span>
-              <span className="w-px h-4 bg-border" />
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                {paramPoints.length} points
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                {filteredSites.length} sites
-              </span>
-              <span className="w-px h-4 bg-border" />
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                Zoom {viewport.zoom}
-              </span>
-              <span className="w-px h-4 bg-border" />
-              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: showSectors ? '#10b981' : 'hsl(var(--primary))' }}>
-                {showSectors ? `${visibleSites.length} visible • Sectors` : 'Clusters'}
-              </span>
-              <span className="w-px h-4 bg-border" />
-              {/* Toggle: site names */}
-              <button
-                onClick={() => setShowSiteLabels(v => !v)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
-                  showSiteLabels
-                    ? 'bg-primary/10 text-primary border-primary/30'
-                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {showSiteLabels ? '☑' : '☐'} Noms
-              </button>
-              {/* Toggle: beams */}
-              <button
-                onClick={() => setShowBeamSectors(v => !v)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
-                  showBeamSectors
-                    ? 'bg-primary/10 text-primary border-primary/30'
-                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {showBeamSectors ? '☑' : '☐'} Beams
-              </button>
-            </>
-          )}
-          <span className="w-px h-4 bg-border" />
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className={`w-2 h-2 rounded-full ${filteredSites.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-              {filteredSites.length > 0 ? 'Connected' : 'Disconnected'} • V1.0 Beta • Orange France
-            </span>
-          </div>
+      {/* Compact bottom-right status chip */}
+      <div className="absolute bottom-3 right-3 z-[1000] pointer-events-none transition-all duration-300" style={{ right: showRightPanel && !detailFullscreen ? 462 : 12 }}>
+        <div className="bg-card/90 backdrop-blur-sm border border-border/60 rounded-lg shadow-md px-3 py-1.5 flex items-center gap-2">
+          <div className={`w-1.5 h-1.5 rounded-full ${filteredSites.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+            {filteredSites.length} sites · Z{viewport.zoom} · {showSectors ? `${visibleSites.length} vis` : 'Clusters'}
+          </span>
+        </div>
+      </div>
+
+      {/* Bottom-left quick toggles */}
+      <div className="absolute bottom-3 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 12 }}>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowSiteLabels(v => !v)}
+            className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all border ${
+              showSiteLabels
+                ? 'bg-primary/15 text-primary border-primary/30'
+                : 'bg-card/90 text-muted-foreground border-border/60 hover:text-foreground'
+            }`}
+          >
+            {showSiteLabels ? '☑' : '☐'} Noms
+          </button>
+          <button
+            onClick={() => setShowBeamSectors(v => !v)}
+            className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all border ${
+              showBeamSectors
+                ? 'bg-primary/15 text-primary border-primary/30'
+                : 'bg-card/90 text-muted-foreground border-border/60 hover:text-foreground'
+            }`}
+          >
+            {showBeamSectors ? '☑' : '☐'} Beams
+          </button>
         </div>
       </div>
 
