@@ -75,6 +75,8 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   const [selectorOpen, setSelectorOpen] = React.useState(false);
   const [splitByDimension, setSplitByDimension] = React.useState(false);
   const [dimensionFilter, setDimensionFilter] = React.useState<string>('');
+  const [dimensionValues, setDimensionValues] = React.useState<string[]>([]);
+  const [loadingDimValues, setLoadingDimValues] = React.useState(false);
 
   // Detect if selected counters have dimensions
   const selectedDimensions = useMemo(() => {
@@ -95,10 +97,17 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
     fetchCounterCatalog().then(setCatalog);
   }, []);
 
-  // Reset dimension filter when selection changes
+  // Reset dimension filter and load values when dimension type changes
   React.useEffect(() => {
     setDimensionFilter('');
-  }, [selectedCounters.join(',')]);
+    setDimensionValues([]);
+    if (!primaryDimension) return;
+    setLoadingDimValues(true);
+    fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${primaryDimension}&limit=50`), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : { values: [] })
+      .then(data => { setDimensionValues(data.values || []); setLoadingDimValues(false); })
+      .catch(() => setLoadingDimValues(false));
+  }, [primaryDimension]);
 
   // Fetch timeseries when selection changes
   React.useEffect(() => {
@@ -237,19 +246,18 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
               Split by Dimension {splitByDimension ? "ON" : "OFF"}
             </button>
             <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/5">
-              <span className="text-[9px] font-bold text-amber-600">{DIMENSION_LABELS[primaryDimension!] || primaryDimension}</span>
-              <input
-                type="text"
+              <span className="text-[9px] font-bold text-amber-600 whitespace-nowrap">{DIMENSION_LABELS[primaryDimension!] || primaryDimension}</span>
+              <select
                 value={dimensionFilter}
                 onChange={e => setDimensionFilter(e.target.value)}
-                placeholder={`e.g. ${primaryPrefix}1`}
-                className="w-[120px] px-1.5 py-0.5 text-[10px] rounded border border-border bg-background outline-none focus:ring-1 focus:ring-amber-500/30"
-              />
-              {dimensionFilter && (
-                <button onClick={() => setDimensionFilter('')} className="text-muted-foreground hover:text-destructive">
-                  <X className="w-3 h-3" />
-                </button>
-              )}
+                className="px-1.5 py-0.5 text-[10px] rounded border border-border bg-background outline-none focus:ring-1 focus:ring-amber-500/30 min-w-[140px] max-w-[200px]"
+              >
+                <option value="">Toutes les dimensions</option>
+                {dimensionValues.map(v => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+              {loadingDimValues && <span className="text-[9px] text-muted-foreground animate-pulse">...</span>}
             </div>
           </>
         )}
