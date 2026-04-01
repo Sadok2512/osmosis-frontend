@@ -41,20 +41,42 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
   minOpacity?: number;
 }) => {
   const map = useMap();
+  const heatRef = useRef<any>(null);
+
   useEffect(() => {
-    if (!points.length) return;
-    const zoom = maxZoom ?? Math.max(map.getZoom(), 10);
-    const heat = (L as any).heatLayer(points, {
-      radius,
-      blur,
-      maxZoom: zoom,
-      minOpacity,
-      max: 1.0,
-      gradient: { 0.1: '#3b82f6', 0.3: '#10b981', 0.5: '#f59e0b', 0.7: '#f97316', 0.9: '#ef4444' },
-    });
-    heat.addTo(map);
-    return () => { map.removeLayer(heat); };
+    if (!points.length) {
+      if (heatRef.current) {
+        map.removeLayer(heatRef.current);
+        heatRef.current = null;
+      }
+      return;
+    }
+
+    if (!heatRef.current) {
+      const zoom = maxZoom ?? Math.max(map.getZoom(), 10);
+      heatRef.current = (L as any).heatLayer(points, {
+        radius,
+        blur,
+        maxZoom: zoom,
+        minOpacity,
+        max: 1.0,
+        gradient: { 0.1: '#3b82f6', 0.3: '#10b981', 0.5: '#f59e0b', 0.7: '#f97316', 0.9: '#ef4444' },
+      });
+      heatRef.current.addTo(map);
+    } else {
+      heatRef.current.setLatLngs(points);
+    }
   }, [map, points, radius, blur, maxZoom, minOpacity]);
+
+  useEffect(() => {
+    return () => {
+      if (heatRef.current) {
+        map.removeLayer(heatRef.current);
+        heatRef.current = null;
+      }
+    };
+  }, [map]);
+
   return null;
 };
 import { fetchSiteDetails } from '../../services/api';
