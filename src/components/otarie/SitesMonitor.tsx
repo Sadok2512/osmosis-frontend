@@ -3721,7 +3721,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return base;
   }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
 
-  // Core bbox fetch function — ALWAYS site-only mode (never load cells at map level)
+  // Core bbox fetch function — loads sites only at low zoom, sites+cells at high zoom
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
 
@@ -3736,22 +3736,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       maxLat: bounds.getNorth(),
     };
 
+    const effectiveZoom = zoom ?? viewport.zoom;
+    const needCells = effectiveZoom >= CELL_PRELOAD_ZOOM;
+
     setBboxLoading(true);
 
     try {
-      // Always fetch site summaries only — cells are loaded on demand per site
-      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
+      let newSites: SiteSummary[];
+      let total: number;
 
-      if (controller.signal.aborted) return;
-
-      // Clear cell-load tracking so cells reload for new viewport sites
-      cellLoadAttemptedRef.current.clear();
-      cellLoadingRef.current.clear();
-      setCellLoadingCount(0);
+      if (needCells) {
+        // Single call: fetch sites WITH cells for sector rendering
+        const cellSites = await fetchCellsByBbox(bbox, bboxFilters, controller.signal);
+        if (controller.signal.aborted) return;
+        newSites = cellSites;
+        total = cellSites.length;
+        // Mark all as cell-loaded so the cell effect doesn't re-fetch
+        cellLoadAttemptedRef.current.clear();
+        cellLoadingRef.current.clear();
+        setCellLoadingCount(0);
+        newSites.forEach(s => {
+          if (s.cells.length > 0) cellLoadAttemptedRef.current.add(s.site_id);
+        });
+      } else {
+        // Low zoom: fetch site summaries only
+        const result = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
+        if (controller.signal.aborted) return;
+        newSites = result.sites || [];
+        total = result.total || 0;
+        // Clear cell-load tracking so cells reload for new viewport sites
+        cellLoadAttemptedRef.current.clear();
+        cellLoadingRef.current.clear();
+        setCellLoadingCount(0);
+      }
 
       // Preserve the currently selected site if it was added via search and isn't in the new bbox results
       setSites(prev => {
-        const nextSites = preserveLoadedCellsInSites(newSites || [], prev);
+        const nextSites = preserveLoadedCellsInSites(newSites, prev);
         const selectedId = selectedSiteIdRef.current;
         const selectedSite = selectedId ? prev.find(s => s.site_id === selectedId) : null;
         if (selectedSite && !nextSites.some(s => s.site_id === selectedId)) {
@@ -3759,7 +3780,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
         return nextSites;
       });
-      setBboxTotal(total || 0);
+      setBboxTotal(total);
       setBboxLoading(false);
       setLoading(false);
     } catch (err: any) {
@@ -4499,7 +4520,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         });
         setCellLoadingCount(cellLoadingRef.current.size);
 
-        setSites(prev => mergeCellsIntoSiteList(prev, cellMap, getLookupKeys));
+        console.log(`[SitesMonitor] Cell merge: cellMap has ${cellMap.size} entries for ${sitesNeedingCells.length} sites needing cells`);
+        if (cellMap.size > 0) {
+          const sampleKeys = Array.from(cellMap.keys()).slice(0, 3);
+          console.log(`[SitesMonitor] Sample cellMap keys: ${sampleKeys.join(', ')}`);
+          const sampleSiteIds = sitesNeedingCells.slice(0, 3).map(s => s.site_id);
+          console.log(`[SitesMonitor] Sample site IDs: ${sampleSiteIds.join(', ')}`);
+        }
+
+        setSites(prev => {
+          const merged = mergeCellsIntoSiteList(prev, cellMap, getLookupKeys);
+          const withCells = merged.filter(s => s.cells.length > 0).length;
+          console.log(`[SitesMonitor] After merge: ${withCells}/${merged.length} sites have cells`);
+          return merged;
+        });
         setSearchModeSites(prev => prev.length > 0 ? mergeCellsIntoSiteList(prev, cellMap, getLookupKeys) : prev);
         setSelectedSiteSnapshot(prev => {
           if (!prev) return prev;
@@ -4868,9 +4902,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   };
 
   // Unified loading banner — just below toolbar
-  const isAnythingLoading = loading || bboxLoading || cellLoadingCount > 0;
+  // Detect "cells needed but not loaded yet" state for immediate feedback
+  const cellsNeededButPending = displayMode === 'cells' && visibleSites.length > 0 && visibleSites.some(s => s.cells.length === 0 && !cellLoadAttemptedRef.current.has(s.site_id));
+  const isAnythingLoading = loading || bboxLoading || cellLoadingCount > 0 || cellsNeededButPending;
   const loadingMessage = (() => {
     if (cellLoadingCount > 0) return `Chargement des cellules… ${cellLoadingCount.toLocaleString()} site${cellLoadingCount > 1 ? 's' : ''}`;
+    if (cellsNeededButPending) {
+      const pending = visibleSites.filter(s => s.cells.length === 0 && !cellLoadAttemptedRef.current.has(s.site_id)).length;
+      return `Chargement des cellules… ${pending.toLocaleString()} site${pending > 1 ? 's' : ''}`;
+    }
+    if (bboxLoading && viewport.zoom >= CELL_PRELOAD_ZOOM) return 'Chargement des cellules…';
     if (loading || bboxLoading) return sites.length > 0 ? `Chargement… ${sites.length.toLocaleString()} sites` : 'Chargement des sites…';
     return '';
   })();
