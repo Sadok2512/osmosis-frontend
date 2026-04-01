@@ -4431,12 +4431,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
-        // Fallback: if bulk load returns nothing, load per-site but capped & throttled
-        if (cellMap.size === 0 && sitesNeedingCells.length > 0) {
-          const MAX_FALLBACK = 36; // Load more sites, faster, when bulk API returns empty
+        const hasCellsForSite = (siteLike: { site_id?: string | null; site_name?: string | null }) =>
+          getLookupKeys(siteLike).some((key) => {
+            const cells = cellMap.get(key);
+            return Array.isArray(cells) && cells.length > 0;
+          });
+
+        const unresolvedSites = sitesNeedingCells.filter((site) => !hasCellsForSite(site));
+        const attemptedThisPass = new Set<string>(
+          sitesNeedingCells.filter((site) => hasCellsForSite(site)).map((site) => site.site_id)
+        );
+
+        // Progressive VPS loading for sites still missing after bulk viewport fetch.
+        if (unresolvedSites.length > 0) {
+          const MAX_PROGRESSIVE_SITE_FETCH = 48;
           const CONCURRENCY = 8;
           const DELAY_MS = 120;
-          const queue = sitesNeedingCells.slice(0, MAX_FALLBACK);
+          const queue = unresolvedSites.slice(0, MAX_PROGRESSIVE_SITE_FETCH);
 
           while (queue.length > 0) {
             const batch = queue.splice(0, CONCURRENCY);
@@ -4444,111 +4455,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               batch.map(async (site) => {
                 try {
                   const cells = await fetchSiteCells(site.site_id);
-                  return { siteId: site.site_id, cells };
+                  return { site, cells };
                 } catch {
-                  return { siteId: site.site_id, cells: [] as any[] };
+                  return { site, cells: [] as any[] };
                 }
               })
             );
+
             for (const r of batchResults) {
-              if (r.cells.length > 0) cellMap.set(r.siteId, r.cells as CellProperties[]);
+              attemptedThisPass.add(r.site.site_id);
+              if (r.cells.length > 0) {
+                getLookupKeys(r.site).forEach((key) => cellMap.set(key, r.cells as CellProperties[]));
+              }
             }
+
             if (queue.length > 0) await new Promise(r => setTimeout(r, DELAY_MS));
           }
         }
 
-        // Ultimate fallback: synthesize approximate sectors from site-level lte_cells/nr_cells
-        // when ALL VPS cell endpoints fail (timeout / empty)
-        if (cellMap.size === 0) {
-          console.warn('[SitesMonitor] All cell endpoints failed — generating synthetic sectors from site metadata');
-          for (const site of sitesNeedingCells) {
-            const lte = site.lte_cells || 0;
-            const nr = site.nr_cells || 0;
-            if (lte === 0 && nr === 0) continue;
-            const syntheticCells: CellProperties[] = [];
-            const azimuths = [0, 120, 240]; // standard tri-sector
-            // Generate 4G synthetic cells
-            if (lte > 0) {
-              const bandsPerSector = Math.max(1, Math.round(lte / 3));
-              const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
-              for (let s = 0; s < 3; s++) {
-                for (let b = 0; b < bandsPerSector && b < defaultBands4G.length; b++) {
-                  syntheticCells.push({
-                    cell_id: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
-                    techno: '4G',
-                    bande: defaultBands4G[b],
-                    azimut: azimuths[s],
-                    hba: 0,
-                    tilt: null,
-                    qoe_score_avg: 0,
-                    p95_rtt_ms: 0,
-                    traffic_up_bytes: 0,
-                    traffic_dn_bytes: 0,
-                    dms_dl_3: 0,
-                    dms_dl_8: 0,
-                    dms_dl_30: 0,
-                    dms_ul_3: 0,
-                    p50_thr_dn_mbps: 0,
-                    p50_thr_up_mbps: 0,
-                    sessions: 0,
-                    window_full_ratio: 0,
-                    retransmission_rate: 0,
-                    tcp_loss_rate: 0,
-                    out_of_order_ratio: 0,
-                    p25_rtt_ms: 0,
-                    p75_rtt_ms: 0,
-                  });
-                }
-              }
-            }
-            // Generate 5G synthetic cells
-            if (nr > 0) {
-              const bandsPerSector5G = Math.max(1, Math.round(nr / 3));
-              const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
-              for (let s = 0; s < 3; s++) {
-                for (let b = 0; b < bandsPerSector5G && b < defaultBands5G.length; b++) {
-                  syntheticCells.push({
-                    cell_id: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
-                    techno: '5G',
-                    bande: defaultBands5G[b],
-                    azimut: azimuths[s],
-                    hba: 0,
-                    tilt: null,
-                    qoe_score_avg: 0,
-                    p95_rtt_ms: 0,
-                    traffic_up_bytes: 0,
-                    traffic_dn_bytes: 0,
-                    dms_dl_3: 0,
-                    dms_dl_8: 0,
-                    dms_dl_30: 0,
-                    dms_ul_3: 0,
-                    p50_thr_dn_mbps: 0,
-                    p50_thr_up_mbps: 0,
-                    sessions: 0,
-                    window_full_ratio: 0,
-                    retransmission_rate: 0,
-                    tcp_loss_rate: 0,
-                    out_of_order_ratio: 0,
-                    p25_rtt_ms: 0,
-                    p75_rtt_ms: 0,
-                  });
-                }
-              }
-            }
-            if (syntheticCells.length > 0) {
-              cellMap.set(site.site_id, syntheticCells);
-            }
-          }
-        }
-
-        // Mark all as attempted (whether cells found or not) and clear loading flags
+        // Mark only resolved or individually attempted sites; keep the rest pending for next pass.
         sitesNeedingCells.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
-          cellLoadAttemptedRef.current.add(s.site_id);
         });
+        attemptedThisPass.forEach((siteId) => cellLoadAttemptedRef.current.add(siteId));
         setCellLoadingCount(cellLoadingRef.current.size);
 
+        const resolvedCount = sitesNeedingCells.filter((site) => hasCellsForSite(site)).length;
+        const remainingCount = sitesNeedingCells.length - attemptedThisPass.size;
         console.log(`[SitesMonitor] Cell merge: cellMap has ${cellMap.size} entries for ${sitesNeedingCells.length} sites needing cells`);
+        console.log(`[SitesMonitor] Cell progress: ${resolvedCount} resolved, ${attemptedThisPass.size} attempted, ${remainingCount} pending`);
         if (cellMap.size > 0) {
           const sampleKeys = Array.from(cellMap.keys()).slice(0, 3);
           console.log(`[SitesMonitor] Sample cellMap keys: ${sampleKeys.join(', ')}`);
