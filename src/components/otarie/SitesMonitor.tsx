@@ -6603,13 +6603,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setPanelCollapsed(false);
                     }
                   }}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                  className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-md shrink-0 flex items-center gap-1 ${
                     inventoryTab === 'dashboard' && !panelCollapsed
-                      ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-sm shadow-primary/20'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
                   }`}
                 >
-                  <Layers size={12} />
+                  <Layers size={10} />
                   Views
                 </button>
 
