@@ -618,22 +618,7 @@ export async function fetchCellsByBbox(
     console.warn('[TopoService] Server-side cells fetch failed, trying cells-merge fallback', err);
   }
 
-  // Fallback: use /topo/cells cache merged with /topo/sites for complete cell data
-  if (!sitesFromEndpoint || sitesFromEndpoint.length === 0) {
-    try {
-      const cellsResp = await topoApi.listCellsByBbox(bbox, filters, 8000, signal);
-      if (cellsResp.cells && cellsResp.cells.length > 0) {
-        const rows = cellsResp.cells as TopoRow[];
-        const builtSites = buildSitesFromRows(rows);
-        const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
-        sitesFromEndpoint = builtSites.map(site => applyQoeData(site, qoeData));
-        console.log(`[TopoService] BBOX cells fallback: ${sitesFromEndpoint.length} sites, ${cellsResp.total} cells (cells-merge)`);
-      }
-    } catch (err2: any) {
-      if (err2?.name === 'AbortError') throw err2;
-      console.warn('[TopoService] Cells-merge fallback also failed', err2);
-    }
-  }
+  // No fallback — VPS only
 
   if (!sitesFromEndpoint) return [];
 
