@@ -223,26 +223,29 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const technoOptions = filterOptions.technos.length > 0 ? filterOptions.technos : ['4G', '5G', 'LTE', 'NR', 'SRAN'];
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm pl-[240px]" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-[1000px] max-w-[calc(100vw-280px)] h-[620px] max-h-[85vh] flex flex-col rounded-xl bg-card border border-border shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="relative w-[1100px] max-w-[95vw] h-[720px] max-h-[90vh] flex flex-col rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-3 bg-emerald-600 text-white shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 bg-primary text-primary-foreground">
           <div className="flex items-center gap-3">
-            <BarChart3 className="w-5 h-5" />
-            <h2 className="text-[14px] font-bold">Sélectionner des Counters PM</h2>
-            <span className="text-[11px] opacity-70">{catalog.length} counters</span>
+            <BarChart3 className="w-4 h-4" />
+            <h2 className="text-sm font-bold tracking-wide">Sélectionner des Counters PM</h2>
+            <span className="text-[10px] opacity-70">{catalog.length} counters{filteredCatalog.length !== catalog.length ? ` · ${filteredCatalog.length} filtrés` : ''}</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/15 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold">{selected.size} sélectionné(s)</span>
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-primary-foreground/10 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* ── Body ── */}
-        <div className="flex-1 flex overflow-hidden min-h-0">
+        <div className="flex-1 flex overflow-hidden">
 
           {/* ═══ Left Sidebar: Filters ═══ */}
-          <div className="w-[200px] shrink-0 border-r border-border flex flex-col bg-muted/5">
+          <div className="w-[200px] shrink-0 border-r border-border bg-muted/10 flex flex-col overflow-hidden">
 
             {/* Header row */}
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
