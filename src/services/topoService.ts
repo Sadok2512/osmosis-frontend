@@ -290,6 +290,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       });
     }
 
+    const cellsSeen = new Set<string>();
     const cells = siteRows.map((r, index) => {
       const cellName = r.nom_cellule || r.cell_name || `${siteId}_cell_${index + 1}`;
       let azimut = r.azimut || 0;
@@ -304,6 +305,11 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
         r.hba || 30,
         r,
       );
+    }).filter(c => {
+      const key = c.cell_id;
+      if (cellsSeen.has(key)) return false;
+      cellsSeen.add(key);
+      return true;
     });
 
     const rawVendor = first.constructeur || first.vendor;
@@ -552,6 +558,7 @@ export async function fetchCellsByBbox(
       .map((s: any) => {
         const canonicalSiteId = String(s.code_nidt || s.site_id || s.site_name || '').trim();
         const displaySiteName = String(s.nom_site || s.site_name || canonicalSiteId).trim();
+        const cellsSeen = new Set<string>();
         const cells = (s.cells || []).map((c: any) => {
           const rawTechno = c.techno || '4G';
           const rawBande = c.bande || '';
@@ -587,6 +594,11 @@ export async function fetchCellsByBbox(
           zone_arcep: s.zone_arcep || null,
           plaque: s.plaque || c.plaque || null,
         };
+        }).filter((c: any) => {
+          const key = c.cell_id || c.cell_name;
+          if (cellsSeen.has(key)) return false;
+          cellsSeen.add(key);
+          return true;
         });
         const site: SiteSummary = {
           site_id: canonicalSiteId,
