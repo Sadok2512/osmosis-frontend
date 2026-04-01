@@ -305,9 +305,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                     );
                   })}
                 </div>
-                <div className="text-center text-[10px] text-muted-foreground py-4">
-                  Compteurs sélectionnés — données affichées dans l'onglet PM Counters
-                </div>
+                <CounterTimeseriesWidget counterNames={kpiIds} height={chartHeight - 60} />
               </div>
             </div>
           );
