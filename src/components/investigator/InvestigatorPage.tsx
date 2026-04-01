@@ -246,15 +246,15 @@ const InvestigatorPage: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:px-6 md:pt-4 md:pb-6 space-y-5 max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 p-5 md:px-6 md:pt-5 md:pb-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Error toast when no KPIs selected */}
         {applyError && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2.5 flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
-            <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-            <span className="text-[11px] font-semibold text-destructive flex-1">
+          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+            <span className="text-[11px] font-semibold text-red-700 dark:text-red-400 flex-1">
               {applyError}
             </span>
-            <button onClick={() => setApplyError(null)} className="text-destructive/60 hover:text-destructive transition-colors">
+            <button onClick={() => setApplyError(null)} className="text-red-600 hover:text-red-800 dark:hover:text-red-300">
               <span className="text-xs font-bold">✕</span>
             </button>
           </div>
@@ -271,30 +271,33 @@ const InvestigatorPage: React.FC = () => {
         )}
 
         {/* KPI Graph Section */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between pb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-primary/8 rounded-lg ring-1 ring-primary/10">
-                <LayoutGrid className="w-3.5 h-3.5 text-primary" />
+        <section className="space-y-4">
+          <div className="flex items-center justify-between border-b border-border/40 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-primary/10 rounded-lg">
+                <LayoutGrid className="w-4 h-4 text-primary" />
               </div>
-              <h2 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Graph Analysis</h2>
+              <div>
+                <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">KPI Graph Analysis</h2>
+                <p className="text-[10px] text-muted-foreground">Visual trend analysis and performance tracking</p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
               {/* Graph type tabs */}
-              <div className="flex items-center bg-muted/40 p-0.5 rounded-lg border border-border/30">
+              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
                 {([
                   { key: 'TimeSeries' as const, icon: LineChartIcon, label: 'Time Series' },
                   { key: 'Histogram' as const, icon: BarChart3, label: 'Histogram' },
-                  { key: 'Neighbors' as const, icon: Activity, label: 'Neighbors' },
+                  { key: 'Neighbors' as const, icon: Activity, label: 'Neighbors Flux' },
                 ]).map(tab => (
                   <button
                     key={tab.key}
                     onClick={() => setState(prev => ({ ...prev, activeGraphTab: tab.key as any }))}
                     className={cn(
-                      'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all',
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all',
                       state.activeGraphTab === tab.key
-                        ? 'bg-card text-primary shadow-sm ring-1 ring-border/40'
+                        ? 'bg-card text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
@@ -305,7 +308,7 @@ const InvestigatorPage: React.FC = () => {
               </div>
 
               {/* Layout switcher */}
-              <div className="flex items-center bg-muted/40 p-0.5 rounded-lg border border-border/30">
+              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
                 {([
                   { val: 1 as const, icon: Square, title: 'Single' },
                   { val: 2 as const, icon: Columns2, title: 'Dual' },
@@ -318,7 +321,7 @@ const InvestigatorPage: React.FC = () => {
                     className={cn(
                       'p-1.5 rounded-md transition-all',
                       state.graphLayout === l.val
-                        ? 'bg-card text-primary shadow-sm ring-1 ring-border/40'
+                        ? 'bg-card text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
@@ -434,28 +437,28 @@ const InvestigatorPage: React.FC = () => {
         </section>
 
         {/* ═══ Analysis Navigation Tabs ═══ */}
-        <div className="sticky top-[52px] z-20 bg-background/90 backdrop-blur-md pt-1">
-          <div className="flex items-center gap-1 border-b border-border/30 px-0.5">
+        <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
+          <div className="flex items-center gap-0.5 px-1 py-1">
             {([
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500', badge: undefined as number | undefined },
               { key: 'counters' as const, icon: Cpu, label: 'PM Counters', color: 'text-emerald-500', badge: undefined as number | undefined },
-              { key: 'alarms' as const, icon: Bell, label: 'Alarms & Worst Cells', color: 'text-destructive', badge: worstElements.length > 0 ? worstElements.length : undefined },
+              { key: 'alarms' as const, icon: Bell, label: 'Alarms & Worst Cells', color: 'text-red-500', badge: worstElements.length > 0 ? worstElements.length : undefined },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500', badge: undefined as number | undefined },
             ] as const).map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setAnalysisTab(tab.key)}
                 className={cn(
-                  'flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold transition-all whitespace-nowrap border-b-2 -mb-px',
+                  'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
                   analysisTab === tab.key
-                    ? 'border-primary text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                    ? 'bg-card text-foreground shadow-sm border border-border/60'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
                 )}
               >
                 <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
                 {tab.label}
                 {tab.badge && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-destructive/10 text-destructive">{tab.badge}</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-destructive/15 text-destructive">{tab.badge}</span>
                 )}
               </button>
             ))}
