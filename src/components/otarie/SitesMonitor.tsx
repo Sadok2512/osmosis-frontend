@@ -4380,9 +4380,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [currentBboxFilters]);
 
   // Constants for cell loading throttling
-  const CELL_DETAILS_ZOOM = 11;
-  const MAX_SITES_FOR_CELL_BULK = 120;
-  const MAX_PRIORITY_CELL_SITES = 60;
+  // Match SITES_TO_CELLS_ZOOM so cells load as soon as sectors are displayed
+  const CELL_DETAILS_ZOOM = 9;
+  const MAX_SITES_FOR_CELL_BULK = 200;
+  const MAX_PRIORITY_CELL_SITES = 80;
 
   useEffect(() => {
     // Only load cells when explicitly needed — no more aggressive preload at low zoom
