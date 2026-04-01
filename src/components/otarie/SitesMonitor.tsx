@@ -7484,11 +7484,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               <MapPin size={18} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h4 className="text-[13px] font-extrabold text-foreground tracking-tight uppercase truncate">{site.site_name}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-[13px] font-extrabold text-foreground tracking-tight uppercase truncate">{site.site_name}</h4>
+                                <span className="shrink-0 px-1.5 py-0.5 rounded bg-muted text-[8px] font-bold text-muted-foreground uppercase tracking-wider">{displayedCellCount} cells</span>
+                              </div>
                               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
-                                <span className="font-mono">{site.site_id}</span>
+                                <span className="font-mono truncate">{site.site_id}</span>
                                 <span>•</span>
-                                <span className="uppercase font-semibold">{site.vendor}</span>
+                                <span className="uppercase font-semibold shrink-0">{site.vendor}</span>
                               </div>
                               {(() => {
                                 const coords = normalizeCoordinates(site);
@@ -7511,7 +7514,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   </span>
                                 </div>
                               )}
-                              <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button
