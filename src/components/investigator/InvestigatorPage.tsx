@@ -246,15 +246,15 @@ const InvestigatorPage: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 p-5 md:px-6 md:pt-5 md:pb-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 p-4 md:px-6 md:pt-4 md:pb-6 space-y-5 max-w-[1600px] mx-auto w-full">
         {/* Error toast when no KPIs selected */}
         {applyError && (
-          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-            <span className="text-[11px] font-semibold text-red-700 dark:text-red-400 flex-1">
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2.5 flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
+            <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+            <span className="text-[11px] font-semibold text-destructive flex-1">
               {applyError}
             </span>
-            <button onClick={() => setApplyError(null)} className="text-red-600 hover:text-red-800 dark:hover:text-red-300">
+            <button onClick={() => setApplyError(null)} className="text-destructive/60 hover:text-destructive transition-colors">
               <span className="text-xs font-bold">✕</span>
             </button>
           </div>
