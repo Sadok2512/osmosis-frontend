@@ -338,6 +338,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [filterDimensions, setFilterDimensions] = useState<string[]>(FILTER_DIMS_FALLBACK);
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
+  const [pmDimValues, setPmDimValues] = useState<string[]>([]);
+  const [pmDimLoading, setPmDimLoading] = useState(false);
 
   // Load split and filter dimensions from backend catalog
   useEffect(() => {
@@ -389,6 +391,20 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     }).catch(() => {});
     fetchKpiDefinitions().then(k => { if (k.length > 0) setKpiDefs(k); }).catch(() => {});
   }, []);
+
+  // Load PM dimension values when kpiLevel changes (PROFILE→PMQAP, NEIGHBOR→NEIGHBOR)
+  useEffect(() => {
+    setPmDimValues([]);
+    const dimType = state.kpiLevel === 'PROFILE' ? 'PMQAP' : state.kpiLevel === 'NEIGHBOR' ? 'NEIGHBOR' : null;
+    if (!dimType) return;
+    setPmDimLoading(true);
+    import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
+      fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${dimType}&limit=50`), { headers: getApiHeaders() })
+        .then(r => r.ok ? r.json() : { values: [] })
+        .then(d => { setPmDimValues(d.values || []); setPmDimLoading(false); })
+        .catch(() => setPmDimLoading(false));
+    });
+  }, [state.kpiLevel]);
 
   // Load KPIs with data when Site/Cell filter is active
   useEffect(() => {
@@ -688,6 +704,29 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     ))}
                   </select>
                 </div>
+                {/* PM Dimension Key (PMQAP values from fact data) */}
+                {pmDimValues.length > 0 && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Dimension</span>
+                    <select
+                      value={state.filters['PMQAP']?.[0] || ''}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setState(prev => {
+                          const newFilters = { ...prev.filters };
+                          if (val) newFilters['PMQAP'] = [val];
+                          else delete newFilters['PMQAP'];
+                          return { ...prev, filters: newFilters };
+                        });
+                      }}
+                      className="h-7 px-2 rounded-lg border border-amber-500/30 bg-background text-foreground text-[10px] font-medium min-w-[130px]"
+                    >
+                      <option value="">Toutes</option>
+                      {pmDimValues.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                    {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">...</span>}
+                  </div>
+                )}
                 {(state.profileQci != null || state.profileArp != null) && (
                   <div className="flex items-center gap-1">
                     {state.profileQci != null && (
@@ -735,6 +774,29 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     ))}
                   </div>
                 </div>
+                {/* PM Dimension Key (NEIGHBOR values from fact data) */}
+                {pmDimValues.length > 0 && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Dimension</span>
+                    <select
+                      value={state.filters['NEIGHBOR']?.[0] || ''}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setState(prev => {
+                          const newFilters = { ...prev.filters };
+                          if (val) newFilters['NEIGHBOR'] = [val];
+                          else delete newFilters['NEIGHBOR'];
+                          return { ...prev, filters: newFilters };
+                        });
+                      }}
+                      className="h-7 px-2 rounded-lg border border-amber-500/30 bg-background text-foreground text-[10px] font-medium min-w-[160px]"
+                    >
+                      <option value="">Toutes</option>
+                      {pmDimValues.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                    {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">...</span>}
+                  </div>
+                )}
               </>
             )}
           </div>
