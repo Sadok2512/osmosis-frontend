@@ -3920,6 +3920,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
+      // Reset viewport fetch state so next activation triggers a fresh fetch
+      lastFetchedBoundsRef.current = null;
+      lastFetchedFilterKeyRef.current = '';
       // Don't clear sites if search is active — search results are separate
       setSites([]);
       setBboxTotal(0);
