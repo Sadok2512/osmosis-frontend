@@ -3714,6 +3714,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const VIEWPORT_FETCH_DEBOUNCE_MS = 500;
   const mountedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const viewportAbortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastFetchedBoundsRef = useRef<L.LatLngBounds | null>(null);
   const lastFetchedFilterKeyRef = useRef<string>('');
