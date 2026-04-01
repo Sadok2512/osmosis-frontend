@@ -6461,10 +6461,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <button
                         key={kpi.id}
                         onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                        className={`px-2 py-1 rounded-md text-[9px] font-bold whitespace-nowrap transition-all ${
                           mapKpi === kpi.id
-                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                         }`}
                         title={kpi.label}
                       >
