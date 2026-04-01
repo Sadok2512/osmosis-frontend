@@ -5534,7 +5534,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               let az = Number(cell.azimut);
               if (!Number.isFinite(az) || az < 0 || az > 360) {
                 // Fallback: assign azimuth based on sector number (tri-sector heuristic)
-                const sNum = getSectorNumber(cell.cell_id);
+                const sNum = getSectorNumber(cell.cell_id, cell as any);
                 const heuristicAz = [0, 0, 120, 240]; // index 0=fallback, 1=0°, 2=120°, 3=240°
                 az = heuristicAz[sNum] ?? ((sNum - 1) * 120) % 360;
               }
