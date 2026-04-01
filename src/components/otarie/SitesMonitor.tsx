@@ -4373,7 +4373,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
               for (let s = 0; s < 3; s++) {
                 for (let b = 0; b < bandsPerSector && b < defaultBands4G.length; b++) {
-                  syntheticCells.push({
+                  syntheticCells.push(({
                     cell_id: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
                     techno: '4G',
                     bande: defaultBands4G[b],
@@ -4383,7 +4383,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pci: null, eci: null, nci: null, cid: null, tac: null,
                     etat_cellule: null, essentiel: null,
                     _synthetic: true,
-                  });
+                  }) as CellProperties);
                 }
               }
             }
@@ -4393,7 +4393,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
               for (let s = 0; s < 3; s++) {
                 for (let b = 0; b < bandsPerSector5G && b < defaultBands5G.length; b++) {
-                  syntheticCells.push({
+                  syntheticCells.push(({
                     cell_id: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
                     techno: '5G',
                     bande: defaultBands5G[b],
@@ -4403,7 +4403,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pci: null, eci: null, nci: null, cid: null, tac: null,
                     etat_cellule: null, essentiel: null,
                     _synthetic: true,
-                  });
+                  }) as CellProperties);
                 }
               }
             }
