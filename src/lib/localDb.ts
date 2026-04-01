@@ -460,55 +460,7 @@ export const topoApi = {
       return { sites, total: Number(data?.total) || sites.length };
     };
 
-    try {
-      return normalizeSites(await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal));
-    } catch {
-      const qs = new URLSearchParams({ limit: String(limit) });
-      if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
-      if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
-      if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
-      if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
-      if (filters?.q) qs.set('search', filters.q);
-
-      const data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
-      const rows = Array.isArray(data) ? data : (data.rows || data.cells || []);
-      const siteMap = new Map<string, BboxSiteDTO>();
-      for (const row of rows) {
-        const lat = Number(row.latitude ?? row.lat);
-        const lng = Number(row.longitude ?? row.lng);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-
-        const key = row.code_nidt || row.site_name || row.nom_site;
-        if (!key) continue;
-
-        if (!siteMap.has(key)) {
-          siteMap.set(key, {
-            code_nidt: row.code_nidt || key,
-            nom_site: row.nom_site || row.site_name || key,
-            lat,
-            lng,
-            nb_cells: 0,
-            vendor: row.constructeur || row.vendor || null,
-            plaque: row.plaque || null,
-            dor: row.dor || null,
-            region: row.region || null,
-            lte_cells: 0,
-            nr_cells: 0,
-          });
-        }
-        const entry = siteMap.get(key)!;
-        entry.nb_cells += 1;
-        const cellTech = String(row.techno || '').toUpperCase();
-        if (cellTech.includes('5G') || cellTech.includes('NR')) {
-          entry.nr_cells = (entry.nr_cells || 0) + 1;
-        } else {
-          entry.lte_cells = (entry.lte_cells || 0) + 1;
-        }
-      }
-
-      const sites = Array.from(siteMap.values());
-      return { sites, total: sites.length };
-    }
+    return normalizeSites(await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal));
   },
 
   listCellsByBbox: async (
