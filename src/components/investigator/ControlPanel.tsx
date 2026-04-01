@@ -392,19 +392,23 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     fetchKpiDefinitions().then(k => { if (k.length > 0) setKpiDefs(k); }).catch(() => {});
   }, []);
 
-  // Load PM dimension values when kpiLevel changes (PROFILE→PMQAP, NEIGHBOR→NEIGHBOR)
+  // Load PM dimension values based on selected KPIs' dimension types
+  const primaryKpiDimType = useMemo(() => {
+    if (activePmDimensions.size === 0) return null;
+    return Array.from(activePmDimensions)[0];
+  }, [activePmDimensions]);
+
   useEffect(() => {
     setPmDimValues([]);
-    const dimType = state.kpiLevel === 'PROFILE' ? 'PMQAP' : state.kpiLevel === 'NEIGHBOR' ? 'NEIGHBOR' : null;
-    if (!dimType) return;
+    if (!primaryKpiDimType) return;
     setPmDimLoading(true);
     import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
-      fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${dimType}&limit=50`), { headers: getApiHeaders() })
+      fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${primaryKpiDimType}&limit=50`), { headers: getApiHeaders() })
         .then(r => r.ok ? r.json() : { values: [] })
         .then(d => { setPmDimValues(d.values || []); setPmDimLoading(false); })
         .catch(() => setPmDimLoading(false));
     });
-  }, [state.kpiLevel]);
+  }, [primaryKpiDimType]);
 
   // Load KPIs with data when Site/Cell filter is active
   useEffect(() => {
@@ -704,29 +708,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     ))}
                   </select>
                 </div>
-                {/* PM Dimension Key (PMQAP values from fact data) */}
-                {pmDimValues.length > 0 && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Dimension</span>
-                    <select
-                      value={state.filters['PMQAP']?.[0] || ''}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setState(prev => {
-                          const newFilters = { ...prev.filters };
-                          if (val) newFilters['PMQAP'] = [val];
-                          else delete newFilters['PMQAP'];
-                          return { ...prev, filters: newFilters };
-                        });
-                      }}
-                      className="h-7 px-2 rounded-lg border border-amber-500/30 bg-background text-foreground text-[10px] font-medium min-w-[130px]"
-                    >
-                      <option value="">Toutes</option>
-                      {pmDimValues.map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
-                    {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">...</span>}
-                  </div>
-                )}
                 {(state.profileQci != null || state.profileArp != null) && (
                   <div className="flex items-center gap-1">
                     {state.profileQci != null && (
@@ -774,29 +755,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     ))}
                   </div>
                 </div>
-                {/* PM Dimension Key (NEIGHBOR values from fact data) */}
-                {pmDimValues.length > 0 && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Dimension</span>
-                    <select
-                      value={state.filters['NEIGHBOR']?.[0] || ''}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setState(prev => {
-                          const newFilters = { ...prev.filters };
-                          if (val) newFilters['NEIGHBOR'] = [val];
-                          else delete newFilters['NEIGHBOR'];
-                          return { ...prev, filters: newFilters };
-                        });
-                      }}
-                      className="h-7 px-2 rounded-lg border border-amber-500/30 bg-background text-foreground text-[10px] font-medium min-w-[160px]"
-                    >
-                      <option value="">Toutes</option>
-                      {pmDimValues.map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
-                    {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">...</span>}
-                  </div>
-                )}
               </>
             )}
           </div>
@@ -1040,6 +998,45 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               Add KPI
             </button>
           </div>
+
+          {/* Row D: Dimension (only when selected KPIs have dimensions) */}
+          {primaryKpiDimType && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">
+                  {PM_DIMENSION_LABELS[primaryKpiDimType] || primaryKpiDimType}
+                </span>
+              </div>
+              <select
+                value={state.filters[primaryKpiDimType]?.[0] || ''}
+                onChange={e => {
+                  const val = e.target.value;
+                  const dimKey = primaryKpiDimType!;
+                  setState(prev => {
+                    const newFilters = { ...prev.filters };
+                    if (val) newFilters[dimKey] = [val];
+                    else delete newFilters[dimKey];
+                    return { ...prev, filters: newFilters };
+                  });
+                }}
+                className="h-7 px-2 rounded-lg border border-amber-500/30 bg-amber-500/5 text-foreground text-[10px] font-medium min-w-[160px]"
+              >
+                <option value="">Toutes les dimensions</option>
+                {pmDimValues.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">chargement...</span>}
+              {state.filters[primaryKpiDimType]?.[0] && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                  {state.filters[primaryKpiDimType][0]}
+                  <button onClick={() => setState(prev => {
+                    const nf = { ...prev.filters };
+                    delete nf[primaryKpiDimType!];
+                    return { ...prev, filters: nf };
+                  })} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                </span>
+              )}
+            </div>
+          )}
 
         </div>
       </div>
