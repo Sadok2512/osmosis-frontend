@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { X, Search, Check, RotateCcw, Star, BarChart3 } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { X, Search, Check, RotateCcw, Star, BarChart3, Filter, ChevronDown } from 'lucide-react';
 import { loadFavorites as loadFavoritesDB, saveFavorites as saveFavoritesDB } from '@/services/favoritesService';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { cn } from '@/lib/utils';
 
 interface CounterDef {
@@ -13,6 +14,13 @@ interface CounterDef {
   count: number;
 }
 
+interface FilterOptions {
+  vendors: string[];
+  families: string[];
+  technos: string[];
+  object_types: string[];
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -21,22 +29,69 @@ interface Props {
   onConfirm: (keys: string[]) => void;
 }
 
-const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selectedKeys, onConfirm }) => {
+async function fetchFilterOptions(vendor?: string): Promise<FilterOptions> {
+  try {
+    const params = vendor ? `?vendor=${encodeURIComponent(vendor)}` : '';
+    const res = await fetch(getApiUrl(`pm/counters/filter-options${params}`), { headers: getApiHeaders() });
+    if (!res.ok) return { vendors: ['Nokia', 'Ericsson'], families: [], technos: [], object_types: [] };
+    return res.json();
+  } catch { return { vendors: ['Nokia', 'Ericsson'], families: [], technos: [], object_types: [] }; }
+}
+
+async function fetchFilteredCatalog(vendor?: string, techno?: string, family?: string, search?: string): Promise<CounterDef[]> {
+  try {
+    const params = new URLSearchParams();
+    if (vendor) params.set('vendor', vendor);
+    if (techno) params.set('techno', techno);
+    if (family) params.set('family', family);
+    if (search) params.set('search', search);
+    params.set('limit', '5000');
+    const res = await fetch(getApiUrl(`pm/counters/catalog?${params.toString()}`), { headers: getApiHeaders() });
+    if (!res.ok) return [];
+    return res.json();
+  } catch { return []; }
+}
+
+const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initialCatalog, selectedKeys, onConfirm }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [activeFamily, setActiveFamily] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavOnly, setShowFavOnly] = useState(false);
 
-  React.useEffect(() => {
+  // Filter state
+  const [filterVendor, setFilterVendor] = useState<string>('');
+  const [filterTechno, setFilterTechno] = useState<string>('');
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ vendors: [], families: [], technos: [], object_types: [] });
+  const [catalog, setCatalog] = useState<CounterDef[]>(initialCatalog);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
     if (open) {
       setSelected(new Set(selectedKeys));
       setActiveFamily(null);
       setSearch('');
       setShowFavOnly(false);
       loadFavoritesDB('pm-counters').then(favs => setFavorites(favs));
+      // Load filter options
+      fetchFilterOptions().then(setFilterOptions);
     }
   }, [open, selectedKeys]);
+
+  // Reload catalog + families when vendor/techno changes
+  useEffect(() => {
+    if (!open) return;
+    setIsLoading(true);
+    setActiveFamily(null);
+    Promise.all([
+      fetchFilteredCatalog(filterVendor || undefined, filterTechno || undefined),
+      fetchFilterOptions(filterVendor || undefined),
+    ]).then(([data, opts]) => {
+      setCatalog(data);
+      setFilterOptions(prev => ({ ...prev, families: opts.families, technos: opts.technos }));
+      setIsLoading(false);
+    });
+  }, [open, filterVendor, filterTechno]);
 
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
@@ -108,6 +163,48 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
               <X className="w-4 h-4" />
             </button>
           </div>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="flex items-center gap-3 px-5 py-2.5 border-b border-border bg-muted/30">
+          <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <div className="flex items-center gap-2">
+            <select
+              value={filterVendor}
+              onChange={e => { setFilterVendor(e.target.value); setFilterTechno(''); }}
+              className="h-7 px-2.5 rounded-md border border-border bg-background text-foreground text-[11px] font-medium min-w-[120px]"
+            >
+              <option value="">All Vendors</option>
+              {filterOptions.vendors.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <select
+              value={filterTechno}
+              onChange={e => setFilterTechno(e.target.value)}
+              className="h-7 px-2.5 rounded-md border border-border bg-background text-foreground text-[11px] font-medium min-w-[90px]"
+            >
+              <option value="">All Techno</option>
+              {filterOptions.technos.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          {(filterVendor || filterTechno) && (
+            <button
+              onClick={() => { setFilterVendor(''); setFilterTechno(''); }}
+              className="text-[10px] text-muted-foreground hover:text-foreground underline ml-1"
+            >
+              Reset filters
+            </button>
+          )}
+          {isLoading && (
+            <span className="text-[10px] text-muted-foreground animate-pulse ml-auto">Loading...</span>
+          )}
+          {!isLoading && (
+            <span className="text-[10px] text-muted-foreground ml-auto">
+              {filterVendor && <span className="font-semibold text-emerald-500">{filterVendor}</span>}
+              {filterTechno && <span className="font-semibold text-purple-400 ml-1">{filterTechno}</span>}
+              {!filterVendor && !filterTechno && 'All vendors'}
+              {' · '}{catalog.length} counters · {familyCategories.size} families
+            </span>
+          )}
         </div>
 
         {/* Body: 2-panel layout */}
@@ -184,7 +281,11 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
 
             {/* Counter items */}
             <div className="flex-1 overflow-y-auto px-3 py-1">
-              {filteredCatalog.length === 0 ? (
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center h-32 gap-2">
+                  <span className="text-xs text-muted-foreground animate-pulse">Loading counters...</span>
+                </div>
+              ) : filteredCatalog.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-32 gap-2">
                   <span className="text-xs text-muted-foreground">Aucun résultat</span>
                 </div>
