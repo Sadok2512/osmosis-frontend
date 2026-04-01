@@ -6349,8 +6349,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }}
       >
         <div
-          className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl flex items-center"
-          style={{ minHeight: 60, height: 60 }}
+          className="bg-card/95 backdrop-blur-xl border border-border/60 rounded-xl shadow-lg flex items-center"
+          style={{ minHeight: 40, height: 40 }}
         >
           {/* Scroll-left button */}
           {toolbarCanScrollLeft && (
