@@ -51,8 +51,29 @@ async function fetchFilteredCatalog(vendor?: string, techno?: string): Promise<C
   } catch { return []; }
 }
 
-/* ── Filter sidebar item ── */
-const FilterItem: React.FC<{
+/* ── Collapsible filter section (left sidebar) ── */
+const CollapsibleSection: React.FC<{
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}> = ({ title, children, defaultOpen = true }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-border/30">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <span>{title}</span>
+        {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+      </button>
+      {open && <div className="pb-2 px-2">{children}</div>}
+    </div>
+  );
+};
+
+/* ── Filter list item (left sidebar) ── */
+const FilterListItem: React.FC<{
   label: string;
   active: boolean;
   count?: number;
@@ -61,68 +82,37 @@ const FilterItem: React.FC<{
   <button
     onClick={onClick}
     className={cn(
-      'w-full flex items-center justify-between px-4 py-[7px] text-[12px] transition-all',
+      'w-full flex items-center justify-between px-3 py-[6px] text-[12px] transition-all rounded-[4px]',
       active
-        ? 'bg-emerald-600 text-white rounded-md font-semibold'
-        : 'text-foreground hover:bg-muted/50 font-normal'
+        ? 'bg-emerald-600 text-white font-semibold'
+        : 'text-foreground/80 hover:bg-muted/50'
     )}
   >
-    <span className="truncate">{label}</span>
+    <span>{label}</span>
     {count !== undefined && (
-      <span className={cn(
-        'text-[11px] tabular-nums shrink-0 ml-2',
-        active ? 'text-white/80' : 'text-muted-foreground'
-      )}>{count}</span>
+      <span className={cn('text-[11px] tabular-nums', active ? 'text-white/75' : 'text-muted-foreground')}>{count}</span>
     )}
   </button>
 );
 
-/* ── Collapsible section ── */
-const FilterSection: React.FC<{
-  title: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}> = ({ title, defaultOpen = true, children }) => {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div>
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-1.5 px-4 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-        {title}
-      </button>
-      {open && <div className="px-1">{children}</div>}
-    </div>
-  );
-};
-
-/* ── Category item (middle panel) ── */
-const CategoryItem: React.FC<{
+/* ── Category item (middle sidebar) ── */
+const CategoryListItem: React.FC<{
   label: string;
   active: boolean;
   count: number;
   onClick: () => void;
-  icon?: React.ReactNode;
-}> = ({ label, active, count, onClick, icon }) => (
+}> = ({ label, active, count, onClick }) => (
   <button
     onClick={onClick}
     className={cn(
-      'w-full flex items-center justify-between px-4 py-[7px] text-[12px] transition-all border-l-[3px]',
+      'w-full flex items-center justify-between px-4 py-[7px] text-[12px] transition-all rounded-[4px]',
       active
-        ? 'bg-emerald-600 text-white rounded-r-md font-semibold border-emerald-700'
-        : 'text-foreground hover:bg-muted/40 font-normal border-transparent'
+        ? 'bg-emerald-600 text-white font-semibold'
+        : 'text-foreground hover:bg-muted/40'
     )}
   >
-    <span className="flex items-center gap-2 truncate">
-      {icon}
-      <span className="truncate">{label}</span>
-    </span>
-    <span className={cn(
-      'text-[11px] tabular-nums shrink-0 ml-2 min-w-[28px] text-right',
-      active ? 'text-white/80' : 'text-muted-foreground'
-    )}>{count}</span>
+    <span className="truncate pr-2">{label}</span>
+    <span className={cn('text-[11px] tabular-nums shrink-0', active ? 'text-white/75' : 'text-muted-foreground')}>{count}</span>
   </button>
 );
 
@@ -211,7 +201,6 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     return fams;
   }, [catalog, showFavOnly, favorites]);
 
-  // Compute techno counts from current catalog
   const technoCounts = useMemo(() => {
     const items = Array.isArray(catalog) ? catalog : [];
     const counts = new Map<string, number>();
@@ -240,92 +229,94 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-5 py-3 bg-emerald-600 text-white shrink-0">
           <div className="flex items-center gap-3">
-            <BarChart3 className="w-4.5 h-4.5" />
-            <h2 className="text-[14px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
-            <span className="text-[11px] opacity-70 ml-1">{catalog.length} counters</span>
+            <BarChart3 className="w-5 h-5" />
+            <h2 className="text-[14px] font-bold">Sélectionner des Counters PM</h2>
+            <span className="text-[11px] opacity-70">{catalog.length} counters</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
-            <X className="w-4.5 h-4.5" />
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/15 transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* ── Body: 3-panel ── */}
+        {/* ── Body ── */}
         <div className="flex-1 flex overflow-hidden min-h-0">
 
-          {/* ── Panel 1: Filters ── */}
-          <div className="w-[220px] shrink-0 border-r border-border bg-muted/10 flex flex-col">
-            {/* Filters header */}
+          {/* ═══ Left Sidebar: Filters ═══ */}
+          <div className="w-[200px] shrink-0 border-r border-border flex flex-col bg-muted/5">
+
+            {/* Header row */}
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
               <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-[12px] font-bold text-foreground tracking-wide">FILTRES</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">Filtres</span>
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="py-2">
-                {/* Favoris */}
-                <div className="px-1 mb-1">
-                  <FilterItem
-                    label="⭐ FAVORIS"
-                    active={showFavOnly}
-                    count={favorites.length}
-                    onClick={() => { setShowFavOnly(!showFavOnly); if (!showFavOnly) setActiveFamily(null); }}
-                  />
-                </div>
 
-                <div className="mx-4 my-2 border-t border-border/40" />
-
-                {/* Vendor */}
-                <FilterSection title="VENDOR">
-                  <FilterItem label="Tous" active={filterVendor === ''} onClick={() => { setFilterVendor(''); setFilterTechno(''); }} />
-                  {vendorOptions.map(v => (
-                    <FilterItem key={v} label={v} active={filterVendor === v} onClick={() => { setFilterVendor(v); setFilterTechno(''); }} />
-                  ))}
-                </FilterSection>
-
-                <div className="mx-4 my-2 border-t border-border/40" />
-
-                {/* Technology */}
-                <FilterSection title="TECHNOLOGY">
-                  <FilterItem label="Tous" active={filterTechno === ''} onClick={() => setFilterTechno('')} />
-                  {technoOptions.map(t => (
-                    <FilterItem
-                      key={t}
-                      label={t}
-                      active={filterTechno === t}
-                      count={technoCounts.get(t)}
-                      onClick={() => setFilterTechno(t)}
-                    />
-                  ))}
-                </FilterSection>
+              {/* Favoris */}
+              <div className="border-b border-border/30 py-2 px-2">
+                <button
+                  onClick={() => { setShowFavOnly(!showFavOnly); if (!showFavOnly) setActiveFamily(null); }}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-[6px] rounded-[4px] text-[12px] font-medium transition-all',
+                    showFavOnly ? 'bg-emerald-600 text-white' : 'text-foreground/80 hover:bg-muted/50'
+                  )}
+                >
+                  <Star className={cn('w-3.5 h-3.5', showFavOnly ? 'fill-white text-white' : 'text-muted-foreground/50')} />
+                  <span>FAVORIS</span>
+                  <span className={cn('ml-auto text-[11px] tabular-nums', showFavOnly ? 'text-white/75' : 'text-muted-foreground')}>
+                    {favorites.length}
+                  </span>
+                </button>
               </div>
+
+              {/* Vendor */}
+              <CollapsibleSection title="Vendor">
+                <FilterListItem label="Tous" active={filterVendor === ''} onClick={() => { setFilterVendor(''); setFilterTechno(''); }} />
+                {vendorOptions.map(v => (
+                  <FilterListItem key={v} label={v} active={filterVendor === v} onClick={() => { setFilterVendor(v); setFilterTechno(''); }} />
+                ))}
+              </CollapsibleSection>
+
+              {/* Technology */}
+              <CollapsibleSection title="Technology">
+                <FilterListItem label="Tous" active={filterTechno === ''} onClick={() => setFilterTechno('')} />
+                {technoOptions.map(t => (
+                  <FilterListItem
+                    key={t}
+                    label={t}
+                    active={filterTechno === t}
+                    count={technoCounts.get(t)}
+                    onClick={() => setFilterTechno(t)}
+                  />
+                ))}
+              </CollapsibleSection>
+
             </ScrollArea>
           </div>
 
-          {/* ── Panel 2: Categories / Families ── */}
-          <div className="w-[240px] shrink-0 border-r border-border bg-card flex flex-col">
-            {/* Header */}
+          {/* ═══ Middle Sidebar: Categories ═══ */}
+          <div className="w-[230px] shrink-0 border-r border-border flex flex-col bg-card">
             <div className="px-4 py-3 border-b border-border">
-              <span className="text-[12px] font-bold text-foreground tracking-wide">CATÉGORIES</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">Catégories</span>
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="py-2 px-1">
+              <div className="py-1.5 px-1.5 space-y-[2px]">
                 {/* Tous */}
-                <CategoryItem
+                <CategoryListItem
                   label="Tous"
                   active={activeFamily === null && !showFavOnly}
                   count={totalFiltered}
                   onClick={() => { setActiveFamily(null); setShowFavOnly(false); }}
                 />
 
-                {/* Separator */}
-                <div className="mx-3 my-1.5 border-t border-border/30" />
+                <div className="mx-2 my-1 border-t border-border/30" />
 
-                {/* Family list sorted by count desc */}
+                {/* Family list */}
                 {Array.from(familyCategories.entries())
                   .sort((a, b) => b[1] - a[1])
                   .map(([fam, count]) => (
-                    <CategoryItem
+                    <CategoryListItem
                       key={fam}
                       label={fam}
                       active={activeFamily === fam}
@@ -337,10 +328,10 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
             </ScrollArea>
           </div>
 
-          {/* ── Panel 3: Counter list ── */}
+          {/* ═══ Right Panel: Counter List ═══ */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-            {/* Search bar */}
+            {/* Search */}
             <div className="px-4 py-2.5 border-b border-border flex items-center gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -355,8 +346,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
               <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">{filteredCatalog.length} counters</span>
             </div>
 
-            {/* Sticky info bar */}
-            <div className="px-4 py-2 border-b border-border/40 bg-muted/15 flex items-center justify-between">
+            {/* Info bar */}
+            <div className="px-4 py-1.5 border-b border-border/40 bg-muted/10 flex items-center justify-between">
               <p className="text-[11px] text-muted-foreground">
                 <span className="font-bold text-foreground">{selected.size}</span> sélectionné(s)
                 {isLoading && <span className="ml-2 animate-pulse">chargement...</span>}
@@ -365,20 +356,17 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                 )}
               </p>
               {selected.size > 0 && (
-                <button
-                  onClick={resetSelection}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-[10px] font-medium text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
-                >
-                  <RotateCcw className="w-3 h-3" /> Reset ({selected.size})
+                <button onClick={resetSelection} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors">
+                  <RotateCcw className="w-3 h-3" /> Reset
                 </button>
               )}
             </div>
 
-            {/* Counter list */}
+            {/* Items */}
             <ScrollArea className="flex-1">
               <div className="px-2 py-1">
                 {isLoading ? (
-                  <div className="flex items-center justify-center h-40 text-xs text-muted-foreground animate-pulse">Chargement des counters...</div>
+                  <div className="flex items-center justify-center h-40 text-xs text-muted-foreground animate-pulse">Chargement...</div>
                 ) : filteredCatalog.length === 0 ? (
                   <div className="flex items-center justify-center h-40 text-xs text-muted-foreground">Aucun résultat</div>
                 ) : (
@@ -393,37 +381,27 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                             'flex items-center gap-2.5 px-3 py-[6px] rounded-lg transition-all mb-[2px] group',
                             isSelected
                               ? 'bg-emerald-500/10 border border-emerald-500/25'
-                              : 'hover:bg-muted/50 border border-transparent'
+                              : 'hover:bg-muted/40 border border-transparent'
                           )}
                         >
-                          {/* Favorite star */}
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(c.counter_name); }}
                             className="shrink-0 p-0.5 rounded hover:bg-muted/50 transition-colors"
                           >
                             <Star className={cn(
                               'w-3.5 h-3.5 transition-colors',
-                              isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/25 group-hover:text-muted-foreground/50'
+                              isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/20 group-hover:text-muted-foreground/40'
                             )} />
                           </button>
 
-                          {/* Checkbox + counter info */}
-                          <button
-                            onClick={() => toggle(c.counter_name)}
-                            className="flex-1 flex items-center gap-3 text-left min-w-0"
-                          >
+                          <button onClick={() => toggle(c.counter_name)} className="flex-1 flex items-center gap-3 text-left min-w-0">
                             <div className={cn(
                               'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
-                              isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-border/80'
+                              isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-border/70'
                             )}>
                               {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                             </div>
-
-                            <span className="flex-1 text-[11px] font-medium text-foreground truncate font-mono min-w-0">
-                              {c.counter_name}
-                            </span>
-
-                            {/* Tags */}
+                            <span className="flex-1 text-[11px] font-medium text-foreground truncate font-mono">{c.counter_name}</span>
                             <div className="flex items-center gap-1 shrink-0">
                               {c.vendor && (
                                 <span className={cn(
@@ -435,7 +413,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                                 <span className="text-[9px] px-1.5 py-[2px] rounded bg-purple-500/10 text-purple-500 font-medium">{c.techno}</span>
                               )}
                               {c.family && (
-                                <span className="text-[9px] px-1.5 py-[2px] rounded bg-muted text-muted-foreground font-medium truncate max-w-[130px]">{c.family}</span>
+                                <span className="text-[9px] px-1.5 py-[2px] rounded bg-muted text-muted-foreground truncate max-w-[120px]">{c.family}</span>
                               )}
                             </div>
                           </button>
@@ -443,8 +421,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                       );
                     })}
                     {filteredCatalog.length > 200 && !search && (
-                      <div className="text-center py-4 text-[10px] text-muted-foreground">
-                        Affichage limité à 200 — utilisez la recherche pour affiner
+                      <div className="text-center py-3 text-[10px] text-muted-foreground">
+                        Affichage limité à 200 — utilisez la recherche
                       </div>
                     )}
                   </>
@@ -462,9 +440,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
               return (
                 <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-[10px] font-semibold font-mono">
                   {c?.display_name || key}
-                  <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive transition-colors">
-                    <X className="w-2.5 h-2.5" />
-                  </button>
+                  <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
                 </span>
               );
             })}
