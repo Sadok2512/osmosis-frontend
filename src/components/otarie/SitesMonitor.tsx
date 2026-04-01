@@ -5261,12 +5261,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           // Density-adaptive sizing: reduce in dense regions
-          const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
-          const baseRadius = viewport.zoom >= 10
-            ? (isHovered || isSelectedSite ? 7 : 5)
-            : viewport.zoom >= 8
-              ? (isHovered || isSelectedSite ? 6 : Math.round(4 * densityScale))
-              : (isHovered || isSelectedSite ? 5 : Math.round(3.5 * densityScale));
+          const densityScale = renderSites.length > 2000 ? 0.75 : renderSites.length > 800 ? 0.85 : renderSites.length > 400 ? 0.92 : 1;
+          let baseRadius: number;
+          if (viewport.zoom >= 13) baseRadius = isHovered || isSelectedSite ? 10 : 7;
+          else if (viewport.zoom >= 11) baseRadius = isHovered || isSelectedSite ? 9 : 6;
+          else if (viewport.zoom >= 9) baseRadius = isHovered || isSelectedSite ? 8 : 5.5;
+          else if (viewport.zoom >= 7) baseRadius = isHovered || isSelectedSite ? 7 : 5;
+          else baseRadius = isHovered || isSelectedSite ? 6 : Math.round(4 * densityScale);
           const isMixed = has4G && has5G;
           const radius4G = isMixed ? Math.max(baseRadius, 4) : baseRadius;
           const radius5G = isMixed ? Math.max(Math.round(baseRadius * 0.6), 2.5) : baseRadius;
