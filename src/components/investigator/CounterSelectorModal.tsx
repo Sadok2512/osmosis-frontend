@@ -93,8 +93,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-[1100px] max-w-[95vw] h-[720px] max-h-[90vh] flex flex-col rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[9999] flex items-stretch bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="relative flex-1 flex flex-col bg-card border-l border-border shadow-2xl overflow-hidden ml-[240px]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 bg-emerald-600 text-white">
           <div className="flex items-center gap-3">
@@ -113,7 +113,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
         {/* Body: 2-panel layout */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left: PM Families */}
-          <div className="w-[220px] shrink-0 border-r border-border bg-muted/20 overflow-y-auto">
+          <div className="w-[260px] shrink-0 border-r border-border bg-muted/20 overflow-y-auto">
             <div className="p-2">
               <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
                 PM Families
