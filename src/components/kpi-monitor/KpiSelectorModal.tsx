@@ -10,13 +10,9 @@ interface KpiSelectorModalProps {
   catalog: KpiCatalogEntry[];
   selectedKeys: string[];
   onConfirm: (keys: string[]) => void;
-  /** Optional: receive axis assignment per KPI key */
   axisAssignments?: Record<string, AxisSide>;
   onAxisAssignmentsChange?: (assignments: Record<string, AxisSide>) => void;
 }
-
-// ── Favorites persistence ──
-// Favorites are now loaded from DB via favoritesService
 
 // ── Filter section component ──
 const FilterSection: React.FC<{
@@ -37,9 +33,7 @@ const FilterSection: React.FC<{
           {label}
         </span>
         <div className="flex items-center gap-1">
-          {selected && (
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-          )}
+          {selected && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
           {expanded ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
         </div>
       </button>
@@ -48,7 +42,7 @@ const FilterSection: React.FC<{
           <button
             onClick={() => onChange('')}
             className={cn(
-              'w-full flex items-center justify-between px-2 py-1 rounded-md text-[10px] font-medium transition-all',
+              'w-full flex items-center justify-between px-2 py-1.5 rounded-md text-[10px] font-medium transition-all',
               !selected ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted/50'
             )}
           >
@@ -59,13 +53,13 @@ const FilterSection: React.FC<{
               key={opt.value}
               onClick={() => onChange(selected === opt.value ? '' : opt.value)}
               className={cn(
-                'w-full flex items-center justify-between px-2 py-1 rounded-md text-[10px] font-medium transition-all',
+                'w-full flex items-center justify-between px-2 py-1.5 rounded-md text-[10px] font-medium transition-all',
                 selected === opt.value ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/50'
               )}
             >
               <span className="truncate">{opt.label}</span>
               {opt.count !== undefined && (
-                <span className={cn('text-[8px] shrink-0', selected === opt.value ? 'text-primary/70' : 'text-muted-foreground')}>
+                <span className={cn('text-[8px] shrink-0 tabular-nums', selected === opt.value ? 'text-primary/70' : 'text-muted-foreground')}>
                   {opt.count}
                 </span>
               )}
@@ -85,14 +79,12 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavOnly, setShowFavOnly] = useState(false);
 
-  // Filter states
   const [filterVendor, setFilterVendor] = useState('');
   const [filterTechno, setFilterTechno] = useState('');
   const [filterNormalized, setFilterNormalized] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
 
-  // Load favorites from DB on open
-  React.useEffect(() => {
+  useEffect(() => {
     if (open) {
       setSelected(new Set(selectedKeys));
       setActiveCategory(null);
@@ -103,7 +95,6 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       setFilterLevel('');
       setShowFavOnly(false);
       setAxisMap(extAxisAssignments || {});
-      // Async load favorites from DB
       loadFavoritesDB('kpi-monitor').then(favs => setFavorites(favs));
     }
   }, [open, selectedKeys, extAxisAssignments]);
@@ -153,18 +144,35 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     };
   }, [catalog]);
 
-  const activeFilterCount = [filterVendor, filterTechno, filterNormalized, filterLevel].filter(Boolean).length;
+  const activeFilterCount = [filterVendor, filterTechno, filterNormalized, filterLevel, showFavOnly ? 'fav' : ''].filter(Boolean).length;
 
-  // Apply all filters
-  const filteredCatalog = useMemo(() => {
+  // ── SINGLE SOURCE OF TRUTH: base filtered (filters only, no category, no search) ──
+  const baseFiltered = useMemo(() => {
     let items = catalog;
-
     if (showFavOnly) items = items.filter(k => favorites.includes(k.kpi_key));
     if (filterVendor) items = items.filter(k => k.vendor === filterVendor);
     if (filterTechno) items = items.filter(k => k.techno === filterTechno);
     if (filterNormalized === 'normalized') items = items.filter(k => k.is_normalized);
     if (filterNormalized === 'vendor-specific') items = items.filter(k => !k.is_normalized);
     if (filterLevel) items = items.filter(k => k.supported_levels?.includes(filterLevel));
+    return items;
+  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, showFavOnly, favorites]);
+
+  // Categories derived from baseFiltered
+  const tabCategories = useMemo(() => {
+    const cats = new Map<string, number>();
+    for (const k of baseFiltered) {
+      const cat = k.category || 'Other';
+      cats.set(cat, (cats.get(cat) || 0) + 1);
+    }
+    return cats;
+  }, [baseFiltered]);
+
+  const totalFiltered = baseFiltered.length;
+
+  // Final filtered list = baseFiltered + category + search
+  const filteredCatalog = useMemo(() => {
+    let items = baseFiltered;
     if (activeCategory) items = items.filter(k => k.category === activeCategory);
     if (search) {
       const q = search.toLowerCase();
@@ -174,35 +182,20 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
         k.description.toLowerCase().includes(q)
       );
     }
-
     return items;
-  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, activeCategory, search, showFavOnly, favorites]);
+  }, [baseFiltered, activeCategory, search]);
 
-  // Categories computed from filtered catalog
-  const tabCategories = useMemo(() => {
-    let items = catalog;
-    if (showFavOnly) items = items.filter(k => favorites.includes(k.kpi_key));
-    if (filterVendor) items = items.filter(k => k.vendor === filterVendor);
-    if (filterTechno) items = items.filter(k => k.techno === filterTechno);
-    if (filterNormalized === 'normalized') items = items.filter(k => k.is_normalized);
-    if (filterNormalized === 'vendor-specific') items = items.filter(k => !k.is_normalized);
-    if (filterLevel) items = items.filter(k => k.supported_levels?.includes(filterLevel));
-
-    const cats = new Map<string, number>();
-    for (const k of items) {
-      const cat = k.category || 'Other';
-      cats.set(cat, (cats.get(cat) || 0) + 1);
+  // Reset activeCategory if it no longer exists in filtered set
+  useEffect(() => {
+    if (activeCategory && !tabCategories.has(activeCategory)) {
+      setActiveCategory(null);
     }
-    return cats;
-  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, showFavOnly, favorites]);
-
-  const totalFiltered = Array.from(tabCategories.values()).reduce((a, b) => a + b, 0);
+  }, [tabCategories, activeCategory]);
 
   const toggle = (key: string) => {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   };
@@ -222,27 +215,46 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-[1100px] max-w-[95vw] h-[720px] max-h-[90vh] flex flex-col rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 bg-primary text-primary-foreground">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm pl-[240px]" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="relative w-[1060px] max-w-[calc(100vw-280px)] h-[640px] max-h-[85vh] flex flex-col rounded-xl bg-card border border-border shadow-2xl overflow-hidden">
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-5 py-2.5 bg-primary text-primary-foreground shrink-0">
           <div className="flex items-center gap-3">
             <BarChart3 className="w-4 h-4" />
             <h2 className="text-sm font-bold tracking-wide">Sélectionner des KPIs</h2>
-            <span className="text-[10px] opacity-70">{catalog.length} KPIs{filteredCatalog.length !== catalog.length ? ` · ${filteredCatalog.length} filtrés` : ''}</span>
+            <span className="text-[10px] opacity-70 tabular-nums">{totalFiltered} KPIs{filteredCatalog.length !== totalFiltered ? ` · ${filteredCatalog.length} affichés` : ''}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold">{selected.size} sélectionné(s)</span>
+            <span className="text-xs font-semibold tabular-nums">{selected.size} sélectionné(s)</span>
             <button onClick={onClose} className="p-1 rounded-lg hover:bg-primary-foreground/10 transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Body: 3-panel layout */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* ── Active filters summary ── */}
+        {activeFilterCount > 0 && (
+          <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border bg-muted/30 shrink-0">
+            <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Filtres :</span>
+            <div className="flex flex-wrap gap-1">
+              {showFavOnly && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-medium"><Star className="w-2.5 h-2.5 fill-amber-500" />Favoris</span>}
+              {filterVendor && <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[9px] font-medium">{filterVendor}</span>}
+              {filterTechno && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-medium">{filterTechno}</span>}
+              {filterNormalized && <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 text-[9px] font-medium">{filterNormalized === 'normalized' ? 'Normalisé' : 'Vendor-Specific'}</span>}
+              {filterLevel && <span className="px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500 text-[9px] font-medium">{filterLevel}</span>}
+            </div>
+            <button onClick={clearFilters} className="ml-auto flex items-center gap-1 text-[9px] font-medium text-destructive hover:underline">
+              <RotateCcw className="w-2.5 h-2.5" /> Effacer
+            </button>
+          </div>
+        )}
+
+        {/* ── Body: 3-panel layout ── */}
+        <div className="flex-1 flex overflow-hidden min-h-0">
+
           {/* Left Sidebar: Filters */}
-          <div className="w-[200px] shrink-0 border-r border-border bg-muted/10 flex flex-col overflow-hidden">
+          <div className="w-[190px] shrink-0 border-r border-border bg-muted/10 flex flex-col overflow-hidden">
             <div className="px-3 py-2 border-b border-border/40">
               <div className="flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5 text-primary" />
@@ -255,13 +267,13 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto scrollbar-hide">
+            <div className="flex-1 overflow-y-auto">
               {/* Favorites toggle */}
               <div className="border-b border-border/30">
                 <button
                   onClick={() => setShowFavOnly(!showFavOnly)}
                   className={cn(
-                    'w-full flex items-center gap-2 px-3 py-2.5 transition-colors',
+                    'w-full flex items-center gap-2 px-3 py-2 transition-colors',
                     showFavOnly ? 'bg-amber-500/10' : 'hover:bg-muted/30'
                   )}
                 >
@@ -277,52 +289,20 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                 </button>
               </div>
 
-              {/* KPI Type */}
-              <FilterSection
-                label="Type"
-                selected={filterNormalized}
-                onChange={setFilterNormalized}
-                options={[
-                  { value: 'normalized', label: 'Normalisé', count: filterOptions.normalizedCount },
-                  { value: 'vendor-specific', label: 'Vendor-Specific', count: filterOptions.vendorSpecificCount },
-                ]}
-              />
-
-              {/* Vendor */}
-              <FilterSection
-                label="Vendor"
-                selected={filterVendor}
-                onChange={setFilterVendor}
-                options={filterOptions.vendors}
-              />
-
-              {/* Technology */}
-              <FilterSection
-                label="Technology"
-                selected={filterTechno}
-                onChange={setFilterTechno}
-                options={filterOptions.technos}
-              />
-
-              {/* Level */}
+              <FilterSection label="Type" selected={filterNormalized} onChange={setFilterNormalized} options={[
+                { value: 'normalized', label: 'Normalisé', count: filterOptions.normalizedCount },
+                { value: 'vendor-specific', label: 'Vendor-Specific', count: filterOptions.vendorSpecificCount },
+              ]} />
+              <FilterSection label="Vendor" selected={filterVendor} onChange={setFilterVendor} options={filterOptions.vendors} />
+              <FilterSection label="Technology" selected={filterTechno} onChange={setFilterTechno} options={filterOptions.technos} />
               {filterOptions.levels.length > 0 && (
-                <FilterSection
-                  label="Level"
-                  selected={filterLevel}
-                  onChange={setFilterLevel}
-                  options={filterOptions.levels}
-                  defaultOpen={false}
-                />
+                <FilterSection label="Level" selected={filterLevel} onChange={setFilterLevel} options={filterOptions.levels} defaultOpen={false} />
               )}
             </div>
 
-            {/* Clear filters */}
             {activeFilterCount > 0 && (
-              <div className="px-3 py-2 border-t border-border/40">
-                <button
-                  onClick={clearFilters}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-bold text-destructive hover:bg-destructive/10 transition-colors"
-                >
+              <div className="px-3 py-2 border-t border-border/40 shrink-0">
+                <button onClick={clearFilters} className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-bold text-destructive hover:bg-destructive/10 transition-colors">
                   <RotateCcw className="w-3 h-3" /> Effacer les filtres
                 </button>
               </div>
@@ -330,51 +310,60 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
           </div>
 
           {/* Middle: Categories */}
-          <div className="w-[180px] shrink-0 border-r border-border bg-muted/20 overflow-y-auto">
-            <div className="p-2">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
-                Catégories
-              </p>
+          <div className="w-[180px] shrink-0 border-r border-border bg-muted/20 flex flex-col overflow-hidden">
+            <div className="px-3 py-2 border-b border-border/40">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Catégories</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-1.5">
               <button
                 onClick={() => setActiveCategory(null)}
                 className={cn(
-                  'w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all',
+                  'w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all mb-0.5',
                   activeCategory === null ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
                 )}
               >
                 <span>Tous</span>
-                <span className={cn('text-[9px]', activeCategory === null ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                  {totalFiltered}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className={cn('text-[9px] tabular-nums', activeCategory === null ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                    {totalFiltered}
+                  </span>
+                  <ChevronRight className="w-3 h-3 opacity-50" />
+                </div>
               </button>
               {Array.from(tabCategories.entries()).sort((a, b) => b[1] - a[1]).map(([cat, count]) => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
                   className={cn(
-                    'w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all',
+                    'w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all mb-0.5',
                     activeCategory === cat ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
                   )}
                 >
                   <span className="truncate">{cat}</span>
-                  <span className={cn('text-[9px] shrink-0 ml-1', activeCategory === cat ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                    {count}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className={cn('text-[9px] shrink-0 tabular-nums', activeCategory === cat ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                      {count}
+                    </span>
+                    <ChevronRight className="w-3 h-3 opacity-50" />
+                  </div>
                 </button>
               ))}
+              {tabCategories.size === 0 && (
+                <div className="flex items-center justify-center h-20 text-[10px] text-muted-foreground">Aucune catégorie</div>
+              )}
             </div>
           </div>
 
           {/* Right: KPI list */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
             {/* Search */}
-            <div className="px-3 py-2 border-b border-border">
+            <div className="px-3 py-2 border-b border-border shrink-0">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Rechercher un KPI..."
+                  placeholder={`${filteredCatalog.length} KPIs — rechercher…`}
                   className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                   autoFocus
                 />
@@ -382,20 +371,20 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
             </div>
 
             {/* KPI items */}
-            <div className="flex-1 overflow-y-auto px-3 py-1">
+            <div className="flex-1 overflow-y-auto px-2 py-1">
               {filteredCatalog.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-32 gap-2">
-                  <span className="text-xs text-muted-foreground">Aucun résultat</span>
-                  {(activeFilterCount > 0 || showFavOnly) && (
+                  <span className="text-xs text-muted-foreground">Aucun KPI trouvé pour les filtres sélectionnés</span>
+                  {activeFilterCount > 0 && (
                     <button onClick={clearFilters} className="text-[10px] text-primary hover:underline">Effacer les filtres</button>
                   )}
                 </div>
               ) : (
                 <>
                   {filteredCatalog.length > 200 && !search && (
-                    <div className="flex items-center justify-center py-3 mb-1 rounded-lg bg-muted/30 border border-border/30">
+                    <div className="flex items-center justify-center py-2 mb-1 rounded-lg bg-muted/30 border border-border/30">
                       <p className="text-[10px] text-muted-foreground">
-                        {filteredCatalog.length} KPIs — <span className="font-semibold text-foreground">tapez pour rechercher</span> ou filtrez par catégorie/vendor
+                        {filteredCatalog.length} KPIs — <span className="font-semibold text-foreground">tapez pour rechercher</span> ou filtrez par catégorie
                       </p>
                     </div>
                   )}
@@ -406,23 +395,22 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                       <div
                         key={k.kpi_key}
                         className={cn(
-                          'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all mb-px',
-                          isSelected ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted border border-transparent'
+                          'flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all mb-px group',
+                          isSelected ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted/60 border border-transparent'
                         )}
                       >
                         {/* Favorite star */}
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(k.kpi_key); }}
                           className="shrink-0 p-0.5 rounded hover:bg-muted/50 transition-colors"
-                          title={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                         >
-                          <Star className={cn('w-3 h-3', isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/40 hover:text-amber-400')} />
+                          <Star className={cn('w-3 h-3', isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/30 group-hover:text-amber-400/60')} />
                         </button>
 
                         {/* Select checkbox + info */}
                         <button
                           onClick={() => toggle(k.kpi_key)}
-                          className="flex-1 flex items-center gap-2.5 text-left min-w-0"
+                          className="flex-1 flex items-center gap-2 text-left min-w-0"
                         >
                           <div className={cn(
                             'w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
@@ -430,35 +418,50 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                           )}>
                             {isSelected && <Check className="w-2 h-2 text-primary-foreground" />}
                           </div>
+
+                          {/* Name + description */}
                           <div className="flex-1 min-w-0">
                             <p className="text-[11px] font-medium text-foreground truncate">{k.display_name}</p>
                             <p className="text-[9px] text-muted-foreground truncate">{k.description || k.kpi_key}</p>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {(k as any).dimension_type && (
-                              <span className="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">{(k as any).dimension_type}</span>
-                            )}
-                            {k.vendor && (
-                              <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">{k.vendor}</span>
-                            )}
-                            {k.techno && (
-                              <span className="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">{k.techno}</span>
-                            )}
-                            <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">{k.unit || '–'}</span>
+
+                          {/* Badges — fixed-width for alignment */}
+                          <div className="flex items-center shrink-0" style={{ width: '200px' }}>
+                            <div className="w-[60px] flex justify-center">
+                              {k.vendor && (
+                                <span className={cn(
+                                  'text-[8px] px-1.5 py-0.5 rounded font-medium truncate max-w-[56px]',
+                                  k.vendor === 'Ericsson' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400'
+                                )}>{k.vendor}</span>
+                              )}
+                            </div>
+                            <div className="w-[48px] flex justify-center">
+                              {k.techno && (
+                                <span className="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">{k.techno}</span>
+                              )}
+                            </div>
+                            <div className="w-[44px] flex justify-center">
+                              <span className="text-[8px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{k.unit || '–'}</span>
+                            </div>
+                            <div className="w-[48px] flex justify-center">
+                              {k.category && (
+                                <span className="text-[8px] px-1 py-0.5 rounded bg-muted/60 text-muted-foreground truncate max-w-[46px]">{k.category}</span>
+                              )}
+                            </div>
                           </div>
                         </button>
 
-                        {/* L/R axis toggle — only when selected */}
+                        {/* L/R axis toggle */}
                         {isSelected && (
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleAxis(k.kpi_key); }}
                             className={cn(
-                              'shrink-0 w-6 h-5 rounded text-[8px] font-black tracking-tight flex items-center justify-center border transition-all',
+                              'shrink-0 w-6 h-5 rounded text-[8px] font-black flex items-center justify-center border transition-all',
                               (axisMap[k.kpi_key] || 'left') === 'left'
                                 ? 'bg-primary/10 border-primary/30 text-primary'
                                 : 'bg-accent/50 border-accent text-accent-foreground'
                             )}
-                            title={(axisMap[k.kpi_key] || 'left') === 'left' ? 'Axe gauche — cliquer pour passer à droite' : 'Axe droit — cliquer pour passer à gauche'}
+                            title={(axisMap[k.kpi_key] || 'left') === 'left' ? 'Axe gauche' : 'Axe droit'}
                           >
                             {(axisMap[k.kpi_key] || 'left') === 'left' ? 'L' : 'R'}
                           </button>
@@ -468,7 +471,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                   })}
                   {filteredCatalog.length > 200 && !search && (
                     <div className="text-center py-2 text-[9px] text-muted-foreground">
-                      Affichage limité à 200 — utilisez la recherche pour trouver un KPI spécifique
+                      Affichage limité à 200 — utilisez la recherche
                     </div>
                   )}
                 </>
@@ -477,9 +480,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-card">
-          <div className="flex flex-wrap gap-1 max-w-[600px] overflow-hidden">
+        {/* ── Footer ── */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-card shrink-0">
+          <div className="flex flex-wrap gap-1 max-w-[550px] overflow-hidden">
             {Array.from(selected).slice(0, 8).map(key => {
               const k = catalog.find(c => c.kpi_key === key);
               return (
@@ -500,13 +503,13 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
             {selected.size > 8 && <span className="text-[9px] text-muted-foreground self-center">+{selected.size - 8} autres</span>}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={reset} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-[10px] font-medium text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors">
+            <button onClick={reset} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-[10px] font-medium text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors">
               <RotateCcw className="w-3 h-3" /> Reset
             </button>
-            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
+            <button onClick={onClose} className="px-4 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
               Fermer
             </button>
-            <button onClick={handleConfirm} className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity">
+            <button onClick={handleConfirm} className="px-5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity tabular-nums">
               Ok ({selected.size})
             </button>
           </div>

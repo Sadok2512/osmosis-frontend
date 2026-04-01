@@ -537,7 +537,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                             {/* KPI badge */}
                             <div className="w-[32px] flex justify-center">
                               {c.is_in_kpi && (
-                                <Badge className="bg-cyan-500/10 text-cyan-500" title={`Used in ${c.kpi_usage_count || 0} KPIs`}>KPI</Badge>
+                                <span className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-semibold bg-cyan-500/10 text-cyan-500" title={`Used in ${c.kpi_usage_count || 0} KPIs`}>KPI</span>
                               )}
                             </div>
                             {/* Dimension badge */}
