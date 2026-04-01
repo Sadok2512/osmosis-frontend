@@ -6370,48 +6370,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap', scrollbarWidth: 'none' }}
           >
             {/* ── Unified mode selector: QoE / Topo / Parameters ── */}
-            <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
+            <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
               <button
                 onClick={() => { setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
+                className={`px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
                   sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Zap size={11} />
+                <Zap size={10} />
                 QoE
               </button>
               <button
                 onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                className={`px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
                   sectorColorMode === 'topo' && !paramMode && !paramPanelOpen
-                    ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Radio size={11} />
+                <Radio size={10} />
                 Topo
               </button>
               <button
                 onClick={async () => {
                   if (!paramPanelOpen && !paramMode) {
-                    // Entering param mode: save active dashboard but keep filters applied
                     if (activeDashboardId) {
                       await saveDashboardSettings(activeDashboardId);
                     }
                   }
                   setParamPanelOpen(!paramPanelOpen);
                 }}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
+                className={`px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
                   paramMode || paramPanelOpen
-                    ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-md shadow-emerald-500/20'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <MapPin size={11} />
+                <MapPin size={10} />
                 Param
-                {paramConfirmed && <span className="text-[8px] opacity-70">({paramPoints.length})</span>}
+                {paramConfirmed && <span className="text-[7px] opacity-70">({paramPoints.length})</span>}
               </button>
             </div>
 
