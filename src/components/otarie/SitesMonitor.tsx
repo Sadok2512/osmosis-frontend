@@ -6539,7 +6539,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           setEnabledBands(new Set());
                         }
                       }}
-                      className={`px-3 py-2 text-[10px] font-black tracking-wider transition-all ${
+                      className={`px-2 py-1 text-[9px] font-black tracking-wider transition-all ${
                         mapTechnoFilter === tech
                           ? 'bg-primary text-primary-foreground shadow-sm'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted'
