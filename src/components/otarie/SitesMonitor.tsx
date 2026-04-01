@@ -6480,15 +6480,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="relative shrink-0">
                   <button
                     onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-                    className={`px-3.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
+                    className={`px-2 py-1 rounded-md text-[9px] font-bold transition-all flex items-center gap-1 border ${
                       ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
                         ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border-transparent'
                     }`}
                   >
-                    <SlidersHorizontal size={12} />
-                    Plus
-                    {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                    <SlidersHorizontal size={10} />
+                    +
+                    {showKpiDropdown ? <ChevronUp size={8} /> : <ChevronDown size={8} />}
                   </button>
                   {showKpiDropdown && (
                     <div className="absolute top-10 right-0 w-[300px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
