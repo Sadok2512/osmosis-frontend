@@ -223,10 +223,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const technoOptions = filterOptions.technos.length > 0 ? filterOptions.technos : ['4G', '5G', 'LTE', 'NR', 'SRAN'];
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-stretch bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      {/* Spacer for app sidebar */}
-      <div className="w-[240px] shrink-0" onClick={onClose} />
-      <div className="relative flex-1 flex flex-col bg-card border-l border-border shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="relative w-[1060px] max-w-[90vw] h-[620px] max-h-[85vh] flex flex-col rounded-xl bg-card border border-border shadow-2xl overflow-hidden">
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-5 py-3 bg-emerald-600 text-white shrink-0">
