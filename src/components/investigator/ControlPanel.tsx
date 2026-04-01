@@ -651,7 +651,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       {/* ═══ LAYER 3: KPI / FILTERS — Niveau, KPIs, Filters ═══ */}
       <div className="bg-card border-b border-border/40">
         <div className="max-w-[1600px] mx-auto px-6 py-3 space-y-2.5">
-          {/* Row A: KPI Level + Profile/Neighbor filters */}
+          {/* Row A: KPI Level + Profile/Neighbor filters — only when KPIs selected */}
+          {state.graphSlots.some(s => s.kpiIds.length > 0) && (
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Niveau</span>
@@ -758,6 +759,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               </>
             )}
           </div>
+          )}
 
           {/* Row B: Filters (above KPIs) */}
           <div className="flex items-center gap-2 flex-wrap">
