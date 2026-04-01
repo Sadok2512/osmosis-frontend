@@ -4374,23 +4374,60 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     prevBboxFiltersRef.current = filterKey;
   }, [currentBboxFilters]);
 
+  // Constants for cell loading throttling
+  const CELL_DETAILS_ZOOM = 11;
+  const MAX_SITES_FOR_CELL_BULK = 120;
+  const MAX_PRIORITY_CELL_SITES = 60;
+
   useEffect(() => {
-    // Load cells when in cells display mode OR when cell-level view conditions are active
-    const shouldLoadCells = displayMode === 'cells' || hasCellLevelConditions || viewport.zoom >= CELL_PRELOAD_ZOOM;
+    // Only load cells when explicitly needed — no more aggressive preload at low zoom
+    const shouldLoadCells =
+      hasCellLevelConditions ||
+      (displayMode === 'cells' && viewport.zoom >= CELL_DETAILS_ZOOM);
+
     if (!shouldLoadCells) return;
     if (!viewport.bounds) return;
+    if (visibleSites.length > MAX_SITES_FOR_CELL_BULK) return;
 
-    const sitesNeedingCells = visibleSites.filter(
-      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id) && !cellLoadAttemptedRef.current.has(s.site_id)
-    );
+    // Prioritize sites closest to viewport center, cap at MAX_PRIORITY_CELL_SITES
+    const boundsCenter = viewport.bounds.getCenter();
+    const prioritizedSites = visibleSites
+      .filter(
+        s =>
+          s.cells.length === 0 &&
+          !cellLoadingRef.current.has(s.site_id) &&
+          !cellLoadAttemptedRef.current.has(s.site_id)
+      )
+      .sort((a, b) => {
+        const latA = a.coordinates?.[0], lngA = a.coordinates?.[1];
+        const latB = b.coordinates?.[0], lngB = b.coordinates?.[1];
+        const distA = (latA != null && lngA != null && !isNaN(latA) && !isNaN(lngA))
+          ? boundsCenter.distanceTo(L.latLng(latA, lngA)) : Number.MAX_SAFE_INTEGER;
+        const distB = (latB != null && lngB != null && !isNaN(latB) && !isNaN(lngB))
+          ? boundsCenter.distanceTo(L.latLng(latB, lngB)) : Number.MAX_SAFE_INTEGER;
+        return distA - distB;
+      })
+      .slice(0, MAX_PRIORITY_CELL_SITES);
 
-    if (sitesNeedingCells.length === 0) return;
+    if (prioritizedSites.length === 0) return;
 
     if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     cellLoadDebounceRef.current = setTimeout(async () => {
-      // Mark all as loading
-      sitesNeedingCells.forEach(s => cellLoadingRef.current.add(s.site_id));
+      // Mark as loading
+      prioritizedSites.forEach(s => cellLoadingRef.current.add(s.site_id));
       setCellLoadingCount(cellLoadingRef.current.size);
+
+      const getLookupKeys = (siteLike: { site_id?: string | null; site_name?: string | null }) => {
+        const candidates = [siteLike.site_id, siteLike.site_name]
+          .map(value => String(value || '').trim())
+          .filter(Boolean);
+        return Array.from(new Set(
+          candidates.flatMap(value => {
+            const normalized = normalizeSiteKey(value);
+            return normalized && normalized !== value ? [value, normalized] : [value];
+          })
+        ));
+      };
 
       try {
         const bounds = viewport.bounds!;
@@ -4403,19 +4440,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         // Single bulk call for all cells in current viewport
         const cellSites = await fetchCellsByBbox(bboxQuery, currentBboxFilters);
 
-        const getLookupKeys = (siteLike: { site_id?: string | null; site_name?: string | null }) => {
-          const candidates = [siteLike.site_id, siteLike.site_name]
-            .map(value => String(value || '').trim())
-            .filter(Boolean);
-
-          return Array.from(new Set(
-            candidates.flatMap(value => {
-              const normalized = normalizeSiteKey(value);
-              return normalized && normalized !== value ? [value, normalized] : [value];
-            })
-          ));
-        };
-
         // Build a lookup by stable id and normalized site name
         const cellMap = new Map<string, CellProperties[]>();
         for (const cs of cellSites) {
@@ -4425,11 +4449,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         // Fallback: if bulk load returns nothing, load per-site but capped & throttled
-        if (cellMap.size === 0 && sitesNeedingCells.length > 0) {
-          const MAX_FALLBACK = 36; // Load more sites, faster, when bulk API returns empty
+        if (cellMap.size === 0 && prioritizedSites.length > 0) {
+          const MAX_FALLBACK = 36;
           const CONCURRENCY = 8;
           const DELAY_MS = 120;
-          const queue = sitesNeedingCells.slice(0, MAX_FALLBACK);
+          const queue = prioritizedSites.slice(0, MAX_FALLBACK);
 
           while (queue.length > 0) {
             const batch = queue.splice(0, CONCURRENCY);
@@ -4451,16 +4475,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         // Ultimate fallback: synthesize approximate sectors from site-level lte_cells/nr_cells
-        // when ALL VPS cell endpoints fail (timeout / empty)
         if (cellMap.size === 0) {
           console.warn('[SitesMonitor] All cell endpoints failed — generating synthetic sectors from site metadata');
-          for (const site of sitesNeedingCells) {
+          for (const site of prioritizedSites) {
             const lte = site.lte_cells || 0;
             const nr = site.nr_cells || 0;
             if (lte === 0 && nr === 0) continue;
             const syntheticCells: CellProperties[] = [];
-            const azimuths = [0, 120, 240]; // standard tri-sector
-            // Generate 4G synthetic cells
+            const azimuths = [0, 120, 240];
             if (lte > 0) {
               const bandsPerSector = Math.max(1, Math.round(lte / 3));
               const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
@@ -4468,33 +4490,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 for (let b = 0; b < bandsPerSector && b < defaultBands4G.length; b++) {
                   syntheticCells.push({
                     cell_id: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
-                    techno: '4G',
-                    bande: defaultBands4G[b],
-                    azimut: azimuths[s],
-                    hba: 0,
-                    tilt: null,
-                    qoe_score_avg: 0,
-                    p95_rtt_ms: 0,
-                    traffic_up_bytes: 0,
-                    traffic_dn_bytes: 0,
-                    dms_dl_3: 0,
-                    dms_dl_8: 0,
-                    dms_dl_30: 0,
-                    dms_ul_3: 0,
-                    p50_thr_dn_mbps: 0,
-                    p50_thr_up_mbps: 0,
-                    sessions: 0,
-                    window_full_ratio: 0,
-                    retransmission_rate: 0,
-                    tcp_loss_rate: 0,
-                    out_of_order_ratio: 0,
-                    p25_rtt_ms: 0,
-                    p75_rtt_ms: 0,
+                    techno: '4G', bande: defaultBands4G[b], azimut: azimuths[s], hba: 0, tilt: null,
+                    qoe_score_avg: 0, p95_rtt_ms: 0, traffic_up_bytes: 0, traffic_dn_bytes: 0,
+                    dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
+                    p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0, sessions: 0,
+                    window_full_ratio: 0, retransmission_rate: 0, tcp_loss_rate: 0,
+                    out_of_order_ratio: 0, p25_rtt_ms: 0, p75_rtt_ms: 0,
                   });
                 }
               }
             }
-            // Generate 5G synthetic cells
             if (nr > 0) {
               const bandsPerSector5G = Math.max(1, Math.round(nr / 3));
               const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
@@ -4502,62 +4507,45 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 for (let b = 0; b < bandsPerSector5G && b < defaultBands5G.length; b++) {
                   syntheticCells.push({
                     cell_id: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
-                    techno: '5G',
-                    bande: defaultBands5G[b],
-                    azimut: azimuths[s],
-                    hba: 0,
-                    tilt: null,
-                    qoe_score_avg: 0,
-                    p95_rtt_ms: 0,
-                    traffic_up_bytes: 0,
-                    traffic_dn_bytes: 0,
-                    dms_dl_3: 0,
-                    dms_dl_8: 0,
-                    dms_dl_30: 0,
-                    dms_ul_3: 0,
-                    p50_thr_dn_mbps: 0,
-                    p50_thr_up_mbps: 0,
-                    sessions: 0,
-                    window_full_ratio: 0,
-                    retransmission_rate: 0,
-                    tcp_loss_rate: 0,
-                    out_of_order_ratio: 0,
-                    p25_rtt_ms: 0,
-                    p75_rtt_ms: 0,
+                    techno: '5G', bande: defaultBands5G[b], azimut: azimuths[s], hba: 0, tilt: null,
+                    qoe_score_avg: 0, p95_rtt_ms: 0, traffic_up_bytes: 0, traffic_dn_bytes: 0,
+                    dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
+                    p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0, sessions: 0,
+                    window_full_ratio: 0, retransmission_rate: 0, tcp_loss_rate: 0,
+                    out_of_order_ratio: 0, p25_rtt_ms: 0, p75_rtt_ms: 0,
                   });
                 }
               }
             }
-            if (syntheticCells.length > 0) {
-              cellMap.set(site.site_id, syntheticCells);
-            }
+            if (syntheticCells.length > 0) cellMap.set(site.site_id, syntheticCells);
           }
         }
 
-        // Mark all as attempted (whether cells found or not) and clear loading flags
-        sitesNeedingCells.forEach(s => {
+        // Mark all as attempted and clear loading flags
+        prioritizedSites.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
           cellLoadAttemptedRef.current.add(s.site_id);
         });
         setCellLoadingCount(cellLoadingRef.current.size);
 
-        setSites(prev => mergeCellsIntoSiteList(prev, cellMap, getLookupKeys));
-        setSearchModeSites(prev => prev.length > 0 ? mergeCellsIntoSiteList(prev, cellMap, getLookupKeys) : prev);
-        setSelectedSiteSnapshot(prev => {
-          if (!prev) return prev;
-          return mergeCellsIntoSiteList([prev], cellMap, getLookupKeys)[0] ?? prev;
-        });
+        if (cellMap.size > 0) {
+          setSites(prev => mergeCellsIntoSiteList(prev, cellMap, getLookupKeys));
+          setSearchModeSites(prev => prev.length > 0 ? mergeCellsIntoSiteList(prev, cellMap, getLookupKeys) : prev);
+          setSelectedSiteSnapshot(prev => {
+            if (!prev) return prev;
+            return mergeCellsIntoSiteList([prev], cellMap, getLookupKeys)[0] ?? prev;
+          });
+        }
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
-        sitesNeedingCells.forEach(s => {
+        prioritizedSites.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
           cellLoadAttemptedRef.current.add(s.site_id);
         });
         setCellLoadingCount(cellLoadingRef.current.size);
-        // Force re-render so filters re-evaluate with attempted flags
         setSites(prev => [...prev]);
       }
-    }, 120);
+    }, 250);
 
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
