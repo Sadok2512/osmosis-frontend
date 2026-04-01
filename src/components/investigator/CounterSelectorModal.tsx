@@ -93,8 +93,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-[1100px] max-w-[95vw] h-[720px] max-h-[90vh] flex flex-col rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[9999] flex items-stretch bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="relative flex-1 flex flex-col bg-card border-l border-border shadow-2xl overflow-hidden ml-[240px]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 bg-emerald-600 text-white">
           <div className="flex items-center gap-3">
