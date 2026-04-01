@@ -785,6 +785,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 const splitVal = cfg.splitByPerKpi?.[kpiIdItem];
                 const hasSplit = splitVal && splitVal !== 'None';
                 const splitLabel = hasSplit ? splitOptions.find(s => s.key === splitVal)?.label || splitVal : null;
+                const kpiDimType = defEntry?.dimension_type;
                 return (
                   <Popover key={`${slot.id}-${kpiIdItem}`}>
                     <PopoverTrigger asChild>
@@ -797,6 +798,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                         <span className="truncate max-w-[140px]">{name}</span>
+                        {kpiDimType && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-amber-500/15 text-amber-600 border border-amber-500/25">
+                            {kpiDimType}
+                          </span>
+                        )}
                         {splitLabel && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-accent text-accent-foreground border border-accent/60">
                             ÷ {splitLabel}

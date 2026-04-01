@@ -71,13 +71,20 @@ async function fetchCounterTimeSeriesFallback(
 
     // Translate dimension filters to Parser format
     if (splitBy && splitBy !== 'None') body.split_by_dimension = true;
+    const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', 'TRANSPORT', 'CA_REL']);
     if (filters && filters.length > 0) {
+      const dimFilterValues: string[] = [];
       for (const f of filters) {
         const dim = (f.dimension || '').toUpperCase();
         if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
-        if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
-        if (dim === 'TECHNO' && f.values?.length) body.object_type = f.values[0];
+        else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
+        else if (dim === 'TECHNO' && f.values?.length) body.object_type = f.values[0];
+        else if (PM_DIM_TYPES.has(dim) && f.values?.length) {
+          // PM dimension filter → pass as dimension_filter array
+          dimFilterValues.push(...f.values);
+        }
       }
+      if (dimFilterValues.length > 0) body.dimension_filter = dimFilterValues;
     }
     console.log('[CounterFallback] Request:', url, JSON.stringify(body));
 
