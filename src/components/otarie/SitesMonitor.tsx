@@ -58,7 +58,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
   return null;
 };
 import { fetchSiteDetails } from '../../services/api';
-import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
+import { getSectorNumber, groupCellsBySector, buildAzimuthSectorMap } from '../../utils/sectorUtils';
 import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
 import { getBandSizeScale, getBandRenderOrder } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
@@ -4081,7 +4081,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (focusMode !== 'site' || !selectedSiteId || !siteDetail || siteDetail.site_id !== selectedSiteId) return;
     if (expandedSectors.size > 0) return;
 
-    const sectorNums = new Set(siteDetail.cells.map(c => getSectorNumber(c.cell_id)));
+    const azMap = buildAzimuthSectorMap(siteDetail.cells as any[]);
+    const sectorNums = new Set(siteDetail.cells.map(c => getSectorNumber(c.cell_id, c as any, azMap)));
     if (sectorNums.size > 0) {
       const first = Math.min(...sectorNums);
       setExpandedSectors(new Set([first]));
@@ -4803,7 +4804,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setFocusMode('site');
     setFocusCellId(null);
     // Auto-expand only the first sector by default
-    const sectorNums = Array.from(new Set(siteWithCells.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
+    const azMapClick = buildAzimuthSectorMap(siteWithCells.cells as any[]);
+    const sectorNums = Array.from(new Set(siteWithCells.cells.map(c => getSectorNumber(c.cell_id, c as any, azMapClick)))).sort((a, b) => a - b);
     setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
     setShowRightPanel(true);
     // Ensure inventory panel is open and on sites tab before scrolling
@@ -5532,7 +5534,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               let az = Number(cell.azimut);
               if (!Number.isFinite(az) || az < 0 || az > 360) {
                 // Fallback: assign azimuth based on sector number (tri-sector heuristic)
-                const sNum = getSectorNumber(cell.cell_id);
+                const sNum = getSectorNumber(cell.cell_id, cell as any);
                 const heuristicAz = [0, 0, 120, 240]; // index 0=fallback, 1=0°, 2=120°, 3=240°
                 az = heuristicAz[sNum] ?? ((sNum - 1) * 120) % 360;
               }
@@ -5687,7 +5689,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 let cellRadius = zoomRadius * 1.3 * bandScale;
                 let az = Number(cell.azimut);
                 if (!Number.isFinite(az) || az < 0 || az > 360) {
-                  const sNum = getSectorNumber(cell.cell_id);
+                  const sNum = getSectorNumber(cell.cell_id, cell as any);
                   const heuristicAz = [0, 0, 120, 240];
                   az = heuristicAz[sNum] ?? ((sNum - 1) * 120) % 360;
                 }
@@ -7231,9 +7233,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       });
                       const displayedCellCount = siteCells.length;
                       // Group cells by sector
+                      const azMapSite = buildAzimuthSectorMap(siteCells as any[]);
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
-                        const sNum = getSectorNumber(c.cell_id);
+                        const sNum = getSectorNumber(c.cell_id, c as any, azMapSite);
                         if (!sectors.has(sNum)) sectors.set(sNum, []);
                         sectors.get(sNum)!.push(c);
                       });
@@ -7367,7 +7370,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       <tbody>
                                         {secCells.map((cell) => {
                                           const isSel = focusCellId === cell.cell_id;
-                                          const sNum = getSectorNumber(cell.cell_id);
+                                          const sNum = getSectorNumber(cell.cell_id, cell as any);
                                           const tilt = (cell as any).tilt as number | null;
                                           const hba = (cell as any).hba as number | null;
                                           return (
@@ -7448,9 +7451,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         return true;
                       });
                       const displayedCellCount = siteCells.length;
+                      const azMapSite2 = buildAzimuthSectorMap(siteCells as any[]);
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
-                        const sNum = getSectorNumber(c.cell_id);
+                        const sNum = getSectorNumber(c.cell_id, c as any, azMapSite2);
                         if (!sectors.has(sNum)) sectors.set(sNum, []);
                         sectors.get(sNum)!.push(c);
                       });
@@ -7591,7 +7595,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       <tbody>
                                         {secCells.map((cell) => {
                                           const isSel = focusCellId === cell.cell_id;
-                                          const sNum = getSectorNumber(cell.cell_id);
+                                          const sNum = getSectorNumber(cell.cell_id, cell as any);
                                           const tilt = (cell as any).tilt as number | null;
                                           const hba = (cell as any).hba as number | null;
                                           return (
@@ -8717,9 +8721,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               return true;
             });
             // Group cells by sector number
+            const azMapDetail = buildAzimuthSectorMap(filteredCells as any[]);
             const sectorMap = new Map<number, typeof siteDetail.cells>();
             filteredCells.forEach(cell => {
-              const sNum = getSectorNumber(cell.cell_id);
+              const sNum = getSectorNumber(cell.cell_id, cell as any, azMapDetail);
               if (!sectorMap.has(sNum)) sectorMap.set(sNum, []);
               sectorMap.get(sNum)!.push(cell);
             });
