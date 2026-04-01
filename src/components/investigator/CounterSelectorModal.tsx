@@ -113,7 +113,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog, selecte
         {/* Body: 2-panel layout */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left: PM Families */}
-          <div className="w-[220px] shrink-0 border-r border-border bg-muted/20 overflow-y-auto">
+          <div className="w-[260px] shrink-0 border-r border-border bg-muted/20 overflow-y-auto">
             <div className="p-2">
               <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
                 PM Families
