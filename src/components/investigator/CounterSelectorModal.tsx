@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { X, Search, Check, RotateCcw, Star, BarChart3, ChevronDown, ChevronRight } from 'lucide-react';
+import { X, Search, Check, RotateCcw, Star, BarChart3, ChevronDown, ChevronRight, Filter } from 'lucide-react';
 import { loadFavorites as loadFavoritesDB, saveFavorites as saveFavoritesDB } from '@/services/favoritesService';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { cn } from '@/lib/utils';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CounterDef {
@@ -40,13 +39,11 @@ async function fetchFilterOptions(vendor?: string): Promise<FilterOptions> {
   } catch { return { vendors: ['Nokia', 'Ericsson'], families: [], technos: [], object_types: [] }; }
 }
 
-async function fetchFilteredCatalog(vendor?: string, techno?: string, family?: string, search?: string): Promise<CounterDef[]> {
+async function fetchFilteredCatalog(vendor?: string, techno?: string): Promise<CounterDef[]> {
   try {
     const params = new URLSearchParams();
     if (vendor) params.set('vendor', vendor);
     if (techno) params.set('techno', techno);
-    if (family) params.set('family', family);
-    if (search) params.set('search', search);
     params.set('limit', '5000');
     const res = await fetch(getApiUrl(`pm/counters/catalog?${params.toString()}`), { headers: getApiHeaders() });
     if (!res.ok) return [];
@@ -54,27 +51,8 @@ async function fetchFilteredCatalog(vendor?: string, techno?: string, family?: s
   } catch { return []; }
 }
 
-/* ── Sidebar filter section ── */
-const FilterSection: React.FC<{
-  title: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}> = ({ title, defaultOpen = true, children }) => {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
-        <span>{title}</span>
-        {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-      </CollapsibleTrigger>
-      <CollapsibleContent className="px-2 pb-2">
-        {children}
-      </CollapsibleContent>
-    </Collapsible>
-  );
-};
-
-const FilterRadioItem: React.FC<{
+/* ── Filter sidebar item ── */
+const FilterItem: React.FC<{
   label: string;
   active: boolean;
   count?: number;
@@ -83,16 +61,68 @@ const FilterRadioItem: React.FC<{
   <button
     onClick={onClick}
     className={cn(
-      'w-full flex items-center justify-between px-2.5 py-1 rounded-md text-[10px] font-medium transition-all',
-      active ? 'bg-emerald-600 text-white' : 'text-foreground hover:bg-muted'
+      'w-full flex items-center justify-between px-4 py-[7px] text-[12px] transition-all',
+      active
+        ? 'bg-emerald-600 text-white rounded-md font-semibold'
+        : 'text-foreground hover:bg-muted/50 font-normal'
     )}
   >
     <span className="truncate">{label}</span>
     {count !== undefined && (
-      <span className={cn('text-[9px] shrink-0 ml-1', active ? 'text-white/70' : 'text-muted-foreground')}>
-        {count}
-      </span>
+      <span className={cn(
+        'text-[11px] tabular-nums shrink-0 ml-2',
+        active ? 'text-white/80' : 'text-muted-foreground'
+      )}>{count}</span>
     )}
+  </button>
+);
+
+/* ── Collapsible section ── */
+const FilterSection: React.FC<{
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}> = ({ title, defaultOpen = true, children }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-1.5 px-4 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        {title}
+      </button>
+      {open && <div className="px-1">{children}</div>}
+    </div>
+  );
+};
+
+/* ── Category item (middle panel) ── */
+const CategoryItem: React.FC<{
+  label: string;
+  active: boolean;
+  count: number;
+  onClick: () => void;
+  icon?: React.ReactNode;
+}> = ({ label, active, count, onClick, icon }) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      'w-full flex items-center justify-between px-4 py-[7px] text-[12px] transition-all border-l-[3px]',
+      active
+        ? 'bg-emerald-600 text-white rounded-r-md font-semibold border-emerald-700'
+        : 'text-foreground hover:bg-muted/40 font-normal border-transparent'
+    )}
+  >
+    <span className="flex items-center gap-2 truncate">
+      {icon}
+      <span className="truncate">{label}</span>
+    </span>
+    <span className={cn(
+      'text-[11px] tabular-nums shrink-0 ml-2 min-w-[28px] text-right',
+      active ? 'text-white/80' : 'text-muted-foreground'
+    )}>{count}</span>
   </button>
 );
 
@@ -108,8 +138,6 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({ vendors: [], families: [], technos: [], object_types: [] });
   const [catalog, setCatalog] = useState<CounterDef[]>(initialCatalog);
   const [isLoading, setIsLoading] = useState(false);
-
-  const hasActiveFilters = !!(filterVendor || filterTechno || activeFamily || showFavOnly);
 
   useEffect(() => {
     if (open) {
@@ -156,9 +184,6 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   };
 
   const resetSelection = () => setSelected(new Set());
-  const resetFilters = () => {
-    setFilterVendor(''); setFilterTechno(''); setActiveFamily(null); setShowFavOnly(false);
-  };
 
   const filteredCatalog = useMemo(() => {
     let items = Array.isArray(catalog) ? catalog : [];
@@ -186,6 +211,16 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     return fams;
   }, [catalog, showFavOnly, favorites]);
 
+  // Compute techno counts from current catalog
+  const technoCounts = useMemo(() => {
+    const items = Array.isArray(catalog) ? catalog : [];
+    const counts = new Map<string, number>();
+    for (const c of items) {
+      if (c.techno) counts.set(c.techno, (counts.get(c.techno) || 0) + 1);
+    }
+    return counts;
+  }, [catalog]);
+
   const totalFiltered = Array.from(familyCategories.values()).reduce((a, b) => a + b, 0);
 
   const handleConfirm = () => {
@@ -196,151 +231,156 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   if (!open) return null;
 
   const vendorOptions = filterOptions.vendors.length > 0 ? filterOptions.vendors : ['Ericsson', 'Nokia'];
-  const technoOptions = filterOptions.technos.length > 0 ? filterOptions.technos : ['LTE', 'NR'];
+  const technoOptions = filterOptions.technos.length > 0 ? filterOptions.technos : ['4G', '5G', 'LTE', 'NR', 'SRAN'];
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-[960px] max-w-[94vw] h-[640px] max-h-[88vh] flex flex-col rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
+      <div className="relative w-[1100px] max-w-[96vw] h-[700px] max-h-[92vh] flex flex-col rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-600 text-white shrink-0">
-          <div className="flex items-center gap-2.5">
-            <BarChart3 className="w-3.5 h-3.5" />
-            <h2 className="text-[13px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
-            <span className="text-[10px] opacity-70">{catalog.length} counters</span>
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-5 py-3 bg-emerald-600 text-white shrink-0">
+          <div className="flex items-center gap-3">
+            <BarChart3 className="w-4.5 h-4.5" />
+            <h2 className="text-[14px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
+            <span className="text-[11px] opacity-70 ml-1">{catalog.length} counters</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 transition-colors">
-            <X className="w-4 h-4" />
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
 
-        {/* Body: sidebar + list */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* ── Body: 3-panel ── */}
+        <div className="flex-1 flex overflow-hidden min-h-0">
 
-          {/* ── Left Sidebar: Filters ── */}
-          <div className="w-[280px] shrink-0 border-r border-border bg-muted/20 flex flex-col">
-            {/* Sidebar header */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-              <span className="text-[11px] font-bold text-foreground">Filtres</span>
-              {hasActiveFilters && (
-                <button
-                  onClick={resetFilters}
-                  className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  <RotateCcw className="w-2.5 h-2.5" /> Reset
-                </button>
-              )}
+          {/* ── Panel 1: Filters ── */}
+          <div className="w-[220px] shrink-0 border-r border-border bg-muted/10 flex flex-col">
+            {/* Filters header */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+              <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-[12px] font-bold text-foreground tracking-wide">FILTRES</span>
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="py-1 space-y-0.5">
+              <div className="py-2">
+                {/* Favoris */}
+                <div className="px-1 mb-1">
+                  <FilterItem
+                    label="⭐ FAVORIS"
+                    active={showFavOnly}
+                    count={favorites.length}
+                    onClick={() => { setShowFavOnly(!showFavOnly); if (!showFavOnly) setActiveFamily(null); }}
+                  />
+                </div>
+
+                <div className="mx-4 my-2 border-t border-border/40" />
 
                 {/* Vendor */}
-                <FilterSection title="Vendor">
-                  <div className="space-y-0.5">
-                    <FilterRadioItem label="Tous" active={filterVendor === ''} onClick={() => setFilterVendor('')} />
-                    {vendorOptions.map(v => (
-                      <FilterRadioItem key={v} label={v} active={filterVendor === v} onClick={() => { setFilterVendor(v); setFilterTechno(''); }} />
-                    ))}
-                  </div>
+                <FilterSection title="VENDOR">
+                  <FilterItem label="Tous" active={filterVendor === ''} onClick={() => { setFilterVendor(''); setFilterTechno(''); }} />
+                  {vendorOptions.map(v => (
+                    <FilterItem key={v} label={v} active={filterVendor === v} onClick={() => { setFilterVendor(v); setFilterTechno(''); }} />
+                  ))}
                 </FilterSection>
+
+                <div className="mx-4 my-2 border-t border-border/40" />
 
                 {/* Technology */}
-                <FilterSection title="Technology">
-                  <div className="space-y-0.5">
-                    <FilterRadioItem label="Tous" active={filterTechno === ''} onClick={() => setFilterTechno('')} />
-                    {technoOptions.map(t => (
-                      <FilterRadioItem key={t} label={t} active={filterTechno === t} onClick={() => setFilterTechno(t)} />
-                    ))}
-                  </div>
-                </FilterSection>
-
-                {/* Families */}
-                <FilterSection title="Familles">
-                  <div className="space-y-0.5">
-                    {/* Favorites */}
-                    <button
-                      onClick={() => setShowFavOnly(!showFavOnly)}
-                      className={cn(
-                        'w-full flex items-center gap-2 px-2.5 py-1 rounded-md text-[10px] font-medium transition-all',
-                        showFavOnly ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'text-muted-foreground hover:bg-muted'
-                      )}
-                    >
-                      <Star className={cn('w-2.5 h-2.5', showFavOnly ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/50')} />
-                      <span>Favoris</span>
-                      {favorites.length > 0 && (
-                        <span className="ml-auto text-[9px] text-muted-foreground">{favorites.length}</span>
-                      )}
-                    </button>
-
-                    {/* All */}
-                    <FilterRadioItem
-                      label="Tous"
-                      active={activeFamily === null && !showFavOnly}
-                      count={totalFiltered}
-                      onClick={() => { setActiveFamily(null); setShowFavOnly(false); }}
+                <FilterSection title="TECHNOLOGY">
+                  <FilterItem label="Tous" active={filterTechno === ''} onClick={() => setFilterTechno('')} />
+                  {technoOptions.map(t => (
+                    <FilterItem
+                      key={t}
+                      label={t}
+                      active={filterTechno === t}
+                      count={technoCounts.get(t)}
+                      onClick={() => setFilterTechno(t)}
                     />
-
-                    {/* Category list */}
-                    {Array.from(familyCategories.entries()).sort((a, b) => b[1] - a[1]).map(([fam, count]) => (
-                      <FilterRadioItem
-                        key={fam}
-                        label={fam}
-                        active={activeFamily === fam}
-                        count={count}
-                        onClick={() => { setActiveFamily(activeFamily === fam ? null : fam); setShowFavOnly(false); }}
-                      />
-                    ))}
-                  </div>
+                  ))}
                 </FilterSection>
-
               </div>
             </ScrollArea>
           </div>
 
-          {/* ── Right: Counter list ── */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          {/* ── Panel 2: Categories / Families ── */}
+          <div className="w-[240px] shrink-0 border-r border-border bg-card flex flex-col">
+            {/* Header */}
+            <div className="px-4 py-3 border-b border-border">
+              <span className="text-[12px] font-bold text-foreground tracking-wide">CATÉGORIES</span>
+            </div>
 
-            {/* Search bar + info */}
-            <div className="px-3 py-2 border-b border-border flex items-center gap-3">
+            <ScrollArea className="flex-1">
+              <div className="py-2 px-1">
+                {/* Tous */}
+                <CategoryItem
+                  label="Tous"
+                  active={activeFamily === null && !showFavOnly}
+                  count={totalFiltered}
+                  onClick={() => { setActiveFamily(null); setShowFavOnly(false); }}
+                />
+
+                {/* Separator */}
+                <div className="mx-3 my-1.5 border-t border-border/30" />
+
+                {/* Family list sorted by count desc */}
+                {Array.from(familyCategories.entries())
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([fam, count]) => (
+                    <CategoryItem
+                      key={fam}
+                      label={fam}
+                      active={activeFamily === fam}
+                      count={count}
+                      onClick={() => { setActiveFamily(activeFamily === fam ? null : fam); setShowFavOnly(false); }}
+                    />
+                  ))}
+              </div>
+            </ScrollArea>
+          </div>
+
+          {/* ── Panel 3: Counter list ── */}
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+
+            {/* Search bar */}
+            <div className="px-4 py-2.5 border-b border-border flex items-center gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Rechercher un counter..."
-                  className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-xs outline-none focus:ring-1 focus:ring-emerald-500/30 transition-all"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-[12px] outline-none focus:ring-1 focus:ring-emerald-500/40 transition-all"
                   autoFocus
                 />
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[10px] text-muted-foreground">{filteredCatalog.length} counters</span>
-                {selected.size > 0 && (
-                  <button onClick={resetSelection} className="flex items-center gap-1 px-2 py-1 rounded-md border border-border text-[9px] font-medium text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors">
-                    <RotateCcw className="w-2.5 h-2.5" /> Reset ({selected.size})
-                  </button>
-                )}
-              </div>
+              <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">{filteredCatalog.length} counters</span>
             </div>
 
             {/* Sticky info bar */}
-            <div className="px-3 py-1.5 border-b border-border/50 bg-muted/20">
-              <p className="text-[10px] text-muted-foreground">
-                <span className="font-semibold text-foreground">{selected.size}</span> sélectionné(s)
+            <div className="px-4 py-2 border-b border-border/40 bg-muted/15 flex items-center justify-between">
+              <p className="text-[11px] text-muted-foreground">
+                <span className="font-bold text-foreground">{selected.size}</span> sélectionné(s)
                 {isLoading && <span className="ml-2 animate-pulse">chargement...</span>}
                 {!isLoading && filteredCatalog.length > 200 && !search && (
                   <span className="ml-2">— tapez pour rechercher ou filtrez</span>
                 )}
               </p>
+              {selected.size > 0 && (
+                <button
+                  onClick={resetSelection}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-[10px] font-medium text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" /> Reset ({selected.size})
+                </button>
+              )}
             </div>
 
-            {/* Counter items */}
+            {/* Counter list */}
             <ScrollArea className="flex-1">
               <div className="px-2 py-1">
                 {isLoading ? (
-                  <div className="flex items-center justify-center h-32 text-xs text-muted-foreground animate-pulse">Chargement...</div>
+                  <div className="flex items-center justify-center h-40 text-xs text-muted-foreground animate-pulse">Chargement des counters...</div>
                 ) : filteredCatalog.length === 0 ? (
-                  <div className="flex items-center justify-center h-32 text-xs text-muted-foreground">Aucun résultat</div>
+                  <div className="flex items-center justify-center h-40 text-xs text-muted-foreground">Aucun résultat</div>
                 ) : (
                   <>
                     {(filteredCatalog.length > 200 && !search ? filteredCatalog.slice(0, 200) : filteredCatalog).map(c => {
@@ -350,41 +390,52 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                         <div
                           key={c.counter_name}
                           className={cn(
-                            'flex items-center gap-2 px-2.5 py-1 rounded-lg transition-all mb-px',
-                            isSelected ? 'bg-emerald-500/10 border border-emerald-500/20' : 'hover:bg-muted border border-transparent'
+                            'flex items-center gap-2.5 px-3 py-[6px] rounded-lg transition-all mb-[2px] group',
+                            isSelected
+                              ? 'bg-emerald-500/10 border border-emerald-500/25'
+                              : 'hover:bg-muted/50 border border-transparent'
                           )}
                         >
+                          {/* Favorite star */}
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(c.counter_name); }}
                             className="shrink-0 p-0.5 rounded hover:bg-muted/50 transition-colors"
                           >
-                            <Star className={cn('w-2.5 h-2.5', isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/40 hover:text-amber-400')} />
+                            <Star className={cn(
+                              'w-3.5 h-3.5 transition-colors',
+                              isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/25 group-hover:text-muted-foreground/50'
+                            )} />
                           </button>
 
+                          {/* Checkbox + counter info */}
                           <button
                             onClick={() => toggle(c.counter_name)}
-                            className="flex-1 flex items-center gap-2 text-left min-w-0"
+                            className="flex-1 flex items-center gap-3 text-left min-w-0"
                           >
                             <div className={cn(
-                              'w-3 h-3 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
-                              isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-border'
+                              'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
+                              isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-border/80'
                             )}>
-                              {isSelected && <Check className="w-2 h-2 text-white" />}
+                              {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[10px] font-medium text-foreground truncate">
-                                {c.display_name && c.display_name !== c.counter_name ? c.display_name : c.counter_name}
-                              </p>
-                            </div>
+
+                            <span className="flex-1 text-[11px] font-medium text-foreground truncate font-mono min-w-0">
+                              {c.counter_name}
+                            </span>
+
+                            {/* Tags */}
                             <div className="flex items-center gap-1 shrink-0">
-                              {c.display_name && c.display_name !== c.counter_name && (
-                                <span className="text-[8px] px-1 py-0.5 rounded bg-slate-500/10 text-slate-400 font-mono font-medium">{c.counter_name}</span>
-                              )}
                               {c.vendor && (
-                                <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">{c.vendor}</span>
+                                <span className={cn(
+                                  'text-[9px] px-1.5 py-[2px] rounded font-medium',
+                                  c.vendor === 'Ericsson' ? 'bg-blue-500/10 text-blue-500' : 'bg-orange-500/10 text-orange-500'
+                                )}>{c.vendor}</span>
                               )}
                               {c.techno && (
-                                <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-400 font-medium">{c.techno}</span>
+                                <span className="text-[9px] px-1.5 py-[2px] rounded bg-purple-500/10 text-purple-500 font-medium">{c.techno}</span>
+                              )}
+                              {c.family && (
+                                <span className="text-[9px] px-1.5 py-[2px] rounded bg-muted text-muted-foreground font-medium truncate max-w-[130px]">{c.family}</span>
                               )}
                             </div>
                           </button>
@@ -392,8 +443,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                       );
                     })}
                     {filteredCatalog.length > 200 && !search && (
-                      <div className="text-center py-2 text-[9px] text-muted-foreground">
-                        Affichage limité à 200 — utilisez la recherche
+                      <div className="text-center py-4 text-[10px] text-muted-foreground">
+                        Affichage limité à 200 — utilisez la recherche pour affiner
                       </div>
                     )}
                   </>
@@ -403,27 +454,27 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-card shrink-0">
-          <div className="flex flex-wrap gap-1 max-w-[500px] overflow-hidden">
+        {/* ── Footer ── */}
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-card shrink-0">
+          <div className="flex flex-wrap gap-1.5 max-w-[550px] overflow-hidden">
             {Array.from(selected).slice(0, 6).map(key => {
               const c = catalog.find(x => x.counter_name === key);
               return (
-                <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-[9px] font-semibold font-mono">
-                  {c?.display_name && c.display_name !== c.counter_name ? c.display_name : key}
-                  <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive">
+                <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-[10px] font-semibold font-mono">
+                  {c?.display_name || key}
+                  <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive transition-colors">
                     <X className="w-2.5 h-2.5" />
                   </button>
                 </span>
               );
             })}
-            {selected.size > 6 && <span className="text-[9px] text-muted-foreground self-center">+{selected.size - 6} autres</span>}
+            {selected.size > 6 && <span className="text-[10px] text-muted-foreground self-center">+{selected.size - 6} autres</span>}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} className="px-3 py-1.5 rounded-lg border border-border text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors">
+          <div className="flex items-center gap-2.5">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-[12px] font-medium text-muted-foreground hover:bg-muted transition-colors">
               Fermer
             </button>
-            <button onClick={handleConfirm} className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:opacity-90 transition-opacity">
+            <button onClick={handleConfirm} className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-[12px] font-bold hover:bg-emerald-700 transition-colors">
               Ok ({selected.size})
             </button>
           </div>
