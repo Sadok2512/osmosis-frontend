@@ -9,6 +9,7 @@ import {
 import { clearSession } from '@/services/adminAuth';
 import { useNavigate } from 'react-router-dom';
 import { Filters, AppTab } from '../../types';
+import { useMapSitesStore } from '@/stores/mapSitesStore';
 
 interface SidebarProps {
   filters: Filters;
