@@ -5416,7 +5416,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
             const colorViewOverrideIndoor = getColorViewFill(site);
             const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
-            const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
+            const iconSize = Math.min(18, Math.max(10, (viewport.zoom - 12) * 3 + 12));
             return (
               <Marker
                 key={site.site_id}
