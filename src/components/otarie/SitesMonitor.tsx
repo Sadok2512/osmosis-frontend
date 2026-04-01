@@ -58,7 +58,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
   return null;
 };
 import { fetchSiteDetails } from '../../services/api';
-import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
+import { getSectorNumber, groupCellsBySector, buildAzimuthSectorMap } from '../../utils/sectorUtils';
 import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
 import { getBandSizeScale, getBandRenderOrder } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
