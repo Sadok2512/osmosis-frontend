@@ -434,28 +434,28 @@ const InvestigatorPage: React.FC = () => {
         </section>
 
         {/* ═══ Analysis Navigation Tabs ═══ */}
-        <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
-          <div className="flex items-center gap-0.5 px-1 py-1">
+        <div className="sticky top-[52px] z-20 bg-background/90 backdrop-blur-md pt-1">
+          <div className="flex items-center gap-1 border-b border-border/30 px-0.5">
             {([
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500', badge: undefined as number | undefined },
               { key: 'counters' as const, icon: Cpu, label: 'PM Counters', color: 'text-emerald-500', badge: undefined as number | undefined },
-              { key: 'alarms' as const, icon: Bell, label: 'Alarms & Worst Cells', color: 'text-red-500', badge: worstElements.length > 0 ? worstElements.length : undefined },
+              { key: 'alarms' as const, icon: Bell, label: 'Alarms & Worst Cells', color: 'text-destructive', badge: worstElements.length > 0 ? worstElements.length : undefined },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500', badge: undefined as number | undefined },
             ] as const).map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setAnalysisTab(tab.key)}
                 className={cn(
-                  'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
+                  'flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold transition-all whitespace-nowrap border-b-2 -mb-px',
                   analysisTab === tab.key
-                    ? 'bg-card text-foreground shadow-sm border border-border/60'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                    ? 'border-primary text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                 )}
               >
                 <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
                 {tab.label}
                 {tab.badge && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-destructive/15 text-destructive">{tab.badge}</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-destructive/10 text-destructive">{tab.badge}</span>
                 )}
               </button>
             ))}
