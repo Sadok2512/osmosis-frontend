@@ -5129,8 +5129,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const scale = Math.pow(2, REF_ZOOM - zoom);
               return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
             };
-            const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7;
-            const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
+            const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], Math.max(viewport.zoom, 9), sectorDensityFactor, vpWidth) * 0.7;
+            const miniOpacity = Math.min(0.65, 0.25 + (Math.max(viewport.zoom, 9) - 9) * 0.1);
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
             // Build per-cell band-based mini items with size hierarchy
