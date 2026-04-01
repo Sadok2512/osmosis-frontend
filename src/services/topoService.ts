@@ -837,54 +837,10 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
         return matchedSite.cells;
       }
     }
-  } catch {}
-
-  // Supabase RPC fallback
-  try {
-    const { data, error } = await supabase.rpc('get_site_cells', { p_code_nidt: siteId });
-    if (error) throw error;
-
-    const rows = (data as any[]) || [];
-    // Detect if any row has a real azimut
-    const hasRealAzimut = rows.some(r => r.azimut != null && r.azimut !== 0);
-    let sectorAzimutMap: Map<number, number> | null = null;
-    if (!hasRealAzimut && rows.length > 0) {
-      const sectorIndices = new Set<number>();
-      for (const r of rows) {
-        const cellName = r.nom_cellule || '';
-        const lastChar = cellName.slice(-1);
-        sectorIndices.add(/^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1);
-      }
-      const sorted = Array.from(sectorIndices).sort((a, b) => a - b);
-      sectorAzimutMap = new Map();
-      sorted.forEach((idx, i) => {
-        sectorAzimutMap!.set(idx, Math.round((360 / Math.max(sorted.length, 1)) * i));
-      });
-    }
-
-    const cells: CellProperties[] = rows.map((r: any) => {
-      const cellName = r.nom_cellule || '';
-      let azimut = r.azimut || 0;
-      if (!hasRealAzimut && sectorAzimutMap) {
-        const lastChar = cellName.slice(-1);
-        const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
-        azimut = sectorAzimutMap.get(sectorIdx) ?? 0;
-      }
-      return buildCellProperties(
-        cellName,
-        (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
-        r.bande || inferBandFromCellName(cellName, r.techno || '4G'),
-        azimut,
-        r.hba || 30,
-        r,
-      );
-    });
-
-    siteCellsCache.set(siteId, { cells, ts: Date.now() });
-    console.log(`[TopoService] Site cells (RPC): ${cells.length} cells for ${siteId}`);
-    return cells;
   } catch (err) {
-    console.warn(`[TopoService] Failed to fetch cells for ${siteId}:`, err);
+    console.warn(`[TopoService] Failed to fetch cells for ${siteId} (VPS only):`, err);
     return [];
   }
+
+  return [];
 }
