@@ -3768,9 +3768,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return;
     }
 
-    if (abortRef.current) abortRef.current.abort();
+    if (viewportAbortRef.current) viewportAbortRef.current.abort();
     const controller = new AbortController();
-    abortRef.current = controller;
+    viewportAbortRef.current = controller;
 
     const bbox: BboxQuery = {
       minLng: bounds.getWest(),
