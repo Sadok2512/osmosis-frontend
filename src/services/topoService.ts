@@ -290,6 +290,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       });
     }
 
+    const cellsSeen = new Set<string>();
     const cells = siteRows.map((r, index) => {
       const cellName = r.nom_cellule || r.cell_name || `${siteId}_cell_${index + 1}`;
       let azimut = r.azimut || 0;
@@ -304,6 +305,11 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
         r.hba || 30,
         r,
       );
+    }).filter(c => {
+      const key = c.cell_id || c.cell_name;
+      if (cellsSeen.has(key)) return false;
+      cellsSeen.add(key);
+      return true;
     });
 
     const rawVendor = first.constructeur || first.vendor;
