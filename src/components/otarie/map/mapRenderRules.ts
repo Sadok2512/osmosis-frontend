@@ -11,7 +11,7 @@ export const CELLS_TO_SITES_ZOOM = 7;
 /** Zoom level at which mini-sectors appear */
 export const MINI_SECTOR_ZOOM = 8;
 /** Zoom level at which site name labels appear automatically */
-export const AUTO_LABEL_ZOOM = 14;
+export const AUTO_LABEL_ZOOM = 12;
 
 // ── France defaults ──
 export const FRANCE_CENTER: [number, number] = [46.6, 2.2];
