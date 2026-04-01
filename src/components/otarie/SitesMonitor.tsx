@@ -4499,7 +4499,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         });
         setCellLoadingCount(cellLoadingRef.current.size);
 
-        setSites(prev => mergeCellsIntoSiteList(prev, cellMap, getLookupKeys));
+        console.log(`[SitesMonitor] Cell merge: cellMap has ${cellMap.size} entries for ${sitesNeedingCells.length} sites needing cells`);
+        if (cellMap.size > 0) {
+          const sampleKeys = Array.from(cellMap.keys()).slice(0, 3);
+          console.log(`[SitesMonitor] Sample cellMap keys: ${sampleKeys.join(', ')}`);
+          const sampleSiteIds = sitesNeedingCells.slice(0, 3).map(s => s.site_id);
+          console.log(`[SitesMonitor] Sample site IDs: ${sampleSiteIds.join(', ')}`);
+        }
+
+        setSites(prev => {
+          const merged = mergeCellsIntoSiteList(prev, cellMap, getLookupKeys);
+          const withCells = merged.filter(s => s.cells.length > 0).length;
+          console.log(`[SitesMonitor] After merge: ${withCells}/${merged.length} sites have cells`);
+          return merged;
+        });
         setSearchModeSites(prev => prev.length > 0 ? mergeCellsIntoSiteList(prev, cellMap, getLookupKeys) : prev);
         setSelectedSiteSnapshot(prev => {
           if (!prev) return prev;
