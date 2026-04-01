@@ -4868,9 +4868,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   };
 
   // Unified loading banner — just below toolbar
-  const isAnythingLoading = loading || bboxLoading || cellLoadingCount > 0;
+  // Detect "cells needed but not loaded yet" state for immediate feedback
+  const cellsNeededButPending = displayMode === 'cells' && visibleSites.length > 0 && visibleSites.some(s => s.cells.length === 0 && !cellLoadAttemptedRef.current.has(s.site_id));
+  const isAnythingLoading = loading || bboxLoading || cellLoadingCount > 0 || cellsNeededButPending;
   const loadingMessage = (() => {
     if (cellLoadingCount > 0) return `Chargement des cellules… ${cellLoadingCount.toLocaleString()} site${cellLoadingCount > 1 ? 's' : ''}`;
+    if (cellsNeededButPending) {
+      const pending = visibleSites.filter(s => s.cells.length === 0 && !cellLoadAttemptedRef.current.has(s.site_id)).length;
+      return `Chargement des cellules… ${pending.toLocaleString()} site${pending > 1 ? 's' : ''}`;
+    }
     if (loading || bboxLoading) return sites.length > 0 ? `Chargement… ${sites.length.toLocaleString()} sites` : 'Chargement des sites…';
     return '';
   })();
