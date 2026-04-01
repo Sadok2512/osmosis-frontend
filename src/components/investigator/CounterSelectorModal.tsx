@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { X, Search, Check, RotateCcw, Star, BarChart3, ChevronDown, ChevronRight, Filter } from 'lucide-react';
+import { X, Search, Check, RotateCcw, Star, BarChart3, ChevronDown, ChevronRight, Filter, SlidersHorizontal } from 'lucide-react';
 import { loadFavorites as loadFavoritesDB, saveFavorites as saveFavoritesDB } from '@/services/favoritesService';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { cn } from '@/lib/utils';
@@ -51,28 +51,32 @@ async function fetchFilteredCatalog(vendor?: string, techno?: string): Promise<C
   } catch { return []; }
 }
 
-/* ── Collapsible filter section (left sidebar) ── */
+/* ── Collapsible filter section ── */
 const CollapsibleSection: React.FC<{
   title: string;
+  icon?: React.ReactNode;
   children: React.ReactNode;
   defaultOpen?: boolean;
-}> = ({ title, children, defaultOpen = true }) => {
+}> = ({ title, icon, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-border/30">
+    <div className="border-b border-border/20 last:border-b-0">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground transition-colors"
+        className="w-full flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground transition-colors"
       >
-        <span>{title}</span>
-        {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        {icon}
+        <span className="flex-1 text-left">{title}</span>
+        {open ? <ChevronDown className="w-3 h-3 opacity-50" /> : <ChevronRight className="w-3 h-3 opacity-50" />}
       </button>
-      {open && <div className="pb-2 px-2">{children}</div>}
+      <div className={cn('overflow-hidden transition-all', open ? 'max-h-[500px] pb-2 px-2' : 'max-h-0')}>
+        {children}
+      </div>
     </div>
   );
 };
 
-/* ── Filter list item (left sidebar) ── */
+/* ── Filter list item ── */
 const FilterListItem: React.FC<{
   label: string;
   active: boolean;
@@ -82,20 +86,20 @@ const FilterListItem: React.FC<{
   <button
     onClick={onClick}
     className={cn(
-      'w-full flex items-center justify-between px-3 py-[6px] text-[12px] transition-all rounded-[4px]',
+      'w-full flex items-center justify-between px-3 py-[5px] text-[11px] transition-all rounded-md',
       active
-        ? 'bg-emerald-600 text-white font-semibold'
-        : 'text-foreground/80 hover:bg-muted/50'
+        ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+        : 'text-foreground/80 hover:bg-muted/60'
     )}
   >
-    <span>{label}</span>
+    <span className="truncate">{label}</span>
     {count !== undefined && (
-      <span className={cn('text-[11px] tabular-nums', active ? 'text-white/75' : 'text-muted-foreground')}>{count}</span>
+      <span className={cn('text-[10px] tabular-nums ml-2 shrink-0', active ? 'text-white/70' : 'text-muted-foreground/60')}>{count}</span>
     )}
   </button>
 );
 
-/* ── Category item (middle sidebar) ── */
+/* ── Category item ── */
 const CategoryListItem: React.FC<{
   label: string;
   active: boolean;
@@ -105,15 +109,25 @@ const CategoryListItem: React.FC<{
   <button
     onClick={onClick}
     className={cn(
-      'w-full flex items-center justify-between px-4 py-[7px] text-[12px] transition-all rounded-[4px]',
+      'w-full flex items-center justify-between px-3 py-[5px] text-[11px] transition-all rounded-md',
       active
-        ? 'bg-emerald-600 text-white font-semibold'
-        : 'text-foreground hover:bg-muted/40'
+        ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+        : 'text-foreground/80 hover:bg-muted/40'
     )}
   >
     <span className="truncate pr-2">{label}</span>
-    <span className={cn('text-[11px] tabular-nums shrink-0', active ? 'text-white/75' : 'text-muted-foreground')}>{count}</span>
+    <span className={cn('text-[10px] tabular-nums shrink-0', active ? 'text-white/70' : 'text-muted-foreground/60')}>{count}</span>
   </button>
+);
+
+/* ── Badge component for counter row ── */
+const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+  <span className={cn(
+    'inline-flex items-center justify-center text-[9px] font-semibold px-2 py-[2px] rounded-[4px] whitespace-nowrap min-w-[48px] text-center',
+    className
+  )}>
+    {children}
+  </span>
 );
 
 const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initialCatalog, selectedKeys, onConfirm }) => {
@@ -174,10 +188,35 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   };
 
   const resetSelection = () => setSelected(new Set());
+  const resetFilters = () => {
+    setFilterVendor('');
+    setFilterTechno('');
+    setActiveFamily(null);
+    setShowFavOnly(false);
+  };
 
-  const filteredCatalog = useMemo(() => {
+  const activeFilterCount = [filterVendor, filterTechno, showFavOnly ? 'fav' : ''].filter(Boolean).length;
+
+  /* ── Single source of truth: base dataset filtered by vendor/techno (from API) ── */
+  const baseFiltered = useMemo(() => {
     let items = Array.isArray(catalog) ? catalog : [];
     if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
+    return items;
+  }, [catalog, showFavOnly, favorites]);
+
+  /* ── Categories computed from base filtered data ── */
+  const familyCategories = useMemo(() => {
+    const fams = new Map<string, number>();
+    for (const c of baseFiltered) {
+      const f = c.family || 'Other';
+      fams.set(f, (fams.get(f) || 0) + 1);
+    }
+    return fams;
+  }, [baseFiltered]);
+
+  /* ── Final filtered list: base + family + search ── */
+  const filteredCatalog = useMemo(() => {
+    let items = baseFiltered;
     if (activeFamily) items = items.filter(c => c.family === activeFamily);
     if (search) {
       const q = search.toLowerCase();
@@ -188,29 +227,18 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
       );
     }
     return items;
-  }, [catalog, activeFamily, search, showFavOnly, favorites]);
+  }, [baseFiltered, activeFamily, search]);
 
-  const familyCategories = useMemo(() => {
-    let items = Array.isArray(catalog) ? catalog : [];
-    if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
-    const fams = new Map<string, number>();
-    for (const c of items) {
-      const f = c.family || 'Other';
-      fams.set(f, (fams.get(f) || 0) + 1);
-    }
-    return fams;
-  }, [catalog, showFavOnly, favorites]);
-
+  /* ── Techno counts from base filtered ── */
   const technoCounts = useMemo(() => {
-    const items = Array.isArray(catalog) ? catalog : [];
     const counts = new Map<string, number>();
-    for (const c of items) {
+    for (const c of baseFiltered) {
       if (c.techno) counts.set(c.techno, (counts.get(c.techno) || 0) + 1);
     }
     return counts;
-  }, [catalog]);
+  }, [baseFiltered]);
 
-  const totalFiltered = Array.from(familyCategories.values()).reduce((a, b) => a + b, 0);
+  const totalFiltered = baseFiltered.length;
 
   const handleConfirm = () => {
     onConfirm(Array.from(selected));
@@ -224,85 +252,106 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm pl-[240px]" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-[1000px] max-w-[calc(100vw-280px)] h-[620px] max-h-[85vh] flex flex-col rounded-xl bg-card border border-border shadow-2xl overflow-hidden">
+      <div className="relative w-[1020px] max-w-[calc(100vw-280px)] h-[640px] max-h-[85vh] flex flex-col rounded-xl bg-card border border-border shadow-2xl overflow-hidden">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-3 bg-emerald-600 text-white shrink-0">
+        <div className="flex items-center justify-between px-5 py-2.5 bg-emerald-600 text-white shrink-0">
           <div className="flex items-center gap-3">
-            <BarChart3 className="w-5 h-5" />
-            <h2 className="text-[14px] font-bold">Sélectionner des Counters PM</h2>
-            <span className="text-[11px] opacity-70">{catalog.length} counters</span>
+            <BarChart3 className="w-4.5 h-4.5" />
+            <h2 className="text-[13px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
+            <span className="text-[10px] opacity-60 tabular-nums">{catalog.length} disponibles</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/15 transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* ── Active filters summary ── */}
+        {activeFilterCount > 0 && (
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/5 border-b border-border/40 shrink-0">
+            <SlidersHorizontal className="w-3 h-3 text-emerald-600" />
+            <span className="text-[10px] text-muted-foreground">Filtres actifs :</span>
+            {filterVendor && (
+              <span className="text-[9px] px-2 py-[1px] rounded-full bg-emerald-500/10 text-emerald-700 font-semibold">{filterVendor}</span>
+            )}
+            {filterTechno && (
+              <span className="text-[9px] px-2 py-[1px] rounded-full bg-purple-500/10 text-purple-600 font-semibold">{filterTechno}</span>
+            )}
+            {showFavOnly && (
+              <span className="text-[9px] px-2 py-[1px] rounded-full bg-amber-500/10 text-amber-600 font-semibold">★ Favoris</span>
+            )}
+            <button onClick={resetFilters} className="ml-auto text-[9px] text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1">
+              <RotateCcw className="w-2.5 h-2.5" /> Réinitialiser
+            </button>
+          </div>
+        )}
 
         {/* ── Body ── */}
         <div className="flex-1 flex overflow-hidden min-h-0">
 
           {/* ═══ Left Sidebar: Filters ═══ */}
-          <div className="w-[200px] shrink-0 border-r border-border flex flex-col bg-muted/5">
-
-            {/* Header row */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">Filtres</span>
+          <div className="w-[190px] shrink-0 border-r border-border/60 flex flex-col bg-muted/5">
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40">
+              <Filter className="w-3 h-3 text-emerald-600" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-foreground">Filtres</span>
+              {activeFilterCount > 0 && (
+                <span className="ml-auto w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center">{activeFilterCount}</span>
+              )}
             </div>
 
             <ScrollArea className="flex-1">
+              <div className="py-1">
+                {/* Favoris */}
+                <div className="px-2 pb-1">
+                  <button
+                    onClick={() => { setShowFavOnly(!showFavOnly); if (!showFavOnly) setActiveFamily(null); }}
+                    className={cn(
+                      'w-full flex items-center gap-2 px-3 py-[5px] rounded-md text-[11px] font-medium transition-all',
+                      showFavOnly ? 'bg-amber-500/15 text-amber-600 font-semibold' : 'text-foreground/70 hover:bg-muted/50'
+                    )}
+                  >
+                    <Star className={cn('w-3 h-3', showFavOnly ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground/40')} />
+                    <span>Favoris</span>
+                    <span className={cn('ml-auto text-[10px] tabular-nums', showFavOnly ? 'text-amber-600/70' : 'text-muted-foreground/50')}>
+                      {favorites.length}
+                    </span>
+                  </button>
+                </div>
 
-              {/* Favoris */}
-              <div className="border-b border-border/30 py-2 px-2">
-                <button
-                  onClick={() => { setShowFavOnly(!showFavOnly); if (!showFavOnly) setActiveFamily(null); }}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-3 py-[6px] rounded-[4px] text-[12px] font-medium transition-all',
-                    showFavOnly ? 'bg-emerald-600 text-white' : 'text-foreground/80 hover:bg-muted/50'
-                  )}
-                >
-                  <Star className={cn('w-3.5 h-3.5', showFavOnly ? 'fill-white text-white' : 'text-muted-foreground/50')} />
-                  <span>FAVORIS</span>
-                  <span className={cn('ml-auto text-[11px] tabular-nums', showFavOnly ? 'text-white/75' : 'text-muted-foreground')}>
-                    {favorites.length}
-                  </span>
-                </button>
+                {/* Vendor */}
+                <CollapsibleSection title="Vendor">
+                  <FilterListItem label="Tous" active={filterVendor === ''} onClick={() => { setFilterVendor(''); setFilterTechno(''); }} />
+                  {vendorOptions.map(v => (
+                    <FilterListItem key={v} label={v} active={filterVendor === v} onClick={() => { setFilterVendor(v); setFilterTechno(''); }} />
+                  ))}
+                </CollapsibleSection>
+
+                {/* Technology */}
+                <CollapsibleSection title="Technologie">
+                  <FilterListItem label="Tous" active={filterTechno === ''} onClick={() => setFilterTechno('')} />
+                  {technoOptions.map(t => (
+                    <FilterListItem
+                      key={t}
+                      label={t}
+                      active={filterTechno === t}
+                      count={technoCounts.get(t)}
+                      onClick={() => setFilterTechno(t)}
+                    />
+                  ))}
+                </CollapsibleSection>
               </div>
-
-              {/* Vendor */}
-              <CollapsibleSection title="Vendor">
-                <FilterListItem label="Tous" active={filterVendor === ''} onClick={() => { setFilterVendor(''); setFilterTechno(''); }} />
-                {vendorOptions.map(v => (
-                  <FilterListItem key={v} label={v} active={filterVendor === v} onClick={() => { setFilterVendor(v); setFilterTechno(''); }} />
-                ))}
-              </CollapsibleSection>
-
-              {/* Technology */}
-              <CollapsibleSection title="Technology">
-                <FilterListItem label="Tous" active={filterTechno === ''} onClick={() => setFilterTechno('')} />
-                {technoOptions.map(t => (
-                  <FilterListItem
-                    key={t}
-                    label={t}
-                    active={filterTechno === t}
-                    count={technoCounts.get(t)}
-                    onClick={() => setFilterTechno(t)}
-                  />
-                ))}
-              </CollapsibleSection>
-
             </ScrollArea>
           </div>
 
           {/* ═══ Middle Sidebar: Categories ═══ */}
-          <div className="w-[230px] shrink-0 border-r border-border flex flex-col bg-card">
-            <div className="px-4 py-3 border-b border-border">
-              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">Catégories</span>
+          <div className="w-[210px] shrink-0 border-r border-border/60 flex flex-col bg-card">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
+              <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-foreground">Catégories</span>
+              <span className="text-[9px] text-muted-foreground/60 tabular-nums">{familyCategories.size}</span>
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="py-1.5 px-1.5 space-y-[2px]">
-                {/* Tous */}
+              <div className="py-1 px-1.5 space-y-[1px]">
                 <CategoryListItem
                   label="Tous"
                   active={activeFamily === null && !showFavOnly}
@@ -310,9 +359,14 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                   onClick={() => { setActiveFamily(null); setShowFavOnly(false); }}
                 />
 
-                <div className="mx-2 my-1 border-t border-border/30" />
+                <div className="mx-2 my-1 border-t border-border/20" />
 
-                {/* Family list */}
+                {familyCategories.size === 0 && !isLoading && (
+                  <div className="px-3 py-4 text-[10px] text-muted-foreground text-center">
+                    Aucune catégorie pour ces filtres
+                  </div>
+                )}
+
                 {Array.from(familyCategories.entries())
                   .sort((a, b) => b[1] - a[1])
                   .map(([fam, count]) => (
@@ -331,98 +385,131 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
           {/* ═══ Right Panel: Counter List ═══ */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-            {/* Search */}
-            <div className="px-4 py-2.5 border-b border-border flex items-center gap-3">
+            {/* Search bar */}
+            <div className="px-3 py-2 border-b border-border/40 flex items-center gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Rechercher un counter..."
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-[12px] outline-none focus:ring-1 focus:ring-emerald-500/40 transition-all"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-md border border-border bg-background text-[11px] outline-none focus:ring-1 focus:ring-emerald-500/40 transition-all placeholder:text-muted-foreground/50"
                   autoFocus
                 />
               </div>
-              <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">{filteredCatalog.length} counters</span>
+              <span className="text-[10px] text-muted-foreground/60 shrink-0 tabular-nums">{filteredCatalog.length}</span>
             </div>
 
-            {/* Info bar */}
-            <div className="px-4 py-1.5 border-b border-border/40 bg-muted/10 flex items-center justify-between">
-              <p className="text-[11px] text-muted-foreground">
-                <span className="font-bold text-foreground">{selected.size}</span> sélectionné(s)
-                {isLoading && <span className="ml-2 animate-pulse">chargement...</span>}
-                {!isLoading && filteredCatalog.length > 200 && !search && (
-                  <span className="ml-2">— tapez pour rechercher ou filtrez</span>
-                )}
+            {/* Selection bar */}
+            <div className="px-3 py-1 border-b border-border/30 bg-muted/5 flex items-center justify-between shrink-0">
+              <p className="text-[10px] text-muted-foreground">
+                <span className="font-bold text-emerald-600">{selected.size}</span> sélectionné(s)
+                {isLoading && <span className="ml-2 animate-pulse text-muted-foreground/50">chargement...</span>}
               </p>
               {selected.size > 0 && (
-                <button onClick={resetSelection} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors">
-                  <RotateCcw className="w-3 h-3" /> Reset
+                <button onClick={resetSelection} className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-destructive transition-colors">
+                  <RotateCcw className="w-2.5 h-2.5" /> Reset
                 </button>
               )}
             </div>
 
+            {/* Column header */}
+            <div className="px-3 py-1 border-b border-border/20 bg-muted/10 flex items-center gap-2 shrink-0">
+              <div className="w-[22px] shrink-0" /> {/* star */}
+              <div className="w-[18px] shrink-0" /> {/* checkbox */}
+              <span className="flex-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 min-w-0">Counter</span>
+              <div className="flex items-center shrink-0" style={{ width: '220px' }}>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 w-[60px] text-center">Vendor</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 w-[50px] text-center">Tech</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 flex-1 text-center">Type</span>
+              </div>
+            </div>
+
             {/* Items */}
             <ScrollArea className="flex-1">
-              <div className="px-2 py-1">
+              <div className="px-1.5 py-0.5">
                 {isLoading ? (
-                  <div className="flex items-center justify-center h-40 text-xs text-muted-foreground animate-pulse">Chargement...</div>
+                  <div className="flex flex-col items-center justify-center h-40 gap-2">
+                    <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-[11px] text-muted-foreground">Chargement des counters...</span>
+                  </div>
                 ) : filteredCatalog.length === 0 ? (
-                  <div className="flex items-center justify-center h-40 text-xs text-muted-foreground">Aucun résultat</div>
+                  <div className="flex flex-col items-center justify-center h-40 gap-2">
+                    <Search className="w-5 h-5 text-muted-foreground/30" />
+                    <span className="text-[11px] text-muted-foreground">Aucun counter trouvé pour les filtres sélectionnés</span>
+                    {activeFilterCount > 0 && (
+                      <button onClick={resetFilters} className="text-[10px] text-emerald-600 hover:underline">Réinitialiser les filtres</button>
+                    )}
+                  </div>
                 ) : (
                   <>
-                    {(filteredCatalog.length > 200 && !search ? filteredCatalog.slice(0, 200) : filteredCatalog).map(c => {
+                    {(filteredCatalog.length > 300 && !search ? filteredCatalog.slice(0, 300) : filteredCatalog).map(c => {
                       const isSelected = selected.has(c.counter_name);
                       const isFav = favorites.includes(c.counter_name);
                       return (
                         <div
                           key={c.counter_name}
                           className={cn(
-                            'flex items-center gap-2.5 px-3 py-[6px] rounded-lg transition-all mb-[2px] group',
+                            'flex items-center gap-2 px-2 py-[4px] rounded-md transition-all mb-[1px] group cursor-pointer',
                             isSelected
-                              ? 'bg-emerald-500/10 border border-emerald-500/25'
-                              : 'hover:bg-muted/40 border border-transparent'
+                              ? 'bg-emerald-500/8 border border-emerald-500/20'
+                              : 'hover:bg-muted/30 border border-transparent'
                           )}
+                          onClick={() => toggle(c.counter_name)}
                         >
+                          {/* Star */}
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(c.counter_name); }}
-                            className="shrink-0 p-0.5 rounded hover:bg-muted/50 transition-colors"
+                            className="shrink-0 p-0.5 rounded hover:bg-muted/50 transition-colors w-[22px] flex items-center justify-center"
                           >
                             <Star className={cn(
-                              'w-3.5 h-3.5 transition-colors',
-                              isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/20 group-hover:text-muted-foreground/40'
+                              'w-3 h-3 transition-colors',
+                              isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/15 group-hover:text-muted-foreground/30'
                             )} />
                           </button>
 
-                          <button onClick={() => toggle(c.counter_name)} className="flex-1 flex items-center gap-3 text-left min-w-0">
-                            <div className={cn(
-                              'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
-                              isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-border/70'
-                            )}>
-                              {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                          {/* Checkbox */}
+                          <div className={cn(
+                            'w-3.5 h-3.5 rounded-[3px] border-[1.5px] flex items-center justify-center shrink-0 transition-colors',
+                            isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-border/60'
+                          )}>
+                            {isSelected && <Check className="w-2 h-2 text-white" />}
+                          </div>
+
+                          {/* Counter name */}
+                          <span className="flex-1 text-[10.5px] font-medium text-foreground truncate font-mono min-w-0 leading-tight">
+                            {c.counter_name}
+                          </span>
+
+                          {/* Badges — fixed-width container for alignment */}
+                          <div className="flex items-center shrink-0" style={{ width: '220px' }}>
+                            {/* Vendor badge */}
+                            <div className="w-[60px] flex justify-center">
+                              {c.vendor ? (
+                                <Badge className={c.vendor === 'Ericsson' ? 'bg-blue-500/10 text-blue-500' : 'bg-orange-500/10 text-orange-500'}>
+                                  {c.vendor}
+                                </Badge>
+                              ) : <span className="text-[9px] text-muted-foreground/30">—</span>}
                             </div>
-                            <span className="flex-1 text-[11px] font-medium text-foreground truncate font-mono">{c.counter_name}</span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              {c.vendor && (
-                                <span className={cn(
-                                  'text-[9px] px-1.5 py-[2px] rounded font-medium',
-                                  c.vendor === 'Ericsson' ? 'bg-blue-500/10 text-blue-500' : 'bg-orange-500/10 text-orange-500'
-                                )}>{c.vendor}</span>
-                              )}
-                              {c.techno && (
-                                <span className="text-[9px] px-1.5 py-[2px] rounded bg-purple-500/10 text-purple-500 font-medium">{c.techno}</span>
-                              )}
-                              {c.family && (
-                                <span className="text-[9px] px-1.5 py-[2px] rounded bg-muted text-muted-foreground truncate max-w-[120px]">{c.family}</span>
-                              )}
+                            {/* Tech badge */}
+                            <div className="w-[50px] flex justify-center">
+                              {c.techno ? (
+                                <Badge className="bg-purple-500/10 text-purple-500">{c.techno}</Badge>
+                              ) : <span className="text-[9px] text-muted-foreground/30">—</span>}
                             </div>
-                          </button>
+                            {/* Family/Type badge */}
+                            <div className="flex-1 flex justify-center min-w-0">
+                              {c.family ? (
+                                <Badge className="bg-muted text-muted-foreground truncate max-w-full">{c.family}</Badge>
+                              ) : <span className="text-[9px] text-muted-foreground/30">—</span>}
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
-                    {filteredCatalog.length > 200 && !search && (
-                      <div className="text-center py-3 text-[10px] text-muted-foreground">
-                        Affichage limité à 200 — utilisez la recherche
+                    {filteredCatalog.length > 300 && !search && (
+                      <div className="text-center py-3 text-[9px] text-muted-foreground/60">
+                        Affichage limité à 300 — utilisez la recherche pour affiner
                       </div>
                     )}
                   </>
@@ -433,24 +520,24 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-card shrink-0">
-          <div className="flex flex-wrap gap-1.5 max-w-[550px] overflow-hidden">
-            {Array.from(selected).slice(0, 6).map(key => {
+        <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-card shrink-0">
+          <div className="flex flex-wrap gap-1 max-w-[500px] overflow-hidden">
+            {Array.from(selected).slice(0, 5).map(key => {
               const c = catalog.find(x => x.counter_name === key);
               return (
-                <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-[10px] font-semibold font-mono">
+                <span key={key} className="inline-flex items-center gap-1 px-2 py-[2px] rounded-md bg-emerald-500/10 text-emerald-600 text-[9px] font-semibold font-mono max-w-[140px] truncate">
                   {c?.display_name || key}
-                  <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                  <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive shrink-0"><X className="w-2.5 h-2.5" /></button>
                 </span>
               );
             })}
-            {selected.size > 6 && <span className="text-[10px] text-muted-foreground self-center">+{selected.size - 6} autres</span>}
+            {selected.size > 5 && <span className="text-[9px] text-muted-foreground self-center">+{selected.size - 5} autres</span>}
           </div>
-          <div className="flex items-center gap-2.5">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-[12px] font-medium text-muted-foreground hover:bg-muted transition-colors">
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="px-4 py-1.5 rounded-lg border border-border text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors">
               Fermer
             </button>
-            <button onClick={handleConfirm} className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-[12px] font-bold hover:bg-emerald-700 transition-colors">
+            <button onClick={handleConfirm} className="px-5 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-colors shadow-sm">
               Ok ({selected.size})
             </button>
           </div>
