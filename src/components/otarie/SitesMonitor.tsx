@@ -7451,9 +7451,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         return true;
                       });
                       const displayedCellCount = siteCells.length;
+                      const azMapSite2 = buildAzimuthSectorMap(siteCells as any[]);
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
-                        const sNum = getSectorNumber(c.cell_id);
+                        const sNum = getSectorNumber(c.cell_id, c as any, azMapSite2);
                         if (!sectors.has(sNum)) sectors.set(sNum, []);
                         sectors.get(sNum)!.push(c);
                       });
