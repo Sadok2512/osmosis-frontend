@@ -5689,7 +5689,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 let cellRadius = zoomRadius * 1.3 * bandScale;
                 let az = Number(cell.azimut);
                 if (!Number.isFinite(az) || az < 0 || az > 360) {
-                  const sNum = getSectorNumber(cell.cell_id);
+                  const sNum = getSectorNumber(cell.cell_id, cell as any);
                   const heuristicAz = [0, 0, 120, 240];
                   az = heuristicAz[sNum] ?? ((sNum - 1) * 120) % 360;
                 }
