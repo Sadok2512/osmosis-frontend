@@ -3,11 +3,12 @@ import ReactECharts from 'echarts-for-react';
 import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType } from './types';
 import CounterSelectorModal from './CounterSelectorModal';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity } from 'lucide-react';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -135,6 +136,74 @@ const KpiCardWidget: React.FC<{ kpiIds: string[]; data: DataPoint[]; allKpis: Kp
     </div>
   );
 };
+
+/** Inline Counter Timeseries widget — fetches and renders PM counter data */
+const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number }> = ({ counterNames, height }) => {
+  const { state } = useInvestigatorStore();
+  const [tsData, setTsData] = React.useState<{ ts: string; counter: string; value: number }[]>([]);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (counterNames.length === 0) { setTsData([]); return; }
+    setLoading(true);
+    const dateFrom = state.startDate?.split('T')[0] || '2026-01-01';
+    const dateTo = state.endDate?.split('T')[0] || '2026-03-24';
+    fetch(getApiUrl('pm/counters/timeseries'), {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity: '1d', split_by_dimension: false }),
+    })
+      .then(r => r.ok ? r.json() : { series: [] })
+      .then(data => { setTsData(data.series || []); setLoading(false); })
+      .catch(() => { setTsData([]); setLoading(false); });
+  }, [counterNames.join(','), state.startDate, state.endDate]);
+
+  if (loading) return <div className="flex items-center justify-center text-muted-foreground text-[10px] gap-1.5" style={{ height }}><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading...</div>;
+  if (tsData.length === 0) return <div className="flex items-center justify-center text-muted-foreground text-[10px]" style={{ height }}>No data available</div>;
+
+  const counters = [...new Set(tsData.map(d => d.counter))];
+  const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
+
+  const option = {
+    tooltip: {
+      trigger: 'axis' as const,
+      backgroundColor: 'rgba(15,23,42,0.95)',
+      borderColor: 'rgba(255,255,255,0.08)',
+      textStyle: { color: '#f8fafc', fontSize: 10 },
+    },
+    legend: { bottom: 0, textStyle: { color: '#9ca3af', fontSize: 9 }, data: counters },
+    grid: { left: 60, right: 20, top: 10, bottom: 40 },
+    xAxis: {
+      type: 'category' as const,
+      data: timestamps.map(t => t.slice(0, 10)),
+      axisLabel: { color: '#6b7280', fontSize: 9 },
+      axisLine: { lineStyle: { color: '#374151' } },
+    },
+    yAxis: {
+      type: 'value' as const,
+      axisLabel: { color: '#6b7280', fontSize: 9, formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toString() },
+      splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
+    },
+    series: counters.map((counter, i) => ({
+      name: counter,
+      type: 'line' as const,
+      smooth: true,
+      data: timestamps.map(ts => { const p = tsData.find(d => d.ts === ts && d.counter === counter); return p ? p.value : 0; }),
+      lineStyle: { width: 2, color: SERIES_COLORS[i % SERIES_COLORS.length] },
+      itemStyle: { color: SERIES_COLORS[i % SERIES_COLORS.length] },
+      symbolSize: 4,
+      areaStyle: {
+        color: { type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [
+          { offset: 0, color: SERIES_COLORS[i % SERIES_COLORS.length] + '25' },
+          { offset: 1, color: SERIES_COLORS[i % SERIES_COLORS.length] + '05' },
+        ]},
+      },
+    })),
+  };
+
+  return <ReactECharts option={option} notMerge style={{ height }} />;
+};
+
 
 interface Props {
   graphSlots: GraphSlot[];
@@ -305,9 +374,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                     );
                   })}
                 </div>
-                <div className="text-center text-[10px] text-muted-foreground py-4">
-                  Compteurs sélectionnés — données affichées dans l'onglet PM Counters
-                </div>
+                <CounterTimeseriesWidget counterNames={kpiIds} height={chartHeight - 60} />
               </div>
             </div>
           );
