@@ -54,10 +54,32 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
 ];
 // FILTER_DIMENSIONS now loaded from backend (see filterDimensions state)
 
+// PM dimension types that use /counters/dimension-values API
+const PM_DIMENSION_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', 'TRANSPORT', 'CA_REL']);
+const PM_DIMENSION_LABELS: Record<string, string> = {
+  PMQAP: 'QCI Profile (PMQAP)',
+  FLEX: 'Flex QoS (QCI)',
+  NEIGHBOR: 'Neighbor Cell',
+  CA_REL: 'CA Relation',
+  RANSHARE: 'RAN Sharing (PLMN)',
+  SLICE: 'Network Slice (NSSAI)',
+  TRANSPORT: 'Transport Link',
+};
+
 // Filter values fetched from backend (KPI Engine first, fallback to Parser PM counters)
 const useBackendFilterValues = (dimension: string): string[] => {
   const [values, setValues] = React.useState<string[]>([]);
   React.useEffect(() => {
+    // PM dimension types → use /counters/dimension-values
+    if (PM_DIMENSION_TYPES.has(dimension)) {
+      import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
+        fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${dimension}&limit=100`), { headers: getApiHeaders() })
+          .then(r => r.ok ? r.json() : { values: [] })
+          .then(d => { if (d.values) setValues(d.values); })
+          .catch(() => {});
+      });
+      return;
+    }
     const dimMap: Record<string, string> = { Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO', Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', 'Zone ARCEP': 'ARCEP' };
     const key = dimMap[dimension] || dimension;
     import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
@@ -179,15 +201,23 @@ const AddFilterDropdown: React.FC<{
       </PopoverTrigger>
       <PopoverContent className="min-w-[180px] p-1.5" align="start" sideOffset={4}>
         {!selectedDim ? (
-          filterDimensions.map(dim => (
-            <button
-              key={dim}
-              onClick={() => setSelectedDim(dim)}
-              className="w-full text-left px-3 py-1.5 rounded-md text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
-            >
-              {dim}
-            </button>
-          ))
+          filterDimensions.map(dim => {
+            const isPm = PM_DIMENSION_TYPES.has(dim);
+            const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
+            return (
+              <button
+                key={dim}
+                onClick={() => setSelectedDim(dim)}
+                className={cn(
+                  "w-full text-left px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                  isPm ? "text-amber-600 hover:bg-amber-500/10" : "text-foreground hover:bg-muted/50"
+                )}
+              >
+                {label}
+                {isPm && <span className="ml-1 text-[8px] text-amber-500/70">PM</span>}
+              </button>
+            );
+          })
         ) : (
           <FilterValuesList dim={selectedDim} onSelect={(val) => { onAdd(selectedDim, val); setOpen(false); setSelectedDim(null); }} onBack={() => setSelectedDim(null)} />
         )}
@@ -369,6 +399,30 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       setKpisWithData(null);
     }
   }, [state.filters]);
+
+  // Detect PM dimension types from selected KPIs → add to filter dimensions
+  const activePmDimensions = useMemo(() => {
+    const dims = new Set<string>();
+    for (const slot of state.graphSlots) {
+      for (const kpiId of slot.kpiIds) {
+        const def = kpiDefs.find(k => k.id === kpiId);
+        if (def?.dimension_type && PM_DIMENSION_TYPES.has(def.dimension_type)) {
+          dims.add(def.dimension_type);
+        }
+      }
+    }
+    return dims;
+  }, [state.graphSlots, kpiDefs]);
+
+  // Merge PM dimensions into filter dimensions (after standard ones)
+  const allFilterDimensions = useMemo(() => {
+    const base = [...filterDimensions];
+    for (const dt of activePmDimensions) {
+      const label = PM_DIMENSION_LABELS[dt] || dt;
+      if (!base.includes(label) && !base.includes(dt)) base.push(dt);
+    }
+    return base;
+  }, [filterDimensions, activePmDimensions]);
 
   // Sort catalog: KPIs with data first
   const sortedCatalog = useMemo(() => {
@@ -688,17 +742,26 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <Filter className="w-3 h-3" />
               <span className="text-[10px] font-bold uppercase tracking-wider">Filtre par dimension</span>
             </div>
-            {filterChips.map(({ dim, val }) => (
-              <span key={`${dim}-${val}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
-                <span className="text-muted-foreground">{dim}:</span>
-                <span className="font-bold">{val}</span>
-                <button onClick={() => removeFilter(dim, val)} className="ml-0.5 hover:text-destructive transition-colors">
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            ))}
-            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} filterDimensions={filterDimensions} />
+            {filterChips.map(({ dim, val }) => {
+              const isPm = PM_DIMENSION_TYPES.has(dim);
+              const chipLabel = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
+              return (
+                <span key={`${dim}-${val}`}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold border",
+                    isPm
+                      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+                      : "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
+                  )}>
+                  <span className="text-muted-foreground">{chipLabel}:</span>
+                  <span className="font-bold">{val}</span>
+                  <button onClick={() => removeFilter(dim, val)} className="ml-0.5 hover:text-destructive transition-colors">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              );
+            })}
+            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} filterDimensions={allFilterDimensions} />
           </div>
 
           {/* Row C: KPI chips */}
