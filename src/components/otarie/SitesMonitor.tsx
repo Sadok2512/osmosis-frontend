@@ -4081,7 +4081,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (focusMode !== 'site' || !selectedSiteId || !siteDetail || siteDetail.site_id !== selectedSiteId) return;
     if (expandedSectors.size > 0) return;
 
-    const sectorNums = new Set(siteDetail.cells.map(c => getSectorNumber(c.cell_id)));
+    const azMap = buildAzimuthSectorMap(siteDetail.cells as any[]);
+    const sectorNums = new Set(siteDetail.cells.map(c => getSectorNumber(c.cell_id, c as any, azMap)));
     if (sectorNums.size > 0) {
       const first = Math.min(...sectorNums);
       setExpandedSectors(new Set([first]));
