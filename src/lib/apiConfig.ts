@@ -190,3 +190,23 @@ export function getAgentHeaders(): Record<string, string> {
     'x-api-key': 'agent_secret_key',
   };
 }
+
+/**
+ * Fetch with automatic retry on 503 (edge function cold-start).
+ */
+export async function fetchWithRetry(
+  url: string,
+  init?: RequestInit,
+  maxRetries = 3,
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const resp = await fetch(url, init);
+    if (resp.status === 503 && attempt < maxRetries) {
+      console.warn(`[fetchWithRetry] 503 on attempt ${attempt + 1}, retrying in ${300 * (attempt + 1)}ms...`);
+      await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+      continue;
+    }
+    return resp;
+  }
+  return fetch(url, init); // fallback (unreachable)
+}

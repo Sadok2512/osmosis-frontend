@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { topoApi } from '@/lib/localDb';
-import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
+import { getVpsProxyUrl, getVpsProxyHeaders, fetchWithRetry } from '@/lib/apiConfig';
 import { FILTER_DIMENSIONS, REF_DOR_TREE, REF_TECHNO_BANDE, resolveAvailableValues as resolveVals } from '@/config/filterDimensions';
 
 export interface FilterDefinition {
