@@ -3711,12 +3711,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'Score QoE Global';
 
   // ── Bbox-based data loading with debounce ──
+  const VIEWPORT_FETCH_DEBOUNCE_MS = 500;
   const mountedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastFetchedBoundsRef = useRef<L.LatLngBounds | null>(null);
+  const lastFetchedFilterKeyRef = useRef<string>('');
   const [bboxTotal, setBboxTotal] = useState<number>(0);
   const [bboxLoading, setBboxLoading] = useState(false);
   const [cellLoadingCount, setCellLoadingCount] = useState(0);
+
+  // Check if new bounds require a refetch (skip if still inside previously fetched area)
+  const shouldRefetchBounds = useCallback((nextBounds: L.LatLngBounds, prevBounds: L.LatLngBounds | null): boolean => {
+    if (!prevBounds) return true;
+    const innerPrev = prevBounds.pad(-0.25);
+    if (innerPrev.isValid() && innerPrev.contains(nextBounds)) return false;
+    return true;
+  }, []);
 
   // Derive current bbox filters from local filter state + backend filter bar
   const backendQueryStr = backendBuildQueryParams();
@@ -3730,7 +3741,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       bande: localBande !== 'ALL' ? localBande : undefined,
       q: localSearch || undefined,
     };
-    // Merge backend filter bar selections (override local if set)
     if (backendQueryStr) {
       const bp = new URLSearchParams(backendQueryStr);
       if (bp.get('dor')) base.dor = bp.get('dor')!;
@@ -3743,9 +3753,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return base;
   }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
 
-  // Core bbox fetch function — ALWAYS site-only mode (never load cells at map level)
+  // Core bbox fetch function — with smart bounds comparison to avoid redundant fetches
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
+
+    const filterKey = JSON.stringify(bboxFilters);
+
+    // Skip refetch if viewport is still within the previously fetched bounds and filters haven't changed
+    if (
+      !shouldRefetchBounds(bounds, lastFetchedBoundsRef.current) &&
+      filterKey === lastFetchedFilterKeyRef.current
+    ) {
+      return;
+    }
 
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
@@ -3761,15 +3781,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setBboxLoading(true);
 
     try {
-      // Always fetch site summaries only — cells are loaded on demand per site
       const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
 
       if (controller.signal.aborted) return;
 
-      // Clear cell-load tracking so cells reload for new viewport sites
-      cellLoadAttemptedRef.current.clear();
-      cellLoadingRef.current.clear();
-      setCellLoadingCount(0);
+      // Remember fetched bounds & filters
+      lastFetchedBoundsRef.current = bounds;
+      lastFetchedFilterKeyRef.current = filterKey;
 
       // Preserve the currently selected site if it was added via search and isn't in the new bbox results
       setSites(prev => {
@@ -3782,22 +3800,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         return nextSites;
       });
       setBboxTotal(total || 0);
-      setBboxLoading(false);
-      setLoading(false);
     } catch (err: any) {
-      if (err?.name === 'AbortError') return;
-      console.warn('[SitesMonitor] bbox fetch failed', err);
-      setBboxLoading(false);
-      setLoading(false);
+      if (err?.name !== 'AbortError') {
+        console.warn('[SitesMonitor] bbox fetch failed', err);
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setBboxLoading(false);
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [shouldRefetchBounds]);
 
-  // Debounced viewport change handler
+  // Debounced viewport change handler — 500ms to calm frequent pans
   const handleViewportForFetch = useCallback((v: ViewportState) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
-    }, 220);
+    }, VIEWPORT_FETCH_DEBOUNCE_MS);
   }, [fetchForViewport, currentBboxFilters]);
 
   // ── Debounced server-side search (independent of dashboard) ──
