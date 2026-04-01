@@ -5,6 +5,7 @@ import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import CMChangesCard from './CMChangesCard';
 import CounterGraphSection from './CounterGraphSection';
+import HistogramSection from './HistogramSection';
 import WorstElementsTable from './WorstElementsTable';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition } from './types';
@@ -54,7 +55,7 @@ const InvestigatorPage: React.FC = () => {
   const [counterCatalog, setCounterCatalog] = React.useState<{counter_name:string;display_name:string;family:string;vendor:string;techno:string;object_type:string;count:number}[]>([]);
   const [selectedCounters, setSelectedCounters] = React.useState<string[]>([]);
   const [counterTsData, setCounterTsData] = React.useState<{timestamp:string;kpi:string;value:number}[]>([]);
-  const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'counters' | 'alarms' | 'cm_history'>('breakdown');
+  const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'counters' | 'histograms' | 'alarms' | 'cm_history'>('breakdown');
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
@@ -442,6 +443,7 @@ const InvestigatorPage: React.FC = () => {
             {([
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500', badge: undefined as number | undefined },
               { key: 'counters' as const, icon: Cpu, label: 'PM Counters', color: 'text-emerald-500', badge: undefined as number | undefined },
+              { key: 'histograms' as const, icon: BarChart3, label: 'Histogrammes', color: 'text-cyan-500', badge: undefined as number | undefined },
               { key: 'alarms' as const, icon: Bell, label: 'Alarms & Worst Cells', color: 'text-red-500', badge: worstElements.length > 0 ? worstElements.length : undefined },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500', badge: undefined as number | undefined },
             ] as const).map(tab => (
@@ -477,6 +479,14 @@ const InvestigatorPage: React.FC = () => {
         {/* PM Counters */}
         {analysisTab === 'counters' && (
           <CounterGraphSection
+            dateFrom={state.startDate.split("T")[0] || "2026-01-01"}
+            dateTo={state.endDate.split("T")[0] || "2026-03-24"}
+          />
+        )}
+
+        {/* Histogrammes */}
+        {analysisTab === 'histograms' && (
+          <HistogramSection
             dateFrom={state.startDate.split("T")[0] || "2026-01-01"}
             dateTo={state.endDate.split("T")[0] || "2026-03-24"}
           />
