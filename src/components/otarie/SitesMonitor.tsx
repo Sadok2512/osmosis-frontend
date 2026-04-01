@@ -7233,9 +7233,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       });
                       const displayedCellCount = siteCells.length;
                       // Group cells by sector
+                      const azMapSite = buildAzimuthSectorMap(siteCells as any[]);
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
-                        const sNum = getSectorNumber(c.cell_id);
+                        const sNum = getSectorNumber(c.cell_id, c as any, azMapSite);
                         if (!sectors.has(sNum)) sectors.set(sNum, []);
                         sectors.get(sNum)!.push(c);
                       });
