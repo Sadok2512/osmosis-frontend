@@ -572,8 +572,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       </div>
 
       {/* ═══ LAYER 3: KPI / FILTERS — Niveau, KPIs, Filters ═══ */}
-      <div className="bg-card border-b border-border/40">
-        <div className="max-w-[1600px] mx-auto px-6 py-3 space-y-2.5">
+      <div className="bg-card/60 backdrop-blur-sm border-b border-border/30">
+        <div className="max-w-[1600px] mx-auto px-6 py-2.5 space-y-2">
           {/* Row A: KPI Level + Profile/Neighbor filters */}
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2 shrink-0">
