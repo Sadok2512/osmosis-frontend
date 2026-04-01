@@ -31,6 +31,9 @@ export interface KpiCatalogEntry {
   techno?: string;
   supported_levels?: string[];
   is_normalized?: boolean;
+  dimension_type?: string | null;
+  dimension_prefix?: string | null;
+  counter_count?: number;
 }
 
 export type GraphType = 'line' | 'area' | 'bar' | 'stacked_area' | 'scatter';

@@ -380,6 +380,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           value_type: (k.value_type || 'gauge') as any, default_agg: 'avg' as const, allowed_aggs: ['avg' as const],
           is_map_supported: false, category: k.category || 'Other', color: '#3b82f6',
           vendor: k.vendor || '', techno: k.techno || '',
+          dimension_type: k.dimension_type || null,
+          dimension_prefix: k.dimension_prefix || null,
+          counter_count: k.counter_count || 0,
         }));
         setCatalog(mapped);
       }

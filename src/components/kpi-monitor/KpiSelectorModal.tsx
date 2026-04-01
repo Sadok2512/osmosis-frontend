@@ -83,6 +83,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [filterTechno, setFilterTechno] = useState('');
   const [filterNormalized, setFilterNormalized] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
+  const [filterDimType, setFilterDimType] = useState('');
 
   useEffect(() => {
     if (open) {
@@ -93,6 +94,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       setFilterTechno('');
       setFilterNormalized('');
       setFilterLevel('');
+      setFilterDimType('');
       setShowFavOnly(false);
       setAxisMap(extAxisAssignments || {});
       loadFavoritesDB('kpi-monitor').then(favs => setFavorites(favs));
@@ -135,16 +137,23 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     const normalizedCount = catalog.filter(k => k.is_normalized).length;
     const vendorSpecificCount = catalog.filter(k => !k.is_normalized).length;
 
+    const dimTypes = new Map<string, number>();
+    for (const k of catalog) {
+      const dt = (k as any).dimension_type;
+      if (dt) dimTypes.set(dt, (dimTypes.get(dt) || 0) + 1);
+    }
+
     return {
       vendors: Array.from(vendors.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
       technos: Array.from(technos.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
       levels: Array.from(levels.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
+      dimTypes: Array.from(dimTypes.entries()).sort((a, b) => b[1] - a[1]).map(([v, c]) => ({ value: v, label: v, count: c })),
       normalizedCount,
       vendorSpecificCount,
     };
   }, [catalog]);
 
-  const activeFilterCount = [filterVendor, filterTechno, filterNormalized, filterLevel, showFavOnly ? 'fav' : ''].filter(Boolean).length;
+  const activeFilterCount = [filterVendor, filterTechno, filterNormalized, filterLevel, filterDimType, showFavOnly ? 'fav' : ''].filter(Boolean).length;
 
   // ── SINGLE SOURCE OF TRUTH: base filtered (filters only, no category, no search) ──
   const baseFiltered = useMemo(() => {
@@ -155,8 +164,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     if (filterNormalized === 'normalized') items = items.filter(k => k.is_normalized);
     if (filterNormalized === 'vendor-specific') items = items.filter(k => !k.is_normalized);
     if (filterLevel) items = items.filter(k => k.supported_levels?.includes(filterLevel));
+    if (filterDimType) items = items.filter(k => (k as any).dimension_type === filterDimType);
     return items;
-  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, showFavOnly, favorites]);
+  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, filterDimType, showFavOnly, favorites]);
 
   // Categories derived from baseFiltered
   const tabCategories = useMemo(() => {
@@ -203,7 +213,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const reset = () => setSelected(new Set());
   const clearFilters = () => {
     setFilterVendor(''); setFilterTechno(''); setFilterNormalized('');
-    setFilterLevel(''); setActiveCategory(null); setShowFavOnly(false);
+    setFilterLevel(''); setFilterDimType(''); setActiveCategory(null); setShowFavOnly(false);
   };
 
   const handleConfirm = () => {
@@ -243,6 +253,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
               {filterTechno && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-medium">{filterTechno}</span>}
               {filterNormalized && <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 text-[9px] font-medium">{filterNormalized === 'normalized' ? 'Normalisé' : 'Vendor-Specific'}</span>}
               {filterLevel && <span className="px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500 text-[9px] font-medium">{filterLevel}</span>}
+              {filterDimType && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-medium">{filterDimType}</span>}
             </div>
             <button onClick={clearFilters} className="ml-auto flex items-center gap-1 text-[9px] font-medium text-destructive hover:underline">
               <RotateCcw className="w-2.5 h-2.5" /> Effacer
@@ -297,6 +308,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
               <FilterSection label="Technology" selected={filterTechno} onChange={setFilterTechno} options={filterOptions.technos} />
               {filterOptions.levels.length > 0 && (
                 <FilterSection label="Level" selected={filterLevel} onChange={setFilterLevel} options={filterOptions.levels} defaultOpen={false} />
+              )}
+              {filterOptions.dimTypes.length > 0 && (
+                <FilterSection label="Dimension" selected={filterDimType} onChange={setFilterDimType} options={filterOptions.dimTypes} defaultOpen={false} />
               )}
             </div>
 
@@ -426,7 +440,12 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                           </div>
 
                           {/* Badges — fixed-width for alignment */}
-                          <div className="flex items-center shrink-0" style={{ width: '200px' }}>
+                          <div className="flex items-center shrink-0" style={{ width: '248px' }}>
+                            <div className="w-[48px] flex justify-center">
+                              {(k as any).dimension_type && (
+                                <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">{(k as any).dimension_type}</span>
+                              )}
+                            </div>
                             <div className="w-[60px] flex justify-center">
                               {k.vendor && (
                                 <span className={cn(
