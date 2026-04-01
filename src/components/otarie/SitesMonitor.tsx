@@ -7060,26 +7060,34 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               {/* ── Search bar ── */}
               <div className="px-5 pb-3 shrink-0 relative">
-                <div className="flex items-center gap-2.5 bg-muted/60 border border-border rounded-xl px-4 py-3">
-                  <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher un site..."
-                    value={localSearch}
-                    onChange={(e) => setLocalSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') { setLocalSearch(''); setSearchResults([]); setSearchModeSites([]); }
-                    }}
-                    className="flex-1 bg-transparent text-[12px] font-medium text-foreground outline-none placeholder:text-muted-foreground min-w-0"
-                  />
-                  {searchLoading && (
-                    <RefreshCw size={12} className="animate-spin text-primary shrink-0" />
-                  )}
-                  {localSearch && (
-                    <button onClick={() => { setLocalSearch(''); setSearchResults([]); setSearchModeSites([]); }} className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0">
-                      <X size={12} />
-                    </button>
-                  )}
+                <div className="flex gap-1.5">
+                  <div className="relative flex-1">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Nom du site..."
+                      value={localSearch}
+                      onChange={(e) => setLocalSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') { setLocalSearch(''); setSearchResults([]); setSearchModeSites([]); }
+                      }}
+                      className="w-full pl-8 pr-8 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
+                    />
+                    {searchLoading && (
+                      <RefreshCw size={12} className="absolute right-7 top-1/2 -translate-y-1/2 animate-spin text-primary" />
+                    )}
+                    {localSearch && (
+                      <button onClick={() => { setLocalSearch(''); setSearchResults([]); setSearchModeSites([]); }} className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+                        <X size={10} />
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    disabled={!localSearch.trim()}
+                    className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                  >
+                    Chercher
+                  </button>
                 </div>
               </div>
 
