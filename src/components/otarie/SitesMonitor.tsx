@@ -6591,7 +6591,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   Info
                 </button>
 
-                <span className="w-px h-7 bg-border/50 shrink-0" />
+                <span className="w-px h-5 bg-border/40 shrink-0" />
 
                 {/* Views / Dashboard toggle */}
                 <button
