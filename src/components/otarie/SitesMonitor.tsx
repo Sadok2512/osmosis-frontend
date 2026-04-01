@@ -4049,6 +4049,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       if (abortRef.current) abortRef.current.abort();
+      if (viewportAbortRef.current) viewportAbortRef.current.abort();
     };
   }, []);
 
