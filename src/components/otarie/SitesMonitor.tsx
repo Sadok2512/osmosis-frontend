@@ -3714,6 +3714,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const VIEWPORT_FETCH_DEBOUNCE_MS = 500;
   const mountedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const viewportAbortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastFetchedBoundsRef = useRef<L.LatLngBounds | null>(null);
   const lastFetchedFilterKeyRef = useRef<string>('');
@@ -3767,9 +3768,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return;
     }
 
-    if (abortRef.current) abortRef.current.abort();
+    if (viewportAbortRef.current) viewportAbortRef.current.abort();
     const controller = new AbortController();
-    abortRef.current = controller;
+    viewportAbortRef.current = controller;
 
     const bbox: BboxQuery = {
       minLng: bounds.getWest(),
@@ -3919,6 +3920,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
+      // Reset viewport fetch state so next activation triggers a fresh fetch
+      lastFetchedBoundsRef.current = null;
+      lastFetchedFilterKeyRef.current = '';
       // Don't clear sites if search is active — search results are separate
       setSites([]);
       setBboxTotal(0);
@@ -4048,6 +4052,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       if (abortRef.current) abortRef.current.abort();
+      if (viewportAbortRef.current) viewportAbortRef.current.abort();
     };
   }, []);
 
