@@ -5259,7 +5259,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               ? (isHov || isSel ? 7 : 5)
               : viewport.zoom >= 8
                 ? (isHov || isSel ? 6 : Math.round(4 * densityScale))
-                : (isHov || isSel ? 5 : Math.round(3.5 * densityScale));
+                : (isHov || isSel ? 10 : Math.round(7 * densityScale));
             return br;
           };
 
