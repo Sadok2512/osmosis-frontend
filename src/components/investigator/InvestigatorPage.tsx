@@ -271,33 +271,30 @@ const InvestigatorPage: React.FC = () => {
         )}
 
         {/* KPI Graph Section */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-border/40 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 bg-primary/10 rounded-lg">
-                <LayoutGrid className="w-4 h-4 text-primary" />
+        <section className="space-y-3">
+          <div className="flex items-center justify-between pb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-primary/8 rounded-lg ring-1 ring-primary/10">
+                <LayoutGrid className="w-3.5 h-3.5 text-primary" />
               </div>
-              <div>
-                <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">KPI Graph Analysis</h2>
-                <p className="text-[10px] text-muted-foreground">Visual trend analysis and performance tracking</p>
-              </div>
+              <h2 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Graph Analysis</h2>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               {/* Graph type tabs */}
-              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+              <div className="flex items-center bg-muted/40 p-0.5 rounded-lg border border-border/30">
                 {([
                   { key: 'TimeSeries' as const, icon: LineChartIcon, label: 'Time Series' },
                   { key: 'Histogram' as const, icon: BarChart3, label: 'Histogram' },
-                  { key: 'Neighbors' as const, icon: Activity, label: 'Neighbors Flux' },
+                  { key: 'Neighbors' as const, icon: Activity, label: 'Neighbors' },
                 ]).map(tab => (
                   <button
                     key={tab.key}
                     onClick={() => setState(prev => ({ ...prev, activeGraphTab: tab.key as any }))}
                     className={cn(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all',
+                      'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all',
                       state.activeGraphTab === tab.key
-                        ? 'bg-card text-primary shadow-sm'
+                        ? 'bg-card text-primary shadow-sm ring-1 ring-border/40'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
@@ -308,7 +305,7 @@ const InvestigatorPage: React.FC = () => {
               </div>
 
               {/* Layout switcher */}
-              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+              <div className="flex items-center bg-muted/40 p-0.5 rounded-lg border border-border/30">
                 {([
                   { val: 1 as const, icon: Square, title: 'Single' },
                   { val: 2 as const, icon: Columns2, title: 'Dual' },
@@ -321,7 +318,7 @@ const InvestigatorPage: React.FC = () => {
                     className={cn(
                       'p-1.5 rounded-md transition-all',
                       state.graphLayout === l.val
-                        ? 'bg-card text-primary shadow-sm'
+                        ? 'bg-card text-primary shadow-sm ring-1 ring-border/40'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
