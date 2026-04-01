@@ -4380,9 +4380,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [currentBboxFilters]);
 
   // Constants for cell loading throttling
-  const CELL_DETAILS_ZOOM = 11;
-  const MAX_SITES_FOR_CELL_BULK = 120;
-  const MAX_PRIORITY_CELL_SITES = 60;
+  // Match SITES_TO_CELLS_ZOOM so cells load as soon as sectors are displayed
+  const CELL_DETAILS_ZOOM = 9;
+  const MAX_SITES_FOR_CELL_BULK = 200;
+  const MAX_PRIORITY_CELL_SITES = 80;
 
   useEffect(() => {
     // Only load cells when explicitly needed — no more aggressive preload at low zoom
@@ -5260,12 +5261,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           // Density-adaptive sizing: reduce in dense regions
-          const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
-          const baseRadius = viewport.zoom >= 10
-            ? (isHovered || isSelectedSite ? 7 : 5)
-            : viewport.zoom >= 8
-              ? (isHovered || isSelectedSite ? 6 : Math.round(4 * densityScale))
-              : (isHovered || isSelectedSite ? 5 : Math.round(3.5 * densityScale));
+          const densityScale = renderSites.length > 2000 ? 0.75 : renderSites.length > 800 ? 0.85 : renderSites.length > 400 ? 0.92 : 1;
+          let baseRadius: number;
+          if (viewport.zoom >= 13) baseRadius = isHovered || isSelectedSite ? 10 : 7;
+          else if (viewport.zoom >= 11) baseRadius = isHovered || isSelectedSite ? 9 : 6;
+          else if (viewport.zoom >= 9) baseRadius = isHovered || isSelectedSite ? 8 : 5.5;
+          else if (viewport.zoom >= 7) baseRadius = isHovered || isSelectedSite ? 7 : 5;
+          else baseRadius = isHovered || isSelectedSite ? 6 : Math.round(4 * densityScale);
           const isMixed = has4G && has5G;
           const radius4G = isMixed ? Math.max(baseRadius, 4) : baseRadius;
           const radius5G = isMixed ? Math.max(Math.round(baseRadius * 0.6), 2.5) : baseRadius;
@@ -5283,15 +5285,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return !showMini;
           });
 
-          const densityScale = circleSites.length > 2000 ? 0.7 : circleSites.length > 800 ? 0.8 : circleSites.length > 400 ? 0.9 : 1;
+          const densityScale = circleSites.length > 2000 ? 0.75 : circleSites.length > 800 ? 0.85 : circleSites.length > 400 ? 0.92 : 1;
 
-          const getRadius = (site: any, isHov: boolean, isSel: boolean) => {
-            const br = viewport.zoom >= 10
-              ? (isHov || isSel ? 7 : 5)
-              : viewport.zoom >= 8
-                ? (isHov || isSel ? 6 : Math.round(4 * densityScale))
-                : (isHov || isSel ? 5 : Math.round(3.5 * densityScale));
-            return br;
+          // Zoom-aware marker sizing: readable at every zoom level
+          const getRadius = (_site: any, isHov: boolean, isSel: boolean) => {
+            let base: number;
+            if (viewport.zoom >= 13) base = 7;
+            else if (viewport.zoom >= 11) base = 6;
+            else if (viewport.zoom >= 9) base = 5.5;
+            else if (viewport.zoom >= 7) base = 5;
+            else if (viewport.zoom >= 5) base = 4;
+            else base = 3.5;
+            base = Math.round(base * densityScale * 10) / 10;
+            if (isSel) return Math.max(base + 3, 8);
+            if (isHov) return Math.max(base + 2, 7);
+            return Math.max(base, 3);
           };
 
           // Pass 1: 4G circles (pane4G — bottom) — skip entirely if filter is 5G-only
@@ -6292,64 +6300,39 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </>
       )}
 
-      {/* Floating info badge — site count + zoom level */}
-      <div className="absolute bottom-6 z-[1000] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`, transform: 'translateX(-50%)' }}>
-        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-5 py-2.5 flex items-center gap-4">
-          {paramMode ? (
-            <>
-              <span className="text-[10px] font-black text-primary uppercase tracking-widest">
-                ⬡ Param: {paramConfirmed}
-              </span>
-              <span className="w-px h-4 bg-border" />
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                {paramPoints.length} points
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                {filteredSites.length} sites
-              </span>
-              <span className="w-px h-4 bg-border" />
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                Zoom {viewport.zoom}
-              </span>
-              <span className="w-px h-4 bg-border" />
-              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: showSectors ? '#10b981' : 'hsl(var(--primary))' }}>
-                {showSectors ? `${visibleSites.length} visible • Sectors` : 'Clusters'}
-              </span>
-              <span className="w-px h-4 bg-border" />
-              {/* Toggle: site names */}
-              <button
-                onClick={() => setShowSiteLabels(v => !v)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
-                  showSiteLabels
-                    ? 'bg-primary/10 text-primary border-primary/30'
-                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {showSiteLabels ? '☑' : '☐'} Noms
-              </button>
-              {/* Toggle: beams */}
-              <button
-                onClick={() => setShowBeamSectors(v => !v)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
-                  showBeamSectors
-                    ? 'bg-primary/10 text-primary border-primary/30'
-                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {showBeamSectors ? '☑' : '☐'} Beams
-              </button>
-            </>
-          )}
-          <span className="w-px h-4 bg-border" />
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className={`w-2 h-2 rounded-full ${filteredSites.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-              {filteredSites.length > 0 ? 'Connected' : 'Disconnected'} • V1.0 Beta • Orange France
-            </span>
-          </div>
+      {/* Compact bottom-right status chip */}
+      <div className="absolute bottom-3 right-3 z-[1000] pointer-events-none transition-all duration-300" style={{ right: showRightPanel && !detailFullscreen ? 462 : 12 }}>
+        <div className="bg-card/90 backdrop-blur-sm border border-border/60 rounded-lg shadow-md px-3 py-1.5 flex items-center gap-2">
+          <div className={`w-1.5 h-1.5 rounded-full ${filteredSites.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+            {filteredSites.length} sites · Z{viewport.zoom} · {showSectors ? `${visibleSites.length} vis` : 'Clusters'}
+          </span>
+        </div>
+      </div>
+
+      {/* Bottom-left quick toggles */}
+      <div className="absolute bottom-3 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 12 }}>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowSiteLabels(v => !v)}
+            className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all border ${
+              showSiteLabels
+                ? 'bg-primary/15 text-primary border-primary/30'
+                : 'bg-card/90 text-muted-foreground border-border/60 hover:text-foreground'
+            }`}
+          >
+            {showSiteLabels ? '☑' : '☐'} Noms
+          </button>
+          <button
+            onClick={() => setShowBeamSectors(v => !v)}
+            className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all border ${
+              showBeamSectors
+                ? 'bg-primary/15 text-primary border-primary/30'
+                : 'bg-card/90 text-muted-foreground border-border/60 hover:text-foreground'
+            }`}
+          >
+            {showBeamSectors ? '☑' : '☐'} Beams
+          </button>
         </div>
       </div>
 
@@ -6366,8 +6349,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }}
       >
         <div
-          className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl flex items-center"
-          style={{ minHeight: 60, height: 60 }}
+          className="bg-card/95 backdrop-blur-xl border border-border/60 rounded-xl shadow-lg flex items-center"
+          style={{ minHeight: 40, height: 40 }}
         >
           {/* Scroll-left button */}
           {toolbarCanScrollLeft && (
@@ -6383,52 +6366,51 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Scrollable KPI zone */}
           <div
             ref={toolbarScrollRef}
-            className="flex-1 overflow-x-auto overflow-y-hidden flex items-center justify-center gap-3 px-4 scrollbar-hide"
+            className="flex-1 overflow-x-auto overflow-y-hidden flex items-center justify-center gap-1.5 px-2.5 scrollbar-hide"
             style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap', scrollbarWidth: 'none' }}
           >
             {/* ── Unified mode selector: QoE / Topo / Parameters ── */}
-            <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
+            <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
               <button
                 onClick={() => { setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
+                className={`px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
                   sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Zap size={11} />
+                <Zap size={10} />
                 QoE
               </button>
               <button
                 onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                className={`px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
                   sectorColorMode === 'topo' && !paramMode && !paramPanelOpen
-                    ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Radio size={11} />
+                <Radio size={10} />
                 Topo
               </button>
               <button
                 onClick={async () => {
                   if (!paramPanelOpen && !paramMode) {
-                    // Entering param mode: save active dashboard but keep filters applied
                     if (activeDashboardId) {
                       await saveDashboardSettings(activeDashboardId);
                     }
                   }
                   setParamPanelOpen(!paramPanelOpen);
                 }}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
+                className={`px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
                   paramMode || paramPanelOpen
-                    ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-md shadow-emerald-500/20'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <MapPin size={11} />
+                <MapPin size={10} />
                 Param
-                {paramConfirmed && <span className="text-[8px] opacity-70">({paramPoints.length})</span>}
+                {paramConfirmed && <span className="text-[7px] opacity-70">({paramPoints.length})</span>}
               </button>
             </div>
 
@@ -6452,10 +6434,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <button
                         key={kpi.id}
                         onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                        className={`px-2 py-1 rounded-md text-[9px] font-bold whitespace-nowrap transition-all ${
                           mapKpi === kpi.id
-                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                         }`}
                         title={kpi.label}
                       >
@@ -6479,10 +6461,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <button
                         key={kpi.id}
                         onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                        className={`px-2 py-1 rounded-md text-[9px] font-bold whitespace-nowrap transition-all ${
                           mapKpi === kpi.id
-                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                         }`}
                         title={kpi.label}
                       >
@@ -6498,15 +6480,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="relative shrink-0">
                   <button
                     onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-                    className={`px-3.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
+                    className={`px-2 py-1 rounded-md text-[9px] font-bold transition-all flex items-center gap-1 border ${
                       ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
                         ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border-transparent'
                     }`}
                   >
-                    <SlidersHorizontal size={12} />
-                    Plus
-                    {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                    <SlidersHorizontal size={10} />
+                    +
+                    {showKpiDropdown ? <ChevronUp size={8} /> : <ChevronDown size={8} />}
                   </button>
                   {showKpiDropdown && (
                     <div className="absolute top-10 right-0 w-[300px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
@@ -6557,7 +6539,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           setEnabledBands(new Set());
                         }
                       }}
-                      className={`px-3 py-2 text-[10px] font-black tracking-wider transition-all ${
+                      className={`px-2 py-1 text-[9px] font-black tracking-wider transition-all ${
                         mapTechnoFilter === tech
                           ? 'bg-primary text-primary-foreground shadow-sm'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -6569,7 +6551,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
 
 
-                <span className="w-px h-7 bg-border/50 shrink-0" />
+                <span className="w-px h-5 bg-border/40 shrink-0" />
 
                 <button
                   onClick={() => {
@@ -6583,33 +6565,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       return next;
                     });
                   }}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                  className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-md shrink-0 flex items-center gap-1 ${
                     mapLabelFields.has('site_name')
                       ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
                   }`}
                 >
-                  <Tag size={12} />
-                  Site Name
+                  <Tag size={10} />
+                  Names
                 </button>
 
-                <span className="w-px h-7 bg-border/50 shrink-0" />
+                <span className="w-px h-5 bg-border/40 shrink-0" />
 
 
                 {/* Network Info right panel toggle */}
                 <button
                   onClick={() => setShowRightPanel(prev => !prev)}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                  className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-md shrink-0 flex items-center gap-1 ${
                     showRightPanel
-                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm shadow-red-500/20'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
                   }`}
                 >
-                  <Signal size={12} />
-                  Network Info
+                  <Signal size={10} />
+                  Info
                 </button>
 
-                <span className="w-px h-7 bg-border/50 shrink-0" />
+                <span className="w-px h-5 bg-border/40 shrink-0" />
 
                 {/* Views / Dashboard toggle */}
                 <button
@@ -6621,13 +6603,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setPanelCollapsed(false);
                     }
                   }}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                  className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-md shrink-0 flex items-center gap-1 ${
                     inventoryTab === 'dashboard' && !panelCollapsed
-                      ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-sm shadow-primary/20'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
                   }`}
                 >
-                  <Layers size={12} />
+                  <Layers size={10} />
                   Views
                 </button>
 
@@ -6635,14 +6617,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <button
                   ref={(el) => { (window as any).__colorViewBtnRef = el; }}
                   onClick={() => setShowColorViewDropdown(!showColorViewDropdown)}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg flex items-center gap-1.5 shrink-0 ${
+                  className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-md flex items-center gap-1 shrink-0 ${
                     colorViewMode !== 'none'
-                      ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm shadow-violet-500/20'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
                   }`}
                 >
-                  <Palette size={12} />
-                  {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Couleur'}
+                  <Palette size={10} />
+                  {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Color'}
                 </button>
               </>
             )}
