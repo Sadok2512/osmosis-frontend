@@ -6617,14 +6617,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <button
                   ref={(el) => { (window as any).__colorViewBtnRef = el; }}
                   onClick={() => setShowColorViewDropdown(!showColorViewDropdown)}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg flex items-center gap-1.5 shrink-0 ${
+                  className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-md flex items-center gap-1 shrink-0 ${
                     colorViewMode !== 'none'
-                      ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm shadow-violet-500/20'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
                   }`}
                 >
-                  <Palette size={12} />
-                  {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Couleur'}
+                  <Palette size={10} />
+                  {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Color'}
                 </button>
               </>
             )}
