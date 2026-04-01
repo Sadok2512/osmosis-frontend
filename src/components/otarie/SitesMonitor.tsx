@@ -395,6 +395,26 @@ const getRenderableCellsForSite = (
   });
 };
 
+const mergeCellsIntoSiteList = (
+  sites: SiteSummary[],
+  cellMap: Map<string, CellProperties[]>,
+  getLookupKeys: (siteLike: { site_id?: string | null; site_name?: string | null }) => string[],
+): SiteSummary[] => sites.map((site) => {
+  const cells = getLookupKeys(site)
+    .map((key) => cellMap.get(key))
+    .find((value): value is CellProperties[] => Array.isArray(value) && value.length > 0);
+
+  if (!cells || cells.length === 0) return site;
+
+  return {
+    ...site,
+    cells,
+    cell_count: Math.max(site.cell_count || 0, cells.length),
+    lte_cells: cells.filter((cell) => is4GTech(cell.techno)).length,
+    nr_cells: cells.filter((cell) => is5GTech(cell.techno)).length,
+  };
+});
+
 /** Build label text for a site based on selected label fields */
 const buildSiteLabel = (site: SiteSummary, fields: Set<string>): string => {
   if (fields.size === 0) return '';
@@ -4304,10 +4324,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         };
 
         // Build a lookup by stable id and normalized site name
-        const cellMap = new Map<string, any[]>();
+        const cellMap = new Map<string, CellProperties[]>();
         for (const cs of cellSites) {
           if (cs.cells && cs.cells.length > 0) {
-            getLookupKeys(cs).forEach(key => cellMap.set(key, cs.cells));
+            getLookupKeys(cs).forEach(key => cellMap.set(key, cs.cells as CellProperties[]));
           }
         }
 
@@ -4331,7 +4351,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               })
             );
             for (const r of batchResults) {
-              if (r.cells.length > 0) cellMap.set(r.siteId, r.cells);
+              if (r.cells.length > 0) cellMap.set(r.siteId, r.cells as CellProperties[]);
             }
             if (queue.length > 0) await new Promise(r => setTimeout(r, DELAY_MS));
           }
@@ -4345,7 +4365,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const lte = site.lte_cells || 0;
             const nr = site.nr_cells || 0;
             if (lte === 0 && nr === 0) continue;
-            const syntheticCells: any[] = [];
+            const syntheticCells: CellProperties[] = [];
             const azimuths = [0, 120, 240]; // standard tri-sector
             // Generate 4G synthetic cells
             if (lte > 0) {
@@ -4401,13 +4421,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           cellLoadAttemptedRef.current.add(s.site_id);
         });
 
-        // Merge cells into sites — keep original cell_count (don't overwrite with 4G/5G-only count)
-        setSites(prev => prev.map(s => {
-          const cells = getLookupKeys(s)
-            .map(key => cellMap.get(key))
-            .find((value): value is any[] => Array.isArray(value) && value.length > 0);
-          return cells && cells.length > 0 ? { ...s, cells } : s;
-        }));
+        setSites(prev => mergeCellsIntoSiteList(prev, cellMap, getLookupKeys));
+        setSearchModeSites(prev => prev.length > 0 ? mergeCellsIntoSiteList(prev, cellMap, getLookupKeys) : prev);
+        setSelectedSiteSnapshot(prev => {
+          if (!prev) return prev;
+          return mergeCellsIntoSiteList([prev], cellMap, getLookupKeys)[0] ?? prev;
+        });
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
         sitesNeedingCells.forEach(s => {
