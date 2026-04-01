@@ -92,6 +92,7 @@ interface SitesMonitorProps {
 // Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
 const SITES_TO_CELLS_ZOOM = 9;
 const CELLS_TO_SITES_ZOOM = 7;
+const CELL_PRELOAD_ZOOM = 8;
 
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
@@ -3693,6 +3694,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bboxTotal, setBboxTotal] = useState<number>(0);
   const [bboxLoading, setBboxLoading] = useState(false);
+  const [cellLoadingCount, setCellLoadingCount] = useState(0);
 
   // Derive current bbox filters from local filter state + backend filter bar
   const backendQueryStr = backendBuildQueryParams();
@@ -3745,6 +3747,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // Clear cell-load tracking so cells reload for new viewport sites
       cellLoadAttemptedRef.current.clear();
       cellLoadingRef.current.clear();
+      setCellLoadingCount(0);
 
       // Preserve the currently selected site if it was added via search and isn't in the new bbox results
       setSites(prev => {
@@ -3772,7 +3775,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
-    }, 450);
+    }, 220);
   }, [fetchForViewport, currentBboxFilters]);
 
   // ── Debounced server-side search (independent of dashboard) ──
@@ -4322,6 +4325,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (prevBboxFiltersRef.current && prevBboxFiltersRef.current !== filterKey) {
       cellLoadAttemptedRef.current.clear();
       cellLoadingRef.current.clear();
+      setCellLoadingCount(0);
       invalidateBboxCache();
     }
     prevBboxFiltersRef.current = filterKey;
@@ -4329,7 +4333,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   useEffect(() => {
     // Load cells when in cells display mode OR when cell-level view conditions are active
-    if (displayMode !== 'cells' && !hasCellLevelConditions) return;
+    const shouldLoadCells = displayMode === 'cells' || hasCellLevelConditions || viewport.zoom >= CELL_PRELOAD_ZOOM;
+    if (!shouldLoadCells) return;
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
@@ -4342,6 +4347,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     cellLoadDebounceRef.current = setTimeout(async () => {
       // Mark all as loading
       sitesNeedingCells.forEach(s => cellLoadingRef.current.add(s.site_id));
+      setCellLoadingCount(cellLoadingRef.current.size);
 
       try {
         const bounds = viewport.bounds!;
@@ -4377,9 +4383,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         // Fallback: if bulk load returns nothing, load per-site but capped & throttled
         if (cellMap.size === 0 && sitesNeedingCells.length > 0) {
-          const MAX_FALLBACK = 30; // Load up to 30 individual sites
-          const CONCURRENCY = 5;
-          const DELAY_MS = 500; // pause between batches
+          const MAX_FALLBACK = 36; // Load more sites, faster, when bulk API returns empty
+          const CONCURRENCY = 8;
+          const DELAY_MS = 120;
           const queue = sitesNeedingCells.slice(0, MAX_FALLBACK);
 
           while (queue.length > 0) {
@@ -4490,6 +4496,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           cellLoadingRef.current.delete(s.site_id);
           cellLoadAttemptedRef.current.add(s.site_id);
         });
+        setCellLoadingCount(cellLoadingRef.current.size);
 
         setSites(prev => mergeCellsIntoSiteList(prev, cellMap, getLookupKeys));
         setSearchModeSites(prev => prev.length > 0 ? mergeCellsIntoSiteList(prev, cellMap, getLookupKeys) : prev);
@@ -4503,15 +4510,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           cellLoadingRef.current.delete(s.site_id);
           cellLoadAttemptedRef.current.add(s.site_id);
         });
+        setCellLoadingCount(cellLoadingRef.current.size);
         // Force re-render so filters re-evaluate with attempted flags
         setSites(prev => [...prev]);
       }
-    }, 400);
+    }, 120);
 
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, currentBboxFilters]);
+  }, [displayMode, visibleSites, viewport.bounds, viewport.zoom, hasCellLevelConditions, currentBboxFilters]);
 
 
   const renderSites = useMemo(() => {
@@ -4871,6 +4879,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     </div>
   ) : null;
 
+  const cellsLoadingOverlay = cellLoadingCount > 0 ? (
+    <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[1099] pointer-events-none animate-fade-in">
+      <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg">
+        <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          Chargement des cellules… {cellLoadingCount.toLocaleString()} site{cellLoadingCount > 1 ? 's' : ''}
+        </p>
+      </div>
+    </div>
+  ) : null;
+
   // Detail loading is now handled inline — no full-screen takeover
 
   // No early return for siteDetail — rendered as right panel inside the main view
@@ -4879,6 +4898,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
+      {cellsLoadingOverlay}
       {/* Empty state — no dashboard, modal closed */}
       {/* Empty overlay removed — message now in sidebar */}
       {/* Bbox loading indicator */}
@@ -7848,6 +7868,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     invalidateSiteCellsCache();
                     cellLoadingRef.current.clear();
                     cellLoadAttemptedRef.current.clear();
+                    setCellLoadingCount(0);
 
                     // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
                     setActiveSiteScope(nextScope);
@@ -7921,6 +7942,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       invalidateSiteCellsCache();
                       cellLoadingRef.current.clear();
                       cellLoadAttemptedRef.current.clear();
+                      setCellLoadingCount(0);
                     }
 
                     setSelectedSiteId(null);
