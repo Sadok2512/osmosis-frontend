@@ -420,25 +420,25 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   return (
     <div className="sticky top-0 z-30">
       {/* ═══ LAYER 1: HEADER — Branding ═══ */}
-      <div className="bg-card border-b border-border/60">
-        <div className="max-w-[1600px] mx-auto px-6 h-14 flex items-center justify-between">
+      <div className="bg-card/80 backdrop-blur-md border-b border-border/40 shadow-sm">
+        <div className="max-w-[1600px] mx-auto px-6 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-              <Settings2 className="w-4.5 h-4.5 text-primary" />
+            <div className="w-7 h-7 bg-gradient-to-br from-primary/20 to-primary/5 rounded-lg flex items-center justify-center ring-1 ring-primary/20">
+              <Settings2 className="w-4 h-4 text-primary" />
             </div>
             <div className="leading-tight">
-              <h1 className="text-sm font-bold text-foreground tracking-tight">QOEBIT Investigator</h1>
-              <p className="text-[10px] text-muted-foreground font-medium tracking-wide">KPI Investigation & Root Cause Analysis</p>
+              <h1 className="text-[13px] font-extrabold text-foreground tracking-tight">Investigator</h1>
+              <p className="text-[9px] text-muted-foreground font-medium tracking-wide leading-none">Root Cause Analysis</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-green-600 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/15">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[9px] font-bold uppercase tracking-wider">Live</span>
+            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/8 border border-emerald-500/15">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              <span className="text-[8px] font-bold uppercase tracking-widest">Live</span>
             </div>
             <button onClick={onToggleAIPanel}
               className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all',
-                showAIPanel ? 'bg-cyan-600 text-white shadow-md' : 'bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 border border-cyan-500/20')}>
+                showAIPanel ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'bg-primary/8 text-primary hover:bg-primary/15 border border-primary/15')}>
               <Sparkles className="w-3.5 h-3.5" />
               TRACE AI
             </button>
@@ -447,8 +447,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       </div>
 
       {/* ═══ LAYER 2: TOOLBAR — Actions & Date Controls ═══ */}
-      <div className="bg-secondary/50 border-b border-border/50">
-        <div className="max-w-[1600px] mx-auto px-6 py-2">
+      <div className="bg-muted/30 border-b border-border/30">
+        <div className="max-w-[1600px] mx-auto px-6 py-1.5">
           <div className="flex items-center gap-3">
             {/* Date range */}
             <div className="flex items-center gap-1.5 shrink-0">
@@ -572,8 +572,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       </div>
 
       {/* ═══ LAYER 3: KPI / FILTERS — Niveau, KPIs, Filters ═══ */}
-      <div className="bg-card border-b border-border/40">
-        <div className="max-w-[1600px] mx-auto px-6 py-3 space-y-2.5">
+      <div className="bg-card/60 backdrop-blur-sm border-b border-border/30">
+        <div className="max-w-[1600px] mx-auto px-6 py-2.5 space-y-2">
           {/* Row A: KPI Level + Profile/Neighbor filters */}
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2 shrink-0">
