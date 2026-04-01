@@ -247,28 +247,38 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
           {/* ═══ Left Sidebar: Filters ═══ */}
           <div className="w-[200px] shrink-0 border-r border-border bg-muted/10 flex flex-col overflow-hidden">
 
-            {/* Header row */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">Filtres</span>
+            <div className="px-3 py-2 border-b border-border/40">
+              <div className="flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5 text-primary" />
+                <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">Filtres</span>
+                {(filterVendor || filterTechno || showFavOnly) && (
+                  <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[8px] font-bold flex items-center justify-center ml-auto">
+                    {[filterVendor, filterTechno].filter(Boolean).length + (showFavOnly ? 1 : 0)}
+                  </span>
+                )}
+              </div>
             </div>
 
-            <ScrollArea className="flex-1">
+            <div className="flex-1 overflow-y-auto scrollbar-hide">
 
               {/* Favoris */}
-              <div className="border-b border-border/30 py-2 px-2">
+              <div className="border-b border-border/30">
                 <button
                   onClick={() => { setShowFavOnly(!showFavOnly); if (!showFavOnly) setActiveFamily(null); }}
                   className={cn(
-                    'w-full flex items-center gap-2 px-3 py-[6px] rounded-[4px] text-[12px] font-medium transition-all',
-                    showFavOnly ? 'bg-emerald-600 text-white' : 'text-foreground/80 hover:bg-muted/50'
+                    'w-full flex items-center gap-2 px-3 py-2.5 transition-colors',
+                    showFavOnly ? 'bg-amber-500/10' : 'hover:bg-muted/30'
                   )}
                 >
-                  <Star className={cn('w-3.5 h-3.5', showFavOnly ? 'fill-white text-white' : 'text-muted-foreground/50')} />
-                  <span>FAVORIS</span>
-                  <span className={cn('ml-auto text-[11px] tabular-nums', showFavOnly ? 'text-white/75' : 'text-muted-foreground')}>
-                    {favorites.length}
+                  <Star className={cn('w-3.5 h-3.5', showFavOnly ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground')} />
+                  <span className={cn('text-[10px] font-bold uppercase tracking-wider', showFavOnly ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>
+                    Favoris
                   </span>
+                  {favorites.length > 0 && (
+                    <span className="ml-auto text-[8px] font-bold text-muted-foreground bg-muted rounded-full w-4 h-4 flex items-center justify-center">
+                      {favorites.length}
+                    </span>
+                  )}
                 </button>
               </div>
 
@@ -294,7 +304,19 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                 ))}
               </CollapsibleSection>
 
-            </ScrollArea>
+            </div>
+
+            {/* Clear filters */}
+            {(filterVendor || filterTechno || showFavOnly) && (
+              <div className="px-3 py-2 border-t border-border/40">
+                <button
+                  onClick={() => { setFilterVendor(''); setFilterTechno(''); setShowFavOnly(false); setActiveFamily(null); }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-bold text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" /> Effacer les filtres
+                </button>
+              </div>
+            )}
           </div>
 
           {/* ═══ Middle Sidebar: Categories ═══ */}
