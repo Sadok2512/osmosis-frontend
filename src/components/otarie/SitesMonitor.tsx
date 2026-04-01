@@ -3800,7 +3800,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       // Preserve the currently selected site if it was added via search and isn't in the new bbox results
       setSites(prev => {
-        const nextSites = preserveLoadedCellsInSites(newSites, prev);
+        const shouldPreservePreviousSites = newSites.length === 0 && total === 0 && prev.length > 0;
+        const nextSites = shouldPreservePreviousSites
+          ? prev
+          : preserveLoadedCellsInSites(newSites, prev);
         const selectedId = selectedSiteIdRef.current;
         const selectedSite = selectedId ? prev.find(s => s.site_id === selectedId) : null;
         if (selectedSite && !nextSites.some(s => s.site_id === selectedId)) {
