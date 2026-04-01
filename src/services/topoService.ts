@@ -639,7 +639,19 @@ export async function fetchSitesByBbox(
     }
 
     const filtered4G5G = filterSites4G5G(sites);
-    bboxCache = { key, sites: filtered4G5G, total: filtered4G5G.length };
+    if (filtered4G5G.length === 0) {
+      const allSites = await fetchTopoSites();
+      const fallbackSites = filterSitesLocally(allSites, { bbox, filters });
+      if (fallbackSites.length > 0) {
+        console.log(`[TopoService] BBOX fallback after empty VPS response: ${fallbackSites.length}/${allSites.length} local sites`);
+        bboxCache = { key, sites: fallbackSites, total: fallbackSites.length };
+        return { sites: fallbackSites, total: fallbackSites.length };
+      }
+    }
+
+    if (filtered4G5G.length > 0) {
+      bboxCache = { key, sites: filtered4G5G, total: filtered4G5G.length };
+    }
     const withQoe = filtered4G5G.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
     console.log(`[TopoService] BBOX: ${filtered4G5G.length}/${resp.total} sites (${withQoe} with live QoE)`);
     return { sites: filtered4G5G, total: filtered4G5G.length };
@@ -865,6 +877,24 @@ export async function fetchDashboardSites(
   if (siteFilters?.bande?.length) bboxFilters.bande = siteFilters.bande.join(',');
   if (search) bboxFilters.q = search;
 
+  const getLocalDashboardFallback = async (): Promise<SiteSummary[]> => {
+    const fallbackSites = filterSitesLocally(await fetchTopoSites(), {
+      dashboardFilters: siteFilters,
+      search,
+    });
+
+    if (onProgressiveBatch && fallbackSites.length > 0) {
+      onProgressiveBatch(fallbackSites);
+    }
+
+    console.log(`[TopoService] Dashboard sites: ${fallbackSites.length} sites via embedded fallback`);
+    if (fallbackSites.length > 0) {
+      dashboardSitesCache = { key, sites: fallbackSites, ts: Date.now() };
+    }
+
+    return fallbackSites;
+  };
+
   // 1) Try VPS — progressive: show sites immediately, then enrich with QoE
   try {
     const fullWorldBbox = { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 };
@@ -879,6 +909,10 @@ export async function fetchDashboardSites(
       .filter((site): site is SiteSummary => site !== null);
 
     const filteredSites = filterSites4G5G(rawSites);
+
+    if (filteredSites.length === 0) {
+      return await getLocalDashboardFallback();
+    }
 
     // Progressive: push raw sites immediately so map renders them
     if (onProgressiveBatch && filteredSites.length > 0) {
@@ -946,6 +980,10 @@ export async function fetchDashboardSites(
         return applyQoeData(site, qoeData);
       });
 
+    if (sites.length === 0) {
+      return await getLocalDashboardFallback();
+    }
+
     console.log(`[TopoService] Dashboard sites: ${sites.length} sites via RPC`);
     if (sites.length > 0) {
       dashboardSitesCache = { key, sites, ts: Date.now() };
@@ -953,20 +991,7 @@ export async function fetchDashboardSites(
     return sites;
   } catch (err) {
     console.warn('[TopoService] Dashboard RPC also failed', err);
-    const fallbackSites = filterSitesLocally(await fetchTopoSites(), {
-      dashboardFilters: siteFilters,
-      search,
-    });
-
-    if (onProgressiveBatch && fallbackSites.length > 0) {
-      onProgressiveBatch(fallbackSites);
-    }
-
-    console.log(`[TopoService] Dashboard sites: ${fallbackSites.length} sites via embedded fallback`);
-    if (fallbackSites.length > 0) {
-      dashboardSitesCache = { key, sites: fallbackSites, ts: Date.now() };
-    }
-    return fallbackSites;
+    return await getLocalDashboardFallback();
   }
 }
 
