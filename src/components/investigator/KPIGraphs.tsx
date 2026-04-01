@@ -3,6 +3,7 @@ import ReactECharts from 'echarts-for-react';
 import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType } from './types';
 import CounterSelectorModal from './CounterSelectorModal';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
