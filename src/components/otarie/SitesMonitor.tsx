@@ -4375,7 +4375,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 for (let b = 0; b < bandsPerSector && b < defaultBands4G.length; b++) {
                   syntheticCells.push({
                     cell_id: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
-                    cell_name: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
                     techno: '4G',
                     bande: defaultBands4G[b],
                     vendor: site.vendor || 'Unknown',
@@ -4396,7 +4395,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 for (let b = 0; b < bandsPerSector5G && b < defaultBands5G.length; b++) {
                   syntheticCells.push({
                     cell_id: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
-                    cell_name: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
                     techno: '5G',
                     bande: defaultBands5G[b],
                     vendor: site.vendor || 'Unknown',
