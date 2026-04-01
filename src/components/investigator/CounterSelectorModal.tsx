@@ -320,162 +320,156 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
           </div>
 
           {/* ═══ Middle Sidebar: Categories ═══ */}
-          <div className="w-[230px] shrink-0 border-r border-border flex flex-col bg-card">
-            <div className="px-4 py-3 border-b border-border">
-              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-foreground">Catégories</span>
+          <div className="w-[180px] shrink-0 border-r border-border bg-muted/20 overflow-y-auto">
+            <div className="p-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
+                Catégories
+              </p>
+              <button
+                onClick={() => { setActiveFamily(null); setShowFavOnly(false); }}
+                className={cn(
+                  'w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all',
+                  activeFamily === null ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
+                )}
+              >
+                <span>Tous</span>
+                <span className={cn('text-[9px]', activeFamily === null ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                  {totalFiltered}
+                </span>
+              </button>
+              {Array.from(familyCategories.entries())
+                .sort((a, b) => b[1] - a[1])
+                .map(([fam, count]) => (
+                  <button
+                    key={fam}
+                    onClick={() => { setActiveFamily(activeFamily === fam ? null : fam); setShowFavOnly(false); }}
+                    className={cn(
+                      'w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all',
+                      activeFamily === fam ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
+                    )}
+                  >
+                    <span className="truncate">{fam}</span>
+                    <span className={cn('text-[9px] shrink-0 ml-1', activeFamily === fam ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                      {count}
+                    </span>
+                  </button>
+                ))}
             </div>
-
-            <ScrollArea className="flex-1">
-              <div className="py-1.5 px-1.5 space-y-[2px]">
-                {/* Tous */}
-                <CategoryListItem
-                  label="Tous"
-                  active={activeFamily === null && !showFavOnly}
-                  count={totalFiltered}
-                  onClick={() => { setActiveFamily(null); setShowFavOnly(false); }}
-                />
-
-                <div className="mx-2 my-1 border-t border-border/30" />
-
-                {/* Family list */}
-                {Array.from(familyCategories.entries())
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([fam, count]) => (
-                    <CategoryListItem
-                      key={fam}
-                      label={fam}
-                      active={activeFamily === fam}
-                      count={count}
-                      onClick={() => { setActiveFamily(activeFamily === fam ? null : fam); setShowFavOnly(false); }}
-                    />
-                  ))}
-              </div>
-            </ScrollArea>
           </div>
 
           {/* ═══ Right Panel: Counter List ═══ */}
-          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-
+          <div className="flex-1 flex flex-col overflow-hidden">
             {/* Search */}
-            <div className="px-4 py-2.5 border-b border-border flex items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="px-3 py-2 border-b border-border">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Rechercher un counter..."
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-[12px] outline-none focus:ring-1 focus:ring-emerald-500/40 transition-all"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                   autoFocus
                 />
               </div>
-              <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">{filteredCatalog.length} counters</span>
-            </div>
-
-            {/* Info bar */}
-            <div className="px-4 py-1.5 border-b border-border/40 bg-muted/10 flex items-center justify-between">
-              <p className="text-[11px] text-muted-foreground">
-                <span className="font-bold text-foreground">{selected.size}</span> sélectionné(s)
-                {isLoading && <span className="ml-2 animate-pulse">chargement...</span>}
-                {!isLoading && filteredCatalog.length > 200 && !search && (
-                  <span className="ml-2">— tapez pour rechercher ou filtrez</span>
-                )}
-              </p>
-              {selected.size > 0 && (
-                <button onClick={resetSelection} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors">
-                  <RotateCcw className="w-3 h-3" /> Reset
-                </button>
-              )}
             </div>
 
             {/* Items */}
-            <ScrollArea className="flex-1">
-              <div className="px-2 py-1">
-                {isLoading ? (
-                  <div className="flex items-center justify-center h-40 text-xs text-muted-foreground animate-pulse">Chargement...</div>
-                ) : filteredCatalog.length === 0 ? (
-                  <div className="flex items-center justify-center h-40 text-xs text-muted-foreground">Aucun résultat</div>
-                ) : (
-                  <>
-                    {(filteredCatalog.length > 200 && !search ? filteredCatalog.slice(0, 200) : filteredCatalog).map(c => {
-                      const isSelected = selected.has(c.counter_name);
-                      const isFav = favorites.includes(c.counter_name);
-                      return (
-                        <div
-                          key={c.counter_name}
-                          className={cn(
-                            'flex items-center gap-2.5 px-3 py-[6px] rounded-lg transition-all mb-[2px] group',
-                            isSelected
-                              ? 'bg-emerald-500/10 border border-emerald-500/25'
-                              : 'hover:bg-muted/40 border border-transparent'
-                          )}
+            <div className="flex-1 overflow-y-auto px-3 py-1">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-32 text-xs text-muted-foreground animate-pulse">Chargement...</div>
+              ) : filteredCatalog.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-32 gap-2">
+                  <span className="text-xs text-muted-foreground">Aucun résultat</span>
+                  {(filterVendor || filterTechno || showFavOnly) && (
+                    <button onClick={() => { setFilterVendor(''); setFilterTechno(''); setShowFavOnly(false); setActiveFamily(null); }} className="text-[10px] text-primary hover:underline">Effacer les filtres</button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {filteredCatalog.length > 200 && !search && (
+                    <div className="flex items-center justify-center py-3 mb-1 rounded-lg bg-muted/30 border border-border/30">
+                      <p className="text-[10px] text-muted-foreground">
+                        {filteredCatalog.length} counters — <span className="font-semibold text-foreground">tapez pour rechercher</span> ou filtrez par catégorie/vendor
+                      </p>
+                    </div>
+                  )}
+                  {(filteredCatalog.length > 200 && !search ? filteredCatalog.slice(0, 200) : filteredCatalog).map(c => {
+                    const isSelected = selected.has(c.counter_name);
+                    const isFav = favorites.includes(c.counter_name);
+                    return (
+                      <div
+                        key={c.counter_name}
+                        className={cn(
+                          'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all mb-px',
+                          isSelected ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted border border-transparent'
+                        )}
+                      >
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleFavorite(c.counter_name); }}
+                          className="shrink-0 p-0.5 rounded hover:bg-muted/50 transition-colors"
+                          title={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                         >
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleFavorite(c.counter_name); }}
-                            className="shrink-0 p-0.5 rounded hover:bg-muted/50 transition-colors"
-                          >
-                            <Star className={cn(
-                              'w-3.5 h-3.5 transition-colors',
-                              isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/20 group-hover:text-muted-foreground/40'
-                            )} />
-                          </button>
+                          <Star className={cn('w-3 h-3', isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/40 hover:text-amber-400')} />
+                        </button>
 
-                          <button onClick={() => toggle(c.counter_name)} className="flex-1 flex items-center gap-3 text-left min-w-0">
-                            <div className={cn(
-                              'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
-                              isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-border/70'
-                            )}>
-                              {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
-                            </div>
-                            <span className="flex-1 text-[11px] font-medium text-foreground truncate font-mono">{c.counter_name}</span>
-                            <div className="flex items-center gap-1 shrink-0">
-                              {c.vendor && (
-                                <span className={cn(
-                                  'text-[9px] px-1.5 py-[2px] rounded font-medium',
-                                  c.vendor === 'Ericsson' ? 'bg-blue-500/10 text-blue-500' : 'bg-orange-500/10 text-orange-500'
-                                )}>{c.vendor}</span>
-                              )}
-                              {c.techno && (
-                                <span className="text-[9px] px-1.5 py-[2px] rounded bg-purple-500/10 text-purple-500 font-medium">{c.techno}</span>
-                              )}
-                              {c.family && (
-                                <span className="text-[9px] px-1.5 py-[2px] rounded bg-muted text-muted-foreground truncate max-w-[120px]">{c.family}</span>
-                              )}
-                            </div>
-                          </button>
-                        </div>
-                      );
-                    })}
-                    {filteredCatalog.length > 200 && !search && (
-                      <div className="text-center py-3 text-[10px] text-muted-foreground">
-                        Affichage limité à 200 — utilisez la recherche
+                        <button onClick={() => toggle(c.counter_name)} className="flex-1 flex items-center gap-2.5 text-left min-w-0">
+                          <div className={cn(
+                            'w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
+                            isSelected ? 'bg-primary border-primary' : 'border-border'
+                          )}>
+                            {isSelected && <Check className="w-2 h-2 text-primary-foreground" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-medium text-foreground truncate font-mono">{c.counter_name}</p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {c.vendor && (
+                              <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">{c.vendor}</span>
+                            )}
+                            {c.techno && (
+                              <span className="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">{c.techno}</span>
+                            )}
+                            {c.family && (
+                              <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono truncate max-w-[100px]">{c.family}</span>
+                            )}
+                          </div>
+                        </button>
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </ScrollArea>
+                    );
+                  })}
+                  {filteredCatalog.length > 200 && !search && (
+                    <div className="text-center py-2 text-[9px] text-muted-foreground">
+                      Affichage limité à 200 — utilisez la recherche
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-card shrink-0">
-          <div className="flex flex-wrap gap-1.5 max-w-[550px] overflow-hidden">
-            {Array.from(selected).slice(0, 6).map(key => {
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-card">
+          <div className="flex flex-wrap gap-1 max-w-[600px] overflow-hidden">
+            {Array.from(selected).slice(0, 8).map(key => {
               const c = catalog.find(x => x.counter_name === key);
               return (
-                <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-[10px] font-semibold font-mono">
+                <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold font-mono">
                   {c?.display_name || key}
                   <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
                 </span>
               );
             })}
-            {selected.size > 6 && <span className="text-[10px] text-muted-foreground self-center">+{selected.size - 6} autres</span>}
+            {selected.size > 8 && <span className="text-[9px] text-muted-foreground self-center">+{selected.size - 8} autres</span>}
           </div>
-          <div className="flex items-center gap-2.5">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-[12px] font-medium text-muted-foreground hover:bg-muted transition-colors">
+          <div className="flex items-center gap-2">
+            <button onClick={resetSelection} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-[10px] font-medium text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors">
+              <RotateCcw className="w-3 h-3" /> Reset
+            </button>
+            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
               Fermer
             </button>
-            <button onClick={handleConfirm} className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-[12px] font-bold hover:bg-emerald-700 transition-colors">
+            <button onClick={handleConfirm} className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity">
               Ok ({selected.size})
             </button>
           </div>
