@@ -549,6 +549,78 @@ const CustomPointClickHandler: React.FC<{ active: boolean; onAdd: (lat: number, 
   return null;
 };
 
+// Right-click box zoom: hold right mouse button and drag to draw a rectangle, then zoom to it
+const RightClickBoxZoom: React.FC = () => {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    let startPoint: L.Point | null = null;
+    let box: HTMLDivElement | null = null;
+
+    const onContextMenu = (e: Event) => e.preventDefault();
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 2) return; // right-click only
+      e.preventDefault();
+      e.stopPropagation();
+      map.dragging.disable();
+      const rect = container.getBoundingClientRect();
+      startPoint = L.point(e.clientX - rect.left, e.clientY - rect.top);
+      box = document.createElement('div');
+      Object.assign(box.style, {
+        position: 'absolute',
+        border: '2px dashed hsl(210,80%,55%)',
+        background: 'hsla(210,80%,55%,0.15)',
+        pointerEvents: 'none',
+        zIndex: '9999',
+      });
+      container.appendChild(box);
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!startPoint || !box) return;
+      const rect = container.getBoundingClientRect();
+      const cur = L.point(e.clientX - rect.left, e.clientY - rect.top);
+      const x = Math.min(startPoint.x, cur.x);
+      const y = Math.min(startPoint.y, cur.y);
+      const w = Math.abs(cur.x - startPoint.x);
+      const h = Math.abs(cur.y - startPoint.y);
+      Object.assign(box.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+      if (!startPoint || !box) return;
+      const rect = container.getBoundingClientRect();
+      const endPoint = L.point(e.clientX - rect.left, e.clientY - rect.top);
+      box.remove();
+      box = null;
+      map.dragging.enable();
+      const dx = Math.abs(endPoint.x - startPoint.x);
+      const dy = Math.abs(endPoint.y - startPoint.y);
+      if (dx > 20 && dy > 20) {
+        const sw = map.containerPointToLatLng(L.point(Math.min(startPoint.x, endPoint.x), Math.max(startPoint.y, endPoint.y)));
+        const ne = map.containerPointToLatLng(L.point(Math.max(startPoint.x, endPoint.x), Math.min(startPoint.y, endPoint.y)));
+        map.fitBounds(L.latLngBounds(sw, ne));
+      }
+      startPoint = null;
+    };
+
+    container.addEventListener('contextmenu', onContextMenu);
+    container.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      container.removeEventListener('contextmenu', onContextMenu);
+      container.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      map.dragging.enable();
+    };
+  }, [map]);
+  return null;
+};
+
 const losTargetIcon = L.divIcon({
   className: '',
   html: `<div style="width:14px;height:14px;border-radius:50%;background:hsl(0,84%,60%);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
@@ -4753,6 +4825,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
         <CustomPointClickHandler active={pointCreationMode} onAdd={addCustomPoint} />
+        <RightClickBoxZoom />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
