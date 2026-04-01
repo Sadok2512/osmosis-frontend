@@ -522,9 +522,8 @@ export async function fetchSitesByBbox(
     return { sites: filtered4G5G, total: filtered4G5G.length };
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
-    console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
-    const allSites = await fetchTopoSites();
-    return { sites: allSites, total: allSites.length };
+    console.warn('[TopoService] BBOX fetch failed (VPS only, no fallback)', err);
+    return { sites: [], total: 0 };
   }
 }
 
