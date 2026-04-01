@@ -3746,18 +3746,46 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       let total: number;
 
       if (needCells) {
-        // Single call: fetch sites WITH cells for sector rendering
-        const cellSites = await fetchCellsByBbox(bbox, bboxFilters, controller.signal);
+        // Parallel: fetch ALL sites + fetch sites-with-cells, then merge
+        const [siteResult, cellSites] = await Promise.all([
+          fetchSitesByBbox(bbox, bboxFilters, controller.signal),
+          fetchCellsByBbox(bbox, bboxFilters, controller.signal),
+        ]);
         if (controller.signal.aborted) return;
-        newSites = cellSites;
-        total = cellSites.length;
-        // Mark all as cell-loaded so the cell effect doesn't re-fetch
+
+        // Build cell lookup from the cells endpoint
+        const cellMap = new Map<string, SiteSummary>();
+        for (const cs of cellSites) {
+          cellMap.set(cs.site_id, cs);
+          if (cs.site_name) cellMap.set(cs.site_name, cs);
+        }
+
+        // Start with all sites from the sites endpoint, enrich with cells
+        const allSites = (siteResult.sites || []).map(site => {
+          const withCells = cellMap.get(site.site_id) || cellMap.get(site.site_name);
+          if (withCells && withCells.cells.length > 0) {
+            return { ...site, cells: withCells.cells, cell_count: Math.max(site.cell_count, withCells.cells.length), lte_cells: withCells.lte_cells, nr_cells: withCells.nr_cells };
+          }
+          return site;
+        });
+
+        // Add any cell-sites that weren't in the sites list
+        const siteIdSet = new Set(allSites.map(s => s.site_id));
+        for (const cs of cellSites) {
+          if (!siteIdSet.has(cs.site_id)) allSites.push(cs);
+        }
+
+        newSites = allSites;
+        total = siteResult.total || allSites.length;
+
+        // Mark sites with cells as attempted so the cell effect skips them
         cellLoadAttemptedRef.current.clear();
         cellLoadingRef.current.clear();
         setCellLoadingCount(0);
         newSites.forEach(s => {
           if (s.cells.length > 0) cellLoadAttemptedRef.current.add(s.site_id);
         });
+        console.log(`[SitesMonitor] Viewport cells: ${cellSites.length} sites with cells, ${newSites.length} total sites, ${newSites.filter(s => s.cells.length > 0).length} enriched`);
       } else {
         // Low zoom: fetch site summaries only
         const result = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
