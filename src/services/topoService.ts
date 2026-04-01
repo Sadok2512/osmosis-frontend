@@ -306,7 +306,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
         r,
       );
     }).filter(c => {
-      const key = c.cell_id || c.cell_name;
+      const key = c.cell_id;
       if (cellsSeen.has(key)) return false;
       cellsSeen.add(key);
       return true;
