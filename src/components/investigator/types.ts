@@ -130,4 +130,7 @@ export interface KpiDefinition {
   color: string;
   thresholds: { warning: number; critical: number };
   higherIsBetter: boolean;
+  dimension_type?: string | null;
+  dimension_prefix?: string | null;
+  counter_count?: number;
 }

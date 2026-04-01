@@ -12,6 +12,11 @@ interface CounterDef {
   vendor: string;
   techno: string;
   object_type: string;
+  object_type_normalized?: string;
+  dimension_type?: string | null;
+  dimension_prefix?: string | null;
+  is_in_kpi?: boolean;
+  kpi_usage_count?: number;
   count: number;
 }
 
@@ -52,6 +57,16 @@ interface Props {
   dateTo: string;
 }
 
+const DIMENSION_LABELS: Record<string, string> = {
+  PMQAP: 'QCI Profile (PMQAP)',
+  NEIGHBOR: 'Neighbor Cell',
+  CA_REL: 'CA Relation',
+  RANSHARE: 'RAN Sharing (PLMN)',
+  SLICE: 'Network Slice (NSSAI)',
+  TRANSPORT: 'Transport Link',
+  FLEX: 'Flex Counter',
+};
+
 const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   const [catalog, setCatalog] = React.useState<CounterDef[]>([]);
   const [selectedCounters, setSelectedCounters] = React.useState<string[]>([]);
@@ -59,21 +74,54 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   const [loading, setLoading] = React.useState(false);
   const [selectorOpen, setSelectorOpen] = React.useState(false);
   const [splitByDimension, setSplitByDimension] = React.useState(false);
+  const [dimensionFilter, setDimensionFilter] = React.useState<string>('');
+
+  // Detect if selected counters have dimensions
+  const selectedDimensions = useMemo(() => {
+    const dims = new Set<string>();
+    for (const name of selectedCounters) {
+      const def = catalog.find(c => c.counter_name === name);
+      if (def?.dimension_type) dims.add(def.dimension_type);
+    }
+    return dims;
+  }, [selectedCounters, catalog]);
+
+  const hasDimensionalCounters = selectedDimensions.size > 0;
+  const primaryDimension = hasDimensionalCounters ? Array.from(selectedDimensions)[0] : null;
+  const primaryPrefix = primaryDimension ? catalog.find(c => c.dimension_type === primaryDimension)?.dimension_prefix || '' : '';
 
   // Load catalog
   React.useEffect(() => {
     fetchCounterCatalog().then(setCatalog);
   }, []);
 
+  // Reset dimension filter when selection changes
+  React.useEffect(() => {
+    setDimensionFilter('');
+  }, [selectedCounters.join(',')]);
+
   // Fetch timeseries when selection changes
   React.useEffect(() => {
     if (selectedCounters.length === 0) { setTsData([]); return; }
     setLoading(true);
-    fetchCounterTimeseries(selectedCounters, dateFrom, dateTo, '1d', splitByDimension).then(data => {
-      setTsData(data);
+    const body: any = {
+      counter_names: selectedCounters,
+      date_from: dateFrom,
+      date_to: dateTo,
+      granularity: '1d',
+      split_by_dimension: splitByDimension,
+    };
+    if (dimensionFilter) body.dimension_filter = [dimensionFilter];
+
+    fetch(getApiUrl('pm/counters/timeseries'), {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify(body),
+    }).then(r => r.ok ? r.json() : { series: [] }).then(data => {
+      setTsData(data.series || []);
       setLoading(false);
-    });
-  }, [selectedCounters.join(','), dateFrom, dateTo, splitByDimension]);
+    }).catch(() => { setTsData([]); setLoading(false); });
+  }, [selectedCounters.join(','), dateFrom, dateTo, splitByDimension, dimensionFilter]);
 
   const removeCounter = (name: string) => {
     setSelectedCounters(prev => prev.filter(c => c !== name));
@@ -160,7 +208,8 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
           return (
             <div key={name} className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-lg text-[10px] font-bold border border-border/50 bg-card shadow-sm">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-              <span className="font-mono">{def?.display_name || name}</span>
+              <span>{def?.display_name && def.display_name !== def.counter_name ? def.display_name : name}</span>
+              {def?.dimension_type && <span className="text-[8px] text-amber-600 font-normal px-1 py-0.5 rounded bg-amber-500/10">{def.dimension_type}</span>}
               {def && <span className="text-[8px] text-muted-foreground font-normal px-1 py-0.5 rounded bg-muted">{def.family}</span>}
               <button onClick={() => removeCounter(name)} className="p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors ml-0.5">
                 <X className="w-3 h-3" />
@@ -174,21 +223,35 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
         >
           <Plus className="w-3.5 h-3.5" /> Add Counter
         </button>
-        {selectedCounters.some(name => {
-          const def = catalog.find(c => c.counter_name === name);
-          return def && DIMENSIONAL_TYPES.includes(def.object_type);
-        }) && (
-          <button
-            onClick={() => setSplitByDimension(!splitByDimension)}
-            className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
-              splitByDimension
-                ? "bg-orange-500/15 text-orange-500 border border-orange-500/30"
-                : "border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30"
-            )}
-          >
-            Split by Dimension {splitByDimension ? "ON" : "OFF"}
-          </button>
+        {hasDimensionalCounters && (
+          <>
+            <button
+              onClick={() => setSplitByDimension(!splitByDimension)}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
+                splitByDimension
+                  ? "bg-orange-500/15 text-orange-500 border border-orange-500/30"
+                  : "border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              )}
+            >
+              Split by Dimension {splitByDimension ? "ON" : "OFF"}
+            </button>
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/5">
+              <span className="text-[9px] font-bold text-amber-600">{DIMENSION_LABELS[primaryDimension!] || primaryDimension}</span>
+              <input
+                type="text"
+                value={dimensionFilter}
+                onChange={e => setDimensionFilter(e.target.value)}
+                placeholder={`e.g. ${primaryPrefix}1`}
+                className="w-[120px] px-1.5 py-0.5 text-[10px] rounded border border-border bg-background outline-none focus:ring-1 focus:ring-amber-500/30"
+              />
+              {dimensionFilter && (
+                <button onClick={() => setDimensionFilter('')} className="text-muted-foreground hover:text-destructive">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </>
         )}
         {selectedCounters.length === 0 && (
           <span className="text-[10px] text-muted-foreground ml-1">Select counters to visualize raw PM data</span>

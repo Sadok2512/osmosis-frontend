@@ -19,6 +19,9 @@ export async function fetchKpiDefinitions(): Promise<KpiDefinition[]> {
     thresholds: { warning: k.threshold_warning ?? 50, critical: k.threshold_critical ?? 20 },
     higherIsBetter: determineHigherIsBetter(k),
     orientation: k.orientation || null,
+    dimension_type: k.dimension_type || null,
+    dimension_prefix: k.dimension_prefix || null,
+    counter_count: k.counter_count || 0,
   }));
 }
 

@@ -12,6 +12,11 @@ interface CounterDef {
   vendor: string;
   techno: string;
   object_type: string;
+  object_type_normalized?: string;
+  dimension_type?: string | null;
+  dimension_prefix?: string | null;
+  is_in_kpi?: boolean;
+  kpi_usage_count?: number;
   count: number;
 }
 
@@ -20,6 +25,7 @@ interface FilterOptions {
   families: string[];
   technos: string[];
   object_types: string[];
+  dimension_types?: string[];
 }
 
 interface Props {
@@ -139,7 +145,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
   const [filterVendor, setFilterVendor] = useState<string>('');
   const [filterTechno, setFilterTechno] = useState<string>('');
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ vendors: [], families: [], technos: [], object_types: [] });
+  const [filterDimType, setFilterDimType] = useState<string>('');
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ vendors: [], families: [], technos: [], object_types: [], dimension_types: [] });
   const [catalog, setCatalog] = useState<CounterDef[]>(initialCatalog);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -191,18 +198,20 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const resetFilters = () => {
     setFilterVendor('');
     setFilterTechno('');
+    setFilterDimType('');
     setActiveFamily(null);
     setShowFavOnly(false);
   };
 
-  const activeFilterCount = [filterVendor, filterTechno, showFavOnly ? 'fav' : ''].filter(Boolean).length;
+  const activeFilterCount = [filterVendor, filterTechno, filterDimType, showFavOnly ? 'fav' : ''].filter(Boolean).length;
 
-  /* ── Single source of truth: base dataset filtered by vendor/techno (from API) ── */
+  /* ── Single source of truth: base dataset filtered by vendor/techno (from API) + local dim filter ── */
   const baseFiltered = useMemo(() => {
     let items = Array.isArray(catalog) ? catalog : [];
     if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
+    if (filterDimType) items = items.filter(c => c.dimension_type === filterDimType);
     return items;
-  }, [catalog, showFavOnly, favorites]);
+  }, [catalog, showFavOnly, favorites, filterDimType]);
 
   /* ── Categories computed from base filtered data ── */
   const familyCategories = useMemo(() => {
@@ -237,6 +246,22 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     }
     return counts;
   }, [baseFiltered]);
+
+  /* ── Dimension type counts from catalog (not filtered by dimType itself) ── */
+  const dimTypeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    let items = Array.isArray(catalog) ? catalog : [];
+    if (showFavOnly) items = items.filter(c => favorites.includes(c.counter_name));
+    for (const c of items) {
+      if (c.dimension_type) counts.set(c.dimension_type, (counts.get(c.dimension_type) || 0) + 1);
+    }
+    return counts;
+  }, [catalog, showFavOnly, favorites]);
+
+  const dimTypeOptions = useMemo(() => {
+    const opts = filterOptions.dimension_types || [];
+    return opts.length > 0 ? opts : Array.from(dimTypeCounts.keys()).sort();
+  }, [filterOptions.dimension_types, dimTypeCounts]);
 
   const totalFiltered = baseFiltered.length;
 
@@ -276,6 +301,9 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
             )}
             {filterTechno && (
               <span className="text-[9px] px-2 py-[1px] rounded-full bg-purple-500/10 text-purple-600 font-semibold">{filterTechno}</span>
+            )}
+            {filterDimType && (
+              <span className="text-[9px] px-2 py-[1px] rounded-full bg-amber-500/10 text-amber-600 font-semibold">{filterDimType}</span>
             )}
             {showFavOnly && (
               <span className="text-[9px] px-2 py-[1px] rounded-full bg-amber-500/10 text-amber-600 font-semibold">★ Favoris</span>
@@ -339,6 +367,22 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                     />
                   ))}
                 </CollapsibleSection>
+
+                {/* Dimension Type */}
+                {dimTypeOptions.length > 0 && (
+                  <CollapsibleSection title="Dimension" defaultOpen={false}>
+                    <FilterListItem label="Tous" active={filterDimType === ''} onClick={() => setFilterDimType('')} />
+                    {dimTypeOptions.map(d => (
+                      <FilterListItem
+                        key={d}
+                        label={d}
+                        active={filterDimType === d}
+                        count={dimTypeCounts.get(d)}
+                        onClick={() => setFilterDimType(d)}
+                      />
+                    ))}
+                  </CollapsibleSection>
+                )}
               </div>
             </ScrollArea>
           </div>
@@ -418,7 +462,9 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
               <div className="w-[22px] shrink-0" /> {/* star */}
               <div className="w-[18px] shrink-0" /> {/* checkbox */}
               <span className="flex-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 min-w-0">Counter</span>
-              <div className="flex items-center shrink-0" style={{ width: '220px' }}>
+              <div className="flex items-center shrink-0" style={{ width: '280px' }}>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 w-[32px] text-center">KPI</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 w-[58px] text-center">Dim</span>
                 <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 w-[60px] text-center">Vendor</span>
                 <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 w-[50px] text-center">Tech</span>
                 <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 flex-1 text-center">Type</span>
@@ -476,13 +522,30 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                             {isSelected && <Check className="w-2 h-2 text-white" />}
                           </div>
 
-                          {/* Counter name */}
-                          <span className="flex-1 text-[10.5px] font-medium text-foreground truncate font-mono min-w-0 leading-tight">
-                            {c.counter_name}
-                          </span>
+                          {/* Counter name + display name */}
+                          <div className="flex-1 min-w-0 leading-tight">
+                            <span className="text-[10.5px] font-medium text-foreground truncate block">
+                              {c.display_name && c.display_name !== c.counter_name ? c.display_name : c.counter_name}
+                            </span>
+                            {c.display_name && c.display_name !== c.counter_name && (
+                              <span className="text-[9px] text-muted-foreground/50 font-mono">{c.counter_name}</span>
+                            )}
+                          </div>
 
                           {/* Badges — fixed-width container for alignment */}
-                          <div className="flex items-center shrink-0" style={{ width: '220px' }}>
+                          <div className="flex items-center shrink-0" style={{ width: '280px' }}>
+                            {/* KPI badge */}
+                            <div className="w-[32px] flex justify-center">
+                              {c.is_in_kpi && (
+                                <Badge className="bg-cyan-500/10 text-cyan-500" title={`Used in ${c.kpi_usage_count || 0} KPIs`}>KPI</Badge>
+                              )}
+                            </div>
+                            {/* Dimension badge */}
+                            <div className="w-[58px] flex justify-center">
+                              {c.dimension_type ? (
+                                <Badge className="bg-amber-500/10 text-amber-600">{c.dimension_type}</Badge>
+                              ) : null}
+                            </div>
                             {/* Vendor badge */}
                             <div className="w-[60px] flex justify-center">
                               {c.vendor ? (

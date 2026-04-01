@@ -435,6 +435,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                             <p className="text-[9px] text-muted-foreground truncate">{k.description || k.kpi_key}</p>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
+                            {(k as any).dimension_type && (
+                              <span className="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-600 font-medium">{(k as any).dimension_type}</span>
+                            )}
                             {k.vendor && (
                               <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">{k.vendor}</span>
                             )}
