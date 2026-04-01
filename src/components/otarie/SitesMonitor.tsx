@@ -4911,6 +4911,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const pending = visibleSites.filter(s => s.cells.length === 0 && !cellLoadAttemptedRef.current.has(s.site_id)).length;
       return `Chargement des cellules… ${pending.toLocaleString()} site${pending > 1 ? 's' : ''}`;
     }
+    if (bboxLoading && viewport.zoom >= CELL_PRELOAD_ZOOM) return 'Chargement des cellules…';
     if (loading || bboxLoading) return sites.length > 0 ? `Chargement… ${sites.length.toLocaleString()} sites` : 'Chargement des sites…';
     return '';
   })();
