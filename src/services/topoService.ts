@@ -473,129 +473,6 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
   };
 }
 
-function normalizeFilterValue(value: unknown): string {
-  return String(value ?? '').trim().toLowerCase();
-}
-
-function normalizeFilterList(values?: string[] | string | null): string[] {
-  if (Array.isArray(values)) {
-    return values.map(normalizeFilterValue).filter(Boolean);
-  }
-
-  if (typeof values === 'string') {
-    return values
-      .split(',')
-      .map(normalizeFilterValue)
-      .filter(Boolean);
-  }
-
-  return [];
-}
-
-function siteMatchesSearch(site: SiteSummary, search?: string): boolean {
-  const query = normalizeFilterValue(search);
-  if (!query) return true;
-
-  return [site.site_id, site.site_name, site.vendor, site.dor, site.plaque]
-    .map(normalizeFilterValue)
-    .some(value => value.includes(query));
-}
-
-function siteMatchesTechFilter(site: SiteSummary, techno?: string[] | string | null): boolean {
-  const expected = normalizeFilterList(techno);
-  if (expected.length === 0) return true;
-
-  const techValues = new Set(
-    [
-      site.techno,
-      ...(site.cells || []).map(cell => cell.techno),
-      site.lte_cells && site.lte_cells > 0 ? '4G' : '',
-      site.nr_cells && site.nr_cells > 0 ? '5G' : '',
-    ]
-      .map(normalizeFilterValue)
-      .filter(Boolean),
-  );
-
-  return expected.some(value => {
-    if (value === '4g' || value === 'lte') {
-      return Array.from(techValues).some(tech => tech.includes('4g') || tech.includes('lte'));
-    }
-    if (value === '5g' || value === 'nr') {
-      return Array.from(techValues).some(tech => tech.includes('5g') || tech.includes('nr'));
-    }
-    return techValues.has(value);
-  });
-}
-
-function siteMatchesBandFilter(site: SiteSummary, bande?: string[] | string | null): boolean {
-  const expected = normalizeFilterList(bande);
-  if (expected.length === 0) return true;
-
-  const bandValues = new Set(
-    [
-      site.bande,
-      ...(site.cells || []).map(cell => cell.bande),
-    ]
-      .map(normalizeFilterValue)
-      .filter(Boolean),
-  );
-
-  return expected.some(value => Array.from(bandValues).some(band => band.includes(value) || value.includes(band)));
-}
-
-function siteMatchesZoneFilter(site: SiteSummary, zoneArcep?: string[] | string | null): boolean {
-  const expected = normalizeFilterList(zoneArcep);
-  if (expected.length === 0) return true;
-
-  const zones = new Set(
-    [
-      site.zone_arcep,
-      ...(site.cells || []).map(cell => (cell as any).zone_arcep),
-    ]
-      .map(normalizeFilterValue)
-      .filter(Boolean),
-  );
-
-  return expected.some(value => zones.has(value));
-}
-
-function filterSitesLocally(
-  sites: SiteSummary[],
-  options: {
-    bbox?: BboxQuery;
-    filters?: BboxFilters;
-    dashboardFilters?: DashboardSiteFilters | null;
-    search?: string;
-  },
-): SiteSummary[] {
-  const { bbox, filters, dashboardFilters, search } = options;
-
-  const dorValues = normalizeFilterList(filters?.dor ?? dashboardFilters?.dor);
-  const vendorValues = normalizeFilterList(filters?.vendor ?? dashboardFilters?.constructeur);
-  const plaqueValues = normalizeFilterList(filters?.plaque ?? dashboardFilters?.plaque);
-  const zoneValues = normalizeFilterList(filters?.zone_arcep ?? dashboardFilters?.zone_arcep);
-
-  return sites.filter(site => {
-    const [lat, lng] = site.coordinates || [];
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
-
-    if (bbox) {
-      const insideBBox = lat >= bbox.minLat && lat <= bbox.maxLat && lng >= bbox.minLng && lng <= bbox.maxLng;
-      if (!insideBBox) return false;
-    }
-
-    if (!siteMatchesSearch(site, filters?.q ?? search)) return false;
-    if (dorValues.length > 0 && !dorValues.includes(normalizeFilterValue(site.dor))) return false;
-    if (vendorValues.length > 0 && !vendorValues.includes(normalizeFilterValue(site.vendor))) return false;
-    if (plaqueValues.length > 0 && !plaqueValues.includes(normalizeFilterValue(site.plaque))) return false;
-    if (!siteMatchesZoneFilter(site, zoneValues)) return false;
-    if (!siteMatchesTechFilter(site, filters?.techno ?? dashboardFilters?.techno)) return false;
-    if (!siteMatchesBandFilter(site, filters?.bande ?? dashboardFilters?.bande)) return false;
-
-    return true;
-  });
-}
-
 // Simple bbox+filters cache
 let bboxCache: { key: string; sites: SiteSummary[]; total: number } | null = null;
 
@@ -639,19 +516,7 @@ export async function fetchSitesByBbox(
     }
 
     const filtered4G5G = filterSites4G5G(sites);
-    if (filtered4G5G.length === 0) {
-      const allSites = await fetchTopoSites();
-      const fallbackSites = filterSitesLocally(allSites, { bbox, filters });
-      if (fallbackSites.length > 0) {
-        console.log(`[TopoService] BBOX fallback after empty VPS response: ${fallbackSites.length}/${allSites.length} local sites`);
-        bboxCache = { key, sites: fallbackSites, total: fallbackSites.length };
-        return { sites: fallbackSites, total: fallbackSites.length };
-      }
-    }
-
-    if (filtered4G5G.length > 0) {
-      bboxCache = { key, sites: filtered4G5G, total: filtered4G5G.length };
-    }
+    bboxCache = { key, sites: filtered4G5G, total: filtered4G5G.length };
     const withQoe = filtered4G5G.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
     console.log(`[TopoService] BBOX: ${filtered4G5G.length}/${resp.total} sites (${withQoe} with live QoE)`);
     return { sites: filtered4G5G, total: filtered4G5G.length };
@@ -659,9 +524,7 @@ export async function fetchSitesByBbox(
     if (err.name === 'AbortError') throw err;
     console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
     const allSites = await fetchTopoSites();
-    const fallbackSites = filterSitesLocally(allSites, { bbox, filters });
-    console.log(`[TopoService] BBOX fallback: ${fallbackSites.length}/${allSites.length} local sites`);
-    return { sites: fallbackSites, total: fallbackSites.length };
+    return { sites: allSites, total: allSites.length };
   }
 }
 
@@ -877,24 +740,6 @@ export async function fetchDashboardSites(
   if (siteFilters?.bande?.length) bboxFilters.bande = siteFilters.bande.join(',');
   if (search) bboxFilters.q = search;
 
-  const getLocalDashboardFallback = async (): Promise<SiteSummary[]> => {
-    const fallbackSites = filterSitesLocally(await fetchTopoSites(), {
-      dashboardFilters: siteFilters,
-      search,
-    });
-
-    if (onProgressiveBatch && fallbackSites.length > 0) {
-      onProgressiveBatch(fallbackSites);
-    }
-
-    console.log(`[TopoService] Dashboard sites: ${fallbackSites.length} sites via embedded fallback`);
-    if (fallbackSites.length > 0) {
-      dashboardSitesCache = { key, sites: fallbackSites, ts: Date.now() };
-    }
-
-    return fallbackSites;
-  };
-
   // 1) Try VPS — progressive: show sites immediately, then enrich with QoE
   try {
     const fullWorldBbox = { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 };
@@ -909,10 +754,6 @@ export async function fetchDashboardSites(
       .filter((site): site is SiteSummary => site !== null);
 
     const filteredSites = filterSites4G5G(rawSites);
-
-    if (filteredSites.length === 0) {
-      return await getLocalDashboardFallback();
-    }
 
     // Progressive: push raw sites immediately so map renders them
     if (onProgressiveBatch && filteredSites.length > 0) {
@@ -980,10 +821,6 @@ export async function fetchDashboardSites(
         return applyQoeData(site, qoeData);
       });
 
-    if (sites.length === 0) {
-      return await getLocalDashboardFallback();
-    }
-
     console.log(`[TopoService] Dashboard sites: ${sites.length} sites via RPC`);
     if (sites.length > 0) {
       dashboardSitesCache = { key, sites, ts: Date.now() };
@@ -991,7 +828,7 @@ export async function fetchDashboardSites(
     return sites;
   } catch (err) {
     console.warn('[TopoService] Dashboard RPC also failed', err);
-    return await getLocalDashboardFallback();
+    return [];
   }
 }
 

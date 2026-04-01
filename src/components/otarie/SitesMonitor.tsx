@@ -41,42 +41,20 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
   minOpacity?: number;
 }) => {
   const map = useMap();
-  const heatRef = useRef<any>(null);
-
   useEffect(() => {
-    if (!points.length) {
-      if (heatRef.current) {
-        map.removeLayer(heatRef.current);
-        heatRef.current = null;
-      }
-      return;
-    }
-
-    if (!heatRef.current) {
-      const zoom = maxZoom ?? Math.max(map.getZoom(), 10);
-      heatRef.current = (L as any).heatLayer(points, {
-        radius,
-        blur,
-        maxZoom: zoom,
-        minOpacity,
-        max: 1.0,
-        gradient: { 0.1: '#3b82f6', 0.3: '#10b981', 0.5: '#f59e0b', 0.7: '#f97316', 0.9: '#ef4444' },
-      });
-      heatRef.current.addTo(map);
-    } else {
-      heatRef.current.setLatLngs(points);
-    }
+    if (!points.length) return;
+    const zoom = maxZoom ?? Math.max(map.getZoom(), 10);
+    const heat = (L as any).heatLayer(points, {
+      radius,
+      blur,
+      maxZoom: zoom,
+      minOpacity,
+      max: 1.0,
+      gradient: { 0.1: '#3b82f6', 0.3: '#10b981', 0.5: '#f59e0b', 0.7: '#f97316', 0.9: '#ef4444' },
+    });
+    heat.addTo(map);
+    return () => { map.removeLayer(heat); };
   }, [map, points, radius, blur, maxZoom, minOpacity]);
-
-  useEffect(() => {
-    return () => {
-      if (heatRef.current) {
-        map.removeLayer(heatRef.current);
-        heatRef.current = null;
-      }
-    };
-  }, [map]);
-
   return null;
 };
 import { fetchSiteDetails } from '../../services/api';
@@ -3711,24 +3689,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'Score QoE Global';
 
   // ── Bbox-based data loading with debounce ──
-  const VIEWPORT_FETCH_DEBOUNCE_MS = 500;
   const mountedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
-  const viewportAbortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastFetchedBoundsRef = useRef<L.LatLngBounds | null>(null);
-  const lastFetchedFilterKeyRef = useRef<string>('');
   const [bboxTotal, setBboxTotal] = useState<number>(0);
   const [bboxLoading, setBboxLoading] = useState(false);
   const [cellLoadingCount, setCellLoadingCount] = useState(0);
-
-  // Check if new bounds require a refetch (skip if still inside previously fetched area)
-  const shouldRefetchBounds = useCallback((nextBounds: L.LatLngBounds, prevBounds: L.LatLngBounds | null): boolean => {
-    if (!prevBounds) return true;
-    const innerPrev = prevBounds.pad(-0.25);
-    if (innerPrev.isValid() && innerPrev.contains(nextBounds)) return false;
-    return true;
-  }, []);
 
   // Derive current bbox filters from local filter state + backend filter bar
   const backendQueryStr = backendBuildQueryParams();
@@ -3742,6 +3708,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       bande: localBande !== 'ALL' ? localBande : undefined,
       q: localSearch || undefined,
     };
+    // Merge backend filter bar selections (override local if set)
     if (backendQueryStr) {
       const bp = new URLSearchParams(backendQueryStr);
       if (bp.get('dor')) base.dor = bp.get('dor')!;
@@ -3754,23 +3721,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return base;
   }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
 
-  // Core bbox fetch function — with smart bounds comparison to avoid redundant fetches
+  // Core bbox fetch function — ALWAYS site-only mode (never load cells at map level)
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
 
-    const filterKey = JSON.stringify(bboxFilters);
-
-    // Skip refetch if viewport is still within the previously fetched bounds and filters haven't changed
-    if (
-      !shouldRefetchBounds(bounds, lastFetchedBoundsRef.current) &&
-      filterKey === lastFetchedFilterKeyRef.current
-    ) {
-      return;
-    }
-
-    if (viewportAbortRef.current) viewportAbortRef.current.abort();
+    if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
-    viewportAbortRef.current = controller;
+    abortRef.current = controller;
 
     const bbox: BboxQuery = {
       minLng: bounds.getWest(),
@@ -3782,13 +3739,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setBboxLoading(true);
 
     try {
+      // Always fetch site summaries only — cells are loaded on demand per site
       const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
 
       if (controller.signal.aborted) return;
 
-      // Remember fetched bounds & filters
-      lastFetchedBoundsRef.current = bounds;
-      lastFetchedFilterKeyRef.current = filterKey;
+      // Clear cell-load tracking so cells reload for new viewport sites
+      cellLoadAttemptedRef.current.clear();
+      cellLoadingRef.current.clear();
+      setCellLoadingCount(0);
 
       // Preserve the currently selected site if it was added via search and isn't in the new bbox results
       setSites(prev => {
@@ -3801,24 +3760,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         return nextSites;
       });
       setBboxTotal(total || 0);
+      setBboxLoading(false);
+      setLoading(false);
     } catch (err: any) {
-      if (err?.name !== 'AbortError') {
-        console.warn('[SitesMonitor] bbox fetch failed', err);
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setBboxLoading(false);
-        setLoading(false);
-      }
+      if (err?.name === 'AbortError') return;
+      console.warn('[SitesMonitor] bbox fetch failed', err);
+      setBboxLoading(false);
+      setLoading(false);
     }
-  }, [shouldRefetchBounds]);
+  }, []);
 
-  // Debounced viewport change handler — 500ms to calm frequent pans
+  // Debounced viewport change handler
   const handleViewportForFetch = useCallback((v: ViewportState) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
-    }, VIEWPORT_FETCH_DEBOUNCE_MS);
+    }, 220);
   }, [fetchForViewport, currentBboxFilters]);
 
   // ── Debounced server-side search (independent of dashboard) ──
@@ -3920,9 +3877,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
-      // Reset viewport fetch state so next activation triggers a fresh fetch
-      lastFetchedBoundsRef.current = null;
-      lastFetchedFilterKeyRef.current = '';
       // Don't clear sites if search is active — search results are separate
       setSites([]);
       setBboxTotal(0);
@@ -4052,7 +4006,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       if (abortRef.current) abortRef.current.abort();
-      if (viewportAbortRef.current) viewportAbortRef.current.abort();
     };
   }, []);
 
@@ -4379,61 +4332,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     prevBboxFiltersRef.current = filterKey;
   }, [currentBboxFilters]);
 
-  // Constants for cell loading throttling
-  // Match SITES_TO_CELLS_ZOOM so cells load as soon as sectors are displayed
-  const CELL_DETAILS_ZOOM = 9;
-  const MAX_SITES_FOR_CELL_BULK = 200;
-  const MAX_PRIORITY_CELL_SITES = 80;
-
   useEffect(() => {
-    // Only load cells when explicitly needed — no more aggressive preload at low zoom
-    const shouldLoadCells =
-      hasCellLevelConditions ||
-      (displayMode === 'cells' && viewport.zoom >= CELL_DETAILS_ZOOM);
-
+    // Load cells when in cells display mode OR when cell-level view conditions are active
+    const shouldLoadCells = displayMode === 'cells' || hasCellLevelConditions || viewport.zoom >= CELL_PRELOAD_ZOOM;
     if (!shouldLoadCells) return;
     if (!viewport.bounds) return;
-    if (visibleSites.length > MAX_SITES_FOR_CELL_BULK) return;
 
-    // Prioritize sites closest to viewport center, cap at MAX_PRIORITY_CELL_SITES
-    const boundsCenter = viewport.bounds.getCenter();
-    const prioritizedSites = visibleSites
-      .filter(
-        s =>
-          s.cells.length === 0 &&
-          !cellLoadingRef.current.has(s.site_id) &&
-          !cellLoadAttemptedRef.current.has(s.site_id)
-      )
-      .sort((a, b) => {
-        const latA = a.coordinates?.[0], lngA = a.coordinates?.[1];
-        const latB = b.coordinates?.[0], lngB = b.coordinates?.[1];
-        const distA = (latA != null && lngA != null && !isNaN(latA) && !isNaN(lngA))
-          ? boundsCenter.distanceTo(L.latLng(latA, lngA)) : Number.MAX_SAFE_INTEGER;
-        const distB = (latB != null && lngB != null && !isNaN(latB) && !isNaN(lngB))
-          ? boundsCenter.distanceTo(L.latLng(latB, lngB)) : Number.MAX_SAFE_INTEGER;
-        return distA - distB;
-      })
-      .slice(0, MAX_PRIORITY_CELL_SITES);
+    const sitesNeedingCells = visibleSites.filter(
+      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id) && !cellLoadAttemptedRef.current.has(s.site_id)
+    );
 
-    if (prioritizedSites.length === 0) return;
+    if (sitesNeedingCells.length === 0) return;
 
     if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     cellLoadDebounceRef.current = setTimeout(async () => {
-      // Mark as loading
-      prioritizedSites.forEach(s => cellLoadingRef.current.add(s.site_id));
+      // Mark all as loading
+      sitesNeedingCells.forEach(s => cellLoadingRef.current.add(s.site_id));
       setCellLoadingCount(cellLoadingRef.current.size);
-
-      const getLookupKeys = (siteLike: { site_id?: string | null; site_name?: string | null }) => {
-        const candidates = [siteLike.site_id, siteLike.site_name]
-          .map(value => String(value || '').trim())
-          .filter(Boolean);
-        return Array.from(new Set(
-          candidates.flatMap(value => {
-            const normalized = normalizeSiteKey(value);
-            return normalized && normalized !== value ? [value, normalized] : [value];
-          })
-        ));
-      };
 
       try {
         const bounds = viewport.bounds!;
@@ -4446,6 +4361,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         // Single bulk call for all cells in current viewport
         const cellSites = await fetchCellsByBbox(bboxQuery, currentBboxFilters);
 
+        const getLookupKeys = (siteLike: { site_id?: string | null; site_name?: string | null }) => {
+          const candidates = [siteLike.site_id, siteLike.site_name]
+            .map(value => String(value || '').trim())
+            .filter(Boolean);
+
+          return Array.from(new Set(
+            candidates.flatMap(value => {
+              const normalized = normalizeSiteKey(value);
+              return normalized && normalized !== value ? [value, normalized] : [value];
+            })
+          ));
+        };
+
         // Build a lookup by stable id and normalized site name
         const cellMap = new Map<string, CellProperties[]>();
         for (const cs of cellSites) {
@@ -4455,11 +4383,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         // Fallback: if bulk load returns nothing, load per-site but capped & throttled
-        if (cellMap.size === 0 && prioritizedSites.length > 0) {
-          const MAX_FALLBACK = 36;
+        if (cellMap.size === 0 && sitesNeedingCells.length > 0) {
+          const MAX_FALLBACK = 36; // Load more sites, faster, when bulk API returns empty
           const CONCURRENCY = 8;
           const DELAY_MS = 120;
-          const queue = prioritizedSites.slice(0, MAX_FALLBACK);
+          const queue = sitesNeedingCells.slice(0, MAX_FALLBACK);
 
           while (queue.length > 0) {
             const batch = queue.splice(0, CONCURRENCY);
@@ -4481,14 +4409,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         // Ultimate fallback: synthesize approximate sectors from site-level lte_cells/nr_cells
+        // when ALL VPS cell endpoints fail (timeout / empty)
         if (cellMap.size === 0) {
           console.warn('[SitesMonitor] All cell endpoints failed — generating synthetic sectors from site metadata');
-          for (const site of prioritizedSites) {
+          for (const site of sitesNeedingCells) {
             const lte = site.lte_cells || 0;
             const nr = site.nr_cells || 0;
             if (lte === 0 && nr === 0) continue;
             const syntheticCells: CellProperties[] = [];
-            const azimuths = [0, 120, 240];
+            const azimuths = [0, 120, 240]; // standard tri-sector
+            // Generate 4G synthetic cells
             if (lte > 0) {
               const bandsPerSector = Math.max(1, Math.round(lte / 3));
               const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
@@ -4496,16 +4426,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 for (let b = 0; b < bandsPerSector && b < defaultBands4G.length; b++) {
                   syntheticCells.push({
                     cell_id: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
-                    techno: '4G', bande: defaultBands4G[b], azimut: azimuths[s], hba: 0, tilt: null,
-                    qoe_score_avg: 0, p95_rtt_ms: 0, traffic_up_bytes: 0, traffic_dn_bytes: 0,
-                    dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
-                    p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0, sessions: 0,
-                    window_full_ratio: 0, retransmission_rate: 0, tcp_loss_rate: 0,
-                    out_of_order_ratio: 0, p25_rtt_ms: 0, p75_rtt_ms: 0,
+                    techno: '4G',
+                    bande: defaultBands4G[b],
+                    azimut: azimuths[s],
+                    hba: 0,
+                    tilt: null,
+                    qoe_score_avg: 0,
+                    p95_rtt_ms: 0,
+                    traffic_up_bytes: 0,
+                    traffic_dn_bytes: 0,
+                    dms_dl_3: 0,
+                    dms_dl_8: 0,
+                    dms_dl_30: 0,
+                    dms_ul_3: 0,
+                    p50_thr_dn_mbps: 0,
+                    p50_thr_up_mbps: 0,
+                    sessions: 0,
+                    window_full_ratio: 0,
+                    retransmission_rate: 0,
+                    tcp_loss_rate: 0,
+                    out_of_order_ratio: 0,
+                    p25_rtt_ms: 0,
+                    p75_rtt_ms: 0,
                   });
                 }
               }
             }
+            // Generate 5G synthetic cells
             if (nr > 0) {
               const bandsPerSector5G = Math.max(1, Math.round(nr / 3));
               const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
@@ -4513,45 +4460,62 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 for (let b = 0; b < bandsPerSector5G && b < defaultBands5G.length; b++) {
                   syntheticCells.push({
                     cell_id: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
-                    techno: '5G', bande: defaultBands5G[b], azimut: azimuths[s], hba: 0, tilt: null,
-                    qoe_score_avg: 0, p95_rtt_ms: 0, traffic_up_bytes: 0, traffic_dn_bytes: 0,
-                    dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
-                    p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0, sessions: 0,
-                    window_full_ratio: 0, retransmission_rate: 0, tcp_loss_rate: 0,
-                    out_of_order_ratio: 0, p25_rtt_ms: 0, p75_rtt_ms: 0,
+                    techno: '5G',
+                    bande: defaultBands5G[b],
+                    azimut: azimuths[s],
+                    hba: 0,
+                    tilt: null,
+                    qoe_score_avg: 0,
+                    p95_rtt_ms: 0,
+                    traffic_up_bytes: 0,
+                    traffic_dn_bytes: 0,
+                    dms_dl_3: 0,
+                    dms_dl_8: 0,
+                    dms_dl_30: 0,
+                    dms_ul_3: 0,
+                    p50_thr_dn_mbps: 0,
+                    p50_thr_up_mbps: 0,
+                    sessions: 0,
+                    window_full_ratio: 0,
+                    retransmission_rate: 0,
+                    tcp_loss_rate: 0,
+                    out_of_order_ratio: 0,
+                    p25_rtt_ms: 0,
+                    p75_rtt_ms: 0,
                   });
                 }
               }
             }
-            if (syntheticCells.length > 0) cellMap.set(site.site_id, syntheticCells);
+            if (syntheticCells.length > 0) {
+              cellMap.set(site.site_id, syntheticCells);
+            }
           }
         }
 
-        // Mark all as attempted and clear loading flags
-        prioritizedSites.forEach(s => {
+        // Mark all as attempted (whether cells found or not) and clear loading flags
+        sitesNeedingCells.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
           cellLoadAttemptedRef.current.add(s.site_id);
         });
         setCellLoadingCount(cellLoadingRef.current.size);
 
-        if (cellMap.size > 0) {
-          setSites(prev => mergeCellsIntoSiteList(prev, cellMap, getLookupKeys));
-          setSearchModeSites(prev => prev.length > 0 ? mergeCellsIntoSiteList(prev, cellMap, getLookupKeys) : prev);
-          setSelectedSiteSnapshot(prev => {
-            if (!prev) return prev;
-            return mergeCellsIntoSiteList([prev], cellMap, getLookupKeys)[0] ?? prev;
-          });
-        }
+        setSites(prev => mergeCellsIntoSiteList(prev, cellMap, getLookupKeys));
+        setSearchModeSites(prev => prev.length > 0 ? mergeCellsIntoSiteList(prev, cellMap, getLookupKeys) : prev);
+        setSelectedSiteSnapshot(prev => {
+          if (!prev) return prev;
+          return mergeCellsIntoSiteList([prev], cellMap, getLookupKeys)[0] ?? prev;
+        });
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
-        prioritizedSites.forEach(s => {
+        sitesNeedingCells.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
           cellLoadAttemptedRef.current.add(s.site_id);
         });
         setCellLoadingCount(cellLoadingRef.current.size);
+        // Force re-render so filters re-evaluate with attempted flags
         setSites(prev => [...prev]);
       }
-    }, 250);
+    }, 120);
 
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
@@ -5261,13 +5225,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           // Density-adaptive sizing: reduce in dense regions
-          const densityScale = renderSites.length > 2000 ? 0.75 : renderSites.length > 800 ? 0.85 : renderSites.length > 400 ? 0.92 : 1;
-          let baseRadius: number;
-          if (viewport.zoom >= 13) baseRadius = isHovered || isSelectedSite ? 10 : 7;
-          else if (viewport.zoom >= 11) baseRadius = isHovered || isSelectedSite ? 9 : 6;
-          else if (viewport.zoom >= 9) baseRadius = isHovered || isSelectedSite ? 8 : 5.5;
-          else if (viewport.zoom >= 7) baseRadius = isHovered || isSelectedSite ? 7 : 5;
-          else baseRadius = isHovered || isSelectedSite ? 6 : Math.round(4 * densityScale);
+          const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
+          const baseRadius = viewport.zoom >= 10
+            ? (isHovered || isSelectedSite ? 7 : 5)
+            : viewport.zoom >= 8
+              ? (isHovered || isSelectedSite ? 6 : Math.round(4 * densityScale))
+              : (isHovered || isSelectedSite ? 5 : Math.round(3.5 * densityScale));
           const isMixed = has4G && has5G;
           const radius4G = isMixed ? Math.max(baseRadius, 4) : baseRadius;
           const radius5G = isMixed ? Math.max(Math.round(baseRadius * 0.6), 2.5) : baseRadius;
@@ -5285,21 +5248,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return !showMini;
           });
 
-          const densityScale = circleSites.length > 2000 ? 0.75 : circleSites.length > 800 ? 0.85 : circleSites.length > 400 ? 0.92 : 1;
+          const densityScale = circleSites.length > 2000 ? 0.7 : circleSites.length > 800 ? 0.8 : circleSites.length > 400 ? 0.9 : 1;
 
-          // Zoom-aware marker sizing: readable at every zoom level
-          const getRadius = (_site: any, isHov: boolean, isSel: boolean) => {
-            let base: number;
-            if (viewport.zoom >= 13) base = 7;
-            else if (viewport.zoom >= 11) base = 6;
-            else if (viewport.zoom >= 9) base = 5.5;
-            else if (viewport.zoom >= 7) base = 5;
-            else if (viewport.zoom >= 5) base = 4;
-            else base = 3.5;
-            base = Math.round(base * densityScale * 10) / 10;
-            if (isSel) return Math.max(base + 3, 8);
-            if (isHov) return Math.max(base + 2, 7);
-            return Math.max(base, 3);
+          const getRadius = (site: any, isHov: boolean, isSel: boolean) => {
+            const br = viewport.zoom >= 10
+              ? (isHov || isSel ? 7 : 5)
+              : viewport.zoom >= 8
+                ? (isHov || isSel ? 6 : Math.round(4 * densityScale))
+                : (isHov || isSel ? 5 : Math.round(3.5 * densityScale));
+            return br;
           };
 
           // Pass 1: 4G circles (pane4G — bottom) — skip entirely if filter is 5G-only
@@ -6300,39 +6257,64 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </>
       )}
 
-      {/* Compact bottom-right status chip */}
-      <div className="absolute bottom-3 right-3 z-[1000] pointer-events-none transition-all duration-300" style={{ right: showRightPanel && !detailFullscreen ? 462 : 12 }}>
-        <div className="bg-card/90 backdrop-blur-sm border border-border/60 rounded-lg shadow-md px-3 py-1.5 flex items-center gap-2">
-          <div className={`w-1.5 h-1.5 rounded-full ${filteredSites.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-          <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
-            {filteredSites.length} sites · Z{viewport.zoom} · {showSectors ? `${visibleSites.length} vis` : 'Clusters'}
-          </span>
-        </div>
-      </div>
-
-      {/* Bottom-left quick toggles */}
-      <div className="absolute bottom-3 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 12 }}>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowSiteLabels(v => !v)}
-            className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all border ${
-              showSiteLabels
-                ? 'bg-primary/15 text-primary border-primary/30'
-                : 'bg-card/90 text-muted-foreground border-border/60 hover:text-foreground'
-            }`}
-          >
-            {showSiteLabels ? '☑' : '☐'} Noms
-          </button>
-          <button
-            onClick={() => setShowBeamSectors(v => !v)}
-            className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider transition-all border ${
-              showBeamSectors
-                ? 'bg-primary/15 text-primary border-primary/30'
-                : 'bg-card/90 text-muted-foreground border-border/60 hover:text-foreground'
-            }`}
-          >
-            {showBeamSectors ? '☑' : '☐'} Beams
-          </button>
+      {/* Floating info badge — site count + zoom level */}
+      <div className="absolute bottom-6 z-[1000] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`, transform: 'translateX(-50%)' }}>
+        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-5 py-2.5 flex items-center gap-4">
+          {paramMode ? (
+            <>
+              <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                ⬡ Param: {paramConfirmed}
+              </span>
+              <span className="w-px h-4 bg-border" />
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                {paramPoints.length} points
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                {filteredSites.length} sites
+              </span>
+              <span className="w-px h-4 bg-border" />
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                Zoom {viewport.zoom}
+              </span>
+              <span className="w-px h-4 bg-border" />
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: showSectors ? '#10b981' : 'hsl(var(--primary))' }}>
+                {showSectors ? `${visibleSites.length} visible • Sectors` : 'Clusters'}
+              </span>
+              <span className="w-px h-4 bg-border" />
+              {/* Toggle: site names */}
+              <button
+                onClick={() => setShowSiteLabels(v => !v)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                  showSiteLabels
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {showSiteLabels ? '☑' : '☐'} Noms
+              </button>
+              {/* Toggle: beams */}
+              <button
+                onClick={() => setShowBeamSectors(v => !v)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                  showBeamSectors
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {showBeamSectors ? '☑' : '☐'} Beams
+              </button>
+            </>
+          )}
+          <span className="w-px h-4 bg-border" />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className={`w-2 h-2 rounded-full ${filteredSites.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+              {filteredSites.length > 0 ? 'Connected' : 'Disconnected'} • V1.0 Beta • Orange France
+            </span>
+          </div>
         </div>
       </div>
 
@@ -6349,8 +6331,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }}
       >
         <div
-          className="bg-card/95 backdrop-blur-xl border border-border/60 rounded-xl shadow-lg flex items-center"
-          style={{ minHeight: 40, height: 40 }}
+          className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl flex items-center"
+          style={{ minHeight: 60, height: 60 }}
         >
           {/* Scroll-left button */}
           {toolbarCanScrollLeft && (
@@ -6366,51 +6348,52 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Scrollable KPI zone */}
           <div
             ref={toolbarScrollRef}
-            className="flex-1 overflow-x-auto overflow-y-hidden flex items-center justify-center gap-1.5 px-2.5 scrollbar-hide"
+            className="flex-1 overflow-x-auto overflow-y-hidden flex items-center justify-center gap-3 px-4 scrollbar-hide"
             style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap', scrollbarWidth: 'none' }}
           >
             {/* ── Unified mode selector: QoE / Topo / Parameters ── */}
-            <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
+            <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
               <button
                 onClick={() => { setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }}
-                className={`px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
                   sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen
-                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Zap size={10} />
+                <Zap size={11} />
                 QoE
               </button>
               <button
                 onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
-                className={`px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
                   sectorColorMode === 'topo' && !paramMode && !paramPanelOpen
-                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Radio size={10} />
+                <Radio size={11} />
                 Topo
               </button>
               <button
                 onClick={async () => {
                   if (!paramPanelOpen && !paramMode) {
+                    // Entering param mode: save active dashboard but keep filters applied
                     if (activeDashboardId) {
                       await saveDashboardSettings(activeDashboardId);
                     }
                   }
                   setParamPanelOpen(!paramPanelOpen);
                 }}
-                className={`px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
                   paramMode || paramPanelOpen
-                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-md shadow-emerald-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <MapPin size={10} />
+                <MapPin size={11} />
                 Param
-                {paramConfirmed && <span className="text-[7px] opacity-70">({paramPoints.length})</span>}
+                {paramConfirmed && <span className="text-[8px] opacity-70">({paramPoints.length})</span>}
               </button>
             </div>
 
@@ -6434,10 +6417,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <button
                         key={kpi.id}
                         onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                        className={`px-2 py-1 rounded-md text-[9px] font-bold whitespace-nowrap transition-all ${
+                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
                           mapKpi === kpi.id
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
                         }`}
                         title={kpi.label}
                       >
@@ -6461,10 +6444,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <button
                         key={kpi.id}
                         onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                        className={`px-2 py-1 rounded-md text-[9px] font-bold whitespace-nowrap transition-all ${
+                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
                           mapKpi === kpi.id
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
                         }`}
                         title={kpi.label}
                       >
@@ -6480,15 +6463,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="relative shrink-0">
                   <button
                     onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-                    className={`px-2 py-1 rounded-md text-[9px] font-bold transition-all flex items-center gap-1 border ${
+                    className={`px-3.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
                       ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
                         ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border-transparent'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
                     }`}
                   >
-                    <SlidersHorizontal size={10} />
-                    +
-                    {showKpiDropdown ? <ChevronUp size={8} /> : <ChevronDown size={8} />}
+                    <SlidersHorizontal size={12} />
+                    Plus
+                    {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                   </button>
                   {showKpiDropdown && (
                     <div className="absolute top-10 right-0 w-[300px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
@@ -6539,7 +6522,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           setEnabledBands(new Set());
                         }
                       }}
-                      className={`px-2 py-1 text-[9px] font-black tracking-wider transition-all ${
+                      className={`px-3 py-2 text-[10px] font-black tracking-wider transition-all ${
                         mapTechnoFilter === tech
                           ? 'bg-primary text-primary-foreground shadow-sm'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -6551,7 +6534,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
 
 
-                <span className="w-px h-5 bg-border/40 shrink-0" />
+                <span className="w-px h-7 bg-border/50 shrink-0" />
 
                 <button
                   onClick={() => {
@@ -6565,33 +6548,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       return next;
                     });
                   }}
-                  className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-md shrink-0 flex items-center gap-1 ${
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
                     mapLabelFields.has('site_name')
                       ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
                   }`}
                 >
-                  <Tag size={10} />
-                  Names
+                  <Tag size={12} />
+                  Site Name
                 </button>
 
-                <span className="w-px h-5 bg-border/40 shrink-0" />
+                <span className="w-px h-7 bg-border/50 shrink-0" />
 
 
                 {/* Network Info right panel toggle */}
                 <button
                   onClick={() => setShowRightPanel(prev => !prev)}
-                  className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-md shrink-0 flex items-center gap-1 ${
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
                     showRightPanel
-                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm shadow-red-500/20'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
                   }`}
                 >
-                  <Signal size={10} />
-                  Info
+                  <Signal size={12} />
+                  Network Info
                 </button>
 
-                <span className="w-px h-5 bg-border/40 shrink-0" />
+                <span className="w-px h-7 bg-border/50 shrink-0" />
 
                 {/* Views / Dashboard toggle */}
                 <button
@@ -6603,13 +6586,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setPanelCollapsed(false);
                     }
                   }}
-                  className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-md shrink-0 flex items-center gap-1 ${
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
                     inventoryTab === 'dashboard' && !panelCollapsed
-                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-sm shadow-primary/20'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
                   }`}
                 >
-                  <Layers size={10} />
+                  <Layers size={12} />
                   Views
                 </button>
 
@@ -6617,14 +6600,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <button
                   ref={(el) => { (window as any).__colorViewBtnRef = el; }}
                   onClick={() => setShowColorViewDropdown(!showColorViewDropdown)}
-                  className={`px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all rounded-md flex items-center gap-1 shrink-0 ${
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg flex items-center gap-1.5 shrink-0 ${
                     colorViewMode !== 'none'
-                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm shadow-violet-500/20'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
                   }`}
                 >
-                  <Palette size={10} />
-                  {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Color'}
+                  <Palette size={12} />
+                  {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Couleur'}
                 </button>
               </>
             )}
