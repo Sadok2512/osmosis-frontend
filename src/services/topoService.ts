@@ -759,59 +759,7 @@ export async function fetchDashboardSites(
     }
     return enrichedSites;
   } catch (err) {
-    console.warn('[TopoService] VPS dashboard fetch failed, trying RPC', err);
-  }
-
-  // 2) Supabase RPC fallback
-  try {
-    const params: Record<string, any> = {};
-    if (siteFilters?.dor?.length) params.p_dor = siteFilters.dor;
-    if (siteFilters?.plaque?.length) params.p_plaque = siteFilters.plaque;
-    if (siteFilters?.zone_arcep?.length) params.p_zone_arcep = siteFilters.zone_arcep;
-    if (siteFilters?.constructeur?.length) params.p_constructeur = siteFilters.constructeur;
-    if (siteFilters?.techno?.length) params.p_techno = siteFilters.techno;
-    if (siteFilters?.bande?.length) params.p_bande = siteFilters.bande;
-    if (search) params.p_search = search;
-
-    const { data, error } = await supabase.rpc('get_dashboard_sites', params);
-    if (error) throw error;
-
-    const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
-
-    const sites: SiteSummary[] = ((data as any[]) || [])
-      .filter((row: any) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude))
-      .map((row: any) => {
-        const site: SiteSummary = {
-          site_id: row.code_nidt,
-          site_name: row.nom_site,
-          vendor: row.vendor || 'Unknown',
-          dor: row.dor || '',
-          plaque: row.plaque || '',
-          department: (row.plaque || '').replace('DEPT_', ''),
-          cell_count: Number(row.total_cells) || 0,
-          qoe_score_avg: 0,
-          p50_thr_dn_mbps: 0,
-          p50_thr_up_mbps: 0,
-          dms_dl_3: 0,
-          dms_dl_8: 0,
-          dms_dl_30: 0,
-          dms_ul_3: 0,
-          coordinates: [row.latitude, row.longitude] as [number, number],
-          cells: [],
-          zone_arcep: row.zone_arcep || null,
-          lte_cells: Number(row.lte_cells) || 0,
-          nr_cells: Number(row.nr_cells) || 0,
-        };
-        return applyQoeData(site, qoeData);
-      });
-
-    console.log(`[TopoService] Dashboard sites: ${sites.length} sites via RPC`);
-    if (sites.length > 0) {
-      dashboardSitesCache = { key, sites, ts: Date.now() };
-    }
-    return sites;
-  } catch (err) {
-    console.warn('[TopoService] Dashboard RPC also failed', err);
+    console.warn('[TopoService] VPS dashboard fetch failed (VPS only, no fallback)', err);
     return [];
   }
 }
