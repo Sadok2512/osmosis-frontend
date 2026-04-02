@@ -3178,6 +3178,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
   }, [linkSource, addTaggedLink]);
 
+  // ── Map Tools State ──
+  const [activeMapTool, setActiveMapTool] = useState<MapToolType>('none');
+  const [distanceMeasurement, setDistanceMeasurement] = useState<DistanceMeasurement>({ pointA: null, pointB: null });
+  const [ringsData, setRingsData] = useState<ConcentricRingsData>({ center: null, radii: [] });
+  const [polygonData, setPolygonData] = useState<PolygonZoneData>({ points: [] });
+  const [ringPresetIndex, setRingPresetIndex] = useState(0);
+
+  const handleSelectMapTool = useCallback((tool: MapToolType) => {
+    setActiveMapTool(tool);
+    if (tool !== 'distance') setDistanceMeasurement({ pointA: null, pointB: null });
+    if (tool !== 'rings') setRingsData({ center: null, radii: [] });
+    if (tool !== 'polygon') setPolygonData({ points: [] });
+  }, []);
+
+  const handleClearMapTools = useCallback(() => {
+    setActiveMapTool('none');
+    setDistanceMeasurement({ pointA: null, pointB: null });
+    setRingsData({ center: null, radii: [] });
+    setPolygonData({ points: [] });
+  }, []);
+
   // ── Terrain Profile for Links ──
   const { loading: linkProfileLoading, profilePoints: linkProfilePoints, analysis: linkProfileAnalysis, computeProfile: linkComputeProfile } = useTerrainProfile();
   const [showLinkProfile, setShowLinkProfile] = useState(false);
