@@ -872,32 +872,31 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           </div>
           )}
 
-          {/* Row B: Filters (above KPIs) */}
+          {/* Row B: Filters — 2-step: add dimension, then select values */}
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 text-muted-foreground">
+            <div className="flex items-center gap-1 text-muted-foreground shrink-0">
               <Filter className="w-3 h-3" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Filtre par dimension</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Filtres</span>
             </div>
-            {filterChips.map(({ dim, val }) => {
-              const isPm = PM_DIMENSION_TYPES.has(dim);
-              const chipLabel = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
-              return (
-                <span key={`${dim}-${val}`}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold border",
-                    isPm
-                      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
-                      : "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
-                  )}>
-                  <span className="text-muted-foreground">{chipLabel}:</span>
-                  <span className="font-bold">{val}</span>
-                  <button onClick={() => removeFilter(dim, val)} className="ml-0.5 hover:text-destructive transition-colors">
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </span>
-              );
-            })}
-            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} filterDimensions={allFilterDimensions} />
+            {activeFilterDims.map(dim => (
+              <FilterChip
+                key={dim}
+                dim={dim}
+                values={state.filters[dim] || []}
+                onToggleValue={(val) => toggleFilterValue(dim, val)}
+                onClear={() => clearFilterValues(dim)}
+                onRemove={() => removeFilterDimension(dim)}
+              />
+            ))}
+            <AddFilterDropdown existingKeys={activeFilterDims} onAdd={addFilterDimension} filterDimensions={allFilterDimensions} />
+            {activeFilterDims.length > 0 && (
+              <button
+                onClick={() => setState(prev => ({ ...prev, filters: {} }))}
+                className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-destructive transition-colors ml-1"
+              >
+                <X className="w-2.5 h-2.5" /> Tout effacer
+              </button>
+            )}
           </div>
 
           {/* Row C: KPI chips */}
