@@ -46,8 +46,7 @@ const formatAxisValue = (v: any): string => {
   if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 };
-  return Number.isInteger(v) ? v : v.toFixed(1);
-};
+const formatValue = formatAxisValue;
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
