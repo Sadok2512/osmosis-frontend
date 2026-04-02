@@ -4959,6 +4959,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
         <CustomPointClickHandler active={pointCreationMode} onAdd={addCustomPoint} />
+        {/* ── Map Tools Overlays ── */}
+        <DistanceTool active={activeMapTool === 'distance'} measurement={distanceMeasurement} onUpdate={setDistanceMeasurement} />
+        <ConcentricRingsTool active={activeMapTool === 'rings'} data={ringsData} onUpdate={setRingsData} presetIndex={ringPresetIndex} />
+        <PolygonZoneTool active={activeMapTool === 'polygon'} data={polygonData} onUpdate={setPolygonData} />
         <RightClickBoxZoom />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
