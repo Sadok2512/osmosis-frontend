@@ -966,12 +966,17 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
                   {/* Chart Type */}
                   <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type (tous)</span>
                     <div className="flex flex-wrap gap-1">
                       {CHART_TYPES.map(ct => (
                         <button
                           key={ct.value}
-                          onClick={() => onUpdateSlotConfig(slot.id, { chartType: ct.value })}
+                          onClick={() => {
+                            // Apply to all KPIs + slot default
+                            const perKpi: Record<string, ChartType> = {};
+                            kpiIds.forEach(k => { perKpi[k] = ct.value; });
+                            onUpdateSlotConfig(slot.id, { chartType: ct.value, chartTypePerKpi: { ...cfg.chartTypePerKpi, ...perKpi } });
+                          }}
                           className={cn(
                             'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
                             cfg.chartType === ct.value
