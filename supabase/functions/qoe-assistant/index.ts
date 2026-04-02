@@ -2257,17 +2257,23 @@ const SHARED_RULES = `
 4. ⛔ NE JAMAIS GÉNÉRER de bloc \`\`\`chart avec des données inventées. Les blocs chart doivent UNIQUEMENT contenir des données EXACTES du contexte.
 5. Si le contexte contient déjà un bloc \`\`\`chart pré-construit, COPIE-LE tel quel — ne le recrée PAS avec d'autres valeurs.
 
-FORMATAGE : Markdown pur (pas de HTML).
+FORMATAGE : Markdown pur (pas de HTML, pas de Mermaid).
 - Tableaux Markdown | et ---
 - Titres ## et ###
 - **Gras** pour les valeurs importantes
 - Émojis de statut : 🔴 Critique (<50%), 🟠 Dégradé (50-65%), 🟡 Moyen (65-75%), 🟢 Bon (>75%)
 
+⛔ FORMATS INTERDITS : NE JAMAIS utiliser mermaid, barChart, graph TD, flowchart, gantt, sequenceDiagram, ou tout autre format mermaid. SEULS les blocs \`\`\`chart, \`\`\`map, \`\`\`kpi sont autorisés pour les visualisations.
+
 VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
-- chart: {"type":"bar","title":"...","xKey":"...","yKeys":[...],"data":[...]}
+- chart: {"type":"bar","title":"...","xKey":"...","yKeys":[...],"data":[...],"colors":["#0d9488","#2563eb","#ea580c"]}
 - map: {"title":"...","markers":[{"lat":...,"lng":...,"label":"...","value":...}]}
 - kpi: {"title":"...","cards":[{"label":"...","value":"...","unit":"...","trend":"up/down/stable","status":"good/warning/critical"}]}
 Le JSON doit être sur UNE SEULE LIGNE.
+
+CHARTS GROUPÉS : Pour comparer par Vendor ET Bande, crée un chart avec xKey par catégorie et un yKey par série.
+Exemple : {"type":"bar","title":"Cellules par Bande et Vendor","xKey":"Bande","yKeys":["Ericsson","Nokia","Huawei"],"data":[{"Bande":"LTE800","Ericsson":48045,"Nokia":37188,"Huawei":0},{"Bande":"LTE1800","Ericsson":45951,"Nokia":32788,"Huawei":0}],"colors":["#2563eb","#0d9488","#ea580c"]}
+
 ⚠️ IMPORTANT: Si un bloc \`\`\`chart est déjà inclus dans le contexte fourni, RECOPIE-LE EXACTEMENT. Ne modifie PAS les données.
 
 ## 📊 CRÉATION DE DASHBOARD
