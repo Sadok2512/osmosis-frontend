@@ -5935,6 +5935,193 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
       </MapContainer>
 
+      {/* ── LEFT INVENTORY PANEL ── */}
+      <div className={`absolute top-0 left-0 bottom-0 z-[1100] bg-card border-r border-border flex flex-col transition-all duration-300 ${panelCollapsed ? 'w-[56px]' : 'w-[340px]'}`}>
+        {/* Collapse toggle */}
+        <button
+          onClick={() => setPanelCollapsed(!panelCollapsed)}
+          className="absolute -right-3 top-14 w-6 h-6 border rounded-full flex items-center justify-center shadow-md z-50 bg-card border-border text-muted-foreground hover:text-primary transition-colors"
+        >
+          {panelCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+        </button>
+
+        {panelCollapsed ? (
+          /* Collapsed mini strip */
+          <div className="flex flex-col items-center pt-4 gap-3">
+            <button onClick={() => { setPanelCollapsed(false); setInventoryTab('dashboard'); }} className={`p-2 rounded-lg transition-colors ${inventoryTab === 'dashboard' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`} title="Dashboard">
+              <LayoutGrid size={18} />
+            </button>
+            <button onClick={() => { setPanelCollapsed(false); setInventoryTab('sites'); }} className={`p-2 rounded-lg transition-colors ${inventoryTab === 'sites' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`} title="Sites">
+              <List size={18} />
+            </button>
+            <button onClick={() => { setPanelCollapsed(false); setInventoryTab('tagged'); }} className={`p-2 rounded-lg transition-colors ${inventoryTab === 'tagged' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`} title="Tagged">
+              <Star size={18} />
+            </button>
+            <div className="mt-2 text-[9px] font-bold text-muted-foreground writing-mode-vertical" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+              {filteredSites.length} sites
+            </div>
+          </div>
+        ) : (
+          /* Expanded panel */
+          <>
+            {/* Tab bar */}
+            <div className="flex items-center border-b border-border shrink-0">
+              {[
+                { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutGrid },
+                { id: 'sites' as const, label: 'Sites', icon: List },
+                { id: 'tagged' as const, label: 'Tagged', icon: Star },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setInventoryTab(tab.id)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold transition-colors border-b-2 ${
+                    inventoryTab === tab.id
+                      ? 'border-primary text-primary bg-primary/5'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <tab.icon size={13} />
+                  {tab.label}
+                  {tab.id === 'tagged' && taggedSites.length > 0 && (
+                    <span className="text-[9px] bg-primary/10 text-primary px-1 rounded-full">{taggedSites.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Dashboard tab */}
+            {inventoryTab === 'dashboard' && (
+              <div className="flex-1 overflow-y-auto p-3">
+                <DashboardInventoryTab
+                  onApplyView={handleLoadView}
+                  onDashboardActiveChange={(active, scope, siteFilters) => {
+                    if (active && scope) {
+                      // Handle dashboard activation
+                    }
+                  }}
+                  beamVisibility={beamVisibility}
+                  onBeamVisChange={(v) => setBeamVisibility(v)}
+                  onSaveDashboard={(dbId) => {}}
+                  onLoadDashboard={(dbId) => {}}
+                  isSaving={false}
+                  backendFilterDefs={backendFilterDefs}
+                  activeDashboardId={activeDashboardId}
+                  onActiveDashboardIdChange={setActiveDashboardId}
+                  activeViewId={activeViewId}
+                  onActiveViewIdChange={setActiveViewId}
+                />
+              </div>
+            )}
+
+            {/* Sites tab */}
+            {inventoryTab === 'sites' && (
+              <div className="flex-1 overflow-y-auto">
+                {/* Search */}
+                <div className="px-3 py-2 border-b border-border">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <input
+                      value={localSearch}
+                      onChange={e => setLocalSearch(e.target.value)}
+                      placeholder="Rechercher un site..."
+                      className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-foreground text-[11px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-[10px] text-muted-foreground font-medium">{filteredSites.length} sites</span>
+                    <div className="flex gap-1">
+                      <button onClick={() => setInventorySortOrder(inventorySortOrder === 'asc' ? 'none' : 'asc')} className={`p-1 rounded text-[9px] font-bold ${inventorySortOrder === 'asc' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="Sort ascending">
+                        <ChevronUp size={12} />
+                      </button>
+                      <button onClick={() => setInventorySortOrder(inventorySortOrder === 'desc' ? 'none' : 'desc')} className={`p-1 rounded text-[9px] font-bold ${inventorySortOrder === 'desc' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="Sort descending">
+                        <ChevronDown size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {/* Site rows */}
+                <div className="divide-y divide-border/40">
+                  {filteredSites.slice(0, 200).map(site => {
+                    const isSelected = selectedSiteId === site.site_id;
+                    const qoe = site.qoe_score_avg ?? 0;
+                    return (
+                      <div
+                        key={site.site_id}
+                        ref={el => { if (el) siteRowRefs.current.set(site.site_id, el); }}
+                        onClick={() => handleSiteClick(site)}
+                        className={`px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-muted/50'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getKpiColor(qoe) }} />
+                            <span className="text-[11px] font-semibold text-foreground truncate">{site.site_name || site.site_id}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[10px] font-bold" style={{ color: getKpiColor(qoe) }}>{qoe.toFixed(1)}%</span>
+                            {isSiteTagged(site.site_id) && <Star size={10} className="text-amber-500 fill-amber-500" />}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[9px] text-muted-foreground">{site.vendor}</span>
+                          {site.nr_cells > 0 && <span className="text-[8px] font-bold px-1 rounded bg-emerald-500/10 text-emerald-600">5G</span>}
+                          {site.lte_cells > 0 && <span className="text-[8px] font-bold px-1 rounded bg-blue-500/10 text-blue-600">4G</span>}
+                          <span className="text-[9px] text-muted-foreground ml-auto">{site.cell_count} cells</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredSites.length > 200 && (
+                    <div className="px-3 py-2 text-center text-[10px] text-muted-foreground">
+                      +{filteredSites.length - 200} autres sites…
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tagged tab */}
+            {inventoryTab === 'tagged' && (
+              <div className="flex-1 overflow-y-auto">
+                {taggedSites.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+                    <Star className="w-8 h-8 text-muted-foreground/30 mb-3" />
+                    <p className="text-[11px] text-muted-foreground">Aucun site tagué</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">Cliquez sur l'étoile d'un site pour le taguer</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/40">
+                    {taggedSites.map(site => {
+                      const isSelected = selectedSiteId === site.site_id;
+                      const qoe = site.qoe_score_avg ?? 0;
+                      return (
+                        <div
+                          key={site.site_id}
+                          onClick={() => handleSiteClick(site)}
+                          className={`px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-muted/50'}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Star size={12} className="text-amber-500 fill-amber-500 shrink-0" />
+                              <span className="text-[11px] font-semibold text-foreground truncate">{site.site_name || site.site_id}</span>
+                            </div>
+                            <span className="text-[10px] font-bold" style={{ color: getKpiColor(qoe) }}>{qoe.toFixed(1)}%</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[9px] text-muted-foreground">{site.vendor}</span>
+                            {site.nr_cells > 0 && <span className="text-[8px] font-bold px-1 rounded bg-emerald-500/10 text-emerald-600">5G</span>}
+                            {site.lte_cells > 0 && <span className="text-[8px] font-bold px-1 rounded bg-blue-500/10 text-blue-600">4G</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Coverage simulation overlay kept in right panel only */}
 
       {/* LOS Drawing mode banner */}
