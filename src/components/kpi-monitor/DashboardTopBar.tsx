@@ -380,55 +380,48 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
          ══════════════════════════════════════════════ */}
       <div className="flex items-stretch gap-2.5 px-5 py-2.5 border-t border-border/20 overflow-x-auto">
 
-        {/* ── Section: Date Range ── */}
+        {/* ── Section: Date Range + Presets (unified) ── */}
         <div className="rounded-xl border border-border/30 bg-card/80 px-3 py-2 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <Calendar className="w-3 h-3 text-primary/60" />
+            <CalendarIcon className="w-3 h-3 text-primary/60" />
             <span className="text-[9px] text-muted-foreground/70 font-bold uppercase tracking-widest">Plage de dates</span>
           </div>
           <div className="flex items-center gap-2">
-            <input type="date" value={gf.dateFrom}
-              onChange={e => gf.setDateRange(e.target.value, gf.dateTo)}
-              className="h-[30px] px-2.5 rounded-lg border border-border/40 bg-background text-[12px] text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 tabular-nums w-[135px] transition-all"
-            />
-            <span className="text-muted-foreground/30 text-xs font-medium">→</span>
-            <input type="date" value={gf.dateTo}
-              onChange={e => gf.setDateRange(gf.dateFrom, e.target.value)}
-              className="h-[30px] px-2.5 rounded-lg border border-border/40 bg-background text-[12px] text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 tabular-nums w-[135px] transition-all"
+            <DateRangePicker
+              dateFrom={gf.dateFrom}
+              dateTo={gf.dateTo}
+              timeFrom={gf.timeFrom}
+              timeTo={gf.timeTo}
+              granularity={gf.granularity}
+              activePreset={gf.activePreset}
+              onDateChange={(from, to) => gf.setDateRange(from, to)}
+              onTimeChange={(from, to) => gf.setTimeRange(from, to)}
+              onPresetChange={gf.setActivePreset}
             />
           </div>
         </div>
 
-        {/* ── Section: Time Settings ── */}
+        {/* ── Section: Granularity ── */}
         <div className="rounded-xl border border-border/30 bg-card/80 px-3 py-2 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
           <div className="flex items-center gap-1.5 mb-1.5">
             <Activity className="w-3 h-3 text-primary/60" />
-            <span className="text-[9px] text-muted-foreground/70 font-bold uppercase tracking-widest">Période & Granularité</span>
+            <span className="text-[9px] text-muted-foreground/70 font-bold uppercase tracking-widest">Granularité</span>
           </div>
-          <div className="flex items-center gap-2">
-            <select
-              onChange={e => { const v = e.target.value; if (v.startsWith('d')) applyPreset(parseInt(v.slice(1))); else if (v.startsWith('w')) applyWeekPreset(parseInt(v.slice(1))); }}
-              className="h-[30px] px-2.5 rounded-lg border border-border/30 bg-background text-[12px] text-foreground outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer w-[120px] transition-all"
-              defaultValue=""
-            >
-              <option value="" disabled>Période...</option>
-              <option value="d7">7 jours</option>
-              <option value="d14">14 jours</option>
-              <option value="d30">30 jours</option>
-              <option value="d90">90 jours</option>
-              <option disabled>─────</option>
-              <option value="w0">Cette semaine</option>
-              <option value="w1">Semaine -1</option>
-              <option value="w2">Semaine -2</option>
-            </select>
-            <div className="w-px h-5 bg-border/30" />
-            <select
-              value={gf.granularity}
-              onChange={e => gf.setGranularity(e.target.value as any)}
-              className="h-[30px] px-2.5 rounded-lg border border-border/30 bg-background text-[12px] text-foreground outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer w-[90px] transition-all"
-            >
-              {GRANULARITIES.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-            </select>
+          <div className="flex items-center gap-1">
+            {GRANULARITIES.map(g => (
+              <button
+                key={g.value}
+                onClick={() => gf.setGranularity(g.value as any)}
+                className={cn(
+                  'h-[30px] px-3 rounded-lg text-[11px] font-medium transition-all',
+                  gf.granularity === g.value
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground border border-border/30'
+                )}
+              >
+                {g.label}
+              </button>
+            ))}
           </div>
         </div>
 
