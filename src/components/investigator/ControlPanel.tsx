@@ -540,7 +540,18 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={startDate} defaultMonth={startDate || new Date()} onSelect={(d) => d && setState(prev => ({ ...prev, startDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    defaultMonth={startDate || new Date()}
+                    onSelect={(d) => d && setState(prev => {
+                      const nextStart = format(d, 'yyyy-MM-dd');
+                      const nextEnd = prev.endDate && prev.endDate < nextStart ? nextStart : prev.endDate;
+                      return { ...prev, startDate: nextStart, endDate: nextEnd };
+                    })}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
                 </PopoverContent>
               </Popover>
               <span className="text-[10px] text-muted-foreground font-medium">→</span>
@@ -552,7 +563,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={endDate} defaultMonth={endDate || new Date()} onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    defaultMonth={endDate || startDate || new Date()}
+                    disabled={(date) => !!startDate && date < startDate}
+                    modifiers={startDate ? { startAnchor: startDate } : undefined}
+                    modifiersClassNames={{ startAnchor: 'bg-primary/10 text-primary font-semibold ring-1 ring-primary/25' }}
+                    onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
                 </PopoverContent>
               </Popover>
             </div>

@@ -765,7 +765,21 @@ const KPIMonitorPage: React.FC = () => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={startDate} defaultMonth={startDate || new Date()} onSelect={(d) => d && setGlobalDateFrom(format(d, 'yyyy-MM-dd'))} initialFocus className="p-3 pointer-events-auto" />
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    defaultMonth={startDate || new Date()}
+                    onSelect={(d) => {
+                      if (!d) return;
+                      const nextStart = format(d, 'yyyy-MM-dd');
+                      setGlobalDateFrom(nextStart);
+                      if (globalDateTo && globalDateTo < nextStart) {
+                        setGlobalDateTo(nextStart);
+                      }
+                    }}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
                 </PopoverContent>
               </Popover>
               <span className="text-xs text-muted-foreground">→</span>
@@ -777,7 +791,17 @@ const KPIMonitorPage: React.FC = () => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={endDate} defaultMonth={endDate || new Date()} onSelect={(d) => d && setGlobalDateTo(format(d, 'yyyy-MM-dd'))} initialFocus className="p-3 pointer-events-auto" />
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    defaultMonth={endDate || startDate || new Date()}
+                    disabled={(date) => !!startDate && date < startDate}
+                    modifiers={startDate ? { startAnchor: startDate } : undefined}
+                    modifiersClassNames={{ startAnchor: 'bg-primary/10 text-primary font-semibold ring-1 ring-primary/25' }}
+                    onSelect={(d) => d && setGlobalDateTo(format(d, 'yyyy-MM-dd'))}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
                 </PopoverContent>
               </Popover>
             </div>
