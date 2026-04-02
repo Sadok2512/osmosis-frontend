@@ -97,7 +97,7 @@ const InvestigatorPage: React.FC = () => {
   const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0);
 
   // Auto-refresh: re-apply when dates/granularity/filters/KPIs change AFTER first successful load
-  const autoRefreshKey = `${state.startDate}|${state.endDate}|${JSON.stringify(state.filters)}|${state.graphSlots.map(s => s.kpiIds.join(',')).join('|')}|${state.splitBy}`;
+  const autoRefreshKey = `${JSON.stringify(state.filters)}|${state.graphSlots.map(s => s.kpiIds.join(',')).join('|')}|${state.splitBy}`;
   const prevAutoRefreshKey = useRef(autoRefreshKey);
   useEffect(() => {
     if (!hasLoadedOnce) { prevAutoRefreshKey.current = autoRefreshKey; return; }
