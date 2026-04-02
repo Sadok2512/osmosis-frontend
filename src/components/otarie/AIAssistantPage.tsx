@@ -1007,6 +1007,7 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
 const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
   const cleaned = useMemo(() => {
     let text = content;
+    text = text.replace(/<!--\s*AGENT:\w+\s*-->\n?/g, '');
     text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
     text = text.replace(/<\/?(?:div|span|table|thead|tbody|tr|td|th|style|br|hr|img|p|ul|ol|li|h[1-6]|a|b|i|em|strong|code|pre)[^>]*>/gi, '');
     text = text.replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
