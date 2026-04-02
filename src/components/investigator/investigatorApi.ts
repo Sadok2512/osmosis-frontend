@@ -87,12 +87,30 @@ async function fetchKpiComputeOnTheFly(
 
     if (!res.ok) {
       console.warn('[KpiCompute] Failed:', res.status);
+      // Try with shorter date range (reduce load)
       return { data: [], isComputed: false };
     }
 
     const result = await res.json();
     if (result.error) {
-      console.warn('[KpiCompute] Error:', result.error);
+      console.warn('[KpiCompute] Error:', result.error, '— retrying with 1h granularity');
+      // Retry with hourly granularity (faster query)
+      if (granularity !== '1h') {
+        const retryBody = { ...body, granularity: '1h' };
+        try {
+          const retryRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(retryBody) });
+          if (retryRes.ok) {
+            const retryResult = await retryRes.json();
+            if (!retryResult.error && retryResult.series?.length > 0) {
+              console.log('[KpiCompute] Retry succeeded with 1h');
+              return {
+                data: retryResult.series.map((s: any) => ({ timestamp: s.ts, kpi: kpiId, value: s.kpi_value, _isComputed: true })),
+                isComputed: true,
+              };
+            }
+          }
+        } catch {}
+      }
       return { data: [], isComputed: false };
     }
 
