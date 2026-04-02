@@ -664,15 +664,39 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Assign yAxisIndex to each series based on its KPI
         const getYAxisIndex = (kpiId: string) => yAxisAssignments[kpiId] === 1 ? 1 : 0;
 
+        // dataZoom slider height
+        const sliderHeight = 22;
+        const sliderBottomMargin = 30;
+        const legendRows = series.length > 4 ? 78 : series.length > 2 ? 66 : 54;
+
         const option = {
           animation: false,
           grid: {
             top: 32,
             right: hasRightAxis ? 62 : 28,
-            bottom: series.length > 4 ? 78 : series.length > 2 ? 66 : 54,
+            bottom: legendRows + sliderHeight + 10,
             left: 62,
             containLabel: false,
           },
+          dataZoom: [
+            { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const },
+            {
+              type: 'slider' as const,
+              xAxisIndex: 0,
+              height: sliderHeight,
+              bottom: legendRows - 16,
+              filterMode: 'none' as const,
+              borderColor: 'rgba(128,128,128,0.15)',
+              backgroundColor: 'rgba(128,128,128,0.04)',
+              fillerColor: 'rgba(99,102,241,0.08)',
+              handleStyle: { color: '#6366f1', borderColor: '#6366f1' },
+              textStyle: { fontSize: 9, color: '#a1a1aa' },
+              dataBackground: {
+                lineStyle: { color: 'rgba(99,102,241,0.2)' },
+                areaStyle: { color: 'rgba(99,102,241,0.05)' },
+              },
+            },
+          ],
           legend: {
             show: true,
             bottom: 4,
