@@ -447,7 +447,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         for (const ts of apiTimestamps) {
           if (!timelineSet.has(ts)) fullTimeline.push(ts);
         }
-        const allTimestamps = fullTimeline.sort();
+        // Trim timeline to last real data point — no empty space on the right
+        const lastDataTs = apiTimestamps.length ? apiTimestamps[apiTimestamps.length - 1] : null;
+        let allTimestamps = fullTimeline.sort();
+        if (lastDataTs) {
+          allTimestamps = allTimestamps.filter(ts => ts <= lastDataTs);
+        }
 
         const isStacked = cfg.chartType === 'stacked_bar';
         const seriesType = cfg.chartType === 'scatter' ? 'scatter' : (cfg.chartType === 'bar' || isStacked) ? 'bar' : 'line';
@@ -471,6 +476,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               return [{
                 name: def.label,
                 _kpiId: kpiId,
+                connectNulls: true,
                 type: seriesType as any,
                 data: values,
                 smooth: isSmooth,
@@ -504,6 +510,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               return {
                 name: seriesName,
                 _kpiId: kpiId,
+                connectNulls: true,
                 type: seriesType as any,
                 data: values,
                 smooth: isSmooth,
@@ -536,6 +543,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             return {
               name: def.label,
               _kpiId: kpiId,
+              connectNulls: true,
               type: seriesType as any,
               data: values,
               smooth: isSmooth,
