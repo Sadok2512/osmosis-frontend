@@ -543,6 +543,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             return {
               name: def.label,
               _kpiId: kpiId,
+              connectNulls: true,
               type: seriesType as any,
               data: values,
               smooth: isSmooth,
