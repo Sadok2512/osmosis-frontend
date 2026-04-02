@@ -63,6 +63,15 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
 
 const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
 
+/** Stable color for a KPI — uses a simple hash so color doesn't shift when KPIs are added/removed */
+function stableColorForKpi(kpiId: string): string {
+  let hash = 0;
+  for (let i = 0; i < kpiId.length; i++) {
+    hash = ((hash << 5) - hash + kpiId.charCodeAt(i)) | 0;
+  }
+  return SERIES_COLORS[((hash % SERIES_COLORS.length) + SERIES_COLORS.length) % SERIES_COLORS.length];
+}
+
 /** Wrapper — full replace on every update so legend stays in sync */
 const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }) => {
   return (
