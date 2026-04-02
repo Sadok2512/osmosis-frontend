@@ -55,7 +55,7 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
 // FILTER_DIMENSIONS now loaded from backend (see filterDimensions state)
 
 // PM dimension types that use /counters/dimension-values API
-const PM_DIMENSION_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', 'TRANSPORT', 'CA_REL']);
+const PM_DIMENSION_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
 const PM_DIMENSION_LABELS: Record<string, string> = {
   PMQAP: 'QCI Profile (PMQAP)',
   FLEX: 'Flex QoS (QCI)',
@@ -63,6 +63,7 @@ const PM_DIMENSION_LABELS: Record<string, string> = {
   CA_REL: 'CA Relation',
   RANSHARE: 'RAN Sharing (PLMN)',
   SLICE: 'Network Slice (NSSAI)',
+  '5QI': '5QI Slice (NR)',
   TRANSPORT: 'Transport Link',
 };
 

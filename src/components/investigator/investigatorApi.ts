@@ -71,7 +71,7 @@ async function fetchCounterTimeSeriesFallback(
 
     // Translate dimension filters to Parser format
     if (splitBy && splitBy !== 'None') body.split_by_dimension = true;
-    const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', 'TRANSPORT', 'CA_REL']);
+    const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
     if (filters && filters.length > 0) {
       const dimFilterValues: string[] = [];
       for (const f of filters) {

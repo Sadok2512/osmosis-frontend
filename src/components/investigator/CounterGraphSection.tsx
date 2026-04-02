@@ -63,6 +63,7 @@ const DIMENSION_LABELS: Record<string, string> = {
   CA_REL: 'CA Relation',
   RANSHARE: 'RAN Sharing (PLMN)',
   SLICE: 'Network Slice (NSSAI)',
+  '5QI': '5QI Slice (NR)',
   TRANSPORT: 'Transport Link',
   FLEX: 'Flex Counter',
 };
