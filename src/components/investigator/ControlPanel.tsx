@@ -540,7 +540,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={startDate} onSelect={(d) => d && setState(prev => ({ ...prev, startDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
+                  <Calendar mode="single" selected={startDate} defaultMonth={startDate || new Date()} onSelect={(d) => d && setState(prev => ({ ...prev, startDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
               <span className="text-[10px] text-muted-foreground font-medium">→</span>
@@ -552,7 +552,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={endDate} onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
+                  <Calendar mode="single" selected={endDate} defaultMonth={endDate || new Date()} onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
             </div>
