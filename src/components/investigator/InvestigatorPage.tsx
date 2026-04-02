@@ -161,6 +161,7 @@ const InvestigatorPage: React.FC = () => {
     }
     setIsApplying(false);
   };
+  handleApplyRef.current = handleApply;
 
   // Fetch counter timeseries when counters are selected
   React.useEffect(() => {
