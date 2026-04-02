@@ -609,12 +609,37 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const yAxisAssignments = cfg.yAxisAssignments || {};
         const hasRightAxis = Object.values(yAxisAssignments).includes(1);
 
+        // ── Auto Y-axis calculation ──
+        const computeAutoRange = (seriesArr: any[], axisIdx: number) => {
+          const vals: number[] = [];
+          seriesArr.forEach(s => {
+            const sKpiId = s._kpiId || kpiIds[0];
+            const assignedAxis = hasRightAxis ? (yAxisAssignments[sKpiId] === 1 ? 1 : 0) : 0;
+            if (assignedAxis !== axisIdx) return;
+            (s.data || []).forEach((v: any) => {
+              if (typeof v === 'number' && !Number.isNaN(v)) vals.push(v);
+            });
+          });
+          if (vals.length === 0) return { min: undefined, max: undefined };
+          const rawMin = Math.min(...vals);
+          const rawMax = Math.max(...vals);
+          const range = rawMax - rawMin;
+          const padding = range === 0 ? Math.abs(rawMax || 1) * 0.02 : range * 0.1;
+          return {
+            min: parseFloat((rawMin - padding).toFixed(4)),
+            max: parseFloat((rawMax + padding).toFixed(4)),
+          };
+        };
+
+        const autoLeft = computeAutoRange(series, 0);
+        const autoRight = hasRightAxis ? computeAutoRange(series, 1) : { min: undefined, max: undefined };
+
         // Build yAxis array (always left; optionally right)
         const yAxisLeft = {
           type: 'value' as const,
           position: 'left' as const,
-          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
-          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : undefined,
+          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : autoLeft.min,
+          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : autoLeft.max,
           axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
           splitLine: {
             show: cfg.showGrid,
@@ -627,8 +652,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const yAxisRight = {
           type: 'value' as const,
           position: 'right' as const,
-          min: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.min != null ? yAxisRightCfg.min : undefined,
-          max: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.max != null ? yAxisRightCfg.max : undefined,
+          min: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.min != null ? yAxisRightCfg.min : autoRight.min,
+          max: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.max != null ? yAxisRightCfg.max : autoRight.max,
           axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
           splitLine: { show: false },
           axisLine: { show: false },
