@@ -54,10 +54,33 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
 ];
 // FILTER_DIMENSIONS now loaded from backend (see filterDimensions state)
 
+// PM dimension types that use /counters/dimension-values API
+const PM_DIMENSION_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
+const PM_DIMENSION_LABELS: Record<string, string> = {
+  PMQAP: 'QCI Profile (PMQAP)',
+  FLEX: 'Flex QoS (QCI)',
+  NEIGHBOR: 'Neighbor Cell',
+  CA_REL: 'CA Relation',
+  RANSHARE: 'RAN Sharing (PLMN)',
+  SLICE: 'Network Slice (NSSAI)',
+  '5QI': '5QI Slice (NR)',
+  TRANSPORT: 'Transport Link',
+};
+
 // Filter values fetched from backend (KPI Engine first, fallback to Parser PM counters)
 const useBackendFilterValues = (dimension: string): string[] => {
   const [values, setValues] = React.useState<string[]>([]);
   React.useEffect(() => {
+    // PM dimension types → use /counters/dimension-values
+    if (PM_DIMENSION_TYPES.has(dimension)) {
+      import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
+        fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${dimension}&limit=100`), { headers: getApiHeaders() })
+          .then(r => r.ok ? r.json() : { values: [] })
+          .then(d => { if (d.values) setValues(d.values); })
+          .catch(() => {});
+      });
+      return;
+    }
     const dimMap: Record<string, string> = { Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO', Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', 'Zone ARCEP': 'ARCEP' };
     const key = dimMap[dimension] || dimension;
     import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
@@ -350,6 +373,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           value_type: (k.value_type || 'gauge') as any, default_agg: 'avg' as const, allowed_aggs: ['avg' as const],
           is_map_supported: false, category: k.category || 'Other', color: '#3b82f6',
           vendor: k.vendor || '', techno: k.techno || '',
+          dimension_type: k.dimension_type || null,
+          dimension_prefix: k.dimension_prefix || null,
         }));
         setCatalog(mapped);
       }
@@ -369,6 +394,71 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       setKpisWithData(null);
     }
   }, [state.filters]);
+
+  // Detect PM dimension types from selected KPIs
+  const activePmDimensions = useMemo(() => {
+    const dims = new Set<string>();
+    for (const slot of state.graphSlots) {
+      for (const kpiId of slot.kpiIds) {
+        const def = kpiDefs.find(k => k.id === kpiId);
+        if (def?.dimension_type && PM_DIMENSION_TYPES.has(def.dimension_type)) {
+          dims.add(def.dimension_type);
+        }
+      }
+    }
+    return dims;
+  }, [state.graphSlots, kpiDefs]);
+
+  const primaryKpiDimType = useMemo(() => {
+    if (activePmDimensions.size === 0) return null;
+    return Array.from(activePmDimensions)[0];
+  }, [activePmDimensions]);
+
+  // Auto-add/remove PM dimension filters when KPIs with dimension_type are selected/deselected
+  const prevPmDimsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const prev = prevPmDimsRef.current;
+    const current = activePmDimensions;
+    for (const dim of current) {
+      if (!prev.has(dim) && !state.filters[dim]) {
+        setState(s => ({ ...s, filters: { ...s.filters, [dim]: [] } }));
+      }
+    }
+    for (const dim of prev) {
+      if (!current.has(dim) && PM_DIMENSION_TYPES.has(dim)) {
+        setState(s => {
+          const nf = { ...s.filters };
+          delete nf[dim];
+          return { ...s, filters: nf };
+        });
+      }
+    }
+    prevPmDimsRef.current = new Set(current);
+  }, [activePmDimensions]);
+
+  // Load PM dimension values for the Row D selector
+  const [pmDimValues, setPmDimValues] = useState<{ value: string; label: string }[]>([]);
+  const [pmDimLoading, setPmDimLoading] = useState(false);
+  useEffect(() => {
+    setPmDimValues([]);
+    if (!primaryKpiDimType) return;
+    setPmDimLoading(true);
+    import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
+      fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${primaryKpiDimType}&limit=50`), { headers: getApiHeaders() })
+        .then(r => r.ok ? r.json() : { labeled_values: [] })
+        .then(d => { setPmDimValues(d.labeled_values || (d.values || []).map((v: string) => ({ value: v, label: v }))); setPmDimLoading(false); })
+        .catch(() => setPmDimLoading(false));
+    });
+  }, [primaryKpiDimType]);
+
+  // Merge PM dimensions into filter dimensions
+  const allFilterDimensions = useMemo(() => {
+    const base = [...filterDimensions];
+    for (const dt of activePmDimensions) {
+      if (!base.includes(dt)) base.push(dt);
+    }
+    return base;
+  }, [filterDimensions, activePmDimensions]);
 
   // Sort catalog: KPIs with data first
   const sortedCatalog = useMemo(() => {
@@ -698,7 +788,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 </button>
               </span>
             ))}
-            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} filterDimensions={filterDimensions} />
+            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} filterDimensions={allFilterDimensions} />
           </div>
 
           {/* Row C: KPI chips */}
@@ -722,6 +812,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 const splitVal = cfg.splitByPerKpi?.[kpiIdItem];
                 const hasSplit = splitVal && splitVal !== 'None';
                 const splitLabel = hasSplit ? splitOptions.find(s => s.key === splitVal)?.label || splitVal : null;
+                const kpiDimType = defEntry?.dimension_type;
                 return (
                   <Popover key={`${slot.id}-${kpiIdItem}`}>
                     <PopoverTrigger asChild>
@@ -734,6 +825,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                         <span className="truncate max-w-[140px]">{name}</span>
+                        {kpiDimType && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-amber-500/15 text-amber-600 border border-amber-500/25">
+                            {kpiDimType}
+                          </span>
+                        )}
                         {splitLabel && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-accent text-accent-foreground border border-accent/60">
                             ÷ {splitLabel}
@@ -867,19 +963,35 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           })()}
                           onChange={e => {
                             const val = e.target.value;
-                            const allSplits: Record<string, string> = {};
-                            slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
-                            setState(prev => ({
-                              ...prev,
-                              graphSlots: prev.graphSlots.map(s =>
-                                s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: allSplits } } : s
-                              ),
-                            }));
+                            if (val === 'None') {
+                              setState(prev => ({
+                                ...prev,
+                                graphSlots: prev.graphSlots.map(s =>
+                                  s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: {} } } : s
+                                ),
+                              }));
+                            } else {
+                              const allSplits: Record<string, string> = {};
+                              slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
+                              setState(prev => ({
+                                ...prev,
+                                graphSlots: prev.graphSlots.map(s =>
+                                  s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: allSplits } } : s
+                                ),
+                              }));
+                            }
                           }}
                           className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
                         >
                           <option value="None">Aucun</option>
                           {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                          {activePmDimensions.size > 0 && (
+                            <optgroup label="── PM Dimensions ──">
+                              {Array.from(activePmDimensions).map(d => (
+                                <option key={`pm_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
+                              ))}
+                            </optgroup>
+                          )}
                         </select>
                       </div>
                       <div className="h-px bg-border/60" />
@@ -906,6 +1018,43 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               Add KPI
             </button>
           </div>
+
+          {/* Row D: Active PM dimension (from selected KPIs) */}
+          {primaryKpiDimType && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider shrink-0">
+                {PM_DIMENSION_LABELS[primaryKpiDimType] || primaryKpiDimType}
+              </span>
+              <select
+                value={(state.filters[primaryKpiDimType] || [])[0] || ''}
+                onChange={e => {
+                  const val = e.target.value;
+                  setState(prev => ({
+                    ...prev,
+                    filters: { ...prev.filters, [primaryKpiDimType!]: val ? [val] : [] },
+                  }));
+                }}
+                className="px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/5 text-foreground text-[10px] font-medium outline-none focus:ring-1 focus:ring-amber-500/30 min-w-[140px]"
+              >
+                <option value="">Tous</option>
+                {pmDimValues.map(v => (
+                  <option key={v.value} value={v.value}>{v.label}</option>
+                ))}
+              </select>
+              {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">chargement...</span>}
+              {(state.filters[primaryKpiDimType] || []).length > 0 && (
+                <button
+                  onClick={() => setState(prev => ({
+                    ...prev,
+                    filters: { ...prev.filters, [primaryKpiDimType!]: [] },
+                  }))}
+                  className="text-[9px] text-muted-foreground hover:text-destructive flex items-center gap-0.5"
+                >
+                  <X className="w-2.5 h-2.5" /> Clear
+                </button>
+              )}
+            </div>
+          )}
 
         </div>
       </div>
@@ -971,7 +1120,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 graphSlots: prev.graphSlots.map(s => {
                   if (s.id !== selectorOpen) return s;
                   const merged = [...new Set([...s.kpiIds, ...validKeys])];
-                  return { ...s, kpiIds: merged, splitBy: 'None' };
+                  const cleanConfig = s.config ? { ...s.config, splitByPerKpi: {} } : s.config;
+                  return { ...s, kpiIds: merged, splitBy: 'None', config: cleanConfig };
                 }),
               }));
               onSlotClick?.(selectorOpen);
