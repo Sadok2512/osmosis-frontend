@@ -432,8 +432,46 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
           : slotData.map(d => ({ ...d, splitValue: undefined }));
 
-        // Collect all unique timestamps across all KPIs
-        const allTimestamps = [...new Set(kpiIds.flatMap(id => effectiveData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
+        // Build full timeline from requested date range so X axis always shows the complete period
+        const state = useInvestigatorStore.getState().state;
+        const apiTimestamps = [...new Set(kpiIds.flatMap(id => effectiveData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
+
+        const generateFullTimeline = (from: string, to: string, gran: string): string[] => {
+          const start = new Date(from);
+          const end = new Date(to);
+          if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) return apiTimestamps;
+
+          const points: string[] = [];
+          const stepMs =
+            gran === '15min' ? 15 * 60 * 1000 :
+            gran === '1h' || gran === 'hourly' ? 60 * 60 * 1000 :
+            gran === '1d' || gran === 'daily' ? 24 * 60 * 60 * 1000 :
+            gran === '1w' || gran === 'weekly' ? 7 * 24 * 60 * 60 * 1000 :
+            24 * 60 * 60 * 1000;
+
+          const maxPoints = 2000; // safety cap
+          let cur = start.getTime();
+          const endMs = end.getTime();
+          while (cur <= endMs && points.length < maxPoints) {
+            const d = new Date(cur);
+            // Format to match API timestamps (YYYY-MM-DD or ISO)
+            if (stepMs >= 24 * 60 * 60 * 1000) {
+              points.push(d.toISOString().slice(0, 10));
+            } else {
+              points.push(d.toISOString().slice(0, 19));
+            }
+            cur += stepMs;
+          }
+          return points;
+        };
+
+        const fullTimeline = generateFullTimeline(state.startDate, state.endDate, state.granularity);
+        // Merge: use full timeline as base, add any API timestamps not already included
+        const timelineSet = new Set(fullTimeline);
+        for (const ts of apiTimestamps) {
+          if (!timelineSet.has(ts)) fullTimeline.push(ts);
+        }
+        const allTimestamps = fullTimeline.sort();
 
         const isStacked = cfg.chartType === 'stacked_bar';
         const seriesType = cfg.chartType === 'scatter' ? 'scatter' : (cfg.chartType === 'bar' || isStacked) ? 'bar' : 'line';
