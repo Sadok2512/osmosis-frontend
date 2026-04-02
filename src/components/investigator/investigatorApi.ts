@@ -330,12 +330,39 @@ export function resolveSlotContext(
   };
 }
 
-// ── Fetch timeseries data per-slot (Bug #1 + #2 + #3 fixes) ──
+// ── Fetch timeseries data per-slot ──
+// Strategy: call /kpi/compute FIRST (on-the-fly, always has data)
+// Only fall back to KPI Engine if /kpi/compute fails for all KPIs
 export async function fetchTimeSeriesForSlot(
   ctx: SlotRequestContext,
 ): Promise<{ data: DataPoint[]; hasUnfilteredFallback: boolean }> {
   if (ctx.kpiIds.length === 0) return { data: [], hasUnfilteredFallback: false };
 
+  // Detect PM dimension split
+  const pmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
+
+  // Step 1: Try /kpi/compute FIRST for all KPIs (on-the-fly, reliable)
+  const computeResults: DataPoint[] = [];
+  const computeFailed: string[] = [];
+
+  for (const kpiId of ctx.kpiIds) {
+    const computed = await fetchKpiComputeOnTheFly(
+      kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
+    );
+    if (computed.isComputed) {
+      computeResults.push(...computed.data);
+    } else {
+      computeFailed.push(kpiId);
+    }
+  }
+
+  // If all KPIs computed successfully, return directly (skip KPI Engine)
+  if (computeFailed.length === 0 && computeResults.length > 0) {
+    console.log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
+    return { data: computeResults, hasUnfilteredFallback: false };
+  }
+
+  // Step 2: Fall back to KPI Engine for KPIs that failed compute
   const url = getApiUrl('monitor/query/timeseries');
   const allFilters = ctx.filters.map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
 
@@ -385,41 +412,19 @@ export async function fetchTimeSeriesForSlot(
     console.warn('[Investigator] KPI Engine failed:', res.status, '— falling back to /kpi/compute');
   }
 
-  // Identify missing KPIs (or ALL if KPI Engine failed)
+  // Merge KPI Engine results with any compute results from Step 1
   const kpisWithData = new Set(kpiSeries.map((s: any) => s.kpi_key?.toLowerCase()));
-  const missingKpis = ctx.kpiIds.filter(k => !kpisWithData.has(k.toLowerCase()));
+  const missingKpis = computeFailed.filter(k => !kpisWithData.has(k.toLowerCase()));
   let hasUnfilteredFallback = false;
 
+  // For KPIs that failed both compute AND KPI Engine, try raw counter fallback
   if (missingKpis.length > 0) {
-    // Step 1: Try on-the-fly KPI compute (returns real KPI value = formula applied)
-    const computeResults: DataPoint[] = [];
-    const stillMissing: string[] = [];
-
-    // Detect PM dimension split (from per-KPI splitByPerKpi or slot splitBy)
-    const pmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
-
-    for (const kpiId of missingKpis) {
-      const computed = await fetchKpiComputeOnTheFly(
-        kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
-      );
-      if (computed.isComputed) {
-        computeResults.push(...computed.data);
-      } else {
-        stillMissing.push(kpiId);
-      }
-    }
-
-    // Step 2: For KPIs that couldn't be computed, fall back to raw counter values
-    if (stillMissing.length > 0) {
-      const fallback = await fetchCounterTimeSeriesFallback(
-        stillMissing, ctx.dateFrom, ctx.dateTo, ctx.granularity,
-        ctx.splitBy, ctx.filters,
-      );
-      hasUnfilteredFallback = fallback.isUnfiltered;
-      return { data: [...kpiResults, ...computeResults, ...fallback.data], hasUnfilteredFallback };
-    }
-
-    return { data: [...kpiResults, ...computeResults], hasUnfilteredFallback: false };
+    const fallback = await fetchCounterTimeSeriesFallback(
+      missingKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
+      ctx.splitBy, ctx.filters,
+    );
+    hasUnfilteredFallback = fallback.isUnfiltered;
+    return { data: [...computeResults, ...kpiResults, ...fallback.data], hasUnfilteredFallback };
   }
 
   return { data: kpiResults, hasUnfilteredFallback };
