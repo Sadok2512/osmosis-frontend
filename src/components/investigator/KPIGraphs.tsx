@@ -744,6 +744,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             },
             tooltip: { show: true },
           },
+          backgroundColor: '#f8fafc',
           tooltip: {
             trigger: 'axis' as const,
             backgroundColor: 'rgba(15,23,42,0.96)',
