@@ -81,7 +81,7 @@ async function fetchKpiComputeOnTheFly(
       }
     }
 
-    console.log('[KpiCompute] Request:', kpiId, JSON.stringify(body));
+    console.log('[KpiCompute] Request:', kpiId, 'filters:', JSON.stringify(filters), 'body:', JSON.stringify(body));
     const res = await fetch(url, {
       method: 'POST',
       headers: getApiHeaders(),
@@ -339,19 +339,24 @@ export async function fetchTimeSeriesForSlot(
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) return { data: [], hasUnfilteredFallback: false };
-  const data = await res.json();
-  const kpiSeries = data.series || [];
-  const noSplitRequested = !ctx.splitBy;
+  let kpiSeries: any[] = [];
+  let kpiResults: DataPoint[] = [];
 
-  const kpiResults: DataPoint[] = kpiSeries.map((s: any) => ({
-    timestamp: s.ts,
-    kpi: s.kpi_key,
-    value: s.value,
-    splitValue: noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value),
-  }));
+  if (res.ok) {
+    const data = await res.json();
+    kpiSeries = data.series || [];
+    const noSplitRequested = !ctx.splitBy;
+    kpiResults = kpiSeries.map((s: any) => ({
+      timestamp: s.ts,
+      kpi: s.kpi_key,
+      value: s.value,
+      splitValue: noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value),
+    }));
+  } else {
+    console.warn('[Investigator] KPI Engine failed:', res.status, '— falling back to /kpi/compute');
+  }
 
-  // Bug #3: Identify missing KPIs and fallback
+  // Identify missing KPIs (or ALL if KPI Engine failed)
   const kpisWithData = new Set(kpiSeries.map((s: any) => s.kpi_key?.toLowerCase()));
   const missingKpis = ctx.kpiIds.filter(k => !kpisWithData.has(k.toLowerCase()));
   let hasUnfilteredFallback = false;
