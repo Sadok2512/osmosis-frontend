@@ -13,8 +13,10 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
+import CounterSelectorModal from './CounterSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { fetchKpiCatalog, fetchFilterCatalog, type MonitorFilterDef } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
 const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
   { value: 'line', label: 'Line', icon: TrendingUp },
@@ -35,6 +37,8 @@ interface Props {
   isApplying?: boolean;
   showAIPanel?: boolean;
   onToggleAIPanel?: () => void;
+  selectedCounters?: any[];
+  onSelectedCountersChange?: (counters: any[]) => void;
 }
 
 const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
@@ -332,10 +336,14 @@ const JalonForm: React.FC<{ onAdd: (j: Jalon) => void }> = ({ onAdd }) => {
 };
 
 /* ── Main Control Panel ── */
-const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick, isApplying, showAIPanel, onToggleAIPanel }) => {
+const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick, isApplying, showAIPanel, onToggleAIPanel, selectedCounters: externalSelectedCounters, onSelectedCountersChange }) => {
   const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
   const [kpiDefs, setKpiDefs] = useState<KpiDefinition[]>(FALLBACK_KPIS);
   const [selectorOpen, setSelectorOpen] = useState<string | null>(null);
+  const [counterSelectorOpen, setCounterSelectorOpen] = useState(false);
+  const [counterCatalog, setCounterCatalog] = useState<any[]>([]);
+  const selectedCounters = externalSelectedCounters || [];
+  const setSelectedCounters = (counters: any[]) => onSelectedCountersChange?.(counters);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [filterDimensions, setFilterDimensions] = useState<string[]>(FILTER_DIMS_FALLBACK);
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
@@ -391,6 +399,12 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       }
     }).catch(() => {});
     fetchKpiDefinitions().then(k => { if (k.length > 0) setKpiDefs(k); }).catch(() => {});
+  }, []);
+
+  // Load counter catalog for counter selector
+  useEffect(() => {
+    fetch(getApiUrl('pm/counters/catalog?limit=5000'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : []).then(setCounterCatalog).catch(() => {});
   }, []);
 
   // Detect PM dimension types from selected KPIs → add to filter dimensions
@@ -1020,6 +1034,20 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <Plus className="w-3 h-3" />
               Add KPI
             </button>
+
+            {/* Counter chips */}
+            {selectedCounters.map((c: any, i: number) => (
+              <span key={c.counter_name} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">
+                <span className="w-2 h-2 rounded-full" style={{backgroundColor: ['#10b981','#06b6d4','#f59e0b','#8b5cf6','#ec4899'][i%5]}} />
+                {c.display_name || c.counter_name}
+                {c.dimension_type && <span className="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-600">{c.dimension_type}</span>}
+                <button onClick={() => setSelectedCounters(selectedCounters.filter((x: any) => x.counter_name !== c.counter_name))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+              </span>
+            ))}
+
+            <button onClick={() => setCounterSelectorOpen(true)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-emerald-500 hover:bg-emerald-500/10 border border-dashed border-emerald-500/30 transition-colors">
+              <Plus className="w-3 h-3" /> Add Counter
+            </button>
           </div>
 
           {/* Row D: Dimension (only when selected KPIs have dimensions) */}
@@ -1159,6 +1187,18 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         />,
         document.body
       )}
+
+      {/* Counter Selector Modal */}
+      <CounterSelectorModal
+        open={counterSelectorOpen}
+        onClose={() => setCounterSelectorOpen(false)}
+        catalog={counterCatalog}
+        selectedKeys={selectedCounters.map((c: any) => c.counter_name)}
+        onConfirm={(keys: string[]) => {
+          const resolved = keys.map(k => counterCatalog.find((c: any) => c.counter_name === k)).filter(Boolean);
+          setSelectedCounters(resolved);
+        }}
+      />
     </div>
   );
 };

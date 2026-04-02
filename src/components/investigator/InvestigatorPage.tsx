@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+
+const GRAN_MAP: Record<string, string> = {'15min':'15min','Hourly':'1h','Daily':'1d','Weekly':'1w'};
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
   timeseries: 'Graph',
@@ -52,10 +55,7 @@ const InvestigatorPage: React.FC = () => {
   const [isApplying, setIsApplying] = React.useState(false);
   const [applyError, setApplyError] = React.useState<string | null>(null);
   const [showAIPanel, setShowAIPanel] = useState(false);
-  const [counterSelectorOpen, setCounterSelectorOpen] = React.useState(false);
-  const [counterCatalog, setCounterCatalog] = React.useState<{counter_name:string;display_name:string;family:string;vendor:string;techno:string;object_type:string;count:number}[]>([]);
-  const [selectedCounters, setSelectedCounters] = React.useState<string[]>([]);
-  const [counterTsData, setCounterTsData] = React.useState<{timestamp:string;kpi:string;value:number}[]>([]);
+  const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'cm_history'>('breakdown');
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
@@ -147,6 +147,26 @@ const InvestigatorPage: React.FC = () => {
     }
     setIsApplying(false);
   };
+
+  // Fetch counter timeseries when counters are selected
+  React.useEffect(() => {
+    if (selectedCounters.length === 0) return;
+    const body = {
+      counter_names: selectedCounters.map((c: any) => c.counter_name),
+      date_from: state.startDate.split('T')[0] || '2026-03-24',
+      date_to: state.endDate.split('T')[0] || '2026-03-31',
+      granularity: GRAN_MAP[state.granularity] || '1h',
+    };
+    fetch(getApiUrl('pm/counters/timeseries'), {
+      method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    }).then(r => r.ok ? r.json() : {series:[]}).then(data => {
+      const counterPoints = (data.series || []).map((s: any) => ({
+        timestamp: s.ts, kpi: s.counter, value: s.value,
+      }));
+      setTsData(prev => [...prev, ...counterPoints]);
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCounters.map((c:any) => c.counter_name).join(','), state.startDate, state.endDate, state.granularity]);
 
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
@@ -245,6 +265,8 @@ const InvestigatorPage: React.FC = () => {
         isApplying={isApplying}
         showAIPanel={showAIPanel}
         onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
+        selectedCounters={selectedCounters}
+        onSelectedCountersChange={setSelectedCounters}
       />
 
       {/* Main Content */}
@@ -479,7 +501,12 @@ const InvestigatorPage: React.FC = () => {
         )}
 
         {/* PM Counters */}
-        {analysisTab === 'counters' && (
+        {analysisTab === 'counters' && selectedCounters.length === 0 && (
+          <div className="rounded-xl border border-border/60 bg-card p-10 text-center">
+            <p className="text-sm text-muted-foreground">Utilisez "Add Counter" dans la toolbar ci-dessus pour ajouter des compteurs PM au graphe.</p>
+          </div>
+        )}
+        {analysisTab === 'counters' && selectedCounters.length > 0 && (
           <CounterGraphSection
             dateFrom={state.startDate.split("T")[0] || "2026-01-01"}
             dateTo={state.endDate.split("T")[0] || "2026-03-24"}
