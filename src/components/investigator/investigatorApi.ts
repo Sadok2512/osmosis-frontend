@@ -57,6 +57,7 @@ async function fetchKpiComputeOnTheFly(
   dateTo: string,
   granularity: string = '1d',
   filters?: { dimension: string; values: string[] }[],
+  splitByPmDim?: string,
 ): Promise<{ data: DataPoint[]; isComputed: boolean }> {
   try {
     const url = getApiUrl('pm/kpi/compute');
@@ -79,6 +80,34 @@ async function fetchKpiComputeOnTheFly(
         else if (dim === 'QCI' && f.values?.length) body.dimension_filter = `PMQAP=${f.values[0]}`;
         else if (dim === 'KPI_LEVEL') { /* ignore, handled by kpi engine */ }
       }
+    }
+
+    // Split by PM dimension: call compute for each dimension value
+    if (splitByPmDim && !body.dimension_filter) {
+      console.log('[KpiCompute] Split by PM dimension:', splitByPmDim);
+      try {
+        const dimRes = await fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${splitByPmDim}&limit=20`), { headers: getApiHeaders() });
+        if (dimRes.ok) {
+          const dimData = await dimRes.json();
+          const dimValues = (dimData.labeled_values || dimData.values || []).slice(0, 10);
+          const allData: DataPoint[] = [];
+          for (const dv of dimValues) {
+            const dimVal = typeof dv === 'string' ? dv : dv.value;
+            const dimLabel = typeof dv === 'string' ? dv : dv.label;
+            const splitBody = { ...body, dimension_filter: dimVal };
+            const splitRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
+            if (splitRes.ok) {
+              const splitResult = await splitRes.json();
+              if (!splitResult.error) {
+                for (const s of (splitResult.series || [])) {
+                  allData.push({ timestamp: s.ts, kpi: `${kpiId}@${dimLabel}`, value: s.kpi_value, splitValue: dimLabel, _isComputed: true } as any);
+                }
+              }
+            }
+          }
+          if (allData.length > 0) return { data: allData, isComputed: true };
+        }
+      } catch (e) { console.warn('[KpiCompute] Split failed:', e); }
     }
 
     console.log('[KpiCompute] Request:', kpiId, 'filters:', JSON.stringify(filters), 'body:', JSON.stringify(body));
@@ -366,9 +395,12 @@ export async function fetchTimeSeriesForSlot(
     const computeResults: DataPoint[] = [];
     const stillMissing: string[] = [];
 
+    // Detect PM dimension split (from per-KPI splitByPerKpi or slot splitBy)
+    const pmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
+
     for (const kpiId of missingKpis) {
       const computed = await fetchKpiComputeOnTheFly(
-        kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters,
+        kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
       );
       if (computed.isComputed) {
         computeResults.push(...computed.data);
