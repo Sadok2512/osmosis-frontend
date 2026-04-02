@@ -7789,33 +7789,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 )}
                 </div>
 
-                {/* ── Sticky bottom buttons ── */}
-                <div className="shrink-0 border-t border-border bg-card px-4 py-3 space-y-2">
-                  <button
-                    onClick={() => setPointCreationMode(!pointCreationMode)}
-                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                      pointCreationMode
-                        ? 'border-violet-500 bg-violet-500/10 text-violet-600'
-                        : 'border-primary/30 text-primary hover:bg-primary/10'
-                    }`}
-                  >
-                    {pointCreationMode ? (
-                      <><X size={12} /> Annuler le placement</>
-                    ) : (
-                      <><Plus size={12} /> Ajouter un point</>
-                    )}
-                  </button>
+                {/* ── Sticky bottom tools panel ── */}
+                <div className="shrink-0 border-t border-border bg-card px-3 py-2.5 space-y-2">
+                  <MapToolsPanel
+                    activeTool={activeMapTool}
+                    onSelectTool={handleSelectMapTool}
+                    onClear={handleClearMapTools}
+                    pointCreationMode={pointCreationMode}
+                    onTogglePointMode={() => setPointCreationMode(!pointCreationMode)}
+                    linkCreationMode={linkCreationMode}
+                    onToggleLinkMode={() => { setLinkCreationMode(!linkCreationMode); setLinkSource(null); }}
+                    canCreateLink={(taggedSites.length + customPoints.length) >= 2}
+                    ringPresetIndex={ringPresetIndex}
+                    onRingPresetChange={setRingPresetIndex}
+                    distanceText={getDistanceText(distanceMeasurement)}
+                    polygonInfo={getPolygonInfo(polygonData)}
+                  />
 
-                  {!linkCreationMode ? (
-                    <button
-                      onClick={() => { setLinkCreationMode(true); setLinkSource(null); }}
-                      disabled={(taggedSites.length + customPoints.length) < 2}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <Plus size={12} />
-                      Créer un lien
-                    </button>
-                  ) : (
+                  {/* Link creation sub-panel */}
+                  {linkCreationMode && (
                     <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2">
                       <div className="text-[10px] font-bold text-primary uppercase tracking-wider">Sélection du lien</div>
                       <div className="text-[10px] text-muted-foreground">
