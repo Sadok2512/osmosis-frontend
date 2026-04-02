@@ -9,7 +9,9 @@ function defaultDateRange(): { startDate: string; endDate: string } {
   const m = now.getMonth();
   const start = new Date(y, m, 1);
   const end = new Date(y, m + 1, 0); // last day of current month
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  // Use local date parts to avoid UTC offset shifting the date
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return { startDate: fmt(start), endDate: fmt(end) };
 }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType, normalizeGranularity } from './types';
+import { buildTimeline, normalizeTimestamp, formatAxisLabel, getStepMs } from './timeUtils';
 import CounterSelectorModal from './CounterSelectorModal';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
@@ -434,47 +435,13 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         // Build full timeline from requested date range so X axis always shows the complete period
         const state = useInvestigatorStore.getState().state;
-        // Normalize timestamps: daily → YYYY-MM-DD, hourly → YYYY-MM-DDTHH:MM:SS
-        const normGran = normalizeGranularity(state.granularity);
-        const normTs = (ts: string): string => {
-          if (!ts) return ts;
-          if (normGran === '1d' || normGran === '1w') return ts.slice(0, 10);
-          return ts.slice(0, 19);
-        };
-        // Normalize all data point timestamps
-        const normalizedData = effectiveData.map(d => ({ ...d, timestamp: normTs(d.timestamp) }));
+        // Normalize all data point timestamps to match granularity format
+        const normalizedData = effectiveData.map(d => ({ ...d, timestamp: normalizeTimestamp(d.timestamp, state.granularity) }));
         const apiTimestamps = [...new Set(kpiIds.flatMap(id => normalizedData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
 
-        const generateFullTimeline = (from: string, to: string, gran: string): string[] => {
-          const ng = normalizeGranularity(gran);
-          const start = new Date(from);
-          const end = new Date(to);
-          if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) return apiTimestamps;
-
-          const points: string[] = [];
-          const stepMs =
-            ng === '15min' ? 15 * 60 * 1000 :
-            ng === '1h' ? 60 * 60 * 1000 :
-            ng === '1w' ? 7 * 24 * 60 * 60 * 1000 :
-            24 * 60 * 60 * 1000;
-
-          const maxPoints = 2000; // safety cap
-          let cur = start.getTime();
-          const endMs = end.getTime();
-          while (cur <= endMs && points.length < maxPoints) {
-            const d = new Date(cur);
-            // Format to match API timestamps (YYYY-MM-DD or ISO)
-            if (stepMs >= 24 * 60 * 60 * 1000) {
-              points.push(d.toISOString().slice(0, 10));
-            } else {
-              points.push(d.toISOString().slice(0, 19));
-            }
-            cur += stepMs;
-          }
-          return points;
-        };
-
-        const fullTimeline = generateFullTimeline(state.startDate, state.endDate, state.granularity);
+        const fullTimeline = buildTimeline(state.startDate, state.endDate, state.granularity);
+        // If buildTimeline returned empty (invalid dates), fall back to API timestamps
+        if (fullTimeline.length === 0) fullTimeline.push(...apiTimestamps);
         // Merge: use full timeline as base, add any API timestamps not already included
         const timelineSet = new Set(fullTimeline);
         for (const ts of apiTimestamps) {
@@ -484,7 +451,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const isStacked = cfg.chartType === 'stacked_bar';
         const seriesType = cfg.chartType === 'scatter' ? 'scatter' : (cfg.chartType === 'bar' || isStacked) ? 'bar' : 'line';
-        const isSmooth = cfg.chartType === 'line' || cfg.chartType === 'area'; // straight/points = not smooth
+        const isSmooth = cfg.smooth !== undefined ? cfg.smooth : (cfg.chartType === 'line' || cfg.chartType === 'area');
         const forceSymbols = cfg.chartType === 'line_points' || cfg.chartType === 'scatter';
 
         let series: any[];
@@ -739,21 +706,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             type: 'category' as const,
             data: allTimestamps,
             axisLabel: {
-              formatter: (v: string) => {
-                const d = new Date(v);
-                // Detect single-day: if first and last timestamp are same day
-                const first = new Date(allTimestamps[0]);
-                const last = new Date(allTimestamps[allTimestamps.length - 1]);
-                const sameDay = first.toDateString() === last.toDateString();
-                const spanDays = (last.getTime() - first.getTime()) / 86400000;
-                if (sameDay || spanDays <= 1) {
-                  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                } else if (spanDays <= 7) {
-                  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit' }) + '\n' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                } else {
-                  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
-                }
-              },
+              formatter: (v: string) => formatAxisLabel(v, state.granularity),
               fontSize: 10.5,
               color: '#a1a1aa',
               margin: 14,

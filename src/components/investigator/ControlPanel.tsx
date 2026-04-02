@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, KpiLevel } from './types';
+import { formatDateTime } from './timeUtils';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions, fetchKpisWithData } from './investigatorApi';
 import type { KpiDefinition } from './types';
@@ -548,7 +549,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     });
   }, [catalog, kpisWithData]);
 
-  const formatDateTime = (d: Date) => d.toISOString().slice(0, 19); // YYYY-MM-DDTHH:MM:SS
   const applyPeriod = (days: number) => {
     const end = new Date();
     const start = new Date();
