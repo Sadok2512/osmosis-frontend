@@ -38,7 +38,7 @@ const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType
   filters: {},
   startDate: '',
   endDate: '',
-  granularity: 'Hourly',
+  granularity: '' as any,  // empty = use global granularity from toolbar
   splitBy: 'None',
 });
 
