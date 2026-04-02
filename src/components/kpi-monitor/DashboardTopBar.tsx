@@ -383,7 +383,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
         {/* ── Section: Date Range + Presets (unified) ── */}
         <div className="rounded-xl border border-border/30 bg-card/80 px-3 py-2 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <CalendarIcon className="w-3 h-3 text-primary/60" />
+            <Calendar className="w-3 h-3 text-primary/60" />
             <span className="text-[9px] text-muted-foreground/70 font-bold uppercase tracking-widest">Plage de dates</span>
           </div>
           <div className="flex items-center gap-2">
