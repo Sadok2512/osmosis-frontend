@@ -618,7 +618,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const markAreaData = weekendAreas.map(([start, end]) => [{
           xAxis: start.xAxis,
-          itemStyle: { color: 'rgba(148,163,184,0.035)' },
+          itemStyle: { color: 'rgba(148,163,184,0.12)' },
         }, {
           xAxis: end.xAxis,
         }]);
@@ -665,7 +665,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
           splitLine: {
             show: cfg.showGrid,
-            lineStyle: { color: 'rgba(128,128,128,0.05)', type: 'dashed' as const },
+            lineStyle: { color: 'rgba(148,163,184,0.10)', type: 'dashed' as const },
           },
           axisLine: { show: false },
           axisTick: { show: false },
@@ -744,6 +744,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             },
             tooltip: { show: true },
           },
+          backgroundColor: '#f8fafc',
           tooltip: {
             trigger: 'axis' as const,
             backgroundColor: 'rgba(15,23,42,0.96)',
