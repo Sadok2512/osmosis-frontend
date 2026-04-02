@@ -76,7 +76,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   const [selectorOpen, setSelectorOpen] = React.useState(false);
   const [splitByDimension, setSplitByDimension] = React.useState(false);
   const [dimensionFilter, setDimensionFilter] = React.useState<string>('');
-  const [dimensionValues, setDimensionValues] = React.useState<string[]>([]);
+  const [dimensionValues, setDimensionValues] = React.useState<{ value: string; label: string }[]>([]);
   const [loadingDimValues, setLoadingDimValues] = React.useState(false);
 
   // Detect if selected counters have dimensions
@@ -105,8 +105,8 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
     if (!primaryDimension) return;
     setLoadingDimValues(true);
     fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${primaryDimension}&limit=50`), { headers: getApiHeaders() })
-      .then(r => r.ok ? r.json() : { values: [] })
-      .then(data => { setDimensionValues(data.values || []); setLoadingDimValues(false); })
+      .then(r => r.ok ? r.json() : { labeled_values: [] })
+      .then(data => { setDimensionValues(data.labeled_values || (data.values || []).map((v: string) => ({ value: v, label: v }))); setLoadingDimValues(false); })
       .catch(() => setLoadingDimValues(false));
   }, [primaryDimension]);
 
@@ -251,11 +251,11 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
               <select
                 value={dimensionFilter}
                 onChange={e => setDimensionFilter(e.target.value)}
-                className="px-1.5 py-0.5 text-[10px] rounded border border-border bg-background outline-none focus:ring-1 focus:ring-amber-500/30 min-w-[140px] max-w-[200px]"
+                className="px-1.5 py-0.5 text-[10px] rounded border border-border bg-background outline-none focus:ring-1 focus:ring-amber-500/30 min-w-[180px] max-w-[280px]"
               >
                 <option value="">Toutes les dimensions</option>
                 {dimensionValues.map(v => (
-                  <option key={v} value={v}>{v}</option>
+                  <option key={v.value} value={v.value}>{v.label}</option>
                 ))}
               </select>
               {loadingDimValues && <span className="text-[9px] text-muted-foreground animate-pulse">...</span>}

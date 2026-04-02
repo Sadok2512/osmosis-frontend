@@ -339,7 +339,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [filterDimensions, setFilterDimensions] = useState<string[]>(FILTER_DIMS_FALLBACK);
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
-  const [pmDimValues, setPmDimValues] = useState<string[]>([]);
+  const [pmDimValues, setPmDimValues] = useState<{ value: string; label: string }[]>([]);
   const [pmDimLoading, setPmDimLoading] = useState(false);
 
   // Load split and filter dimensions from backend catalog
@@ -419,8 +419,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     setPmDimLoading(true);
     import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
       fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${primaryKpiDimType}&limit=50`), { headers: getApiHeaders() })
-        .then(r => r.ok ? r.json() : { values: [] })
-        .then(d => { setPmDimValues(d.values || []); setPmDimLoading(false); })
+        .then(r => r.ok ? r.json() : { labeled_values: [] })
+        .then(d => { setPmDimValues(d.labeled_values || (d.values || []).map((v: string) => ({ value: v, label: v }))); setPmDimLoading(false); })
         .catch(() => setPmDimLoading(false));
     });
   }, [primaryKpiDimType]);
@@ -1027,7 +1027,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 className="h-7 px-2 rounded-lg border border-amber-500/30 bg-amber-500/5 text-foreground text-[10px] font-medium min-w-[160px]"
               >
                 <option value="">Toutes les dimensions</option>
-                {pmDimValues.map(v => <option key={v} value={v}>{v}</option>)}
+                {pmDimValues.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
               </select>
               {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">chargement...</span>}
               {state.filters[primaryKpiDimType]?.[0] && (
