@@ -66,12 +66,14 @@ const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec489
 /** Wrapper — full replace on every update so legend stays in sync */
 const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }) => {
   return (
-    <ReactECharts
-      option={option}
-      notMerge={true}
-      lazyUpdate={false}
-      style={{ height }}
-    />
+    <div style={{ height, position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+      <ReactECharts
+        option={option}
+        notMerge={true}
+        lazyUpdate={false}
+        style={{ height: '100%' }}
+      />
+    </div>
   );
 };
 /** Inline Histogram widget for a slot */
