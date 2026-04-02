@@ -1096,9 +1096,13 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                       })()}
                       onChange={e => {
                         const val = e.target.value;
-                        const allSplits: Record<string, string> = {};
-                        kpiIds.forEach(kid => { allSplits[kid] = val; });
-                        onUpdateSlotConfig(slot.id, { splitByPerKpi: allSplits });
+                        if (val === 'None') {
+                          onUpdateSlotConfig(slot.id, { splitByPerKpi: {} });
+                        } else {
+                          const allSplits: Record<string, string> = {};
+                          kpiIds.forEach(kid => { allSplits[kid] = val; });
+                          onUpdateSlotConfig(slot.id, { splitByPerKpi: allSplits });
+                        }
                       }}
                       className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
                     >

@@ -1004,14 +1004,23 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           })()}
                           onChange={e => {
                             const val = e.target.value;
-                            const allSplits: Record<string, string> = {};
-                            slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
-                            setState(prev => ({
-                              ...prev,
-                              graphSlots: prev.graphSlots.map(s =>
-                                s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: allSplits } } : s
-                              ),
-                            }));
+                            if (val === 'None') {
+                              setState(prev => ({
+                                ...prev,
+                                graphSlots: prev.graphSlots.map(s =>
+                                  s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: {} } } : s
+                                ),
+                              }));
+                            } else {
+                              const allSplits: Record<string, string> = {};
+                              slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
+                              setState(prev => ({
+                                ...prev,
+                                graphSlots: prev.graphSlots.map(s =>
+                                  s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: allSplits } } : s
+                                ),
+                              }));
+                            }
                           }}
                           className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
                         >
@@ -1130,7 +1139,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 graphSlots: prev.graphSlots.map(s => {
                   if (s.id !== selectorOpen) return s;
                   const merged = [...new Set([...s.kpiIds, ...validKeys])];
-                  return { ...s, kpiIds: merged, splitBy: 'None' };
+                  const cleanConfig = s.config ? { ...s.config, splitByPerKpi: {} } : s.config;
+                  return { ...s, kpiIds: merged, splitBy: 'None', config: cleanConfig };
                 }),
               }));
               onSlotClick?.(selectorOpen);
