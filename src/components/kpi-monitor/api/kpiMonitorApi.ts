@@ -28,9 +28,6 @@ export interface MonitorKpiCatalogEntry {
   vendor?: string;
   nom_bdd?: string;
   normalized_kpi_group?: string;
-  dimension_type?: string | null;
-  dimension_prefix?: string | null;
-  counter_count?: number;
 }
 
 export interface MonitorFilterDef {

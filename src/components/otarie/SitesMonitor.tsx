@@ -15,9 +15,6 @@ import 'leaflet.heat';
 import { useTerrainProfile } from '@/hooks/useTerrainProfile';
 import { useFresnel } from '@/hooks/useFresnel';
 import { haversineDistance, LatLng, bearing } from '@/utils/geodesicUtils';
-import { MapToolType, DistanceMeasurement, ConcentricRingsData, PolygonZoneData } from './map/MapToolsTypes';
-import { MapToolsPanel } from './map/MapToolsPanel';
-import { DistanceTool, ConcentricRingsTool, PolygonZoneTool, getDistanceText, getPolygonInfo } from './map/MapToolsOverlays';
 import { is5GTech, is4GTech, getCellTechGroup, normalizeSiteKey, resolveCanonicalSiteId, stableCellKey, computeMapAggregation } from '@/utils/telecomHelpers';
 import ProfileChart, { ProfileHoverData } from './radio-profile/ProfileChart';
 import InfoPanel from './radio-profile/InfoPanel';
@@ -61,7 +58,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
   return null;
 };
 import { fetchSiteDetails } from '../../services/api';
-import { getSectorNumber, groupCellsBySector, buildAzimuthSectorMap } from '../../utils/sectorUtils';
+import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
 import { getBandSizeScale, getBandRenderOrder } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
@@ -78,7 +75,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
-  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler
+  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
@@ -95,7 +92,6 @@ interface SitesMonitorProps {
 // Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
 const SITES_TO_CELLS_ZOOM = 9;
 const CELLS_TO_SITES_ZOOM = 7;
-const CELL_PRELOAD_ZOOM = 8;
 
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
@@ -399,69 +395,6 @@ const getRenderableCellsForSite = (
   });
 };
 
-const mergeCellsIntoSiteList = (
-  sites: SiteSummary[],
-  cellMap: Map<string, CellProperties[]>,
-  getLookupKeys: (siteLike: { site_id?: string | null; site_name?: string | null }) => string[],
-): SiteSummary[] => sites.map((site) => {
-  const cells = getLookupKeys(site)
-    .map((key) => cellMap.get(key))
-    .find((value): value is CellProperties[] => Array.isArray(value) && value.length > 0);
-
-  if (!cells || cells.length === 0) return site;
-
-  return {
-    ...site,
-    cells,
-    cell_count: Math.max(site.cell_count || 0, cells.length),
-    lte_cells: cells.filter((cell) => is4GTech(cell.techno)).length,
-    nr_cells: cells.filter((cell) => is5GTech(cell.techno)).length,
-  };
-});
-
-const preserveLoadedCellsInSites = (
-  incomingSites: SiteSummary[],
-  previousSites: SiteSummary[],
-): SiteSummary[] => {
-  const previousByKey = new Map<string, SiteSummary>();
-
-  previousSites.forEach((site) => {
-    const keys = [site.site_id, site.site_name]
-      .map((value) => String(value || '').trim())
-      .filter(Boolean)
-      .flatMap((value) => {
-        const normalized = normalizeSiteKey(value);
-        return normalized && normalized !== value ? [value, normalized] : [value];
-      });
-
-    keys.forEach((key) => {
-      if (!previousByKey.has(key)) previousByKey.set(key, site);
-    });
-  });
-
-  return incomingSites.map((site) => {
-    const previous = [site.site_id, site.site_name]
-      .map((value) => String(value || '').trim())
-      .filter(Boolean)
-      .flatMap((value) => {
-        const normalized = normalizeSiteKey(value);
-        return normalized && normalized !== value ? [value, normalized] : [value];
-      })
-      .map((key) => previousByKey.get(key))
-      .find((candidate): candidate is SiteSummary => Boolean(candidate));
-
-    if (!previous?.cells?.length) return site;
-
-    return {
-      ...site,
-      cells: previous.cells,
-      cell_count: Math.max(site.cell_count || 0, previous.cells.length),
-      lte_cells: previous.cells.filter((cell) => is4GTech(cell.techno)).length,
-      nr_cells: previous.cells.filter((cell) => is5GTech(cell.techno)).length,
-    };
-  });
-};
-
 /** Build label text for a site based on selected label fields */
 const buildSiteLabel = (site: SiteSummary, fields: Set<string>): string => {
   if (fields.size === 0) return '';
@@ -613,78 +546,6 @@ const CustomPointClickHandler: React.FC<{ active: boolean; onAdd: (lat: number, 
       if (active) onAdd(e.latlng.lat, e.latlng.lng);
     },
   });
-  return null;
-};
-
-// Right-click box zoom: hold right mouse button and drag to draw a rectangle, then zoom to it
-const RightClickBoxZoom: React.FC = () => {
-  const map = useMap();
-  useEffect(() => {
-    const container = map.getContainer();
-    let startPoint: L.Point | null = null;
-    let box: HTMLDivElement | null = null;
-
-    const onContextMenu = (e: Event) => e.preventDefault();
-
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 2) return; // right-click only
-      e.preventDefault();
-      e.stopPropagation();
-      map.dragging.disable();
-      const rect = container.getBoundingClientRect();
-      startPoint = L.point(e.clientX - rect.left, e.clientY - rect.top);
-      box = document.createElement('div');
-      Object.assign(box.style, {
-        position: 'absolute',
-        border: '2px dashed hsl(210,80%,55%)',
-        background: 'hsla(210,80%,55%,0.15)',
-        pointerEvents: 'none',
-        zIndex: '9999',
-      });
-      container.appendChild(box);
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!startPoint || !box) return;
-      const rect = container.getBoundingClientRect();
-      const cur = L.point(e.clientX - rect.left, e.clientY - rect.top);
-      const x = Math.min(startPoint.x, cur.x);
-      const y = Math.min(startPoint.y, cur.y);
-      const w = Math.abs(cur.x - startPoint.x);
-      const h = Math.abs(cur.y - startPoint.y);
-      Object.assign(box.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
-    };
-
-    const onMouseUp = (e: MouseEvent) => {
-      if (!startPoint || !box) return;
-      const rect = container.getBoundingClientRect();
-      const endPoint = L.point(e.clientX - rect.left, e.clientY - rect.top);
-      box.remove();
-      box = null;
-      map.dragging.enable();
-      const dx = Math.abs(endPoint.x - startPoint.x);
-      const dy = Math.abs(endPoint.y - startPoint.y);
-      if (dx > 20 && dy > 20) {
-        const sw = map.containerPointToLatLng(L.point(Math.min(startPoint.x, endPoint.x), Math.max(startPoint.y, endPoint.y)));
-        const ne = map.containerPointToLatLng(L.point(Math.max(startPoint.x, endPoint.x), Math.min(startPoint.y, endPoint.y)));
-        map.fitBounds(L.latLngBounds(sw, ne));
-      }
-      startPoint = null;
-    };
-
-    container.addEventListener('contextmenu', onContextMenu);
-    container.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-
-    return () => {
-      container.removeEventListener('contextmenu', onContextMenu);
-      container.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-      map.dragging.enable();
-    };
-  }, [map]);
   return null;
 };
 
@@ -2852,13 +2713,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
   const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
 
-  const displayMode = isFlying
-    ? displayModeRef.current
-    : viewport.zoom >= SITES_TO_CELLS_ZOOM
-      ? 'cells'
-      : viewport.zoom <= CELLS_TO_SITES_ZOOM
-        ? 'sites'
-        : displayModeRef.current;
+  const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
+    ? 'cells'
+    : viewport.zoom <= CELLS_TO_SITES_ZOOM
+      ? 'sites'
+      : displayModeRef.current;
 
   useEffect(() => {
     displayModeRef.current = displayMode;
@@ -2887,12 +2746,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [topoResetCounter, setTopoResetCounter] = useState(0);
   const [bandColors, setBandColors] = useState<Record<string, string>>(loadCustomBandColors);
   const [editingColorBand, setEditingColorBand] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (enabledTechnos.size === 0) {
-      setEnabledTechnos(new Set(['5G', '4G']));
-    }
-  }, [enabledTechnos]);
 
   // ── TOPO mode: fetch global network stats from DB ──
   const [topoNetworkStats, setTopoNetworkStats] = useState<TopoNetworkStats | null>(null);
@@ -3177,27 +3030,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     }
   }, [linkSource, addTaggedLink]);
-
-  // ── Map Tools State ──
-  const [activeMapTool, setActiveMapTool] = useState<MapToolType>('none');
-  const [distanceMeasurement, setDistanceMeasurement] = useState<DistanceMeasurement>({ pointA: null, pointB: null });
-  const [ringsData, setRingsData] = useState<ConcentricRingsData>({ center: null, radii: [] });
-  const [polygonData, setPolygonData] = useState<PolygonZoneData>({ points: [] });
-  const [ringPresetIndex, setRingPresetIndex] = useState(0);
-
-  const handleSelectMapTool = useCallback((tool: MapToolType) => {
-    setActiveMapTool(tool);
-    if (tool !== 'distance') setDistanceMeasurement({ pointA: null, pointB: null });
-    if (tool !== 'rings') setRingsData({ center: null, radii: [] });
-    if (tool !== 'polygon') setPolygonData({ points: [] });
-  }, []);
-
-  const handleClearMapTools = useCallback(() => {
-    setActiveMapTool('none');
-    setDistanceMeasurement({ pointA: null, pointB: null });
-    setRingsData({ center: null, radii: [] });
-    setPolygonData({ points: [] });
-  }, []);
 
   // ── Terrain Profile for Links ──
   const { loading: linkProfileLoading, profilePoints: linkProfilePoints, analysis: linkProfileAnalysis, computeProfile: linkComputeProfile } = useTerrainProfile();
@@ -3718,7 +3550,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bboxTotal, setBboxTotal] = useState<number>(0);
   const [bboxLoading, setBboxLoading] = useState(false);
-  const [cellLoadingCount, setCellLoadingCount] = useState(0);
 
   // Derive current bbox filters from local filter state + backend filter bar
   const backendQueryStr = backendBuildQueryParams();
@@ -3745,7 +3576,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return base;
   }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
 
-  // Core bbox fetch function — loads sites only at low zoom, sites+cells at high zoom
+  // Core bbox fetch function — ALWAYS site-only mode (never load cells at map level)
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
 
@@ -3760,82 +3591,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       maxLat: bounds.getNorth(),
     };
 
-    const effectiveZoom = zoom ?? viewport.zoom;
-    const needCells = effectiveZoom >= CELL_PRELOAD_ZOOM;
-
     setBboxLoading(true);
 
     try {
-      let newSites: SiteSummary[];
-      let total: number;
+      // Always fetch site summaries only — cells are loaded on demand per site
+      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
 
-      if (needCells) {
-        // Parallel: fetch ALL sites + fetch sites-with-cells, then merge
-        const [siteResult, cellSites] = await Promise.all([
-          fetchSitesByBbox(bbox, bboxFilters, controller.signal),
-          fetchCellsByBbox(bbox, bboxFilters, controller.signal),
-        ]);
-        if (controller.signal.aborted) return;
-
-        // Build cell lookup from the cells endpoint
-        const cellMap = new Map<string, SiteSummary>();
-        for (const cs of cellSites) {
-          cellMap.set(cs.site_id, cs);
-          if (cs.site_name) cellMap.set(cs.site_name, cs);
-        }
-
-        // Start with all sites from the sites endpoint, enrich with cells
-        const allSites = (siteResult.sites || []).map(site => {
-          const withCells = cellMap.get(site.site_id) || cellMap.get(site.site_name);
-          if (withCells && withCells.cells.length > 0) {
-            return { ...site, cells: withCells.cells, cell_count: Math.max(site.cell_count, withCells.cells.length), lte_cells: withCells.lte_cells, nr_cells: withCells.nr_cells };
-          }
-          return site;
-        });
-
-        // Add any cell-sites that weren't in the sites list
-        const siteIdSet = new Set(allSites.map(s => s.site_id));
-        for (const cs of cellSites) {
-          if (!siteIdSet.has(cs.site_id)) allSites.push(cs);
-        }
-
-        newSites = allSites;
-        total = siteResult.total || allSites.length;
-
-        // Mark sites with cells as attempted so the cell effect skips them
-        cellLoadAttemptedRef.current.clear();
-        cellLoadingRef.current.clear();
-        setCellLoadingCount(0);
-        newSites.forEach(s => {
-          if (s.cells.length > 0) cellLoadAttemptedRef.current.add(s.site_id);
-        });
-        console.log(`[SitesMonitor] Viewport cells: ${cellSites.length} sites with cells, ${newSites.length} total sites, ${newSites.filter(s => s.cells.length > 0).length} enriched`);
-      } else {
-        // Low zoom: fetch site summaries only
-        const result = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
-        if (controller.signal.aborted) return;
-        newSites = result.sites || [];
-        total = result.total || 0;
-        // Clear cell-load tracking so cells reload for new viewport sites
-        cellLoadAttemptedRef.current.clear();
-        cellLoadingRef.current.clear();
-        setCellLoadingCount(0);
-      }
+      if (controller.signal.aborted) return;
 
       // Preserve the currently selected site if it was added via search and isn't in the new bbox results
       setSites(prev => {
-        const shouldPreservePreviousSites = newSites.length === 0 && total === 0 && prev.length > 0;
-        const nextSites = shouldPreservePreviousSites
-          ? prev
-          : preserveLoadedCellsInSites(newSites, prev);
         const selectedId = selectedSiteIdRef.current;
         const selectedSite = selectedId ? prev.find(s => s.site_id === selectedId) : null;
-        if (selectedSite && !nextSites.some(s => s.site_id === selectedId)) {
-          return [selectedSite, ...nextSites];
+        if (selectedSite && !(newSites || []).some(s => s.site_id === selectedId)) {
+          return [selectedSite, ...(newSites || [])];
         }
-        return nextSites;
+        return newSites || [];
       });
-      setBboxTotal(total);
+      setBboxTotal(total || 0);
       setBboxLoading(false);
       setLoading(false);
     } catch (err: any) {
@@ -3851,7 +3624,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
-    }, 220);
+    }, 450);
   }, [fetchForViewport, currentBboxFilters]);
 
   // ── Debounced server-side search (independent of dashboard) ──
@@ -4157,8 +3930,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (focusMode !== 'site' || !selectedSiteId || !siteDetail || siteDetail.site_id !== selectedSiteId) return;
     if (expandedSectors.size > 0) return;
 
-    const azMap = buildAzimuthSectorMap(siteDetail.cells as any[]);
-    const sectorNums = new Set(siteDetail.cells.map(c => getSectorNumber(c.cell_id, c as any, azMap)));
+    const sectorNums = new Set(siteDetail.cells.map(c => getSectorNumber(c.cell_id)));
     if (sectorNums.size > 0) {
       const first = Math.min(...sectorNums);
       setExpandedSectors(new Set([first]));
@@ -4402,7 +4174,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (prevBboxFiltersRef.current && prevBboxFiltersRef.current !== filterKey) {
       cellLoadAttemptedRef.current.clear();
       cellLoadingRef.current.clear();
-      setCellLoadingCount(0);
       invalidateBboxCache();
     }
     prevBboxFiltersRef.current = filterKey;
@@ -4410,8 +4181,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   useEffect(() => {
     // Load cells when in cells display mode OR when cell-level view conditions are active
-    const shouldLoadCells = displayMode === 'cells' || hasCellLevelConditions || viewport.zoom >= CELL_PRELOAD_ZOOM;
-    if (!shouldLoadCells) return;
+    if (displayMode !== 'cells' && !hasCellLevelConditions) return;
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
@@ -4424,7 +4194,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     cellLoadDebounceRef.current = setTimeout(async () => {
       // Mark all as loading
       sitesNeedingCells.forEach(s => cellLoadingRef.current.add(s.site_id));
-      setCellLoadingCount(cellLoadingRef.current.size);
 
       try {
         const bounds = viewport.bounds!;
@@ -4437,44 +4206,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         // Single bulk call for all cells in current viewport
         const cellSites = await fetchCellsByBbox(bboxQuery, currentBboxFilters);
 
-        const getLookupKeys = (siteLike: { site_id?: string | null; site_name?: string | null }) => {
-          const candidates = [siteLike.site_id, siteLike.site_name]
-            .map(value => String(value || '').trim())
-            .filter(Boolean);
-
-          return Array.from(new Set(
-            candidates.flatMap(value => {
-              const normalized = normalizeSiteKey(value);
-              return normalized && normalized !== value ? [value, normalized] : [value];
-            })
-          ));
-        };
-
-        // Build a lookup by stable id and normalized site name
-        const cellMap = new Map<string, CellProperties[]>();
+        // Build a lookup by site_id
+        const cellMap = new Map<string, any[]>();
         for (const cs of cellSites) {
           if (cs.cells && cs.cells.length > 0) {
-            getLookupKeys(cs).forEach(key => cellMap.set(key, cs.cells as CellProperties[]));
+            cellMap.set(cs.site_id, cs.cells);
           }
         }
 
-        const hasCellsForSite = (siteLike: { site_id?: string | null; site_name?: string | null }) =>
-          getLookupKeys(siteLike).some((key) => {
-            const cells = cellMap.get(key);
-            return Array.isArray(cells) && cells.length > 0;
-          });
-
-        const unresolvedSites = sitesNeedingCells.filter((site) => !hasCellsForSite(site));
-        const attemptedThisPass = new Set<string>(
-          sitesNeedingCells.filter((site) => hasCellsForSite(site)).map((site) => site.site_id)
-        );
-
-        // Progressive VPS loading for sites still missing after bulk viewport fetch.
-        if (unresolvedSites.length > 0) {
-          const MAX_PROGRESSIVE_SITE_FETCH = 48;
-          const CONCURRENCY = 8;
-          const DELAY_MS = 120;
-          const queue = unresolvedSites.slice(0, MAX_PROGRESSIVE_SITE_FETCH);
+        // Fallback: if bulk load returns nothing, load per-site but capped & throttled
+        if (cellMap.size === 0 && sitesNeedingCells.length > 0) {
+          const MAX_FALLBACK = 30; // Load up to 30 individual sites
+          const CONCURRENCY = 5;
+          const DELAY_MS = 500; // pause between batches
+          const queue = sitesNeedingCells.slice(0, MAX_FALLBACK);
 
           while (queue.length > 0) {
             const batch = queue.splice(0, CONCURRENCY);
@@ -4482,69 +4227,103 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               batch.map(async (site) => {
                 try {
                   const cells = await fetchSiteCells(site.site_id);
-                  return { site, cells };
+                  return { siteId: site.site_id, cells };
                 } catch {
-                  return { site, cells: [] as any[] };
+                  return { siteId: site.site_id, cells: [] as any[] };
                 }
               })
             );
-
             for (const r of batchResults) {
-              attemptedThisPass.add(r.site.site_id);
-              if (r.cells.length > 0) {
-                getLookupKeys(r.site).forEach((key) => cellMap.set(key, r.cells as CellProperties[]));
-              }
+              if (r.cells.length > 0) cellMap.set(r.siteId, r.cells);
             }
-
             if (queue.length > 0) await new Promise(r => setTimeout(r, DELAY_MS));
           }
         }
 
-        // Mark only resolved or individually attempted sites; keep the rest pending for next pass.
-        sitesNeedingCells.forEach(s => {
-          cellLoadingRef.current.delete(s.site_id);
-        });
-        attemptedThisPass.forEach((siteId) => cellLoadAttemptedRef.current.add(siteId));
-        setCellLoadingCount(cellLoadingRef.current.size);
-
-        const resolvedCount = sitesNeedingCells.filter((site) => hasCellsForSite(site)).length;
-        const remainingCount = sitesNeedingCells.length - attemptedThisPass.size;
-        console.log(`[SitesMonitor] Cell merge: cellMap has ${cellMap.size} entries for ${sitesNeedingCells.length} sites needing cells`);
-        console.log(`[SitesMonitor] Cell progress: ${resolvedCount} resolved, ${attemptedThisPass.size} attempted, ${remainingCount} pending`);
-        if (cellMap.size > 0) {
-          const sampleKeys = Array.from(cellMap.keys()).slice(0, 3);
-          console.log(`[SitesMonitor] Sample cellMap keys: ${sampleKeys.join(', ')}`);
-          const sampleSiteIds = sitesNeedingCells.slice(0, 3).map(s => s.site_id);
-          console.log(`[SitesMonitor] Sample site IDs: ${sampleSiteIds.join(', ')}`);
+        // Ultimate fallback: synthesize approximate sectors from site-level lte_cells/nr_cells
+        // when ALL VPS cell endpoints fail (timeout / empty)
+        if (cellMap.size === 0) {
+          console.warn('[SitesMonitor] All cell endpoints failed — generating synthetic sectors from site metadata');
+          for (const site of sitesNeedingCells) {
+            const lte = site.lte_cells || 0;
+            const nr = site.nr_cells || 0;
+            if (lte === 0 && nr === 0) continue;
+            const syntheticCells: any[] = [];
+            const azimuths = [0, 120, 240]; // standard tri-sector
+            // Generate 4G synthetic cells
+            if (lte > 0) {
+              const bandsPerSector = Math.max(1, Math.round(lte / 3));
+              const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
+              for (let s = 0; s < 3; s++) {
+                for (let b = 0; b < bandsPerSector && b < defaultBands4G.length; b++) {
+                  syntheticCells.push({
+                    cell_id: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
+                    cell_name: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
+                    techno: '4G',
+                    bande: defaultBands4G[b],
+                    vendor: site.vendor || 'Unknown',
+                    azimut: azimuths[s],
+                    tilt: null,
+                    pci: null, eci: null, nci: null, cid: null, tac: null,
+                    etat_cellule: null, essentiel: null,
+                    _synthetic: true,
+                  });
+                }
+              }
+            }
+            // Generate 5G synthetic cells
+            if (nr > 0) {
+              const bandsPerSector5G = Math.max(1, Math.round(nr / 3));
+              const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
+              for (let s = 0; s < 3; s++) {
+                for (let b = 0; b < bandsPerSector5G && b < defaultBands5G.length; b++) {
+                  syntheticCells.push({
+                    cell_id: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
+                    cell_name: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
+                    techno: '5G',
+                    bande: defaultBands5G[b],
+                    vendor: site.vendor || 'Unknown',
+                    azimut: azimuths[s],
+                    tilt: null,
+                    pci: null, eci: null, nci: null, cid: null, tac: null,
+                    etat_cellule: null, essentiel: null,
+                    _synthetic: true,
+                  });
+                }
+              }
+            }
+            if (syntheticCells.length > 0) {
+              cellMap.set(site.site_id, syntheticCells);
+            }
+          }
         }
 
-        setSites(prev => {
-          const merged = mergeCellsIntoSiteList(prev, cellMap, getLookupKeys);
-          const withCells = merged.filter(s => s.cells.length > 0).length;
-          console.log(`[SitesMonitor] After merge: ${withCells}/${merged.length} sites have cells`);
-          return merged;
+        // Mark all as attempted (whether cells found or not) and clear loading flags
+        sitesNeedingCells.forEach(s => {
+          cellLoadingRef.current.delete(s.site_id);
+          cellLoadAttemptedRef.current.add(s.site_id);
         });
-        setSearchModeSites(prev => prev.length > 0 ? mergeCellsIntoSiteList(prev, cellMap, getLookupKeys) : prev);
-        setSelectedSiteSnapshot(prev => {
-          if (!prev) return prev;
-          return mergeCellsIntoSiteList([prev], cellMap, getLookupKeys)[0] ?? prev;
-        });
+
+        // Merge cells into sites — keep original cell_count (don't overwrite with 4G/5G-only count)
+        setSites(prev => prev.map(s => {
+          const cells = cellMap.get(s.site_id);
+          return cells && cells.length > 0 ? { ...s, cells } : s;
+        }));
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
         sitesNeedingCells.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
           cellLoadAttemptedRef.current.add(s.site_id);
         });
-        setCellLoadingCount(cellLoadingRef.current.size);
         // Force re-render so filters re-evaluate with attempted flags
         setSites(prev => [...prev]);
       }
-    }, 120);
+    }, 400);
 
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, viewport.bounds, viewport.zoom, hasCellLevelConditions, currentBboxFilters]);
+  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, currentBboxFilters]);
 
 
   const renderSites = useMemo(() => {
@@ -4601,7 +4380,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return getColorForValue(val, colorViewColorMap);
   }, [colorViewMode, colorViewColorMap]);
 
-  const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && showBeamSectors;
+  const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
   // Filter cells to 4G/5G only for sector rendering
   const ALLOWED_TECH = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
   const filter4G5GCells = (cells: any[]) => cells.filter(c => !c.techno || ALLOWED_TECH.has(c.techno.trim()));
@@ -4643,7 +4422,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const prevZoom = viewport.zoom;
     // handleViewportChange already calls setViewport
     handleViewportChange(v);
-    handleViewportForFetch(v);
+    // Don't fetch sites without an active dashboard
+    // (previously this called handleViewportForFetch, loading sites via bbox even with no dashboard)
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
@@ -4828,8 +4608,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setFocusMode('site');
     setFocusCellId(null);
     // Auto-expand only the first sector by default
-    const azMapClick = buildAzimuthSectorMap(siteWithCells.cells as any[]);
-    const sectorNums = Array.from(new Set(siteWithCells.cells.map(c => getSectorNumber(c.cell_id, c as any, azMapClick)))).sort((a, b) => a - b);
+    const sectorNums = Array.from(new Set(siteWithCells.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
     setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
     setShowRightPanel(true);
     // Ensure inventory panel is open and on sites tab before scrolling
@@ -4891,33 +4670,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setFocusCellId(null);
   };
 
-  // Unified loading banner — just below toolbar
-  // Detect "cells needed but not loaded yet" state for immediate feedback
-  const cellsNeededButPending = displayMode === 'cells' && visibleSites.length > 0 && visibleSites.some(s => s.cells.length === 0 && !cellLoadAttemptedRef.current.has(s.site_id));
-  const isAnythingLoading = loading || bboxLoading || cellLoadingCount > 0 || cellsNeededButPending;
-  const loadingMessage = (() => {
-    if (cellLoadingCount > 0) return `Chargement des cellules… ${cellLoadingCount.toLocaleString()} site${cellLoadingCount > 1 ? 's' : ''}`;
-    if (cellsNeededButPending) {
-      const pending = visibleSites.filter(s => s.cells.length === 0 && !cellLoadAttemptedRef.current.has(s.site_id)).length;
-      return `Chargement des cellules… ${pending.toLocaleString()} site${pending > 1 ? 's' : ''}`;
-    }
-    if (bboxLoading && viewport.zoom >= CELL_PRELOAD_ZOOM) return 'Chargement des cellules…';
-    if (loading || bboxLoading) return sites.length > 0 ? `Chargement… ${sites.length.toLocaleString()} sites` : 'Chargement des sites…';
-    return '';
-  })();
-  const unifiedLoadingOverlay = isAnythingLoading ? (
-    <div
-      className="absolute z-[1100] pointer-events-none animate-fade-in"
-      style={{
-        top: 80,
-        left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
-        transform: 'translateX(-50%)',
-      }}
-    >
+  // Non-blocking loading banner — map stays interactive
+  const loadingOverlay = (loading || bboxLoading) ? (
+    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1100] pointer-events-none animate-fade-in">
       <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg">
         <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-          {loadingMessage}
+          {sites.length > 0
+            ? `Chargement… ${sites.length.toLocaleString()} sites`
+            : 'Chargement des sites…'}
         </p>
       </div>
     </div>
@@ -4930,9 +4691,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Main view — full screen map with clustering
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
-      {unifiedLoadingOverlay}
+      {loadingOverlay}
       {/* Empty state — no dashboard, modal closed */}
       {/* Empty overlay removed — message now in sidebar */}
+      {/* Bbox loading indicator */}
+      {bboxLoading && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1001] px-3 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-lg flex items-center gap-2">
+          <RefreshCw size={12} className="text-primary animate-spin" />
+          <span className="text-[10px] font-semibold text-muted-foreground">Chargement {bboxTotal > 0 ? `(${bboxTotal} sites)` : ''}...</span>
+        </div>
+      )}
       {/* FULL SCREEN MAP */}
       <MapContainer
         key={`map-${showBeamSectors ? 'beams' : 'nobeams'}-${mapDisplayMode}`}
@@ -4959,11 +4727,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
         <CustomPointClickHandler active={pointCreationMode} onAdd={addCustomPoint} />
-        {/* ── Map Tools Overlays ── */}
-        <DistanceTool active={activeMapTool === 'distance'} measurement={distanceMeasurement} onUpdate={setDistanceMeasurement} />
-        <ConcentricRingsTool active={activeMapTool === 'rings'} data={ringsData} onUpdate={setRingsData} presetIndex={ringPresetIndex} />
-        <PolygonZoneTool active={activeMapTool === 'polygon'} data={polygonData} onUpdate={setPolygonData} />
-        <RightClickBoxZoom />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
@@ -5160,8 +4923,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const scale = Math.pow(2, REF_ZOOM - zoom);
               return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
             };
-            const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], Math.max(viewport.zoom, 9), sectorDensityFactor, vpWidth) * 0.7;
-            const miniOpacity = Math.min(0.65, 0.25 + (Math.max(viewport.zoom, 9) - 9) * 0.1);
+            const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7;
+            const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
             // Build per-cell band-based mini items with size hierarchy
@@ -5290,7 +5053,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               ? (isHov || isSel ? 7 : 5)
               : viewport.zoom >= 8
                 ? (isHov || isSel ? 6 : Math.round(4 * densityScale))
-                : (isHov || isSel ? 10 : Math.round(7 * densityScale));
+                : (isHov || isSel ? 5 : Math.round(3.5 * densityScale));
             return br;
           };
 
@@ -5451,7 +5214,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
             const colorViewOverrideIndoor = getColorViewFill(site);
             const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
-            const iconSize = Math.min(18, Math.max(10, (viewport.zoom - 12) * 3 + 12));
+            const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
             return (
               <Marker
                 key={site.site_id}
@@ -5569,7 +5332,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               let az = Number(cell.azimut);
               if (!Number.isFinite(az) || az < 0 || az > 360) {
                 // Fallback: assign azimuth based on sector number (tri-sector heuristic)
-                const sNum = getSectorNumber(cell.cell_id, cell as any);
+                const sNum = getSectorNumber(cell.cell_id);
                 const heuristicAz = [0, 0, 120, 240]; // index 0=fallback, 1=0°, 2=120°, 3=240°
                 az = heuristicAz[sNum] ?? ((sNum - 1) * 120) % 360;
               }
@@ -5724,7 +5487,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 let cellRadius = zoomRadius * 1.3 * bandScale;
                 let az = Number(cell.azimut);
                 if (!Number.isFinite(az) || az < 0 || az > 360) {
-                  const sNum = getSectorNumber(cell.cell_id, cell as any);
+                  const sNum = getSectorNumber(cell.cell_id);
                   const heuristicAz = [0, 0, 120, 240];
                   az = heuristicAz[sNum] ?? ((sNum - 1) * 120) % 360;
                 }
@@ -5959,32 +5722,2142 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Distance tool banner */}
-      {activeMapTool === 'distance' && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-amber-600 text-white px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 text-sm font-semibold pointer-events-auto">
-          <Ruler className="w-4 h-4" />
-          {!distanceMeasurement.pointA ? 'Cliquez le point A' : !distanceMeasurement.pointB ? 'Cliquez le point B' : 'Mesure terminée — cliquez pour recommencer'}
-          <button onClick={handleClearMapTools} className="ml-3 px-2 py-0.5 bg-white/20 rounded-lg text-xs font-bold hover:bg-white/30 transition-colors">Annuler</button>
+
+      {showLosPanel && losAnalysis && !losLoading && (
+        <div
+           className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[48%] flex flex-col animate-fade-in"
+          style={{
+            left: (panelCollapsed ? 56 : 400) + 16,
+            right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16,
+            background: 'rgba(15,23,42,0.55)',
+            backdropFilter: 'blur(22px)',
+            WebkitBackdropFilter: 'blur(22px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 20,
+            boxShadow: '0 8px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}
+        >
+          {/* Header — translucent */}
+          <div
+            className="flex items-center justify-between px-6 py-3.5 shrink-0"
+            style={{
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{
+                  background: 'rgba(56,189,248,0.12)',
+                  border: '1px solid rgba(56,189,248,0.2)',
+                  boxShadow: '0 0 16px rgba(56,189,248,0.08)',
+                }}
+              >
+                <Radio className="w-4 h-4 text-sky-400" />
+              </div>
+              <div>
+                <h3 className="text-[11px] font-black text-white/90 uppercase tracking-[0.12em]">Profil Radio</h3>
+                <p className="text-[9px] text-white/40 font-semibold mt-0.5">
+                  {losSelectedCell?.name} • {losSelectedCell?.techno} • {losSelectedCell?.bande} MHz • Az: {losSelectedCell?.azimuth}° • HBA: {losSelectedCell?.hba}m
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* RF Toggles — glass pills */}
+              <div className="flex items-center gap-2.5 mr-2">
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                  style={{
+                    background: losEnableCurvature ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Switch checked={losEnableCurvature} onCheckedChange={(v) => { setLosEnableCurvature(v); }} />
+                  <Label className="text-[10px] text-white/60">k=4/3</Label>
+                </div>
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                  style={{
+                    background: losEnableFresnel ? 'rgba(250,204,21,0.08)' : 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Switch checked={losEnableFresnel} onCheckedChange={setLosEnableFresnel} />
+                  <Label className="text-[10px] text-white/60">Fresnel</Label>
+                </div>
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                  style={{
+                    background: losEnableClutter ? 'rgba(251,146,60,0.08)' : 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Switch checked={losEnableClutter} onCheckedChange={(v) => {
+                    setLosEnableClutter(v);
+                    if (!v) setLosClutterHeight(0);
+                    else setLosClutterHeight(10);
+                  }} />
+                  <Label className="text-[10px] text-white/60">Clutter</Label>
+                </div>
+                {losEnableClutter && (
+                  <div className="flex items-center gap-1.5">
+                    <input type="range" min="0" max="30" step="1" value={losClutterHeight}
+                      onChange={e => setLosClutterHeight(Number(e.target.value))}
+                      className="w-14 accent-sky-400" />
+                    <span className="text-[9px] font-mono text-white/50">{losClutterHeight}m</span>
+                  </div>
+                )}
+              </div>
+              <button onClick={handleLosRecompute}
+                className="px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all duration-200 hover:scale-105"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.7)',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                <Settings2 className="w-3 h-3" />
+                Recalculer
+              </button>
+              <button onClick={() => { if (siteDetail) handleStartLosDrawing(siteDetail); }}
+                className="px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all duration-200 hover:scale-105"
+                style={{
+                  background: 'rgba(56,189,248,0.15)',
+                  border: '1px solid rgba(56,189,248,0.25)',
+                  color: 'rgba(56,189,248,0.95)',
+                  boxShadow: '0 0 12px rgba(56,189,248,0.08)',
+                }}
+              >
+                <Crosshair className="w-3 h-3" />
+                Nouveau
+              </button>
+              <button onClick={handleCloseLos}
+                className="p-2 rounded-xl transition-all duration-200 hover:scale-105"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.5)',
+                }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5 flex gap-5">
+            {/* Chart */}
+            <div className="flex-1 h-[260px] min-w-0">
+              <ProfileChart
+                profilePoints={losProfilePoints}
+                analysis={losAnalysis}
+                fresnel={losFresnel}
+                showFresnel={losEnableFresnel}
+                showCurvature={losEnableCurvature}
+                clutterHeight={losEnableClutter ? losClutterHeight : 0}
+                showTilt
+                siteName={siteDetail?.site_name}
+              />
+            </div>
+            {/* Info panel */}
+            <div className="w-[300px] shrink-0 overflow-y-auto pr-1">
+              <InfoPanel
+                analysis={losAnalysis}
+                totalDistance={losTotalDistance}
+                enableCurvature={losEnableCurvature}
+                fresnel={losFresnel}
+              />
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Rings tool banner */}
-      {activeMapTool === 'rings' && !ringsData.center && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-cyan-600 text-white px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 text-sm font-semibold pointer-events-auto">
-          <Radio className="w-4 h-4" />
-          Cliquez pour placer le centre des cercles
-          <button onClick={handleClearMapTools} className="ml-3 px-2 py-0.5 bg-white/20 rounded-lg text-xs font-bold hover:bg-white/30 transition-colors">Annuler</button>
+      {/* LOS Loading indicator */}
+      {losLoading && (
+        <div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] px-6 py-3.5 flex items-center gap-3 pointer-events-auto animate-fade-in"
+          style={{
+            background: 'rgba(15,23,42,0.6)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 16,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          }}
+        >
+          <RefreshCw className="w-5 h-5 text-sky-400 animate-spin" />
+          <span className="text-xs font-bold text-white/80">Calcul du profil terrain...</span>
         </div>
       )}
 
-      {/* Polygon tool banner */}
-      {activeMapTool === 'polygon' && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-emerald-600 text-white px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 text-sm font-semibold pointer-events-auto">
-          <Layers className="w-4 h-4" />
-          {polygonData.points.length < 3 ? 'Cliquez pour ajouter des points' : `${polygonData.points.length} points — continuez ou changez d'outil`}
-          <button onClick={handleClearMapTools} className="ml-3 px-2 py-0.5 bg-white/20 rounded-lg text-xs font-bold hover:bg-white/30 transition-colors">Annuler</button>
+      {/* ── Link Terrain Profile Panel ── */}
+      {showLinkProfile && linkProfileAnalysis && !linkProfileLoading && (
+        <div
+          className="absolute bottom-4 right-4 z-[1001] overflow-hidden pointer-events-auto max-h-[50%] flex flex-col animate-fade-in"
+          style={{
+            left: `${(panelCollapsed ? 56 : 400) + 16}px`,
+            background: 'rgba(15,23,42,0.55)',
+            backdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 24,
+            boxShadow: '0 12px 48px rgba(0,0,0,0.3)',
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/15 flex items-center justify-center">
+                <Network size={16} className="text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-white tracking-tight">{linkProfileLabel}</h3>
+                <p className="text-[10px] text-white/40">Profil terrain du lien · {linkTotalDistance > 0 ? (linkTotalDistance / 1000).toFixed(2) + ' km' : ''}</p>
+              </div>
+            </div>
+            {/* Controls */}
+            <div className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                style={{
+                  background: linkEnableCurvature ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <Switch checked={linkEnableCurvature} onCheckedChange={(v) => {
+                  setLinkEnableCurvature(v);
+                  if (linkActiveCoords) recomputeLinkProfile(linkActiveCoords, v);
+                }} />
+                <Label className="text-[10px] text-white/60">k=4/3</Label>
+              </div>
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                style={{
+                  background: linkEnableFresnel ? 'rgba(250,204,21,0.08)' : 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <Switch checked={linkEnableFresnel} onCheckedChange={setLinkEnableFresnel} />
+                <Label className="text-[10px] text-white/60">Fresnel</Label>
+              </div>
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                style={{
+                  background: linkEnableClutter ? 'rgba(251,146,60,0.08)' : 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <Switch checked={linkEnableClutter} onCheckedChange={(v) => {
+                  setLinkEnableClutter(v);
+                  if (!v) setLinkClutterHeight(0);
+                  else setLinkClutterHeight(10);
+                }} />
+                <Label className="text-[10px] text-white/60">Clutter</Label>
+              </div>
+              {linkEnableClutter && (
+                <div className="flex items-center gap-1.5">
+                  <input type="range" min="0" max="30" step="1" value={linkClutterHeight}
+                    onChange={e => setLinkClutterHeight(Number(e.target.value))}
+                    className="w-14 accent-sky-400" />
+                  <span className="text-[9px] font-mono text-white/50">{linkClutterHeight}m</span>
+                </div>
+              )}
+              <button
+                onClick={() => { setShowLinkProfile(false); setSelectedLinkId(null); setLinkProfileHover(null); setLinkActiveCoords(null); }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5 flex gap-5">
+            {/* Chart */}
+            <div className="flex-1 h-[260px] min-w-0">
+              <ProfileChart
+                profilePoints={linkProfilePoints}
+                analysis={linkProfileAnalysis}
+                fresnel={linkFresnel}
+                showFresnel={linkEnableFresnel}
+                showCurvature={linkEnableCurvature}
+                clutterHeight={linkEnableClutter ? linkClutterHeight : 0}
+                onHoverPoint={setLinkProfileHover}
+                showTilt
+                remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
+                siteName={linkProfileLabel}
+              />
+            </div>
+            {/* Info panel */}
+            <div className="w-[300px] shrink-0 overflow-y-auto pr-1">
+              <InfoPanel
+                analysis={linkProfileAnalysis}
+                totalDistance={linkTotalDistance}
+                enableCurvature={linkEnableCurvature}
+                fresnel={linkFresnel}
+              />
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Floating worst cells panel */}
+      {highlightedCellData.length > 0 && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto">
+          <div className="bg-card/95 backdrop-blur-sm border-2 border-destructive/40 rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
+            <span className="text-destructive font-black text-xs">⚠️ Top {highlightedCellData.length} Worst Cells</span>
+            <span className="w-px h-5 bg-border" />
+            <span className="text-[10px] font-bold text-muted-foreground">{selectedKpiLabel}</span>
+            {onClearHighlights && (
+              <button onClick={onClearHighlights} className="ml-2 px-3 py-1 rounded-lg bg-muted hover:bg-destructive/10 text-xs font-bold text-muted-foreground hover:text-destructive transition-all">
+                ✕ Fermer
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Map controls removed — moved into legend group below */}
+
+      {/* Parameter mode — value legend + info badge */}
+      {paramMode && (
+        <>
+          {/* Value legend */}
+          {paramUniqueValues.length > 0 && paramUniqueValues.length <= 25 && (
+            <div className="absolute bottom-16 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl p-3.5 max-h-[240px] overflow-y-auto transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16 }}>
+              <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">{paramConfirmed} — {paramPoints.length} pts</div>
+              <div className="space-y-0.5">
+                {paramUniqueValues.map(v => (
+                  <div key={v} className="flex items-center gap-2 text-[10px]">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: paramValueColor(v === '(vide)' ? null : v) }} />
+                    <span className="truncate max-w-[140px]">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Param loading indicator */}
+          {paramLoading && (
+            <div className="absolute inset-0 flex items-center justify-center z-[1001] pointer-events-none">
+              <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl px-6 py-4 flex items-center gap-3 shadow-xl">
+                <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+                <span className="text-xs font-bold text-foreground">Chargement des paramètres...</span>
+              </div>
+            </div>
+          )}
+          {/* Empty state — no points with coordinates */}
+          {!paramLoading && paramPoints.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center z-[1001] pointer-events-none">
+              <div className="bg-card/90 backdrop-blur-sm border border-border rounded-xl px-6 py-4 flex flex-col items-center gap-2 shadow-xl max-w-[320px]">
+                <MapPin className="w-8 h-8 text-muted-foreground/40" />
+                <span className="text-xs font-bold text-foreground text-center">Aucun point avec coordonnées</span>
+                <span className="text-[10px] text-muted-foreground text-center">Le paramètre « {paramConfirmed} » n'a pas d'entités avec latitude/longitude renseignées.</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Floating info badge — site count + zoom level */}
+      <div className="absolute bottom-6 z-[1000] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`, transform: 'translateX(-50%)' }}>
+        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-5 py-2.5 flex items-center gap-4">
+          {paramMode ? (
+            <>
+              <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                ⬡ Param: {paramConfirmed}
+              </span>
+              <span className="w-px h-4 bg-border" />
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                {paramPoints.length} points
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                {filteredSites.length} sites
+              </span>
+              <span className="w-px h-4 bg-border" />
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                Zoom {viewport.zoom}
+              </span>
+              <span className="w-px h-4 bg-border" />
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: showSectors ? '#10b981' : 'hsl(var(--primary))' }}>
+                {showSectors ? `${visibleSites.length} visible • Sectors` : 'Clusters'}
+              </span>
+              <span className="w-px h-4 bg-border" />
+              {/* Toggle: site names */}
+              <button
+                onClick={() => setShowSiteLabels(v => !v)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                  showSiteLabels
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {showSiteLabels ? '☑' : '☐'} Noms
+              </button>
+              {/* Toggle: beams */}
+              <button
+                onClick={() => setShowBeamSectors(v => !v)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                  showBeamSectors
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'text-muted-foreground border-border hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {showBeamSectors ? '☑' : '☐'} Beams
+              </button>
+            </>
+          )}
+          <span className="w-px h-4 bg-border" />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className={`w-2 h-2 rounded-full ${filteredSites.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+              {filteredSites.length > 0 ? 'Connected' : 'Disconnected'} • V1.0 Beta • Orange France
+            </span>
+          </div>
+        </div>
+      </div>
+
+
+      {/* Floating top bar — single row with scroll, dynamically positioned between sidebars */}
+      <div
+        className="absolute z-[1000] pointer-events-auto transition-all duration-300"
+        style={{
+          top: 12,
+          left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
+          transform: 'translateX(-50%)',
+          maxWidth: `min(1060px, calc(100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
+          width: '100%',
+        }}
+      >
+        <div
+          className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl flex items-center"
+          style={{ minHeight: 60, height: 60 }}
+        >
+          {/* Scroll-left button */}
+          {toolbarCanScrollLeft && (
+            <button
+              onClick={() => scrollToolbar('left')}
+              className="shrink-0 flex items-center justify-center w-7 h-full text-muted-foreground hover:text-foreground transition-colors border-r border-border/30"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft size={14} />
+            </button>
+          )}
+
+          {/* Scrollable KPI zone */}
+          <div
+            ref={toolbarScrollRef}
+            className="flex-1 overflow-x-auto overflow-y-hidden flex items-center justify-center gap-3 px-4 scrollbar-hide"
+            style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap', scrollbarWidth: 'none' }}
+          >
+            {/* ── Unified mode selector: QoE / Topo / Parameters ── */}
+            <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
+              <button
+                onClick={() => { setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }}
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
+                  sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Zap size={11} />
+                QoE
+              </button>
+              <button
+                onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                  sectorColorMode === 'topo' && !paramMode && !paramPanelOpen
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Radio size={11} />
+                Topo
+              </button>
+              <button
+                onClick={async () => {
+                  if (!paramPanelOpen && !paramMode) {
+                    // Entering param mode: save active dashboard but keep filters applied
+                    if (activeDashboardId) {
+                      await saveDashboardSettings(activeDashboardId);
+                    }
+                  }
+                  setParamPanelOpen(!paramPanelOpen);
+                }}
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
+                  paramMode || paramPanelOpen
+                    ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-md shadow-emerald-500/20'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <MapPin size={11} />
+                Param
+                {paramConfirmed && <span className="text-[8px] opacity-70">({paramPoints.length})</span>}
+              </button>
+            </div>
+
+            <span className="w-px h-7 bg-border/50 shrink-0" />
+
+            {/* ── QoE mode: KPI chips ── */}
+            {sectorColorMode === 'kpi' && !paramMode && (
+              <>
+                {/* DL group */}
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬇ DL</span>
+                  {MAP_KPIS.filter(k => ['qoe_score_avg', 'dms_dl_3', 'dms_dl_8', 'dms_dl_30', 'p50_thr_dn_mbps'].includes(k.id)).map(kpi => {
+                    const shortLabels: Record<string, string> = {
+                      'qoe_score_avg': 'QoE',
+                      'dms_dl_3': '≥3',
+                      'dms_dl_8': '≥8',
+                      'dms_dl_30': '≥30',
+                      'p50_thr_dn_mbps': 'Débit',
+                    };
+                    return (
+                      <button
+                        key={kpi.id}
+                        onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
+                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                          mapKpi === kpi.id
+                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        }`}
+                        title={kpi.label}
+                      >
+                        {shortLabels[kpi.id] || kpi.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                {/* UL group */}
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬆ UL</span>
+                  {MAP_KPIS.filter(k => ['dms_ul_3', 'p50_thr_up_mbps'].includes(k.id)).map(kpi => {
+                    const shortLabels: Record<string, string> = {
+                      'dms_ul_3': '≥3',
+                      'p50_thr_up_mbps': 'Débit',
+                    };
+                    return (
+                      <button
+                        key={kpi.id}
+                        onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
+                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+                          mapKpi === kpi.id
+                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                        }`}
+                        title={kpi.label}
+                      >
+                        {shortLabels[kpi.id] || kpi.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                {/* Plus dropdown for TCP/RTT/Volume */}
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => setShowKpiDropdown(!showKpiDropdown)}
+                    className={`px-3.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
+                      ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
+                        ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
+                    }`}
+                  >
+                    <SlidersHorizontal size={12} />
+                    Plus
+                    {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                  </button>
+                  {showKpiDropdown && (
+                    <div className="absolute top-10 right-0 w-[300px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
+                      <div className="max-h-[400px] overflow-y-auto py-1">
+                        {['RTT', 'TCP', 'VOLUME'].map(cat => (
+                          <div key={cat}>
+                            <div className="px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30">{cat}</div>
+                            {MAP_KPIS.filter(k => k.category === cat).map(kpi => (
+                              <button
+                                key={kpi.id}
+                                onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); }}
+                                className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-all ${
+                                  mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
+                                }`}
+                              >
+                                <div className="text-[11px] font-bold">{kpi.label}</div>
+                                {mapKpi === kpi.id && <span className="text-xs">✓</span>}
+                              </button>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* ── Topo mode: inline tech filter + layer switcher + label ── */}
+            {sectorColorMode === 'topo' && !paramMode && (
+              <>
+                {/* Tech filter: ALL / 5G / 4G / OFF */}
+                <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
+                  {(['ALL', '5G', '4G', 'OFF'] as const).map((tech) => (
+                    <button
+                      key={tech}
+                      onClick={() => {
+                        setMapTechnoFilter(tech);
+                        const NR_BANDS = ['NR3500', 'NR700', 'NR2100'];
+                        const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
+                        if (tech === 'ALL') {
+                          setEnabledBands(new Set([...NR_BANDS, ...LTE_BANDS]));
+                        } else if (tech === '5G') {
+                          setEnabledBands(new Set(NR_BANDS));
+                        } else if (tech === '4G') {
+                          setEnabledBands(new Set(LTE_BANDS));
+                        } else {
+                          setEnabledBands(new Set());
+                        }
+                      }}
+                      className={`px-3 py-2 text-[10px] font-black tracking-wider transition-all ${
+                        mapTechnoFilter === tech
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {tech}
+                    </button>
+                  ))}
+                </div>
+
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                <button
+                  onClick={() => {
+                    setMapLabelFields(prev => {
+                      const next = new Set(prev);
+                      if (next.has('site_name')) {
+                        next.delete('site_name');
+                      } else {
+                        next.add('site_name');
+                      }
+                      return next;
+                    });
+                  }}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                    mapLabelFields.has('site_name')
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+                  }`}
+                >
+                  <Tag size={12} />
+                  Site Name
+                </button>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+
+                {/* Network Info right panel toggle */}
+                <button
+                  onClick={() => setShowRightPanel(prev => !prev)}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                    showRightPanel
+                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm shadow-red-500/20'
+                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+                  }`}
+                >
+                  <Signal size={12} />
+                  Network Info
+                </button>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                {/* Views / Dashboard toggle */}
+                <button
+                  onClick={() => {
+                    if (inventoryTab === 'dashboard' && !panelCollapsed) {
+                      setPanelCollapsed(true);
+                    } else {
+                      setInventoryTab('dashboard');
+                      setPanelCollapsed(false);
+                    }
+                  }}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                    inventoryTab === 'dashboard' && !panelCollapsed
+                      ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-sm shadow-primary/20'
+                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+                  }`}
+                >
+                  <Layers size={12} />
+                  Views
+                </button>
+
+                {/* View by Color selector — button only (dropdown rendered outside overflow container) */}
+                <button
+                  ref={(el) => { (window as any).__colorViewBtnRef = el; }}
+                  onClick={() => setShowColorViewDropdown(!showColorViewDropdown)}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg flex items-center gap-1.5 shrink-0 ${
+                    colorViewMode !== 'none'
+                      ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm shadow-violet-500/20'
+                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+                  }`}
+                >
+                  <Palette size={12} />
+                  {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Couleur'}
+                </button>
+              </>
+            )}
+
+            {/* ── Parameters mode: current selection ── */}
+            {paramMode && (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold text-foreground">{paramConfirmed}</span>
+                <span className="text-[9px] text-muted-foreground">({paramPoints.length} pts)</span>
+                <button
+                  onClick={handleParamReset}
+                  className="text-[9px] font-bold text-destructive hover:text-destructive/80 transition-colors"
+                >
+                  ✕ Reset
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Scroll-right button */}
+          {toolbarCanScrollRight && (
+            <button
+              onClick={() => scrollToolbar('right')}
+              className="shrink-0 flex items-center justify-center w-7 h-full text-muted-foreground hover:text-foreground transition-colors border-l border-border/30"
+              aria-label="Scroll right"
+            >
+              <ChevronRight size={14} />
+            </button>
+          )}
+
+          {/* Fixed right zone — Views */}
+          <div className="shrink-0 flex items-center gap-2 px-3 border-l border-border/40">
+            <MapViewManager
+              currentSettings={getCurrentMapSettings()}
+              onLoadView={handleLoadView}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Color View dropdown — rendered outside overflow container */}
+      {showColorViewDropdown && (() => {
+        const btn = (window as any).__colorViewBtnRef as HTMLElement | null;
+        const rect = btn?.getBoundingClientRect();
+        const top = rect ? rect.bottom + 6 : 100;
+        const left = rect ? rect.left : 400;
+        return (
+          <>
+            <div className="fixed inset-0 z-[1199]" onClick={() => setShowColorViewDropdown(false)} />
+            <div
+              className="fixed z-[1200] bg-card/98 backdrop-blur-xl border border-border rounded-xl shadow-2xl min-w-[180px] py-1 animate-in fade-in-0 zoom-in-95 duration-150 pointer-events-auto"
+              style={{ top, left }}
+            >
+              <div className="px-3 py-2 border-b border-border/40">
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Colorer par</span>
+              </div>
+              {(['none', 'vendor', 'dor', 'plaque', 'tech'] as ColorViewMode[]).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => { setColorViewMode(mode); setShowColorViewDropdown(false); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-[11px] transition-colors ${
+                    colorViewMode === mode
+                      ? 'bg-primary/10 text-primary font-bold'
+                      : 'text-foreground hover:bg-muted font-medium'
+                  }`}
+                >
+                  {colorViewMode === mode && <Check size={12} className="text-primary shrink-0" />}
+                  {colorViewMode !== mode && <span className="w-3 shrink-0" />}
+                  {COLOR_VIEW_LABELS[mode]}
+                </button>
+              ))}
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Parameters panel — rendered outside overflow container */}
+      {paramPanelOpen && (
+        <div className="absolute top-[80px] z-[1100] pointer-events-auto w-[320px] transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16 }}>
+          <div className="bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-3 border-b border-border">
+              <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Sélectionner un paramètre</div>
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  autoFocus
+                  value={paramSearch}
+                  onChange={e => setParamSearch(e.target.value)}
+                  placeholder="Rechercher..."
+                  className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            </div>
+            <div className="max-h-[240px] overflow-y-auto p-1">
+              {paramAvailableLoading ? (
+                <div className="flex items-center justify-center py-6"><RefreshCw className="w-4 h-4 animate-spin text-primary" /></div>
+              ) : paramFilteredList.length === 0 ? (
+                <div className="py-4 text-center text-xs text-muted-foreground">Aucun paramètre</div>
+              ) : paramFilteredList.map(p => (
+                <button
+                  key={p}
+                  onClick={() => setParamSelected(p)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors ${
+                    paramSelected === p ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground hover:bg-accent'
+                  }`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    paramSelected === p ? 'border-primary bg-primary' : 'border-input'
+                  }`}>
+                    {paramSelected === p && <Check size={8} className="text-primary-foreground" />}
+                  </div>
+                  <span className="truncate">{p}</span>
+                </button>
+              ))}
+            </div>
+            <div className="p-3 border-t border-border flex items-center gap-2">
+              {paramSelected && paramSelected !== paramConfirmed && (
+                <span className="text-[9px] text-amber-500 font-bold uppercase mr-auto">Non appliqué</span>
+              )}
+              {!paramSelected && !paramConfirmed && (
+                <span className="text-[9px] text-muted-foreground mr-auto">Choisir un paramètre</span>
+              )}
+              {paramConfirmed && paramSelected === paramConfirmed && (
+                <span className="text-[9px] text-primary font-bold mr-auto truncate max-w-[120px]">✓ {paramConfirmed}</span>
+              )}
+              <button
+                onClick={handleParamReset}
+                className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition-all"
+              >
+                Reset
+              </button>
+              <button
+                onClick={handleParamConfirm}
+                disabled={!paramSelected || paramLoading}
+                className="px-4 py-1.5 rounded-lg text-[10px] font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
+              >
+                {paramLoading ? <RefreshCw size={10} className="animate-spin" /> : <Check size={10} />}
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating bottom-left: display mode + layer switcher */}
+      {viewMode === 'map' && (
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16 }}>
+          {/* Display mode: Sites / Points / Heatmap */}
+          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+            {([
+              { key: 'sites' as const, label: '📍' },
+              { key: 'points' as const, label: '●' },
+              { key: 'heatmap' as const, label: '🔥' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setMapDisplayMode(key)}
+                className={`w-10 h-10 flex items-center justify-center text-sm transition-all ${
+                  mapDisplayMode === key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+                title={key.charAt(0).toUpperCase() + key.slice(1)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Layer switcher: L / D / S */}
+          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+            {([
+              { key: 'light' as const, label: 'L' },
+              { key: 'dark' as const, label: 'D' },
+              { key: 'satellite' as const, label: 'S' },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setMapLayer(key)}
+                className={`w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all ${
+                  mapLayer === key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Floating bottom-left: techno filter + band legend */}
+      {viewMode === 'map' && (
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ right: showRightPanel && !detailFullscreen ? 474 : 24 }}>
+          {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
+          {sites.length > 0 && (
+            <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+              {(['ALL', '5G', '4G', 'OFF'] as const).map((tech) => (
+                <button
+                  key={tech}
+                  onClick={() => {
+                    setMapTechnoFilter(tech);
+                    const NR_BANDS = ['NR3500', 'NR700', 'NR2100'];
+                    const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
+                    if (tech === 'ALL') {
+                      setEnabledBands(new Set([...NR_BANDS, ...LTE_BANDS]));
+                    } else if (tech === '5G') {
+                      setEnabledBands(new Set(NR_BANDS));
+                    } else if (tech === '4G') {
+                      setEnabledBands(new Set(LTE_BANDS));
+                    } else {
+                      setEnabledBands(new Set());
+                    }
+                  }}
+                  className={`w-10 h-10 flex items-center justify-center text-[10px] font-black tracking-wider transition-all ${
+                    mapTechnoFilter === tech
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {tech}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Band layer toggle panel — hidden when colorViewMode is active */}
+          {colorViewMode === 'none' && (
+          <div className="relative">
+            <button
+              onClick={() => setShowBandPanel(!showBandPanel)}
+              className={`w-10 h-10 flex items-center justify-center rounded-full shadow-lg transition-all ${
+                showBandPanel
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card/95 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+              title="Band Layers"
+            >
+              <Signal size={16} />
+            </button>
+            {showBandPanel && (
+              <div className="absolute right-12 bottom-0 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500]">
+                {mapTechnoFilter === 'ALL' ? (
+                  /* ── ALL mode: show only 5G / 4G with group color pickers ── */
+                  <div className="px-4 py-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Technologies</span>
+                      <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
+                    </div>
+                    {([
+                      { key: '5G_GROUP', tech: '5G' as const, label: '5G', defaultColor: '#22c55e' },
+                      { key: '4G_GROUP', tech: '4G' as const, label: '4G', defaultColor: '#f97316' },
+                    ]).map(({ key, tech, label, defaultColor }) => {
+                      const enabled = enabledTechnos.has(tech);
+                      const color = bandColors[key] || defaultColor;
+                      return (
+                        <div key={key} className="flex items-center gap-2.5 w-full group">
+                          <button
+                            onClick={() => {
+                              setEnabledTechnos(prev => {
+                                const next = new Set(prev);
+                                if (next.has(tech)) next.delete(tech); else next.add(tech);
+                                return next;
+                              });
+                            }}
+                            className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
+                              enabled ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
+                            }`}
+                            style={{ background: enabled ? color : 'transparent' }}
+                          >
+                            {enabled && <span className="text-white text-[8px] font-black">✓</span>}
+                          </button>
+                          <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
+                            enabled ? 'text-foreground' : 'text-muted-foreground line-through'
+                          }`} onClick={() => {
+                            setEnabledTechnos(prev => {
+                              const next = new Set(prev);
+                              if (next.has(tech)) next.delete(tech); else next.add(tech);
+                              return next;
+                            });
+                          }}>{label}</span>
+                          <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: color }} title={`Change ${label} color`}>
+                            <input type="color" value={color} onChange={(e) => updateBandColor(key, e.target.value)} className="opacity-0 w-0 h-0 absolute" />
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* ── 5G or 4G mode: show detailed bands ── */
+                  <>
+                <div className="px-4 py-3 border-b border-border/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleAllBands('NR')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['5G_GROUP'] || '#22c55e' }}>
+                        5G NR
+                      </button>
+                    </div>
+                    <button onClick={resetBandColors} className="text-[8px] font-bold text-muted-foreground/50 hover:text-foreground" title="Reset colors">↺</button>
+                  </div>
+                  <div className="space-y-1.5">
+                    {(['NR3500', 'NR700', 'NR2100'] as const).map(band => (
+                      <div key={band} className="flex items-center gap-2.5 w-full group">
+                        <button
+                          onClick={() => toggleBand(band)}
+                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
+                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
+                          }`}
+                          style={{ background: enabledBands.has(band) ? bandColors[band] : 'transparent' }}
+                        >
+                          {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
+                        </button>
+                        <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
+                          enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
+                        }`} onClick={() => toggleBand(band)}>{band}</span>
+                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[band] }} title="Change color">
+                          <input
+                            type="color"
+                            value={bandColors[band]}
+                            onChange={(e) => updateBandColor(band, e.target.value)}
+                            className="opacity-0 w-0 h-0 absolute"
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* LTE group */}
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleAllBands('LTE')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>
+                        4G LTE
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {(['L2600', 'L2100', 'L1800', 'L800', 'L700'] as const).map(band => (
+                      <div key={band} className="flex items-center gap-2.5 w-full group">
+                        <button
+                          onClick={() => toggleBand(band)}
+                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
+                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
+                          }`}
+                          style={{ background: enabledBands.has(band) ? bandColors[band] : 'transparent' }}
+                        >
+                          {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
+                        </button>
+                        <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
+                          enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
+                        }`} onClick={() => toggleBand(band)}>{band}</span>
+                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[band] }} title="Change color">
+                          <input
+                            type="color"
+                            value={bandColors[band]}
+                            onChange={(e) => updateBandColor(band, e.target.value)}
+                            className="opacity-0 w-0 h-0 absolute"
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Color View Legend — rendered outside the band panel container ── */}
+      {viewMode === 'map' && colorViewMode !== 'none' && Object.keys(colorViewColorMap).length > 0 && (
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 24 }}>
+          <div className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] max-w-[220px]">
+            <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Palette size={12} className="text-primary" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{COLOR_VIEW_LABELS[colorViewMode]}</span>
+              </div>
+              <button
+                onClick={() => setColorViewMode('none')}
+                className="text-muted-foreground/50 hover:text-foreground transition-colors"
+                title="Réinitialiser"
+              >
+                <X size={12} />
+              </button>
+            </div>
+            <div className="px-4 py-2.5 space-y-1.5 max-h-[200px] overflow-y-auto">
+              {Object.entries(colorViewColorMap).sort(([a], [b]) => a.localeCompare(b)).map(([value, color]) => (
+                <div key={value} className="flex items-center gap-2.5">
+                  <span className="w-4 h-4 rounded shrink-0 border border-border/30" style={{ background: color }} />
+                  <span className="text-[11px] font-semibold text-foreground truncate">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ LEFT PANEL — Inventory Index ══ */}
+      {viewMode === 'map' && (
+        <div className={`absolute top-0 left-0 bottom-0 z-[1000] pointer-events-auto transition-all duration-300 ease-in-out ${
+          panelCollapsed ? 'w-14' : 'w-[400px]'
+        }`}>
+          {/* Collapsed state */}
+          {panelCollapsed ? (
+            <div className="h-full bg-card border-r border-border flex flex-col items-center py-4 gap-3">
+              <button
+                onClick={() => setPanelCollapsed(false)}
+                className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-all relative"
+                title="Open Inventory"
+              >
+                <ChevronRight size={18} />
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-primary text-primary-foreground text-[8px] font-black rounded-full flex items-center justify-center">
+                  {filteredSites.length}
+                </span>
+              </button>
+            </div>
+          ) : (
+            <div className="h-full bg-card border-r border-border flex flex-col overflow-hidden">
+              {/* ── Header ── */}
+              <div className="px-5 pt-5 pb-3 shrink-0">
+                <div className="flex items-center justify-between mb-1">
+                  <div>
+                    <h2 className="text-[13px] font-extrabold text-foreground uppercase tracking-[0.15em]">Inventory Index</h2>
+                    <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mt-0.5">Sites Navigation List</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPanelMinimized(!panelMinimized)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
+                        panelMinimized ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="Filters"
+                    >
+                      <Filter size={14} />
+                    </button>
+                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-black">
+                      {filteredSites.length}
+                    </div>
+                    <button
+                      onClick={() => setPanelCollapsed(true)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                      title="Collapse"
+                    >
+                      <PanelLeftClose size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Search bar ── */}
+              <div className="px-5 pb-3 shrink-0 relative">
+                <div className="flex items-center gap-2.5 bg-muted/60 border border-border rounded-xl px-4 py-3">
+                  <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher un site..."
+                    value={localSearch}
+                    onChange={(e) => setLocalSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') { setLocalSearch(''); setSearchResults([]); setSearchModeSites([]); }
+                    }}
+                    className="flex-1 bg-transparent text-[12px] font-medium text-foreground outline-none placeholder:text-muted-foreground min-w-0"
+                  />
+                  {searchLoading && (
+                    <RefreshCw size={12} className="animate-spin text-primary shrink-0" />
+                  )}
+                  {localSearch && (
+                    <button onClick={() => { setLocalSearch(''); setSearchResults([]); setSearchModeSites([]); }} className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-background text-muted-foreground hover:text-foreground transition-all shrink-0">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Tabs: Sites / Dashboard ── */}
+              <div className="px-5 pb-2 shrink-0 flex items-center gap-1 bg-muted/20 border-b border-border">
+                {[
+                  { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
+                  { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
+                  { id: 'tagged' as const, label: `Tagged (${taggedSites.length})`, icon: <Star size={12} /> },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setInventoryTab(tab.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      inventoryTab === tab.id
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    {tab.icon}
+                    <span className="truncate">{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {true && (
+              <>
+
+              {/* ── Filters row (sites tab only) ── */}
+              {inventoryTab === 'sites' && panelMinimized && (
+                <div className="px-5 py-3 shrink-0 grid grid-cols-2 gap-2 animate-fade-in">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Vendor</span>
+                    <select value={localVendor} onChange={(e) => setLocalVendor(e.target.value)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      {uniqueVendors.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">DOR</span>
+                    <select value={localDor} onChange={(e) => setLocalDor(e.target.value)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      {uniqueDors.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Plaque</span>
+                    <select value={localPlaque} onChange={(e) => setLocalPlaque(e.target.value)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      {uniquePlaques.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Bande</span>
+                    <select value={localBande} onChange={(e) => setLocalBande(e.target.value)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      {uniqueBandes.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Zone ARCEP</span>
+                    <select value={localZoneArcep} onChange={(e) => setLocalZoneArcep(e.target.value)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      {uniqueZoneArceps.map(z => <option key={z} value={z}>{z}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Tech</span>
+                    <select value={localTechno} onChange={(e) => setLocalTechno(e.target.value as any)}
+                      className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
+                      <option value="ALL">ALL</option>
+                      <option value="4G">4G</option>
+                      <option value="5G">5G</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Sort bar (sites tab only) ── */}
+              {inventoryTab === 'sites' && (
+                <div className="px-5 py-2 flex items-center justify-between shrink-0 border-b border-border/30">
+                  <span className="text-[10px] text-muted-foreground font-semibold">{filteredSites.length} sites</span>
+                  <button
+                    onClick={() => setInventorySortOrder(prev => prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                      inventorySortOrder !== 'none'
+                        ? 'bg-primary/15 text-primary border border-primary/30'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    {inventorySortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    <span>{inventorySortOrder === 'none' ? 'Tri' : inventorySortOrder === 'desc' ? '↓ Worst' : '↑ Best'}</span>
+                    <span className="text-[9px] opacity-70">{MAP_KPIS.find(k => k.id === mapKpi)?.label?.replace(/Score |Global/g, '') || mapKpi}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* ── Site List (sites tab) ── */}
+              {inventoryTab === 'sites' && (
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {!dashboardActive && !loading && !isSearchActive && searchModeSites.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Filter size={18} className="text-primary" />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">No Dashboard</span>
+                    <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
+                      Sélectionnez ou créez un dashboard dans l'onglet Dashboard pour charger les sites.
+                    </p>
+                  </div>
+                ) : searchLoading ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                    <RefreshCw size={20} className="mb-3 animate-spin text-primary" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider">Recherche...</span>
+                  </div>
+                ) : filteredSites.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                    <Search size={28} className="mb-3 opacity-20" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider">{isSearchActive ? 'Aucun résultat' : 'No sites found'}</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(() => {
+                      const displayed = filteredSites.slice(0, 100);
+                      // Ensure selected site is always in the list even if beyond first 100
+                      if (selectedSiteId && !displayed.find(s => s.site_id === selectedSiteId)) {
+                        const sel = filteredSites.find(s => s.site_id === selectedSiteId);
+                        if (sel) displayed.unshift(sel);
+                      }
+                      return displayed;
+                    })().map(site => {
+                      const isSelected = selectedSiteId === site.site_id;
+                      const isExpanded = isSelected;
+                      const rawCells = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
+                        ? siteDetail.cells
+                        : site.cells;
+                      // Apply dashboard/view filters on cells
+                      const siteCells = rawCells.filter(c => {
+                        const cellTech = getCellTechGroup(c.techno);
+                        if (mapTechnoFilter === '4G' && cellTech !== '4G') return false;
+                        if (mapTechnoFilter === '5G' && cellTech !== '5G') return false;
+                        if (mapTechnoFilter === 'ALL' && cellTech && !enabledTechnos.has(cellTech)) return false;
+                        if (localBande !== 'ALL' && c.bande !== localBande) return false;
+                        if (localTechno !== 'ALL' && cellTech !== localTechno) return false;
+                        if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(c.bande)) return false;
+                        if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
+                        return true;
+                      });
+                      const displayedCellCount = siteCells.length;
+                      // Group cells by sector
+                      const sectors = new Map<number, typeof siteCells>();
+                      siteCells.forEach(c => {
+                        const sNum = getSectorNumber(c.cell_id);
+                        if (!sectors.has(sNum)) sectors.set(sNum, []);
+                        sectors.get(sNum)!.push(c);
+                      });
+                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a - b);
+
+                      return (
+                        <div
+                          key={site.site_id}
+                          ref={(el) => { if (el) siteRowRefs.current.set(site.site_id, el); }}
+                          className={`rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
+                            isSelected
+                              ? 'border-primary/40 bg-card shadow-lg'
+                              : 'border-border bg-card hover:border-primary/20 hover:shadow-md'
+                          }`}
+                        >
+                          {/* Site row */}
+                          <button
+                            onClick={() => { handleSiteClick(site); }}
+                            onMouseEnter={() => setHoveredSiteId(site.site_id)}
+                            onMouseLeave={() => setHoveredSiteId(null)}
+                            className="w-full text-left px-4 py-3.5 flex items-center gap-3"
+                          >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                              isSelected ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'bg-muted text-muted-foreground'
+                            }`}>
+                              <MapPin size={18} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[13px] font-extrabold text-foreground tracking-tight uppercase truncate">{site.site_name}</h4>
+                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                                <span className="font-mono">{site.site_id}</span>
+                                <span>•</span>
+                                <span className="uppercase font-semibold">{site.vendor}</span>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              {sectorColorMode !== 'topo' && (
+                                <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg min-w-[48px]" style={{ background: getKpiColor((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0), color: '#fff' }}>
+                                  <span className="text-[15px] font-black tracking-tight leading-none">
+                                    {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleTagSite(site); }}
+                                className={`w-6 h-6 flex items-center justify-center rounded-full transition-all ${isSiteTagged(site.site_id) ? 'text-yellow-400' : 'text-muted-foreground/40 hover:text-yellow-400'}`}
+                                title={isSiteTagged(site.site_id) ? 'Retirer du tag' : 'Tagger ce site'}
+                              >
+                                <Star size={14} fill={isSiteTagged(site.site_id) ? 'currentColor' : 'none'} />
+                              </button>
+                              <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </div>
+                          </button>
+
+                           {/* Expanded: sector cards + cell table */}
+                          {isExpanded && (
+                            <div className="px-4 pb-4 pt-1 animate-fade-in">
+                              {/* Sector cards row */}
+                              <div className="flex items-stretch gap-2 mb-3">
+                                {sortedSec.map(([sNum, cells]) => {
+                                  const isSectorExpanded = expandedSectors.has(sNum);
+                                  const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
+                                  const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
+                                  return (
+                                    <button
+                                      key={sNum}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedSectors(prev => {
+                                          if (prev.has(sNum) && prev.size === 1) return new Set();
+                                          return new Set([sNum]);
+                                        });
+                                      }}
+                                      className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
+                                        isSectorExpanded
+                                          ? 'bg-primary text-primary-foreground shadow-lg'
+                                          : 'bg-card text-foreground border border-border hover:border-primary/30 shadow-sm'
+                                      }`}
+                                    >
+                                      <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
+                                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                                        {(() => {
+                                          const hasNR = cells.some(c => c.techno?.includes('5G') || c.techno === 'NR');
+                                          const hasLTE = cells.some(c => !c.techno?.includes('5G') && c.techno !== 'NR');
+                                          return (
+                                            <>
+                                              {hasNR && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} title="5G" />}
+                                              {hasLTE && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} title="4G" />}
+                                            </>
+                                          );
+                                        })()}
+                                      </div>
+                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{sNum}</span>
+                                      <span className={`text-[9px] mt-0.5 font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{cells.length} cell{cells.length > 1 ? 's' : ''}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {/* Techno legend */}
+                              <div className="flex items-center gap-4 mb-3 px-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">5G</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">4G</span>
+                                </div>
+                              </div>
+
+                              {expandedSectors.size > 0 && (() => {
+                                const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
+                                if (!secCells.length) return null;
+                                return (
+                                  <div className="rounded-xl border border-border overflow-hidden animate-fade-in">
+                                    <table className="w-full text-[11px]">
+                                      <thead>
+                                        <tr className="bg-muted/40 border-b border-border">
+                                          <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Hba</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Sec</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {secCells.map((cell) => {
+                                          const isSel = focusCellId === cell.cell_id;
+                                          const sNum = getSectorNumber(cell.cell_id);
+                                          const tilt = (cell as any).tilt as number | null;
+                                          const hba = (cell as any).hba as number | null;
+                                          return (
+                                            <tr
+                                              key={cell.cell_id}
+                                              onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
+                                              className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${
+                                                isSel
+                                                  ? 'bg-primary/10'
+                                                  : 'hover:bg-muted/30'
+                                              }`}
+                                            >
+                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                              <td className="px-2 py-2 text-center">
+                                                <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-[10px] font-extrabold text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
+                                                  {is5GTech(cell.techno) ? '5G' : '4G'}
+                                                </span>
+                                              </td>
+                                              <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-extrabold text-primary">S{sNum}</td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {filteredSites.length > 100 && (
+                      <div className="px-4 py-3 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        + {filteredSites.length - 100} more — refine search
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              )}
+
+              {/* ── Tagged Sites tab ── */}
+              {inventoryTab === 'tagged' && (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {taggedSites.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                      <Star size={18} className="text-yellow-500" />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">Aucun site taggé</span>
+                    <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
+                      Cliquez sur l'étoile ★ d'un site pour le tagger et le garder visible en permanence.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {taggedSites.map(site => {
+                      const isSelected = selectedSiteId === site.site_id;
+                      const isExpanded = isSelected;
+                      const rawCells2 = isSelected && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0
+                        ? siteDetail.cells
+                        : site.cells;
+                      const siteCells = rawCells2.filter(c => {
+                        const cellTech = getCellTechGroup(c.techno);
+                        if (mapTechnoFilter === '4G' && cellTech !== '4G') return false;
+                        if (mapTechnoFilter === '5G' && cellTech !== '5G') return false;
+                        if (mapTechnoFilter === 'ALL' && cellTech && !enabledTechnos.has(cellTech)) return false;
+                        if (localBande !== 'ALL' && c.bande !== localBande) return false;
+                        if (localTechno !== 'ALL' && cellTech !== localTechno) return false;
+                        if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(c.bande)) return false;
+                        if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
+                        return true;
+                      });
+                      const displayedCellCount = siteCells.length;
+                      const sectors = new Map<number, typeof siteCells>();
+                      siteCells.forEach(c => {
+                        const sNum = getSectorNumber(c.cell_id);
+                        if (!sectors.has(sNum)) sectors.set(sNum, []);
+                        sectors.get(sNum)!.push(c);
+                      });
+                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a - b);
+
+                      return (
+                        <div
+                          key={site.site_id}
+                          ref={(el) => { if (el) siteRowRefs.current.set(site.site_id, el); }}
+                          className={`rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
+                            isSelected
+                              ? 'border-primary/40 bg-card shadow-lg'
+                              : 'border-border bg-card hover:border-primary/20 hover:shadow-md'
+                          }`}
+                        >
+                          <button
+                            onClick={() => { handleSiteClick(site); }}
+                            onMouseEnter={() => setHoveredSiteId(site.site_id)}
+                            onMouseLeave={() => setHoveredSiteId(null)}
+                            className="w-full text-left px-4 py-3.5 flex items-center gap-3"
+                          >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                              isSelected ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'bg-muted text-muted-foreground'
+                            }`}>
+                              <MapPin size={18} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[13px] font-extrabold text-foreground tracking-tight uppercase truncate">{site.site_name}</h4>
+                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                                <span className="font-mono">{site.site_id}</span>
+                                <span>•</span>
+                                <span className="uppercase font-semibold">{site.vendor}</span>
+                              </div>
+                              {(() => {
+                                const coords = normalizeCoordinates(site);
+                                if (!coords) return null;
+                                return (
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0 mt-1 text-[9px] font-mono text-muted-foreground/70">
+                                    {coords.lat != null && <span>Lat: {fmtCoord(coords.lat)}</span>}
+                                    {coords.lon != null && <span>Lon: {fmtCoord(coords.lon)}</span>}
+                                    {coords.x != null && <span>X: {fmtCoord(coords.x, 2)}</span>}
+                                    {coords.y != null && <span>Y: {fmtCoord(coords.y, 2)}</span>}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            <div className="text-right shrink-0">
+                              {sectorColorMode !== 'topo' && (
+                                <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg min-w-[48px]" style={{ background: getKpiColor((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0), color: '#fff' }}>
+                                  <span className="text-[15px] font-black tracking-tight leading-none">
+                                    {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleTagSite(site); }}
+                                className="w-6 h-6 flex items-center justify-center rounded-full transition-all text-yellow-400"
+                                title="Retirer du tag"
+                              >
+                                <Star size={14} fill="currentColor" />
+                              </button>
+                              <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </div>
+                          </button>
+
+                          {isExpanded && (
+                            <div className="px-4 pb-4 pt-1 animate-fade-in">
+                              <div className="flex items-stretch gap-2 mb-3">
+                                {sortedSec.map(([sNum, cells]) => {
+                                  const isSectorExpanded = expandedSectors.has(sNum);
+                                  const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
+                                  const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
+                                  return (
+                                    <button
+                                      key={sNum}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedSectors(prev => {
+                                          if (prev.has(sNum) && prev.size === 1) return new Set();
+                                          return new Set([sNum]);
+                                        });
+                                      }}
+                                      className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
+                                        isSectorExpanded
+                                          ? 'bg-primary text-primary-foreground shadow-lg'
+                                          : 'bg-card text-foreground border border-border hover:border-primary/30 shadow-sm'
+                                      }`}
+                                    >
+                                      <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
+                                      <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                                        {(() => {
+                                          const hasNR = cells.some(c => c.techno?.includes('5G') || c.techno === 'NR');
+                                          const hasLTE = cells.some(c => !c.techno?.includes('5G') && c.techno !== 'NR');
+                                          return (
+                                            <>
+                                              {hasNR && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} title="5G" />}
+                                              {hasLTE && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} title="4G" />}
+                                            </>
+                                          );
+                                        })()}
+                                      </div>
+                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{sNum}</span>
+                                      <span className={`text-[9px] mt-0.5 font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{cells.length} cell{cells.length > 1 ? 's' : ''}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="flex items-center gap-4 mb-3 px-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">5G</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">4G</span>
+                                </div>
+                              </div>
+                              {expandedSectors.size > 0 && (() => {
+                                const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
+                                if (!secCells.length) return null;
+                                return (
+                                  <div className="rounded-xl border border-border overflow-hidden animate-fade-in">
+                                    <table className="w-full text-[11px]">
+                                      <thead>
+                                        <tr className="bg-muted/40 border-b border-border">
+                                          <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Hba</th>
+                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Sec</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {secCells.map((cell) => {
+                                          const isSel = focusCellId === cell.cell_id;
+                                          const sNum = getSectorNumber(cell.cell_id);
+                                          const tilt = (cell as any).tilt as number | null;
+                                          const hba = (cell as any).hba as number | null;
+                                          return (
+                                            <tr
+                                              key={cell.cell_id}
+                                              onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
+                                              className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${
+                                                isSel ? 'bg-primary/10' : 'hover:bg-muted/30'
+                                              }`}
+                                            >
+                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                              <td className="px-2 py-2 text-center">
+                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
+                                                  {cell.techno || '—'}
+                                                </span>
+                                              </td>
+                                              <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
+                                              <td className="px-2 py-2 text-center font-extrabold text-primary">S{sNum}</td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── Custom Points Section ── */}
+                <div className="mt-4">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Points personnalisés ({customPoints.length})</div>
+
+                  {customPoints.length > 0 && (
+                    <div className="space-y-1.5 mb-2">
+                      {customPoints.map(pt => (
+                        <div key={pt.id} className="rounded-xl border border-border bg-card hover:border-primary/20 transition-all overflow-hidden">
+                          <div className="flex items-center gap-2 px-3 py-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                              <CircleDot size={14} className="text-violet-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {renamingPointId === pt.id ? (
+                                <form onSubmit={(e) => { e.preventDefault(); renameCustomPoint(pt.id, renameValue); }} className="flex items-center gap-1">
+                                  <input
+                                    autoFocus
+                                    value={renameValue}
+                                    onChange={e => setRenameValue(e.target.value)}
+                                    onBlur={() => renameCustomPoint(pt.id, renameValue)}
+                                    className="text-[11px] font-bold bg-muted rounded px-1.5 py-0.5 w-full outline-none border border-primary/30 text-foreground"
+                                  />
+                                </form>
+                              ) : (
+                                <>
+                                  <div className="text-[11px] font-bold text-foreground truncate">{pt.name}</div>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0 mt-0.5 text-[9px] font-mono text-muted-foreground/70">
+                                    <span>Lat: {pt.lat.toFixed(6)}</span>
+                                    <span>Lon: {pt.lon.toFixed(6)}</span>
+                                    {pt.x != null && <span>X: {pt.x.toFixed(2)}</span>}
+                                    {pt.y != null && <span>Y: {pt.y.toFixed(2)}</span>}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => { setRenamingPointId(pt.id); setRenameValue(pt.name); }}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                title="Renommer"
+                              >
+                                <Pencil size={11} />
+                              </button>
+                              <button
+                                onClick={() => setFlyTarget([pt.lat, pt.lon])}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                                title="Centrer"
+                              >
+                                <Crosshair size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteCustomPoint(pt.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                   )}
+                </div>
+
+                {/* ── Tagged Links List ── */}
+                {taggedLinks.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Liens ({taggedLinks.length})</div>
+                    <div className="space-y-1.5">
+                      {taggedLinks.map(link => (
+                        <div
+                          key={link.id}
+                          className={`rounded-xl border transition-all overflow-hidden ${
+                            selectedLinkId === link.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-primary/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 px-3 py-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                              <Network size={14} className="text-blue-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] font-bold text-foreground truncate">{link.label}</div>
+                              <div className="text-[9px] text-muted-foreground">{link.fromType} ↔ {link.toType}</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => openLinkTerrainProfile(link)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-primary transition-colors"
+                                title="Profil terrain"
+                              >
+                                <Crosshair size={12} />
+                              </button>
+                              <button
+                                onClick={() => setSelectedLinkId(selectedLinkId === link.id ? null : link.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors"
+                                title="Sélectionner"
+                              >
+                                <MapPin size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteTaggedLink(link.id)}
+                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                </div>
+
+                {/* ── Sticky bottom buttons ── */}
+                <div className="shrink-0 border-t border-border bg-card px-4 py-3 space-y-2">
+                  <button
+                    onClick={() => setPointCreationMode(!pointCreationMode)}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                      pointCreationMode
+                        ? 'border-violet-500 bg-violet-500/10 text-violet-600'
+                        : 'border-primary/30 text-primary hover:bg-primary/10'
+                    }`}
+                  >
+                    {pointCreationMode ? (
+                      <><X size={12} /> Annuler le placement</>
+                    ) : (
+                      <><Plus size={12} /> Ajouter un point</>
+                    )}
+                  </button>
+
+                  {!linkCreationMode ? (
+                    <button
+                      onClick={() => { setLinkCreationMode(true); setLinkSource(null); }}
+                      disabled={(taggedSites.length + customPoints.length) < 2}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-primary/30 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={12} />
+                      Créer un lien
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2">
+                      <div className="text-[10px] font-bold text-primary uppercase tracking-wider">Sélection du lien</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {!linkSource ? 'Cliquez sur un objet source' : `Source: ${linkSource.label} — cliquez sur la destination`}
+                      </div>
+                      {taggedSites.map(s => (
+                        <button
+                          key={s.site_id}
+                          onClick={() => handleSelectTaggedForLink(s)}
+                          disabled={linkSource?.id === s.site_id}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+                            linkSource?.id === s.site_id ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80 text-foreground'
+                          } disabled:opacity-50`}
+                        >
+                          🏗 {s.site_name}
+                        </button>
+                      ))}
+                      {customPoints.map(pt => {
+                        const ptObj = { id: pt.id, type: 'point' as const, label: pt.name, coords: [pt.lat, pt.lon] as [number, number] };
+                        return (
+                          <button
+                            key={pt.id}
+                            onClick={() => {
+                              if (!linkSource) {
+                                setLinkSource(ptObj);
+                              } else if (linkSource.id !== pt.id) {
+                                addTaggedLink(linkSource, ptObj);
+                              }
+                            }}
+                            disabled={linkSource?.id === pt.id}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+                              linkSource?.id === pt.id ? 'bg-primary text-primary-foreground' : 'bg-violet-500/10 hover:bg-violet-500/20 text-foreground'
+                            } disabled:opacity-50`}
+                          >
+                            📌 {pt.name}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => { setLinkCreationMode(false); setLinkSource(null); }}
+                        className="w-full text-center text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors py-1"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              )}
+
+              {/* ── Dashboard tab ── */}
+               <div style={{ display: inventoryTab === 'dashboard' ? 'contents' : 'none' }}>
+                <DashboardInventoryTab
+                  onApplyView={(settings) => {
+                    // Track view activation
+                    if (settings._viewId) {
+                      setActiveViewId(settings._viewId);
+                    } else if (settings._isDashboardOnly) {
+                      setActiveViewId(null);
+                    }
+
+                    if (settings.mapLayer) setMapLayer(settings.mapLayer);
+                    if (settings.mapKpi) setMapKpi(settings.mapKpi);
+                    if (settings.center && Array.isArray(settings.center)) {
+                      if (settings.center && (settings.center as [number, number])[0] > 41 && (settings.center as [number, number])[0] < 52) setFlyTarget(settings.center as [number, number]);
+                    }
+
+                    // Reset all local filters first, then apply merged siteFilters
+                    setLocalDor('ALL');
+                    setLocalVendor('ALL');
+                    setLocalPlaque('ALL');
+                    setLocalBande('ALL');
+                    setLocalTechno('ALL');
+                    setLocalZoneArcep('ALL');
+
+                    // Determine new effective filters
+                    const newFilters = (settings.siteFilters && Object.keys(settings.siteFilters).length > 0)
+                      ? settings.siteFilters as DashboardSiteFilters
+                      : null;
+                    const nextScope = settings.siteScope || null;
+
+                    // Invalidate cache & force reload when filters change
+                    // Always invalidate caches on view/dashboard apply to avoid stale data
+                    invalidateDashboardSitesCache();
+                    invalidateBboxCache();
+                    invalidateSiteCellsCache();
+                    cellLoadingRef.current.clear();
+                    cellLoadAttemptedRef.current.clear();
+
+                    // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
+                    setActiveSiteScope(nextScope);
+                    if (newFilters) {
+                      setActiveDashboardFilters(newFilters);
+                      if (newFilters.dor?.length) setLocalDor(newFilters.dor[0]);
+                      if (newFilters.constructeur?.length) setLocalVendor(newFilters.constructeur[0]);
+                      if (newFilters.plaque?.length) setLocalPlaque(newFilters.plaque[0]);
+                      if (newFilters.techno?.length) setLocalTechno(newFilters.techno[0] as any);
+                      if (newFilters.bande?.length) setLocalBande(newFilters.bande[0]);
+                      if (newFilters.zone_arcep?.length) setLocalZoneArcep(newFilters.zone_arcep[0]);
+                    } else if (settings.siteScope) {
+                      setActiveSiteScope(settings.siteScope);
+                      setActiveDashboardFilters(null);
+                      const scope = settings.siteScope as SiteScope;
+                      if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
+                      else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
+                    } else if (settings._isDashboardOnly) {
+                      setActiveDashboardFilters(null);
+                    }
+
+                    // Force data reload
+                    setDashboardRefreshTick(t => t + 1);
+                    // Apply view filters (topo + qoe)
+                    if (Array.isArray(settings.viewFilters) && settings.viewFilters.length > 0) {
+                      setActiveViewFilters(settings.viewFilters);
+                      for (const f of settings.viewFilters) {
+                        if (f.mode === 'topo') {
+                          if (f.tech) {
+                            const t = f.tech === '4G' ? '4G' : f.tech === '5G' ? '5G' : 'ALL';
+                            setLocalTechno(t as any);
+                          }
+                          if (f.attribute === 'constructeur' && f.value) setLocalVendor(f.value);
+                          if (f.attribute === 'bande' && f.value) setLocalBande(f.value);
+                          if (f.attribute === 'zone_arcep' && f.value) setLocalZoneArcep(f.value);
+                        }
+                      }
+                    } else {
+                      setActiveViewFilters([]);
+                    }
+                    // Apply advanced view conditions
+                    if (Array.isArray(settings.viewConditions) && settings.viewConditions.length > 0) {
+                      setActiveViewConditions(settings.viewConditions);
+                    } else {
+                      setActiveViewConditions([]);
+                    }
+                    // Apply map label fields
+                    if (Array.isArray(settings.mapLabelFields)) {
+                      setMapLabelFields(new Set(settings.mapLabelFields));
+                    }
+                  }}
+                  onDashboardActiveChange={(active, scope, siteFilters) => {
+                    // Detect if the dashboard context actually changed to avoid unnecessary reloads
+                    const prevFilterKey = JSON.stringify(activeDashboardFilters);
+                    const newFilterKey = JSON.stringify(siteFilters || null);
+                    const filtersChanged = prevFilterKey !== newFilterKey;
+                    const scopeChanged = JSON.stringify(activeSiteScope) !== JSON.stringify(scope || null);
+                    const wasActive = dashboardActive;
+
+                    setDashboardActive(active);
+                    setActiveSiteScope(scope || null);
+                    setActiveDashboardFilters(siteFilters || null);
+
+                    // Only invalidate cache & force reload when filters/scope actually changed or going inactive→active
+                    if (filtersChanged || scopeChanged || !wasActive) {
+                      if (filtersChanged || scopeChanged) {
+                        invalidateDashboardSitesCache();
+                        invalidateBboxCache();
+                      }
+                      setDashboardRefreshTick(t => t + 1);
+                      invalidateSiteCellsCache();
+                      cellLoadingRef.current.clear();
+                      cellLoadAttemptedRef.current.clear();
+                    }
+
+                    setSelectedSiteId(null);
+                    setSelectedSiteSnapshot(null);
+                    setSiteDetail(null);
+                    setExpandedSectors(new Set());
+                    // Always reset local filters first, then apply dashboard-specific ones
+                    setLocalDor('ALL');
+                    setLocalPlaque('ALL');
+                    setLocalVendor('ALL');
+                    setLocalBande('ALL');
+                    setLocalZoneArcep('ALL');
+                    setLocalTechno('ALL');
+                    // Reset active view on dashboard switch
+                    setActiveViewId(null);
+                    if (!active) {
+                      setSites([]);
+                      setActiveDashboardId(null);
+                    } else if (siteFilters && Object.keys(siteFilters).length > 0) {
+                      // Apply multi-filters from dashboard
+                      if (siteFilters.dor?.length === 1) setLocalDor(siteFilters.dor[0]);
+                      else if (siteFilters.dor?.length) setLocalDor(siteFilters.dor[0]);
+                      if (siteFilters.constructeur?.length === 1) setLocalVendor(siteFilters.constructeur[0]);
+                      if (siteFilters.plaque?.length === 1) setLocalPlaque(siteFilters.plaque[0]);
+                      if (siteFilters.techno?.length === 1) setLocalTechno(siteFilters.techno[0] as any);
+                      if (siteFilters.bande?.length === 1) setLocalBande(siteFilters.bande[0]);
+                      if (siteFilters.zone_arcep?.length === 1) setLocalZoneArcep(siteFilters.zone_arcep[0]);
+                    } else if (scope) {
+                      if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
+                      else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
+                    }
+                  }}
+                  beamVisibility={beamVisibility}
+                  onBeamVisChange={(v) => { setBeamVisibility(v); localStorage.setItem('qoebit_beam_visibility', String(v)); }}
+                  onSaveDashboard={(dbId) => saveDashboardSettings(dbId)}
+                  onLoadDashboard={(dbId) => loadDashboardSettings(dbId)}
+                  isSaving={dashboardSaving}
+                  backendFilterDefs={backendFilterDefs}
+                  activeDashboardId={activeDashboardId}
+                  onActiveDashboardIdChange={setActiveDashboardId}
+                  activeViewId={activeViewId}
+                  onActiveViewIdChange={setActiveViewId}
+                />
+               </div>
+              </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Grid/Table overlay when not in map mode */}
+      {viewMode !== 'map' && (
+        <div className="absolute inset-0 z-[999] bg-background overflow-y-auto pt-20 px-10 pb-32">
+          {filteredSites.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-32 text-muted-foreground opacity-50">
+              <Search size={48} className="mb-4" />
+              <span className="text-[10px] font-black uppercase tracking-widest">No matching nodes found</span>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+              {filteredSites.map(site => (
+                <div key={site.site_id} onClick={() => { handleSiteClick(site); setViewMode('map'); }}
+                  className="group bg-card border border-border rounded-[2.5rem] p-7 shadow-sm transition-all duration-300 hover:shadow-2xl hover:border-primary hover:-translate-y-1 cursor-pointer">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="w-14 h-14 bg-muted rounded-2xl flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                      <MapPin size={24} />
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[16px] font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>{(site.qoe_score_avg ?? 0).toFixed(1)}%</div>
+                      <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Site QoE</div>
+                    </div>
+                  </div>
+                  <h4 className="text-[15px] font-black text-foreground tracking-tight uppercase mb-2 truncate group-hover:text-primary transition-colors">{site.site_name}</h4>
+                  <div className="flex items-center gap-2 mb-8">
+                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{site.site_id}</span>
+                    <div className="w-1 h-1 rounded-full bg-border" />
+                    <span className="text-[9px] font-black text-muted-foreground uppercase">{site.vendor}</span>
+                  </div>
+                  <div className="pt-6 border-t border-border flex items-center justify-between">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tight">{site.cells?.length > 0 || site.cell_count > 0 ? `${site.cell_count} CELLS` : '—'}</span>
+                    <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all"><ArrowRight size={16} /></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-card rounded-[3rem] border border-border shadow-sm overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-muted/50 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] border-b border-border sticky top-0 z-10">
+                  <tr>
+                    <th className="px-10 py-6">Site Identity</th>
+                    <th className="px-6 py-6 text-center">Vendor</th>
+                    <th className="px-6 py-6 text-center">Cells</th>
+                    <th className="px-6 py-6 text-center">QoE Score</th>
+                    <th className="px-10 py-6 text-right">Drill down</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredSites.map(site => (
+                    <tr key={site.site_id} onClick={() => { handleSiteClick(site); setViewMode('map'); }} className="group hover:bg-primary/5 transition-all cursor-pointer">
+                      <td className="px-10 py-6">
+                        <div className="text-[14px] font-black text-foreground uppercase tracking-tight">{site.site_name}</div>
+                        <div className="text-[9px] font-bold text-muted-foreground mt-1 uppercase tracking-widest">{site.site_id} • {site.dor}</div>
+                      </td>
+                      <td className="px-6 py-6 text-center">
+                        <span className="px-2.5 py-1 bg-sidebar text-sidebar-foreground rounded-lg text-[8px] font-black uppercase">{site.vendor}</span>
+                      </td>
+                      <td className="px-6 py-6 text-center font-black text-muted-foreground text-[11px]">{site.cells?.length > 0 || site.cell_count > 0 ? site.cell_count : '—'}</td>
+                      <td className="px-6 py-6 text-center">
+                        <div className="text-lg font-black tracking-tighter" style={{ color: getQoEColor(site.qoe_score_avg) }}>{(site.qoe_score_avg ?? 0).toFixed(1)}%</div>
+                      </td>
+                      <td className="px-10 py-6 text-right">
+                        <span className="text-[10px] font-black uppercase text-muted-foreground group-hover:text-primary">View <ChevronRight size={14} className="inline" /></span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+
 
       {showRightPanel && (
       <div className={`absolute z-[1200] bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ${
@@ -6031,88 +7904,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== TOPO MODE: Global Network (no KPIs) ========== */}
           {sectorColorMode === 'topo' && focusMode === 'global' && (() => {
-            // Prefer VPS global-network stats, but fall back to the currently loaded site inventory
+            // Use VPS global-network stats (full network, fetched once on mount)
             const dbStats = topoNetworkStats;
             const hasDbStats = !!dbStats && (dbStats.cells4G > 0 || dbStats.cells5G > 0 || dbStats.sites4G > 0 || dbStats.sites5G > 0);
-            const computedStats: TopoNetworkStats = (() => {
-              const s4g = new Set<string>();
-              const s5g = new Set<string>();
-              let c4g = 0;
-              let c5g = 0;
-              const bm4g: Record<string, number> = {};
-              const bm5g: Record<string, number> = {};
-              const vm: Record<string, { '4G': number; '5G': number }> = {};
-
-              filteredSites.forEach(site => {
-                const inferredTechState = inferSiteTechState(site);
-                let has4g = inferredTechState.has4G;
-                let has5g = inferredTechState.has5G;
-
-                site.cells.forEach(cell => {
-                  const is5g = is5GTech(cell.techno);
-                  const vendor = (cell as any).vendor || site.vendor || 'Unknown';
-                  if (!vm[vendor]) vm[vendor] = { '4G': 0, '5G': 0 };
-
-                  if (is5g) {
-                    c5g += 1;
-                    has5g = true;
-                    const band = cell.bande || 'Unknown';
-                    bm5g[band] = (bm5g[band] || 0) + 1;
-                    vm[vendor]['5G'] += 1;
-                  } else {
-                    c4g += 1;
-                    has4g = true;
-                    const band = cell.bande || 'Unknown';
-                    bm4g[band] = (bm4g[band] || 0) + 1;
-                    vm[vendor]['4G'] += 1;
-                  }
-                });
-
-                if (has4g) s4g.add(site.site_id);
-                if (has5g) s5g.add(site.site_id);
-
-                if (site.cells.length === 0) {
-                  if ((site.lte_cells ?? 0) > 0) {
-                    s4g.add(site.site_id);
-                    c4g += site.lte_cells ?? 0;
-                  }
-                  if ((site.nr_cells ?? 0) > 0) {
-                    s5g.add(site.site_id);
-                    c5g += site.nr_cells ?? 0;
-                  }
-                }
-              });
-
-              return {
-                sites4G: s4g.size,
-                sites5G: s5g.size,
-                cells4G: c4g,
-                cells5G: c5g,
-                bandMap4G: bm4g,
-                bandMap5G: bm5g,
-                vendorMap: vm,
-              };
-            })();
-
-            const displayStats: TopoNetworkStats = hasDbStats
-              ? {
-                  ...dbStats!,
-                  sites4G: dbStats!.sites4G > 0 ? dbStats!.sites4G : computedStats.sites4G,
-                  sites5G: dbStats!.sites5G > 0 ? dbStats!.sites5G : computedStats.sites5G,
-                  cells4G: dbStats!.cells4G > 0 ? dbStats!.cells4G : computedStats.cells4G,
-                  cells5G: dbStats!.cells5G > 0 ? dbStats!.cells5G : computedStats.cells5G,
-                  bandMap4G: Object.keys(dbStats!.bandMap4G || {}).length > 0 ? dbStats!.bandMap4G : computedStats.bandMap4G,
-                  bandMap5G: Object.keys(dbStats!.bandMap5G || {}).length > 0 ? dbStats!.bandMap5G : computedStats.bandMap5G,
-                  vendorMap: Object.keys(dbStats!.vendorMap || {}).length > 0 ? dbStats!.vendorMap : computedStats.vendorMap,
-                }
-              : computedStats;
-
-            const rawSites4G = displayStats.sites4G;
-            const rawSites5G = displayStats.sites5G;
-            const rawCells4G = displayStats.cells4G;
-            const rawCells5G = displayStats.cells5G;
-            const bandMap4G: Record<string, number> = displayStats.bandMap4G;
-            const bandMap5G: Record<string, number> = displayStats.bandMap5G;
+            const rawSites4G = hasDbStats ? dbStats!.sites4G : 0;
+            const rawSites5G = hasDbStats ? dbStats!.sites5G : 0;
+            const rawCells4G = hasDbStats ? dbStats!.cells4G : 0;
+            const rawCells5G = hasDbStats ? dbStats!.cells5G : 0;
+            const bandMap4G: Record<string, number> = hasDbStats ? dbStats!.bandMap4G : {};
+            const bandMap5G: Record<string, number> = hasDbStats ? dbStats!.bandMap5G : {};
 
             // Apply tech filter to inventory stats
             const show4G = mapTechnoFilter === 'ALL' ? enabledTechnos.has('4G') : mapTechnoFilter === '4G';
@@ -6121,7 +7921,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const sites5GCount = show5G ? rawSites5G : 0;
             const cells4GCount = show4G ? rawCells4G : 0;
             const cells5GCount = show5G ? rawCells5G : 0;
-            const vendorMap: Record<string, { '4G': number; '5G': number }> = displayStats.vendorMap;
+            const vendorMap: Record<string, { '4G': number; '5G': number }> = hasDbStats ? dbStats!.vendorMap : {};
             return (
               <div className="divide-y divide-border">
                 {/* Header */}
@@ -6642,10 +8442,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               return true;
             });
             // Group cells by sector number
-            const azMapDetail = buildAzimuthSectorMap(filteredCells as any[]);
             const sectorMap = new Map<number, typeof siteDetail.cells>();
             filteredCells.forEach(cell => {
-              const sNum = getSectorNumber(cell.cell_id, cell as any, azMapDetail);
+              const sNum = getSectorNumber(cell.cell_id);
               if (!sectorMap.has(sNum)) sectorMap.set(sNum, []);
               sectorMap.get(sNum)!.push(cell);
             });

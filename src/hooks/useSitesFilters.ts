@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { topoApi } from '@/lib/localDb';
-import { getVpsProxyUrl, getVpsProxyHeaders, fetchWithRetry } from '@/lib/apiConfig';
+import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { FILTER_DIMENSIONS, REF_DOR_TREE, REF_TECHNO_BANDE, resolveAvailableValues as resolveVals } from '@/config/filterDimensions';
 
 export interface FilterDefinition {
@@ -66,7 +66,7 @@ export function useSitesFilters() {
     async function extractFiltersFromSites() {
       try {
         const url = getVpsProxyUrl('parser', '/api/v1/topo/sites?limit=50000');
-        const resp = await fetchWithRetry(url, { headers: getVpsProxyHeaders() });
+        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const json = await resp.json();
         // VPS proxy returns { unavailable: true } when backend is down

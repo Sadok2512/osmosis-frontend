@@ -1,57 +1,18 @@
 /**
  * Sector mapping utilities for telecom cell-to-sector assignment.
  *
- * Priority:
- *   1. Use the backend-provided `secteur` field if present.
- *   2. Group by azimuth (cells sharing the same azimuth belong to the same sector).
- *   3. Fallback: last digit of the cell name.
+ * Rule: The last digit of the cell name (nom_cellule / cell_id) determines the sector number.
+ * Example: CHAMBERY_COTE_ROUSSE_TDF_Y1 → Sector 1
+ *          CHAMBERY_COTE_ROUSSE_TDF_T3 → Sector 3
  */
 
 import type { CellProperties } from '@/types';
 
 /** Extract sector number from the last character of a cell name/id */
-export const getSectorNumberFromName = (cellId: string): number => {
+export const getSectorNumber = (cellId: string): number => {
   const lastChar = cellId.slice(-1);
   const n = parseInt(lastChar, 10);
   return isNaN(n) ? 0 : n;
-};
-
-/**
- * Determine sector number for a single cell.
- * Prefers `secteur` field, then azimuth-based mapping, then last-digit fallback.
- */
-export const getSectorNumber = (
-  cellId: string,
-  cell?: { secteur?: number | string | null; azimut?: number | null },
-  azimuthToSector?: Map<number, number>,
-): number => {
-  // 1. Backend-provided sector
-  if (cell?.secteur != null && cell.secteur !== '') {
-    const n = typeof cell.secteur === 'number' ? cell.secteur : parseInt(String(cell.secteur), 10);
-    if (!isNaN(n) && n > 0) return n;
-  }
-  // 2. Azimuth-based mapping (if caller provides lookup)
-  if (azimuthToSector && cell?.azimut != null) {
-    const mapped = azimuthToSector.get(cell.azimut);
-    if (mapped != null) return mapped;
-  }
-  // 3. Last digit fallback
-  return getSectorNumberFromName(cellId);
-};
-
-/**
- * Build a azimuth → sector number mapping from a list of cells.
- * Unique azimuths are sorted and assigned sector numbers 1, 2, 3…
- */
-export const buildAzimuthSectorMap = (cells: Array<{ azimut?: number | null }>): Map<number, number> => {
-  const uniqueAz = [...new Set(
-    cells
-      .map(c => c.azimut)
-      .filter((a): a is number => a != null && Number.isFinite(a))
-  )].sort((a, b) => a - b);
-  const map = new Map<number, number>();
-  uniqueAz.forEach((az, i) => map.set(az, i + 1));
-  return map;
 };
 
 export interface SectorGroup {
@@ -71,11 +32,10 @@ export const groupCellsBySector = (cells: CellProperties[]): {
   sectors: SectorGroup[];
   validation: SectorValidation;
 } => {
-  const azMap = buildAzimuthSectorMap(cells);
   const sectorMap = new Map<number, CellProperties[]>();
 
   for (const cell of cells) {
-    const sn = getSectorNumber(cell.cell_id, cell as any, azMap);
+    const sn = getSectorNumber(cell.cell_id);
     if (!sectorMap.has(sn)) sectorMap.set(sn, []);
     sectorMap.get(sn)!.push(cell);
   }
@@ -89,11 +49,13 @@ export const groupCellsBySector = (cells: CellProperties[]): {
   const sectorNumbers = Array.from(sectorMap.keys()).sort((a, b) => a - b);
   const maxSector = sectorNumbers.length > 0 ? Math.max(...sectorNumbers) : 0;
 
+  // Check for missing sectors (1..N)
   const missingSectors: number[] = [];
   for (let i = 1; i <= maxSector; i++) {
     if (!sectorMap.has(i)) missingSectors.push(i);
   }
 
+  // Check for duplicate sector numbers (same sector number appearing in multiple cells with same band)
   const duplicates: { sectorNumber: number; count: number }[] = [];
   for (const [sn, group] of sectorMap.entries()) {
     const bands = group.map(c => c.bande);

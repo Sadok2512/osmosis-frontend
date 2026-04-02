@@ -5,21 +5,17 @@ import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import CMChangesCard from './CMChangesCard';
 import CounterGraphSection from './CounterGraphSection';
-import HistogramSection from './HistogramSection';
-import SliceMappingSection from './SliceMappingSection';
 import WorstElementsTable from './WorstElementsTable';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
-import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
+import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition } from './types';
 import { fetchKpiDefinitions, fetchWorstByDOR, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
-  Settings2, Bell, Cpu, Layers,
+  Settings2, Bell, Cpu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
-
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
   timeseries: 'Graph',
@@ -37,7 +33,7 @@ const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType
   filters: {},
   startDate: '',
   endDate: '',
-  granularity: '' as Granularity,  // empty = use global granularity from toolbar
+  granularity: 'Hourly',
   splitBy: 'None',
 });
 
@@ -54,15 +50,17 @@ const InvestigatorPage: React.FC = () => {
   const [isApplying, setIsApplying] = React.useState(false);
   const [applyError, setApplyError] = React.useState<string | null>(null);
   const [showAIPanel, setShowAIPanel] = useState(false);
-  const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
-  const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'cm_history'>('breakdown');
+  const [counterSelectorOpen, setCounterSelectorOpen] = React.useState(false);
+  const [counterCatalog, setCounterCatalog] = React.useState<{counter_name:string;display_name:string;family:string;vendor:string;techno:string;object_type:string;count:number}[]>([]);
+  const [selectedCounters, setSelectedCounters] = React.useState<string[]>([]);
+  const [counterTsData, setCounterTsData] = React.useState<{timestamp:string;kpi:string;value:number}[]>([]);
+  const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'counters' | 'alarms' | 'cm_history'>('breakdown');
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
   const [isLoadingWorst, setIsLoadingWorst] = React.useState(false);
   const [hasUnfilteredFallback, setHasUnfilteredFallback] = React.useState(false);
   const [kpiMetaMap, setKpiMetaMap] = React.useState<Map<string, KpiDefinition>>(new Map());
-  const handleApplyRef = useRef<() => void>(() => {});
 
   // Load KPI metadata for severity/ranking
   React.useEffect(() => {
@@ -93,22 +91,9 @@ const InvestigatorPage: React.FC = () => {
     }
   }, [state.graphSlots, activeSlotId]);
 
-  const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
-  const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0);
+  // No auto-load — user must add filters + KPIs then click Appliquer
 
-  // Auto-refresh: re-apply when dates/granularity/filters/KPIs change AFTER first successful load
-  const autoRefreshKey = `${JSON.stringify(state.filters)}|${state.graphSlots.filter(s => s.kpiIds.length > 0).map(s => s.kpiIds.join(',')).join('|')}|${state.splitBy}`;
-  const prevAutoRefreshKey = useRef(autoRefreshKey);
-  useEffect(() => {
-    if (!hasLoadedOnce) { prevAutoRefreshKey.current = autoRefreshKey; return; }
-    if (autoRefreshKey === prevAutoRefreshKey.current) return;
-    prevAutoRefreshKey.current = autoRefreshKey;
-    if (hasFilters && hasKpis) {
-      // Small debounce to avoid rapid successive calls
-      const t = setTimeout(() => handleApplyRef.current(), 400);
-      return () => clearTimeout(t);
-    }
-  }, [autoRefreshKey, hasLoadedOnce, hasFilters, hasKpis]);
+  const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
 
   const handleApply = async () => {
     // Require at least one dimension filter (Site, Cell, etc.)
@@ -160,28 +145,6 @@ const InvestigatorPage: React.FC = () => {
     }
     setIsApplying(false);
   };
-  handleApplyRef.current = handleApply;
-
-  // Fetch counter timeseries when counters are selected
-  React.useEffect(() => {
-    if (selectedCounters.length === 0) return;
-    const body = {
-      counter_names: selectedCounters.map((c: any) => c.counter_name),
-      date_from: state.startDate.split('T')[0] || '2026-03-24',
-      date_to: state.endDate.split('T')[0] || '2026-03-31',
-      granularity: normalizeGranularity(state.granularity),
-    };
-    fetch(getApiUrl('pm/counters/timeseries'), {
-      method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    }).then(r => r.ok ? r.json() : {series:[]}).then(data => {
-      const counterPoints = (data.series || []).map((s: any) => ({
-        timestamp: s.ts, kpi: s.counter, value: s.value,
-      }));
-      const current = useInvestigatorStore.getState().tsData;
-      setTsData([...current, ...counterPoints]);
-    }).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCounters.map((c:any) => c.counter_name).join(','), state.startDate, state.endDate, state.granularity]);
 
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
@@ -280,8 +243,6 @@ const InvestigatorPage: React.FC = () => {
         isApplying={isApplying}
         showAIPanel={showAIPanel}
         onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
-        selectedCounters={selectedCounters}
-        onSelectedCountersChange={setSelectedCounters}
       />
 
       {/* Main Content */}
@@ -481,8 +442,6 @@ const InvestigatorPage: React.FC = () => {
             {([
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500', badge: undefined as number | undefined },
               { key: 'counters' as const, icon: Cpu, label: 'PM Counters', color: 'text-emerald-500', badge: undefined as number | undefined },
-              { key: 'histograms' as const, icon: BarChart3, label: 'Histogrammes', color: 'text-cyan-500', badge: undefined as number | undefined },
-              { key: 'slicing' as const, icon: Layers, label: 'QoS / Slicing', color: 'text-purple-500', badge: undefined as number | undefined },
               { key: 'alarms' as const, icon: Bell, label: 'Alarms & Worst Cells', color: 'text-red-500', badge: worstElements.length > 0 ? worstElements.length : undefined },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500', badge: undefined as number | undefined },
             ] as const).map(tab => (
@@ -516,29 +475,11 @@ const InvestigatorPage: React.FC = () => {
         )}
 
         {/* PM Counters */}
-        {analysisTab === 'counters' && selectedCounters.length === 0 && (
-          <div className="rounded-xl border border-border/60 bg-card p-10 text-center">
-            <p className="text-sm text-muted-foreground">Utilisez "Add Counter" dans la toolbar ci-dessus pour ajouter des compteurs PM au graphe.</p>
-          </div>
-        )}
-        {analysisTab === 'counters' && selectedCounters.length > 0 && (
+        {analysisTab === 'counters' && (
           <CounterGraphSection
             dateFrom={state.startDate.split("T")[0] || "2026-01-01"}
             dateTo={state.endDate.split("T")[0] || "2026-03-24"}
           />
-        )}
-
-        {/* Histogrammes */}
-        {analysisTab === 'histograms' && (
-          <HistogramSection
-            dateFrom={state.startDate.split("T")[0] || "2026-01-01"}
-            dateTo={state.endDate.split("T")[0] || "2026-03-24"}
-          />
-        )}
-
-        {/* QoS / Slicing */}
-        {analysisTab === 'slicing' && (
-          <SliceMappingSection />
         )}
 
         {/* Alarms & Worst Cells */}

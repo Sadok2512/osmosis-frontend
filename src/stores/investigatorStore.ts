@@ -9,9 +9,7 @@ function defaultDateRange(): { startDate: string; endDate: string } {
   const m = now.getMonth();
   const start = new Date(y, m, 1);
   const end = new Date(y, m + 1, 0); // last day of current month
-  // Use local date parts to avoid UTC offset shifting the date
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
   return { startDate: fmt(start), endDate: fmt(end) };
 }
 
@@ -24,7 +22,7 @@ const INITIAL_STATE: InvestigationState = {
   splitBy: 'None',
   startDate,
   endDate,
-  granularity: '1d',  // default daily, user changes via toolbar
+  granularity: '15min',
   filters: {},
   topLimit: 10,
   sortBy: null as unknown as string, // typed as string in interface, null semantically
@@ -138,7 +136,7 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
     }),
     {
       name: 'investigator-store',
-      version: 3,  // bumped to clear stale 'Hourly'/'Daily' granularity from old sessions
+      version: 2,
       partialize: (s) => ({
         // Only persist config — NOT runtime API data
         state: s.state,

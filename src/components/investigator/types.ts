@@ -1,14 +1,5 @@
 export type Dimension = 'Cell' | 'Site' | 'DOR' | 'DR' | 'Plaque' | 'Zone ARCEP';
-export type Granularity = '15min' | '1h' | '1d' | '1w';
-
-export function normalizeGranularity(g: string): Granularity {
-  switch (g) {
-    case '15min': case '15MIN': return '15min';
-    case '1h': case 'Hourly': case 'hourly': case '1H': return '1h';
-    case '1w': case 'Weekly': case 'weekly': case '1W': return '1w';
-    case '1d': case 'Daily': case 'daily': default: return '1d';
-  }
-}
+export type Granularity = '15min' | 'Hourly' | 'Daily' | 'Weekly';
 export type GraphTab = 'TimeSeries' | 'Histogram' | 'Breakdown' | 'Neighbors';
 export type SplitOption = string;  // Dynamic from backend: 'None' | 'SITE' | 'CELL' | 'DOR' | 'PLAQUE' | 'VENDOR' | 'TECHNO' | 'BAND' | 'ZONE_ARCEP' | ...
 export type KpiLevel = 'CELL' | 'PROFILE' | 'NEIGHBOR';
@@ -36,8 +27,6 @@ export interface GraphConfig {
   yAxisAssignments?: Record<string, number>;
   /** Maps kpiId → split dimension (e.g. 'BAND'). Missing or 'None' means no split. */
   splitByPerKpi?: Record<string, string>;
-  /** Maps kpiId → chart type override. Missing means use slot-level chartType. */
-  chartTypePerKpi?: Record<string, ChartType>;
 }
 
 export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
@@ -141,7 +130,4 @@ export interface KpiDefinition {
   color: string;
   thresholds: { warning: number; critical: number };
   higherIsBetter: boolean;
-  dimension_type?: string | null;
-  dimension_prefix?: string | null;
-  counter_count?: number;
 }

@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType, normalizeGranularity } from './types';
-import { buildTimeline, normalizeTimestamp, formatAxisLabel, getStepMs } from './timeUtils';
+import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType } from './types';
 import CounterSelectorModal from './CounterSelectorModal';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
-import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw } from 'lucide-react';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -63,26 +61,15 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
 
 const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
 
-/** Stable color for a KPI — uses a simple hash so color doesn't shift when KPIs are added/removed */
-function stableColorForKpi(kpiId: string): string {
-  let hash = 0;
-  for (let i = 0; i < kpiId.length; i++) {
-    hash = ((hash << 5) - hash + kpiId.charCodeAt(i)) | 0;
-  }
-  return SERIES_COLORS[((hash % SERIES_COLORS.length) + SERIES_COLORS.length) % SERIES_COLORS.length];
-}
-
 /** Wrapper — full replace on every update so legend stays in sync */
 const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }) => {
   return (
-    <div style={{ height, position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
-      <ReactECharts
-        option={option}
-        notMerge={true}
-        lazyUpdate={false}
-        style={{ height: '100%' }}
-      />
-    </div>
+    <ReactECharts
+      option={option}
+      notMerge={true}
+      lazyUpdate={false}
+      style={{ height }}
+    />
   );
 };
 /** Inline Histogram widget for a slot */
@@ -148,74 +135,6 @@ const KpiCardWidget: React.FC<{ kpiIds: string[]; data: DataPoint[]; allKpis: Kp
     </div>
   );
 };
-
-/** Inline Counter Timeseries widget — fetches and renders PM counter data */
-const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number }> = ({ counterNames, height }) => {
-  const { state } = useInvestigatorStore();
-  const [tsData, setTsData] = React.useState<{ ts: string; counter: string; value: number }[]>([]);
-  const [loading, setLoading] = React.useState(false);
-
-  React.useEffect(() => {
-    if (counterNames.length === 0) { setTsData([]); return; }
-    setLoading(true);
-    const dateFrom = state.startDate?.split('T')[0] || '2026-01-01';
-    const dateTo = state.endDate?.split('T')[0] || '2026-03-24';
-    fetch(getApiUrl('pm/counters/timeseries'), {
-      method: 'POST',
-      headers: getApiHeaders(),
-      body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(state.granularity), split_by_dimension: false }),
-    })
-      .then(r => r.ok ? r.json() : { series: [] })
-      .then(data => { setTsData(data.series || []); setLoading(false); })
-      .catch(() => { setTsData([]); setLoading(false); });
-  }, [counterNames.join(','), state.startDate, state.endDate]);
-
-  if (loading) return <div className="flex items-center justify-center text-muted-foreground text-[10px] gap-1.5" style={{ height }}><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading...</div>;
-  if (tsData.length === 0) return <div className="flex items-center justify-center text-muted-foreground text-[10px]" style={{ height }}>No data available</div>;
-
-  const counters = [...new Set(tsData.map(d => d.counter))];
-  const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
-
-  const option = {
-    tooltip: {
-      trigger: 'axis' as const,
-      backgroundColor: 'rgba(15,23,42,0.95)',
-      borderColor: 'rgba(255,255,255,0.08)',
-      textStyle: { color: '#f8fafc', fontSize: 10 },
-    },
-    legend: { bottom: 0, textStyle: { color: '#9ca3af', fontSize: 9 }, data: counters },
-    grid: { left: 60, right: 20, top: 10, bottom: 40 },
-    xAxis: {
-      type: 'category' as const,
-      data: timestamps.map(t => t.slice(0, 10)),
-      axisLabel: { color: '#6b7280', fontSize: 9 },
-      axisLine: { lineStyle: { color: '#374151' } },
-    },
-    yAxis: {
-      type: 'value' as const,
-      axisLabel: { color: '#6b7280', fontSize: 9, formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toString() },
-      splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
-    },
-    series: counters.map((counter, i) => ({
-      name: counter,
-      type: 'line' as const,
-      smooth: true,
-      data: timestamps.map(ts => { const p = tsData.find(d => d.ts === ts && d.counter === counter); return p ? p.value : 0; }),
-      lineStyle: { width: 2, color: SERIES_COLORS[i % SERIES_COLORS.length] },
-      itemStyle: { color: SERIES_COLORS[i % SERIES_COLORS.length] },
-      symbolSize: 4,
-      areaStyle: {
-        color: { type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [
-          { offset: 0, color: SERIES_COLORS[i % SERIES_COLORS.length] + '25' },
-          { offset: 1, color: SERIES_COLORS[i % SERIES_COLORS.length] + '05' },
-        ]},
-      },
-    })),
-  };
-
-  return <ReactECharts option={option} notMerge style={{ height }} />;
-};
-
 
 interface Props {
   graphSlots: GraphSlot[];
@@ -380,13 +299,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                     const cDef = counterCatalog.find(c => c.counter_name === cId);
                     return (
                       <span key={cId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border border-border/50 bg-muted/30">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stableColorForKpi(cId) }} />
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: SERIES_COLORS[i % SERIES_COLORS.length] }} />
                         {cDef?.display_name || cId}
                       </span>
                     );
                   })}
                 </div>
-                <CounterTimeseriesWidget counterNames={kpiIds} height={chartHeight - 60} />
+                <div className="text-center text-[10px] text-muted-foreground py-4">
+                  Compteurs sélectionnés — données affichées dans l'onglet PM Counters
+                </div>
               </div>
             </div>
           );
@@ -419,7 +340,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Multi-KPI: build series — detect split data
         const defs = kpiIds.map((id, i) => {
           const d = getDef(id);
-          return d || { id, label: id, unit: '', color: stableColorForKpi(id), thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
+          return d || { id, label: id, unit: '', color: SERIES_COLORS[i % SERIES_COLORS.length], thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         });
 
         // Filter data to only this slot's KPIs
@@ -444,67 +365,41 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
           : slotData.map(d => ({ ...d, splitValue: undefined }));
 
-        // Build full timeline from requested date range so X axis always shows the complete period
-        const state = useInvestigatorStore.getState().state;
-        // Normalize all data point timestamps to match granularity format
-        const normalizedData = effectiveData.map(d => ({ ...d, timestamp: normalizeTimestamp(d.timestamp, state.granularity) }));
-        const apiTimestamps = [...new Set(kpiIds.flatMap(id => normalizedData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
+        // Collect all unique timestamps across all KPIs
+        const allTimestamps = [...new Set(kpiIds.flatMap(id => effectiveData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
 
-        const fullTimeline = buildTimeline(state.startDate, state.endDate, state.granularity);
-        // If buildTimeline returned empty (invalid dates), fall back to API timestamps
-        if (fullTimeline.length === 0) fullTimeline.push(...apiTimestamps);
-        // Merge: use full timeline as base, add any API timestamps not already included
-        const timelineSet = new Set(fullTimeline);
-        for (const ts of apiTimestamps) {
-          if (!timelineSet.has(ts)) fullTimeline.push(ts);
-        }
-        // Trim timeline to last real data point — no empty space on the right
-        const lastDataTs = apiTimestamps.length ? apiTimestamps[apiTimestamps.length - 1] : null;
-        let allTimestamps = fullTimeline.sort();
-        if (lastDataTs) {
-          allTimestamps = allTimestamps.filter(ts => ts <= lastDataTs);
-        }
-
-        // Per-KPI chart type helpers
-        const getKpiChartType = (kpiId: string): ChartType => cfg.chartTypePerKpi?.[kpiId] || cfg.chartType;
-        const getSeriesProps = (kpiId: string) => {
-          const ct = getKpiChartType(kpiId);
-          const stacked = ct === 'stacked_bar';
-          const sType = ct === 'scatter' ? 'scatter' : (ct === 'bar' || stacked) ? 'bar' : 'line';
-          const smooth = cfg.smooth !== undefined ? cfg.smooth : (ct === 'line' || ct === 'area');
-          const symbols = ct === 'line_points' || ct === 'scatter';
-          const showArea = sType === 'line' && (cfg.showArea || ct === 'area');
-          return { seriesType: sType, isSmooth: smooth, forceSymbols: symbols, isStacked: stacked, showArea };
-        };
+        const isStacked = cfg.chartType === 'stacked_bar';
+        const seriesType = cfg.chartType === 'scatter' ? 'scatter' : (cfg.chartType === 'bar' || isStacked) ? 'bar' : 'line';
+        const isSmooth = cfg.chartType === 'line' || cfg.chartType === 'area'; // straight/points = not smooth
+        const forceSymbols = cfg.chartType === 'line_points' || cfg.chartType === 'scatter';
 
         let series: any[];
 
         if (hasSplit) {
+          let colorIdx = 0;
           series = kpiIds.flatMap((kpiId, ki) => {
             const def = defs[ki];
             const kpiHasSplit = getKpiHasSplit(kpiId);
-            const kpiData = normalizedData.filter(d => d.kpi === kpiId);
+            const kpiData = effectiveData.filter(d => d.kpi === kpiId);
 
             if (!kpiHasSplit) {
               // Non-split KPI: single aggregated series
-              const color = stableColorForKpi(kpiId);
+              const color = SERIES_COLORS[colorIdx++ % SERIES_COLORS.length];
               const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
-              const sp = getSeriesProps(kpiId);
               return [{
                 name: def.label,
                 _kpiId: kpiId,
-                connectNulls: true,
-                type: sp.seriesType as any,
+                type: seriesType as any,
                 data: values,
-                smooth: sp.isSmooth,
-                symbol: (sp.forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
-                symbolSize: (sp.forceSymbols || cfg.showSymbols) ? 5 : 0,
-                lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
-                itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+                smooth: isSmooth,
+                symbol: (forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
+                symbolSize: (forceSymbols || cfg.showSymbols) ? 5 : 0,
+                lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
+                itemStyle: { color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
-                stack: sp.isStacked ? 'total' : undefined,
-                areaStyle: sp.showArea ? {
+                stack: isStacked ? 'total' : undefined,
+                areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
                   color: {
                     type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                     colorStops: [
@@ -518,28 +413,26 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
             // Split KPI: one series per split value
             const splitValues = [...new Set(kpiData.map(d => d.splitValue!))];
-            return splitValues.map((sv, svIdx) => {
-              const color = SERIES_COLORS[svIdx % SERIES_COLORS.length];
+            return splitValues.map(sv => {
+              const color = SERIES_COLORS[colorIdx++ % SERIES_COLORS.length];
               const svData = kpiData.filter(d => d.splitValue === sv);
               const dataMap = new Map(svData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
               const seriesName = kpiIds.length > 1 ? `${def.label} — ${sv}` : sv;
 
-              const sp = getSeriesProps(kpiId);
               return {
                 name: seriesName,
                 _kpiId: kpiId,
-                connectNulls: true,
-                type: sp.seriesType as any,
+                type: seriesType as any,
                 data: values,
-                smooth: sp.isSmooth,
-                symbol: (sp.forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
-                symbolSize: (sp.forceSymbols || cfg.showSymbols) ? 5 : 0,
-                lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
-                itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+                smooth: isSmooth,
+                symbol: (forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
+                symbolSize: (forceSymbols || cfg.showSymbols) ? 5 : 0,
+                lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
+                itemStyle: { color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
-                stack: sp.isStacked ? 'total' : undefined,
-                areaStyle: sp.showArea ? {
+                stack: isStacked ? 'total' : undefined,
+                areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
                   color: {
                     type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                     colorStops: [
@@ -555,25 +448,23 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           // No split — one series per KPI (original logic)
           series = kpiIds.map((kpiId, i) => {
             const def = defs[i];
-            const kpiData = normalizedData.filter(d => d.kpi === kpiId);
+            const kpiData = effectiveData.filter(d => d.kpi === kpiId);
             const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
             const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
 
-            const sp = getSeriesProps(kpiId);
             return {
               name: def.label,
               _kpiId: kpiId,
-              connectNulls: true,
-              type: sp.seriesType as any,
+              type: seriesType as any,
               data: values,
-              smooth: sp.isSmooth,
-              symbol: (sp.forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
-              symbolSize: (sp.forceSymbols || cfg.showSymbols) ? 5 : 0,
-              lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color: def.color } : undefined,
-              itemStyle: { color: def.color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+              smooth: isSmooth,
+              symbol: (forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
+              symbolSize: (forceSymbols || cfg.showSymbols) ? 5 : 0,
+              lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color: def.color } : undefined,
+              itemStyle: { color: def.color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
-              stack: sp.isStacked ? 'total' : undefined,
-              areaStyle: sp.showArea ? {
+              stack: isStacked ? 'total' : undefined,
+              areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
                 color: {
                   type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
@@ -586,24 +477,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           });
         }
 
-        // Build markLine data for jalons — normalize dates to match timeline format
-        const markLineData = jalons.map(j => {
-          // Normalize jalon date to match allTimestamps format
-          const normDate = normalizeTimestamp(j.date, state.granularity);
-          // Find closest timestamp in timeline if exact match doesn't exist
-          let xVal = normDate;
-          if (!allTimestamps.includes(normDate) && allTimestamps.length > 0) {
-            const jTime = new Date(j.date).getTime();
-            let closest = allTimestamps[0];
-            let closestDiff = Math.abs(new Date(closest).getTime() - jTime);
-            for (const ts of allTimestamps) {
-              const diff = Math.abs(new Date(ts).getTime() - jTime);
-              if (diff < closestDiff) { closest = ts; closestDiff = diff; }
-            }
-            xVal = closest;
-          }
-          return {
-            xAxis: xVal,
+        // Build markLine data for jalons
+        const markLineData = jalons
+          .filter(j => allTimestamps.includes(j.date) || true) // show all jalons
+          .map(j => ({
+            xAxis: j.date,
             label: {
               show: true,
               formatter: j.label,
@@ -617,8 +495,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               width: 2,
               type: 'dashed' as const,
             },
-          };
-        });
+          }));
 
         // Weekend highlighting — build markArea data
         const weekendAreas: { xAxis: string }[][] = [];
@@ -638,7 +515,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const markAreaData = weekendAreas.map(([start, end]) => [{
           xAxis: start.xAxis,
-          itemStyle: { color: 'rgba(148,163,184,0.12)' },
+          itemStyle: { color: 'rgba(148,163,184,0.035)' },
         }, {
           xAxis: end.xAxis,
         }]);
@@ -651,41 +528,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const yAxisAssignments = cfg.yAxisAssignments || {};
         const hasRightAxis = Object.values(yAxisAssignments).includes(1);
 
-        // ── Auto Y-axis calculation ──
-        const computeAutoRange = (seriesArr: any[], axisIdx: number) => {
-          const vals: number[] = [];
-          seriesArr.forEach(s => {
-            const sKpiId = s._kpiId || kpiIds[0];
-            const assignedAxis = hasRightAxis ? (yAxisAssignments[sKpiId] === 1 ? 1 : 0) : 0;
-            if (assignedAxis !== axisIdx) return;
-            (s.data || []).forEach((v: any) => {
-              if (typeof v === 'number' && !Number.isNaN(v)) vals.push(v);
-            });
-          });
-          if (vals.length === 0) return { min: undefined, max: undefined };
-          const rawMin = Math.min(...vals);
-          const rawMax = Math.max(...vals);
-          const range = rawMax - rawMin;
-          const padding = range === 0 ? Math.abs(rawMax || 1) * 0.02 : range * 0.1;
-          return {
-            min: parseFloat((rawMin - padding).toFixed(4)),
-            max: parseFloat((rawMax + padding).toFixed(4)),
-          };
-        };
-
-        const autoLeft = computeAutoRange(series, 0);
-        const autoRight = hasRightAxis ? computeAutoRange(series, 1) : { min: undefined, max: undefined };
-
         // Build yAxis array (always left; optionally right)
         const yAxisLeft = {
           type: 'value' as const,
           position: 'left' as const,
-          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : autoLeft.min,
-          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : autoLeft.max,
+          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
+          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : undefined,
           axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
           splitLine: {
             show: cfg.showGrid,
-            lineStyle: { color: 'rgba(148,163,184,0.10)', type: 'dashed' as const },
+            lineStyle: { color: 'rgba(128,128,128,0.05)', type: 'dashed' as const },
           },
           axisLine: { show: false },
           axisTick: { show: false },
@@ -694,8 +546,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const yAxisRight = {
           type: 'value' as const,
           position: 'right' as const,
-          min: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.min != null ? yAxisRightCfg.min : autoRight.min,
-          max: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.max != null ? yAxisRightCfg.max : autoRight.max,
+          min: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.min != null ? yAxisRightCfg.min : undefined,
+          max: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.max != null ? yAxisRightCfg.max : undefined,
           axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
           splitLine: { show: false },
           axisLine: { show: false },
@@ -706,46 +558,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Assign yAxisIndex to each series based on its KPI
         const getYAxisIndex = (kpiId: string) => yAxisAssignments[kpiId] === 1 ? 1 : 0;
 
-        // dataZoom slider height
-        const sliderHeight = 22;
-        const sliderBottomMargin = 30;
-        const legendRows = series.length > 4 ? 78 : series.length > 2 ? 66 : 54;
-
         const option = {
           animation: false,
           grid: {
             top: 32,
             right: hasRightAxis ? 62 : 28,
-            bottom: legendRows + sliderHeight + 10,
+            bottom: series.length > 4 ? 78 : series.length > 2 ? 66 : 54,
             left: 62,
             containLabel: false,
           },
-          dataZoom: [
-            { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const },
-            {
-              type: 'slider' as const,
-              xAxisIndex: 0,
-              height: sliderHeight,
-              bottom: legendRows - 12,
-              filterMode: 'none' as const,
-              borderColor: 'rgba(128,128,128,0.2)',
-              backgroundColor: 'rgba(128,128,128,0.06)',
-              fillerColor: 'rgba(99,102,241,0.15)',
-              handleSize: '120%',
-              handleStyle: { color: '#6366f1', borderColor: '#6366f1', borderWidth: 1 },
-              moveHandleSize: 6,
-              textStyle: { fontSize: 9, color: '#a1a1aa' },
-              dataBackground: {
-                lineStyle: { color: 'rgba(99,102,241,0.3)' },
-                areaStyle: { color: 'rgba(99,102,241,0.08)' },
-              },
-              selectedDataBackground: {
-                lineStyle: { color: 'rgba(99,102,241,0.5)' },
-                areaStyle: { color: 'rgba(99,102,241,0.15)' },
-              },
-              brushSelect: false,
-            },
-          ],
           legend: {
             show: true,
             bottom: 4,
@@ -771,7 +592,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             },
             tooltip: { show: true },
           },
-          backgroundColor: '#f8fafc',
           tooltip: {
             trigger: 'axis' as const,
             backgroundColor: 'rgba(15,23,42,0.96)',
@@ -805,7 +625,21 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             type: 'category' as const,
             data: allTimestamps,
             axisLabel: {
-              formatter: (v: string) => formatAxisLabel(v, state.granularity),
+              formatter: (v: string) => {
+                const d = new Date(v);
+                // Detect single-day: if first and last timestamp are same day
+                const first = new Date(allTimestamps[0]);
+                const last = new Date(allTimestamps[allTimestamps.length - 1]);
+                const sameDay = first.toDateString() === last.toDateString();
+                const spanDays = (last.getTime() - first.getTime()) / 86400000;
+                if (sameDay || spanDays <= 1) {
+                  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                } else if (spanDays <= 7) {
+                  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit' }) + '\n' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                } else {
+                  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+                }
+              },
               fontSize: 10.5,
               color: '#a1a1aa',
               margin: 14,
@@ -843,14 +677,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         return (
           <div
             key={slot.id}
-            onMouseDown={(e) => {
-              // Only activate slot on direct click on the card chrome, not on chart canvas
-              const target = e.target as HTMLElement;
-              if (target.closest('canvas') || target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
-            }}
             onClick={(e) => {
               const target = e.target as HTMLElement;
-              if (target.closest('canvas') || target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
+              if (target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
               onSlotClick?.(slot.id);
             }}
             className={cn(
@@ -863,11 +692,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             {/* Header */}
             <div className="flex items-center gap-2 mb-3 relative z-10">
               <div className="flex items-center gap-1.5">
+                {/* Show color dots for each KPI */}
+                {defs.map((d, i) => (
+                  <span key={i} className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-white/20" style={{ backgroundColor: d.color }} />
+                ))}
                 <input
                   value={slot.name}
                   onChange={(e) => onRenameSlot(slot.id, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-[13px] font-semibold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[160px] truncate"
+                  className="text-[13px] font-semibold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[160px] truncate ml-1"
                 />
               </div>
               <span className="ml-auto" />
@@ -901,75 +734,45 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   {/* KPIs list */}
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">KPIs ({kpiIds.length})</span>
-                    {defs.map((d, i) => {
-                      const kId = kpiIds[i];
-                      const kpiCt = cfg.chartTypePerKpi?.[kId] || cfg.chartType;
-                      const CT_SHORT: { value: ChartType; icon: React.ElementType }[] = [
-                        { value: 'line', icon: TrendingUp },
-                        { value: 'area', icon: AreaChart },
-                        { value: 'bar', icon: BarChart3 },
-                        { value: 'scatter', icon: CircleDot },
-                      ];
-                      return (
-                        <div key={kId} className="space-y-1 py-1 border-b border-border/20 last:border-0">
-                          <div className="flex items-center justify-between gap-1">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                              <span className="text-[10px] font-medium text-foreground truncate max-w-[100px]">{d.label}</span>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              {/* L/R Y-axis toggle */}
-                              <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
-                                <button
-                                  onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kId]: 0 } })}
-                                  className={cn(
-                                    'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
-                                    (cfg.yAxisAssignments?.[kId] || 0) === 0
-                                      ? 'bg-primary/20 text-primary'
-                                      : 'text-muted-foreground hover:text-foreground'
-                                  )}
-                                  title="Left Y-axis"
-                                >L</button>
-                                <button
-                                  onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kId]: 1 } })}
-                                  className={cn(
-                                    'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
-                                    cfg.yAxisAssignments?.[kId] === 1
-                                      ? 'bg-primary/20 text-primary'
-                                      : 'text-muted-foreground hover:text-foreground'
-                                  )}
-                                  title="Right Y-axis"
-                                >R</button>
-                              </div>
-                              <button
-                                onClick={() => onChangeSlotKpi(slot.id, kId)}
-                                className="text-muted-foreground hover:text-destructive"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                          {/* Per-KPI chart type */}
-                          <div className="flex gap-0.5 ml-3.5">
-                            {CT_SHORT.map(ct => (
-                              <button
-                                key={ct.value}
-                                onClick={() => onUpdateSlotConfig(slot.id, { chartTypePerKpi: { ...cfg.chartTypePerKpi, [kId]: ct.value } })}
-                                className={cn(
-                                  'p-1 rounded transition-all',
-                                  kpiCt === ct.value
-                                    ? 'bg-primary/15 text-primary'
-                                    : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/40'
-                                )}
-                                title={ct.value}
-                              >
-                                <ct.icon className="w-3 h-3" />
-                              </button>
-                            ))}
-                          </div>
+                    {defs.map((d, i) => (
+                      <div key={kpiIds[i]} className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                          <span className="text-[10px] font-medium text-foreground truncate max-w-[100px]">{d.label}</span>
                         </div>
-                      );
-                    })}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* L/R Y-axis toggle */}
+                          <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
+                            <button
+                              onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kpiIds[i]]: 0 } })}
+                              className={cn(
+                                'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
+                                (cfg.yAxisAssignments?.[kpiIds[i]] || 0) === 0
+                                  ? 'bg-primary/20 text-primary'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              )}
+                              title="Left Y-axis"
+                            >L</button>
+                            <button
+                              onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kpiIds[i]]: 1 } })}
+                              className={cn(
+                                'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
+                                cfg.yAxisAssignments?.[kpiIds[i]] === 1
+                                  ? 'bg-primary/20 text-primary'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              )}
+                              title="Right Y-axis"
+                            >R</button>
+                          </div>
+                          <button
+                            onClick={() => onChangeSlotKpi(slot.id, kpiIds[i])}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                     <Button
                       variant="outline"
                       size="sm"
@@ -984,17 +787,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
                   {/* Chart Type */}
                   <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type (tous)</span>
-                    <div className="flex flex-wrap gap-1">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
+                    <div className="flex gap-1">
                       {CHART_TYPES.map(ct => (
                         <button
                           key={ct.value}
-                          onClick={() => {
-                            // Apply to all KPIs + slot default
-                            const perKpi: Record<string, ChartType> = {};
-                            kpiIds.forEach(k => { perKpi[k] = ct.value; });
-                            onUpdateSlotConfig(slot.id, { chartType: ct.value, chartTypePerKpi: { ...cfg.chartTypePerKpi, ...perKpi } });
-                          }}
+                          onClick={() => onUpdateSlotConfig(slot.id, { chartType: ct.value })}
                           className={cn(
                             'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
                             cfg.chartType === ct.value
@@ -1104,13 +902,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                       })()}
                       onChange={e => {
                         const val = e.target.value;
-                        if (val === 'None') {
-                          onUpdateSlotConfig(slot.id, { splitByPerKpi: {} });
-                        } else {
-                          const allSplits: Record<string, string> = {};
-                          kpiIds.forEach(kid => { allSplits[kid] = val; });
-                          onUpdateSlotConfig(slot.id, { splitByPerKpi: allSplits });
-                        }
+                        const allSplits: Record<string, string> = {};
+                        kpiIds.forEach(kid => { allSplits[kid] = val; });
+                        onUpdateSlotConfig(slot.id, { splitByPerKpi: allSplits });
                       }}
                       className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
                     >
@@ -1134,7 +928,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 </PopoverContent>
               </Popover>
             </div>
-            <SlotChart key={`${slot.id}-${cfg.chartType}`} option={option} height={chartHeight} />
+            <SlotChart option={option} height={chartHeight} />
           </div>
         );
       })}
