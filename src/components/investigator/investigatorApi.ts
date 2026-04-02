@@ -10,7 +10,7 @@ export async function fetchKpiDefinitions(): Promise<KpiDefinition[]> {
   const res = await fetch(url, { headers: getApiHeaders() });
   if (!res.ok) return [];
   const data = await res.json();
-  return (data || []).slice(0, 200).map((k: any, i: number) => ({
+  return (data || []).slice(0, 5000).map((k: any, i: number) => ({
     id: k.kpi_key,
     label: k.display_name || k.kpi_key,
     unit: k.unit || '',
