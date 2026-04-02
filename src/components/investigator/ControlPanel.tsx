@@ -561,8 +561,15 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   };
 
   // Parse dates as local (add T12:00 to avoid UTC midnight timezone shift)
-  const startDate = state.startDate ? new Date(state.startDate + 'T12:00:00') : undefined;
-  const endDate = state.endDate ? new Date(state.endDate + 'T12:00:00') : undefined;
+  // Guard against invalid/corrupt persisted values
+  const parseSafeDate = (raw: string | undefined | null): Date | undefined => {
+    if (!raw || !raw.trim()) return undefined;
+    const dateOnly = raw.split('T')[0]; // strip any existing time part
+    const d = new Date(dateOnly + 'T12:00:00');
+    return isNaN(d.getTime()) ? undefined : d;
+  };
+  const startDate = parseSafeDate(state.startDate);
+  const endDate = parseSafeDate(state.endDate);
 
   const addFilterDimension = (dim: string) => {
     setState(prev => {
