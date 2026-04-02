@@ -454,10 +454,17 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           allTimestamps = allTimestamps.filter(ts => ts <= lastDataTs);
         }
 
-        const isStacked = cfg.chartType === 'stacked_bar';
-        const seriesType = cfg.chartType === 'scatter' ? 'scatter' : (cfg.chartType === 'bar' || isStacked) ? 'bar' : 'line';
-        const isSmooth = cfg.smooth !== undefined ? cfg.smooth : (cfg.chartType === 'line' || cfg.chartType === 'area');
-        const forceSymbols = cfg.chartType === 'line_points' || cfg.chartType === 'scatter';
+        // Per-KPI chart type helpers
+        const getKpiChartType = (kpiId: string): ChartType => cfg.chartTypePerKpi?.[kpiId] || cfg.chartType;
+        const getSeriesProps = (kpiId: string) => {
+          const ct = getKpiChartType(kpiId);
+          const stacked = ct === 'stacked_bar';
+          const sType = ct === 'scatter' ? 'scatter' : (ct === 'bar' || stacked) ? 'bar' : 'line';
+          const smooth = cfg.smooth !== undefined ? cfg.smooth : (ct === 'line' || ct === 'area');
+          const symbols = ct === 'line_points' || ct === 'scatter';
+          const showArea = sType === 'line' && (cfg.showArea || ct === 'area');
+          return { seriesType: sType, isSmooth: smooth, forceSymbols: symbols, isStacked: stacked, showArea };
+        };
 
         let series: any[];
 
