@@ -247,22 +247,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
   const startEditName = () => { setNameValue(dm.activeTab?.name || ''); setEditingName(true); };
   const commitName = () => { if (nameValue.trim() && dm.activeTab) dm.renameTab(dm.activeTab.id, nameValue.trim()); setEditingName(false); };
 
-  const applyPreset = (days: number) => {
-    const to = new Date();
-    const from = new Date(to.getTime() - days * 86400000);
-    gf.setDateRange(from.toISOString().slice(0, 10), to.toISOString().slice(0, 10));
-  };
-
-  const applyWeekPreset = (offset: number) => {
-    const now = new Date();
-    const dow = now.getDay() || 7;
-    const mon = new Date(now.getTime() - (dow - 1) * 86400000 - offset * 7 * 86400000);
-    const sun = new Date(mon.getTime() + 6 * 86400000);
-    gf.setDateRange(
-      mon.toISOString().slice(0, 10),
-      offset === 0 ? now.toISOString().slice(0, 10) : sun.toISOString().slice(0, 10),
-    );
-  };
+  // Presets are now handled inside DateRangePicker
 
   return (
     <div className="sticky top-0 z-40 mx-3 mt-2 mb-1 rounded-xl border border-border/40 bg-card/95 backdrop-blur-md shadow-[0_2px_12px_hsl(var(--foreground)/0.04)]">
