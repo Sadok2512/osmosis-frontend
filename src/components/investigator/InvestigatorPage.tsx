@@ -63,6 +63,7 @@ const InvestigatorPage: React.FC = () => {
   const [isLoadingWorst, setIsLoadingWorst] = React.useState(false);
   const [hasUnfilteredFallback, setHasUnfilteredFallback] = React.useState(false);
   const [kpiMetaMap, setKpiMetaMap] = React.useState<Map<string, KpiDefinition>>(new Map());
+  const handleApplyRef = useRef<() => void>(() => {});
 
   // Load KPI metadata for severity/ranking
   React.useEffect(() => {
@@ -93,9 +94,22 @@ const InvestigatorPage: React.FC = () => {
     }
   }, [state.graphSlots, activeSlotId]);
 
-  // No auto-load — user must add filters + KPIs then click Appliquer
-
   const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
+  const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0);
+
+  // Auto-refresh: re-apply when dates/granularity/filters/KPIs change AFTER first successful load
+  const autoRefreshKey = `${state.startDate}|${state.endDate}|${state.granularity}|${JSON.stringify(state.filters)}|${state.graphSlots.map(s => s.kpiIds.join(',')).join('|')}|${state.splitBy}`;
+  const prevAutoRefreshKey = useRef(autoRefreshKey);
+  useEffect(() => {
+    if (!hasLoadedOnce) { prevAutoRefreshKey.current = autoRefreshKey; return; }
+    if (autoRefreshKey === prevAutoRefreshKey.current) return;
+    prevAutoRefreshKey.current = autoRefreshKey;
+    if (hasFilters && hasKpis) {
+      // Small debounce to avoid rapid successive calls
+      const t = setTimeout(() => handleApplyRef.current(), 400);
+      return () => clearTimeout(t);
+    }
+  }, [autoRefreshKey, hasLoadedOnce, hasFilters, hasKpis]);
 
   const handleApply = async () => {
     // Require at least one dimension filter (Site, Cell, etc.)
@@ -147,6 +161,7 @@ const InvestigatorPage: React.FC = () => {
     }
     setIsApplying(false);
   };
+  handleApplyRef.current = handleApply;
 
   // Fetch counter timeseries when counters are selected
   React.useEffect(() => {
