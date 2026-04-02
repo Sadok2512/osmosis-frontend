@@ -6,9 +6,14 @@ interface GlobalFilterState {
   // Date range
   dateFrom: string;
   dateTo: string;
+  timeFrom: string; // HH:mm
+  timeTo: string;   // HH:mm
   granularity: Granularity | 'auto';
+  activePreset: string | null; // track which quick preset is active
   setDateRange: (from: string, to: string) => void;
+  setTimeRange: (from: string, to: string) => void;
   setGranularity: (g: Granularity | 'auto') => void;
+  setActivePreset: (preset: string | null) => void;
 
   // Dynamic global filters (chips)
   globalFilters: ActiveFilter[];
