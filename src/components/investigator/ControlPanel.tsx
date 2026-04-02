@@ -1012,33 +1012,57 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   {PM_DIMENSION_LABELS[primaryKpiDimType] || primaryKpiDimType}
                 </span>
               </div>
-              <select
-                value={state.filters[primaryKpiDimType]?.[0] || ''}
-                onChange={e => {
-                  const val = e.target.value;
-                  const dimKey = primaryKpiDimType!;
-                  setState(prev => {
-                    const newFilters = { ...prev.filters };
-                    if (val) newFilters[dimKey] = [val];
-                    else delete newFilters[dimKey];
-                    return { ...prev, filters: newFilters };
-                  });
-                }}
-                className="h-7 px-2 rounded-lg border border-amber-500/30 bg-amber-500/5 text-foreground text-[10px] font-medium min-w-[160px]"
-              >
-                <option value="">Toutes les dimensions</option>
-                {pmDimValues.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-              </select>
+              <div className="relative">
+                <div className="px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/5 text-foreground text-[10px] font-medium min-w-[160px] max-w-[280px] max-h-[120px] overflow-y-auto">
+                  {pmDimValues.length === 0 && <span className="text-muted-foreground">No dimensions</span>}
+                  {pmDimValues.map(v => (
+                    <label key={v.value} className="flex items-center gap-1.5 py-0.5 cursor-pointer hover:bg-muted/30 px-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={(state.filters[primaryKpiDimType!] || []).includes(v.value)}
+                        onChange={() => {
+                          const dimKey = primaryKpiDimType!;
+                          setState(prev => {
+                            const current = prev.filters[dimKey] || [];
+                            const newVals = current.includes(v.value)
+                              ? current.filter((x: string) => x !== v.value)
+                              : [...current, v.value];
+                            const newFilters = { ...prev.filters };
+                            if (newVals.length > 0) newFilters[dimKey] = newVals;
+                            else delete newFilters[dimKey];
+                            return { ...prev, filters: newFilters };
+                          });
+                        }}
+                        className="w-3 h-3 rounded"
+                      />
+                      <span className="truncate">{v.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
               {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">chargement...</span>}
-              {state.filters[primaryKpiDimType]?.[0] && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
-                  {state.filters[primaryKpiDimType][0]}
+              {(state.filters[primaryKpiDimType!] || []).length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {state.filters[primaryKpiDimType!].map((val: string) => (
+                    <span key={val} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                      {val}
+                      <button onClick={() => setState(prev => {
+                        const dimKey = primaryKpiDimType!;
+                        const current = prev.filters[dimKey] || [];
+                        const newVals = current.filter((x: string) => x !== val);
+                        const nf = { ...prev.filters };
+                        if (newVals.length > 0) nf[dimKey] = newVals;
+                        else delete nf[dimKey];
+                        return { ...prev, filters: nf };
+                      })} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                    </span>
+                  ))}
                   <button onClick={() => setState(prev => {
                     const nf = { ...prev.filters };
                     delete nf[primaryKpiDimType!];
                     return { ...prev, filters: nf };
-                  })} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
-                </span>
+                  })} className="text-[8px] text-muted-foreground hover:text-destructive">Clear all</button>
+                </div>
               )}
             </div>
           )}
