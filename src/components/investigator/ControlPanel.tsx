@@ -52,9 +52,9 @@ const PERIODS = [
 ];
 const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: '15min', label: '15 min' },
-  { value: 'Hourly', label: 'Horaire' },
-  { value: 'Daily', label: 'Jour' },
-  { value: 'Weekly', label: 'Semaine' },
+  { value: '1h', label: 'Horaire' },
+  { value: '1d', label: 'Jour' },
+  { value: '1w', label: 'Semaine' },
 ];
 // FILTER_DIMENSIONS now loaded from backend (see filterDimensions state)
 
@@ -548,14 +548,15 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     });
   }, [catalog, kpisWithData]);
 
+  const formatDateTime = (d: Date) => d.toISOString().slice(0, 19); // YYYY-MM-DDTHH:MM:SS
   const applyPeriod = (days: number) => {
     const end = new Date();
     const start = new Date();
     start.setDate(end.getDate() - days);
     setState(prev => ({
       ...prev,
-      startDate: format(start, 'yyyy-MM-dd'),
-      endDate: format(end, 'yyyy-MM-dd'),
+      startDate: formatDateTime(start),
+      endDate: formatDateTime(end),
     }));
   };
 
@@ -1247,7 +1248,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   filters: {},
                   startDate: '',
                   endDate: '',
-                  granularity: 'Hourly',
+                  granularity: '' as Granularity,
                   splitBy: 'None',
                 };
                 return { ...prev, graphSlots: [...prev.graphSlots, newSlot] };

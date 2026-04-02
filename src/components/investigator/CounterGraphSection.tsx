@@ -4,6 +4,8 @@ import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { BarChart3, Plus, X, RefreshCw, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CounterSelectorModal from './CounterSelectorModal';
+import { useInvestigatorStore } from '@/stores/investigatorStore';
+import { normalizeGranularity } from './types';
 
 interface CounterDef {
   counter_name: string;
@@ -69,6 +71,7 @@ const DIMENSION_LABELS: Record<string, string> = {
 };
 
 const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
+  const globalGran = useInvestigatorStore(s => normalizeGranularity(s.state.granularity));
   const [catalog, setCatalog] = React.useState<CounterDef[]>([]);
   const [selectedCounters, setSelectedCounters] = React.useState<CounterDef[]>([]);
   const [tsData, setTsData] = React.useState<CounterPoint[]>([]);
@@ -117,7 +120,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
       counter_names: selectedCounters.map(c => c.counter_name),
       date_from: dateFrom,
       date_to: dateTo,
-      granularity: '1d',
+      granularity: globalGran,
       split_by_dimension: !!splitByDimension,
     };
     if (dimensionFilter.length > 0) body.dimension_filter = dimensionFilter;
@@ -130,7 +133,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
       setTsData(data.series || []);
       setLoading(false);
     }).catch(() => { setTsData([]); setLoading(false); });
-  }, [selectedCounters.map(c => c.counter_name).join(','), dateFrom, dateTo, splitByDimension, dimensionFilter]);
+  }, [selectedCounters.map(c => c.counter_name).join(','), dateFrom, dateTo, globalGran, splitByDimension, dimensionFilter]);
 
   const removeCounter = (name: string) => {
     setSelectedCounters(prev => prev.filter(c => c.counter_name !== name));

@@ -9,7 +9,7 @@ import HistogramSection from './HistogramSection';
 import SliceMappingSection from './SliceMappingSection';
 import WorstElementsTable from './WorstElementsTable';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
-import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition } from './types';
+import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
 import { fetchKpiDefinitions, fetchWorstByDOR, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
@@ -20,7 +20,6 @@ import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
-const GRAN_MAP: Record<string, string> = {'15min':'15min','Hourly':'1h','Daily':'1d','Weekly':'1w'};
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
   timeseries: 'Graph',
@@ -38,7 +37,7 @@ const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType
   filters: {},
   startDate: '',
   endDate: '',
-  granularity: '' as any,  // empty = use global granularity from toolbar
+  granularity: '' as Granularity,  // empty = use global granularity from toolbar
   splitBy: 'None',
 });
 
@@ -170,7 +169,7 @@ const InvestigatorPage: React.FC = () => {
       counter_names: selectedCounters.map((c: any) => c.counter_name),
       date_from: state.startDate.split('T')[0] || '2026-03-24',
       date_to: state.endDate.split('T')[0] || '2026-03-31',
-      granularity: GRAN_MAP[state.granularity] || '1h',
+      granularity: normalizeGranularity(state.granularity),
     };
     fetch(getApiUrl('pm/counters/timeseries'), {
       method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),

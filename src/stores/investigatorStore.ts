@@ -22,7 +22,7 @@ const INITIAL_STATE: InvestigationState = {
   splitBy: 'None',
   startDate,
   endDate,
-  granularity: '15min',
+  granularity: '1d',  // default daily, user changes via toolbar
   filters: {},
   topLimit: 10,
   sortBy: null as unknown as string, // typed as string in interface, null semantically

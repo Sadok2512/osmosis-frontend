@@ -1,7 +1,7 @@
 // ── Investigator API — Data from Parser :8000, AI from Agent :1000 ──
 
 import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode } from '@/lib/apiConfig';
-import { DataPoint, WorstElement, KpiDefinition, GraphSlot, Granularity } from './types';
+import { DataPoint, WorstElement, KpiDefinition, GraphSlot, Granularity, normalizeGranularity } from './types';
 import { worstFirstComparator, getKpiSeverity } from '@/utils/telecomHelpers';
 
 // ── Fetch KPI catalog from KPI Engine :8001 ──
@@ -260,12 +260,6 @@ interface SlotRequestContext {
   neighborType?: string | null;
 }
 
-const GRAN_MAP: Record<string, string> = {
-  '15min': '15min',
-  'Hourly': '1h',
-  'Daily': '1d',
-  'Weekly': '1w',
-};
 
 /** Resolve a slot's effective request context, using slot overrides with global fallback */
 export function resolveSlotContext(
@@ -288,7 +282,7 @@ export function resolveSlotContext(
   const rawTo = (slot.endDate && slot.endDate.trim()) || (globalState.endDate && globalState.endDate.trim()) || '2026-03-22';
   const dateFrom = rawFrom.split('T')[0];
   const dateTo = rawTo.split('T')[0];
-  const gran = GRAN_MAP[slot.granularity || globalState.granularity] || '1h';
+  const gran = normalizeGranularity(slot.granularity || globalState.granularity);
 
   // Split: use slot-level splitBy, fall back to per-KPI split, then global
   let splitValue: string | undefined;

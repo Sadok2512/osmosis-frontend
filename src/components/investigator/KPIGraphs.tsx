@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType } from './types';
+import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType, normalizeGranularity } from './types';
 import CounterSelectorModal from './CounterSelectorModal';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
@@ -151,7 +151,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     fetch(getApiUrl('pm/counters/timeseries'), {
       method: 'POST',
       headers: getApiHeaders(),
-      body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity: '1d', split_by_dimension: false }),
+      body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(state.granularity), split_by_dimension: false }),
     })
       .then(r => r.ok ? r.json() : { series: [] })
       .then(data => { setTsData(data.series || []); setLoading(false); })
@@ -435,10 +435,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Build full timeline from requested date range so X axis always shows the complete period
         const state = useInvestigatorStore.getState().state;
         // Normalize timestamps: daily → YYYY-MM-DD, hourly → YYYY-MM-DDTHH:MM:SS
-        const gran = state.granularity;
+        const normGran = normalizeGranularity(state.granularity);
         const normTs = (ts: string): string => {
           if (!ts) return ts;
-          if (gran === 'Daily' || gran === 'Weekly') return ts.slice(0, 10);
+          if (normGran === '1d' || normGran === '1w') return ts.slice(0, 10);
           return ts.slice(0, 19);
         };
         // Normalize all data point timestamps
@@ -446,16 +446,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const apiTimestamps = [...new Set(kpiIds.flatMap(id => normalizedData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
 
         const generateFullTimeline = (from: string, to: string, gran: string): string[] => {
+          const ng = normalizeGranularity(gran);
           const start = new Date(from);
           const end = new Date(to);
           if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) return apiTimestamps;
 
           const points: string[] = [];
           const stepMs =
-            gran === '15min' ? 15 * 60 * 1000 :
-            gran === '1h' || gran === 'hourly' ? 60 * 60 * 1000 :
-            gran === '1d' || gran === 'daily' ? 24 * 60 * 60 * 1000 :
-            gran === '1w' || gran === 'weekly' ? 7 * 24 * 60 * 60 * 1000 :
+            ng === '15min' ? 15 * 60 * 1000 :
+            ng === '1h' ? 60 * 60 * 1000 :
+            ng === '1w' ? 7 * 24 * 60 * 60 * 1000 :
             24 * 60 * 60 * 1000;
 
           const maxPoints = 2000; // safety cap
