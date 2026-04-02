@@ -193,6 +193,14 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
     setOpen(isOpen);
   }, [dateFrom]);
 
+  // Sync calMonth when dates change externally (e.g. from other UI) while open
+  React.useEffect(() => {
+    if (open) {
+      const target = selecting === 'end' ? endDate : startDate;
+      setCalMonth(startOfMonth(target));
+    }
+  }, [dateFrom, dateTo]); // intentionally depend on string props for external changes
+
   const showTimePicker = ['15m', '1h'].includes(granularity);
 
   const handleDateSelect = useCallback((d: Date) => {
