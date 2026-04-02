@@ -1067,7 +1067,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 </PopoverContent>
               </Popover>
             </div>
-            <SlotChart option={option} height={chartHeight} />
+            <SlotChart key={`${slot.id}-${cfg.chartType}`} option={option} height={chartHeight} />
           </div>
         );
       })}
