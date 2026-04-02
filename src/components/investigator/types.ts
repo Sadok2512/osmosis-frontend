@@ -36,6 +36,8 @@ export interface GraphConfig {
   yAxisAssignments?: Record<string, number>;
   /** Maps kpiId → split dimension (e.g. 'BAND'). Missing or 'None' means no split. */
   splitByPerKpi?: Record<string, string>;
+  /** Maps kpiId → chart type override. Missing means use slot-level chartType. */
+  chartTypePerKpi?: Record<string, ChartType>;
 }
 
 export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
