@@ -66,12 +66,14 @@ const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec489
 /** Wrapper — full replace on every update so legend stays in sync */
 const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }) => {
   return (
-    <ReactECharts
-      option={option}
-      notMerge={true}
-      lazyUpdate={false}
-      style={{ height }}
-    />
+    <div style={{ height, position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+      <ReactECharts
+        option={option}
+        notMerge={true}
+        lazyUpdate={false}
+        style={{ height: '100%' }}
+      />
+    </div>
   );
 };
 /** Inline Histogram widget for a slot */
@@ -833,9 +835,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         return (
           <div
             key={slot.id}
+            onMouseDown={(e) => {
+              // Only activate slot on direct click on the card chrome, not on chart canvas
+              const target = e.target as HTMLElement;
+              if (target.closest('canvas') || target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
+            }}
             onClick={(e) => {
               const target = e.target as HTMLElement;
-              if (target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
+              if (target.closest('canvas') || target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
               onSlotClick?.(slot.id);
             }}
             className={cn(
