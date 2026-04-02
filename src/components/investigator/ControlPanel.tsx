@@ -502,6 +502,30 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     return Array.from(activePmDimensions)[0];
   }, [activePmDimensions]);
 
+  // Auto-add/remove PM dimension filters when KPIs with dimension_type are selected/deselected
+  const prevPmDimsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const prev = prevPmDimsRef.current;
+    const current = activePmDimensions;
+    // Auto-add newly appeared PM dimensions
+    for (const dim of current) {
+      if (!prev.has(dim) && !state.filters[dim]) {
+        setState(s => ({ ...s, filters: { ...s.filters, [dim]: [] } }));
+      }
+    }
+    // Auto-remove PM dimensions that are no longer active (KPIs removed)
+    for (const dim of prev) {
+      if (!current.has(dim) && PM_DIMENSION_TYPES.has(dim)) {
+        setState(s => {
+          const nf = { ...s.filters };
+          delete nf[dim];
+          return { ...s, filters: nf };
+        });
+      }
+    }
+    prevPmDimsRef.current = new Set(current);
+  }, [activePmDimensions]);
+
   useEffect(() => {
     setPmDimValues([]);
     if (!primaryKpiDimType) return;
@@ -1053,8 +1077,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   const val = e.target.value;
                   setState(prev => {
                     const nf = { ...prev.filters };
-                    if (val) nf[primaryKpiDimType!] = [val];
-                    else delete nf[primaryKpiDimType!];
+                    nf[primaryKpiDimType!] = val ? [val] : [];
                     return { ...prev, filters: nf };
                   });
                 }}
@@ -1068,11 +1091,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">chargement...</span>}
               {(state.filters[primaryKpiDimType] || []).length > 0 && (
                 <button
-                  onClick={() => setState(prev => {
-                    const nf = { ...prev.filters };
-                    delete nf[primaryKpiDimType!];
-                    return { ...prev, filters: nf };
-                  })}
+                  onClick={() => setState(prev => ({
+                    ...prev,
+                    filters: { ...prev.filters, [primaryKpiDimType!]: [] },
+                  }))}
                   className="text-[9px] text-muted-foreground hover:text-destructive flex items-center gap-0.5"
                 >
                   <X className="w-2.5 h-2.5" /> Clear
