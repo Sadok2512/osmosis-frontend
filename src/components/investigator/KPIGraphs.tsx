@@ -63,6 +63,15 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
 
 const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
 
+/** Stable color for a KPI — uses a simple hash so color doesn't shift when KPIs are added/removed */
+function stableColorForKpi(kpiId: string): string {
+  let hash = 0;
+  for (let i = 0; i < kpiId.length; i++) {
+    hash = ((hash << 5) - hash + kpiId.charCodeAt(i)) | 0;
+  }
+  return SERIES_COLORS[((hash % SERIES_COLORS.length) + SERIES_COLORS.length) % SERIES_COLORS.length];
+}
+
 /** Wrapper — full replace on every update so legend stays in sync */
 const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }) => {
   return (
@@ -371,7 +380,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                     const cDef = counterCatalog.find(c => c.counter_name === cId);
                     return (
                       <span key={cId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border border-border/50 bg-muted/30">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: SERIES_COLORS[i % SERIES_COLORS.length] }} />
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stableColorForKpi(cId) }} />
                         {cDef?.display_name || cId}
                       </span>
                     );
@@ -410,7 +419,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Multi-KPI: build series — detect split data
         const defs = kpiIds.map((id, i) => {
           const d = getDef(id);
-          return d || { id, label: id, unit: '', color: SERIES_COLORS[i % SERIES_COLORS.length], thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
+          return d || { id, label: id, unit: '', color: stableColorForKpi(id), thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         });
 
         // Filter data to only this slot's KPIs
@@ -471,7 +480,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         let series: any[];
 
         if (hasSplit) {
-          let colorIdx = 0;
           series = kpiIds.flatMap((kpiId, ki) => {
             const def = defs[ki];
             const kpiHasSplit = getKpiHasSplit(kpiId);
@@ -479,7 +487,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
             if (!kpiHasSplit) {
               // Non-split KPI: single aggregated series
-              const color = SERIES_COLORS[colorIdx++ % SERIES_COLORS.length];
+              const color = stableColorForKpi(kpiId);
               const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
               const sp = getSeriesProps(kpiId);
@@ -510,8 +518,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
             // Split KPI: one series per split value
             const splitValues = [...new Set(kpiData.map(d => d.splitValue!))];
-            return splitValues.map(sv => {
-              const color = SERIES_COLORS[colorIdx++ % SERIES_COLORS.length];
+            return splitValues.map((sv, svIdx) => {
+              const color = SERIES_COLORS[svIdx % SERIES_COLORS.length];
               const svData = kpiData.filter(d => d.splitValue === sv);
               const dataMap = new Map(svData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
