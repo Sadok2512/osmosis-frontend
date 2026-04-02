@@ -480,7 +480,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         let series: any[];
 
         if (hasSplit) {
-          let colorIdx = 0;
           series = kpiIds.flatMap((kpiId, ki) => {
             const def = defs[ki];
             const kpiHasSplit = getKpiHasSplit(kpiId);
@@ -488,7 +487,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
             if (!kpiHasSplit) {
               // Non-split KPI: single aggregated series
-              const color = SERIES_COLORS[colorIdx++ % SERIES_COLORS.length];
+              const color = stableColorForKpi(kpiId);
               const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
               const sp = getSeriesProps(kpiId);
@@ -519,8 +518,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
             // Split KPI: one series per split value
             const splitValues = [...new Set(kpiData.map(d => d.splitValue!))];
-            return splitValues.map(sv => {
-              const color = SERIES_COLORS[colorIdx++ % SERIES_COLORS.length];
+            return splitValues.map((sv, svIdx) => {
+              const color = SERIES_COLORS[svIdx % SERIES_COLORS.length];
               const svData = kpiData.filter(d => d.splitValue === sv);
               const dataMap = new Map(svData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
