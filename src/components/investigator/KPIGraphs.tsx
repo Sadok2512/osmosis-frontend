@@ -883,45 +883,75 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   {/* KPIs list */}
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">KPIs ({kpiIds.length})</span>
-                    {defs.map((d, i) => (
-                      <div key={kpiIds[i]} className="flex items-center justify-between gap-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                          <span className="text-[10px] font-medium text-foreground truncate max-w-[100px]">{d.label}</span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {/* L/R Y-axis toggle */}
-                          <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
-                            <button
-                              onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kpiIds[i]]: 0 } })}
-                              className={cn(
-                                'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
-                                (cfg.yAxisAssignments?.[kpiIds[i]] || 0) === 0
-                                  ? 'bg-primary/20 text-primary'
-                                  : 'text-muted-foreground hover:text-foreground'
-                              )}
-                              title="Left Y-axis"
-                            >L</button>
-                            <button
-                              onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kpiIds[i]]: 1 } })}
-                              className={cn(
-                                'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
-                                cfg.yAxisAssignments?.[kpiIds[i]] === 1
-                                  ? 'bg-primary/20 text-primary'
-                                  : 'text-muted-foreground hover:text-foreground'
-                              )}
-                              title="Right Y-axis"
-                            >R</button>
+                    {defs.map((d, i) => {
+                      const kId = kpiIds[i];
+                      const kpiCt = cfg.chartTypePerKpi?.[kId] || cfg.chartType;
+                      const CT_SHORT: { value: ChartType; icon: React.ElementType }[] = [
+                        { value: 'line', icon: TrendingUp },
+                        { value: 'area', icon: AreaChart },
+                        { value: 'bar', icon: BarChart3 },
+                        { value: 'scatter', icon: ScatterChart },
+                      ];
+                      return (
+                        <div key={kId} className="space-y-1 py-1 border-b border-border/20 last:border-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                              <span className="text-[10px] font-medium text-foreground truncate max-w-[100px]">{d.label}</span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {/* L/R Y-axis toggle */}
+                              <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
+                                <button
+                                  onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kId]: 0 } })}
+                                  className={cn(
+                                    'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
+                                    (cfg.yAxisAssignments?.[kId] || 0) === 0
+                                      ? 'bg-primary/20 text-primary'
+                                      : 'text-muted-foreground hover:text-foreground'
+                                  )}
+                                  title="Left Y-axis"
+                                >L</button>
+                                <button
+                                  onClick={() => onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...cfg.yAxisAssignments, [kId]: 1 } })}
+                                  className={cn(
+                                    'px-1.5 py-0.5 text-[8px] font-bold transition-colors',
+                                    cfg.yAxisAssignments?.[kId] === 1
+                                      ? 'bg-primary/20 text-primary'
+                                      : 'text-muted-foreground hover:text-foreground'
+                                  )}
+                                  title="Right Y-axis"
+                                >R</button>
+                              </div>
+                              <button
+                                onClick={() => onChangeSlotKpi(slot.id, kId)}
+                                className="text-muted-foreground hover:text-destructive"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            onClick={() => onChangeSlotKpi(slot.id, kpiIds[i])}
-                            className="text-muted-foreground hover:text-destructive"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                          {/* Per-KPI chart type */}
+                          <div className="flex gap-0.5 ml-3.5">
+                            {CT_SHORT.map(ct => (
+                              <button
+                                key={ct.value}
+                                onClick={() => onUpdateSlotConfig(slot.id, { chartTypePerKpi: { ...cfg.chartTypePerKpi, [kId]: ct.value } })}
+                                className={cn(
+                                  'p-1 rounded transition-all',
+                                  kpiCt === ct.value
+                                    ? 'bg-primary/15 text-primary'
+                                    : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/40'
+                                )}
+                                title={ct.value}
+                              >
+                                <ct.icon className="w-3 h-3" />
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <Button
                       variant="outline"
                       size="sm"
