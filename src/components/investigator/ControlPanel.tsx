@@ -563,27 +563,36 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const startDate = state.startDate ? new Date(state.startDate + 'T12:00:00') : undefined;
   const endDate = state.endDate ? new Date(state.endDate + 'T12:00:00') : undefined;
 
-  const addFilter = (dim: string, val: string) => {
+  const addFilterDimension = (dim: string) => {
     setState(prev => {
-      const existing = prev.filters[dim] || [];
-      if (existing.includes(val)) return prev;
-      return { ...prev, filters: { ...prev.filters, [dim]: [...existing, val] } };
+      if (prev.filters[dim]) return prev; // already exists
+      return { ...prev, filters: { ...prev.filters, [dim]: [] } };
     });
   };
 
-  const removeFilter = (dim: string, val: string) => {
+  const toggleFilterValue = (dim: string, val: string) => {
     setState(prev => {
-      const existing = (prev.filters[dim] || []).filter(v => v !== val);
+      const existing = prev.filters[dim] || [];
+      const newVals = existing.includes(val)
+        ? existing.filter(v => v !== val)
+        : [...existing, val];
+      return { ...prev, filters: { ...prev.filters, [dim]: newVals } };
+    });
+  };
+
+  const clearFilterValues = (dim: string) => {
+    setState(prev => ({ ...prev, filters: { ...prev.filters, [dim]: [] } }));
+  };
+
+  const removeFilterDimension = (dim: string) => {
+    setState(prev => {
       const newFilters = { ...prev.filters };
-      if (existing.length === 0) delete newFilters[dim];
-      else newFilters[dim] = existing;
+      delete newFilters[dim];
       return { ...prev, filters: newFilters };
     });
   };
 
-  const filterChips = Object.entries(state.filters).flatMap(([dim, vals]) =>
-    vals.map(val => ({ dim, val }))
-  );
+  const activeFilterDims = Object.keys(state.filters);
 
   return (
     <div className="sticky top-0 z-30">
