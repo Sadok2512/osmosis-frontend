@@ -434,7 +434,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         // Build full timeline from requested date range so X axis always shows the complete period
         const state = useInvestigatorStore.getState().state;
-        const apiTimestamps = [...new Set(kpiIds.flatMap(id => effectiveData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
+        // Normalize timestamps: daily → YYYY-MM-DD, hourly → YYYY-MM-DDTHH:MM:SS
+        const gran = state.granularity;
+        const normTs = (ts: string): string => {
+          if (!ts) return ts;
+          if (gran === 'Daily' || gran === 'Weekly') return ts.slice(0, 10);
+          return ts.slice(0, 19);
+        };
+        // Normalize all data point timestamps
+        const normalizedData = effectiveData.map(d => ({ ...d, timestamp: normTs(d.timestamp) }));
+        const apiTimestamps = [...new Set(kpiIds.flatMap(id => normalizedData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
 
         const generateFullTimeline = (from: string, to: string, gran: string): string[] => {
           const start = new Date(from);
@@ -485,7 +494,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           series = kpiIds.flatMap((kpiId, ki) => {
             const def = defs[ki];
             const kpiHasSplit = getKpiHasSplit(kpiId);
-            const kpiData = effectiveData.filter(d => d.kpi === kpiId);
+            const kpiData = normalizedData.filter(d => d.kpi === kpiId);
 
             if (!kpiHasSplit) {
               // Non-split KPI: single aggregated series
@@ -553,7 +562,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           // No split — one series per KPI (original logic)
           series = kpiIds.map((kpiId, i) => {
             const def = defs[i];
-            const kpiData = effectiveData.filter(d => d.kpi === kpiId);
+            const kpiData = normalizedData.filter(d => d.kpi === kpiId);
             const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
             const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
 
