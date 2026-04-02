@@ -833,9 +833,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         return (
           <div
             key={slot.id}
+            onMouseDown={(e) => {
+              // Only activate slot on direct click on the card chrome, not on chart canvas
+              const target = e.target as HTMLElement;
+              if (target.closest('canvas') || target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
+            }}
             onClick={(e) => {
               const target = e.target as HTMLElement;
-              if (target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
+              if (target.closest('canvas') || target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
               onSlotClick?.(slot.id);
             }}
             className={cn(
