@@ -2263,7 +2263,12 @@ FORMATAGE : Markdown pur (pas de HTML, pas de Mermaid).
 - **Gras** pour les valeurs importantes
 - Émojis de statut : 🔴 Critique (<50%), 🟠 Dégradé (50-65%), 🟡 Moyen (65-75%), 🟢 Bon (>75%)
 
-⛔ FORMATS INTERDITS : NE JAMAIS utiliser mermaid, barChart, graph TD, flowchart, gantt, sequenceDiagram, ou tout autre format mermaid. SEULS les blocs \`\`\`chart, \`\`\`map, \`\`\`kpi sont autorisés pour les visualisations.
+⛔ FORMATS INTERDITS : NE JAMAIS utiliser :
+- mermaid (barChart, graph TD, flowchart, gantt, sequenceDiagram, pie, etc.)
+- ASCII art bars ([####---], ████, ▓▓▓, barres en caractères)
+- Représentation Graphique (Simulation) en texte
+SEULS les blocs \`\`\`chart, \`\`\`map, \`\`\`kpi sont autorisés pour les visualisations.
+Toute donnée comparative ou distribution DOIT utiliser un bloc \`\`\`chart JSON, JAMAIS du texte ASCII.
 
 VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
 - chart: {"type":"bar","title":"...","xKey":"...","yKeys":[...],"data":[...],"colors":["#0d9488","#2563eb","#ea580c"]}
