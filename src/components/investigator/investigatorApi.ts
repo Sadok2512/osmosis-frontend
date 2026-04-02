@@ -330,9 +330,11 @@ export function resolveSlotContext(
   };
 }
 
+// ── Dedup cache to prevent 6x identical requests ──
+const _computeCache = new Map<string, Promise<{ data: DataPoint[]; isComputed: boolean }>>();
+
 // ── Fetch timeseries data per-slot ──
 // Strategy: call /kpi/compute FIRST (on-the-fly, always has data)
-// Only fall back to KPI Engine if /kpi/compute fails for all KPIs
 export async function fetchTimeSeriesForSlot(
   ctx: SlotRequestContext,
 ): Promise<{ data: DataPoint[]; hasUnfilteredFallback: boolean }> {
@@ -341,14 +343,22 @@ export async function fetchTimeSeriesForSlot(
   // Detect PM dimension split
   const pmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
 
-  // Step 1: Try /kpi/compute FIRST for all KPIs (on-the-fly, reliable)
+  // Step 1: Try /kpi/compute FIRST for all KPIs (deduplicated)
   const computeResults: DataPoint[] = [];
   const computeFailed: string[] = [];
 
   for (const kpiId of ctx.kpiIds) {
-    const computed = await fetchKpiComputeOnTheFly(
-      kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
-    );
+    const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}`;
+
+    if (!_computeCache.has(cacheKey)) {
+      _computeCache.set(cacheKey, fetchKpiComputeOnTheFly(
+        kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
+      ));
+      // Clear cache after 30s
+      setTimeout(() => _computeCache.delete(cacheKey), 30000);
+    }
+
+    const computed = await _computeCache.get(cacheKey)!;
     if (computed.isComputed) {
       computeResults.push(...computed.data);
     } else {
