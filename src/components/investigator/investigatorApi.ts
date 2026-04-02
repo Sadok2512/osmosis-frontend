@@ -50,6 +50,67 @@ function determineHigherIsBetter(k: any): boolean {
   return true;
 }
 
+// ── Fetch KPI computed on-the-fly from Parser (formula applied in SQL) ──
+async function fetchKpiComputeOnTheFly(
+  kpiId: string,
+  dateFrom: string,
+  dateTo: string,
+  granularity: string = '1d',
+  filters?: { dimension: string; values: string[] }[],
+): Promise<{ data: DataPoint[]; isComputed: boolean }> {
+  try {
+    const url = getApiUrl('pm/kpi/compute');
+    const body: any = {
+      kpi_code: kpiId,
+      date_from: dateFrom,
+      date_to: dateTo,
+      granularity,
+    };
+
+    // Extract site/cell/dimension from filters
+    const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
+    if (filters && filters.length > 0) {
+      for (const f of filters) {
+        const dim = (f.dimension || '').toUpperCase();
+        if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
+        else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
+        else if (PM_DIM_TYPES.has(dim) && f.values?.length) body.dimension_filter = f.values[0];
+      }
+    }
+
+    console.log('[KpiCompute] Request:', kpiId, JSON.stringify(body));
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      console.warn('[KpiCompute] Failed:', res.status);
+      return { data: [], isComputed: false };
+    }
+
+    const result = await res.json();
+    if (result.error) {
+      console.warn('[KpiCompute] Error:', result.error);
+      return { data: [], isComputed: false };
+    }
+
+    const series = (result.series || []).map((s: any) => ({
+      timestamp: s.ts,
+      kpi: kpiId,
+      value: s.kpi_value,
+      _isComputed: true,
+    }));
+
+    console.log('[KpiCompute] Result:', kpiId, series.length, 'points, formula:', result.formula_display?.substring(0, 60));
+    return { data: series, isComputed: series.length > 0 };
+  } catch (e) {
+    console.warn('[KpiCompute] Exception:', e);
+    return { data: [], isComputed: false };
+  }
+}
+
 // ── Fetch raw counter timeseries from Parser (fact_counters_15min) ──
 // Bug #3 fix: accept and forward the same filter context as the KPI request
 async function fetchCounterTimeSeriesFallback(
@@ -269,18 +330,38 @@ export async function fetchTimeSeriesForSlot(
     splitValue: noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value),
   }));
 
-  // Bug #3: Identify missing KPIs and fallback with full filter context
+  // Bug #3: Identify missing KPIs and fallback
   const kpisWithData = new Set(kpiSeries.map((s: any) => s.kpi_key?.toLowerCase()));
   const missingKpis = ctx.kpiIds.filter(k => !kpisWithData.has(k.toLowerCase()));
   let hasUnfilteredFallback = false;
 
   if (missingKpis.length > 0) {
-    const fallback = await fetchCounterTimeSeriesFallback(
-      missingKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
-      ctx.splitBy, ctx.filters,
-    );
-    hasUnfilteredFallback = fallback.isUnfiltered;
-    return { data: [...kpiResults, ...fallback.data], hasUnfilteredFallback };
+    // Step 1: Try on-the-fly KPI compute (returns real KPI value = formula applied)
+    const computeResults: DataPoint[] = [];
+    const stillMissing: string[] = [];
+
+    for (const kpiId of missingKpis) {
+      const computed = await fetchKpiComputeOnTheFly(
+        kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters,
+      );
+      if (computed.isComputed) {
+        computeResults.push(...computed.data);
+      } else {
+        stillMissing.push(kpiId);
+      }
+    }
+
+    // Step 2: For KPIs that couldn't be computed, fall back to raw counter values
+    if (stillMissing.length > 0) {
+      const fallback = await fetchCounterTimeSeriesFallback(
+        stillMissing, ctx.dateFrom, ctx.dateTo, ctx.granularity,
+        ctx.splitBy, ctx.filters,
+      );
+      hasUnfilteredFallback = fallback.isUnfiltered;
+      return { data: [...kpiResults, ...computeResults, ...fallback.data], hasUnfilteredFallback };
+    }
+
+    return { data: [...kpiResults, ...computeResults], hasUnfilteredFallback: false };
   }
 
   return { data: kpiResults, hasUnfilteredFallback };
