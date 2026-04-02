@@ -63,6 +63,7 @@ const InvestigatorPage: React.FC = () => {
   const [isLoadingWorst, setIsLoadingWorst] = React.useState(false);
   const [hasUnfilteredFallback, setHasUnfilteredFallback] = React.useState(false);
   const [kpiMetaMap, setKpiMetaMap] = React.useState<Map<string, KpiDefinition>>(new Map());
+  const handleApplyRef = useRef<() => void>(() => {});
 
   // Load KPI metadata for severity/ranking
   React.useEffect(() => {
