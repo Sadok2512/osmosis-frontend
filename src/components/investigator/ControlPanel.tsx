@@ -1041,6 +1041,45 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             </button>
           </div>
 
+          {/* Row D: Active dimension (from selected KPIs) */}
+          {primaryKpiDimType && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider shrink-0">
+                {PM_DIMENSION_LABELS[primaryKpiDimType] || primaryKpiDimType}
+              </span>
+              <select
+                value={(state.filters[primaryKpiDimType] || [])[0] || ''}
+                onChange={e => {
+                  const val = e.target.value;
+                  setState(prev => {
+                    const nf = { ...prev.filters };
+                    if (val) nf[primaryKpiDimType!] = [val];
+                    else delete nf[primaryKpiDimType!];
+                    return { ...prev, filters: nf };
+                  });
+                }}
+                className="px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/5 text-foreground text-[10px] font-medium outline-none focus:ring-1 focus:ring-amber-500/30 min-w-[140px]"
+              >
+                <option value="">Tous</option>
+                {pmDimValues.map(v => (
+                  <option key={v.value} value={v.value}>{v.label}</option>
+                ))}
+              </select>
+              {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">chargement...</span>}
+              {(state.filters[primaryKpiDimType] || []).length > 0 && (
+                <button
+                  onClick={() => setState(prev => {
+                    const nf = { ...prev.filters };
+                    delete nf[primaryKpiDimType!];
+                    return { ...prev, filters: nf };
+                  })}
+                  className="text-[9px] text-muted-foreground hover:text-destructive flex items-center gap-0.5"
+                >
+                  <X className="w-2.5 h-2.5" /> Clear
+                </button>
+              )}
+            </div>
+          )}
 
         </div>
       </div>
