@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import DashboardSettingsPopup from './DashboardSettingsPopup';
 import DateRangePicker from './DateRangePicker';
+import { useDashboardSettingsStore } from '@/stores/dashboardSettingsStore';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
