@@ -1,10 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   LineChart, Line, BarChart, Bar, AreaChart, Area, ScatterChart, Scatter,
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList
 } from 'recharts';
-import { BarChart3, TrendingUp, Layers, PieChart as PieIcon, Palette, Paintbrush } from 'lucide-react';
+import { BarChart3, TrendingUp, Layers, PieChart as PieIcon, Palette, Paintbrush, Download } from 'lucide-react';
 
 export interface ChartBlock {
   type: 'line' | 'bar' | 'area' | 'scatter' | 'stacked_bar' | 'pie';
@@ -18,18 +18,18 @@ export interface ChartBlock {
 type ChartType = 'line' | 'bar' | 'stacked_bar' | 'pie';
 
 const COLOR_PALETTES: { name: string; colors: string[] }[] = [
-  { name: 'Bleu', colors: ['hsl(221, 83%, 53%)', 'hsl(221, 83%, 40%)', 'hsl(221, 83%, 65%)', 'hsl(221, 60%, 75%)', 'hsl(221, 50%, 30%)', 'hsl(200, 70%, 50%)'] },
-  { name: 'Vert', colors: ['hsl(142, 70%, 45%)', 'hsl(142, 70%, 32%)', 'hsl(142, 70%, 58%)', 'hsl(160, 60%, 40%)', 'hsl(120, 50%, 35%)', 'hsl(170, 60%, 50%)'] },
-  { name: 'Orange', colors: ['hsl(25, 90%, 55%)', 'hsl(25, 90%, 42%)', 'hsl(35, 90%, 55%)', 'hsl(15, 80%, 50%)', 'hsl(40, 85%, 48%)', 'hsl(10, 75%, 45%)'] },
-  { name: 'Violet', colors: ['hsl(280, 65%, 55%)', 'hsl(260, 65%, 50%)', 'hsl(300, 60%, 55%)', 'hsl(270, 50%, 65%)', 'hsl(250, 55%, 45%)', 'hsl(290, 60%, 45%)'] },
-  { name: 'Multi', colors: ['hsl(221, 83%, 53%)', 'hsl(142, 70%, 45%)', 'hsl(25, 90%, 55%)', 'hsl(280, 65%, 55%)', 'hsl(0, 80%, 55%)', 'hsl(45, 90%, 48%)'] },
-  { name: 'Teal', colors: ['hsl(174, 70%, 40%)', 'hsl(174, 70%, 30%)', 'hsl(185, 60%, 45%)', 'hsl(165, 55%, 50%)', 'hsl(190, 65%, 35%)', 'hsl(180, 50%, 55%)'] },
+  { name: 'Telecom', colors: ['hsl(210, 90%, 50%)', 'hsl(145, 65%, 42%)', 'hsl(25, 92%, 55%)', 'hsl(350, 75%, 52%)', 'hsl(270, 60%, 55%)', 'hsl(50, 85%, 50%)'] },
+  { name: 'Bleu Nuit', colors: ['hsl(215, 85%, 55%)', 'hsl(200, 75%, 48%)', 'hsl(225, 70%, 62%)', 'hsl(190, 65%, 42%)', 'hsl(235, 55%, 50%)', 'hsl(180, 60%, 45%)'] },
+  { name: 'Émeraude', colors: ['hsl(160, 70%, 40%)', 'hsl(145, 65%, 48%)', 'hsl(170, 60%, 35%)', 'hsl(130, 55%, 45%)', 'hsl(175, 50%, 50%)', 'hsl(140, 45%, 55%)'] },
+  { name: 'Sunset', colors: ['hsl(10, 85%, 55%)', 'hsl(30, 90%, 52%)', 'hsl(50, 88%, 50%)', 'hsl(0, 75%, 48%)', 'hsl(340, 70%, 52%)', 'hsl(20, 80%, 60%)'] },
+  { name: 'Multi', colors: ['hsl(215, 85%, 55%)', 'hsl(145, 65%, 42%)', 'hsl(25, 92%, 55%)', 'hsl(280, 60%, 55%)', 'hsl(350, 75%, 52%)', 'hsl(50, 85%, 50%)'] },
+  { name: 'Graphite', colors: ['hsl(210, 15%, 35%)', 'hsl(210, 20%, 50%)', 'hsl(200, 25%, 60%)', 'hsl(210, 10%, 45%)', 'hsl(220, 15%, 55%)', 'hsl(195, 20%, 40%)'] },
 ];
 
 const RAINBOW_PALETTE = [
-  'hsl(221, 83%, 53%)', 'hsl(142, 70%, 45%)', 'hsl(25, 90%, 55%)', 'hsl(280, 65%, 55%)',
-  'hsl(0, 80%, 55%)', 'hsl(45, 90%, 48%)', 'hsl(174, 70%, 40%)', 'hsl(330, 70%, 50%)',
-  'hsl(200, 75%, 45%)', 'hsl(60, 80%, 42%)', 'hsl(310, 55%, 55%)', 'hsl(15, 85%, 50%)',
+  'hsl(215, 85%, 55%)', 'hsl(145, 65%, 42%)', 'hsl(25, 92%, 55%)', 'hsl(280, 60%, 55%)',
+  'hsl(350, 75%, 52%)', 'hsl(50, 85%, 50%)', 'hsl(174, 70%, 40%)', 'hsl(330, 65%, 50%)',
+  'hsl(200, 75%, 48%)', 'hsl(60, 75%, 42%)', 'hsl(310, 55%, 55%)', 'hsl(15, 85%, 50%)',
 ];
 
 const CHART_TYPES: { key: ChartType; icon: React.ElementType; label: string }[] = [
@@ -41,8 +41,27 @@ const CHART_TYPES: { key: ChartType; icon: React.ElementType; label: string }[] 
 
 const formatValue = (v: number) => {
   if (typeof v !== 'number') return v;
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
   if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(1)}k`;
   return Number.isInteger(v) ? v : v.toFixed(1);
+};
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-popover/95 backdrop-blur-md border border-border/60 rounded-lg shadow-xl p-3 min-w-[160px]">
+      <p className="text-[11px] font-semibold text-foreground mb-1.5 border-b border-border/40 pb-1.5">{label}</p>
+      {payload.map((entry: any, i: number) => (
+        <div key={i} className="flex items-center justify-between gap-4 py-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ background: entry.color }} />
+            <span className="text-[10px] text-muted-foreground">{entry.name || entry.dataKey}</span>
+          </div>
+          <span className="text-[11px] font-bold text-foreground tabular-nums">{formatValue(entry.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
@@ -54,28 +73,33 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
 
   const [chartType, setChartType] = useState<ChartType>(initialType);
   const [paletteIdx, setPaletteIdx] = useState<number>(
-    colors ? -1 : 4 // default to Multi
+    colors ? -1 : 0 // default to Telecom
   );
   const [showPalette, setShowPalette] = useState(false);
-
   const [colorByX, setColorByX] = useState(false);
 
-  const palette = paletteIdx >= 0 ? COLOR_PALETTES[paletteIdx].colors : (colors || COLOR_PALETTES[4].colors);
+  const palette = paletteIdx >= 0 ? COLOR_PALETTES[paletteIdx].colors : (colors || COLOR_PALETTES[0].colors);
 
   const togglePalette = useCallback(() => setShowPalette(p => !p), []);
 
+  // Compute max for nice axis domain
+  const maxVal = useMemo(() => {
+    let m = 0;
+    data.forEach(row => yKeys.forEach(k => { if (Number(row[k]) > m) m = Number(row[k]); }));
+    return m;
+  }, [data, yKeys]);
+
   if (!data?.length || !yKeys?.length) return null;
 
-  // Prepare pie data (aggregate all yKeys)
   const pieData = chartType === 'pie'
-    ? yKeys.map((key, i) => ({
-        name: key,
-        value: data.reduce((sum, row) => sum + (Number(row[key]) || 0), 0),
+    ? data.map((row, i) => ({
+        name: String(row[xKey] || `Item ${i}`),
+        value: yKeys.reduce((sum, k) => sum + (Number(row[k]) || 0), 0),
         fill: palette[i % palette.length],
       }))
     : [];
 
-  const commonProps = { data, margin: { top: 20, right: 20, left: 0, bottom: 5 } };
+  const commonProps = { data, margin: { top: 24, right: 16, left: 8, bottom: 8 } };
 
   const renderChart = () => {
     switch (chartType) {
@@ -88,48 +112,70 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
               nameKey="name"
               cx="50%"
               cy="50%"
-              outerRadius={80}
+              outerRadius={85}
+              innerRadius={35}
+              paddingAngle={2}
               label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-              labelLine={{ strokeWidth: 1, stroke: 'hsl(var(--foreground))' }}
+              labelLine={{ strokeWidth: 1, stroke: 'hsl(var(--muted-foreground))' }}
               style={{ fontSize: 10, fill: 'hsl(var(--foreground))', fontWeight: 600 }}
             >
               {pieData.map((entry, i) => (
-                <Cell key={i} fill={entry.fill} />
+                <Cell key={i} fill={entry.fill} stroke="hsl(var(--background))" strokeWidth={2} />
               ))}
             </Pie>
-            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }} />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend
+              wrapperStyle={{ fontSize: 10, paddingTop: 8 }}
+              formatter={(value: string) => <span className="text-foreground font-medium">{value}</span>}
+            />
           </PieChart>
         );
 
       case 'stacked_bar':
         return (
-          <BarChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }} />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
+          <BarChart {...commonProps} barCategoryGap="18%">
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
+            <XAxis dataKey={xKey} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={formatValue} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} formatter={(v: string) => <span className="text-foreground font-medium">{v}</span>} />
             {yKeys.map((key, i) => (
-              <Bar key={key} dataKey={key} stackId="stack" fill={palette[i % palette.length]} radius={i === yKeys.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+              <Bar
+                key={key}
+                dataKey={key}
+                stackId="stack"
+                fill={palette[i % palette.length]}
+                radius={i === yKeys.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]}
+              />
             ))}
           </BarChart>
         );
 
       case 'bar':
         return (
-          <BarChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }} />
-            {!colorByX && <Legend wrapperStyle={{ fontSize: 10 }} />}
+          <BarChart {...commonProps} barCategoryGap="18%">
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
+            <XAxis dataKey={xKey} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={formatValue} domain={[0, Math.ceil(maxVal * 1.15)]} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--accent))', opacity: 0.15, radius: 4 }} />
+            {!colorByX && yKeys.length > 1 && <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} formatter={(v: string) => <span className="text-foreground font-medium">{v}</span>} />}
             {yKeys.map((key, i) => (
-              <Bar key={key} dataKey={key} fill={palette[i % palette.length]} radius={[4, 4, 0, 0]}>
+              <Bar key={key} dataKey={key} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} maxBarSize={56}>
                 {colorByX && data.map((_, di) => (
                   <Cell key={di} fill={RAINBOW_PALETTE[di % RAINBOW_PALETTE.length]} />
                 ))}
-                <LabelList dataKey={key} position="top" offset={8} style={{ fontSize: 9, fontWeight: 700, fill: colorByX ? 'hsl(var(--foreground))' : palette[i % palette.length] }} formatter={formatValue} />
+                <LabelList
+                  dataKey={key}
+                  position="top"
+                  offset={10}
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    fill: colorByX ? 'hsl(var(--foreground))' : palette[i % palette.length],
+                    textShadow: '0 1px 2px hsl(var(--background))',
+                  }}
+                  formatter={formatValue}
+                />
               </Bar>
             ))}
           </BarChart>
@@ -138,13 +184,21 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
       default: // line
         return (
           <LineChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))' }} />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
+            <XAxis dataKey={xKey} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={formatValue} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} formatter={(v: string) => <span className="text-foreground font-medium">{v}</span>} />
             {yKeys.map((key, i) => (
-              <Line key={key} type="monotone" dataKey={key} stroke={palette[i % palette.length]} strokeWidth={2} dot={{ r: 3 }} />
+              <Line
+                key={key}
+                type="monotone"
+                dataKey={key}
+                stroke={palette[i % palette.length]}
+                strokeWidth={2.5}
+                dot={{ r: 3, strokeWidth: 2, fill: 'hsl(var(--background))' }}
+                activeDot={{ r: 5, strokeWidth: 2 }}
+              />
             ))}
           </LineChart>
         );
@@ -152,26 +206,26 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
   };
 
   return (
-    <div className="my-4 rounded-xl border border-border bg-card/50 p-4 shadow-sm">
+    <div className="my-4 rounded-xl border border-border/60 bg-gradient-to-br from-card to-card/80 p-4 shadow-md backdrop-blur-sm">
       {/* Header with title + toolbar */}
       <div className="flex items-center justify-between mb-3 gap-2">
         {title ? (
-          <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
-            <span className="w-1 h-4 bg-primary rounded-full" />
+          <h4 className="text-xs font-bold text-foreground flex items-center gap-2 tracking-wide">
+            <span className="w-1 h-4 rounded-full" style={{ background: palette[0] }} />
             {title}
           </h4>
         ) : <span />}
 
         {/* Toolbar */}
-        <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5 relative">
+        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 relative border border-border/30">
           {CHART_TYPES.map(({ key, icon: Icon, label }) => (
             <button
               key={key}
               onClick={() => setChartType(key)}
               title={label}
-              className={`p-1.5 rounded-md transition-all ${
+              className={`p-1.5 rounded-md transition-all duration-200 ${
                 chartType === key
-                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  ? 'bg-primary text-primary-foreground shadow-sm scale-105'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
             >
@@ -179,13 +233,12 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
             </button>
           ))}
 
-          <div className="w-px h-4 bg-border mx-0.5" />
+          <div className="w-px h-4 bg-border/50 mx-0.5" />
 
-          {/* Color by X toggle */}
           <button
             onClick={() => setColorByX(p => !p)}
             title="Couleur par catégorie"
-            className={`p-1.5 rounded-md transition-all ${
+            className={`p-1.5 rounded-md transition-all duration-200 ${
               colorByX
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -194,13 +247,12 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
             <Paintbrush size={13} />
           </button>
 
-          <div className="w-px h-4 bg-border mx-0.5" />
+          <div className="w-px h-4 bg-border/50 mx-0.5" />
 
-          {/* Color palette button */}
           <button
             onClick={togglePalette}
             title="Changer les couleurs"
-            className={`p-1.5 rounded-md transition-all ${
+            className={`p-1.5 rounded-md transition-all duration-200 ${
               showPalette
                 ? 'bg-accent text-accent-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -211,20 +263,20 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
 
           {/* Palette dropdown */}
           {showPalette && (
-            <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg p-2 z-50 min-w-[140px]">
+            <div className="absolute top-full right-0 mt-1.5 bg-popover/95 backdrop-blur-md border border-border/60 rounded-xl shadow-xl p-2 z-50 min-w-[150px]">
               {COLOR_PALETTES.map((p, idx) => (
                 <button
                   key={p.name}
                   onClick={() => { setPaletteIdx(idx); setShowPalette(false); }}
-                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
                     paletteIdx === idx
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-popover-foreground hover:bg-accent/50'
+                      ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                      : 'text-popover-foreground hover:bg-accent/60'
                   }`}
                 >
                   <div className="flex gap-0.5">
                     {p.colors.slice(0, 4).map((c, ci) => (
-                      <span key={ci} className="w-3 h-3 rounded-full border border-border/50" style={{ background: c }} />
+                      <span key={ci} className="w-3.5 h-3.5 rounded-full border border-background shadow-sm" style={{ background: c }} />
                     ))}
                   </div>
                   {p.name}
@@ -235,7 +287,7 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={220}>
+      <ResponsiveContainer width="100%" height={240}>
         {renderChart()}
       </ResponsiveContainer>
     </div>
