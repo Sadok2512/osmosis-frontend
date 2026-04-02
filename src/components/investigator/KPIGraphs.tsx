@@ -854,11 +854,39 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           >
             {/* Header */}
             <div className="flex items-center gap-2 mb-3 relative z-10">
-              <div className="flex items-center gap-1.5">
-                {/* Show color dots for each KPI */}
-                {defs.map((d, i) => (
-                  <span key={i} className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-white/20" style={{ backgroundColor: d.color }} />
-                ))}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Per-KPI chips with chart type selector */}
+                {defs.map((d, i) => {
+                  const kId = kpiIds[i];
+                  const kpiCt = cfg.chartTypePerKpi?.[kId] || cfg.chartType;
+                  const CT_ICONS: { value: ChartType; icon: React.ElementType }[] = [
+                    { value: 'line', icon: TrendingUp },
+                    { value: 'area', icon: AreaChart },
+                    { value: 'bar', icon: BarChart3 },
+                    { value: 'scatter', icon: CircleDot },
+                  ];
+                  return (
+                    <div key={kId} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md border border-border/40 bg-muted/20">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                      <span className="text-[9px] font-medium text-foreground truncate max-w-[80px] mx-0.5">{d.label}</span>
+                      <div className="flex items-center gap-0 ml-0.5 border-l border-border/30 pl-0.5">
+                        {CT_ICONS.map(ct => (
+                          <button
+                            key={ct.value}
+                            onClick={(e) => { e.stopPropagation(); onUpdateSlotConfig(slot.id, { chartTypePerKpi: { ...cfg.chartTypePerKpi, [kId]: ct.value } }); }}
+                            className={cn(
+                              'p-0.5 rounded transition-all',
+                              kpiCt === ct.value ? 'text-primary bg-primary/10' : 'text-muted-foreground/40 hover:text-foreground'
+                            )}
+                            title={ct.value}
+                          >
+                            <ct.icon className="w-2.5 h-2.5" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
                 <input
                   value={slot.name}
                   onChange={(e) => onRenameSlot(slot.id, e.target.value)}
