@@ -703,51 +703,90 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               </div>
             </div>
 
-            {/* Profile filters */}
+            {/* Profile filters — use real PMQAP values when available, else fallback to QCI 1-9 */}
             {state.kpiLevel === 'PROFILE' && (
               <>
                 <div className="h-5 w-px bg-border/60 shrink-0" />
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">QCI</span>
-                  <select
-                    value={state.profileQci ?? ''}
-                    onChange={e => setState(prev => ({ ...prev, profileQci: e.target.value === '' ? null : Number(e.target.value) }))}
-                    className="h-7 px-2 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
-                  >
-                    <option value="">Tous</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(q => (
-                      <option key={q} value={q}>QCI {q}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">ARP</span>
-                  <select
-                    value={state.profileArp ?? ''}
-                    onChange={e => setState(prev => ({ ...prev, profileArp: e.target.value === '' ? null : Number(e.target.value) }))}
-                    className="h-7 px-2 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
-                  >
-                    <option value="">Tous</option>
-                    {Array.from({ length: 15 }, (_, i) => i + 1).map(a => (
-                      <option key={a} value={a}>ARP {a}</option>
-                    ))}
-                  </select>
-                </div>
-                {(state.profileQci != null || state.profileArp != null) && (
-                  <div className="flex items-center gap-1">
-                    {state.profileQci != null && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
-                        QCI: {state.profileQci}
-                        <button onClick={() => setState(prev => ({ ...prev, profileQci: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                {pmDimValues.length > 0 && primaryKpiDimType ? (
+                  /* Real dimension values from API (PMQAP=1, PMQAP=9, FLEX_QCI=1Arp5...) */
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">
+                      {PM_DIMENSION_LABELS[primaryKpiDimType] || primaryKpiDimType}
+                    </span>
+                    <select
+                      value={state.filters[primaryKpiDimType]?.[0] || ''}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const dimKey = primaryKpiDimType!;
+                        setState(prev => {
+                          const newFilters = { ...prev.filters };
+                          if (val) newFilters[dimKey] = [val];
+                          else delete newFilters[dimKey];
+                          return { ...prev, filters: newFilters, profileQci: null, profileArp: null };
+                        });
+                      }}
+                      className="h-7 px-2 rounded-lg border border-amber-500/30 bg-amber-500/5 text-foreground text-[10px] font-medium min-w-[200px]"
+                    >
+                      <option value="">Tous</option>
+                      {pmDimValues.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                    </select>
+                    {state.filters[primaryKpiDimType]?.[0] && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                        {pmDimValues.find(v => v.value === state.filters[primaryKpiDimType]?.[0])?.label || state.filters[primaryKpiDimType]?.[0]}
+                        <button onClick={() => setState(prev => {
+                          const nf = { ...prev.filters }; delete nf[primaryKpiDimType!];
+                          return { ...prev, filters: nf };
+                        })} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
                       </span>
                     )}
-                    {state.profileArp != null && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
-                        ARP: {state.profileArp}
-                        <button onClick={() => setState(prev => ({ ...prev, profileArp: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
-                      </span>
-                    )}
+                    {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">...</span>}
                   </div>
+                ) : (
+                  /* Fallback: generic QCI/ARP for KPI Engine pre-computed */
+                  <>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">QCI</span>
+                      <select
+                        value={state.profileQci ?? ''}
+                        onChange={e => setState(prev => ({ ...prev, profileQci: e.target.value === '' ? null : Number(e.target.value) }))}
+                        className="h-7 px-2 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
+                      >
+                        <option value="">Tous</option>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(q => (
+                          <option key={q} value={q}>QCI {q}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">ARP</span>
+                      <select
+                        value={state.profileArp ?? ''}
+                        onChange={e => setState(prev => ({ ...prev, profileArp: e.target.value === '' ? null : Number(e.target.value) }))}
+                        className="h-7 px-2 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
+                      >
+                        <option value="">Tous</option>
+                        {Array.from({ length: 15 }, (_, i) => i + 1).map(a => (
+                          <option key={a} value={a}>ARP {a}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {(state.profileQci != null || state.profileArp != null) && (
+                      <div className="flex items-center gap-1">
+                        {state.profileQci != null && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                            QCI: {state.profileQci}
+                            <button onClick={() => setState(prev => ({ ...prev, profileQci: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                          </span>
+                        )}
+                        {state.profileArp != null && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                            ARP: {state.profileArp}
+                            <button onClick={() => setState(prev => ({ ...prev, profileArp: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}

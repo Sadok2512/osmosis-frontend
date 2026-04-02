@@ -75,6 +75,9 @@ async function fetchKpiComputeOnTheFly(
         if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
         else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
         else if (PM_DIM_TYPES.has(dim) && f.values?.length) body.dimension_filter = f.values[0];
+        // KPI Engine profile QCI → translate to PMQAP dimension
+        else if (dim === 'QCI' && f.values?.length) body.dimension_filter = `PMQAP=${f.values[0]}`;
+        else if (dim === 'KPI_LEVEL') { /* ignore, handled by kpi engine */ }
       }
     }
 
