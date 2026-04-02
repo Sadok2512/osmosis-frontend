@@ -618,7 +618,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const markAreaData = weekendAreas.map(([start, end]) => [{
           xAxis: start.xAxis,
-          itemStyle: { color: 'rgba(148,163,184,0.035)' },
+          itemStyle: { color: 'rgba(148,163,184,0.12)' },
         }, {
           xAxis: end.xAxis,
         }]);
