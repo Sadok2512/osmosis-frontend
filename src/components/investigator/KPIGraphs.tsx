@@ -926,7 +926,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   {/* Chart Type */}
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap gap-1">
                       {CHART_TYPES.map(ct => (
                         <button
                           key={ct.value}
