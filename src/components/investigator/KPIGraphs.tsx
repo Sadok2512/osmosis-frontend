@@ -515,20 +515,21 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
               const seriesName = kpiIds.length > 1 ? `${def.label} — ${sv}` : sv;
 
+              const sp = getSeriesProps(kpiId);
               return {
                 name: seriesName,
                 _kpiId: kpiId,
                 connectNulls: true,
-                type: seriesType as any,
+                type: sp.seriesType as any,
                 data: values,
-                smooth: isSmooth,
-                symbol: (forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
-                symbolSize: (forceSymbols || cfg.showSymbols) ? 5 : 0,
-                lineStyle: seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
-                itemStyle: { color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+                smooth: sp.isSmooth,
+                symbol: (sp.forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
+                symbolSize: (sp.forceSymbols || cfg.showSymbols) ? 5 : 0,
+                lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
+                itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
-                stack: isStacked ? 'total' : undefined,
-                areaStyle: (seriesType === 'line' && (cfg.showArea || cfg.chartType === 'area')) ? {
+                stack: sp.isStacked ? 'total' : undefined,
+                areaStyle: sp.showArea ? {
                   color: {
                     type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                     colorStops: [
