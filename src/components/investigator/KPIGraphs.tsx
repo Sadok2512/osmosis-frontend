@@ -890,7 +890,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                         { value: 'line', icon: TrendingUp },
                         { value: 'area', icon: AreaChart },
                         { value: 'bar', icon: BarChart3 },
-                        { value: 'scatter', icon: ScatterChart },
+                        { value: 'scatter', icon: CircleDot },
                       ];
                       return (
                         <div key={kId} className="space-y-1 py-1 border-b border-border/20 last:border-0">
