@@ -609,12 +609,37 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const yAxisAssignments = cfg.yAxisAssignments || {};
         const hasRightAxis = Object.values(yAxisAssignments).includes(1);
 
+        // ── Auto Y-axis calculation ──
+        const computeAutoRange = (seriesArr: any[], axisIdx: number) => {
+          const vals: number[] = [];
+          seriesArr.forEach(s => {
+            const sKpiId = s._kpiId || kpiIds[0];
+            const assignedAxis = hasRightAxis ? (yAxisAssignments[sKpiId] === 1 ? 1 : 0) : 0;
+            if (assignedAxis !== axisIdx) return;
+            (s.data || []).forEach((v: any) => {
+              if (typeof v === 'number' && !Number.isNaN(v)) vals.push(v);
+            });
+          });
+          if (vals.length === 0) return { min: undefined, max: undefined };
+          const rawMin = Math.min(...vals);
+          const rawMax = Math.max(...vals);
+          const range = rawMax - rawMin;
+          const padding = range === 0 ? Math.abs(rawMax || 1) * 0.02 : range * 0.1;
+          return {
+            min: parseFloat((rawMin - padding).toFixed(4)),
+            max: parseFloat((rawMax + padding).toFixed(4)),
+          };
+        };
+
+        const autoLeft = computeAutoRange(series, 0);
+        const autoRight = hasRightAxis ? computeAutoRange(series, 1) : { min: undefined, max: undefined };
+
         // Build yAxis array (always left; optionally right)
         const yAxisLeft = {
           type: 'value' as const,
           position: 'left' as const,
-          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : undefined,
-          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : undefined,
+          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : autoLeft.min,
+          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : autoLeft.max,
           axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
           splitLine: {
             show: cfg.showGrid,
@@ -627,8 +652,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const yAxisRight = {
           type: 'value' as const,
           position: 'right' as const,
-          min: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.min != null ? yAxisRightCfg.min : undefined,
-          max: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.max != null ? yAxisRightCfg.max : undefined,
+          min: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.min != null ? yAxisRightCfg.min : autoRight.min,
+          max: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.max != null ? yAxisRightCfg.max : autoRight.max,
           axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
           splitLine: { show: false },
           axisLine: { show: false },
@@ -639,15 +664,39 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Assign yAxisIndex to each series based on its KPI
         const getYAxisIndex = (kpiId: string) => yAxisAssignments[kpiId] === 1 ? 1 : 0;
 
+        // dataZoom slider height
+        const sliderHeight = 22;
+        const sliderBottomMargin = 30;
+        const legendRows = series.length > 4 ? 78 : series.length > 2 ? 66 : 54;
+
         const option = {
           animation: false,
           grid: {
             top: 32,
             right: hasRightAxis ? 62 : 28,
-            bottom: series.length > 4 ? 78 : series.length > 2 ? 66 : 54,
+            bottom: legendRows + sliderHeight + 10,
             left: 62,
             containLabel: false,
           },
+          dataZoom: [
+            { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const },
+            {
+              type: 'slider' as const,
+              xAxisIndex: 0,
+              height: sliderHeight,
+              bottom: legendRows - 16,
+              filterMode: 'none' as const,
+              borderColor: 'rgba(128,128,128,0.15)',
+              backgroundColor: 'rgba(128,128,128,0.04)',
+              fillerColor: 'rgba(99,102,241,0.08)',
+              handleStyle: { color: '#6366f1', borderColor: '#6366f1' },
+              textStyle: { fontSize: 9, color: '#a1a1aa' },
+              dataBackground: {
+                lineStyle: { color: 'rgba(99,102,241,0.2)' },
+                areaStyle: { color: 'rgba(99,102,241,0.05)' },
+              },
+            },
+          ],
           legend: {
             show: true,
             bottom: 4,
