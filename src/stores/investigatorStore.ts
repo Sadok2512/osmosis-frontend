@@ -138,7 +138,7 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
     }),
     {
       name: 'investigator-store',
-      version: 2,
+      version: 3,  // bumped to clear stale 'Hourly'/'Daily' granularity from old sessions
       partialize: (s) => ({
         // Only persist config — NOT runtime API data
         state: s.state,

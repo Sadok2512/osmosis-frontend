@@ -280,9 +280,10 @@ export function resolveSlotContext(
   // Ensure empty-string slot dates don't skip the global date; trim whitespace too
   const rawFrom = (slot.startDate && slot.startDate.trim()) || (globalState.startDate && globalState.startDate.trim()) || '2026-03-22';
   const rawTo = (slot.endDate && slot.endDate.trim()) || (globalState.endDate && globalState.endDate.trim()) || '2026-03-22';
-  const dateFrom = rawFrom.split('T')[0];
-  const dateTo = rawTo.split('T')[0];
   const gran = normalizeGranularity(slot.granularity || globalState.granularity);
+  // For fine granularity, keep full datetime; for daily/weekly, date-only is fine
+  const dateFrom = (gran === '15min' || gran === '1h') ? rawFrom : rawFrom.split('T')[0];
+  const dateTo = (gran === '15min' || gran === '1h') ? rawTo : rawTo.split('T')[0];
 
   // Split: use slot-level splitBy, fall back to per-KPI split, then global
   let splitValue: string | undefined;
