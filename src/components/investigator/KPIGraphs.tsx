@@ -380,7 +380,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                     const cDef = counterCatalog.find(c => c.counter_name === cId);
                     return (
                       <span key={cId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border border-border/50 bg-muted/30">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: SERIES_COLORS[i % SERIES_COLORS.length] }} />
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stableColorForKpi(cId) }} />
                         {cDef?.display_name || cId}
                       </span>
                     );
