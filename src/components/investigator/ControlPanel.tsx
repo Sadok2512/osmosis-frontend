@@ -188,31 +188,51 @@ const KpiDropdown: React.FC<{ selected: string[]; onChange: (ids: string[]) => v
   );
 };
 
-/* ── Add Filter Dropdown (uses Radix Popover to portal above graphs) ── */
+/* ── Add Filter Dropdown — Step 1: pick dimension (hides already-added) ── */
 const AddFilterDropdown: React.FC<{
   existingKeys: string[];
-  onAdd: (dim: string, val: string) => void;
+  onAdd: (dim: string) => void;
   filterDimensions: string[];
-}> = ({ existingKeys: _existingKeys, onAdd, filterDimensions }) => {
+}> = ({ existingKeys, onAdd, filterDimensions }) => {
   const [open, setOpen] = useState(false);
-  const [selectedDim, setSelectedDim] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  const available = filterDimensions.filter(d => !existingKeys.includes(d));
+  const filtered = search
+    ? available.filter(d => {
+        const label = PM_DIMENSION_TYPES.has(d) ? (PM_DIMENSION_LABELS[d] || d) : d;
+        return label.toLowerCase().includes(search.toLowerCase());
+      })
+    : available;
 
   return (
-    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSelectedDim(null); }}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
       <PopoverTrigger asChild>
-        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors">
-          <Filter className="w-3 h-3" /> Add Filter
+        <button className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors">
+          <Plus className="w-3 h-3" /> Ajouter filtre
         </button>
       </PopoverTrigger>
-      <PopoverContent className="min-w-[180px] p-1.5" align="start" sideOffset={4}>
-        {!selectedDim ? (
-          filterDimensions.map(dim => {
+      <PopoverContent className="min-w-[200px] p-1.5" align="start" sideOffset={4}>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Rechercher dimension..."
+          className="w-full px-3 py-1.5 mb-1 border-b border-border/40 bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+          autoFocus
+        />
+        <div className="max-h-[240px] overflow-y-auto">
+          {filtered.length === 0 && (
+            <div className="px-3 py-2 text-[10px] text-muted-foreground">
+              {available.length === 0 ? 'Tous les filtres sont déjà ajoutés' : 'Aucun résultat'}
+            </div>
+          )}
+          {filtered.map(dim => {
             const isPm = PM_DIMENSION_TYPES.has(dim);
             const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
             return (
               <button
                 key={dim}
-                onClick={() => setSelectedDim(dim)}
+                onClick={() => { onAdd(dim); setOpen(false); setSearch(''); }}
                 className={cn(
                   "w-full text-left px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                   isPm ? "text-amber-600 hover:bg-amber-500/10" : "text-foreground hover:bg-muted/50"
@@ -222,70 +242,124 @@ const AddFilterDropdown: React.FC<{
                 {isPm && <span className="ml-1 text-[8px] text-amber-500/70">PM</span>}
               </button>
             );
-          })
-        ) : (
-          <FilterValuesList dim={selectedDim} onSelect={(val) => { onAdd(selectedDim, val); setOpen(false); setSelectedDim(null); }} onBack={() => setSelectedDim(null)} />
-        )}
+          })}
+        </div>
       </PopoverContent>
     </Popover>
   );
 };
 
-/* ── Filter Values (from backend) with search & paste ── */
-const FilterValuesList: React.FC<{ dim: string; onSelect: (val: string) => void; onBack: () => void }> = ({ dim, onSelect, onBack }) => {
-  const values = useBackendFilterValues(dim);
-  const [search, setSearch] = React.useState('');
-  const inputRef = React.useRef<HTMLInputElement>(null);
+/* ── Filter Chip — Step 2: multi-select values for one dimension ── */
+const FilterChip: React.FC<{
+  dim: string;
+  values: string[];
+  onToggleValue: (val: string) => void;
+  onClear: () => void;
+  onRemove: () => void;
+}> = ({ dim, values, onToggleValue, onClear, onRemove }) => {
+  const [open, setOpen] = useState(false);
+  const backendValues = useBackendFilterValues(dim);
+  const [search, setSearch] = useState('');
+  const isPm = PM_DIMENSION_TYPES.has(dim);
+  const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
 
-  React.useEffect(() => { inputRef.current?.focus(); }, []);
+  const filtered = search
+    ? backendValues.filter(v => v.toLowerCase().includes(search.toLowerCase()))
+    : backendValues;
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const pasted = e.clipboardData.getData('text').trim();
     if (!pasted) return;
-    // Support pasting multiple values separated by newline, comma, or semicolon
     const items = pasted.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
     if (items.length > 1) {
       e.preventDefault();
       items.forEach(item => {
-        const match = values.find(v => v.toLowerCase() === item.toLowerCase());
-        if (match) onSelect(match);
+        const match = backendValues.find(v => v.toLowerCase() === item.toLowerCase());
+        if (match && !values.includes(match)) onToggleValue(match);
       });
-      return;
     }
   };
 
-  const filtered = search
-    ? values.filter(v => v.toLowerCase().includes(search.toLowerCase()))
-    : values;
+  const displayText = values.length === 0
+    ? 'Tous'
+    : values.length === 1
+      ? values[0]
+      : `${values.length} sélectionnés`;
 
   return (
-    <>
-      <button onClick={onBack} className="w-full text-left px-3 py-1 text-[10px] text-muted-foreground hover:text-foreground">
-        ← {dim}
+    <div className="flex items-center">
+      <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-l-lg text-[10px] font-semibold border border-r-0 transition-all cursor-pointer",
+              isPm
+                ? values.length > 0 ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30" : "bg-amber-500/5 text-amber-600 border-amber-500/20"
+                : values.length > 0 ? "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30" : "bg-muted/50 text-muted-foreground border-border/40"
+            )}
+          >
+            <span className="text-muted-foreground font-normal">{label}:</span>
+            <span className="font-bold truncate max-w-[120px]">{displayText}</span>
+            <ChevronDown className={cn("w-3 h-3 opacity-50 transition-transform", open && "rotate-180")} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[260px] p-0" align="start" sideOffset={4}>
+          <div className="p-2 border-b border-border/40">
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onPaste={handlePaste}
+              placeholder={`Rechercher ${label}...`}
+              className="w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+              autoFocus
+            />
+          </div>
+          {values.length > 0 && (
+            <div className="px-2 py-1.5 border-b border-border/40 flex items-center justify-between">
+              <span className="text-[9px] text-muted-foreground font-medium">{values.length} sélectionné(s)</span>
+              <button onClick={onClear} className="text-[9px] text-muted-foreground hover:text-destructive font-medium">
+                Tout effacer
+              </button>
+            </div>
+          )}
+          <div className="max-h-[220px] overflow-y-auto p-1">
+            {backendValues.length === 0 ? (
+              <div className="px-3 py-2 text-[10px] text-muted-foreground animate-pulse">Chargement...</div>
+            ) : filtered.length === 0 ? (
+              <div className="px-3 py-2 text-[10px] text-muted-foreground">Aucun résultat pour "{search}"</div>
+            ) : (
+              filtered.slice(0, 100).map(val => {
+                const isSelected = values.includes(val);
+                return (
+                  <button
+                    key={val}
+                    onClick={() => onToggleValue(val)}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all",
+                      isSelected ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/50"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0",
+                      isSelected ? "bg-primary border-primary" : "border-border"
+                    )}>
+                      {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                    </div>
+                    <span className="truncate">{val}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+      <button
+        onClick={onRemove}
+        className="h-[30px] px-1.5 rounded-r-lg border border-l-0 border-border/40 bg-secondary/50 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+      >
+        <X className="w-3 h-3" />
       </button>
-      <input
-        ref={inputRef}
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        onPaste={handlePaste}
-        placeholder="Rechercher ou coller..."
-        className="w-full px-3 py-1.5 border-b border-border/40 bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
-      />
-      <div className="border-t border-border/40 mt-0 pt-1 max-h-[200px] overflow-y-auto">
-        {values.length === 0 ? (
-          <div className="px-3 py-2 text-[10px] text-muted-foreground animate-pulse">Chargement...</div>
-        ) : filtered.length === 0 ? (
-          <div className="px-3 py-2 text-[10px] text-muted-foreground">Aucun résultat pour "{search}"</div>
-        ) : (
-          filtered.slice(0, 100).map(val => (
-            <button key={val} onClick={() => onSelect(val)}
-              className="w-full text-left px-3 py-1.5 rounded-md text-xs font-medium text-foreground hover:bg-muted/50 transition-colors">
-              {val}
-            </button>
-          ))
-        )}
-      </div>
-    </>
+    </div>
   );
 };
 
@@ -489,27 +563,36 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const startDate = state.startDate ? new Date(state.startDate + 'T12:00:00') : undefined;
   const endDate = state.endDate ? new Date(state.endDate + 'T12:00:00') : undefined;
 
-  const addFilter = (dim: string, val: string) => {
+  const addFilterDimension = (dim: string) => {
     setState(prev => {
-      const existing = prev.filters[dim] || [];
-      if (existing.includes(val)) return prev;
-      return { ...prev, filters: { ...prev.filters, [dim]: [...existing, val] } };
+      if (prev.filters[dim]) return prev; // already exists
+      return { ...prev, filters: { ...prev.filters, [dim]: [] } };
     });
   };
 
-  const removeFilter = (dim: string, val: string) => {
+  const toggleFilterValue = (dim: string, val: string) => {
     setState(prev => {
-      const existing = (prev.filters[dim] || []).filter(v => v !== val);
+      const existing = prev.filters[dim] || [];
+      const newVals = existing.includes(val)
+        ? existing.filter(v => v !== val)
+        : [...existing, val];
+      return { ...prev, filters: { ...prev.filters, [dim]: newVals } };
+    });
+  };
+
+  const clearFilterValues = (dim: string) => {
+    setState(prev => ({ ...prev, filters: { ...prev.filters, [dim]: [] } }));
+  };
+
+  const removeFilterDimension = (dim: string) => {
+    setState(prev => {
       const newFilters = { ...prev.filters };
-      if (existing.length === 0) delete newFilters[dim];
-      else newFilters[dim] = existing;
+      delete newFilters[dim];
       return { ...prev, filters: newFilters };
     });
   };
 
-  const filterChips = Object.entries(state.filters).flatMap(([dim, vals]) =>
-    vals.map(val => ({ dim, val }))
-  );
+  const activeFilterDims = Object.keys(state.filters);
 
   return (
     <div className="sticky top-0 z-30">
@@ -789,32 +872,31 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           </div>
           )}
 
-          {/* Row B: Filters (above KPIs) */}
+          {/* Row B: Filters — 2-step: add dimension, then select values */}
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 text-muted-foreground">
+            <div className="flex items-center gap-1 text-muted-foreground shrink-0">
               <Filter className="w-3 h-3" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Filtre par dimension</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Filtres</span>
             </div>
-            {filterChips.map(({ dim, val }) => {
-              const isPm = PM_DIMENSION_TYPES.has(dim);
-              const chipLabel = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
-              return (
-                <span key={`${dim}-${val}`}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold border",
-                    isPm
-                      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
-                      : "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
-                  )}>
-                  <span className="text-muted-foreground">{chipLabel}:</span>
-                  <span className="font-bold">{val}</span>
-                  <button onClick={() => removeFilter(dim, val)} className="ml-0.5 hover:text-destructive transition-colors">
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </span>
-              );
-            })}
-            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} filterDimensions={allFilterDimensions} />
+            {activeFilterDims.map(dim => (
+              <FilterChip
+                key={dim}
+                dim={dim}
+                values={state.filters[dim] || []}
+                onToggleValue={(val) => toggleFilterValue(dim, val)}
+                onClear={() => clearFilterValues(dim)}
+                onRemove={() => removeFilterDimension(dim)}
+              />
+            ))}
+            <AddFilterDropdown existingKeys={activeFilterDims} onAdd={addFilterDimension} filterDimensions={allFilterDimensions} />
+            {activeFilterDims.length > 0 && (
+              <button
+                onClick={() => setState(prev => ({ ...prev, filters: {} }))}
+                className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-destructive transition-colors ml-1"
+              >
+                <X className="w-2.5 h-2.5" /> Tout effacer
+              </button>
+            )}
           </div>
 
           {/* Row C: KPI chips */}
