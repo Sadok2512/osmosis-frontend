@@ -566,11 +566,24 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           });
         }
 
-        // Build markLine data for jalons
-        const markLineData = jalons
-          .filter(j => allTimestamps.includes(j.date) || true) // show all jalons
-          .map(j => ({
-            xAxis: j.date,
+        // Build markLine data for jalons — normalize dates to match timeline format
+        const markLineData = jalons.map(j => {
+          // Normalize jalon date to match allTimestamps format
+          const normDate = normalizeTimestamp(j.date, state.granularity);
+          // Find closest timestamp in timeline if exact match doesn't exist
+          let xVal = normDate;
+          if (!allTimestamps.includes(normDate) && allTimestamps.length > 0) {
+            const jTime = new Date(j.date).getTime();
+            let closest = allTimestamps[0];
+            let closestDiff = Math.abs(new Date(closest).getTime() - jTime);
+            for (const ts of allTimestamps) {
+              const diff = Math.abs(new Date(ts).getTime() - jTime);
+              if (diff < closestDiff) { closest = ts; closestDiff = diff; }
+            }
+            xVal = closest;
+          }
+          return {
+            xAxis: xVal,
             label: {
               show: true,
               formatter: j.label,
@@ -584,7 +597,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               width: 2,
               type: 'dashed' as const,
             },
-          }));
+          };
+        });
 
         // Weekend highlighting — build markArea data
         const weekendAreas: { xAxis: string }[][] = [];
