@@ -177,18 +177,21 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
   const endDate = useMemo(() => parse(dateTo, 'yyyy-MM-dd', new Date()), [dateTo]);
   const minDateObj = useMemo(() => minDate ? parse(minDate, 'yyyy-MM-dd', new Date()) : undefined, [minDate]);
 
-  // Calendar month tracks the selecting date
+  // Calendar month — always derived fresh on open
   const [calMonth, setCalMonth] = useState(() => startOfMonth(startDate));
 
   // When opening, sync month to current selection
   const handleOpen = useCallback((isOpen: boolean) => {
     if (isOpen) {
-      setCalMonth(startOfMonth(startDate));
+      // Parse fresh from props to avoid stale closure
+      const freshStart = parse(dateFrom, 'yyyy-MM-dd', new Date());
+      const targetDate = freshStart && !isNaN(freshStart.getTime()) ? freshStart : new Date();
+      setCalMonth(startOfMonth(targetDate));
       setSelecting('start');
       setHoveredDate(null);
     }
     setOpen(isOpen);
-  }, [startDate]);
+  }, [dateFrom]);
 
   const showTimePicker = ['15m', '1h'].includes(granularity);
 
