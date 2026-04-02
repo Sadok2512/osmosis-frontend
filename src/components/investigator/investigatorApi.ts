@@ -1,7 +1,7 @@
 // ── Investigator API — Data from Parser :8000, AI from Agent :1000 ──
 
 import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode } from '@/lib/apiConfig';
-import { DataPoint, WorstElement, KpiDefinition, GraphSlot, Granularity } from './types';
+import { DataPoint, WorstElement, KpiDefinition, GraphSlot, Granularity, normalizeGranularity } from './types';
 import { worstFirstComparator, getKpiSeverity } from '@/utils/telecomHelpers';
 
 // ── Fetch KPI catalog from KPI Engine :8001 ──
@@ -9,8 +9,9 @@ export async function fetchKpiDefinitions(): Promise<KpiDefinition[]> {
   const url = getApiUrl('monitor/catalog/kpis');
   const res = await fetch(url, { headers: getApiHeaders() });
   if (!res.ok) return [];
-  const data = await res.json();
-  return (data || []).slice(0, 200).map((k: any, i: number) => ({
+  const raw = await res.json();
+  const data = Array.isArray(raw) ? raw : (raw?.items || raw?.data || raw?.rows || []);
+  return (data || []).slice(0, 5000).map((k: any, i: number) => ({
     id: k.kpi_key,
     label: k.display_name || k.kpi_key,
     unit: k.unit || '',
@@ -21,6 +22,7 @@ export async function fetchKpiDefinitions(): Promise<KpiDefinition[]> {
     orientation: k.orientation || null,
     dimension_type: k.dimension_type || null,
     dimension_prefix: k.dimension_prefix || null,
+    counter_count: k.counter_count || 0,
   }));
 }
 
@@ -49,6 +51,117 @@ function determineHigherIsBetter(k: any): boolean {
   return true;
 }
 
+// ── Fetch KPI computed on-the-fly from Parser (formula applied in SQL) ──
+async function fetchKpiComputeOnTheFly(
+  kpiId: string,
+  dateFrom: string,
+  dateTo: string,
+  granularity: string = '1d',
+  filters?: { dimension: string; values: string[] }[],
+  splitByPmDim?: string,
+): Promise<{ data: DataPoint[]; isComputed: boolean }> {
+  try {
+    const url = getApiUrl('pm/kpi/compute');
+    const body: any = {
+      kpi_code: kpiId,
+      date_from: dateFrom,
+      date_to: dateTo,
+      granularity,
+    };
+
+    // Extract site/cell/dimension from filters
+    const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
+    if (filters && filters.length > 0) {
+      for (const f of filters) {
+        const dim = (f.dimension || '').toUpperCase();
+        if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
+        else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
+        else if (PM_DIM_TYPES.has(dim) && f.values?.length) body.dimension_filter = f.values[0];
+        // KPI Engine profile QCI → translate to PMQAP dimension
+        else if (dim === 'QCI' && f.values?.length) body.dimension_filter = `PMQAP=${f.values[0]}`;
+        else if (dim === 'KPI_LEVEL') { /* ignore, handled by kpi engine */ }
+      }
+    }
+
+    // Split by PM dimension: call compute for each dimension value
+    if (splitByPmDim && !body.dimension_filter) {
+      console.log('[KpiCompute] Split by PM dimension:', splitByPmDim);
+      try {
+        const dimRes = await fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${splitByPmDim}&limit=20`), { headers: getApiHeaders() });
+        if (dimRes.ok) {
+          const dimData = await dimRes.json();
+          const dimValues = (dimData.labeled_values || dimData.values || []).slice(0, 10);
+          const allData: DataPoint[] = [];
+          for (const dv of dimValues) {
+            const dimVal = typeof dv === 'string' ? dv : dv.value;
+            const dimLabel = typeof dv === 'string' ? dv : dv.label;
+            const splitBody = { ...body, dimension_filter: dimVal };
+            const splitRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
+            if (splitRes.ok) {
+              const splitResult = await splitRes.json();
+              if (!splitResult.error) {
+                for (const s of (splitResult.series || [])) {
+                  allData.push({ timestamp: s.ts, kpi: `${kpiId}@${dimLabel}`, value: s.kpi_value, splitValue: dimLabel, _isComputed: true } as any);
+                }
+              }
+            }
+          }
+          if (allData.length > 0) return { data: allData, isComputed: true };
+        }
+      } catch (e) { console.warn('[KpiCompute] Split failed:', e); }
+    }
+
+    console.log('[KpiCompute] Request:', kpiId, 'filters:', JSON.stringify(filters), 'body:', JSON.stringify(body));
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      console.warn('[KpiCompute] Failed:', res.status);
+      // Try with shorter date range (reduce load)
+      return { data: [], isComputed: false };
+    }
+
+    const result = await res.json();
+    if (result.error) {
+      console.warn('[KpiCompute] Error:', result.error, '— retrying with 1h granularity');
+      // Retry with hourly granularity (faster query)
+      if (granularity !== '1h') {
+        const retryBody = { ...body, granularity: '1h' };
+        try {
+          const retryRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(retryBody) });
+          if (retryRes.ok) {
+            const retryResult = await retryRes.json();
+            if (!retryResult.error && retryResult.series?.length > 0) {
+              console.log('[KpiCompute] Retry succeeded with 1h');
+              return {
+                data: retryResult.series.map((s: any) => ({ timestamp: s.ts, kpi: kpiId, value: s.kpi_value, _isComputed: true })),
+                isComputed: true,
+              };
+            }
+          }
+        } catch {}
+      }
+      return { data: [], isComputed: false };
+    }
+
+    const series = (result.series || []).map((s: any) => ({
+      timestamp: s.ts,
+      kpi: kpiId,
+      value: s.kpi_value,
+      _isComputed: true,
+    }));
+
+    console.log('[KpiCompute] Result:', kpiId, series.length, 'points, formula:', result.formula_display?.substring(0, 60));
+    return { data: series, isComputed: series.length > 0 };
+  } catch (e) {
+    console.warn('[KpiCompute] Exception:', e);
+    return { data: [], isComputed: false };
+  }
+}
+
 // ── Fetch raw counter timeseries from Parser (fact_counters_15min) ──
 // Bug #3 fix: accept and forward the same filter context as the KPI request
 async function fetchCounterTimeSeriesFallback(
@@ -70,13 +183,20 @@ async function fetchCounterTimeSeriesFallback(
 
     // Translate dimension filters to Parser format
     if (splitBy && splitBy !== 'None') body.split_by_dimension = true;
+    const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
     if (filters && filters.length > 0) {
+      const dimFilterValues: string[] = [];
       for (const f of filters) {
         const dim = (f.dimension || '').toUpperCase();
         if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
-        if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
-        if (dim === 'TECHNO' && f.values?.length) body.object_type = f.values[0];
+        else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
+        else if (dim === 'TECHNO' && f.values?.length) body.object_type = f.values[0];
+        else if (PM_DIM_TYPES.has(dim) && f.values?.length) {
+          // PM dimension filter → pass as dimension_filter array
+          dimFilterValues.push(...f.values);
+        }
       }
+      if (dimFilterValues.length > 0) body.dimension_filter = dimFilterValues;
     }
     console.log('[CounterFallback] Request:', url, JSON.stringify(body));
 
@@ -141,12 +261,6 @@ interface SlotRequestContext {
   neighborType?: string | null;
 }
 
-const GRAN_MAP: Record<string, string> = {
-  '15min': '15min',
-  'Hourly': '1h',
-  'Daily': '1d',
-  'Weekly': '1w',
-};
 
 /** Resolve a slot's effective request context, using slot overrides with global fallback */
 export function resolveSlotContext(
@@ -167,9 +281,10 @@ export function resolveSlotContext(
   // Ensure empty-string slot dates don't skip the global date; trim whitespace too
   const rawFrom = (slot.startDate && slot.startDate.trim()) || (globalState.startDate && globalState.startDate.trim()) || '2026-03-22';
   const rawTo = (slot.endDate && slot.endDate.trim()) || (globalState.endDate && globalState.endDate.trim()) || '2026-03-22';
-  const dateFrom = rawFrom.split('T')[0];
-  const dateTo = rawTo.split('T')[0];
-  const gran = GRAN_MAP[slot.granularity || globalState.granularity] || '1h';
+  const gran = normalizeGranularity(slot.granularity || globalState.granularity);
+  // For fine granularity, keep full datetime; for daily/weekly, date-only is fine
+  const dateFrom = (gran === '15min' || gran === '1h') ? rawFrom : rawFrom.split('T')[0];
+  const dateTo = (gran === '15min' || gran === '1h') ? rawTo : rawTo.split('T')[0];
 
   // Split: use slot-level splitBy, fall back to per-KPI split, then global
   let splitValue: string | undefined;
@@ -211,12 +326,49 @@ export function resolveSlotContext(
   };
 }
 
-// ── Fetch timeseries data per-slot (Bug #1 + #2 + #3 fixes) ──
+// ── Dedup cache to prevent 6x identical requests ──
+const _computeCache = new Map<string, Promise<{ data: DataPoint[]; isComputed: boolean }>>();
+
+// ── Fetch timeseries data per-slot ──
+// Strategy: call /kpi/compute FIRST (on-the-fly, always has data)
 export async function fetchTimeSeriesForSlot(
   ctx: SlotRequestContext,
 ): Promise<{ data: DataPoint[]; hasUnfilteredFallback: boolean }> {
   if (ctx.kpiIds.length === 0) return { data: [], hasUnfilteredFallback: false };
 
+  // Detect PM dimension split
+  const pmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
+
+  // Step 1: Try /kpi/compute FIRST for all KPIs (deduplicated)
+  const computeResults: DataPoint[] = [];
+  const computeFailed: string[] = [];
+
+  for (const kpiId of ctx.kpiIds) {
+    const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}`;
+
+    if (!_computeCache.has(cacheKey)) {
+      _computeCache.set(cacheKey, fetchKpiComputeOnTheFly(
+        kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
+      ));
+      // Clear cache after 30s
+      setTimeout(() => _computeCache.delete(cacheKey), 30000);
+    }
+
+    const computed = await _computeCache.get(cacheKey)!;
+    if (computed.isComputed) {
+      computeResults.push(...computed.data);
+    } else {
+      computeFailed.push(kpiId);
+    }
+  }
+
+  // If all KPIs computed successfully, return directly (skip KPI Engine)
+  if (computeFailed.length === 0 && computeResults.length > 0) {
+    console.log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
+    return { data: computeResults, hasUnfilteredFallback: false };
+  }
+
+  // Step 2: Fall back to KPI Engine for KPIs that failed compute
   const url = getApiUrl('monitor/query/timeseries');
   const allFilters = ctx.filters.map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
 
@@ -249,30 +401,36 @@ export async function fetchTimeSeriesForSlot(
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) return { data: [], hasUnfilteredFallback: false };
-  const data = await res.json();
-  const kpiSeries = data.series || [];
-  const noSplitRequested = !ctx.splitBy;
+  let kpiSeries: any[] = [];
+  let kpiResults: DataPoint[] = [];
 
-  const kpiResults: DataPoint[] = kpiSeries.map((s: any) => ({
-    timestamp: s.ts,
-    kpi: s.kpi_key,
-    value: s.value,
-    splitValue: noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value),
-  }));
+  if (res.ok) {
+    const data = await res.json();
+    kpiSeries = data.series || [];
+    const noSplitRequested = !ctx.splitBy;
+    kpiResults = kpiSeries.map((s: any) => ({
+      timestamp: s.ts,
+      kpi: s.kpi_key,
+      value: s.value,
+      splitValue: noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value),
+    }));
+  } else {
+    console.warn('[Investigator] KPI Engine failed:', res.status, '— falling back to /kpi/compute');
+  }
 
-  // Bug #3: Identify missing KPIs and fallback with full filter context
+  // Merge KPI Engine results with any compute results from Step 1
   const kpisWithData = new Set(kpiSeries.map((s: any) => s.kpi_key?.toLowerCase()));
-  const missingKpis = ctx.kpiIds.filter(k => !kpisWithData.has(k.toLowerCase()));
+  const missingKpis = computeFailed.filter(k => !kpisWithData.has(k.toLowerCase()));
   let hasUnfilteredFallback = false;
 
+  // For KPIs that failed both compute AND KPI Engine, try raw counter fallback
   if (missingKpis.length > 0) {
     const fallback = await fetchCounterTimeSeriesFallback(
       missingKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
       ctx.splitBy, ctx.filters,
     );
     hasUnfilteredFallback = fallback.isUnfiltered;
-    return { data: [...kpiResults, ...fallback.data], hasUnfilteredFallback };
+    return { data: [...computeResults, ...kpiResults, ...fallback.data], hasUnfilteredFallback };
   }
 
   return { data: kpiResults, hasUnfilteredFallback };

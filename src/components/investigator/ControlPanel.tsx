@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, KpiLevel } from './types';
+import { formatDateTime } from './timeUtils';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions, fetchKpisWithData } from './investigatorApi';
 import type { KpiDefinition } from './types';
@@ -13,8 +14,10 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
+import CounterSelectorModal from './CounterSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { fetchKpiCatalog, fetchFilterCatalog, type MonitorFilterDef } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
 const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
   { value: 'line', label: 'Line', icon: TrendingUp },
@@ -35,6 +38,8 @@ interface Props {
   isApplying?: boolean;
   showAIPanel?: boolean;
   onToggleAIPanel?: () => void;
+  selectedCounters?: any[];
+  onSelectedCountersChange?: (counters: any[]) => void;
 }
 
 const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
@@ -48,9 +53,9 @@ const PERIODS = [
 ];
 const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: '15min', label: '15 min' },
-  { value: 'Hourly', label: 'Horaire' },
-  { value: 'Daily', label: 'Jour' },
-  { value: 'Weekly', label: 'Semaine' },
+  { value: '1h', label: 'Horaire' },
+  { value: '1d', label: 'Jour' },
+  { value: '1w', label: 'Semaine' },
 ];
 // FILTER_DIMENSIONS now loaded from backend (see filterDimensions state)
 
@@ -184,96 +189,178 @@ const KpiDropdown: React.FC<{ selected: string[]; onChange: (ids: string[]) => v
   );
 };
 
-/* ── Add Filter Dropdown (uses Radix Popover to portal above graphs) ── */
+/* ── Add Filter Dropdown — Step 1: pick dimension (hides already-added) ── */
 const AddFilterDropdown: React.FC<{
   existingKeys: string[];
-  onAdd: (dim: string, val: string) => void;
+  onAdd: (dim: string) => void;
   filterDimensions: string[];
-}> = ({ existingKeys: _existingKeys, onAdd, filterDimensions }) => {
+}> = ({ existingKeys, onAdd, filterDimensions }) => {
   const [open, setOpen] = useState(false);
-  const [selectedDim, setSelectedDim] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  const available = filterDimensions.filter(d => !existingKeys.includes(d));
+  const filtered = search
+    ? available.filter(d => {
+        const label = PM_DIMENSION_TYPES.has(d) ? (PM_DIMENSION_LABELS[d] || d) : d;
+        return label.toLowerCase().includes(search.toLowerCase());
+      })
+    : available;
 
   return (
-    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSelectedDim(null); }}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
       <PopoverTrigger asChild>
-        <button className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors">
-          <Filter className="w-3 h-3" /> Add Filter
+        <button className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors">
+          <Plus className="w-3 h-3" /> Ajouter filtre
         </button>
       </PopoverTrigger>
-      <PopoverContent className="min-w-[180px] p-1.5" align="start" sideOffset={4}>
-        {!selectedDim ? (
-          filterDimensions.map(dim => (
-            <button
-              key={dim}
-              onClick={() => setSelectedDim(dim)}
-              className="w-full text-left px-3 py-1.5 rounded-md text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
-            >
-              {dim}
-            </button>
-          ))
-        ) : (
-          <FilterValuesList dim={selectedDim} onSelect={(val) => { onAdd(selectedDim, val); setOpen(false); setSelectedDim(null); }} onBack={() => setSelectedDim(null)} />
-        )}
+      <PopoverContent className="min-w-[200px] p-1.5" align="start" sideOffset={4}>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Rechercher dimension..."
+          className="w-full px-3 py-1.5 mb-1 border-b border-border/40 bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+          autoFocus
+        />
+        <div className="max-h-[240px] overflow-y-auto">
+          {filtered.length === 0 && (
+            <div className="px-3 py-2 text-[10px] text-muted-foreground">
+              {available.length === 0 ? 'Tous les filtres sont déjà ajoutés' : 'Aucun résultat'}
+            </div>
+          )}
+          {filtered.map(dim => {
+            const isPm = PM_DIMENSION_TYPES.has(dim);
+            const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
+            return (
+              <button
+                key={dim}
+                onClick={() => { onAdd(dim); setOpen(false); setSearch(''); }}
+                className={cn(
+                  "w-full text-left px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                  isPm ? "text-amber-600 hover:bg-amber-500/10" : "text-foreground hover:bg-muted/50"
+                )}
+              >
+                {label}
+                {isPm && <span className="ml-1 text-[8px] text-amber-500/70">PM</span>}
+              </button>
+            );
+          })}
+        </div>
       </PopoverContent>
     </Popover>
   );
 };
 
-/* ── Filter Values (from backend) with search & paste ── */
-const FilterValuesList: React.FC<{ dim: string; onSelect: (val: string) => void; onBack: () => void }> = ({ dim, onSelect, onBack }) => {
-  const values = useBackendFilterValues(dim);
-  const [search, setSearch] = React.useState('');
-  const inputRef = React.useRef<HTMLInputElement>(null);
+/* ── Filter Chip — Step 2: multi-select values for one dimension ── */
+const FilterChip: React.FC<{
+  dim: string;
+  values: string[];
+  onToggleValue: (val: string) => void;
+  onClear: () => void;
+  onRemove: () => void;
+}> = ({ dim, values, onToggleValue, onClear, onRemove }) => {
+  const [open, setOpen] = useState(false);
+  const backendValues = useBackendFilterValues(dim);
+  const [search, setSearch] = useState('');
+  const isPm = PM_DIMENSION_TYPES.has(dim);
+  const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
 
-  React.useEffect(() => { inputRef.current?.focus(); }, []);
+  const filtered = search
+    ? backendValues.filter(v => v.toLowerCase().includes(search.toLowerCase()))
+    : backendValues;
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const pasted = e.clipboardData.getData('text').trim();
     if (!pasted) return;
-    // Support pasting multiple values separated by newline, comma, or semicolon
     const items = pasted.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
     if (items.length > 1) {
       e.preventDefault();
       items.forEach(item => {
-        const match = values.find(v => v.toLowerCase() === item.toLowerCase());
-        if (match) onSelect(match);
+        const match = backendValues.find(v => v.toLowerCase() === item.toLowerCase());
+        if (match && !values.includes(match)) onToggleValue(match);
       });
-      return;
     }
   };
 
-  const filtered = search
-    ? values.filter(v => v.toLowerCase().includes(search.toLowerCase()))
-    : values;
+  const displayText = values.length === 0
+    ? 'Tous'
+    : values.length === 1
+      ? values[0]
+      : `${values.length} sélectionnés`;
 
   return (
-    <>
-      <button onClick={onBack} className="w-full text-left px-3 py-1 text-[10px] text-muted-foreground hover:text-foreground">
-        ← {dim}
+    <div className="flex items-center">
+      <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-l-lg text-[10px] font-semibold border border-r-0 transition-all cursor-pointer",
+              isPm
+                ? values.length > 0 ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30" : "bg-amber-500/5 text-amber-600 border-amber-500/20"
+                : values.length > 0 ? "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30" : "bg-muted/50 text-muted-foreground border-border/40"
+            )}
+          >
+            <span className="text-muted-foreground font-normal">{label}:</span>
+            <span className="font-bold truncate max-w-[120px]">{displayText}</span>
+            <ChevronDown className={cn("w-3 h-3 opacity-50 transition-transform", open && "rotate-180")} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[260px] p-0" align="start" sideOffset={4}>
+          <div className="p-2 border-b border-border/40">
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onPaste={handlePaste}
+              placeholder={`Rechercher ${label}...`}
+              className="w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+              autoFocus
+            />
+          </div>
+          {values.length > 0 && (
+            <div className="px-2 py-1.5 border-b border-border/40 flex items-center justify-between">
+              <span className="text-[9px] text-muted-foreground font-medium">{values.length} sélectionné(s)</span>
+              <button onClick={onClear} className="text-[9px] text-muted-foreground hover:text-destructive font-medium">
+                Tout effacer
+              </button>
+            </div>
+          )}
+          <div className="max-h-[220px] overflow-y-auto p-1">
+            {backendValues.length === 0 ? (
+              <div className="px-3 py-2 text-[10px] text-muted-foreground animate-pulse">Chargement...</div>
+            ) : filtered.length === 0 ? (
+              <div className="px-3 py-2 text-[10px] text-muted-foreground">Aucun résultat pour "{search}"</div>
+            ) : (
+              filtered.slice(0, 100).map(val => {
+                const isSelected = values.includes(val);
+                return (
+                  <button
+                    key={val}
+                    onClick={() => onToggleValue(val)}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all",
+                      isSelected ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/50"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0",
+                      isSelected ? "bg-primary border-primary" : "border-border"
+                    )}>
+                      {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                    </div>
+                    <span className="truncate">{val}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+      <button
+        onClick={onRemove}
+        className="h-[30px] px-1.5 rounded-r-lg border border-l-0 border-border/40 bg-secondary/50 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+      >
+        <X className="w-3 h-3" />
       </button>
-      <input
-        ref={inputRef}
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        onPaste={handlePaste}
-        placeholder="Rechercher ou coller..."
-        className="w-full px-3 py-1.5 border-b border-border/40 bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
-      />
-      <div className="border-t border-border/40 mt-0 pt-1 max-h-[200px] overflow-y-auto">
-        {values.length === 0 ? (
-          <div className="px-3 py-2 text-[10px] text-muted-foreground animate-pulse">Chargement...</div>
-        ) : filtered.length === 0 ? (
-          <div className="px-3 py-2 text-[10px] text-muted-foreground">Aucun résultat pour "{search}"</div>
-        ) : (
-          filtered.slice(0, 100).map(val => (
-            <button key={val} onClick={() => onSelect(val)}
-              className="w-full text-left px-3 py-1.5 rounded-md text-xs font-medium text-foreground hover:bg-muted/50 transition-colors">
-              {val}
-            </button>
-          ))
-        )}
-      </div>
-    </>
+    </div>
   );
 };
 
@@ -324,13 +411,19 @@ const JalonForm: React.FC<{ onAdd: (j: Jalon) => void }> = ({ onAdd }) => {
 };
 
 /* ── Main Control Panel ── */
-const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick, isApplying, showAIPanel, onToggleAIPanel }) => {
+const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick, isApplying, showAIPanel, onToggleAIPanel, selectedCounters: externalSelectedCounters, onSelectedCountersChange }) => {
   const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
   const [kpiDefs, setKpiDefs] = useState<KpiDefinition[]>(FALLBACK_KPIS);
   const [selectorOpen, setSelectorOpen] = useState<string | null>(null);
+  const [counterSelectorOpen, setCounterSelectorOpen] = useState(false);
+  const [counterCatalog, setCounterCatalog] = useState<any[]>([]);
+  const selectedCounters = externalSelectedCounters || [];
+  const setSelectedCounters = (counters: any[]) => onSelectedCountersChange?.(counters);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [filterDimensions, setFilterDimensions] = useState<string[]>(FILTER_DIMS_FALLBACK);
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
+  const [pmDimValues, setPmDimValues] = useState<{ value: string; label: string }[]>([]);
+  const [pmDimLoading, setPmDimLoading] = useState(false);
 
   // Load split and filter dimensions from backend catalog
   useEffect(() => {
@@ -375,12 +468,75 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           vendor: k.vendor || '', techno: k.techno || '',
           dimension_type: k.dimension_type || null,
           dimension_prefix: k.dimension_prefix || null,
+          counter_count: k.counter_count || 0,
         }));
         setCatalog(mapped);
       }
     }).catch(() => {});
     fetchKpiDefinitions().then(k => { if (k.length > 0) setKpiDefs(k); }).catch(() => {});
   }, []);
+
+  // Load counter catalog for counter selector
+  useEffect(() => {
+    fetch(getApiUrl('pm/counters/catalog?limit=5000'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : []).then(setCounterCatalog).catch(() => {});
+  }, []);
+
+  // Detect PM dimension types from selected KPIs → add to filter dimensions
+  const activePmDimensions = useMemo(() => {
+    const dims = new Set<string>();
+    for (const slot of state.graphSlots) {
+      for (const kpiId of slot.kpiIds) {
+        const def = kpiDefs.find(k => k.id === kpiId);
+        if (def?.dimension_type && PM_DIMENSION_TYPES.has(def.dimension_type)) {
+          dims.add(def.dimension_type);
+        }
+      }
+    }
+    return dims;
+  }, [state.graphSlots, kpiDefs]);
+
+  // Load PM dimension values based on selected KPIs' dimension types
+  const primaryKpiDimType = useMemo(() => {
+    if (activePmDimensions.size === 0) return null;
+    return Array.from(activePmDimensions)[0];
+  }, [activePmDimensions]);
+
+  // Auto-add/remove PM dimension filters when KPIs with dimension_type are selected/deselected
+  const prevPmDimsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const prev = prevPmDimsRef.current;
+    const current = activePmDimensions;
+    // Auto-add newly appeared PM dimensions
+    for (const dim of current) {
+      if (!prev.has(dim) && !state.filters[dim]) {
+        setState(s => ({ ...s, filters: { ...s.filters, [dim]: [] } }));
+      }
+    }
+    // Auto-remove PM dimensions that are no longer active (KPIs removed)
+    for (const dim of prev) {
+      if (!current.has(dim) && PM_DIMENSION_TYPES.has(dim)) {
+        setState(s => {
+          const nf = { ...s.filters };
+          delete nf[dim];
+          return { ...s, filters: nf };
+        });
+      }
+    }
+    prevPmDimsRef.current = new Set(current);
+  }, [activePmDimensions]);
+
+  useEffect(() => {
+    setPmDimValues([]);
+    if (!primaryKpiDimType) return;
+    setPmDimLoading(true);
+    import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
+      fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${primaryKpiDimType}&limit=50`), { headers: getApiHeaders() })
+        .then(r => r.ok ? r.json() : { labeled_values: [] })
+        .then(d => { setPmDimValues(d.labeled_values || (d.values || []).map((v: string) => ({ value: v, label: v }))); setPmDimLoading(false); })
+        .catch(() => setPmDimLoading(false));
+    });
+  }, [primaryKpiDimType]);
 
   // Load KPIs with data when Site/Cell filter is active
   useEffect(() => {
@@ -395,67 +551,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     }
   }, [state.filters]);
 
-  // Detect PM dimension types from selected KPIs
-  const activePmDimensions = useMemo(() => {
-    const dims = new Set<string>();
-    for (const slot of state.graphSlots) {
-      for (const kpiId of slot.kpiIds) {
-        const def = kpiDefs.find(k => k.id === kpiId);
-        if (def?.dimension_type && PM_DIMENSION_TYPES.has(def.dimension_type)) {
-          dims.add(def.dimension_type);
-        }
-      }
-    }
-    return dims;
-  }, [state.graphSlots, kpiDefs]);
+  // (activePmDimensions already declared above)
 
-  const primaryKpiDimType = useMemo(() => {
-    if (activePmDimensions.size === 0) return null;
-    return Array.from(activePmDimensions)[0];
-  }, [activePmDimensions]);
-
-  // Auto-add/remove PM dimension filters when KPIs with dimension_type are selected/deselected
-  const prevPmDimsRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    const prev = prevPmDimsRef.current;
-    const current = activePmDimensions;
-    for (const dim of current) {
-      if (!prev.has(dim) && !state.filters[dim]) {
-        setState(s => ({ ...s, filters: { ...s.filters, [dim]: [] } }));
-      }
-    }
-    for (const dim of prev) {
-      if (!current.has(dim) && PM_DIMENSION_TYPES.has(dim)) {
-        setState(s => {
-          const nf = { ...s.filters };
-          delete nf[dim];
-          return { ...s, filters: nf };
-        });
-      }
-    }
-    prevPmDimsRef.current = new Set(current);
-  }, [activePmDimensions]);
-
-  // Load PM dimension values for the Row D selector
-  const [pmDimValues, setPmDimValues] = useState<{ value: string; label: string }[]>([]);
-  const [pmDimLoading, setPmDimLoading] = useState(false);
-  useEffect(() => {
-    setPmDimValues([]);
-    if (!primaryKpiDimType) return;
-    setPmDimLoading(true);
-    import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
-      fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${primaryKpiDimType}&limit=50`), { headers: getApiHeaders() })
-        .then(r => r.ok ? r.json() : { labeled_values: [] })
-        .then(d => { setPmDimValues(d.labeled_values || (d.values || []).map((v: string) => ({ value: v, label: v }))); setPmDimLoading(false); })
-        .catch(() => setPmDimLoading(false));
-    });
-  }, [primaryKpiDimType]);
-
-  // Merge PM dimensions into filter dimensions
+  // Merge PM dimensions into filter dimensions (after standard ones)
   const allFilterDimensions = useMemo(() => {
     const base = [...filterDimensions];
     for (const dt of activePmDimensions) {
-      if (!base.includes(dt)) base.push(dt);
+      const label = PM_DIMENSION_LABELS[dt] || dt;
+      if (!base.includes(label) && !base.includes(dt)) base.push(dt);
     }
     return base;
   }, [filterDimensions, activePmDimensions]);
@@ -476,36 +579,52 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     start.setDate(end.getDate() - days);
     setState(prev => ({
       ...prev,
-      startDate: format(start, 'yyyy-MM-dd'),
-      endDate: format(end, 'yyyy-MM-dd'),
+      startDate: formatDateTime(start),
+      endDate: formatDateTime(end),
     }));
   };
 
   // Parse dates as local (add T12:00 to avoid UTC midnight timezone shift)
-  const startDate = state.startDate ? new Date(state.startDate + 'T12:00:00') : undefined;
-  const endDate = state.endDate ? new Date(state.endDate + 'T12:00:00') : undefined;
+  // Guard against invalid/corrupt persisted values
+  const parseSafeDate = (raw: string | undefined | null): Date | undefined => {
+    if (!raw || !raw.trim()) return undefined;
+    const dateOnly = raw.split('T')[0]; // strip any existing time part
+    const d = new Date(dateOnly + 'T12:00:00');
+    return isNaN(d.getTime()) ? undefined : d;
+  };
+  const startDate = parseSafeDate(state.startDate);
+  const endDate = parseSafeDate(state.endDate);
 
-  const addFilter = (dim: string, val: string) => {
+  const addFilterDimension = (dim: string) => {
     setState(prev => {
-      const existing = prev.filters[dim] || [];
-      if (existing.includes(val)) return prev;
-      return { ...prev, filters: { ...prev.filters, [dim]: [...existing, val] } };
+      if (prev.filters[dim]) return prev; // already exists
+      return { ...prev, filters: { ...prev.filters, [dim]: [] } };
     });
   };
 
-  const removeFilter = (dim: string, val: string) => {
+  const toggleFilterValue = (dim: string, val: string) => {
     setState(prev => {
-      const existing = (prev.filters[dim] || []).filter(v => v !== val);
+      const existing = prev.filters[dim] || [];
+      const newVals = existing.includes(val)
+        ? existing.filter(v => v !== val)
+        : [...existing, val];
+      return { ...prev, filters: { ...prev.filters, [dim]: newVals } };
+    });
+  };
+
+  const clearFilterValues = (dim: string) => {
+    setState(prev => ({ ...prev, filters: { ...prev.filters, [dim]: [] } }));
+  };
+
+  const removeFilterDimension = (dim: string) => {
+    setState(prev => {
       const newFilters = { ...prev.filters };
-      if (existing.length === 0) delete newFilters[dim];
-      else newFilters[dim] = existing;
+      delete newFilters[dim];
       return { ...prev, filters: newFilters };
     });
   };
 
-  const filterChips = Object.entries(state.filters).flatMap(([dim, vals]) =>
-    vals.map(val => ({ dim, val }))
-  );
+  const activeFilterDims = Object.keys(state.filters);
 
   return (
     <div className="sticky top-0 z-30">
@@ -550,7 +669,18 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={startDate} onSelect={(d) => d && setState(prev => ({ ...prev, startDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    defaultMonth={startDate || new Date()}
+                    onSelect={(d) => d && setState(prev => {
+                      const nextStart = format(d, 'yyyy-MM-dd');
+                      const nextEnd = prev.endDate && prev.endDate < nextStart ? nextStart : prev.endDate;
+                      return { ...prev, startDate: nextStart, endDate: nextEnd };
+                    })}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
                 </PopoverContent>
               </Popover>
               <span className="text-[10px] text-muted-foreground font-medium">→</span>
@@ -562,7 +692,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={endDate} onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))} initialFocus className="p-3 pointer-events-auto" />
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    defaultMonth={endDate || startDate || new Date()}
+                    disabled={(date) => !!startDate && date < startDate}
+                    modifiers={startDate ? { startAnchor: startDate } : undefined}
+                    modifiersClassNames={{ startAnchor: 'bg-primary/10 text-primary font-semibold ring-1 ring-primary/25' }}
+                    onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
                 </PopoverContent>
               </Popover>
             </div>
@@ -664,131 +804,32 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       {/* ═══ LAYER 3: KPI / FILTERS — Niveau, KPIs, Filters ═══ */}
       <div className="bg-card border-b border-border/40">
         <div className="max-w-[1600px] mx-auto px-6 py-3 space-y-2.5">
-          {/* Row A: KPI Level + Profile/Neighbor filters */}
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Niveau</span>
-              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
-                {([
-                  { value: 'CELL' as KpiLevel, label: 'Cell', icon: BarChart },
-                  { value: 'PROFILE' as KpiLevel, label: 'Profile (QCI)', icon: Fingerprint },
-                  { value: 'NEIGHBOR' as KpiLevel, label: 'Neighbor', icon: GitBranch },
-                ]).map(lvl => (
-                  <button
-                    key={lvl.value}
-                    onClick={() => setState(prev => ({ ...prev, kpiLevel: lvl.value, profileQci: null, profileArp: null, neighborType: null }))}
-                    className={cn(
-                      'flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-bold transition-all',
-                      state.kpiLevel === lvl.value
-                        ? 'bg-card text-primary shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    <lvl.icon className="w-3 h-3" />
-                    {lvl.label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            {/* Profile filters */}
-            {state.kpiLevel === 'PROFILE' && (
-              <>
-                <div className="h-5 w-px bg-border/60 shrink-0" />
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">QCI</span>
-                  <select
-                    value={state.profileQci ?? ''}
-                    onChange={e => setState(prev => ({ ...prev, profileQci: e.target.value === '' ? null : Number(e.target.value) }))}
-                    className="h-7 px-2 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
-                  >
-                    <option value="">Tous</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(q => (
-                      <option key={q} value={q}>QCI {q}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">ARP</span>
-                  <select
-                    value={state.profileArp ?? ''}
-                    onChange={e => setState(prev => ({ ...prev, profileArp: e.target.value === '' ? null : Number(e.target.value) }))}
-                    className="h-7 px-2 rounded-lg border border-border bg-background text-foreground text-[10px] font-medium min-w-[70px]"
-                  >
-                    <option value="">Tous</option>
-                    {Array.from({ length: 15 }, (_, i) => i + 1).map(a => (
-                      <option key={a} value={a}>ARP {a}</option>
-                    ))}
-                  </select>
-                </div>
-                {(state.profileQci != null || state.profileArp != null) && (
-                  <div className="flex items-center gap-1">
-                    {state.profileQci != null && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
-                        QCI: {state.profileQci}
-                        <button onClick={() => setState(prev => ({ ...prev, profileQci: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
-                      </span>
-                    )}
-                    {state.profileArp != null && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 border border-violet-500/20">
-                        ARP: {state.profileArp}
-                        <button onClick={() => setState(prev => ({ ...prev, profileArp: null }))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
-                      </span>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Neighbor filters */}
-            {state.kpiLevel === 'NEIGHBOR' && (
-              <>
-                <div className="h-5 w-px bg-border/60 shrink-0" />
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Type</span>
-                  <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
-                    {([
-                      { value: null, label: 'Tous' },
-                      { value: 'X2', label: 'X2' },
-                      { value: 'HO_LTE', label: 'HO LTE' },
-                      { value: 'HO_UTRAN', label: 'HO UTRAN' },
-                    ] as { value: string | null; label: string }[]).map(nt => (
-                      <button
-                        key={nt.label}
-                        onClick={() => setState(prev => ({ ...prev, neighborType: nt.value }))}
-                        className={cn(
-                          'px-2.5 py-1 rounded-md text-[10px] font-bold transition-all',
-                          state.neighborType === nt.value
-                            ? 'bg-card text-cyan-600 shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        {nt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Row B: Filters (above KPIs) */}
+          {/* Row B: Filters — 2-step: add dimension, then select values */}
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 text-muted-foreground">
+            <div className="flex items-center gap-1 text-muted-foreground shrink-0">
               <Filter className="w-3 h-3" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Filtre par dimension</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Filtres</span>
             </div>
-            {filterChips.map(({ dim, val }) => (
-              <span key={`${dim}-${val}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20">
-                <span className="text-muted-foreground">{dim}:</span>
-                <span className="font-bold">{val}</span>
-                <button onClick={() => removeFilter(dim, val)} className="ml-0.5 hover:text-destructive transition-colors">
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
+            {activeFilterDims.map(dim => (
+              <FilterChip
+                key={dim}
+                dim={dim}
+                values={state.filters[dim] || []}
+                onToggleValue={(val) => toggleFilterValue(dim, val)}
+                onClear={() => clearFilterValues(dim)}
+                onRemove={() => removeFilterDimension(dim)}
+              />
             ))}
-            <AddFilterDropdown existingKeys={Object.keys(state.filters)} onAdd={addFilter} filterDimensions={allFilterDimensions} />
+            <AddFilterDropdown existingKeys={activeFilterDims} onAdd={addFilterDimension} filterDimensions={allFilterDimensions} />
+            {activeFilterDims.length > 0 && (
+              <button
+                onClick={() => setState(prev => ({ ...prev, filters: {} }))}
+                className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-destructive transition-colors ml-1"
+              >
+                <X className="w-2.5 h-2.5" /> Tout effacer
+              </button>
+            )}
           </div>
 
           {/* Row C: KPI chips */}
@@ -1017,44 +1058,22 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <Plus className="w-3 h-3" />
               Add KPI
             </button>
+
+            {/* Counter chips */}
+            {selectedCounters.map((c: any, i: number) => (
+              <span key={c.counter_name} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">
+                <span className="w-2 h-2 rounded-full" style={{backgroundColor: ['#10b981','#06b6d4','#f59e0b','#8b5cf6','#ec4899'][i%5]}} />
+                {c.display_name || c.counter_name}
+                {c.dimension_type && <span className="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-600">{c.dimension_type}</span>}
+                <button onClick={() => setSelectedCounters(selectedCounters.filter((x: any) => x.counter_name !== c.counter_name))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
+              </span>
+            ))}
+
+            <button onClick={() => setCounterSelectorOpen(true)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-emerald-500 hover:bg-emerald-500/10 border border-dashed border-emerald-500/30 transition-colors">
+              <Plus className="w-3 h-3" /> Add Counter
+            </button>
           </div>
 
-          {/* Row D: Active PM dimension (from selected KPIs) */}
-          {primaryKpiDimType && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider shrink-0">
-                {PM_DIMENSION_LABELS[primaryKpiDimType] || primaryKpiDimType}
-              </span>
-              <select
-                value={(state.filters[primaryKpiDimType] || [])[0] || ''}
-                onChange={e => {
-                  const val = e.target.value;
-                  setState(prev => ({
-                    ...prev,
-                    filters: { ...prev.filters, [primaryKpiDimType!]: val ? [val] : [] },
-                  }));
-                }}
-                className="px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/5 text-foreground text-[10px] font-medium outline-none focus:ring-1 focus:ring-amber-500/30 min-w-[140px]"
-              >
-                <option value="">Tous</option>
-                {pmDimValues.map(v => (
-                  <option key={v.value} value={v.value}>{v.label}</option>
-                ))}
-              </select>
-              {pmDimLoading && <span className="text-[9px] text-muted-foreground animate-pulse">chargement...</span>}
-              {(state.filters[primaryKpiDimType] || []).length > 0 && (
-                <button
-                  onClick={() => setState(prev => ({
-                    ...prev,
-                    filters: { ...prev.filters, [primaryKpiDimType!]: [] },
-                  }))}
-                  className="text-[9px] text-muted-foreground hover:text-destructive flex items-center gap-0.5"
-                >
-                  <X className="w-2.5 h-2.5" /> Clear
-                </button>
-              )}
-            </div>
-          )}
 
         </div>
       </div>
@@ -1108,7 +1127,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   filters: {},
                   startDate: '',
                   endDate: '',
-                  granularity: 'Hourly',
+                  granularity: '' as Granularity,
                   splitBy: 'None',
                 };
                 return { ...prev, graphSlots: [...prev.graphSlots, newSlot] };
@@ -1131,6 +1150,18 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         />,
         document.body
       )}
+
+      {/* Counter Selector Modal */}
+      <CounterSelectorModal
+        open={counterSelectorOpen}
+        onClose={() => setCounterSelectorOpen(false)}
+        catalog={counterCatalog}
+        selectedKeys={selectedCounters.map((c: any) => c.counter_name)}
+        onConfirm={(keys: string[]) => {
+          const resolved = keys.map(k => counterCatalog.find((c: any) => c.counter_name === k)).filter(Boolean);
+          setSelectedCounters(resolved);
+        }}
+      />
     </div>
   );
 };

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { BarChart3, Plus, X, RefreshCw, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CounterSelectorModal from './CounterSelectorModal';
+import { useInvestigatorStore } from '@/stores/investigatorStore';
+import { normalizeGranularity } from './types';
 
 interface CounterDef {
   counter_name: string;
@@ -12,6 +14,11 @@ interface CounterDef {
   vendor: string;
   techno: string;
   object_type: string;
+  object_type_normalized?: string;
+  dimension_type?: string | null;
+  dimension_prefix?: string | null;
+  is_in_kpi?: boolean;
+  kpi_usage_count?: number;
   count: number;
 }
 
@@ -52,32 +59,95 @@ interface Props {
   dateTo: string;
 }
 
+const DIMENSION_LABELS: Record<string, string> = {
+  PMQAP: 'QCI Profile (PMQAP)',
+  NEIGHBOR: 'Neighbor Cell',
+  CA_REL: 'CA Relation',
+  RANSHARE: 'RAN Sharing (PLMN)',
+  SLICE: 'Network Slice (NSSAI)',
+  '5QI': '5QI Slice (NR)',
+  TRANSPORT: 'Transport Link',
+  FLEX: 'Flex Counter',
+};
+
 const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
+  const globalGran = useInvestigatorStore(s => normalizeGranularity(s.state.granularity));
   const [catalog, setCatalog] = React.useState<CounterDef[]>([]);
-  const [selectedCounters, setSelectedCounters] = React.useState<string[]>([]);
+  const [selectedCounters, setSelectedCounters] = React.useState<CounterDef[]>([]);
   const [tsData, setTsData] = React.useState<CounterPoint[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [selectorOpen, setSelectorOpen] = React.useState(false);
-  const [splitByDimension, setSplitByDimension] = React.useState(false);
+  const [splitByDimension, setSplitByDimension] = React.useState<string>(''); // '' = no split, or dimension_type like 'PMQAP'
+  const [dimensionFilter, setDimensionFilter] = React.useState<string[]>([]);
+  const [dimensionValues, setDimensionValues] = React.useState<{ value: string; label: string }[]>([]);
+  const [loadingDimValues, setLoadingDimValues] = React.useState(false);
+
+  // Detect if selected counters have dimensions
+  const selectedDimensions = useMemo(() => {
+    const dims = new Set<string>();
+    for (const c of selectedCounters) {
+      if (c.dimension_type) dims.add(c.dimension_type);
+    }
+    return dims;
+  }, [selectedCounters]);
+
+  const hasDimensionalCounters = selectedDimensions.size > 0;
+  const primaryDimension = hasDimensionalCounters ? Array.from(selectedDimensions)[0] : null;
+  const primaryPrefix = primaryDimension ? selectedCounters.find(c => c.dimension_type === primaryDimension)?.dimension_prefix || '' : '';
 
   // Load catalog
   React.useEffect(() => {
     fetchCounterCatalog().then(setCatalog);
   }, []);
 
+  // Reset dimension filter and load values when dimension type changes
+  React.useEffect(() => {
+    setDimensionFilter([]);
+    setDimensionValues([]);
+    if (!primaryDimension) return;
+    setLoadingDimValues(true);
+    fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${primaryDimension}&limit=50`), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : { labeled_values: [] })
+      .then(data => { setDimensionValues(data.labeled_values || (data.values || []).map((v: string) => ({ value: v, label: v }))); setLoadingDimValues(false); })
+      .catch(() => setLoadingDimValues(false));
+  }, [primaryDimension]);
+
   // Fetch timeseries when selection changes
   React.useEffect(() => {
     if (selectedCounters.length === 0) { setTsData([]); return; }
     setLoading(true);
-    fetchCounterTimeseries(selectedCounters, dateFrom, dateTo, '1d', splitByDimension).then(data => {
-      setTsData(data);
+    const body: any = {
+      counter_names: selectedCounters.map(c => c.counter_name),
+      date_from: dateFrom,
+      date_to: dateTo,
+      granularity: globalGran,
+      split_by_dimension: !!splitByDimension,
+    };
+    if (dimensionFilter.length > 0) body.dimension_filter = dimensionFilter;
+
+    fetch(getApiUrl('pm/counters/timeseries'), {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify(body),
+    }).then(r => r.ok ? r.json() : { series: [] }).then(data => {
+      setTsData(data.series || []);
       setLoading(false);
-    });
-  }, [selectedCounters.join(','), dateFrom, dateTo, splitByDimension]);
+    }).catch(() => { setTsData([]); setLoading(false); });
+  }, [selectedCounters.map(c => c.counter_name).join(','), dateFrom, dateTo, globalGran, splitByDimension, dimensionFilter]);
 
   const removeCounter = (name: string) => {
-    setSelectedCounters(prev => prev.filter(c => c !== name));
+    setSelectedCounters(prev => prev.filter(c => c.counter_name !== name));
   };
+
+  // Build name lookup: counter_name (ID) → display_name
+  const nameMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of selectedCounters) {
+      if (c.display_name && c.display_name !== c.counter_name) m.set(c.counter_name, c.display_name);
+    }
+    return m;
+  }, [selectedCounters]);
+  const displayName = (id: string) => nameMap.get(id) || id;
 
   // Build chart
   const counters = [...new Set(tsData.map(d => d.counter))];
@@ -101,7 +171,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
     legend: {
       bottom: 0,
       textStyle: { color: '#9ca3af', fontSize: 9 },
-      data: counters,
+      data: counters.map(c => displayName(c)),
     },
     grid: { left: 60, right: 20, top: 10, bottom: 40 },
     xAxis: {
@@ -119,7 +189,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
       splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
     },
     series: counters.map((counter, i) => ({
-      name: counter,
+      name: displayName(counter),
       type: 'line' as const,
       smooth: true,
       data: timestamps.map(ts => {
@@ -145,40 +215,68 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
     <section className="space-y-4">
       {/* Selected counter pills + Add button */}
       <div className="flex items-center gap-2 flex-wrap">
-        {selectedCounters.map((name, i) => {
-          const def = catalog.find(c => c.counter_name === name);
-          return (
-            <div key={name} className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-lg text-[10px] font-bold border border-border/50 bg-card shadow-sm">
+        {selectedCounters.map((c, i) => (
+            <div key={c.counter_name} className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-lg text-[10px] font-bold border border-border/50 bg-card shadow-sm">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-              <span className="font-mono">{def?.display_name || name}</span>
-              {def && <span className="text-[8px] text-muted-foreground font-normal px-1 py-0.5 rounded bg-muted">{def.family}</span>}
-              <button onClick={() => removeCounter(name)} className="p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors ml-0.5">
+              <span>{c.display_name && c.display_name !== c.counter_name ? c.display_name : c.counter_name}</span>
+              {c.dimension_type && <span className="text-[8px] text-amber-600 font-normal px-1 py-0.5 rounded bg-amber-500/10">{c.dimension_type}</span>}
+              <span className="text-[8px] text-muted-foreground font-normal px-1 py-0.5 rounded bg-muted">{c.family}</span>
+              <button onClick={() => removeCounter(c.counter_name)} className="p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors ml-0.5">
                 <X className="w-3 h-3" />
               </button>
             </div>
-          );
-        })}
+        ))}
         <button
           onClick={() => setSelectorOpen(true)}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border border-dashed border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 transition-all"
         >
           <Plus className="w-3.5 h-3.5" /> Add Counter
         </button>
-        {selectedCounters.some(name => {
-          const def = catalog.find(c => c.counter_name === name);
-          return def && DIMENSIONAL_TYPES.includes(def.object_type);
-        }) && (
-          <button
-            onClick={() => setSplitByDimension(!splitByDimension)}
-            className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
-              splitByDimension
-                ? "bg-orange-500/15 text-orange-500 border border-orange-500/30"
-                : "border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30"
-            )}
-          >
-            Split by Dimension {splitByDimension ? "ON" : "OFF"}
-          </button>
+        {hasDimensionalCounters && (
+          <>
+            <select
+              value={splitByDimension}
+              onChange={e => setSplitByDimension(e.target.value)}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
+                splitByDimension
+                  ? "bg-orange-500/15 text-orange-500 border border-orange-500/30"
+                  : "border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              )}
+            >
+              <option value="">No Split</option>
+              {Array.from(selectedDimensions).map(d => (
+                <option key={d} value={d}>{DIMENSION_LABELS[d] || d}</option>
+              ))}
+            </select>
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/5">
+              <span className="text-[9px] font-bold text-amber-600 whitespace-nowrap">{DIMENSION_LABELS[primaryDimension!] || primaryDimension}</span>
+              <div className="relative">
+                <div className="px-1.5 py-0.5 text-[10px] rounded border border-border bg-background min-w-[180px] max-w-[280px] max-h-[120px] overflow-y-auto">
+                  {dimensionValues.length === 0 && <span className="text-muted-foreground">No dimensions</span>}
+                  {dimensionValues.map(v => (
+                    <label key={v.value} className="flex items-center gap-1.5 py-0.5 cursor-pointer hover:bg-muted/30 px-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={dimensionFilter.includes(v.value)}
+                        onChange={() => setDimensionFilter(prev =>
+                          prev.includes(v.value) ? prev.filter(x => x !== v.value) : [...prev, v.value]
+                        )}
+                        className="w-3 h-3 rounded"
+                      />
+                      <span className="truncate">{v.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {dimensionFilter.length > 0 && (
+                  <button onClick={() => setDimensionFilter([])} className="absolute top-0 right-0 p-0.5 text-[8px] text-muted-foreground hover:text-destructive">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
+              {loadingDimValues && <span className="text-[9px] text-muted-foreground animate-pulse">...</span>}
+            </div>
+          </>
         )}
         {selectedCounters.length === 0 && (
           <span className="text-[10px] text-muted-foreground ml-1">Select counters to visualize raw PM data</span>
@@ -211,8 +309,11 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
         open={selectorOpen}
         onClose={() => setSelectorOpen(false)}
         catalog={catalog}
-        selectedKeys={selectedCounters}
-        onConfirm={setSelectedCounters}
+        selectedKeys={selectedCounters.map(c => c.counter_name)}
+        onConfirm={(keys: string[]) => {
+          const resolved = keys.map(k => catalog.find(c => c.counter_name === k)).filter((c): c is CounterDef => !!c);
+          setSelectedCounters(resolved);
+        }}
       />
     </section>
   );
