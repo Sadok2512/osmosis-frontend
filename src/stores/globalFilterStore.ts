@@ -34,9 +34,14 @@ const weekAgo = new Date(today.getTime() - 7 * 86400000);
 export const useGlobalFilterStore = create<GlobalFilterState>((set) => ({
   dateFrom: weekAgo.toISOString().slice(0, 10),
   dateTo: today.toISOString().slice(0, 10),
+  timeFrom: '00:00',
+  timeTo: '23:59',
   granularity: 'auto',
-  setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
+  activePreset: null,
+  setDateRange: (from, to) => set({ dateFrom: from, dateTo: to, activePreset: null }),
+  setTimeRange: (from, to) => set({ timeFrom: from, timeTo: to }),
   setGranularity: (g) => set({ granularity: g }),
+  setActivePreset: (preset) => set({ activePreset: preset }),
 
   globalFilters: [],
   addGlobalFilter: (dimension, op = 'IN') =>
