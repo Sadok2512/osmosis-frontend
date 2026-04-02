@@ -419,7 +419,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         // Multi-KPI: build series — detect split data
         const defs = kpiIds.map((id, i) => {
           const d = getDef(id);
-          return d || { id, label: id, unit: '', color: SERIES_COLORS[i % SERIES_COLORS.length], thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
+          return d || { id, label: id, unit: '', color: stableColorForKpi(id), thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         });
 
         // Filter data to only this slot's KPIs
