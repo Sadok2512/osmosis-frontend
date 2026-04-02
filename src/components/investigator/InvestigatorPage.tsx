@@ -163,7 +163,7 @@ const InvestigatorPage: React.FC = () => {
       const counterPoints = (data.series || []).map((s: any) => ({
         timestamp: s.ts, kpi: s.counter, value: s.value,
       }));
-      setTsData(prev => [...prev, ...counterPoints]);
+      setTsData([...tsData, ...counterPoints]);
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCounters.map((c:any) => c.counter_name).join(','), state.startDate, state.endDate, state.granularity]);
