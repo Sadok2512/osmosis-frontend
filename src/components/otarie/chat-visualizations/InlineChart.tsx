@@ -39,10 +39,13 @@ const CHART_TYPES: { key: ChartType; icon: React.ElementType; label: string }[] 
   { key: 'pie', icon: PieIcon, label: 'Camembert' },
 ];
 
-const formatValue = (v: number) => {
-  if (typeof v !== 'number') return v;
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(1)}k`;
+const formatAxisValue = (v: any): string => {
+  const n = Number(v);
+  if (isNaN(n)) return String(v);
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+};
   return Number.isInteger(v) ? v : v.toFixed(1);
 };
 
