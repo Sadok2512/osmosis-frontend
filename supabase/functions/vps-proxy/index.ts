@@ -11,7 +11,7 @@ const VPS_HOST = '151.242.147.49';
 const SERVICE_PORTS: Record<string, number> = {
   kpi: 8001,
   parser: 8000,
-  agent: 1000,
+  agent: 8000,  // proxied through parser → agent :1000 (port 1000 not reachable from Supabase edge functions)
 };
 
 function buildSafeFallback(service: string, path: string, message: string) {
