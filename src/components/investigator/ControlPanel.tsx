@@ -673,6 +673,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     mode="single"
                     selected={startDate}
                     defaultMonth={startDate || new Date()}
+                    today={undefined}
                     onSelect={(d) => d && setState(prev => {
                       const nextStart = format(d, 'yyyy-MM-dd');
                       const nextEnd = prev.endDate && prev.endDate < nextStart ? nextStart : prev.endDate;
