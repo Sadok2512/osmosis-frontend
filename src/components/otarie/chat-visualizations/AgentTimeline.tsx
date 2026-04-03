@@ -123,19 +123,43 @@ const AgentTimeline: React.FC<AgentTimelineProps> = ({ events, isStreaming }) =>
       <div className="mb-2.5">
         <button
           onClick={() => setExpanded(true)}
-          className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg bg-muted/40 hover:bg-muted/60 border border-border/40 transition-all text-left group"
+          className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg border transition-all text-left group ${
+            isStreaming
+              ? 'bg-muted/30 border-border/50'
+              : 'bg-muted/40 hover:bg-muted/60 border-border/40'
+          }`}
+          style={isStreaming ? {
+            boxShadow: `0 0 12px -4px ${currentColor}44, inset 0 0 20px -10px ${currentColor}18`,
+          } : undefined}
         >
           {isStreaming ? (
             <>
-              <div
-                className="w-2 h-2 rounded-full shrink-0 animate-pulse"
-                style={{ backgroundColor: currentColor }}
-              />
-              <CurrentIcon className="w-3 h-3 shrink-0" style={{ color: currentColor }} />
+              {/* Thinking spinner */}
+              <div className="relative w-4 h-4 shrink-0">
+                <div
+                  className="absolute inset-0 rounded-full border-2 border-transparent animate-spin"
+                  style={{
+                    borderTopColor: currentColor,
+                    borderRightColor: `${currentColor}55`,
+                    animationDuration: '0.8s',
+                  }}
+                />
+                <div
+                  className="absolute inset-[3px] rounded-full animate-pulse"
+                  style={{ backgroundColor: `${currentColor}66` }}
+                />
+              </div>
+              <CurrentIcon className="w-3 h-3 shrink-0 animate-pulse" style={{ color: currentColor }} />
               <span className="text-[11px] text-foreground/80 truncate flex-1">
                 {currentLabel}
               </span>
-              <span className="text-[10px] text-muted-foreground/60 shrink-0">
+              {/* Animated dots */}
+              <span className="text-[10px] shrink-0 flex items-center gap-[2px]" style={{ color: `${currentColor}99` }}>
+                <span className="inline-block w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: currentColor, animationDelay: '0ms', animationDuration: '0.8s' }} />
+                <span className="inline-block w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: currentColor, animationDelay: '200ms', animationDuration: '0.8s' }} />
+                <span className="inline-block w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: currentColor, animationDelay: '400ms', animationDuration: '0.8s' }} />
+              </span>
+              <span className="text-[10px] text-muted-foreground/60 shrink-0 ml-1">
                 {events.length} step{events.length > 1 ? 's' : ''}
               </span>
             </>
