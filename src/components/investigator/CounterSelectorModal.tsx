@@ -137,6 +137,7 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 );
 
 const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initialCatalog, selectedKeys, onConfirm }) => {
+  const safeCatalog = Array.isArray(initialCatalog) ? initialCatalog : [];
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [activeFamily, setActiveFamily] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -147,7 +148,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const [filterTechno, setFilterTechno] = useState<string>('');
   const [filterDimType, setFilterDimType] = useState<string>('');
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({ vendors: [], families: [], technos: [], object_types: [], dimension_types: [] });
-  const [catalog, setCatalog] = useState<CounterDef[]>(initialCatalog);
+  const [catalog, setCatalog] = useState<CounterDef[]>(safeCatalog);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -171,8 +172,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
       fetchFilteredCatalog(filterVendor || undefined, filterTechno || undefined),
       fetchFilterOptions(filterVendor || undefined),
     ]).then(([data, opts]) => {
-      setCatalog(data);
-      setFilterOptions(prev => ({ ...prev, families: opts.families, technos: opts.technos }));
+      setCatalog(Array.isArray(data) ? data : []);
+      setFilterOptions(prev => ({ ...prev, families: opts?.families || [], technos: opts?.technos || [] }));
       setIsLoading(false);
     });
   }, [open, filterVendor, filterTechno]);
@@ -272,8 +273,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
   if (!open) return null;
 
-  const vendorOptions = filterOptions.vendors.length > 0 ? filterOptions.vendors : ['Ericsson', 'Nokia'];
-  const technoOptions = filterOptions.technos.length > 0 ? filterOptions.technos : ['4G', '5G', 'LTE', 'NR', 'SRAN'];
+  const vendorOptions = (filterOptions.vendors?.length || 0) > 0 ? filterOptions.vendors : ['Ericsson', 'Nokia'];
+  const technoOptions = (filterOptions.technos?.length || 0) > 0 ? filterOptions.technos : ['4G', '5G', 'LTE', 'NR', 'SRAN'];
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm pl-[240px]" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -284,7 +285,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
           <div className="flex items-center gap-3">
             <BarChart3 className="w-4.5 h-4.5" />
             <h2 className="text-[13px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
-            <span className="text-[10px] opacity-60 tabular-nums">{catalog.length} disponibles</span>
+            <span className="text-[10px] opacity-60 tabular-nums">{(Array.isArray(catalog) ? catalog : []).length} disponibles</span>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 transition-colors">
             <X className="w-4 h-4" />
