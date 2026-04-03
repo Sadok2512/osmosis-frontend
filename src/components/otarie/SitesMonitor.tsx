@@ -2893,6 +2893,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
   const [detailFullscreen, setDetailFullscreen] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(true);
+  const [loadingCellsForSite, setLoadingCellsForSite] = useState<string | null>(null);
 
   // Focus mode: 'global' | 'site' | 'cell'
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
