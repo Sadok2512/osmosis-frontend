@@ -273,8 +273,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
   if (!open) return null;
 
-  const vendorOptions = filterOptions.vendors.length > 0 ? filterOptions.vendors : ['Ericsson', 'Nokia'];
-  const technoOptions = filterOptions.technos.length > 0 ? filterOptions.technos : ['4G', '5G', 'LTE', 'NR', 'SRAN'];
+  const vendorOptions = (filterOptions.vendors?.length || 0) > 0 ? filterOptions.vendors : ['Ericsson', 'Nokia'];
+  const technoOptions = (filterOptions.technos?.length || 0) > 0 ? filterOptions.technos : ['4G', '5G', 'LTE', 'NR', 'SRAN'];
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm pl-[240px]" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
