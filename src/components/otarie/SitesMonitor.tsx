@@ -457,7 +457,8 @@ const FlyToSite = ({
     if (!coords || !isFinite(coords[0]) || !isFinite(coords[1])) return;
 
     const currentZoom = map.getZoom();
-    const targetZoom = currentZoom < 13 ? 13 : currentZoom;
+    // Keep current zoom if already reasonably close; only bump if very far out
+    const targetZoom = currentZoom < 10 ? 13 : currentZoom;
     const currentCenter = map.getCenter();
     const dist = map.distance(currentCenter, coords);
 
@@ -468,15 +469,25 @@ const FlyToSite = ({
       onDoneRef.current?.();
     };
 
-    if (dist < 500 && Math.abs(currentZoom - targetZoom) < 1) {
-      map.panTo(coords, { duration: 0.4, animate: true });
+    if (dist < 300 && Math.abs(currentZoom - targetZoom) < 1) {
+      // Very close — gentle pan only
+      map.panTo(coords, { duration: 0.3, animate: true });
       map.once('moveend', handler);
       return () => {
         map.off('moveend', handler);
       };
     }
 
-    map.flyTo(coords, targetZoom, { duration: 0.8 });
+    if (dist < 5000 && Math.abs(currentZoom - targetZoom) < 2) {
+      // Nearby — smooth pan without zoom change
+      map.panTo(coords, { duration: 0.5, animate: true });
+      map.once('moveend', handler);
+      return () => {
+        map.off('moveend', handler);
+      };
+    }
+
+    map.flyTo(coords, targetZoom, { duration: 0.7 });
     map.once('moveend', handler);
 
     return () => {
@@ -2882,6 +2893,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
   const [detailFullscreen, setDetailFullscreen] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(true);
+  const [loadingCellsForSite, setLoadingCellsForSite] = useState<string | null>(null);
 
   // Focus mode: 'global' | 'site' | 'cell'
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
@@ -4571,6 +4583,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // Always load all cells for clicked site to ensure complete data
     let siteWithCells = site;
     if (site.site_name) {
+      setLoadingCellsForSite(site.site_id);
       try {
         const cellResp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites-with-cells?q=${encodeURIComponent(site.site_name)}&limit=500`), {
           headers: getVpsProxyHeaders(),
@@ -4617,6 +4630,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
       } catch (err) {
         console.warn('[SitesMonitor] Failed to load cells on site click', err);
+      } finally {
+        setLoadingCellsForSite(null);
       }
     }
 
@@ -7895,6 +7910,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <button onClick={handleBackToSite} className={`transition-colors truncate max-w-[160px] ${focusMode === 'site' ? 'text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'}`}>
                   {siteDetail.site_name}
                 </button>
+                {loadingCellsForSite && (
+                  <span className="inline-flex items-center gap-1 ml-1.5 text-[9px] text-primary/80 font-medium animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-ping" />
+                    cells…
+                  </span>
+                )}
+              </>
+            )}
+            {focusMode !== 'global' && !siteDetail && loadingCellsForSite && (
+              <>
+                <ChevronRight size={10} className="text-muted-foreground" />
+                <span className="inline-flex items-center gap-1 text-[9px] text-primary/80 font-medium animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-ping" />
+                  Loading cells…
+                </span>
               </>
             )}
             {focusMode === 'cell' && focusCellId && (
