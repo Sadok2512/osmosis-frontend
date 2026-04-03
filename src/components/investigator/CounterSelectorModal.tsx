@@ -172,8 +172,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
       fetchFilteredCatalog(filterVendor || undefined, filterTechno || undefined),
       fetchFilterOptions(filterVendor || undefined),
     ]).then(([data, opts]) => {
-      setCatalog(data);
-      setFilterOptions(prev => ({ ...prev, families: opts.families, technos: opts.technos }));
+      setCatalog(Array.isArray(data) ? data : []);
+      setFilterOptions(prev => ({ ...prev, families: opts?.families || [], technos: opts?.technos || [] }));
       setIsLoading(false);
     });
   }, [open, filterVendor, filterTechno]);
