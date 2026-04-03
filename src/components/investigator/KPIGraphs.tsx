@@ -256,7 +256,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
     // Load counter catalog
     fetch(getApiUrl('pm/counters/catalog'), { headers: getApiHeaders() })
       .then(r => r.ok ? r.json() : [])
-      .then(setCounterCatalog)
+      .then(data => setCounterCatalog(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
