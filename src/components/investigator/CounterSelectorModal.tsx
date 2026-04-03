@@ -285,7 +285,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
           <div className="flex items-center gap-3">
             <BarChart3 className="w-4.5 h-4.5" />
             <h2 className="text-[13px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
-            <span className="text-[10px] opacity-60 tabular-nums">{catalog.length} disponibles</span>
+            <span className="text-[10px] opacity-60 tabular-nums">{(Array.isArray(catalog) ? catalog : []).length} disponibles</span>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 transition-colors">
             <X className="w-4 h-4" />
