@@ -673,6 +673,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     mode="single"
                     selected={startDate}
                     defaultMonth={startDate || new Date()}
+                    today={undefined}
                     onSelect={(d) => d && setState(prev => {
                       const nextStart = format(d, 'yyyy-MM-dd');
                       const nextEnd = prev.endDate && prev.endDate < nextStart ? nextStart : prev.endDate;
@@ -697,9 +698,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     selected={endDate}
                     defaultMonth={endDate || startDate || new Date()}
                     disabled={(date) => !!startDate && date < startDate}
-                    modifiers={startDate ? { startAnchor: startDate } : undefined}
-                    modifiersClassNames={{ startAnchor: 'bg-primary/10 text-primary font-semibold ring-1 ring-primary/25' }}
                     onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))}
+                    today={undefined}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
