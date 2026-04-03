@@ -469,15 +469,25 @@ const FlyToSite = ({
       onDoneRef.current?.();
     };
 
-    if (dist < 500 && Math.abs(currentZoom - targetZoom) < 1) {
-      map.panTo(coords, { duration: 0.4, animate: true });
+    if (dist < 300 && Math.abs(currentZoom - targetZoom) < 1) {
+      // Very close — gentle pan only
+      map.panTo(coords, { duration: 0.3, animate: true });
       map.once('moveend', handler);
       return () => {
         map.off('moveend', handler);
       };
     }
 
-    map.flyTo(coords, targetZoom, { duration: 0.8 });
+    if (dist < 5000 && Math.abs(currentZoom - targetZoom) < 2) {
+      // Nearby — smooth pan without zoom change
+      map.panTo(coords, { duration: 0.5, animate: true });
+      map.once('moveend', handler);
+      return () => {
+        map.off('moveend', handler);
+      };
+    }
+
+    map.flyTo(coords, targetZoom, { duration: 0.7 });
     map.once('moveend', handler);
 
     return () => {
