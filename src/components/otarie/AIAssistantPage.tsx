@@ -31,7 +31,7 @@ const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string 
   TRACE: { emoji: '🔧', label: 'TRACE', color: 'hsl(35, 90%, 50%)' },
   SENTINEL: { emoji: '🚨', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
   TOPO: { emoji: '🗼', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
-  PARMY: { emoji: '⚙️', label: 'PARMY', color: 'hsl(160, 72%, 52%)' },
+  PARMY: { emoji: '⚙️', label: 'PARMY', color: 'hsl(30, 85%, 55%)' },
   QOEBIT: { emoji: '🧠', label: 'QOEBIT', color: 'hsl(142, 60%, 45%)' },
 };
 
