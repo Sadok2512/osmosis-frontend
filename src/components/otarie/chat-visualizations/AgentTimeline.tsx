@@ -7,7 +7,7 @@ const AGENT_META: Record<string, { emoji: string; label: string; color: string }
   TRACE: { emoji: '\u{1F527}', label: 'TRACE', color: 'hsl(35, 90%, 50%)' },
   SENTINEL: { emoji: '\u{1F6A8}', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
   TOPO: { emoji: '\u{1F5FC}', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
-  PARMY: { emoji: '\u{2699}\u{FE0F}', label: 'PARMY', color: 'hsl(160, 70%, 40%)' },
+  PARMY: { emoji: '\u{2699}\u{FE0F}', label: 'PARMY', color: 'hsl(160, 72%, 52%)' },
   QOEBIT: { emoji: '\u{1F9E0}', label: 'QOEBIT', color: 'hsl(142, 60%, 45%)' },
   SYNTHESIS: { emoji: '\u{2728}', label: 'SYNTHESIS', color: 'hsl(50, 85%, 50%)' },
   MULTI: { emoji: '\u{1F504}', label: 'MULTI', color: 'hsl(280, 60%, 55%)' },
