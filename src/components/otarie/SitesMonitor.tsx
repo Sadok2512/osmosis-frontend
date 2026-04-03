@@ -2002,20 +2002,30 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               <div className="text-center text-[10px] text-muted-foreground/60 py-3">Aucun dashboard disponible</div>
             ) : (
               <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                {allDashboards.map(db => (
-                  <button
-                    key={db.id}
-                    onClick={() => loadDashboardFromPicker(db.id)}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/20"
-                  >
-                    <LayoutGrid size={12} className="text-primary/60 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[11px] font-semibold text-foreground block truncate">{db.name}</span>
-                      <span className="text-[8px] text-muted-foreground">{new Date(db.updated_at).toLocaleDateString()}</span>
-                    </div>
-                    <ArrowRight size={11} className="text-muted-foreground shrink-0" />
-                  </button>
-                ))}
+                {allDashboards.map(db => {
+                  const isActive = db.id === activeDashboardId;
+                  return (
+                    <button
+                      key={db.id}
+                      onClick={() => loadDashboardFromPicker(db.id)}
+                      className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors border ${isActive ? 'border-primary/30 bg-primary/5' : 'border-transparent hover:bg-primary/5 hover:border-primary/20'}`}
+                    >
+                      <LayoutGrid size={12} className={isActive ? 'text-primary shrink-0' : 'text-primary/60 shrink-0'} />
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-[11px] font-semibold block truncate ${isActive ? 'text-primary' : 'text-foreground'}`}>{db.name}</span>
+                        <span className="text-[8px] text-muted-foreground">{new Date(db.updated_at).toLocaleDateString()}</span>
+                      </div>
+                      {isActive ? (
+                        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[8px] font-bold uppercase">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Actif
+                        </span>
+                      ) : (
+                        <ArrowRight size={11} className="text-muted-foreground shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
