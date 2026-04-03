@@ -7910,6 +7910,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <button onClick={handleBackToSite} className={`transition-colors truncate max-w-[160px] ${focusMode === 'site' ? 'text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'}`}>
                   {siteDetail.site_name}
                 </button>
+                {loadingCellsForSite && (
+                  <span className="inline-flex items-center gap-1 ml-1.5 text-[9px] text-primary/80 font-medium animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-ping" />
+                    cells…
+                  </span>
+                )}
+              </>
+            )}
+            {focusMode !== 'global' && !siteDetail && loadingCellsForSite && (
+              <>
+                <ChevronRight size={10} className="text-muted-foreground" />
+                <span className="inline-flex items-center gap-1 text-[9px] text-primary/80 font-medium animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-ping" />
+                  Loading cells…
+                </span>
               </>
             )}
             {focusMode === 'cell' && focusCellId && (
