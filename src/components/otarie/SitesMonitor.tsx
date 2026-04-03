@@ -4583,6 +4583,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // Always load all cells for clicked site to ensure complete data
     let siteWithCells = site;
     if (site.site_name) {
+      setLoadingCellsForSite(site.site_id);
       try {
         const cellResp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites-with-cells?q=${encodeURIComponent(site.site_name)}&limit=500`), {
           headers: getVpsProxyHeaders(),
@@ -4629,6 +4630,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
       } catch (err) {
         console.warn('[SitesMonitor] Failed to load cells on site click', err);
+      } finally {
+        setLoadingCellsForSite(null);
       }
     }
 
