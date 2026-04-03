@@ -2110,7 +2110,15 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     <LayoutGrid size={13} className={dbColor ? '' : (isExpanded ? 'text-primary' : 'text-primary/60')} style={dbColor ? { color: dbColor } : undefined} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className={`text-[12px] font-bold truncate block ${isExpanded ? 'text-primary' : 'text-foreground'}`}>{db.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[12px] font-bold truncate ${isExpanded ? 'text-primary' : 'text-foreground'}`}>{db.name}</span>
+                      {isExpanded && (
+                        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[7px] font-bold uppercase">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Actif
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
                       <span>{SETTINGS_MAP_STYLES.find(l => l.value === (dbSettings.mapStyle || dbSettings.mapLayer || 'street'))?.label || 'Street'}</span>
                       <span>•</span>
