@@ -137,6 +137,7 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 );
 
 const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initialCatalog, selectedKeys, onConfirm }) => {
+  const safeCatalog = Array.isArray(initialCatalog) ? initialCatalog : [];
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [activeFamily, setActiveFamily] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -147,7 +148,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const [filterTechno, setFilterTechno] = useState<string>('');
   const [filterDimType, setFilterDimType] = useState<string>('');
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({ vendors: [], families: [], technos: [], object_types: [], dimension_types: [] });
-  const [catalog, setCatalog] = useState<CounterDef[]>(initialCatalog);
+  const [catalog, setCatalog] = useState<CounterDef[]>(safeCatalog);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
