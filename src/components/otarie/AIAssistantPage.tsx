@@ -320,33 +320,42 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     const FLUSH_INTERVAL = 80; // ms — throttle UI updates
 
     let progressEvents: ProgressEvent[] = [];
+    let lastProgressRaw = '';  // Track raw progress tags to avoid re-parsing
 
     const extractProgressEvents = (text: string): { cleanText: string; events: ProgressEvent[] } => {
-      const events: ProgressEvent[] = [...progressEvents];
       const regex = /<!--\s*PROGRESS:(.*?)\s*-->\n?/g;
-      let match: RegExpExecArray | null;
-      const existingCount = events.length;
-      let cleanText = text;
+      const cleanText = text.replace(regex, '');
 
-      while ((match = regex.exec(text)) !== null) {
-        try {
-          const payload = JSON.parse(match[1]);
-          // Only add if we haven't already tracked this event (by index)
-          const evIndex = events.length;
-          if (evIndex >= existingCount || events.findIndex(e => e.type === payload.type && e.agent === payload.agent && e.tool === payload.tool && e.query === payload.query) === -1) {
+      // Extract all raw progress tags
+      const progressTags: string[] = [];
+      let match: RegExpExecArray | null;
+      const regex2 = /<!--\s*PROGRESS:(.*?)\s*-->/g;
+      while ((match = regex2.exec(text)) !== null) {
+        progressTags.push(match[1]);
+      }
+
+      // Only re-parse if new tags appeared
+      const rawKey = progressTags.join('|');
+      if (rawKey !== lastProgressRaw) {
+        lastProgressRaw = rawKey;
+        const events: ProgressEvent[] = [];
+        for (const tag of progressTags) {
+          try {
+            const payload = JSON.parse(tag);
             events.push({
               type: payload.type,
               agent: payload.agent,
               tool: payload.tool,
               query: payload.query,
-              plan: payload.plan,
+              plan: payload.agents || payload.plan,
               ts: Date.now(),
             });
-          }
-        } catch { /* ignore malformed progress JSON */ }
+          } catch { /* ignore */ }
+        }
+        progressEvents = events;
       }
-      cleanText = text.replace(regex, '');
-      return { cleanText, events };
+
+      return { cleanText, events: progressEvents };
     };
 
     const flushToUI = (force = false) => {
