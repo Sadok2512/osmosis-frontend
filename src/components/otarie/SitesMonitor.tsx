@@ -457,7 +457,8 @@ const FlyToSite = ({
     if (!coords || !isFinite(coords[0]) || !isFinite(coords[1])) return;
 
     const currentZoom = map.getZoom();
-    const targetZoom = currentZoom < 13 ? 13 : currentZoom;
+    // Keep current zoom if already reasonably close; only bump if very far out
+    const targetZoom = currentZoom < 10 ? 13 : currentZoom;
     const currentCenter = map.getCenter();
     const dist = map.distance(currentCenter, coords);
 
