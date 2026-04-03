@@ -3,12 +3,32 @@ import { persist } from 'zustand/middleware';
 
 type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'QOEBIT';
 
+export type ProgressEventType =
+  | 'agent_selected'
+  | 'tool_start'
+  | 'tool_done'
+  | 'generating'
+  | 'orchestrator_plan'
+  | 'agent_start'
+  | 'agent_done'
+  | 'synthesis_start';
+
+export interface ProgressEvent {
+  type: ProgressEventType;
+  agent?: string;
+  tool?: string;
+  query?: string;
+  plan?: string[];
+  ts: number; // client-side timestamp when parsed
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   mapCellIds?: string[];
   mapDescription?: string;
   agent?: AgentId;
+  progressEvents?: ProgressEvent[];
 }
 
 export interface ChatSession {

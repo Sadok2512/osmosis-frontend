@@ -15,7 +15,8 @@ import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
 import { parseKpiBlocks, KpiSummaryCards, SplitSectionCards } from '../kpi-monitor/AIKpiCards';
 import { getAgentHeaders, isLocalMode, getVpsProxyUrl } from '@/lib/apiConfig';
-import { useChatSessionStore, type ChatMessage } from '@/stores/chatSessionStore';
+import { useChatSessionStore, type ChatMessage, type ProgressEvent } from '@/stores/chatSessionStore';
+import AgentTimeline from './chat-visualizations/AgentTimeline';
 import { useAgentLearningStore } from '@/stores/agentLearningStore';
 import { dashboardsApi } from '@/lib/localDb';
 import { createDefaultChart, CHART_COLORS } from '@/components/bi/biTypes';
@@ -318,19 +319,51 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     let lastFlush = 0;
     const FLUSH_INTERVAL = 80; // ms — throttle UI updates
 
+    let progressEvents: ProgressEvent[] = [];
+
+    const extractProgressEvents = (text: string): { cleanText: string; events: ProgressEvent[] } => {
+      const events: ProgressEvent[] = [...progressEvents];
+      const regex = /<!--\s*PROGRESS:(.*?)\s*-->\n?/g;
+      let match: RegExpExecArray | null;
+      const existingCount = events.length;
+      let cleanText = text;
+
+      while ((match = regex.exec(text)) !== null) {
+        try {
+          const payload = JSON.parse(match[1]);
+          // Only add if we haven't already tracked this event (by index)
+          const evIndex = events.length;
+          if (evIndex >= existingCount || events.findIndex(e => e.type === payload.type && e.agent === payload.agent && e.tool === payload.tool && e.query === payload.query) === -1) {
+            events.push({
+              type: payload.type,
+              agent: payload.agent,
+              tool: payload.tool,
+              query: payload.query,
+              plan: payload.plan,
+              ts: Date.now(),
+            });
+          }
+        } catch { /* ignore malformed progress JSON */ }
+      }
+      cleanText = text.replace(regex, '');
+      return { cleanText, events };
+    };
+
     const flushToUI = (force = false) => {
       const now = performance.now();
       if (!force && now - lastFlush < FLUSH_INTERVAL) return;
       lastFlush = now;
-      const { agent, cleanContent } = extractAgent(assistantSoFar);
+      const { agent, cleanContent: agentClean } = extractAgent(assistantSoFar);
+      const { cleanText, events } = extractProgressEvents(agentClean);
+      progressEvents = events;
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant') {
           const updated = [...prev];
-          updated[updated.length - 1] = { ...last, content: cleanContent, agent: agent || last.agent };
+          updated[updated.length - 1] = { ...last, content: cleanText, agent: agent || last.agent, progressEvents: events.length > 0 ? events : last.progressEvents };
           return updated;
         }
-        return [...prev, { role: 'assistant', content: cleanContent, agent: agent || undefined }];
+        return [...prev, { role: 'assistant', content: cleanText, agent: agent || undefined, progressEvents: events.length > 0 ? events : undefined }];
       });
     };
 
@@ -821,6 +854,12 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                             </span>
                           </div>
                         )}
+                        {msg.progressEvents && msg.progressEvents.length > 0 && (
+                          <AgentTimeline
+                            events={msg.progressEvents}
+                            isStreaming={isLoading && i === messages.length - 1}
+                          />
+                        )}
                         <AssistantMessage content={msg.content} />
                         {msg.mapCellIds && msg.mapCellIds.length > 0 && onShowWorstCells && (
                           <button
@@ -1008,6 +1047,7 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
   const cleaned = useMemo(() => {
     let text = content;
     text = text.replace(/<!--\s*AGENT:\w+\s*-->\n?/g, '');
+    text = text.replace(/<!--\s*PROGRESS:.*?-->\n?/g, '');
     text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
     text = text.replace(/<\/?(?:div|span|table|thead|tbody|tr|td|th|style|br|hr|img|p|ul|ol|li|h[1-6]|a|b|i|em|strong|code|pre)[^>]*>/gi, '');
     text = text.replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
