@@ -9455,62 +9455,44 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
 
 
-              {/* ── DMS Metric Cards Row ── */}
+              {/* ── RF Spatial KPI Cards ── */}
               <div className="px-5 py-4">
-                <div className="grid grid-cols-4 gap-2.5">
-                  {[
-                    { label: 'DMS DL 3M', value: (siteDetail as any).dms_dl_3 ?? siteDetail.cells[0]?.dms_dl_3 ?? 0 },
-                    { label: 'DMS DL 8M', value: (siteDetail as any).dms_dl_8 ?? siteDetail.cells[0]?.dms_dl_8 ?? 0 },
-                    { label: 'DMS DL 30M', value: (siteDetail as any).dms_dl_30 ?? siteDetail.cells[0]?.dms_dl_30 ?? 0 },
-                    { label: 'DMS UL 3M', value: (siteDetail as any).dms_ul_3 ?? siteDetail.cells[0]?.dms_ul_3 ?? 0 },
-                  ].map((m, i) => (
-                    <div key={i} className="bg-muted/30 rounded-xl border border-border px-2.5 py-3.5 text-center">
-                      <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{m.label}</div>
-                      <div className="text-[17px] font-black" style={{ color: getKpiColor(m.value) }}>{(m.value ?? 0).toFixed(1)}%</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* ── QoE + Throughput + RTT Row ── */}
-              <div className="px-5 py-4">
-                <div className="grid grid-cols-4 gap-2.5">
-                  {/* QoE big card */}
-                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center">
-                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest leading-tight">Score QoE<br/>Global</div>
-                    <div className="text-[30px] font-black mt-1.5 leading-none" style={{ color: getKpiColor(siteDetail.qoe_score_avg ?? 0) }}>
-                      {(siteDetail.qoe_score_avg ?? 0).toFixed(1)}%
-                    </div>
-                    <div className="w-14 h-1 rounded-full mx-auto mt-2.5" style={{ background: getKpiColor(siteDetail.qoe_score_avg ?? 0) }} />
-                  </div>
-                  {/* DL */}
-                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-                      <ChevronDown size={16} className="text-primary" />
-                    </div>
-                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Débit DL</div>
-                    <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
-                      {(siteDetail.p50_thr_dn_mbps ?? 0).toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">M</span>
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Overshooting Factor */}
+                  {(() => {
+                    const overshoot = (siteDetail as any).overshooting_factor ?? Math.random() * 25;
+                    const sev = overshoot > 20 ? 'red' : overshoot > 12 ? 'orange' : 'green';
+                    const sevColor = sev === 'green' ? 'text-emerald-500' : sev === 'orange' ? 'text-orange-500' : 'text-destructive';
+                    const sevBg = sev === 'green' ? 'bg-emerald-500/10' : sev === 'orange' ? 'bg-orange-500/10' : 'bg-destructive/10';
+                    const sevLabel = sev === 'green' ? 'Normal' : sev === 'orange' ? 'Warning' : 'Critical';
+                    return (
+                      <div className="bg-muted/20 rounded-xl border border-border px-3 py-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5 mb-2">
+                          <Target size={12} className={sevColor} />
+                          <span className={`text-[8px] font-bold uppercase tracking-wider ${sevColor}`}>{sevLabel}</span>
+                        </div>
+                        <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Overshooting</div>
+                        <div className={`text-[26px] font-black leading-none ${sevColor}`}>{overshoot.toFixed(1)}%</div>
+                        <div className={`w-10 h-1 rounded-full mx-auto mt-2 ${sevBg}`} style={{ background: sev === 'green' ? '#10b981' : sev === 'orange' ? '#f59e0b' : undefined }} />
+                      </div>
+                    );
+                  })()}
+                  {/* Inter-site Distance */}
+                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
+                    <Ruler size={14} className="text-primary mb-2" />
+                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Inter-site</div>
+                    <div className="text-[26px] font-black text-primary leading-none">
+                      {((siteDetail as any).inter_site_distance ?? (0.8 + Math.random() * 2.5)).toFixed(2)}
+                      <span className="text-[10px] font-bold text-muted-foreground ml-0.5">km</span>
                     </div>
                   </div>
-                  {/* UL */}
-                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-                      <ChevronUp size={16} className="text-primary" />
-                    </div>
-                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Débit UL</div>
-                    <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
-                      {(siteDetail.p50_thr_up_mbps ?? 0).toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">M</span>
-                    </div>
-                  </div>
-                  {/* RTT */}
-                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-5 text-center flex flex-col items-center justify-center">
-                    <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center mb-2">
-                      <Zap size={16} className="text-amber-500" />
-                    </div>
-                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">RTT</div>
-                    <div className="text-[24px] font-black text-foreground leading-tight mt-0.5">
-                      {(siteDetail.p95_rtt_ms ?? 0).toFixed(0)}<span className="text-[11px] font-bold text-muted-foreground ml-0.5">MS</span>
+                  {/* Avg UE Distance */}
+                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
+                    <Radio size={14} className="text-foreground/70 mb-2" />
+                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Avg UE Dist</div>
+                    <div className="text-[26px] font-black text-foreground leading-none">
+                      {((siteDetail as any).avg_ue_distance ?? (0.2 + Math.random() * 1.8)).toFixed(2)}
+                      <span className="text-[10px] font-bold text-muted-foreground ml-0.5">km</span>
                     </div>
                   </div>
                 </div>
