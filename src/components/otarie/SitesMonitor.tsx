@@ -6831,84 +6831,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
             <span className="w-px h-7 bg-border/50 shrink-0" />
 
-            {/* ── QoE mode: KPI chips ── */}
+            {/* ── KPI mode: dropdown selector + active label ── */}
             {sectorColorMode === 'kpi' && !paramMode && (
               <>
-                {/* DL group */}
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬇ DL</span>
-                  {MAP_KPIS.filter(k => ['qoe_score_avg', 'dms_dl_3', 'dms_dl_8', 'dms_dl_30', 'p50_thr_dn_mbps'].includes(k.id)).map(kpi => {
-                    const shortLabels: Record<string, string> = {
-                      'qoe_score_avg': 'QoE',
-                      'dms_dl_3': '≥3',
-                      'dms_dl_8': '≥8',
-                      'dms_dl_30': '≥30',
-                      'p50_thr_dn_mbps': 'Débit',
-                    };
-                    return (
-                      <button
-                        key={kpi.id}
-                        onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
-                          mapKpi === kpi.id
-                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                        }`}
-                        title={kpi.label}
-                      >
-                        {shortLabels[kpi.id] || kpi.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <span className="w-px h-7 bg-border/50 shrink-0" />
-
-                {/* UL group */}
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬆ UL</span>
-                  {MAP_KPIS.filter(k => ['dms_ul_3', 'p50_thr_up_mbps'].includes(k.id)).map(kpi => {
-                    const shortLabels: Record<string, string> = {
-                      'dms_ul_3': '≥3',
-                      'p50_thr_up_mbps': 'Débit',
-                    };
-                    return (
-                      <button
-                        key={kpi.id}
-                        onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
-                          mapKpi === kpi.id
-                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                        }`}
-                        title={kpi.label}
-                      >
-                        {shortLabels[kpi.id] || kpi.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <span className="w-px h-7 bg-border/50 shrink-0" />
-
-                {/* Plus dropdown for TCP/RTT/Volume */}
+                {/* KPI dropdown */}
                 <div className="relative shrink-0">
                   <button
                     onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-                    className={`px-3.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
-                      ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
-                        ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
-                    }`}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary transition-all hover:bg-primary/15"
                   >
-                    <SlidersHorizontal size={12} />
-                    Plus
+                    <BarChart2 size={12} />
+                    <span className="max-w-[140px] truncate">{selectedKpiLabel}</span>
                     {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                   </button>
                   {showKpiDropdown && (
-                    <div className="absolute top-10 right-0 w-[300px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
-                      <div className="max-h-[400px] overflow-y-auto py-1">
-                        {['RTT', 'TCP', 'VOLUME'].map(cat => (
+                    <div className="absolute top-10 left-0 w-[280px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
+                      <div className="max-h-[420px] overflow-y-auto py-1">
+                        {['RF', 'SPATIAL', 'THROUGHPUT', 'VOICE', 'QUALITY', 'RTT', 'VOLUME'].filter(cat => MAP_KPIS.some(k => k.category === cat)).map(cat => (
                           <div key={cat}>
                             <div className="px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30">{cat}</div>
                             {MAP_KPIS.filter(k => k.category === cat).map(kpi => (
@@ -6919,8 +6858,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
                                 }`}
                               >
-                                <div className="text-[11px] font-bold">{kpi.label}</div>
-                                {mapKpi === kpi.id && <span className="text-xs">✓</span>}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-bold">{kpi.label}</span>
+                                  {kpi.unit && <span className="text-[9px] text-muted-foreground">({kpi.unit})</span>}
+                                </div>
+                                {mapKpi === kpi.id && <Check size={12} />}
                               </button>
                             ))}
                           </div>
@@ -6929,6 +6871,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                   )}
                 </div>
+
+                {/* Threshold quick-view */}
+                <button
+                  onClick={() => setShowKpiThresholdEditor(v => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all border shrink-0 ${
+                    showKpiThresholdEditor
+                      ? 'bg-primary/10 text-primary border-primary/20'
+                      : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-muted/50'
+                  }`}
+                  title="Modifier les seuils"
+                >
+                  <Palette size={11} />
+                  Seuils
+                </button>
+
+                {/* Invert toggle */}
+                <button
+                  onClick={toggleInvert}
+                  className={`px-2 py-1.5 rounded-lg text-[9px] font-bold transition-all shrink-0 ${
+                    currentThreshold.invert
+                      ? 'bg-orange-500/15 text-orange-600 border border-orange-500/20'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent'
+                  }`}
+                  title="Inverser l'échelle (bas=bon)"
+                >
+                  <ChevronsUpDown size={11} />
+                </button>
               </>
             )}
 
