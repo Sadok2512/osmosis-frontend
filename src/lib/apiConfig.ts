@@ -85,9 +85,12 @@ export function getVpsProxyUrl(
   path: string,
   extraParams?: Record<string, string>,
 ): string {
-  // Direct VPS mode: skip proxy when browser is on VPS
-  const onVps = typeof window !== 'undefined' && window.location.hostname === VPS_HOST;
-  if (onVps) {
+  // Direct mode: skip proxy when browser is on VPS or Cloudflare tunnel
+  const onDirect = typeof window !== 'undefined' && (
+    window.location.hostname === VPS_HOST ||
+    window.location.hostname.endsWith('.qoebit.net')
+  );
+  if (onDirect) {
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     const ep = VPS_ENDPOINTS[service];
     const params = new URLSearchParams(extraParams || {});
