@@ -3743,7 +3743,37 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           signal: ctrl.signal,
         });
         const data = await resp.json();
-        const siteList = Array.isArray(data) ? data : (data.sites || []);
+        let siteList = Array.isArray(data) ? data : (data.sites || []);
+
+        const shouldUseFallback = !ctrl.signal.aborted && (
+          data?.unavailable === true ||
+          (Array.isArray(siteList) && siteList.length === 0)
+        );
+
+        if (shouldUseFallback) {
+          const { data: fallbackRows, error: fallbackError } = await supabase
+            .from('topo')
+            .select('nom_site, code_nidt, constructeur, dor, plaque, zone_arcep, latitude, longitude')
+            .or(`nom_site.ilike.%${term}%,code_nidt.ilike.%${term}%`)
+            .not('latitude', 'is', null)
+            .not('longitude', 'is', null)
+            .limit(50);
+
+          if (fallbackError) throw fallbackError;
+
+          siteList = (fallbackRows || []).map((row: any) => ({
+            site_name: row.nom_site || row.code_nidt || '',
+            nom_site: row.nom_site || '',
+            code_nidt: row.code_nidt || '',
+            constructeur: row.constructeur || 'Unknown',
+            dor: row.dor || '',
+            plaque: row.plaque || '',
+            zone_arcep: row.zone_arcep || null,
+            latitude: row.latitude,
+            longitude: row.longitude,
+          }));
+        }
+
         setSearchResults(siteList);
 
         // Convert to SiteSummary for sidebar display
