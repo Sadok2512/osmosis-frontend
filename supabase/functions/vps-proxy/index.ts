@@ -7,11 +7,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Primary: Cloudflare tunnels (HTTPS, reliable from anywhere)
+// Fallback: Direct IP (works from same network only)
+const CF_PARSER_TUNNEL = 'https://tiger-insulation-foods-right.trycloudflare.com';
+const CF_KPI_TUNNEL = 'https://speeds-pet-generally-agreement.trycloudflare.com';
 const VPS_HOST = '151.242.147.49';
+
+const SERVICE_URLS: Record<string, string[]> = {
+  parser: [CF_PARSER_TUNNEL, `http://${VPS_HOST}:8000`],
+  agent:  [CF_PARSER_TUNNEL, `http://${VPS_HOST}:8000`],
+  kpi:    [CF_KPI_TUNNEL, `http://${VPS_HOST}:8001`],
+};
+
+// Legacy compat
 const SERVICE_PORTS: Record<string, number> = {
   kpi: 8001,
   parser: 8000,
-  agent: 8000,  // proxied through parser → agent :1000
+  agent: 8000,
 };
 
 function buildSafeFallback(service: string, path: string, message: string) {
@@ -62,12 +74,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    const targetUrl = new URL(`http://${VPS_HOST}:${port}${path}`);
+    // Build target URL — try Cloudflare tunnel first, then direct IP
+    const urls = SERVICE_URLS[service] || [`http://${VPS_HOST}:${port}`];
+    const extraParams = new URLSearchParams();
     for (const [key, value] of url.searchParams.entries()) {
       if (key !== 'service' && key !== 'path') {
-        targetUrl.searchParams.set(key, value);
+        extraParams.set(key, value);
       }
     }
+    const qs = extraParams.toString();
+    const buildUrl = (base: string) => {
+      const u = new URL(`${base}${path}`);
+      if (qs) {
+        for (const [k, v] of extraParams.entries()) u.searchParams.set(k, v);
+      }
+      return u;
+    };
+    const targetUrl = buildUrl(urls[0]);
 
     const upstreamHeaders: Record<string, string> = {
       'Content-Type': req.headers.get('content-type') || 'application/json',
@@ -102,12 +125,32 @@ Deno.serve(async (req) => {
       upstreamRes = await fetch(targetUrl.toString(), {
         method: req.method,
         headers: upstreamHeaders,
-        body,
+        body: body ? body : undefined,
         signal: AbortSignal.timeout(fetchTimeout),
       });
     } catch (fetchErr) {
-      const msg = fetchErr instanceof Error ? fetchErr.message : 'Connection failed';
-      console.error(`[vps-proxy] Upstream fetch failed:`, msg);
+      // Try fallback URL if available
+      if (urls.length > 1) {
+        const fallbackUrl = buildUrl(urls[1]);
+        console.warn(`[vps-proxy] Primary failed, trying fallback: ${fallbackUrl.toString()}`);
+        try {
+          upstreamRes = await fetch(fallbackUrl.toString(), {
+            method: req.method,
+            headers: upstreamHeaders,
+            body: body ? body : undefined,
+            signal: AbortSignal.timeout(fetchTimeout),
+          });
+        } catch (fallbackErr) {
+          const msg = fallbackErr instanceof Error ? fallbackErr.message : 'All endpoints failed';
+          console.error(`[vps-proxy] All upstreams failed:`, msg);
+          // Fall through to error handling below
+        }
+      }
+    }
+    // @ts-ignore - upstreamRes may be unassigned if all fetches failed
+    if (!upstreamRes) {
+      const msg = 'All VPS endpoints unreachable';
+      console.error(`[vps-proxy] ${msg}`);
 
       const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
       const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
