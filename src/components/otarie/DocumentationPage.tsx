@@ -209,11 +209,15 @@ const DocumentationPage: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="px-8 py-6 max-w-7xl">
-          {activeTab === 'topo' && <TopoSection search={search} />}
-          {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={loadCatalog} />}
-          {activeTab === 'dimensions' && <DimensionsSection search={search} />}
-        </div>
+        {activeTab === 'kpi_reference' ? (
+          <KpiCatalogView />
+        ) : (
+          <div className="px-8 py-6 max-w-7xl">
+            {activeTab === 'topo' && <TopoSection search={search} />}
+            {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={loadCatalog} />}
+            {activeTab === 'dimensions' && <DimensionsSection search={search} />}
+          </div>
+        )}
       </div>
     </div>
   );
