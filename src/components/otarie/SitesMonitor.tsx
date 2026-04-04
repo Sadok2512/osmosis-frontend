@@ -6350,6 +6350,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </button>
                 );
               })}
+
+              {/* Radius presets */}
+              {activeMapTool === 'radius' && (
+                <>
+                  <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+                  {RADIUS_PRESETS.map(r => (
+                    <button
+                      key={r}
+                      onClick={() => setRadiusMeters(r)}
+                      className={`px-1.5 py-0.5 rounded-full text-[8px] font-bold tracking-wider transition-all duration-150 ${
+                        radiusMeters === r
+                          ? 'bg-primary/20 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                      }`}
+                    >
+                      {r >= 1000 ? `${r / 1000}k` : r}
+                    </button>
+                  ))}
+                </>
+              )}
             </>
           )}
         </div>
