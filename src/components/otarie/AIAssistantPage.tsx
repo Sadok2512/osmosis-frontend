@@ -116,7 +116,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     sessionStore.setMessages(sid, newMsgs);
   }, [sessionStore]);
 
-  const [input, setInput] = useState('');
+  // input state moved to ChatInput component for performance
   const [forcedAgent, setForcedAgent] = useState<AgentId | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
