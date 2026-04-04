@@ -11,10 +11,20 @@
 
 const VPS_HOST = '151.242.147.49';
 
+// Cloudflare Tunnel endpoints (HTTPS, works from anywhere)
+const CF_PARSER = 'https://api.qoebit.net';
+const CF_KPI = 'https://kpi.qoebit.net';
+
+// Detect if we're on the Cloudflare tunnel domain
+const isOnTunnel = typeof window !== 'undefined' && (
+  window.location.hostname === 'app.qoebit.net' ||
+  window.location.hostname.endsWith('.qoebit.net')
+);
+
 export const VPS_ENDPOINTS = {
-  parser:  `http://${VPS_HOST}:8000`,
-  kpi:     `http://${VPS_HOST}:8001`,
-  agent:   `http://${VPS_HOST}:8000`,  // proxied through parser to agent :1000
+  parser:  isOnTunnel ? CF_PARSER : `http://${VPS_HOST}:8000`,
+  kpi:     isOnTunnel ? CF_KPI : `http://${VPS_HOST}:8001`,
+  agent:   isOnTunnel ? CF_PARSER : `http://${VPS_HOST}:8000`,
 } as const;
 
 const LOCAL_API_ENV = import.meta.env.VITE_LOCAL_API;
@@ -125,7 +135,10 @@ export function getApiUrl(functionName: string): string {
       return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
     }
     // When browser is on the VPS itself, call services directly (no proxy needed)
-    const onVps = typeof window !== 'undefined' && window.location.hostname === VPS_HOST;
+    const onVps = typeof window !== 'undefined' && (
+      window.location.hostname === VPS_HOST ||
+      window.location.hostname.endsWith('.qoebit.net')
+    );
 
     // KPI Engine endpoints → :8001
     const kpiPrefixes = ['monitor', 'catalog', 'kpi/', 'anomalies', 'clusters', 'config/aggregation', 'config/jobs', 'config/ne-scope', 'config/quality', 'config/stats', 'internal/'];
@@ -159,7 +172,10 @@ export function getApiHeaders(): Record<string, string> {
   const source = getPreferredDataSource();
   if (source === 'vps') {
     // Direct VPS mode: simple headers (no proxy auth needed)
-    const onVps = typeof window !== 'undefined' && window.location.hostname === VPS_HOST;
+    const onVps = typeof window !== 'undefined' && (
+      window.location.hostname === VPS_HOST ||
+      window.location.hostname.endsWith('.qoebit.net')
+    );
     if (onVps) {
       return { 'Content-Type': 'application/json' };
     }
