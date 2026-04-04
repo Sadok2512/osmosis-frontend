@@ -75,7 +75,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
-  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot
+  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Radar
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
@@ -2740,6 +2740,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
+  const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'sector' | null>(null);
   const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
   const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
 
@@ -6100,51 +6101,83 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating status bar — minimal GIS style, centered on map */}
       <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
-        <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-xl shadow-md px-3.5 py-1.5 flex items-center gap-3">
+        <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg px-4 py-1.5 flex items-center gap-1">
           {paramMode ? (
             <>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 px-2">
                 <span className="text-[10px] font-medium text-muted-foreground">Param</span>
                 <span className="text-xs font-bold text-primary">{paramConfirmed}</span>
               </div>
-              <span className="w-px h-3 bg-border/80" />
-              <div className="flex items-center gap-1.5">
+              <span className="w-px h-3.5 bg-border/60" />
+              <div className="flex items-center gap-1.5 px-2">
                 <span className="text-[10px] font-medium text-muted-foreground">Points</span>
                 <span className="text-xs font-bold text-foreground">{paramPoints.length}</span>
               </div>
             </>
           ) : (
             <>
-              <div className="flex items-center gap-1.5">
+              {/* Left: Info */}
+              <div className="flex items-center gap-1.5 px-2">
                 <span className="text-xs font-bold text-foreground">{filteredSites.length.toLocaleString()}</span>
                 <span className="text-[10px] font-medium text-muted-foreground">Sites</span>
               </div>
-              <span className="w-px h-3 bg-border/80" />
-              <div className="flex items-center gap-1.5">
+              <span className="w-px h-3.5 bg-border/60" />
+              <div className="flex items-center gap-1.5 px-1.5">
                 <span className="text-[10px] font-medium text-muted-foreground">Z</span>
                 <span className="text-xs font-bold text-foreground">{viewport.zoom}</span>
               </div>
-              <span className="w-px h-3 bg-border/80" />
+
+              <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+
+              {/* Center: Toggles */}
               <button
                 onClick={() => setShowSiteLabels(v => !v)}
-                className={`px-2 py-0.5 rounded-md text-[9px] font-semibold uppercase tracking-wider transition-all ${
+                title="Afficher les noms de sites"
+                className={`px-2 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 ${
                   showSiteLabels
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    ? 'bg-primary/15 text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
                 Noms
               </button>
               <button
                 onClick={() => setShowBeamSectors(v => !v)}
-                className={`px-2 py-0.5 rounded-md text-[9px] font-semibold uppercase tracking-wider transition-all ${
+                title="Afficher les faisceaux sectoriels"
+                className={`px-2 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 ${
                   showBeamSectors
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    ? 'bg-primary/15 text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
                 Beams
               </button>
+
+              <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+
+              {/* Right: Drawing tools */}
+              {([
+                { key: 'distance' as const, icon: Ruler, label: 'Distance', tip: 'Mesurer une distance entre deux points' },
+                { key: 'polygon' as const, icon: Pentagon, label: 'Zone', tip: 'Tracer un polygone / zone' },
+                { key: 'sector' as const, icon: Radar, label: 'Secteur', tip: 'Analyser un secteur radio' },
+              ] as const).map(tool => {
+                const isActive = activeMapTool === tool.key;
+                return (
+                  <button
+                    key={tool.key}
+                    onClick={() => setActiveMapTool(prev => prev === tool.key ? null : tool.key)}
+                    title={tool.tip}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    <tool.icon size={11} strokeWidth={isActive ? 2.5 : 2} />
+                    <span className="hidden sm:inline">{tool.label}</span>
+                  </button>
+                );
+              })}
             </>
           )}
         </div>
