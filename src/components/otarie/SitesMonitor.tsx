@@ -2740,6 +2740,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
+  const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'sector' | null>(null);
   const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
   const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
 
