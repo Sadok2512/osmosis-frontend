@@ -7049,7 +7049,126 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       </div>
 
-      {/* Color View dropdown — rendered outside overflow container */}
+      {/* ── KPI Legend + Threshold Editor (floating, bottom-right) ── */}
+      {sectorColorMode === 'kpi' && !paramMode && showKpiLegend && (
+        <div
+          className="absolute z-[1001] pointer-events-auto animate-fade-in"
+          style={{
+            bottom: 80,
+            right: showRightPanel && !detailFullscreen ? 466 : 16,
+            transition: 'right 0.3s ease',
+          }}
+        >
+          <div
+            className="rounded-2xl overflow-hidden border border-border/60 shadow-xl"
+            style={{
+              background: 'hsl(var(--card) / 0.92)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              minWidth: showKpiThresholdEditor ? 260 : 180,
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border/30">
+              <div className="flex items-center gap-2">
+                <BarChart2 size={12} className="text-primary" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-foreground">{selectedKpiLabel}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setShowKpiThresholdEditor(v => !v)} className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors" title="Modifier seuils">
+                  <Pencil size={10} />
+                </button>
+                <button onClick={() => setShowKpiLegend(false)} className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+                  <X size={10} />
+                </button>
+              </div>
+            </div>
+
+            {/* Legend rows */}
+            <div className="px-3 py-2 space-y-1.5">
+              {currentThreshold.invert ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#22c55e' }} />
+                    <span className="text-[10px] font-semibold text-foreground">≤ {currentThreshold.green}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Bon</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
+                    <span className="text-[10px] font-semibold text-foreground">{currentThreshold.green} – {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Moyen</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#ef4444' }} />
+                    <span className="text-[10px] font-semibold text-foreground">&gt; {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Critique</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#22c55e' }} />
+                    <span className="text-[10px] font-semibold text-foreground">≥ {currentThreshold.green}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Bon</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
+                    <span className="text-[10px] font-semibold text-foreground">{currentThreshold.orange} – {currentThreshold.green}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Moyen</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#ef4444' }} />
+                    <span className="text-[10px] font-semibold text-foreground">&lt; {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Critique</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Threshold Editor */}
+            {showKpiThresholdEditor && (
+              <div className="px-3 py-2.5 border-t border-border/30 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#22c55e' }} />
+                  <span className="text-[9px] font-bold text-muted-foreground w-10 shrink-0">{currentThreshold.invert ? '≤' : '≥'}</span>
+                  <input
+                    type="number"
+                    value={currentThreshold.green}
+                    onChange={e => updateThreshold('green', parseFloat(e.target.value) || 0)}
+                    className="flex-1 px-2 py-1 rounded-lg border border-border/50 bg-background text-[10px] font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 w-16"
+                    step="0.1"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
+                  <span className="text-[9px] font-bold text-muted-foreground w-10 shrink-0">{currentThreshold.invert ? '≤' : '≥'}</span>
+                  <input
+                    type="number"
+                    value={currentThreshold.orange}
+                    onChange={e => updateThreshold('orange', parseFloat(e.target.value) || 0)}
+                    className="flex-1 px-2 py-1 rounded-lg border border-border/50 bg-background text-[10px] font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 w-16"
+                    step="0.1"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={toggleInvert}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all ${
+                      currentThreshold.invert
+                        ? 'bg-orange-500/15 text-orange-600'
+                        : 'bg-muted/60 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <ChevronsUpDown size={10} />
+                    {currentThreshold.invert ? 'Inversé (bas=bon)' : 'Normal (haut=bon)'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {showColorViewDropdown && (() => {
         const btn = (window as any).__colorViewBtnRef as HTMLElement | null;
         const rect = btn?.getBoundingClientRect();
