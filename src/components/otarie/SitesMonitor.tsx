@@ -2761,14 +2761,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'radius' | null>(null);
   const [distanceMeasurePoints, setDistanceMeasurePoints] = useState<[number, number][]>([]);
   const [radiusCenter, setRadiusCenter] = useState<[number, number] | null>(null);
-  const [radiusMeters, setRadiusMeters] = useState(1000);
-  const RADIUS_PRESETS = [100, 500, 1000, 3000, 5000];
+  const [radiusRadii, setRadiusRadii] = useState<number[]>([100, 500, 1000, 3000]);
+  const RADIUS_RING_COLORS = ['hsl(200,70%,55%)', 'hsl(160,60%,50%)', 'hsl(45,80%,50%)', 'hsl(350,65%,55%)', 'hsl(270,55%,55%)'];
+  const [polygonPoints, setPolygonPoints] = useState<[number, number][]>([]);
+  const [polygonClosed, setPolygonClosed] = useState(false);
   const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
   const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
 
   useEffect(() => {
     if (activeMapTool !== 'distance' && distanceMeasurePoints.length > 0) {
       setDistanceMeasurePoints([]);
+    }
+    if (activeMapTool !== 'polygon') {
+      setPolygonPoints([]);
+      setPolygonClosed(false);
+    }
+    if (activeMapTool !== 'radius') {
+      setRadiusCenter(null);
     }
   }, [activeMapTool, distanceMeasurePoints.length]);
 
@@ -2789,26 +2798,75 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       ? `${(distanceMeters / 1000).toFixed(distanceMeters >= 10000 ? 1 : 2)} km`
       : `${Math.round(distanceMeters)} m`;
 
-    return {
-      azimuth,
-      label,
-    };
+    return { azimuth, label };
   }, [distanceMeasurePoints]);
 
   const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'radius') => {
-    if (tool !== 'distance' || activeMapTool === 'distance') {
-      setDistanceMeasurePoints([]);
-    }
-    if (tool !== 'radius' || activeMapTool === 'radius') {
-      setRadiusCenter(null);
-    }
-
+    setDistanceMeasurePoints([]);
+    setRadiusCenter(null);
+    setPolygonPoints([]);
+    setPolygonClosed(false);
     setActiveMapTool(prev => (prev === tool ? null : tool));
-  }, [activeMapTool]);
+  }, []);
 
   const handleRadiusClick = useCallback((latlng: LatLng) => {
     setRadiusCenter([latlng.lat, latlng.lng]);
   }, []);
+
+  const handlePolygonClick = useCallback((latlng: LatLng) => {
+    if (polygonClosed) return;
+    setPolygonPoints(prev => [...prev, [latlng.lat, latlng.lng]]);
+  }, [polygonClosed]);
+
+  const handlePolygonDblClick = useCallback(() => {
+    if (polygonPoints.length >= 3) {
+      setPolygonClosed(true);
+    }
+  }, [polygonPoints.length]);
+
+  // Polygon area (Shoelace formula on geodesic approx) & perimeter
+  const polygonStats = useMemo(() => {
+    if (!polygonClosed || polygonPoints.length < 3) return null;
+    let perimeter = 0;
+    for (let i = 0; i < polygonPoints.length; i++) {
+      const a = polygonPoints[i];
+      const b = polygonPoints[(i + 1) % polygonPoints.length];
+      perimeter += haversineDistance({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] });
+    }
+    // Spherical excess approximation for area
+    const toRad = (d: number) => d * Math.PI / 180;
+    let area = 0;
+    const pts = polygonPoints.map(p => [toRad(p[0]), toRad(p[1])]);
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      area += (pts[j][1] - pts[i][1]) * (2 + Math.sin(pts[i][0]) + Math.sin(pts[j][0]));
+    }
+    area = Math.abs(area * 6371000 * 6371000 / 2);
+
+    const sitesInside = filteredSites.filter(s => {
+      if (!s.latitude || !s.longitude) return false;
+      return isPointInPolygon(s.latitude, s.longitude, polygonPoints);
+    }).length;
+
+    const fmtArea = area >= 1e6 ? `${(area / 1e6).toFixed(2)} km²` : `${Math.round(area)} m²`;
+    const fmtPerimeter = perimeter >= 1000 ? `${(perimeter / 1000).toFixed(2)} km` : `${Math.round(perimeter)} m`;
+
+    return { area, perimeter, fmtArea, fmtPerimeter, sitesInside };
+  }, [polygonClosed, polygonPoints, filteredSites]);
+
+  // Sites inside each radius ring
+  const radiusSiteCounts = useMemo(() => {
+    if (!radiusCenter) return {};
+    const center = { lat: radiusCenter[0], lng: radiusCenter[1] };
+    const counts: Record<number, number> = {};
+    for (const r of radiusRadii) {
+      counts[r] = filteredSites.filter(s => {
+        if (!s.latitude || !s.longitude) return false;
+        return haversineDistance(center, { lat: s.latitude, lng: s.longitude }) <= r;
+      }).length;
+    }
+    return counts;
+  }, [radiusCenter, radiusRadii, filteredSites]);
 
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
     ? 'cells'
