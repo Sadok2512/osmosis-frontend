@@ -510,8 +510,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
         ? `⚠️ **Erreur backend local**\n\nVérifiez que \`cd server && node index.js\` est lancé.\n\n\`${errorDetail}\``
         : `⚠️ **Erreur** : ${errorDetail}`;
       setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
-    } finally { setIsLoading(false); }
-  };
+  }, [messages, isLoading, setMessages, streamChat, extractCellsFromResponse, handleDashboardCreation, addDebugLog, isLocalMode]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
