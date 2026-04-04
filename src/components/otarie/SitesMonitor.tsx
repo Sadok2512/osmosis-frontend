@@ -6834,9 +6834,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {/* ── KPI mode: dropdown selector + active label ── */}
             {sectorColorMode === 'kpi' && !paramMode && (
               <>
-                {/* KPI dropdown */}
+                {/* KPI dropdown trigger */}
                 <div className="relative shrink-0">
                   <button
+                    ref={(el) => { (window as any).__kpiDropdownBtnRef = el; }}
                     onClick={() => setShowKpiDropdown(!showKpiDropdown)}
                     className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary transition-all hover:bg-primary/15"
                   >
@@ -6844,32 +6845,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <span className="max-w-[140px] truncate">{selectedKpiLabel}</span>
                     {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                   </button>
-                  {showKpiDropdown && (
-                    <div className="absolute top-10 left-0 w-[280px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
-                      <div className="max-h-[420px] overflow-y-auto py-1">
-                        {['RF', 'SPATIAL', 'THROUGHPUT', 'VOICE', 'QUALITY', 'RTT', 'VOLUME'].filter(cat => MAP_KPIS.some(k => k.category === cat)).map(cat => (
-                          <div key={cat}>
-                            <div className="px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30">{cat}</div>
-                            {MAP_KPIS.filter(k => k.category === cat).map(kpi => (
-                              <button
-                                key={kpi.id}
-                                onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); }}
-                                className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-all ${
-                                  mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[11px] font-bold">{kpi.label}</span>
-                                  {kpi.unit && <span className="text-[9px] text-muted-foreground">({kpi.unit})</span>}
-                                </div>
-                                {mapKpi === kpi.id && <Check size={12} />}
-                              </button>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Threshold quick-view */}
