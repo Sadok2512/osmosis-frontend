@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { Signal, ChevronUp, ChevronDown, Settings2, RotateCcw, X, Activity, Play } from 'lucide-react';
 import { SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 import { Slider } from '@/components/ui/slider';
@@ -410,84 +410,105 @@ export const useCloudQoeMetrics = (siteDetail: any) => {
 };
 
 export const KPI_SERIES = [
-  { key: 'QoE', color: '#60a5fa', label: 'QOE' },
-  { key: 'DMS 3M', color: '#22c55e', label: 'DMS 3M' },
-  { key: 'DMS 8M', color: '#f59e0b', label: 'DMS 8M' },
-  { key: 'DMS 30M', color: '#f97316', label: 'DMS 30M' },
-  { key: 'DMS UL', color: '#ec4899', label: 'DMS UL' },
+  { key: 'Avg Distance', color: '#3b82f6', label: 'Avg Distance' },
 ];
 
-export const SiteKpiChart = ({ siteDetail, fullHeight }: { siteDetail: any; fullHeight?: boolean }) => {
-  const [activeSeries, setActiveSeries] = useState<Set<string>>(new Set(KPI_SERIES.map(k => k.key)));
-  const { cloudData, loading: cloudLoading, source } = useCloudQoeMetrics(siteDetail);
-  const mockData = useMemo(() => generateSiteTimeSeries(siteDetail), [siteDetail]);
-  const data = cloudData ?? mockData;
+const RACH_BINS = ['0–500m', '500m–1km', '1–2km', '2–5km', '>5km'];
+const RACH_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'];
 
-  const toggleSeries = (key: string) => {
-    setActiveSeries(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
+const generateDistanceSeries = (siteDetail: any) => {
+  const seed = siteDetail?.site_id || 'default';
+  const days = 14;
+  const now = new Date('2026-02-10');
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (days - 1 - i));
+    const hash = [...(seed + i.toString())].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+    const v = 0.3 + (Math.abs(Math.sin(hash)) * 1.7);
+    return { date: d.toISOString().slice(5, 10), 'Avg Distance': +v.toFixed(2) };
+  });
+};
+
+const generateRachBins = (siteDetail: any) => {
+  const seed = siteDetail?.site_id || 'default';
+  const raw = RACH_BINS.map((_, i) => {
+    const hash = [...(seed + 'rach' + i)].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+    return 5 + Math.abs(Math.sin(hash)) * 35;
+  });
+  const total = raw.reduce((a, b) => a + b, 0);
+  return RACH_BINS.map((bin, i) => ({ bin, pct: +((raw[i] / total) * 100).toFixed(1) }));
+};
+
+export const SiteKpiChart = ({ siteDetail, fullHeight }: { siteDetail: any; fullHeight?: boolean }) => {
+  const [chartMode, setChartMode] = useState<'distance' | 'rach'>('distance');
+
+  const distData = useMemo(() => generateDistanceSeries(siteDetail), [siteDetail]);
+  const rachData = useMemo(() => generateRachBins(siteDetail), [siteDetail]);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="flex flex-wrap gap-1.5">
-          {KPI_SERIES.map(s => {
-            const isActive = activeSeries.has(s.key);
-            return (
-              <button
-                key={s.key}
-                onClick={() => toggleSeries(s.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all ${
-                  isActive
-                    ? 'text-white shadow-sm'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-                style={isActive ? { background: s.color } : undefined}
-              >
-                <div className="w-2 h-2 rounded-full" style={{ background: s.color }} />
-                {s.label}
-              </button>
-            );
-          })}
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => setChartMode('distance')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all ${
+              chartMode === 'distance' ? 'text-white shadow-sm bg-primary' : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            <div className="w-2 h-2 rounded-full bg-primary" />
+            Avg Distance
+          </button>
+          <button
+            onClick={() => setChartMode('rach')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all ${
+              chartMode === 'rach' ? 'text-white shadow-sm' : 'bg-muted text-muted-foreground'
+            }`}
+            style={chartMode === 'rach' ? { background: '#8b5cf6' } : undefined}
+          >
+            <div className="w-2 h-2 rounded-full" style={{ background: '#8b5cf6' }} />
+            RACH Bins
+          </button>
         </div>
-        <span className={`text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg ${
-          source === 'cloud' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-        }`}>
-          {cloudLoading ? '⏳' : source === 'cloud' ? '☁ Cloud' : '◈ Simul'}
-        </span>
       </div>
       <div className={fullHeight ? "flex-1 min-h-[250px]" : "h-[200px]"}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
-            <RechartsTooltip
-              contentStyle={{
-                background: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
-                fontSize: '11px',
-              }}
-            />
-            {KPI_SERIES.filter(s => activeSeries.has(s.key)).map(s => (
-              <Line
-                key={s.key}
-                type="monotone"
-                dataKey={s.key}
-                stroke={s.color}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 3 }}
-                connectNulls
+          {chartMode === 'distance' ? (
+            <LineChart data={distData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
+              <YAxis unit=" km" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
+              <RechartsTooltip
+                contentStyle={{
+                  background: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                }}
+                formatter={(v: number) => [`${v} km`, 'Avg Distance']}
               />
-            ))}
-          </LineChart>
+              <Line type="monotone" dataKey="Avg Distance" stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
+            </LineChart>
+          ) : (
+            <BarChart data={rachData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="bin" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+              <YAxis unit="%" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
+              <RechartsTooltip
+                contentStyle={{
+                  background: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                }}
+                formatter={(v: number) => [`${v}%`, 'Users']}
+              />
+              <Bar dataKey="pct" radius={[4, 4, 0, 0]}>
+                {rachData.map((_, i) => (
+                  <Cell key={i} fill={RACH_COLORS[i]} />
+                ))}
+              </Bar>
+            </BarChart>
+          )}
         </ResponsiveContainer>
       </div>
     </div>

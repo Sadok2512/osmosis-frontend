@@ -9040,7 +9040,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="px-5 py-4">
                   <div className="flex items-center gap-2 mb-3">
                     <BarChart2 size={14} className="text-primary" />
-                    <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Evolution Temporelle des KPIs</h4>
+                    <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Analyse RF Spatiale</h4>
                   </div>
                   <SiteKpiChart siteDetail={{ site_name: 'Global', site_id: 'global', qoe_score_avg: avgQoE, dms_dl_3: avgDmsDl3, dms_dl_8: avgDmsDl8, dms_dl_30: avgDmsDl30, dms_ul_3: avgDmsUl3, p50_thr_dn_mbps: avgDl, p50_thr_up_mbps: avgUl, p95_rtt_ms: avgRtt, cells: [] } as any} />
                 </div>
@@ -9568,7 +9568,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <div className="px-5 py-4">
                 <div className="flex items-center gap-2 mb-3">
                   <BarChart2 size={14} className="text-primary" />
-                  <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Evolution Temporelle des KPIs</h4>
+                  <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Analyse RF Spatiale</h4>
                 </div>
                 <SiteKpiChart siteDetail={siteDetail} />
               </div>
@@ -9714,7 +9714,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <div className="px-5 py-4">
                       <div className="flex items-center gap-2 mb-3">
                         <BarChart2 size={14} className="text-primary" />
-                        <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Evolution Temporelle des KPIs</h4>
+                        <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Analyse RF Spatiale</h4>
                       </div>
                       <SiteKpiChart siteDetail={{ ...siteDetail, qoe_score_avg: cell.qoe_score_avg, dms_dl_3: cell.dms_dl_3, dms_dl_8: cell.dms_dl_8, dms_dl_30: cell.dms_dl_30, dms_ul_3: cell.dms_ul_3, site_id: cell.cell_id }} />
                     </div>
