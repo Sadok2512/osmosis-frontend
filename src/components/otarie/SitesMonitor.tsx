@@ -6385,6 +6385,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </>
       )}
 
+      {/* Tool usage hint */}
+      {activeMapTool && (
+        <div className="absolute bottom-14 z-[1001] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
+          <div className="bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-md px-3 py-1 text-[9px] font-medium text-muted-foreground whitespace-nowrap">
+            {activeMapTool === 'distance' && '📏 Cliquez 2 points pour mesurer la distance'}
+            {activeMapTool === 'polygon' && (polygonClosed ? '✅ Polygone fermé — cliquez le tool pour réinitialiser' : '🔷 Cliquez pour ajouter des points, double-clic pour fermer')}
+            {activeMapTool === 'radius' && (radiusCenter ? '🎯 Multi-rayon actif — cliquez ailleurs pour déplacer' : '🎯 Cliquez sur la carte pour placer le centre')}
+          </div>
+        </div>
+      )}
+
       {/* Floating status bar — minimal GIS style, centered on map */}
       <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
         <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg px-4 py-1.5 flex items-center gap-1">
