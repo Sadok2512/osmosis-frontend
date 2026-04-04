@@ -8,6 +8,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { exportElementToPDF } from '@/lib/exportUtils';
 import { SiteSummary } from '@/types';
 import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizationBlocks';
@@ -1187,7 +1188,7 @@ KpiTd.displayName = 'KpiTd';
 
 const MarkdownBlock: React.FC<{ content: string }> = React.memo(({ content }) => (
   <ReactMarkdown
-    remarkPlugins={[remarkGfm]}
+    remarkPlugins={[remarkGfm, remarkBreaks]}
     components={{
       h1: ({ children }) => <h1 className="text-lg font-bold text-foreground mt-5 mb-3">{children}</h1>,
       h2: ({ children }) => (
