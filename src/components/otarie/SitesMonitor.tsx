@@ -2840,13 +2840,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'radius') => {
     setDistanceMeasurePoints([]);
     setRadiusCenter(null);
+    setRadiusConfirmed(false);
+    setRadiusLiveMeters(0);
+    setRadiusConfirmedMeters(0);
     setPolygonPoints([]);
     setPolygonClosed(false);
     setActiveMapTool(prev => (prev === tool ? null : tool));
   }, []);
 
-  const handleRadiusClick = useCallback((latlng: LatLng) => {
+  const handleRadiusSetCenter = useCallback((latlng: LatLng) => {
     setRadiusCenter([latlng.lat, latlng.lng]);
+    setRadiusConfirmed(false);
+    setRadiusLiveMeters(0);
+    setRadiusConfirmedMeters(0);
+  }, []);
+
+  const handleRadiusConfirm = useCallback((radiusM: number) => {
+    setRadiusConfirmedMeters(radiusM);
+    setRadiusConfirmed(true);
+  }, []);
+
+  const handleRadiusPreview = useCallback((radiusM: number) => {
+    setRadiusLiveMeters(radiusM);
   }, []);
 
   const handlePolygonClick = useCallback((latlng: LatLng) => {
