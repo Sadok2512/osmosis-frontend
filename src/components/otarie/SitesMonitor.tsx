@@ -4951,7 +4951,42 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </Polyline>
         )}
 
-        {/* ── Parameter overlay markers ── */}
+        {/* ── Radius tool ── */}
+        {activeMapTool === 'radius' && radiusCenter && (
+          <>
+            <Circle
+              center={radiusCenter}
+              radius={radiusMeters}
+              pane="pane5G"
+              pathOptions={{
+                color: 'hsl(var(--primary))',
+                fillColor: 'hsl(var(--primary))',
+                fillOpacity: 0.08,
+                weight: 2,
+                dashArray: '6 4',
+              }}
+            >
+              <Tooltip permanent direction="center" opacity={1} className="!bg-card !border-border !text-foreground shadow-lg">
+                <div className="flex items-center gap-1.5 text-[10px] font-medium">
+                  <span className="font-semibold">{radiusMeters >= 1000 ? `${(radiusMeters / 1000).toFixed(1)} km` : `${radiusMeters} m`}</span>
+                </div>
+              </Tooltip>
+            </Circle>
+            <CircleMarker
+              center={radiusCenter}
+              radius={6}
+              pane="pane5G"
+              pathOptions={{
+                color: 'hsl(var(--background))',
+                fillColor: 'hsl(var(--primary))',
+                fillOpacity: 1,
+                weight: 2,
+              }}
+            />
+          </>
+        )}
+
+
         {paramMode && !paramLoading && paramPoints.length > 0 && (
           <FitHighlightBounds coords={paramPoints.map(p => [p.latitude, p.longitude] as [number, number])} />
         )}
