@@ -4868,6 +4868,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
         <CustomPointClickHandler active={pointCreationMode} onAdd={addCustomPoint} />
         <DistanceMeasureClickHandler active={activeMapTool === 'distance'} onPick={handleDistanceMeasureClick} />
+        <RadiusClickHandler active={activeMapTool === 'radius'} onPick={handleRadiusClick} />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
