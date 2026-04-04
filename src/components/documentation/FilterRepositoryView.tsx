@@ -162,13 +162,13 @@ const FilterRepositoryView: React.FC = () => {
         {/* List */}
         <div className={`${selectedFilter ? 'w-1/2 xl:w-3/5' : 'w-full'} flex flex-col overflow-hidden transition-all duration-300`}>
           {/* Column Header */}
-          <div className="shrink-0 grid grid-cols-[1fr_120px_80px_100px_80px_50px] gap-3 px-6 py-3 border-b border-border bg-muted/30">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Filter</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Topology</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cond.</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Modified</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground"></span>
+          <div className="shrink-0 grid grid-cols-[1fr_120px_60px_90px_70px_40px] gap-2 px-4 py-1.5 border-b border-border bg-muted/30">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Filter</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Topology</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Cond.</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Modified</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Status</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground"></span>
           </div>
 
           <div className="flex-1 overflow-y-auto">
