@@ -233,3 +233,15 @@ All colors MUST be HSL.
 .sector-tooltip::before {
   border-top-color: rgba(15,23,42,0.88) !important;
 }
+
+/* Leaflet map cursor — visible grey crosshair instead of invisible white */
+.leaflet-container {
+  cursor: crosshair !important;
+}
+.leaflet-container.leaflet-grab {
+  cursor: crosshair !important;
+}
+.leaflet-container.leaflet-dragging,
+.leaflet-container.leaflet-dragging .leaflet-grab {
+  cursor: grabbing !important;
+}
