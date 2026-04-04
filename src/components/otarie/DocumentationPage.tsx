@@ -8,7 +8,7 @@ import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
 import KpiCatalogView from '@/components/documentation/KpiCatalogView';
 
-type DocTab = 'topo' | 'kpi' | 'dimensions';
+type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'dimensions';
 
 /* ─────────── TOPO DATA ─────────── */
 const topoFields = [
