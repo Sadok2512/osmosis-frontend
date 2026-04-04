@@ -624,6 +624,20 @@ export const topoApi = {
     const data = await fetchJson<any>(url);
     return Array.isArray(data) ? data : (data?.sites || data?.rows || []);
   },
+
+  /** HW distribution: GET /api/v1/topo/hw-distribution */
+  hwDistribution: async (filters?: { vendor?: string; plaque?: string; region?: string }): Promise<any> => {
+    const qs = new URLSearchParams();
+    if (filters?.vendor && filters.vendor !== 'ALL') qs.set('vendor', filters.vendor);
+    if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
+    if (filters?.region && filters.region !== 'ALL') qs.set('region', filters.region);
+    const qsStr = qs.toString();
+    const path = qsStr ? `/topo/hw-distribution?${qsStr}` : '/topo/hw-distribution';
+    if (isLocalExpress()) {
+      return fetchJson<any>(localUrl(`topo/hw-distribution${qsStr ? '?' + qsStr : ''}`));
+    }
+    return fetchJson<any>(parserUrl(path));
+  },
 };
 
 // ─── QoE Metrics — VPS Parser :8000 at /api/v1/qoe/metrics ───

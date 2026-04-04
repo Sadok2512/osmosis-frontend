@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { dumpParameterApi } from '@/lib/localDb';
 import { supabase } from '@/integrations/supabase/client';
-import { getApiUrl, getApiHeaders, getPreferredDataSource, setPreferredDataSource } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, getPreferredDataSource, setPreferredDataSource, getVpsProxyUrl, getAgentHeaders } from '@/lib/apiConfig';
 import {
   Search, Filter, Download, Loader2, ChevronDown, Wifi, WifiOff, Database,
   Layers, FileSpreadsheet, Check, X, AlertCircle, ChevronLeft, ChevronRight, RotateCcw,
@@ -778,9 +778,9 @@ Fournis:
     setAiLoading(true);
 
     try {
-      // Use local server only
-      const url = getApiUrl('qoe-assistant');
-      const headers = getApiHeaders();
+      // Use VPS agent orchestrator
+      const url = getVpsProxyUrl('agent', '/orchestrator/stream');
+      const headers = getAgentHeaders();
 
       const resp = await fetch(url, {
         method: 'POST',

@@ -11,7 +11,9 @@ export type ProgressEventType =
   | 'orchestrator_plan'
   | 'agent_start'
   | 'agent_done'
-  | 'synthesis_start';
+  | 'synthesis_start'
+  | 'skill_loading'
+  | 'skill_executed';
 
 export interface ProgressEvent {
   type: ProgressEventType;

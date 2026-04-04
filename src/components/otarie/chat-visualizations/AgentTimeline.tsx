@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Zap, Database, Sparkles, Users, ChevronDown, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Zap, Database, Sparkles, Users, ChevronDown, ChevronRight, CheckCircle2, Wrench, ShieldCheck } from 'lucide-react';
 import type { ProgressEvent } from '@/stores/chatSessionStore';
 
 const AGENT_META: Record<string, { emoji: string; label: string; color: string }> = {
@@ -26,6 +26,10 @@ function getEventIcon(type: string) {
     case 'tool_start':
     case 'tool_done':
       return Database;
+    case 'skill_loading':
+      return Wrench;
+    case 'skill_executed':
+      return ShieldCheck;
     case 'generating':
     case 'synthesis_start':
       return Sparkles;
@@ -34,6 +38,23 @@ function getEventIcon(type: string) {
     default:
       return Zap;
   }
+}
+
+function getVerdictBadge(verdict?: string) {
+  if (!verdict) return null;
+  const map: Record<string, { bg: string; text: string }> = {
+    OK: { bg: 'bg-green-500/20', text: 'text-green-400' },
+    WARN: { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+    FAIL: { bg: 'bg-red-500/20', text: 'text-red-400' },
+    SKIP: { bg: 'bg-gray-500/20', text: 'text-gray-400' },
+    ERROR: { bg: 'bg-red-500/20', text: 'text-red-400' },
+  };
+  const style = map[verdict] || map.SKIP;
+  return (
+    <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${style.bg} ${style.text}`}>
+      {verdict}
+    </span>
+  );
 }
 
 function getEventLabel(event: ProgressEvent): string {
@@ -48,6 +69,10 @@ function getEventLabel(event: ProgressEvent): string {
       return `Querying ${event.tool || 'database'}...`;
     case 'tool_done':
       return `${event.tool || 'Query'} done`;
+    case 'skill_loading':
+      return `Loading skill ${event.skill_id || ''}...`;
+    case 'skill_executed':
+      return `Skill ${event.skill_name || event.skill_id || ''} executed`;
     case 'generating':
       return 'Generating response...';
     case 'agent_done':
@@ -79,12 +104,14 @@ const AgentTimeline: React.FC<AgentTimelineProps> = ({ events, isStreaming }) =>
     if (events.length === 0) return null;
     const agents = new Set<string>();
     let toolCount = 0;
+    let skillCount = 0;
     let firstTs = Infinity;
     let lastTs = 0;
 
     for (const e of events) {
       if (e.agent) agents.add(e.agent);
       if (e.type === 'tool_start') toolCount++;
+      if (e.type === 'skill_executed') skillCount++;
       if (e.ts < firstTs) firstTs = e.ts;
       if (e.ts > lastTs) lastTs = e.ts;
     }
@@ -103,6 +130,7 @@ const AgentTimeline: React.FC<AgentTimelineProps> = ({ events, isStreaming }) =>
       label: meta?.label || primaryAgent,
       color: meta?.color || 'hsl(220, 15%, 55%)',
       toolCount,
+      skillCount,
       duration: durationStr,
       agents: agentList,
     };
@@ -166,14 +194,13 @@ const AgentTimeline: React.FC<AgentTimelineProps> = ({ events, isStreaming }) =>
           ) : summary ? (
             <>
               <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
-              <span
-                className="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
-                style={{ backgroundColor: summary.color, color: '#fff' }}
-              >
-                {summary.emoji} {summary.label}
-              </span>
-              <span className="text-[11px] text-muted-foreground truncate flex-1">
-                {summary.toolCount} {summary.toolCount === 1 ? 'query' : 'queries'} &mdash; {summary.duration}
+              <span className="text-[11px] text-foreground/70 truncate flex-1">
+                <span style={{ color: summary.color }}>{summary.emoji} {summary.label}</span>
+                <span className="text-muted-foreground">
+                  {' '}&mdash; {summary.toolCount} {summary.toolCount === 1 ? 'query' : 'queries'}
+                  {summary.skillCount > 0 && ` + ${summary.skillCount} skill${summary.skillCount > 1 ? 's' : ''}`}
+                  {' '}&mdash; {summary.duration}
+                </span>
               </span>
               <ChevronRight className="w-3 h-3 text-muted-foreground/40 group-hover:text-foreground/60 transition-colors shrink-0" />
             </>
@@ -222,6 +249,7 @@ const AgentTimeline: React.FC<AgentTimelineProps> = ({ events, isStreaming }) =>
               <Icon className="w-3 h-3 shrink-0" style={{ color }} />
               <span className={`text-[11px] truncate ${isActive ? 'text-foreground font-medium' : 'text-foreground/60'}`}>
                 {label}
+                {event.type === 'skill_executed' && getVerdictBadge(event.verdict)}
               </span>
             </div>
           );

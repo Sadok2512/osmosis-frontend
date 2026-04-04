@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DetectorConfig } from '../../types';
 import { fetchDetectorConfigs } from '../../services/mockData';
 import { topoApi } from '@/lib/localDb';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getVpsProxyUrl, getAgentHeaders } from '@/lib/apiConfig';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -76,9 +76,9 @@ const AIDetectorPanel: React.FC = () => {
     };
 
     try {
-      const resp = await fetch(getApiUrl('qoe-assistant'), {
+      const resp = await fetch(getVpsProxyUrl('agent', '/orchestrator/stream'), {
         method: 'POST',
-        headers: getApiHeaders(),
+        headers: getAgentHeaders(),
         body: JSON.stringify({
           messages: allMessages.map(m => ({ role: m.role, content: m.content })),
           cellContext: topoStats,

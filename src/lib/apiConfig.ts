@@ -14,7 +14,7 @@ const VPS_HOST = '151.242.147.49';
 export const VPS_ENDPOINTS = {
   parser:  `http://${VPS_HOST}:8000`,
   kpi:     `http://${VPS_HOST}:8001`,
-  agent:   `http://${VPS_HOST}:1000`,
+  agent:   `http://${VPS_HOST}:8000`,  // proxied through parser to agent :1000
 } as const;
 
 const LOCAL_API_ENV = import.meta.env.VITE_LOCAL_API;
