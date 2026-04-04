@@ -17,6 +17,7 @@ import { parseKpiBlocks, KpiSummaryCards, SplitSectionCards } from '../kpi-monit
 import { getAgentHeaders, isLocalMode, getVpsProxyUrl } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage, type ProgressEvent } from '@/stores/chatSessionStore';
 import AgentTimeline from './chat-visualizations/AgentTimeline';
+import ChatInput from './ChatInput';
 import { useAgentLearningStore } from '@/stores/agentLearningStore';
 import { dashboardsApi } from '@/lib/localDb';
 import { createDefaultChart, CHART_COLORS } from '@/components/bi/biTypes';
