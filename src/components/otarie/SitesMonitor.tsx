@@ -6098,8 +6098,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </>
       )}
 
-      {/* Floating status bar — minimal GIS style */}
-      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + 16px)` }}>
+      {/* Floating status bar — minimal GIS style, centered on map */}
+      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
         <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-xl shadow-md px-3.5 py-1.5 flex items-center gap-3">
           {paramMode ? (
             <>
@@ -6586,7 +6586,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating bottom-left: display mode + layer switcher */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16 }}>
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16, bottom: 64 }}>
           {/* Display mode: Sites / Points / Heatmap */}
           <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
             {([
