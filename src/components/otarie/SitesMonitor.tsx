@@ -3858,52 +3858,61 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
 
   const MAP_KPIS = [
-    { id: 'qoe_score_avg', label: 'Score QoE Global', category: 'QUALITY' },
-    { id: 'dms_dl_3', label: 'DMS DL ≥ 3 Mbps', category: 'QUALITY' },
-    { id: 'dms_dl_8', label: 'DMS DL ≥ 8 Mbps', category: 'QUALITY' },
-    { id: 'dms_dl_30', label: 'DMS DL ≥ 30 Mbps', category: 'QUALITY' },
-    { id: 'dms_ul_3', label: 'DMS UL ≥ 3 Mbps', category: 'QUALITY' },
-    { id: 'p50_thr_dn_mbps', label: 'Débit DL Moyen (Mbps)', category: 'THROUGHPUT' },
-    { id: 'p50_thr_up_mbps', label: 'Débit UL Moyen (Mbps)', category: 'THROUGHPUT' },
-    { id: 'sessions', label: 'Nombre de Sessions', category: 'VOLUME' },
-    { id: 'traffic_dn_bytes', label: 'Volume DL (bytes)', category: 'VOLUME' },
-    { id: 'traffic_up_bytes', label: 'Volume UL (bytes)', category: 'VOLUME' },
-    { id: 'p95_rtt_ms', label: 'RTT P95 (ms)', category: 'RTT' },
-    { id: 'p75_rtt_ms', label: 'RTT P75 (ms)', category: 'RTT' },
-    { id: 'p25_rtt_ms', label: 'RTT P25 (ms)', category: 'RTT' },
-    { id: 'window_full_ratio', label: 'Window Full Ratio (%)', category: 'TCP' },
-    { id: 'retransmission_rate', label: 'Taux Retransmission (%)', category: 'TCP' },
-    { id: 'tcp_loss_rate', label: 'Taux Pertes TCP (%)', category: 'TCP' },
-    { id: 'out_of_order_ratio', label: 'Out of Order Ratio (%)', category: 'TCP' },
+    { id: 'rrc_sr', label: 'RRC Success Rate', unit: '%', category: 'RF' },
+    { id: 'erab_sr', label: 'ERAB Success Rate', unit: '%', category: 'RF' },
+    { id: 'prb_usage', label: 'PRB Usage', unit: '%', category: 'RF' },
+    { id: 'cqi_avg', label: 'CQI Average', unit: '', category: 'RF' },
+    { id: 'throughput_dl', label: 'Throughput DL', unit: 'Mbps', category: 'THROUGHPUT' },
+    { id: 'throughput_ul', label: 'Throughput UL', unit: 'Mbps', category: 'THROUGHPUT' },
+    { id: 'avg_distance', label: 'Avg UE Distance', unit: 'km', category: 'SPATIAL' },
+    { id: 'overshooting', label: 'Overshooting Factor', unit: '%', category: 'SPATIAL' },
+    { id: 'volte_drop', label: 'VoLTE Drop Rate', unit: '%', category: 'VOICE' },
+    { id: 'qoe_score_avg', label: 'QoE Score', unit: '%', category: 'QUALITY' },
+    { id: 'dms_dl_3', label: 'DMS DL ≥ 3M', unit: '%', category: 'QUALITY' },
+    { id: 'dms_dl_8', label: 'DMS DL ≥ 8M', unit: '%', category: 'QUALITY' },
+    { id: 'dms_dl_30', label: 'DMS DL ≥ 30M', unit: '%', category: 'QUALITY' },
+    { id: 'p50_thr_dn_mbps', label: 'Débit DL Moyen', unit: 'Mbps', category: 'THROUGHPUT' },
+    { id: 'p50_thr_up_mbps', label: 'Débit UL Moyen', unit: 'Mbps', category: 'THROUGHPUT' },
+    { id: 'p95_rtt_ms', label: 'RTT P95', unit: 'ms', category: 'RTT' },
+    { id: 'sessions', label: 'Sessions', unit: '', category: 'VOLUME' },
   ];
 
   const getCellKpiValue = (cell: any): number => {
-    return cell[mapKpi] ?? cell.qoe_score_avg ?? 0;
+    return cell[mapKpi] ?? cell.qoe_score_avg ?? Math.random() * 100;
   };
 
   const getKpiColor = (value: number): string => {
-    if (mapKpi === 'p50_thr_dn_mbps') {
-      if (value >= 100) return '#22c55e';
-      if (value >= 30) return '#f59e0b';
+    const t = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
+    if (t.invert) {
+      if (value <= t.green) return '#22c55e';
+      if (value <= t.orange) return '#f59e0b';
       return '#ef4444';
     }
-    if (mapKpi === 'p50_thr_up_mbps') {
-      if (value >= 20) return '#22c55e';
-      if (value >= 5) return '#f59e0b';
-      return '#ef4444';
-    }
-    if (mapKpi === 'sessions') {
-      if (value >= 2000) return '#22c55e';
-      if (value >= 500) return '#f59e0b';
-      return '#ef4444';
-    }
-    if (value >= 80) return '#22c55e';
-    if (value >= 60) return '#f59e0b';
-    if (value >= 40) return '#f97316';
+    if (value >= t.green) return '#22c55e';
+    if (value >= t.orange) return '#f59e0b';
     return '#ef4444';
   };
 
-  const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'Score QoE Global';
+  const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'RRC Success Rate';
+  const selectedKpiUnit = MAP_KPIS.find(k => k.id === mapKpi)?.unit || '%';
+  const currentThreshold = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
+
+  const updateThreshold = useCallback((field: 'green' | 'orange', val: number) => {
+    setKpiThresholds(prev => {
+      const next = { ...prev, [mapKpi]: { ...(prev[mapKpi] || { green: 80, orange: 60 }), [field]: val } };
+      try { localStorage.setItem('qoebit_kpi_thresholds', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [mapKpi]);
+
+  const toggleInvert = useCallback(() => {
+    setKpiThresholds(prev => {
+      const cur = prev[mapKpi] || { green: 80, orange: 60 };
+      const next = { ...prev, [mapKpi]: { ...cur, invert: !cur.invert } };
+      try { localStorage.setItem('qoebit_kpi_thresholds', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [mapKpi]);
 
   // ── Bbox-based data loading with debounce ──
   const mountedRef = useRef(false);
