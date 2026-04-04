@@ -127,7 +127,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredSession, setHoveredSession] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  // inputRef moved to ChatInput component
 
   const addDebugLog = (msg: string) => {
     const ts = new Date().toLocaleTimeString();
