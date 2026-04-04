@@ -6098,8 +6098,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </>
       )}
 
-      {/* Floating status bar — minimal GIS style */}
-      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + 16px)` }}>
+      {/* Floating status bar — minimal GIS style, centered on map */}
+      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
         <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-xl shadow-md px-3.5 py-1.5 flex items-center gap-3">
           {paramMode ? (
             <>
