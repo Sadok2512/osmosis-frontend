@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
+import KpiCatalogView from '@/components/documentation/KpiCatalogView';
 
 type DocTab = 'topo' | 'kpi' | 'dimensions';
 
