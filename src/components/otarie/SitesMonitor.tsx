@@ -2926,6 +2926,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
+  const [kpiSearch, setKpiSearch] = useState('');
   const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean }>>(() => {
     try {
       const saved = localStorage.getItem('qoebit_kpi_thresholds');
