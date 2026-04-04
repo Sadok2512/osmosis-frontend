@@ -532,7 +532,6 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
 
   const clearChat = () => {
     if (activeSessionId) sessionStore.setMessages(activeSessionId, []);
-    setInput('');
   };
 
   const handleNewSession = () => sessionStore.createSession();
