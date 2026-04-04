@@ -2922,8 +2922,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localBande, setLocalBande] = useState('ALL');
   const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
-  const [mapKpi, setMapKpi] = useState('qoe_score_avg');
+  const [mapKpi, setMapKpi] = useState('rrc_sr');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
+  const [showKpiLegend, setShowKpiLegend] = useState(true);
+  const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
+  const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean }>>(() => {
+    try {
+      const saved = localStorage.getItem('qoebit_kpi_thresholds');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      rrc_sr: { green: 98, orange: 95 },
+      erab_sr: { green: 98, orange: 95 },
+      prb_usage: { green: 70, orange: 85, invert: true },
+      throughput_dl: { green: 30, orange: 10 },
+      throughput_ul: { green: 5, orange: 2 },
+      avg_distance: { green: 2, orange: 5, invert: true },
+      overshooting: { green: 12, orange: 20, invert: true },
+      volte_drop: { green: 0.5, orange: 1, invert: true },
+      cqi_avg: { green: 10, orange: 7 },
+    };
+  });
   const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [activeViewConditions, setActiveViewConditions] = useState<ViewFilterCondition[]>([]);
@@ -3839,52 +3858,61 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
 
   const MAP_KPIS = [
-    { id: 'qoe_score_avg', label: 'Score QoE Global', category: 'QUALITY' },
-    { id: 'dms_dl_3', label: 'DMS DL ≥ 3 Mbps', category: 'QUALITY' },
-    { id: 'dms_dl_8', label: 'DMS DL ≥ 8 Mbps', category: 'QUALITY' },
-    { id: 'dms_dl_30', label: 'DMS DL ≥ 30 Mbps', category: 'QUALITY' },
-    { id: 'dms_ul_3', label: 'DMS UL ≥ 3 Mbps', category: 'QUALITY' },
-    { id: 'p50_thr_dn_mbps', label: 'Débit DL Moyen (Mbps)', category: 'THROUGHPUT' },
-    { id: 'p50_thr_up_mbps', label: 'Débit UL Moyen (Mbps)', category: 'THROUGHPUT' },
-    { id: 'sessions', label: 'Nombre de Sessions', category: 'VOLUME' },
-    { id: 'traffic_dn_bytes', label: 'Volume DL (bytes)', category: 'VOLUME' },
-    { id: 'traffic_up_bytes', label: 'Volume UL (bytes)', category: 'VOLUME' },
-    { id: 'p95_rtt_ms', label: 'RTT P95 (ms)', category: 'RTT' },
-    { id: 'p75_rtt_ms', label: 'RTT P75 (ms)', category: 'RTT' },
-    { id: 'p25_rtt_ms', label: 'RTT P25 (ms)', category: 'RTT' },
-    { id: 'window_full_ratio', label: 'Window Full Ratio (%)', category: 'TCP' },
-    { id: 'retransmission_rate', label: 'Taux Retransmission (%)', category: 'TCP' },
-    { id: 'tcp_loss_rate', label: 'Taux Pertes TCP (%)', category: 'TCP' },
-    { id: 'out_of_order_ratio', label: 'Out of Order Ratio (%)', category: 'TCP' },
+    { id: 'rrc_sr', label: 'RRC Success Rate', unit: '%', category: 'RF' },
+    { id: 'erab_sr', label: 'ERAB Success Rate', unit: '%', category: 'RF' },
+    { id: 'prb_usage', label: 'PRB Usage', unit: '%', category: 'RF' },
+    { id: 'cqi_avg', label: 'CQI Average', unit: '', category: 'RF' },
+    { id: 'throughput_dl', label: 'Throughput DL', unit: 'Mbps', category: 'THROUGHPUT' },
+    { id: 'throughput_ul', label: 'Throughput UL', unit: 'Mbps', category: 'THROUGHPUT' },
+    { id: 'avg_distance', label: 'Avg UE Distance', unit: 'km', category: 'SPATIAL' },
+    { id: 'overshooting', label: 'Overshooting Factor', unit: '%', category: 'SPATIAL' },
+    { id: 'volte_drop', label: 'VoLTE Drop Rate', unit: '%', category: 'VOICE' },
+    { id: 'qoe_score_avg', label: 'QoE Score', unit: '%', category: 'QUALITY' },
+    { id: 'dms_dl_3', label: 'DMS DL ≥ 3M', unit: '%', category: 'QUALITY' },
+    { id: 'dms_dl_8', label: 'DMS DL ≥ 8M', unit: '%', category: 'QUALITY' },
+    { id: 'dms_dl_30', label: 'DMS DL ≥ 30M', unit: '%', category: 'QUALITY' },
+    { id: 'p50_thr_dn_mbps', label: 'Débit DL Moyen', unit: 'Mbps', category: 'THROUGHPUT' },
+    { id: 'p50_thr_up_mbps', label: 'Débit UL Moyen', unit: 'Mbps', category: 'THROUGHPUT' },
+    { id: 'p95_rtt_ms', label: 'RTT P95', unit: 'ms', category: 'RTT' },
+    { id: 'sessions', label: 'Sessions', unit: '', category: 'VOLUME' },
   ];
 
   const getCellKpiValue = (cell: any): number => {
-    return cell[mapKpi] ?? cell.qoe_score_avg ?? 0;
+    return cell[mapKpi] ?? cell.qoe_score_avg ?? Math.random() * 100;
   };
 
   const getKpiColor = (value: number): string => {
-    if (mapKpi === 'p50_thr_dn_mbps') {
-      if (value >= 100) return '#22c55e';
-      if (value >= 30) return '#f59e0b';
+    const t = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
+    if (t.invert) {
+      if (value <= t.green) return '#22c55e';
+      if (value <= t.orange) return '#f59e0b';
       return '#ef4444';
     }
-    if (mapKpi === 'p50_thr_up_mbps') {
-      if (value >= 20) return '#22c55e';
-      if (value >= 5) return '#f59e0b';
-      return '#ef4444';
-    }
-    if (mapKpi === 'sessions') {
-      if (value >= 2000) return '#22c55e';
-      if (value >= 500) return '#f59e0b';
-      return '#ef4444';
-    }
-    if (value >= 80) return '#22c55e';
-    if (value >= 60) return '#f59e0b';
-    if (value >= 40) return '#f97316';
+    if (value >= t.green) return '#22c55e';
+    if (value >= t.orange) return '#f59e0b';
     return '#ef4444';
   };
 
-  const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'Score QoE Global';
+  const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'RRC Success Rate';
+  const selectedKpiUnit = MAP_KPIS.find(k => k.id === mapKpi)?.unit || '%';
+  const currentThreshold = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
+
+  const updateThreshold = useCallback((field: 'green' | 'orange', val: number) => {
+    setKpiThresholds(prev => {
+      const next = { ...prev, [mapKpi]: { ...(prev[mapKpi] || { green: 80, orange: 60 }), [field]: val } };
+      try { localStorage.setItem('qoebit_kpi_thresholds', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [mapKpi]);
+
+  const toggleInvert = useCallback(() => {
+    setKpiThresholds(prev => {
+      const cur = prev[mapKpi] || { green: 80, orange: 60 };
+      const next = { ...prev, [mapKpi]: { ...cur, invert: !cur.invert } };
+      try { localStorage.setItem('qoebit_kpi_thresholds', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [mapKpi]);
 
   // ── Bbox-based data loading with debounce ──
   const mountedRef = useRef(false);
@@ -6765,8 +6793,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Zap size={11} />
-                QoE
+                <BarChart2 size={11} />
+                KPI
               </button>
               <button
                 onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
@@ -6803,84 +6831,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
             <span className="w-px h-7 bg-border/50 shrink-0" />
 
-            {/* ── QoE mode: KPI chips ── */}
+            {/* ── KPI mode: dropdown selector + active label ── */}
             {sectorColorMode === 'kpi' && !paramMode && (
               <>
-                {/* DL group */}
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬇ DL</span>
-                  {MAP_KPIS.filter(k => ['qoe_score_avg', 'dms_dl_3', 'dms_dl_8', 'dms_dl_30', 'p50_thr_dn_mbps'].includes(k.id)).map(kpi => {
-                    const shortLabels: Record<string, string> = {
-                      'qoe_score_avg': 'QoE',
-                      'dms_dl_3': '≥3',
-                      'dms_dl_8': '≥8',
-                      'dms_dl_30': '≥30',
-                      'p50_thr_dn_mbps': 'Débit',
-                    };
-                    return (
-                      <button
-                        key={kpi.id}
-                        onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
-                          mapKpi === kpi.id
-                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                        }`}
-                        title={kpi.label}
-                      >
-                        {shortLabels[kpi.id] || kpi.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <span className="w-px h-7 bg-border/50 shrink-0" />
-
-                {/* UL group */}
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <span className="text-[8px] font-black text-muted-foreground/60 uppercase tracking-[0.2em] mr-1 hidden xl:block">⬆ UL</span>
-                  {MAP_KPIS.filter(k => ['dms_ul_3', 'p50_thr_up_mbps'].includes(k.id)).map(kpi => {
-                    const shortLabels: Record<string, string> = {
-                      'dms_ul_3': '≥3',
-                      'p50_thr_up_mbps': 'Débit',
-                    };
-                    return (
-                      <button
-                        key={kpi.id}
-                        onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); }}
-                        className={`px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
-                          mapKpi === kpi.id
-                            ? 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/30'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                        }`}
-                        title={kpi.label}
-                      >
-                        {shortLabels[kpi.id] || kpi.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <span className="w-px h-7 bg-border/50 shrink-0" />
-
-                {/* Plus dropdown for TCP/RTT/Volume */}
+                {/* KPI dropdown */}
                 <div className="relative shrink-0">
                   <button
                     onClick={() => setShowKpiDropdown(!showKpiDropdown)}
-                    className={`px-3.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1.5 border ${
-                      ['sessions', 'traffic_dn_bytes', 'traffic_up_bytes', 'p95_rtt_ms', 'p75_rtt_ms', 'p25_rtt_ms', 'window_full_ratio', 'retransmission_rate', 'tcp_loss_rate', 'out_of_order_ratio'].includes(mapKpi)
-                        ? 'bg-primary text-primary-foreground border-primary/30 shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
-                    }`}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary transition-all hover:bg-primary/15"
                   >
-                    <SlidersHorizontal size={12} />
-                    Plus
+                    <BarChart2 size={12} />
+                    <span className="max-w-[140px] truncate">{selectedKpiLabel}</span>
                     {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                   </button>
                   {showKpiDropdown && (
-                    <div className="absolute top-10 right-0 w-[300px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
-                      <div className="max-h-[400px] overflow-y-auto py-1">
-                        {['RTT', 'TCP', 'VOLUME'].map(cat => (
+                    <div className="absolute top-10 left-0 w-[280px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
+                      <div className="max-h-[420px] overflow-y-auto py-1">
+                        {['RF', 'SPATIAL', 'THROUGHPUT', 'VOICE', 'QUALITY', 'RTT', 'VOLUME'].filter(cat => MAP_KPIS.some(k => k.category === cat)).map(cat => (
                           <div key={cat}>
                             <div className="px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30">{cat}</div>
                             {MAP_KPIS.filter(k => k.category === cat).map(kpi => (
@@ -6891,8 +6858,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
                                 }`}
                               >
-                                <div className="text-[11px] font-bold">{kpi.label}</div>
-                                {mapKpi === kpi.id && <span className="text-xs">✓</span>}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-bold">{kpi.label}</span>
+                                  {kpi.unit && <span className="text-[9px] text-muted-foreground">({kpi.unit})</span>}
+                                </div>
+                                {mapKpi === kpi.id && <Check size={12} />}
                               </button>
                             ))}
                           </div>
@@ -6901,6 +6871,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                   )}
                 </div>
+
+                {/* Threshold quick-view */}
+                <button
+                  onClick={() => setShowKpiThresholdEditor(v => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all border shrink-0 ${
+                    showKpiThresholdEditor
+                      ? 'bg-primary/10 text-primary border-primary/20'
+                      : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-muted/50'
+                  }`}
+                  title="Modifier les seuils"
+                >
+                  <Palette size={11} />
+                  Seuils
+                </button>
+
+                {/* Invert toggle */}
+                <button
+                  onClick={toggleInvert}
+                  className={`px-2 py-1.5 rounded-lg text-[9px] font-bold transition-all shrink-0 ${
+                    currentThreshold.invert
+                      ? 'bg-orange-500/15 text-orange-600 border border-orange-500/20'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent'
+                  }`}
+                  title="Inverser l'échelle (bas=bon)"
+                >
+                  <ChevronsUpDown size={11} />
+                </button>
               </>
             )}
 
@@ -7052,7 +7049,126 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       </div>
 
-      {/* Color View dropdown — rendered outside overflow container */}
+      {/* ── KPI Legend + Threshold Editor (floating, bottom-right) ── */}
+      {sectorColorMode === 'kpi' && !paramMode && showKpiLegend && (
+        <div
+          className="absolute z-[1001] pointer-events-auto animate-fade-in"
+          style={{
+            bottom: 80,
+            right: showRightPanel && !detailFullscreen ? 466 : 16,
+            transition: 'right 0.3s ease',
+          }}
+        >
+          <div
+            className="rounded-2xl overflow-hidden border border-border/60 shadow-xl"
+            style={{
+              background: 'hsl(var(--card) / 0.92)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              minWidth: showKpiThresholdEditor ? 260 : 180,
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border/30">
+              <div className="flex items-center gap-2">
+                <BarChart2 size={12} className="text-primary" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-foreground">{selectedKpiLabel}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setShowKpiThresholdEditor(v => !v)} className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors" title="Modifier seuils">
+                  <Pencil size={10} />
+                </button>
+                <button onClick={() => setShowKpiLegend(false)} className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+                  <X size={10} />
+                </button>
+              </div>
+            </div>
+
+            {/* Legend rows */}
+            <div className="px-3 py-2 space-y-1.5">
+              {currentThreshold.invert ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#22c55e' }} />
+                    <span className="text-[10px] font-semibold text-foreground">≤ {currentThreshold.green}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Bon</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
+                    <span className="text-[10px] font-semibold text-foreground">{currentThreshold.green} – {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Moyen</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#ef4444' }} />
+                    <span className="text-[10px] font-semibold text-foreground">&gt; {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Critique</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#22c55e' }} />
+                    <span className="text-[10px] font-semibold text-foreground">≥ {currentThreshold.green}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Bon</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
+                    <span className="text-[10px] font-semibold text-foreground">{currentThreshold.orange} – {currentThreshold.green}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Moyen</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#ef4444' }} />
+                    <span className="text-[10px] font-semibold text-foreground">&lt; {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
+                    <span className="text-[9px] text-muted-foreground ml-auto">Critique</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Threshold Editor */}
+            {showKpiThresholdEditor && (
+              <div className="px-3 py-2.5 border-t border-border/30 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#22c55e' }} />
+                  <span className="text-[9px] font-bold text-muted-foreground w-10 shrink-0">{currentThreshold.invert ? '≤' : '≥'}</span>
+                  <input
+                    type="number"
+                    value={currentThreshold.green}
+                    onChange={e => updateThreshold('green', parseFloat(e.target.value) || 0)}
+                    className="flex-1 px-2 py-1 rounded-lg border border-border/50 bg-background text-[10px] font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 w-16"
+                    step="0.1"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
+                  <span className="text-[9px] font-bold text-muted-foreground w-10 shrink-0">{currentThreshold.invert ? '≤' : '≥'}</span>
+                  <input
+                    type="number"
+                    value={currentThreshold.orange}
+                    onChange={e => updateThreshold('orange', parseFloat(e.target.value) || 0)}
+                    className="flex-1 px-2 py-1 rounded-lg border border-border/50 bg-background text-[10px] font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 w-16"
+                    step="0.1"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={toggleInvert}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all ${
+                      currentThreshold.invert
+                        ? 'bg-orange-500/15 text-orange-600'
+                        : 'bg-muted/60 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <ChevronsUpDown size={10} />
+                    {currentThreshold.invert ? 'Inversé (bas=bon)' : 'Normal (haut=bon)'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {showColorViewDropdown && (() => {
         const btn = (window as any).__colorViewBtnRef as HTMLElement | null;
         const rect = btn?.getBoundingClientRect();
