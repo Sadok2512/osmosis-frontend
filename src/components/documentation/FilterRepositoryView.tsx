@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Search, Plus, Filter as FilterIcon, RefreshCw, SlidersHorizontal,
-  MoreHorizontal, Eye, Pencil, Copy, Trash2, Archive, LayoutList,
-  Database, Clock, User, Hash, ChevronDown
+  Search, Plus, Filter as FilterIcon, SlidersHorizontal,
+  MoreHorizontal, Eye, Pencil, Copy, Trash2, Archive,
+  Lock, Unlock, Globe, ShieldAlert
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { NetworkFilter, FilterStatus } from './filterTypes';
-import { MOCK_FILTERS, FILTER_STATUS_CONFIG } from './filterTypes';
+import { MOCK_FILTERS, FILTER_STATUS_CONFIG, FILTER_PERMISSION_CONFIG, FILTER_VISIBILITY_CONFIG } from './filterTypes';
 import FilterDetailsDrawer from './FilterDetailsDrawer';
 import CreateFilterWizard from './CreateFilterWizard';
 
@@ -38,7 +38,6 @@ const FilterRepositoryView: React.FC = () => {
     return result;
   }, [filters, search, statusFilter, sortBy]);
 
-  // Stats
   const stats = useMemo(() => ({
     total: filters.length,
     active: filters.filter(f => f.status === 'active').length,
@@ -53,6 +52,7 @@ const FilterRepositoryView: React.FC = () => {
   const handleCreate = (data: any) => {
     const newFilter: NetworkFilter = {
       id: `f-${Date.now()}`, name: data.name, description: data.description, status: data.status,
+      permission: 'editable', visibility: 'private',
       created_by: 'admin', created_at: new Date().toISOString().slice(0, 10),
       updated_at: new Date().toISOString().slice(0, 10), updated_by: 'admin',
       topology: data.topology, parameters: data.parameters, logic: data.logic,
@@ -77,7 +77,7 @@ const FilterRepositoryView: React.FC = () => {
   const handleDuplicate = (filter: NetworkFilter) => {
     const dup: NetworkFilter = {
       ...filter, id: `f-${Date.now()}`, name: `${filter.name} (Copy)`,
-      status: 'draft', created_at: new Date().toISOString().slice(0, 10),
+      status: 'draft', permission: 'editable', created_at: new Date().toISOString().slice(0, 10),
       updated_at: new Date().toISOString().slice(0, 10),
     };
     setFilters(prev => [dup, ...prev]);
@@ -105,6 +105,9 @@ const FilterRepositoryView: React.FC = () => {
       <p className={`text-2xl font-black mt-1 ${color}`}>{value}</p>
     </div>
   );
+
+  // Grid template for the table
+  const gridCols = 'grid-cols-[1fr_100px_50px_70px_70px_65px_60px_55px_36px]';
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-background">
@@ -146,8 +149,6 @@ const FilterRepositoryView: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {/* Stats */}
           <div className="flex gap-3 mt-5">
             <StatCard label="Total Filters" value={stats.total} color="text-foreground" />
             <StatCard label="Active" value={stats.active} color="text-emerald-500" />
@@ -159,16 +160,18 @@ const FilterRepositoryView: React.FC = () => {
 
       {/* Body */}
       <div className="flex-1 flex overflow-hidden">
-        {/* List */}
         <div className={`${selectedFilter ? 'w-1/2 xl:w-3/5' : 'w-full'} flex flex-col overflow-hidden transition-all duration-300`}>
           {/* Column Header */}
-          <div className="shrink-0 grid grid-cols-[1fr_120px_60px_90px_70px_40px] gap-2 px-4 py-1.5 border-b border-border bg-muted/30">
+          <div className={`shrink-0 grid ${gridCols} gap-1 px-4 py-1.5 border-b border-border bg-muted/30`}>
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Filter</span>
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Topology</span>
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Cond.</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Author</span>
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Modified</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Perm.</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Visib.</span>
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Status</span>
-            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground"></span>
+            <span />
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -183,44 +186,71 @@ const FilterRepositoryView: React.FC = () => {
                 {filtered.map(filter => {
                   const isSelected = selectedFilter?.id === filter.id;
                   const statusCfg = FILTER_STATUS_CONFIG[filter.status];
+                  const permCfg = FILTER_PERMISSION_CONFIG[filter.permission];
+                  const visCfg = FILTER_VISIBILITY_CONFIG[filter.visibility];
                   const topoSummary = filter.topology.map(t => t.values.slice(0, 2).join(', ')).join(' • ');
+                  const isLocked = filter.permission === 'locked';
 
                   return (
                     <div key={filter.id} className="relative">
                       <button
                         onClick={() => setSelectedFilter(isSelected ? null : filter)}
-                        className={`w-full grid grid-cols-[1fr_120px_60px_90px_70px_40px] gap-2 px-4 py-1.5 text-left transition-all hover:bg-muted/40 group ${
+                        className={`w-full grid ${gridCols} gap-1 px-4 py-1.5 text-left transition-all hover:bg-muted/40 group ${
                           isSelected ? 'bg-primary/5 border-l-2 border-primary' : 'border-l-2 border-transparent'
                         }`}
                       >
+                        {/* Name + Desc */}
                         <div className="min-w-0 flex flex-col justify-center">
                           <h3 className="text-xs font-semibold text-foreground truncate leading-tight">{filter.name}</h3>
-                          <p className="text-[9px] text-muted-foreground truncate leading-tight">{filter.description} · {filter.created_by}</p>
+                          <p className="text-[9px] text-muted-foreground truncate leading-tight">{filter.description}</p>
                         </div>
+                        {/* Topology */}
                         <div className="flex items-center">
                           <span className="text-[9px] text-muted-foreground truncate">{topoSummary || '—'}</span>
                         </div>
+                        {/* Conditions */}
                         <div className="flex items-center">
                           <span className="text-[10px] font-bold text-foreground px-1.5 py-0 rounded bg-muted">{filter.condition_count}</span>
                         </div>
+                        {/* Author */}
+                        <div className="flex items-center">
+                          <span className="text-[9px] text-muted-foreground truncate">{filter.created_by}</span>
+                        </div>
+                        {/* Modified */}
                         <div className="flex items-center">
                           <span className="text-[9px] text-muted-foreground">{filter.updated_at}</span>
                         </div>
+                        {/* Permission */}
                         <div className="flex items-center">
-                          <span className={`text-[9px] font-bold px-1.5 py-0 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
+                          <span className={`inline-flex items-center gap-0.5 text-[8px] font-semibold px-1.5 py-0 rounded ${permCfg.bg} ${permCfg.color}`} title={permCfg.label}>
+                            {isLocked ? <Lock className="w-2.5 h-2.5" /> : <Unlock className="w-2.5 h-2.5" />}
+                            {permCfg.label}
+                          </span>
+                        </div>
+                        {/* Visibility */}
+                        <div className="flex items-center">
+                          <span className={`inline-flex items-center gap-0.5 text-[8px] font-semibold px-1.5 py-0 rounded ${visCfg.bg} ${visCfg.color}`} title={visCfg.label}>
+                            {filter.visibility === 'public' ? <Globe className="w-2.5 h-2.5" /> : <ShieldAlert className="w-2.5 h-2.5" />}
+                            {visCfg.label}
+                          </span>
+                        </div>
+                        {/* Status */}
+                        <div className="flex items-center">
+                          <span className={`text-[8px] font-bold px-1.5 py-0 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
                             {statusCfg.label}
                           </span>
                         </div>
+                        {/* Spacer for actions */}
                         <div />
                       </button>
 
-                      {/* Action Menu Button */}
+                      {/* Action Menu */}
                       <div className="absolute right-4 top-1/2 -translate-y-1/2">
                         <button
                           onClick={e => { e.stopPropagation(); setActionMenuId(actionMenuId === filter.id ? null : filter.id); }}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                          className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
                         >
-                          <MoreHorizontal className="w-4 h-4" />
+                          <MoreHorizontal className="w-3.5 h-3.5" />
                         </button>
 
                         {actionMenuId === filter.id && (
@@ -230,8 +260,12 @@ const FilterRepositoryView: React.FC = () => {
                               <button onClick={() => { setSelectedFilter(filter); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors">
                                 <Eye className="w-3.5 h-3.5" /> View Details
                               </button>
-                              <button onClick={() => { setEditFilter(filter); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors">
-                                <Pencil className="w-3.5 h-3.5" /> Edit
+                              <button
+                                onClick={() => { if (!isLocked) { setEditFilter(filter); setActionMenuId(null); } }}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${isLocked ? 'text-muted-foreground/40 cursor-not-allowed' : 'text-foreground hover:bg-muted'}`}
+                                disabled={isLocked}
+                              >
+                                <Pencil className="w-3.5 h-3.5" /> Edit {isLocked && <Lock className="w-3 h-3 ml-auto" />}
                               </button>
                               <button onClick={() => handleDuplicate(filter)} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors">
                                 <Copy className="w-3.5 h-3.5" /> Duplicate
@@ -254,7 +288,6 @@ const FilterRepositoryView: React.FC = () => {
             )}
           </div>
 
-          {/* Footer */}
           <div className="shrink-0 px-6 py-2 border-t border-border bg-muted/20 flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">{filtered.length} filter{filtered.length !== 1 ? 's' : ''}</span>
           </div>
@@ -266,7 +299,7 @@ const FilterRepositoryView: React.FC = () => {
             <FilterDetailsDrawer
               filter={selectedFilter}
               onClose={() => setSelectedFilter(null)}
-              onEdit={() => { setEditFilter(selectedFilter); setSelectedFilter(null); }}
+              onEdit={() => { if (selectedFilter.permission !== 'locked') { setEditFilter(selectedFilter); setSelectedFilter(null); } }}
               onDuplicate={() => handleDuplicate(selectedFilter)}
               onDelete={() => handleDelete(selectedFilter)}
             />
@@ -274,7 +307,6 @@ const FilterRepositoryView: React.FC = () => {
         )}
       </div>
 
-      {/* Create / Edit Wizard */}
       {showCreate && <CreateFilterWizard onSubmit={handleCreate} onClose={() => setShowCreate(false)} />}
       {editFilter && (
         <CreateFilterWizard
