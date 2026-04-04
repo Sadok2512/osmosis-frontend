@@ -222,21 +222,21 @@ const FilterRepositoryView: React.FC = () => {
                         </div>
                         {/* Permission */}
                         <div className="flex items-center">
-                          <span className={`inline-flex items-center gap-0.5 text-[8px] font-semibold px-1.5 py-0 rounded ${permCfg.bg} ${permCfg.color}`} title={permCfg.label}>
-                            {isLocked ? <Lock className="w-2.5 h-2.5" /> : <Unlock className="w-2.5 h-2.5" />}
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded ${permCfg.bg} ${permCfg.color}`} title={permCfg.label}>
+                            {isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                             {permCfg.label}
                           </span>
                         </div>
                         {/* Visibility */}
                         <div className="flex items-center">
-                          <span className={`inline-flex items-center gap-0.5 text-[8px] font-semibold px-1.5 py-0 rounded ${visCfg.bg} ${visCfg.color}`} title={visCfg.label}>
-                            {filter.visibility === 'public' ? <Globe className="w-2.5 h-2.5" /> : <ShieldAlert className="w-2.5 h-2.5" />}
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded ${visCfg.bg} ${visCfg.color}`} title={visCfg.label}>
+                            {filter.visibility === 'public' ? <Globe className="w-3 h-3" /> : <ShieldAlert className="w-3 h-3" />}
                             {visCfg.label}
                           </span>
                         </div>
                         {/* Status */}
                         <div className="flex items-center">
-                          <span className={`text-[8px] font-bold px-1.5 py-0 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
                             {statusCfg.label}
                           </span>
                         </div>
