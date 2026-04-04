@@ -4653,8 +4653,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (!isSiteTagged(siteWithCells.site_id)) {
         toggleTagSite(siteWithCells);
       }
-      // Stay on sites tab so user can see other search results and tag more
-      setInventoryTab('sites');
+      setInventoryTab('tagged');
+      setLocalSearch('');
+      setSearchResults([]);
+      setSearchModeSites([]);
     } else if (inventoryTab !== 'tagged' || !isSiteTagged(siteWithCells.site_id)) {
       setInventoryTab('sites');
     }
