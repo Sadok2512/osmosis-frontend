@@ -490,13 +490,12 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     }
   };
 
-  const send = async (text?: string) => {
-    const msg = text || input.trim();
+  const send = useCallback(async (text?: string) => {
+    const msg = text?.trim();
     if (!msg || isLoading) return;
     const userMsg: Msg = { role: 'user', content: msg };
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
-    setInput('');
     setIsLoading(true);
     try {
       const finalText = (await streamChat(updatedMessages)) ?? '';
