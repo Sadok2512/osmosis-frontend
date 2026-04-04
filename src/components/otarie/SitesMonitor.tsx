@@ -2432,6 +2432,7 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
         const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}?parameter=${encodeURIComponent(searchedParam)}`), {
           headers: getVpsProxyHeaders(),
         });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         if (Array.isArray(data) && data.length > 0) {
           setParamData(data.map((r: any) => ({
@@ -4051,7 +4052,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         .every(f => {
           // Try site-level value first, then compute average from cells
           let val = (s as any)[f.kpi!];
-          if (val == null && s.cells.length > 0) {
+          if (val == null && Array.isArray(s.cells) && s.cells.length > 0) {
             const cellVals = s.cells.map((c: any) => c[f.kpi!]).filter((v: any) => v != null);
             if (cellVals.length > 0) val = cellVals.reduce((a: number, b: number) => a + b, 0) / cellVals.length;
           }

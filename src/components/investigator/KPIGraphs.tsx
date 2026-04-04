@@ -158,8 +158,10 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
   React.useEffect(() => {
     if (counterNames.length === 0) { setTsData([]); return; }
     setLoading(true);
-    const dateFrom = state.startDate?.split('T')[0] || '2026-01-01';
-    const dateTo = state.endDate?.split('T')[0] || '2026-03-24';
+    const today = new Date().toISOString().split('T')[0];
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+    const dateFrom = state.startDate?.split('T')[0] || thirtyDaysAgo;
+    const dateTo = state.endDate?.split('T')[0] || today;
     fetch(getApiUrl('pm/counters/timeseries'), {
       method: 'POST',
       headers: getApiHeaders(),

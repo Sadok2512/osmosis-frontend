@@ -3,7 +3,7 @@ import { X, Send, Bot, User, Loader2, Sparkles, Trash2, Copy, Check, Shield, Ale
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from '@/hooks/use-toast';
-import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
+import { getVpsProxyUrl, getAgentHeaders } from '@/lib/apiConfig';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -81,24 +81,14 @@ const SentinelAIPanel: React.FC<SentinelAIPanelProps> = ({ onClose, date, apiCon
       user_id: userId,
     });
 
-    const localUrl = getApiUrl('qoe-assistant');
-    const localHeaders = getApiHeaders();
-    const cloudUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qoe-assistant`;
-    const cloudHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-    };
+    const url = getVpsProxyUrl('agent', '/orchestrator/stream');
+    const headers = getAgentHeaders();
 
     let resp: Response;
     try {
-      resp = await fetch(localUrl, { method: 'POST', headers: localHeaders, body: payload });
-    } catch {
-      // Local server unreachable — fallback to cloud edge function
-      try {
-        resp = await fetch(cloudUrl, { method: 'POST', headers: cloudHeaders, body: payload });
-      } catch (cloudErr: any) {
-        throw new Error(`Impossible de contacter le serveur: ${cloudErr.message}`);
-      }
+      resp = await fetch(url, { method: 'POST', headers, body: payload });
+    } catch (fetchErr: any) {
+      throw new Error(`Impossible de contacter le serveur: ${fetchErr.message}`);
     }
 
     if (!resp.ok) {
@@ -355,11 +345,25 @@ const SentinelAIPanel: React.FC<SentinelAIPanelProps> = ({ onClose, date, apiCon
 };
 
 // Copy button
+const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    return true;
+  } catch { return false; }
+};
+
 const CopyBtn: React.FC<{ text: string }> = ({ text }) => {
   const [copied, setCopied] = useState(false);
   return (
     <button
-      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+      onClick={async () => { if (await copyToClipboard(text)) { setCopied(true); setTimeout(() => setCopied(false), 1500); } }}
       className="w-6 h-6 rounded-md bg-card border border-border shadow-sm flex items-center justify-center hover:bg-muted transition-colors"
     >
       {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3 text-muted-foreground" />}

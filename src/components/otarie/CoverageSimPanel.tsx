@@ -46,7 +46,8 @@ const CoverageSimPanel: React.FC<CoverageSimPanelProps> = ({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
 
-  const cell = site?.cells?.[selectedCellIdx];
+  const safeIdx = selectedCellIdx < (site?.cells?.length || 0) ? selectedCellIdx : 0;
+  const cell = site?.cells?.[safeIdx];
   const techno = (cell?.techno?.includes('5G') ? '5G' : '4G') as '4G' | '5G';
   const defaults = useMemo(() => getDefaultParams(techno, cell?.bande), [techno, cell?.bande]);
 

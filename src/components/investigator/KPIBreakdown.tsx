@@ -28,7 +28,7 @@ interface KpiExplain {
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#ef4444','#84cc16','#6366f1','#14b8a6'];
 
-const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, dateFrom = '2026-01-01', dateTo = '2026-03-24' }) => {
+const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, dateFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0], dateTo = new Date().toISOString().split('T')[0] }) => {
   const cols = layout === 1 ? 1 : 2;
   const [breakData, setBreakData] = React.useState<Record<string, any[]>>({});
   const [explainData, setExplainData] = React.useState<Record<string, KpiExplain>>({});

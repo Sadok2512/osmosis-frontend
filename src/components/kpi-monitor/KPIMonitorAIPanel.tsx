@@ -3,7 +3,7 @@ import { X, Send, Bot, User, Loader2, Sparkles, Trash2, Copy, Check, FileDown, B
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from '@/hooks/use-toast';
-import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
+import { getVpsProxyUrl, getAgentHeaders } from '@/lib/apiConfig';
 import { useGlobalFilterStore } from '@/stores/globalFilterStore';
 import { useKpiMonitorStore } from '@/stores/kpiMonitorStore';
 import { useChatSessionStore } from '@/stores/chatSessionStore';
@@ -191,8 +191,8 @@ Règles:
       user_id: userId,
     });
 
-    const url = getApiUrl('qoe-assistant');
-    const headers = getApiHeaders();
+    const url = getVpsProxyUrl('agent', '/orchestrator/stream');
+    const headers = getAgentHeaders();
 
     let resp: Response;
     try {
@@ -682,11 +682,25 @@ const CompactMarkdown: React.FC<{ content: string }> = ({ content }) => (
 );
 
 // ── Copy Button ──
+const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    return true;
+  } catch { return false; }
+};
+
 const CopyBtn: React.FC<{ text: string }> = ({ text }) => {
   const [copied, setCopied] = useState(false);
   return (
     <button
-      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+      onClick={async () => { if (await copyToClipboard(text)) { setCopied(true); setTimeout(() => setCopied(false), 1500); } }}
       className="w-6 h-6 rounded-lg bg-card border border-border shadow-sm flex items-center justify-center hover:bg-muted transition-colors"
     >
       {copied ? <Check className="w-2.5 h-2.5 text-primary" /> : <Copy className="w-2.5 h-2.5 text-muted-foreground" />}
