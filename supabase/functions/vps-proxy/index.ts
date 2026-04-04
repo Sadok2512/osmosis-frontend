@@ -11,7 +11,7 @@ const VPS_HOST = '151.242.147.49';
 const SERVICE_PORTS: Record<string, number> = {
   kpi: 8001,
   parser: 8000,
-  agent: 1000,
+  agent: 8000,  // proxied through parser → agent :1000
 };
 
 function buildSafeFallback(service: string, path: string, message: string) {
@@ -93,12 +93,17 @@ Deno.serve(async (req) => {
 
     console.log(`[vps-proxy] Fetching: ${targetUrl.toString()}`);
 
+    // Agent streams can take minutes (multi-round tool calls) — use generous timeout
+    const isAgentPost = req.method === 'POST' && service === 'agent';
+    const fetchTimeout = isAgentPost ? 290_000 : 60_000; // 290s for agent, 60s for others
+
     let upstreamRes: Response;
     try {
       upstreamRes = await fetch(targetUrl.toString(), {
         method: req.method,
         headers: upstreamHeaders,
         body,
+        signal: AbortSignal.timeout(fetchTimeout),
       });
     } catch (fetchErr) {
       const msg = fetchErr instanceof Error ? fetchErr.message : 'Connection failed';
