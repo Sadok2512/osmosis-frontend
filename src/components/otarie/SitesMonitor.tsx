@@ -4923,6 +4923,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <CustomPointClickHandler active={pointCreationMode} onAdd={addCustomPoint} />
         <DistanceMeasureClickHandler active={activeMapTool === 'distance'} onPick={handleDistanceMeasureClick} />
         <RadiusClickHandler active={activeMapTool === 'radius'} onPick={handleRadiusClick} />
+        <PolygonClickHandler active={activeMapTool === 'polygon'} closed={polygonClosed} onPick={handlePolygonClick} onClose={handlePolygonDblClick} />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
