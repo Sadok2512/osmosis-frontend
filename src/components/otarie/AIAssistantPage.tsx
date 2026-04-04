@@ -8,6 +8,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { exportElementToPDF } from '@/lib/exportUtils';
 import { SiteSummary } from '@/types';
 import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizationBlocks';
