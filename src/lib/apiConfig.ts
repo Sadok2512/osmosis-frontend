@@ -171,12 +171,12 @@ export function getVpsUrl(service: keyof typeof VPS_ENDPOINTS, path: string): st
 export function getApiHeaders(): Record<string, string> {
   const source = getPreferredDataSource();
   if (source === 'vps') {
-    // Direct VPS mode: simple headers (no proxy auth needed)
-    const onVps = typeof window !== 'undefined' && (
+    // Direct mode: simple headers when on VPS or Cloudflare tunnel (no proxy auth needed)
+    const onDirect = typeof window !== 'undefined' && (
       window.location.hostname === VPS_HOST ||
       window.location.hostname.endsWith('.qoebit.net')
     );
-    if (onVps) {
+    if (onDirect) {
       return { 'Content-Type': 'application/json' };
     }
     return getVpsProxyHeaders();
