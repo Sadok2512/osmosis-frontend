@@ -6,8 +6,9 @@ import {
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
+import KpiCatalogView from '@/components/documentation/KpiCatalogView';
 
-type DocTab = 'topo' | 'kpi' | 'dimensions';
+type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'dimensions';
 
 /* ─────────── TOPO DATA ─────────── */
 const topoFields = [
@@ -101,7 +102,7 @@ const dimSections: DimSection[] = [
 
 /* ═══════════════════ MAIN COMPONENT ═══════════════════ */
 const DocumentationPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<DocTab>('kpi');
+  const [activeTab, setActiveTab] = useState<DocTab>('kpi_reference');
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('ALL');
 
@@ -136,8 +137,9 @@ const DocumentationPage: React.FC = () => {
   const kpiGroups = useMemo(() => [...new Set(kpiCatalog.map(k => k.category))].sort(), [kpiCatalog]);
 
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'kpi_reference', label: 'KPI Reference', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
-    { id: 'kpi', label: 'KPI Réseau', icon: <BarChart3 className="w-4 h-4" /> },
+    { id: 'kpi', label: 'KPI Legacy', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'dimensions', label: 'Dimensions', icon: <Layers className="w-4 h-4" /> },
   ];
 
@@ -207,11 +209,15 @@ const DocumentationPage: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="px-8 py-6 max-w-7xl">
-          {activeTab === 'topo' && <TopoSection search={search} />}
-          {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={loadCatalog} />}
-          {activeTab === 'dimensions' && <DimensionsSection search={search} />}
-        </div>
+        {activeTab === 'kpi_reference' ? (
+          <KpiCatalogView />
+        ) : (
+          <div className="px-8 py-6 max-w-7xl">
+            {activeTab === 'topo' && <TopoSection search={search} />}
+            {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={loadCatalog} />}
+            {activeTab === 'dimensions' && <DimensionsSection search={search} />}
+          </div>
+        )}
       </div>
     </div>
   );
