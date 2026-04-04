@@ -1,6 +1,8 @@
 /* ── Filter Management Types ── */
 
 export type FilterStatus = 'draft' | 'active' | 'archived';
+export type FilterPermission = 'editable' | 'locked';
+export type FilterVisibility = 'public' | 'private';
 
 export interface TopologyCondition {
   dimension: string;
@@ -13,7 +15,7 @@ export interface ParameterCondition {
   parameter: string;
   operator: '=' | '!=' | '>' | '>=' | '<' | '<=' | 'IN' | 'NOT IN' | 'BETWEEN';
   value: string;
-  value2?: string; // for BETWEEN
+  value2?: string;
 }
 
 export interface ConditionGroup {
@@ -26,6 +28,8 @@ export interface NetworkFilter {
   name: string;
   description: string;
   status: FilterStatus;
+  permission: FilterPermission;
+  visibility: FilterVisibility;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -41,6 +45,16 @@ export const FILTER_STATUS_CONFIG: Record<FilterStatus, { label: string; color: 
   draft: { label: 'Draft', color: 'text-muted-foreground', bg: 'bg-muted' },
   active: { label: 'Active', color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
   archived: { label: 'Archived', color: 'text-muted-foreground/60', bg: 'bg-muted/50' },
+};
+
+export const FILTER_PERMISSION_CONFIG: Record<FilterPermission, { label: string; color: string; bg: string; icon: string }> = {
+  editable: { label: 'Editable', color: 'text-sky-600', bg: 'bg-sky-500/10', icon: '🔓' },
+  locked: { label: 'Locked', color: 'text-muted-foreground', bg: 'bg-muted', icon: '🔒' },
+};
+
+export const FILTER_VISIBILITY_CONFIG: Record<FilterVisibility, { label: string; color: string; bg: string; icon: string }> = {
+  public: { label: 'Public', color: 'text-emerald-600', bg: 'bg-emerald-500/10', icon: '🌐' },
+  private: { label: 'Private', color: 'text-amber-600', bg: 'bg-amber-500/10', icon: '🔐' },
 };
 
 export const TOPOLOGY_DIMENSIONS = [
@@ -68,7 +82,7 @@ export const OPERATOR_OPTIONS = ['=', '!=', '>', '>=', '<', '<=', 'IN', 'NOT IN'
 export const MOCK_FILTERS: NetworkFilter[] = [
   {
     id: 'f1', name: 'Nokia LTE North Region', description: 'All Nokia LTE cells in NORD_EST region with high traffic',
-    status: 'active', created_by: 'admin', created_at: '2025-03-15', updated_at: '2025-04-01', updated_by: 'admin',
+    status: 'active', permission: 'editable', visibility: 'public', created_by: 'admin', created_at: '2025-03-15', updated_at: '2025-04-01', updated_by: 'admin',
     topology: [
       { dimension: 'vendor', operator: 'in', values: ['Nokia'] },
       { dimension: 'dor', operator: 'in', values: ['NORD_EST'] },
@@ -82,7 +96,7 @@ export const MOCK_FILTERS: NetworkFilter[] = [
   },
   {
     id: 'f2', name: 'NR Ericsson High Traffic Sites', description: 'Ericsson 5G NR sites with high throughput demand',
-    status: 'active', created_by: 'perf_engineer', created_at: '2025-02-20', updated_at: '2025-03-28', updated_by: 'perf_engineer',
+    status: 'active', permission: 'locked', visibility: 'public', created_by: 'perf_engineer', created_at: '2025-02-20', updated_at: '2025-03-28', updated_by: 'perf_engineer',
     topology: [
       { dimension: 'vendor', operator: 'in', values: ['Ericsson'] },
       { dimension: 'band', operator: 'in', values: ['NR_3500', 'NR_700'] },
@@ -94,7 +108,7 @@ export const MOCK_FILTERS: NetworkFilter[] = [
   },
   {
     id: 'f3', name: 'Huawei Cells PCI List', description: 'Specific Huawei cells identified by PCI for interference analysis',
-    status: 'draft', created_by: 'radio_eng', created_at: '2025-04-01', updated_at: '2025-04-01', updated_by: 'radio_eng',
+    status: 'draft', permission: 'editable', visibility: 'private', created_by: 'radio_eng', created_at: '2025-04-01', updated_at: '2025-04-01', updated_by: 'radio_eng',
     topology: [
       { dimension: 'vendor', operator: 'in', values: ['Huawei'] },
       { dimension: 'pci', operator: 'in', values: ['100', '200', '300', '450', '512'] },
@@ -104,7 +118,7 @@ export const MOCK_FILTERS: NetworkFilter[] = [
   },
   {
     id: 'f4', name: 'LTE Plaque A Accessibility Degradation', description: 'Monitoring accessibility issues in Plaque A LTE network',
-    status: 'active', created_by: 'noc_lead', created_at: '2025-01-10', updated_at: '2025-03-15', updated_by: 'noc_lead',
+    status: 'active', permission: 'editable', visibility: 'public', created_by: 'noc_lead', created_at: '2025-01-10', updated_at: '2025-03-15', updated_by: 'noc_lead',
     topology: [
       { dimension: 'plaque', operator: 'in', values: ['Plaque_A'] },
       { dimension: 'band', operator: 'in', values: ['LTE800', 'LTE1800', 'LTE2600'] },
@@ -117,7 +131,7 @@ export const MOCK_FILTERS: NetworkFilter[] = [
   },
   {
     id: 'f5', name: 'IDF Critical Sites Monitoring', description: 'Critical infrastructure sites in Île-de-France requiring priority monitoring',
-    status: 'active', created_by: 'admin', created_at: '2024-12-01', updated_at: '2025-04-02', updated_by: 'admin',
+    status: 'active', permission: 'locked', visibility: 'private', created_by: 'admin', created_at: '2024-12-01', updated_at: '2025-04-02', updated_by: 'admin',
     topology: [
       { dimension: 'dor', operator: 'in', values: ['ILE_DE_FRANCE'] },
       { dimension: 'vendor', operator: 'in', values: ['Nokia', 'Ericsson'] },
@@ -129,7 +143,7 @@ export const MOCK_FILTERS: NetworkFilter[] = [
   },
   {
     id: 'f6', name: 'Archived - Old QoE Filter', description: 'Previously used QoE degradation filter — no longer maintained',
-    status: 'archived', created_by: 'perf_engineer', created_at: '2024-06-15', updated_at: '2024-11-30', updated_by: 'perf_engineer',
+    status: 'archived', permission: 'locked', visibility: 'private', created_by: 'perf_engineer', created_at: '2024-06-15', updated_at: '2024-11-30', updated_by: 'perf_engineer',
     topology: [{ dimension: 'dor', operator: 'in', values: ['SUD_EST', 'SUD_OUEST'] }],
     parameters: [{ id: 'p7', parameter: 'QoE Index', operator: '<', value: '60' }],
     logic: 'AND', condition_count: 2, matching_objects: 0,
