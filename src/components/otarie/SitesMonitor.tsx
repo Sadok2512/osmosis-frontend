@@ -6285,8 +6285,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* Right: Drawing tools */}
               {([
                 { key: 'distance' as const, icon: Ruler, label: 'Distance', tip: 'Mesurer une distance entre deux points' },
-                { key: 'polygon' as const, icon: Pentagon, label: 'Zone', tip: 'Tracer un polygone / zone' },
-                { key: 'sector' as const, icon: Radar, label: 'Secteur', tip: 'Analyser un secteur radio' },
+                { key: 'polygon' as const, icon: Pentagon, label: 'Polygon', tip: 'Tracer un polygone de sélection' },
+                { key: 'radius' as const, icon: Target, label: 'Radius', tip: 'Cercle de couverture autour d\'un point' },
               ] as const).map(tool => {
                 const isActive = activeMapTool === tool.key;
                 return (
