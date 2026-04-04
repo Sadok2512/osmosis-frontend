@@ -2798,6 +2798,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [radiusConfirmed, setRadiusConfirmed] = useState(false);
   const [radiusLiveMeters, setRadiusLiveMeters] = useState(0);
   const [radiusConfirmedMeters, setRadiusConfirmedMeters] = useState(0);
+  const RADIUS_PRESETS = [500, 1000, 3000, 5000];
   const RADIUS_RING_COLORS = ['hsl(200,70%,55%)', 'hsl(160,60%,50%)', 'hsl(45,80%,50%)', 'hsl(350,65%,55%)', 'hsl(270,55%,55%)'];
   const [polygonPoints, setPolygonPoints] = useState<[number, number][]>([]);
   const [polygonClosed, setPolygonClosed] = useState(false);
