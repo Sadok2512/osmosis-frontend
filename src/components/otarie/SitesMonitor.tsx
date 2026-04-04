@@ -6428,7 +6428,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <div className="bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-md px-3 py-1 text-[9px] font-medium text-muted-foreground whitespace-nowrap">
             {activeMapTool === 'distance' && '📏 Cliquez 2 points pour mesurer la distance'}
             {activeMapTool === 'polygon' && (polygonClosed ? '✅ Polygone fermé — cliquez le tool pour réinitialiser' : '🔷 Cliquez pour ajouter des points, double-clic pour fermer')}
-            {activeMapTool === 'radius' && (radiusCenter ? '🎯 Multi-rayon actif — cliquez ailleurs pour déplacer' : '🎯 Cliquez sur la carte pour placer le centre')}
+            {activeMapTool === 'radius' && (!radiusCenter ? '🎯 Cliquez pour placer le centre' : !radiusConfirmed ? '🎯 Déplacez la souris et cliquez pour fixer le rayon' : '✅ Rayon fixé — cliquez pour recommencer')}
           </div>
         </div>
       )}
