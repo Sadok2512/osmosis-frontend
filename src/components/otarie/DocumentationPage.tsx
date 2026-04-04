@@ -137,8 +137,9 @@ const DocumentationPage: React.FC = () => {
   const kpiGroups = useMemo(() => [...new Set(kpiCatalog.map(k => k.category))].sort(), [kpiCatalog]);
 
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'kpi_reference', label: 'KPI Reference', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
-    { id: 'kpi', label: 'KPI Réseau', icon: <BarChart3 className="w-4 h-4" /> },
+    { id: 'kpi', label: 'KPI Legacy', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'dimensions', label: 'Dimensions', icon: <Layers className="w-4 h-4" /> },
   ];
 
