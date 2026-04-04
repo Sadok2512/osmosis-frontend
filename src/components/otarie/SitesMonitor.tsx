@@ -6545,13 +6545,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 );
               })}
 
-              {/* Radius info */}
-              {activeMapTool === 'radius' && radiusCenter && radiusConfirmed && (
+              {/* Radius presets + info */}
+              {activeMapTool === 'radius' && radiusCenter && (
                 <>
                   <span className="w-px h-3.5 bg-border/60 mx-0.5" />
-                  <span className="text-[8px] text-muted-foreground font-medium">
-                    {radiusConfirmedMeters >= 1000 ? `${(radiusConfirmedMeters / 1000).toFixed(2)} km` : `${Math.round(radiusConfirmedMeters)} m`}
-                  </span>
+                  {RADIUS_PRESETS.map(r => (
+                    <button
+                      key={r}
+                      onClick={() => handleRadiusPreset(r)}
+                      className={`px-1.5 py-0.5 rounded-full text-[8px] font-bold tracking-wider transition-all duration-150 ${
+                        radiusConfirmed && Math.abs(radiusConfirmedMeters - r) < 1
+                          ? 'bg-primary/20 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                      }`}
+                    >
+                      {r >= 1000 ? `${r / 1000}k` : r}
+                    </button>
+                  ))}
+                  {radiusConfirmed && radiusStats && (
+                    <>
+                      <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+                      <span className="text-[8px] text-primary font-bold">{radiusStats.sitesInside}s</span>
+                      <span className="text-[8px] text-muted-foreground font-medium">{radiusStats.cellsInside}c</span>
+                    </>
+                  )}
                 </>
               )}
             </>
