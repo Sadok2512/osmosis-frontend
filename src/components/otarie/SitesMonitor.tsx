@@ -4646,10 +4646,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const sectorNums = Array.from(new Set(siteWithCells.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
     setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
     setShowRightPanel(true);
-    // Ensure inventory panel is open and on sites tab before scrolling
+    // Ensure inventory panel is open
     setPanelCollapsed(false);
-    // Switch to the appropriate tab: tagged if it's a tagged site on that tab, otherwise sites
-    if (inventoryTab !== 'tagged' || !isSiteTagged(siteWithCells.site_id)) {
+    // When coming from search, auto-tag and switch to Tagged tab
+    if (isSearchActive) {
+      if (!isSiteTagged(siteWithCells.site_id)) {
+        toggleTagSite(siteWithCells);
+      }
+      setInventoryTab('tagged');
+      // Clear search after tagging
+      setLocalSearch('');
+      setSearchResults([]);
+      setSearchModeSites([]);
+    } else if (inventoryTab !== 'tagged' || !isSiteTagged(siteWithCells.site_id)) {
       setInventoryTab('sites');
     }
     // Scroll inventory to selected site with delay for DOM update
