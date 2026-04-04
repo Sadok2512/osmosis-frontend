@@ -578,6 +578,21 @@ const RadiusClickHandler: React.FC<{ active: boolean; onPick: (latlng: LatLng) =
   return null;
 };
 
+const PolygonClickHandler: React.FC<{ active: boolean; closed: boolean; onPick: (latlng: LatLng) => void; onClose: () => void }> = ({ active, closed, onPick, onClose }) => {
+  useMapEvents({
+    click(e) {
+      if (active && !closed) onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+    dblclick(e) {
+      if (active && !closed) {
+        e.originalEvent.preventDefault();
+        onClose();
+      }
+    },
+  });
+  return null;
+};
+
 const losTargetIcon = L.divIcon({
   className: '',
   html: `<div style="width:14px;height:14px;border-radius:50%;background:hsl(0,84%,60%);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
@@ -2761,14 +2776,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'radius' | null>(null);
   const [distanceMeasurePoints, setDistanceMeasurePoints] = useState<[number, number][]>([]);
   const [radiusCenter, setRadiusCenter] = useState<[number, number] | null>(null);
-  const [radiusMeters, setRadiusMeters] = useState(1000);
-  const RADIUS_PRESETS = [100, 500, 1000, 3000, 5000];
+  const [radiusRadii, setRadiusRadii] = useState<number[]>([100, 500, 1000, 3000]);
+  const RADIUS_RING_COLORS = ['hsl(200,70%,55%)', 'hsl(160,60%,50%)', 'hsl(45,80%,50%)', 'hsl(350,65%,55%)', 'hsl(270,55%,55%)'];
+  const [polygonPoints, setPolygonPoints] = useState<[number, number][]>([]);
+  const [polygonClosed, setPolygonClosed] = useState(false);
   const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
   const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
 
   useEffect(() => {
     if (activeMapTool !== 'distance' && distanceMeasurePoints.length > 0) {
       setDistanceMeasurePoints([]);
+    }
+    if (activeMapTool !== 'polygon') {
+      setPolygonPoints([]);
+      setPolygonClosed(false);
+    }
+    if (activeMapTool !== 'radius') {
+      setRadiusCenter(null);
     }
   }, [activeMapTool, distanceMeasurePoints.length]);
 
@@ -2789,26 +2813,56 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       ? `${(distanceMeters / 1000).toFixed(distanceMeters >= 10000 ? 1 : 2)} km`
       : `${Math.round(distanceMeters)} m`;
 
-    return {
-      azimuth,
-      label,
-    };
+    return { azimuth, label };
   }, [distanceMeasurePoints]);
 
   const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'radius') => {
-    if (tool !== 'distance' || activeMapTool === 'distance') {
-      setDistanceMeasurePoints([]);
-    }
-    if (tool !== 'radius' || activeMapTool === 'radius') {
-      setRadiusCenter(null);
-    }
-
+    setDistanceMeasurePoints([]);
+    setRadiusCenter(null);
+    setPolygonPoints([]);
+    setPolygonClosed(false);
     setActiveMapTool(prev => (prev === tool ? null : tool));
-  }, [activeMapTool]);
+  }, []);
 
   const handleRadiusClick = useCallback((latlng: LatLng) => {
     setRadiusCenter([latlng.lat, latlng.lng]);
   }, []);
+
+  const handlePolygonClick = useCallback((latlng: LatLng) => {
+    if (polygonClosed) return;
+    setPolygonPoints(prev => [...prev, [latlng.lat, latlng.lng]]);
+  }, [polygonClosed]);
+
+  const handlePolygonDblClick = useCallback(() => {
+    if (polygonPoints.length >= 3) {
+      setPolygonClosed(true);
+    }
+  }, [polygonPoints.length]);
+
+  // Polygon area (Shoelace formula on geodesic approx) & perimeter
+  const polygonStats = useMemo(() => {
+    if (!polygonClosed || polygonPoints.length < 3) return null;
+    let perimeter = 0;
+    for (let i = 0; i < polygonPoints.length; i++) {
+      const a = polygonPoints[i];
+      const b = polygonPoints[(i + 1) % polygonPoints.length];
+      perimeter += haversineDistance({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] });
+    }
+    // Spherical excess approximation for area
+    const toRad = (d: number) => d * Math.PI / 180;
+    let area = 0;
+    const pts = polygonPoints.map(p => [toRad(p[0]), toRad(p[1])]);
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      area += (pts[j][1] - pts[i][1]) * (2 + Math.sin(pts[i][0]) + Math.sin(pts[j][0]));
+    }
+    area = Math.abs(area * 6371000 * 6371000 / 2);
+
+    const fmtArea = area >= 1e6 ? `${(area / 1e6).toFixed(2)} km²` : `${Math.round(area)} m²`;
+    const fmtPerimeter = perimeter >= 1000 ? `${(perimeter / 1000).toFixed(2)} km` : `${Math.round(perimeter)} m`;
+
+    return { area, perimeter, fmtArea, fmtPerimeter, sitesInside: 0 };
+  }, [polygonClosed, polygonPoints]);
 
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
     ? 'cells'
@@ -4869,6 +4923,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <CustomPointClickHandler active={pointCreationMode} onAdd={addCustomPoint} />
         <DistanceMeasureClickHandler active={activeMapTool === 'distance'} onPick={handleDistanceMeasureClick} />
         <RadiusClickHandler active={activeMapTool === 'radius'} onPick={handleRadiusClick} />
+        <PolygonClickHandler active={activeMapTool === 'polygon'} closed={polygonClosed} onPick={handlePolygonClick} onClose={handlePolygonDblClick} />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
@@ -4951,30 +5006,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </Polyline>
         )}
 
-        {/* ── Radius tool ── */}
+        {/* ── Multi-Radius tool ── */}
         {activeMapTool === 'radius' && radiusCenter && (
           <>
-            <Circle
-              center={radiusCenter}
-              radius={radiusMeters}
-              pane="pane5G"
-              pathOptions={{
-                color: 'hsl(var(--primary))',
-                fillColor: 'hsl(var(--primary))',
-                fillOpacity: 0.08,
-                weight: 2,
-                dashArray: '6 4',
-              }}
-            >
-              <Tooltip permanent direction="center" opacity={1} className="!bg-card !border-border !text-foreground shadow-lg">
-                <div className="flex items-center gap-1.5 text-[10px] font-medium">
-                  <span className="font-semibold">{radiusMeters >= 1000 ? `${(radiusMeters / 1000).toFixed(1)} km` : `${radiusMeters} m`}</span>
-                </div>
-              </Tooltip>
-            </Circle>
+            {[...radiusRadii].sort((a, b) => b - a).map((r, idx) => {
+              const color = RADIUS_RING_COLORS[idx % RADIUS_RING_COLORS.length];
+              const label = r >= 1000 ? `${(r / 1000).toFixed(r >= 1000 && r % 1000 === 0 ? 0 : 1)} km` : `${r} m`;
+              return (
+                <Circle
+                  key={`radius-ring-${r}`}
+                  center={radiusCenter}
+                  radius={r}
+                  pane="pane5G"
+                  pathOptions={{
+                    color,
+                    fillColor: color,
+                    fillOpacity: idx === radiusRadii.length - 1 ? 0.06 : 0.03,
+                    weight: 2,
+                    dashArray: idx === 0 ? undefined : '6 4',
+                  }}
+                >
+                  <Tooltip permanent direction="right" offset={[0, 0]} opacity={1} className="!bg-card/90 !border-border !text-foreground shadow-md !text-[9px] !font-semibold !py-0.5 !px-1.5">
+                    <span>{label}</span>
+                  </Tooltip>
+                </Circle>
+              );
+            })}
             <CircleMarker
               center={radiusCenter}
-              radius={6}
+              radius={7}
               pane="pane5G"
               pathOptions={{
                 color: 'hsl(var(--background))',
@@ -4982,9 +5042,63 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 fillOpacity: 1,
                 weight: 2,
               }}
-            />
+            >
+              <Tooltip permanent direction="top" offset={[0, -10]} opacity={1}>
+                <span className="text-[10px] font-semibold">📍 Centre</span>
+              </Tooltip>
+            </CircleMarker>
           </>
         )}
+
+        {/* ── Polygon tool ── */}
+        {activeMapTool === 'polygon' && polygonPoints.length >= 2 && (
+          polygonClosed ? (
+            <Polygon
+              positions={polygonPoints}
+              pane="pane5G"
+              pathOptions={{
+                color: 'hsl(var(--primary))',
+                fillColor: 'hsl(var(--primary))',
+                fillOpacity: 0.1,
+                weight: 2,
+              }}
+            >
+              {polygonStats && (
+                <Tooltip permanent direction="center" opacity={1} className="!bg-card !border-border !text-foreground shadow-lg">
+                  <div className="flex flex-col items-center gap-0.5 text-[9px] font-medium">
+                    <span className="font-semibold">{polygonStats.fmtArea}</span>
+                    <span className="text-muted-foreground">{polygonStats.fmtPerimeter}</span>
+                  </div>
+                </Tooltip>
+              )}
+            </Polygon>
+          ) : (
+            <Polyline
+              positions={polygonPoints}
+              pane="pane5G"
+              pathOptions={{
+                color: 'hsl(var(--primary))',
+                weight: 2,
+                dashArray: '8 6',
+                opacity: 0.8,
+              }}
+            />
+          )
+        )}
+        {activeMapTool === 'polygon' && polygonPoints.map((point, index) => (
+          <CircleMarker
+            key={`polygon-pt-${index}`}
+            center={point}
+            radius={5}
+            pane="pane5G"
+            pathOptions={{
+              color: 'hsl(var(--background))',
+              fillColor: 'hsl(var(--primary))',
+              fillOpacity: 1,
+              weight: 2,
+            }}
+          />
+        ))}
 
 
         {paramMode && !paramLoading && paramPoints.length > 0 && (
@@ -6271,6 +6385,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </>
       )}
 
+      {/* Tool usage hint */}
+      {activeMapTool && (
+        <div className="absolute bottom-14 z-[1001] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
+          <div className="bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-md px-3 py-1 text-[9px] font-medium text-muted-foreground whitespace-nowrap">
+            {activeMapTool === 'distance' && '📏 Cliquez 2 points pour mesurer la distance'}
+            {activeMapTool === 'polygon' && (polygonClosed ? '✅ Polygone fermé — cliquez le tool pour réinitialiser' : '🔷 Cliquez pour ajouter des points, double-clic pour fermer')}
+            {activeMapTool === 'radius' && (radiusCenter ? '🎯 Multi-rayon actif — cliquez ailleurs pour déplacer' : '🎯 Cliquez sur la carte pour placer le centre')}
+          </div>
+        </div>
+      )}
+
       {/* Floating status bar — minimal GIS style, centered on map */}
       <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
         <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg px-4 py-1.5 flex items-center gap-1">
@@ -6329,9 +6454,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               {/* Right: Drawing tools */}
               {([
-                { key: 'distance' as const, icon: Ruler, label: 'Distance', tip: 'Mesurer une distance entre deux points' },
-                { key: 'polygon' as const, icon: Pentagon, label: 'Polygon', tip: 'Tracer un polygone de sélection' },
-                { key: 'radius' as const, icon: Target, label: 'Radius', tip: 'Cercle de couverture autour d\'un point' },
+                { key: 'distance' as const, icon: Ruler, label: 'Distance', tip: 'Cliquez 2 points pour mesurer' },
+                { key: 'polygon' as const, icon: Pentagon, label: 'Polygon', tip: 'Cliquez pour tracer, double-clic pour fermer' },
+                { key: 'radius' as const, icon: Target, label: 'Radius+', tip: 'Cliquez pour placer le centre multi-rayon' },
               ] as const).map(tool => {
                 const isActive = activeMapTool === tool.key;
                 return (
@@ -6351,23 +6476,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 );
               })}
 
-              {/* Radius presets */}
-              {activeMapTool === 'radius' && (
+              {/* Radius rings info */}
+              {activeMapTool === 'radius' && radiusCenter && (
                 <>
                   <span className="w-px h-3.5 bg-border/60 mx-0.5" />
-                  {RADIUS_PRESETS.map(r => (
-                    <button
-                      key={r}
-                      onClick={() => setRadiusMeters(r)}
-                      className={`px-1.5 py-0.5 rounded-full text-[8px] font-bold tracking-wider transition-all duration-150 ${
-                        radiusMeters === r
-                          ? 'bg-primary/20 text-primary'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                      }`}
-                    >
-                      {r >= 1000 ? `${r / 1000}k` : r}
-                    </button>
-                  ))}
+                  <span className="text-[8px] text-muted-foreground font-medium">{radiusRadii.length} rings</span>
                 </>
               )}
             </>
