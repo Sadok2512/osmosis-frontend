@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import {
-  Send, Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check,
+  Bot, User, Loader2, Sparkles, Trash2, MessageSquare, Copy, Check,
   FileDown, MapPin, Plus, X, PanelLeftClose, PanelLeftOpen, Pencil,
   ThumbsUp, ThumbsDown, Brain, Search, MoreHorizontal, Clock, ChevronRight,
   Cpu
