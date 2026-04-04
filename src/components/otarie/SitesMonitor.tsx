@@ -569,10 +569,29 @@ const DistanceMeasureClickHandler: React.FC<{ active: boolean; onPick: (latlng: 
   return null;
 };
 
-const RadiusClickHandler: React.FC<{ active: boolean; onPick: (latlng: LatLng) => void }> = ({ active, onPick }) => {
+const RadiusClickHandler: React.FC<{
+  active: boolean;
+  center: [number, number] | null;
+  confirmed: boolean;
+  onSetCenter: (latlng: LatLng) => void;
+  onConfirm: (radiusM: number) => void;
+  onPreview: (radiusM: number) => void;
+}> = ({ active, center, confirmed, onSetCenter, onConfirm, onPreview }) => {
+  const map = useMap();
   useMapEvents({
     click(e) {
-      if (active) onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+      if (!active) return;
+      if (!center || confirmed) {
+        onSetCenter({ lat: e.latlng.lat, lng: e.latlng.lng });
+      } else {
+        const dist = map.distance(L.latLng(center[0], center[1]), e.latlng);
+        onConfirm(dist);
+      }
+    },
+    mousemove(e) {
+      if (!active || !center || confirmed) return;
+      const dist = map.distance(L.latLng(center[0], center[1]), e.latlng);
+      onPreview(dist);
     },
   });
   return null;
