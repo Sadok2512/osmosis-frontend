@@ -5042,49 +5042,50 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </Polyline>
         )}
 
-        {/* ── Multi-Radius tool ── */}
-        {activeMapTool === 'radius' && radiusCenter && (
-          <>
-            {[...radiusRadii].sort((a, b) => b - a).map((r, idx) => {
-              const color = RADIUS_RING_COLORS[idx % RADIUS_RING_COLORS.length];
-              const label = r >= 1000 ? `${(r / 1000).toFixed(r >= 1000 && r % 1000 === 0 ? 0 : 1)} km` : `${r} m`;
-              return (
+        {/* ── Radius tool (interactive: click center, drag to set radius) ── */}
+        {activeMapTool === 'radius' && radiusCenter && (() => {
+          const currentRadius = radiusConfirmed ? radiusConfirmedMeters : radiusLiveMeters;
+          const label = currentRadius >= 1000 ? `${(currentRadius / 1000).toFixed(2)} km` : `${Math.round(currentRadius)} m`;
+          return (
+            <>
+              {currentRadius > 0 && (
                 <Circle
-                  key={`radius-ring-${r}`}
                   center={radiusCenter}
-                  radius={r}
+                  radius={currentRadius}
                   pane="pane5G"
                   pathOptions={{
-                    color,
-                    fillColor: color,
-                    fillOpacity: idx === radiusRadii.length - 1 ? 0.06 : 0.03,
+                    color: radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0],
+                    fillColor: radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0],
+                    fillOpacity: radiusConfirmed ? 0.08 : 0.05,
                     weight: 2,
-                    dashArray: idx === 0 ? undefined : '6 4',
+                    dashArray: radiusConfirmed ? undefined : '8 6',
                   }}
                 >
-                  <Tooltip permanent direction="right" offset={[0, 0]} opacity={1} className="!bg-card/90 !border-border !text-foreground shadow-md !text-[9px] !font-semibold !py-0.5 !px-1.5">
-                    <span>{label}</span>
+                  <Tooltip permanent direction="center" opacity={1} className="!bg-card/90 !border-border !text-foreground shadow-lg">
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold">
+                      <span>📏 {label}</span>
+                    </div>
                   </Tooltip>
                 </Circle>
-              );
-            })}
-            <CircleMarker
-              center={radiusCenter}
-              radius={7}
-              pane="pane5G"
-              pathOptions={{
-                color: 'hsl(var(--background))',
-                fillColor: 'hsl(var(--primary))',
-                fillOpacity: 1,
-                weight: 2,
-              }}
-            >
-              <Tooltip permanent direction="top" offset={[0, -10]} opacity={1}>
-                <span className="text-[10px] font-semibold">📍 Centre</span>
-              </Tooltip>
-            </CircleMarker>
-          </>
-        )}
+              )}
+              <CircleMarker
+                center={radiusCenter}
+                radius={7}
+                pane="pane5G"
+                pathOptions={{
+                  color: 'hsl(var(--background))',
+                  fillColor: 'hsl(var(--primary))',
+                  fillOpacity: 1,
+                  weight: 2,
+                }}
+              >
+                <Tooltip permanent direction="top" offset={[0, -10]} opacity={1}>
+                  <span className="text-[10px] font-semibold">📍 Centre</span>
+                </Tooltip>
+              </CircleMarker>
+            </>
+          );
+        })()}
 
         {/* ── Polygon tool ── */}
         {activeMapTool === 'polygon' && polygonPoints.length >= 2 && (
