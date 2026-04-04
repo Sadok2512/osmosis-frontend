@@ -2786,13 +2786,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     };
   }, [distanceMeasurePoints]);
 
-  const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'sector') => {
+  const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'radius') => {
     if (tool !== 'distance' || activeMapTool === 'distance') {
       setDistanceMeasurePoints([]);
+    }
+    if (tool !== 'radius' || activeMapTool === 'radius') {
+      setRadiusCenter(null);
     }
 
     setActiveMapTool(prev => (prev === tool ? null : tool));
   }, [activeMapTool]);
+
+  const handleRadiusClick = useCallback((latlng: LatLng) => {
+    setRadiusCenter([latlng.lat, latlng.lng]);
+  }, []);
 
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
     ? 'cells'
