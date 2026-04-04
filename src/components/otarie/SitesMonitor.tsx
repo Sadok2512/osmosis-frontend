@@ -2865,6 +2865,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setRadiusLiveMeters(radiusM);
   }, []);
 
+  const handleRadiusPreset = useCallback((preset: number) => {
+    if (radiusCenter) {
+      setRadiusConfirmedMeters(preset);
+      setRadiusConfirmed(true);
+    }
+  }, [radiusCenter]);
+
   const handlePolygonClick = useCallback((latlng: LatLng) => {
     if (polygonClosed) return;
     setPolygonPoints(prev => [...prev, [latlng.lat, latlng.lng]]);
