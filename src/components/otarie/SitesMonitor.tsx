@@ -2481,7 +2481,7 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
     (async () => {
       let fetched = false;
       try {
-        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}?parameter=${encodeURIComponent(searchedParam)}`), {
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}?search=${encodeURIComponent(searchedParam)}`), {
           headers: getVpsProxyHeaders(),
         });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -2631,7 +2631,7 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
         </div>
       ) : paramData.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">
-          Aucun résultat pour « {searchedParam} »
+          Aucun résultat pour « {searchedParam} » — le dump CM de ce site n'est peut-être pas encore chargé
         </div>
       ) : (
         <>
