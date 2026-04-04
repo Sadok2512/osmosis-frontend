@@ -2798,6 +2798,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [radiusConfirmed, setRadiusConfirmed] = useState(false);
   const [radiusLiveMeters, setRadiusLiveMeters] = useState(0);
   const [radiusConfirmedMeters, setRadiusConfirmedMeters] = useState(0);
+  const RADIUS_PRESETS = [500, 1000, 3000, 5000];
   const RADIUS_RING_COLORS = ['hsl(200,70%,55%)', 'hsl(160,60%,50%)', 'hsl(45,80%,50%)', 'hsl(350,65%,55%)', 'hsl(270,55%,55%)'];
   const [polygonPoints, setPolygonPoints] = useState<[number, number][]>([]);
   const [polygonClosed, setPolygonClosed] = useState(false);
@@ -2863,6 +2864,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const handleRadiusPreview = useCallback((radiusM: number) => {
     setRadiusLiveMeters(radiusM);
   }, []);
+
+  const handleRadiusPreset = useCallback((preset: number) => {
+    if (radiusCenter) {
+      setRadiusConfirmedMeters(preset);
+      setRadiusConfirmed(true);
+    }
+  }, [radiusCenter]);
 
   const handlePolygonClick = useCallback((latlng: LatLng) => {
     if (polygonClosed) return;
@@ -4278,7 +4286,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters, activeViewConditions]);
 
-  // Check if a cell's band passes the band filter
+  // Radius analysis stats
+  const radiusStats = useMemo(() => {
+    if (!radiusCenter || !radiusConfirmed || radiusConfirmedMeters <= 0) return null;
+    const center = { lat: radiusCenter[0], lng: radiusCenter[1] };
+    let sitesInside = 0;
+    let cellsInside = 0;
+    for (const s of filteredSites) {
+      const d = haversineDistance(center, { lat: s.coordinates[0], lng: s.coordinates[1] });
+      if (d <= radiusConfirmedMeters) {
+        sitesInside++;
+        cellsInside += s.cells.length;
+      }
+    }
+    return { sitesInside, cellsInside };
+  }, [radiusCenter, radiusConfirmed, radiusConfirmedMeters, filteredSites]);
+
+
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
     const key = normalizeBandKey(bande, techno);
     // Unknown formats stay visible instead of disappearing
@@ -5042,10 +5066,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </Polyline>
         )}
 
-        {/* ── Radius tool (interactive: click center, drag to set radius) ── */}
+        {/* ── Radius tool ── */}
         {activeMapTool === 'radius' && radiusCenter && (() => {
           const currentRadius = radiusConfirmed ? radiusConfirmedMeters : radiusLiveMeters;
-          const label = currentRadius >= 1000 ? `${(currentRadius / 1000).toFixed(2)} km` : `${Math.round(currentRadius)} m`;
+          const fmtRadius = currentRadius >= 1000 ? `${(currentRadius / 1000).toFixed(2)} km` : `${Math.round(currentRadius)} m`;
           return (
             <>
               {currentRadius > 0 && (
@@ -5056,21 +5080,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   pathOptions={{
                     color: radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0],
                     fillColor: radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0],
-                    fillOpacity: radiusConfirmed ? 0.08 : 0.05,
-                    weight: 2,
+                    fillOpacity: radiusConfirmed ? 0.06 : 0.04,
+                    weight: radiusConfirmed ? 2 : 1.5,
                     dashArray: radiusConfirmed ? undefined : '8 6',
                   }}
                 >
-                  <Tooltip permanent direction="center" opacity={1} className="!bg-card/90 !border-border !text-foreground shadow-lg">
-                    <div className="flex items-center gap-1.5 text-[10px] font-semibold">
-                      <span>📏 {label}</span>
+                  <Tooltip permanent direction="center" opacity={1} className="!bg-card/95 !border-border !text-foreground shadow-lg !rounded-lg">
+                    <div className="flex items-center gap-2 text-[9px] font-semibold">
+                      <span>📏 {fmtRadius}</span>
+                      {radiusConfirmed && radiusStats && (
+                        <>
+                          <span className="text-muted-foreground">•</span>
+                          <span>{radiusStats.sitesInside} sites</span>
+                          <span className="text-muted-foreground">•</span>
+                          <span>{radiusStats.cellsInside} cells</span>
+                        </>
+                      )}
                     </div>
                   </Tooltip>
                 </Circle>
               )}
               <CircleMarker
                 center={radiusCenter}
-                radius={7}
+                radius={5}
                 pane="pane5G"
                 pathOptions={{
                   color: 'hsl(var(--background))',
@@ -5079,8 +5111,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   weight: 2,
                 }}
               >
-                <Tooltip permanent direction="top" offset={[0, -10]} opacity={1}>
-                  <span className="text-[10px] font-semibold">📍 Centre</span>
+                <Tooltip permanent direction="bottom" offset={[0, 8]} opacity={1} className="!bg-card/90 !border-border/50 !text-foreground !rounded !shadow-sm">
+                  <span className="text-[8px] font-mono text-muted-foreground">{radiusCenter[0].toFixed(5)}, {radiusCenter[1].toFixed(5)}</span>
                 </Tooltip>
               </CircleMarker>
             </>
@@ -6513,13 +6545,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 );
               })}
 
-              {/* Radius info */}
-              {activeMapTool === 'radius' && radiusCenter && radiusConfirmed && (
+              {/* Radius presets + info */}
+              {activeMapTool === 'radius' && radiusCenter && (
                 <>
                   <span className="w-px h-3.5 bg-border/60 mx-0.5" />
-                  <span className="text-[8px] text-muted-foreground font-medium">
-                    {radiusConfirmedMeters >= 1000 ? `${(radiusConfirmedMeters / 1000).toFixed(2)} km` : `${Math.round(radiusConfirmedMeters)} m`}
-                  </span>
+                  {RADIUS_PRESETS.map(r => (
+                    <button
+                      key={r}
+                      onClick={() => handleRadiusPreset(r)}
+                      className={`px-1.5 py-0.5 rounded-full text-[8px] font-bold tracking-wider transition-all duration-150 ${
+                        radiusConfirmed && Math.abs(radiusConfirmedMeters - r) < 1
+                          ? 'bg-primary/20 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                      }`}
+                    >
+                      {r >= 1000 ? `${r / 1000}k` : r}
+                    </button>
+                  ))}
+                  {radiusConfirmed && radiusStats && (
+                    <>
+                      <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+                      <span className="text-[8px] text-primary font-bold">{radiusStats.sitesInside}s</span>
+                      <span className="text-[8px] text-muted-foreground font-medium">{radiusStats.cellsInside}c</span>
+                    </>
+                  )}
                 </>
               )}
             </>
