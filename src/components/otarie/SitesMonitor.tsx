@@ -2926,6 +2926,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
+  const [kpiSearch, setKpiSearch] = useState('');
   const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean }>>(() => {
     try {
       const saved = localStorage.getItem('qoebit_kpi_thresholds');
@@ -6834,9 +6835,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {/* ── KPI mode: dropdown selector + active label ── */}
             {sectorColorMode === 'kpi' && !paramMode && (
               <>
-                {/* KPI dropdown */}
+                {/* KPI dropdown trigger */}
                 <div className="relative shrink-0">
                   <button
+                    ref={(el) => { (window as any).__kpiDropdownBtnRef = el; }}
                     onClick={() => setShowKpiDropdown(!showKpiDropdown)}
                     className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary transition-all hover:bg-primary/15"
                   >
@@ -6844,32 +6846,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <span className="max-w-[140px] truncate">{selectedKpiLabel}</span>
                     {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                   </button>
-                  {showKpiDropdown && (
-                    <div className="absolute top-10 left-0 w-[280px] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1100]">
-                      <div className="max-h-[420px] overflow-y-auto py-1">
-                        {['RF', 'SPATIAL', 'THROUGHPUT', 'VOICE', 'QUALITY', 'RTT', 'VOLUME'].filter(cat => MAP_KPIS.some(k => k.category === cat)).map(cat => (
-                          <div key={cat}>
-                            <div className="px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30">{cat}</div>
-                            {MAP_KPIS.filter(k => k.category === cat).map(kpi => (
-                              <button
-                                key={kpi.id}
-                                onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); }}
-                                className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-all ${
-                                  mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[11px] font-bold">{kpi.label}</span>
-                                  {kpi.unit && <span className="text-[9px] text-muted-foreground">({kpi.unit})</span>}
-                                </div>
-                                {mapKpi === kpi.id && <Check size={12} />}
-                              </button>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Threshold quick-view */}
@@ -7204,7 +7180,63 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         );
       })()}
 
-      {/* Parameters panel — rendered outside overflow container */}
+      {/* KPI dropdown — rendered outside overflow container */}
+      {showKpiDropdown && (() => {
+        const btn = (window as any).__kpiDropdownBtnRef as HTMLElement | null;
+        const rect = btn?.getBoundingClientRect();
+        const top = rect ? rect.bottom + 6 : 100;
+        const left = rect ? rect.left : 400;
+        return (
+          <>
+            <div className="fixed inset-0 z-[1199]" onClick={() => setShowKpiDropdown(false)} />
+            <div
+              className="fixed z-[1200] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl w-[280px] overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 pointer-events-auto"
+              style={{ top, left }}
+            >
+              {/* Search */}
+              <div className="px-3 py-2 border-b border-border/40">
+                <div className="relative">
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    autoFocus
+                    value={kpiSearch}
+                    onChange={e => setKpiSearch(e.target.value)}
+                    placeholder="Rechercher KPI..."
+                    className="w-full pl-7 pr-3 py-1.5 text-[10px] rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[420px] overflow-y-auto py-1">
+                {['RF', 'SPATIAL', 'THROUGHPUT', 'VOICE', 'QUALITY', 'RTT', 'VOLUME'].filter(cat => MAP_KPIS.some(k => k.category === cat)).map(cat => {
+                  const filtered = MAP_KPIS.filter(k => k.category === cat && (!kpiSearch || k.label.toLowerCase().includes(kpiSearch.toLowerCase())));
+                  if (filtered.length === 0) return null;
+                  return (
+                    <div key={cat}>
+                      <div className="px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/30">{cat}</div>
+                      {filtered.map(kpi => (
+                        <button
+                          key={kpi.id}
+                          onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); setKpiSearch(''); }}
+                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-all ${
+                            mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-bold">{kpi.label}</span>
+                            {kpi.unit && <span className="text-[9px] text-muted-foreground">({kpi.unit})</span>}
+                          </div>
+                          {mapKpi === kpi.id && <Check size={12} />}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
       {paramPanelOpen && (
         <div className="absolute top-[80px] z-[1100] pointer-events-auto w-[320px] transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16 }}>
           <div className="bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
