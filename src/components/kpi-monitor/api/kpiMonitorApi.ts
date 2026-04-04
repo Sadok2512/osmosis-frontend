@@ -161,7 +161,12 @@ async function monitorPost<T>(path: string, body: any): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
-  return res.json();
+  const data = await res.json();
+  if (data && typeof data === 'object' && data.unavailable) {
+    console.warn(`[monitorPost] ${path} → VPS unavailable`);
+    throw new Error(`VPS unavailable for ${path}`);
+  }
+  return data;
 }
 
 // ── API functions ──
