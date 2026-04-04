@@ -7,8 +7,9 @@ import {
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
 import KpiCatalogView from '@/components/documentation/KpiCatalogView';
+import FilterRepositoryView from '@/components/documentation/FilterRepositoryView';
 
-type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'dimensions';
+type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions';
 
 /* ─────────── TOPO DATA ─────────── */
 const topoFields = [
@@ -138,6 +139,7 @@ const DocumentationPage: React.FC = () => {
 
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
     { id: 'kpi_reference', label: 'KPI Reference', icon: <BookOpen className="w-4 h-4" /> },
+    { id: 'filters', label: 'Filters', icon: <Filter className="w-4 h-4" /> },
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
     { id: 'kpi', label: 'KPI Legacy', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'dimensions', label: 'Dimensions', icon: <Layers className="w-4 h-4" /> },
@@ -208,11 +210,13 @@ const DocumentationPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden">
         {activeTab === 'kpi_reference' ? (
           <KpiCatalogView />
+        ) : activeTab === 'filters' ? (
+          <FilterRepositoryView />
         ) : (
-          <div className="px-8 py-6 max-w-7xl">
+          <div className="px-8 py-6 max-w-7xl overflow-y-auto h-full">
             {activeTab === 'topo' && <TopoSection search={search} />}
             {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={loadCatalog} />}
             {activeTab === 'dimensions' && <DimensionsSection search={search} />}
