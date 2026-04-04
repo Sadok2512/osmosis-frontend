@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!upstreamRes.ok && isAgentPost) {
+    if (!upstreamRes.ok && isAgentPost2) {
       const errorSnippet = responseBody.slice(0, 300) || `HTTP ${upstreamRes.status}`;
       console.warn(`[vps-proxy] Agent fallback for upstream ${upstreamRes.status}: ${errorSnippet}`);
       return new Response(JSON.stringify({ unavailable: true, service, path, error: `Agent error ${upstreamRes.status}: ${errorSnippet}`, content: "Le service Agent a rencontré une erreur. Veuillez réessayer." }), {
