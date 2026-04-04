@@ -2843,30 +2843,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     area = Math.abs(area * 6371000 * 6371000 / 2);
 
-    const sitesInside = filteredSites.filter(s => {
-      if (!s.latitude || !s.longitude) return false;
-      return isPointInPolygon(s.latitude, s.longitude, polygonPoints);
-    }).length;
-
     const fmtArea = area >= 1e6 ? `${(area / 1e6).toFixed(2)} km²` : `${Math.round(area)} m²`;
     const fmtPerimeter = perimeter >= 1000 ? `${(perimeter / 1000).toFixed(2)} km` : `${Math.round(perimeter)} m`;
 
-    return { area, perimeter, fmtArea, fmtPerimeter, sitesInside };
-  }, [polygonClosed, polygonPoints, filteredSites]);
-
-  // Sites inside each radius ring
-  const radiusSiteCounts = useMemo(() => {
-    if (!radiusCenter) return {};
-    const center = { lat: radiusCenter[0], lng: radiusCenter[1] };
-    const counts: Record<number, number> = {};
-    for (const r of radiusRadii) {
-      counts[r] = filteredSites.filter(s => {
-        if (!s.latitude || !s.longitude) return false;
-        return haversineDistance(center, { lat: s.latitude, lng: s.longitude }) <= r;
-      }).length;
-    }
-    return counts;
-  }, [radiusCenter, radiusRadii, filteredSites]);
+    return { area, perimeter, fmtArea, fmtPerimeter, sitesInside: 0 };
+  }, [polygonClosed, polygonPoints]);
 
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
     ? 'cells'
