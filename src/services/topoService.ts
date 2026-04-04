@@ -353,6 +353,119 @@ function buildSitesFromLocalTopo(): SiteSummary[] {
   return buildSitesFromRows(rows);
 }
 
+function normalizeFilterValue(value: string | null | undefined): string {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function normalizeBandFilterValue(value: string | null | undefined): string {
+  return normalizeFilterValue(value).replace(/[_\s-]+/g, '');
+}
+
+function hasMatchingFilterValue(
+  candidates: Array<string | null | undefined>,
+  selected?: string[],
+): boolean {
+  if (!selected || selected.length === 0) return true;
+
+  const normalizedCandidates = candidates
+    .map(normalizeFilterValue)
+    .filter(Boolean);
+
+  if (normalizedCandidates.length === 0) return false;
+
+  return selected
+    .map(normalizeFilterValue)
+    .filter(Boolean)
+    .some((selectedValue) => normalizedCandidates.includes(selectedValue));
+}
+
+function siteMatchesTechFilter(site: SiteSummary, selected?: string[]): boolean {
+  if (!selected || selected.length === 0) return true;
+
+  const techValues = new Set<string>();
+  site.cells?.forEach((cell) => {
+    const normalized = normalizeFilterValue(cell.techno);
+    if (normalized) {
+      techValues.add(normalized);
+      if (normalized.includes('5g') || normalized.includes('nr')) techValues.add('5g');
+      if (normalized.includes('4g') || normalized.includes('lte')) techValues.add('4g');
+    }
+  });
+
+  const siteTech = normalizeFilterValue((site as any).techno);
+  if (siteTech) techValues.add(siteTech);
+  if (Number((site as any).nr_cells || 0) > 0) techValues.add('5g');
+  if (Number((site as any).lte_cells || 0) > 0) techValues.add('4g');
+
+  return selected
+    .map(normalizeFilterValue)
+    .filter(Boolean)
+    .some((value) => techValues.has(value));
+}
+
+function siteMatchesBandFilter(site: SiteSummary, selected?: string[]): boolean {
+  if (!selected || selected.length === 0) return true;
+
+  const siteBands = new Set<string>();
+  site.cells?.forEach((cell) => {
+    const normalized = normalizeBandFilterValue(cell.bande);
+    if (normalized) siteBands.add(normalized);
+  });
+
+  const siteBand = normalizeBandFilterValue((site as any).bande);
+  if (siteBand) siteBands.add(siteBand);
+
+  if (siteBands.size === 0) return false;
+
+  return selected
+    .map(normalizeBandFilterValue)
+    .filter(Boolean)
+    .some((value) => siteBands.has(value));
+}
+
+function siteMatchesSearch(site: SiteSummary, search?: string): boolean {
+  const normalizedSearch = normalizeFilterValue(search);
+  if (!normalizedSearch) return true;
+
+  const haystack = [
+    site.site_id,
+    site.site_name,
+    site.vendor,
+    site.dor,
+    site.plaque,
+    (site as any).zone_arcep,
+    ...(site.cells?.map((cell) => cell.cell_id) || []),
+  ]
+    .map(normalizeFilterValue)
+    .filter(Boolean);
+
+  return haystack.some((value) => value.includes(normalizedSearch));
+}
+
+function filterDashboardSitesLocally(
+  sites: SiteSummary[],
+  siteFilters: DashboardSiteFilters | null,
+  search?: string,
+): SiteSummary[] {
+  return sites.filter((site) => {
+    if (!hasMatchingFilterValue([site.dor], siteFilters?.dor)) return false;
+    if (!hasMatchingFilterValue([site.vendor], siteFilters?.constructeur)) return false;
+    if (!hasMatchingFilterValue([site.plaque], siteFilters?.plaque)) return false;
+    if (!hasMatchingFilterValue([(site as any).zone_arcep], siteFilters?.zone_arcep)) return false;
+    if (!siteMatchesTechFilter(site, siteFilters?.techno)) return false;
+    if (!siteMatchesBandFilter(site, siteFilters?.bande)) return false;
+    if (!siteMatchesSearch(site, search)) return false;
+    return true;
+  });
+}
+
+function getEmbeddedDashboardSites(
+  siteFilters: DashboardSiteFilters | null,
+  search?: string,
+): SiteSummary[] {
+  return filterDashboardSitesLocally(buildSitesFromLocalTopo(), siteFilters, search);
+}
+
 // Fetch all rows from Cloud topo table (paginated to bypass 1000-row limit)
 async function fetchFromCloud(): Promise<TopoRow[]> {
   const PAGE_SIZE = 1000;
@@ -828,8 +941,15 @@ export async function fetchDashboardSites(
     return sites;
   } catch (err) {
     console.warn('[TopoService] Dashboard RPC also failed', err);
-    return [];
   }
+
+  const embeddedSites = getEmbeddedDashboardSites(siteFilters, search);
+  console.log(`[TopoService] Dashboard sites: ${embeddedSites.length} sites via embedded fallback`);
+  if (embeddedSites.length > 0) {
+    dashboardSitesCache = { key, sites: embeddedSites, ts: Date.now() };
+    onProgressiveBatch?.(embeddedSites);
+  }
+  return embeddedSites;
 }
 
 // ── NEW: On-demand cell loading per site with cache ──
