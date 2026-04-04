@@ -569,7 +569,16 @@ const DistanceMeasureClickHandler: React.FC<{ active: boolean; onPick: (latlng: 
   return null;
 };
 
-const losTargetIcon = L.divIcon({
+const RadiusClickHandler: React.FC<{ active: boolean; onPick: (latlng: LatLng) => void }> = ({ active, onPick }) => {
+  useMapEvents({
+    click(e) {
+      if (active) onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+  });
+  return null;
+};
+
+
   className: '',
   html: `<div style="width:14px;height:14px;border-radius:50%;background:hsl(0,84%,60%);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
   iconSize: [14, 14],
