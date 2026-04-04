@@ -6584,45 +6584,52 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Floating bottom-left: display mode + layer switcher */}
+      {/* Floating bottom-center: display mode + layer switcher */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16 }}>
-          {/* Display mode: Sites / Points / Heatmap */}
-          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+        <div
+          className="absolute z-[1000] pointer-events-auto transition-all duration-300"
+          style={{
+            bottom: 56,
+            left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-full shadow-md px-1.5 py-1 flex items-center gap-0.5">
+            {/* Display mode: Sites / Points / Heatmap */}
             {([
-              { key: 'sites' as const, label: '📍' },
-              { key: 'points' as const, label: '●' },
-              { key: 'heatmap' as const, label: '🔥' },
-            ]).map(({ key, label }) => (
+              { key: 'sites' as const, label: '📍', title: 'Sites' },
+              { key: 'points' as const, label: '●', title: 'Points' },
+              { key: 'heatmap' as const, label: '🔥', title: 'Heatmap' },
+            ]).map(({ key, label, title }) => (
               <button
                 key={key}
                 onClick={() => setMapDisplayMode(key)}
-                className={`w-10 h-10 flex items-center justify-center text-sm transition-all ${
+                className={`w-9 h-9 flex items-center justify-center text-sm rounded-full transition-all ${
                   mapDisplayMode === key
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                 }`}
-                title={key.charAt(0).toUpperCase() + key.slice(1)}
+                title={title}
               >
                 {label}
               </button>
             ))}
-          </div>
-          {/* Layer switcher: L / D / S */}
-          <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+            <span className="w-px h-5 bg-border/60 mx-0.5" />
+            {/* Layer switcher: L / D / S */}
             {([
-              { key: 'light' as const, label: 'L' },
-              { key: 'dark' as const, label: 'D' },
-              { key: 'satellite' as const, label: 'S' },
-            ]).map(({ key, label }) => (
+              { key: 'light' as const, label: 'L', title: 'Light' },
+              { key: 'dark' as const, label: 'D', title: 'Dark' },
+              { key: 'satellite' as const, label: 'S', title: 'Satellite' },
+            ]).map(({ key, label, title }) => (
               <button
                 key={key}
                 onClick={() => setMapLayer(key)}
-                className={`w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all ${
+                className={`w-9 h-9 flex items-center justify-center text-xs font-bold rounded-full transition-all ${
                   mapLayer === key
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                 }`}
+                title={title}
               >
                 {label}
               </button>
