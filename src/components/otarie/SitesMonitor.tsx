@@ -4286,7 +4286,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters, activeViewConditions]);
 
-  // Check if a cell's band passes the band filter
+  // Radius analysis stats
+  const radiusStats = useMemo(() => {
+    if (!radiusCenter || !radiusConfirmed || radiusConfirmedMeters <= 0) return null;
+    const center = { lat: radiusCenter[0], lng: radiusCenter[1] };
+    let sitesInside = 0;
+    let cellsInside = 0;
+    for (const s of filteredSites) {
+      const d = haversineDistance(center, { lat: s.coordinates[0], lng: s.coordinates[1] });
+      if (d <= radiusConfirmedMeters) {
+        sitesInside++;
+        cellsInside += s.cells.length;
+      }
+    }
+    return { sitesInside, cellsInside };
+  }, [radiusCenter, radiusConfirmed, radiusConfirmedMeters, filteredSites]);
+
+
   const isBandEnabled = useCallback((bande: string, techno?: string) => {
     const key = normalizeBandKey(bande, techno);
     // Unknown formats stay visible instead of disappearing
