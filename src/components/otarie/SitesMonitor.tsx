@@ -5066,10 +5066,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </Polyline>
         )}
 
-        {/* ── Radius tool (interactive: click center, drag to set radius) ── */}
+        {/* ── Radius tool ── */}
         {activeMapTool === 'radius' && radiusCenter && (() => {
           const currentRadius = radiusConfirmed ? radiusConfirmedMeters : radiusLiveMeters;
-          const label = currentRadius >= 1000 ? `${(currentRadius / 1000).toFixed(2)} km` : `${Math.round(currentRadius)} m`;
+          const fmtRadius = currentRadius >= 1000 ? `${(currentRadius / 1000).toFixed(2)} km` : `${Math.round(currentRadius)} m`;
           return (
             <>
               {currentRadius > 0 && (
@@ -5080,21 +5080,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   pathOptions={{
                     color: radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0],
                     fillColor: radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0],
-                    fillOpacity: radiusConfirmed ? 0.08 : 0.05,
-                    weight: 2,
+                    fillOpacity: radiusConfirmed ? 0.06 : 0.04,
+                    weight: radiusConfirmed ? 2 : 1.5,
                     dashArray: radiusConfirmed ? undefined : '8 6',
                   }}
                 >
-                  <Tooltip permanent direction="center" opacity={1} className="!bg-card/90 !border-border !text-foreground shadow-lg">
-                    <div className="flex items-center gap-1.5 text-[10px] font-semibold">
-                      <span>📏 {label}</span>
+                  <Tooltip permanent direction="center" opacity={1} className="!bg-card/95 !border-border !text-foreground shadow-lg !rounded-lg">
+                    <div className="flex items-center gap-2 text-[9px] font-semibold">
+                      <span>📏 {fmtRadius}</span>
+                      {radiusConfirmed && radiusStats && (
+                        <>
+                          <span className="text-muted-foreground">•</span>
+                          <span>{radiusStats.sitesInside} sites</span>
+                          <span className="text-muted-foreground">•</span>
+                          <span>{radiusStats.cellsInside} cells</span>
+                        </>
+                      )}
                     </div>
                   </Tooltip>
                 </Circle>
               )}
               <CircleMarker
                 center={radiusCenter}
-                radius={7}
+                radius={5}
                 pane="pane5G"
                 pathOptions={{
                   color: 'hsl(var(--background))',
@@ -5103,8 +5111,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   weight: 2,
                 }}
               >
-                <Tooltip permanent direction="top" offset={[0, -10]} opacity={1}>
-                  <span className="text-[10px] font-semibold">📍 Centre</span>
+                <Tooltip permanent direction="bottom" offset={[0, 8]} opacity={1} className="!bg-card/90 !border-border/50 !text-foreground !rounded !shadow-sm">
+                  <span className="text-[8px] font-mono text-muted-foreground">{radiusCenter[0].toFixed(5)}, {radiusCenter[1].toFixed(5)}</span>
                 </Tooltip>
               </CircleMarker>
             </>
