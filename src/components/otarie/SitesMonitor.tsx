@@ -3690,7 +3690,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       searchAbortRef.current = ctrl;
 
       try {
-        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites?search=${encodeURIComponent(term)}&limit=10`), {
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites?search=${encodeURIComponent(term)}&limit=50`), {
           headers: getVpsProxyHeaders(),
           signal: ctrl.signal,
         });
