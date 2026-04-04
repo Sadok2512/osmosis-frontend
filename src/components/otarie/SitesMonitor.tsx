@@ -2524,21 +2524,82 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
     if (search.trim()) setSearchedParam(search.trim());
   };
 
-  // Group results by parameter name
-  const grouped = React.useMemo(() => {
-    const map = new Map<string, typeof paramData>();
-    for (const p of paramData) {
-      const key = p.parameter;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(p);
-    }
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  // Group results by MO (extract from DN or parameter prefix)
+  const [tableFilter, setTableFilter] = React.useState('');
+  const [sortCol, setSortCol] = React.useState<'mo' | 'parameter' | 'value' | 'cell'>('mo');
+  const [sortAsc, setSortAsc] = React.useState(true);
+  const [collapsedMOs, setCollapsedMOs] = React.useState<Set<string>>(new Set());
+
+  const tableRows = React.useMemo(() => {
+    return paramData.map(p => {
+      // Extract MO from DN (e.g. "SubNetwork=...,EUtranCellFDD=xxx" → last RDN type)
+      let mo = '—';
+      if (p.dn) {
+        const parts = p.dn.split(',');
+        const last = parts[parts.length - 1];
+        const eqIdx = last.indexOf('=');
+        mo = eqIdx > 0 ? last.substring(0, eqIdx) : last;
+      } else if (p.parameter) {
+        // fallback: use first uppercase-prefixed segment
+        const m = p.parameter.match(/^([A-Z][a-zA-Z]*)/);
+        if (m) mo = m[1];
+      }
+      return { mo, parameter: p.parameter, value: p.value, cell: p.cell_name || '', bande: p.bande || '' };
+    });
   }, [paramData]);
+
+  const filteredRows = React.useMemo(() => {
+    if (!tableFilter) return tableRows;
+    const q = tableFilter.toLowerCase();
+    return tableRows.filter(r =>
+      r.mo.toLowerCase().includes(q) ||
+      r.parameter.toLowerCase().includes(q) ||
+      (r.value || '').toLowerCase().includes(q) ||
+      r.cell.toLowerCase().includes(q)
+    );
+  }, [tableRows, tableFilter]);
+
+  const sortedGrouped = React.useMemo(() => {
+    const sorted = [...filteredRows].sort((a, b) => {
+      const va = a[sortCol] || '';
+      const vb = b[sortCol] || '';
+      return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+    // Group by MO
+    const map = new Map<string, typeof sorted>();
+    for (const r of sorted) {
+      if (!map.has(r.mo)) map.set(r.mo, []);
+      map.get(r.mo)!.push(r);
+    }
+    return Array.from(map.entries());
+  }, [filteredRows, sortCol, sortAsc]);
+
+  const toggleSort = (col: typeof sortCol) => {
+    if (sortCol === col) setSortAsc(!sortAsc);
+    else { setSortCol(col); setSortAsc(true); }
+  };
+
+  const toggleMO = (mo: string) => {
+    setCollapsedMOs(prev => {
+      const next = new Set(prev);
+      if (next.has(mo)) next.delete(mo); else next.add(mo);
+      return next;
+    });
+  };
+
+  const copyValue = (val: string) => {
+    navigator.clipboard.writeText(val);
+  };
+
+  const SortIcon = ({ col }: { col: typeof sortCol }) => {
+    if (sortCol !== col) return <ChevronsUpDown className="w-2.5 h-2.5 text-muted-foreground/40" />;
+    return sortAsc ? <ChevronUp className="w-2.5 h-2.5 text-primary" /> : <ChevronDown className="w-2.5 h-2.5 text-primary" />;
+  };
 
   if (!siteName) return <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Sélectionnez un site</div>;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Search input + button */}
       <div className="flex gap-1.5">
         <div className="relative flex-1">
@@ -2574,30 +2635,106 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
         </div>
       ) : (
         <>
-          <div className="text-[9px] text-muted-foreground px-1">
-            {paramData.length} entrée{paramData.length !== 1 ? 's' : ''} · {grouped.length} paramètre{grouped.length !== 1 ? 's' : ''}
+          {/* Stats + table filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-muted-foreground">
+              {filteredRows.length} entrée{filteredRows.length !== 1 ? 's' : ''} · {sortedGrouped.length} MO
+            </span>
+            <div className="relative flex-1 max-w-[200px] ml-auto">
+              <Filter size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+              <input
+                value={tableFilter}
+                onChange={e => setTableFilter(e.target.value)}
+                placeholder="Filtrer…"
+                className="w-full pl-6 pr-2 py-1 text-[10px] rounded border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
           </div>
-          <div className="max-h-[calc(100vh-480px)] overflow-y-auto space-y-1.5 pr-0.5">
-            {grouped.map(([paramName, entries]) => (
-              <div key={paramName} className="rounded-xl border border-border bg-card overflow-hidden">
-                <div className="px-3 py-1.5 bg-muted/30 border-b border-border/50 flex items-center justify-between">
-                  <span className="text-[10px] font-black text-foreground truncate">{paramName}</span>
-                  <span className="text-[9px] text-muted-foreground font-mono">{entries.length}</span>
-                </div>
-                <div className="divide-y divide-border/30">
-                  {entries.slice(0, 30).map((e, i) => (
-                    <div key={i} className="px-3 py-1.5 flex items-center gap-2 text-[10px]">
-                      {e.cell_name && <span className="text-muted-foreground truncate max-w-[120px]" title={e.cell_name}>{e.cell_name}</span>}
-                      {e.bande && <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[9px] font-medium text-foreground/60 shrink-0">{e.bande}</span>}
-                      <span className="ml-auto font-mono font-semibold text-foreground/90 truncate max-w-[120px] text-right" title={e.value || '—'}>{e.value || '—'}</span>
-                    </div>
-                  ))}
-                  {entries.length > 30 && (
-                    <div className="px-3 py-1 text-[9px] text-muted-foreground text-center">+{entries.length - 30} de plus</div>
-                  )}
-                </div>
-              </div>
-            ))}
+
+          {/* MO-grouped table */}
+          <div className="rounded-lg border border-border bg-card overflow-hidden max-h-[calc(100vh-460px)] overflow-y-auto">
+            <table className="w-full text-[10px]">
+              <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
+                <tr>
+                  <th className="text-left px-2 py-1.5 font-bold text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('mo')}>
+                    <span className="inline-flex items-center gap-0.5">MO <SortIcon col="mo" /></span>
+                  </th>
+                  <th className="text-left px-2 py-1.5 font-bold text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('parameter')}>
+                    <span className="inline-flex items-center gap-0.5">Parameter <SortIcon col="parameter" /></span>
+                  </th>
+                  <th className="text-left px-2 py-1.5 font-bold text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors w-[80px]" onClick={() => toggleSort('cell')}>
+                    <span className="inline-flex items-center gap-0.5">Cell <SortIcon col="cell" /></span>
+                  </th>
+                  <th className="text-right px-2 py-1.5 font-bold text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors w-[90px]" onClick={() => toggleSort('value')}>
+                    <span className="inline-flex items-center gap-0.5 justify-end">Value <SortIcon col="value" /></span>
+                  </th>
+                  <th className="w-[24px]" />
+                </tr>
+              </thead>
+              <tbody>
+                {sortedGrouped.map(([mo, rows]) => {
+                  const isCollapsed = collapsedMOs.has(mo);
+                  return (
+                    <React.Fragment key={mo}>
+                      {/* MO group header */}
+                      <tr
+                        className="bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors border-t border-border/50"
+                        onClick={() => toggleMO(mo)}
+                      >
+                        <td colSpan={5} className="px-2 py-1.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            {isCollapsed ? <ChevronRight className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-primary" />}
+                            <span className="font-black text-foreground text-[10px]">{mo}</span>
+                            <span className="text-[9px] text-muted-foreground font-mono ml-1">({rows.length})</span>
+                          </span>
+                        </td>
+                      </tr>
+                      {/* Rows */}
+                      {!isCollapsed && rows.map((r, i) => {
+                        const isZero = r.value === '0' || r.value === '0.0';
+                        const isNumeric = r.value && !isNaN(Number(r.value));
+                        const numVal = isNumeric ? Number(r.value) : null;
+                        return (
+                          <tr key={i} className={`${i % 2 === 0 ? 'bg-background' : 'bg-muted/10'} hover:bg-accent/20 transition-colors`}>
+                            <td className="px-2 py-1 text-muted-foreground/30 font-mono">│</td>
+                            <td className="px-2 py-1 font-mono text-foreground/90 truncate max-w-[180px]" title={r.parameter}>
+                              {tableFilter ? (
+                                <span dangerouslySetInnerHTML={{
+                                  __html: r.parameter.replace(
+                                    new RegExp(`(${tableFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
+                                    '<mark class="bg-yellow-400/40 text-foreground rounded px-0.5">$1</mark>'
+                                  )
+                                }} />
+                              ) : r.parameter}
+                            </td>
+                            <td className="px-2 py-1 text-muted-foreground truncate max-w-[80px]" title={r.cell || '—'}>
+                              {r.cell || '—'}
+                              {r.bande && <span className="ml-1 text-[8px] text-muted-foreground/60">({r.bande})</span>}
+                            </td>
+                            <td className={`px-2 py-1 text-right font-mono font-semibold ${
+                              isZero ? 'text-muted-foreground/40' :
+                              numVal !== null && numVal > 100 ? 'text-primary' :
+                              'text-foreground'
+                            }`}>
+                              {r.value || '—'}
+                            </td>
+                            <td className="px-1 py-1">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); copyValue(r.value || ''); }}
+                                className="p-0.5 rounded hover:bg-muted text-muted-foreground/40 hover:text-foreground transition-colors"
+                                title="Copy value"
+                              >
+                                <Copy className="w-2.5 h-2.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </>
       )}
