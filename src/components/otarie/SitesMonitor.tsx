@@ -2532,17 +2532,26 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
 
   const tableRows = React.useMemo(() => {
     return paramData.map(p => {
-      // Extract MO from DN (e.g. "SubNetwork=...,EUtranCellFDD=xxx" → last RDN type)
+      // Extract MO from parameter name (e.g. "LNCEL.pMax" → "LNCEL")
+      // This is the most reliable source — works for all vendors
       let mo = '—';
-      if (p.dn) {
-        const parts = p.dn.split(',');
-        const last = parts[parts.length - 1];
-        const eqIdx = last.indexOf('=');
-        mo = eqIdx > 0 ? last.substring(0, eqIdx) : last;
-      } else if (p.parameter) {
-        // fallback: use first uppercase-prefixed segment
-        const m = p.parameter.match(/^([A-Z][a-zA-Z]*)/);
-        if (m) mo = m[1];
+      if (p.parameter) {
+        const dotIdx = p.parameter.indexOf('.');
+        mo = dotIdx > 0 ? p.parameter.substring(0, dotIdx) : p.parameter;
+      } else if (p.dn) {
+        // Fallback: extract from DN
+        // Nokia: PLMN-PLMN/MRBTS-x/LNBTS-x/LNCEL-x → use second-to-last segment
+        if (p.dn.includes('/')) {
+          const parts = p.dn.split('/');
+          const seg = parts.length >= 2 ? parts[parts.length - 2] : parts[parts.length - 1];
+          mo = seg.replace(/-\d+$/, '');
+        } else {
+          // Ericsson 3GPP: SubNetwork=...,EUtranCellFDD=xxx
+          const parts = p.dn.split(',');
+          const last = parts[parts.length - 1];
+          const eqIdx = last.indexOf('=');
+          mo = eqIdx > 0 ? last.substring(0, eqIdx) : last;
+        }
       }
       return { mo, parameter: p.parameter, value: p.value, cell: p.cell_name || '', bande: p.bande || '' };
     });
