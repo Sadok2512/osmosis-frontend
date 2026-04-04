@@ -3729,6 +3729,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           });
 
         setSearchModeSites(summaries);
+        if (summaries.length > 0) setInventoryTab('sites');
 
         // Auto-fly to first result
         if (summaries.length > 0) {
