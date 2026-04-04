@@ -7,16 +7,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Primary: Cloudflare tunnels (HTTPS, reliable from anywhere)
-// Fallback: Direct IP (works from same network only)
-const CF_PARSER_TUNNEL = 'https://tiger-insulation-foods-right.trycloudflare.com';
-const CF_KPI_TUNNEL = 'https://speeds-pet-generally-agreement.trycloudflare.com';
+// Cloudflare Tunnel (permanent, HTTPS) — bypasses Iran IP blocking
+const CF_PARSER = 'https://api.qoebit.net';
+const CF_KPI = 'https://kpi.qoebit.net';
 const VPS_HOST = '151.242.147.49';
 
 const SERVICE_URLS: Record<string, string[]> = {
-  parser: [CF_PARSER_TUNNEL, `http://${VPS_HOST}:8000`],
-  agent:  [CF_PARSER_TUNNEL, `http://${VPS_HOST}:8000`],
-  kpi:    [CF_KPI_TUNNEL, `http://${VPS_HOST}:8001`],
+  parser: [CF_PARSER, `http://${VPS_HOST}:8000`],
+  agent:  [CF_PARSER, `http://${VPS_HOST}:8000`],
+  kpi:    [CF_KPI, `http://${VPS_HOST}:8001`],
 };
 
 // Legacy compat
