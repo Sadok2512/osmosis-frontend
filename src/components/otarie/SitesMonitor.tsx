@@ -4648,16 +4648,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setShowRightPanel(true);
     // Ensure inventory panel is open
     setPanelCollapsed(false);
-    // When coming from search, auto-tag and switch to Tagged tab
+    // When coming from search, auto-tag the site but keep results visible
     if (isSearchActive) {
       if (!isSiteTagged(siteWithCells.site_id)) {
         toggleTagSite(siteWithCells);
       }
-      setInventoryTab('tagged');
-      // Clear search after tagging
-      setLocalSearch('');
-      setSearchResults([]);
-      setSearchModeSites([]);
+      // Stay on sites tab so user can see other search results and tag more
+      setInventoryTab('sites');
     } else if (inventoryTab !== 'tagged' || !isSiteTagged(siteWithCells.site_id)) {
       setInventoryTab('sites');
     }
