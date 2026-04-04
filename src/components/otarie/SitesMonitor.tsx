@@ -6904,6 +6904,38 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </button>
                   ))}
                 </div>
+
+                {/* Band selector in KPI mode */}
+                <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
+                  {(mapTechnoFilter === 'ALL' || mapTechnoFilter === '5G'
+                    ? ['NR3500', 'NR700', 'NR2100']
+                    : []
+                  ).concat(
+                    mapTechnoFilter === 'ALL' || mapTechnoFilter === '4G'
+                      ? ['L2600', 'L2100', 'L1800', 'L800', 'L700']
+                      : []
+                  ).map((band) => (
+                    <button
+                      key={band}
+                      onClick={() => {
+                        setEnabledBands(prev => {
+                          const next = new Set(prev);
+                          if (next.has(band)) next.delete(band);
+                          else next.add(band);
+                          return next;
+                        });
+                      }}
+                      className={`px-2 py-2 text-[9px] font-bold tracking-wider transition-all ${
+                        enabledBands.has(band)
+                          ? 'text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground/50 hover:text-foreground hover:bg-muted'
+                      }`}
+                      style={enabledBands.has(band) ? { backgroundColor: DEFAULT_BAND_COLORS[band] || 'hsl(var(--primary))' } : {}}
+                    >
+                      {band}
+                    </button>
+                  ))}
+                </div>
               </>
             )}
 
