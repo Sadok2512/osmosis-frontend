@@ -2922,8 +2922,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localBande, setLocalBande] = useState('ALL');
   const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
-  const [mapKpi, setMapKpi] = useState('qoe_score_avg');
+  const [mapKpi, setMapKpi] = useState('rrc_sr');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
+  const [showKpiLegend, setShowKpiLegend] = useState(true);
+  const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
+  const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean }>>(() => {
+    try {
+      const saved = localStorage.getItem('qoebit_kpi_thresholds');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      rrc_sr: { green: 98, orange: 95 },
+      erab_sr: { green: 98, orange: 95 },
+      prb_usage: { green: 70, orange: 85, invert: true },
+      throughput_dl: { green: 30, orange: 10 },
+      throughput_ul: { green: 5, orange: 2 },
+      avg_distance: { green: 2, orange: 5, invert: true },
+      overshooting: { green: 12, orange: 20, invert: true },
+      volte_drop: { green: 0.5, orange: 1, invert: true },
+      cqi_avg: { green: 10, orange: 7 },
+    };
+  });
   const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [activeViewConditions, setActiveViewConditions] = useState<ViewFilterCondition[]>([]);
