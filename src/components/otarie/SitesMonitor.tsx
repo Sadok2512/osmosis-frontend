@@ -560,6 +560,15 @@ const CustomPointClickHandler: React.FC<{ active: boolean; onAdd: (lat: number, 
   return null;
 };
 
+const DistanceMeasureClickHandler: React.FC<{ active: boolean; onPick: (latlng: LatLng) => void }> = ({ active, onPick }) => {
+  useMapEvents({
+    click(e) {
+      if (active) onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+  });
+  return null;
+};
+
 const losTargetIcon = L.divIcon({
   className: '',
   html: `<div style="width:14px;height:14px;border-radius:50%;background:hsl(0,84%,60%);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
@@ -2741,8 +2750,46 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
   const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'sector' | null>(null);
+  const [distanceMeasurePoints, setDistanceMeasurePoints] = useState<[number, number][]>([]);
   const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
   const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
+
+  useEffect(() => {
+    if (activeMapTool !== 'distance' && distanceMeasurePoints.length > 0) {
+      setDistanceMeasurePoints([]);
+    }
+  }, [activeMapTool, distanceMeasurePoints.length]);
+
+  const handleDistanceMeasureClick = useCallback((latlng: LatLng) => {
+    const point: [number, number] = [latlng.lat, latlng.lng];
+    setDistanceMeasurePoints(prev => (prev.length >= 2 ? [point] : [...prev, point]));
+  }, []);
+
+  const distanceMeasurement = useMemo(() => {
+    if (distanceMeasurePoints.length !== 2) return null;
+
+    const [from, to] = distanceMeasurePoints;
+    const fromLL = { lat: from[0], lng: from[1] };
+    const toLL = { lat: to[0], lng: to[1] };
+    const distanceMeters = haversineDistance(fromLL, toLL);
+    const azimuth = Math.round(bearing(fromLL, toLL));
+    const label = distanceMeters >= 1000
+      ? `${(distanceMeters / 1000).toFixed(distanceMeters >= 10000 ? 1 : 2)} km`
+      : `${Math.round(distanceMeters)} m`;
+
+    return {
+      azimuth,
+      label,
+    };
+  }, [distanceMeasurePoints]);
+
+  const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'sector') => {
+    if (tool !== 'distance' || activeMapTool === 'distance') {
+      setDistanceMeasurePoints([]);
+    }
+
+    setActiveMapTool(prev => (prev === tool ? null : tool));
+  }, [activeMapTool]);
 
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
     ? 'cells'
@@ -4771,6 +4818,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
         <CustomPointClickHandler active={pointCreationMode} onAdd={addCustomPoint} />
+        <DistanceMeasureClickHandler active={activeMapTool === 'distance'} onPick={handleDistanceMeasureClick} />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
@@ -4812,6 +4860,45 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <span className="text-xs font-semibold">📌 Cliquez pour taguer · {searchCoordMarker[0].toFixed(4)}, {searchCoordMarker[1].toFixed(4)}</span>
             </Tooltip>
           </Marker>
+        )}
+
+        {activeMapTool === 'distance' && distanceMeasurePoints.map((point, index) => (
+          <CircleMarker
+            key={`distance-point-${index}-${point[0]}-${point[1]}`}
+            center={point}
+            radius={7}
+            pane="pane5G"
+            pathOptions={{
+              color: 'hsl(var(--background))',
+              fillColor: 'hsl(var(--primary))',
+              fillOpacity: 1,
+              weight: 2,
+            }}
+          >
+            <Tooltip permanent direction="top" offset={[0, -10]} opacity={1}>
+              <span className="text-[10px] font-semibold">{index === 0 ? 'A' : 'B'}</span>
+            </Tooltip>
+          </CircleMarker>
+        ))}
+        {activeMapTool === 'distance' && distanceMeasurePoints.length === 2 && distanceMeasurement && (
+          <Polyline
+            positions={distanceMeasurePoints}
+            pane="pane5G"
+            pathOptions={{
+              color: 'hsl(var(--primary))',
+              weight: 3,
+              dashArray: '10 8',
+              opacity: 0.95,
+            }}
+          >
+            <Tooltip permanent direction="center" opacity={1} className="!bg-card !border-border !text-foreground shadow-lg">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium">
+                <span className="font-semibold">{distanceMeasurement.label}</span>
+                <span className="text-muted-foreground">•</span>
+                <span>{distanceMeasurement.azimuth}°</span>
+              </div>
+            </Tooltip>
+          </Polyline>
         )}
 
         {/* ── Parameter overlay markers ── */}
@@ -6165,7 +6252,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 return (
                   <button
                     key={tool.key}
-                    onClick={() => setActiveMapTool(prev => prev === tool.key ? null : tool.key)}
+                    onClick={() => handleMapToolToggle(tool.key)}
                     title={tool.tip}
                     className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 ${
                       isActive
