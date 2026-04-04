@@ -2749,8 +2749,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
-  const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'sector' | null>(null);
+  const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'radius' | null>(null);
   const [distanceMeasurePoints, setDistanceMeasurePoints] = useState<[number, number][]>([]);
+  const [radiusCenter, setRadiusCenter] = useState<[number, number] | null>(null);
+  const [radiusMeters, setRadiusMeters] = useState(1000);
+  const RADIUS_PRESETS = [100, 500, 1000, 3000, 5000];
   const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
   const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
 
