@@ -6513,11 +6513,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 );
               })}
 
-              {/* Radius rings info */}
-              {activeMapTool === 'radius' && radiusCenter && (
+              {/* Radius info */}
+              {activeMapTool === 'radius' && radiusCenter && radiusConfirmed && (
                 <>
                   <span className="w-px h-3.5 bg-border/60 mx-0.5" />
-                  <span className="text-[8px] text-muted-foreground font-medium">{radiusRadii.length} rings</span>
+                  <span className="text-[8px] text-muted-foreground font-medium">
+                    {radiusConfirmedMeters >= 1000 ? `${(radiusConfirmedMeters / 1000).toFixed(2)} km` : `${Math.round(radiusConfirmedMeters)} m`}
+                  </span>
                 </>
               )}
             </>
