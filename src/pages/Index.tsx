@@ -123,19 +123,8 @@ const Index: React.FC = () => {
       case 'bi':
         return <AdvancedAnalytics filters={filters} theme={theme} />;
       case 'sites':
-        return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />;
-      case 'alerts':
-        return <AlertsRCA filters={filters} />;
-      case 'radio':
-        return <RadioMobility filters={filters} />;
-      case 'traffic':
-        return <AnalyticBIStudio filters={filters} />;
-      case 'subscriber':
-        return <SubscriberExperience filters={filters} />;
-      case 'detector':
-        return <DetectorConsole />;
       case 'list':
-        return <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />;
+        return null; // SitesMonitor is always mounted, rendered separately
       case 'settings':
         return <SettingsPanel sidebarTheme={sidebarTheme} setSidebarTheme={setSidebarTheme} accentColor={accentColor} setAccentColor={setAccentColor} enabledModules={enabledModules} setEnabledModules={setEnabledModules} />;
       case 'docs':
