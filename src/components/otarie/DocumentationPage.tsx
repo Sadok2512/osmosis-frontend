@@ -102,7 +102,7 @@ const dimSections: DimSection[] = [
 
 /* ═══════════════════ MAIN COMPONENT ═══════════════════ */
 const DocumentationPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<DocTab>('kpi');
+  const [activeTab, setActiveTab] = useState<DocTab>('kpi_reference');
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('ALL');
 
