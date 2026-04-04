@@ -210,11 +210,13 @@ const DocumentationPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden">
         {activeTab === 'kpi_reference' ? (
           <KpiCatalogView />
+        ) : activeTab === 'filters' ? (
+          <FilterRepositoryView />
         ) : (
-          <div className="px-8 py-6 max-w-7xl">
+          <div className="px-8 py-6 max-w-7xl overflow-y-auto h-full">
             {activeTab === 'topo' && <TopoSection search={search} />}
             {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={loadCatalog} />}
             {activeTab === 'dimensions' && <DimensionsSection search={search} />}
