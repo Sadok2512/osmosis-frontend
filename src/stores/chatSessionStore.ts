@@ -19,6 +19,9 @@ export interface ProgressEvent {
   tool?: string;
   query?: string;
   plan?: string[];
+  skill_id?: string;
+  skill_name?: string;
+  verdict?: string;
   ts: number; // client-side timestamp when parsed
 }
 

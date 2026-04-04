@@ -144,7 +144,13 @@ async function monitorGet<T>(path: string): Promise<T> {
     console.warn(`[monitorGet] ${path} → ${res.status}`, body);
     throw new Error(`API error ${res.status}: ${body}`);
   }
-  return res.json();
+  const data = await res.json();
+  // vps-proxy returns {unavailable: true, items: [], ...} when VPS is down
+  if (data && typeof data === 'object' && data.unavailable) {
+    console.warn(`[monitorGet] ${path} → VPS unavailable`);
+    throw new Error(`VPS unavailable for ${path}`);
+  }
+  return data;
 }
 
 async function monitorPost<T>(path: string, body: any): Promise<T> {
@@ -155,7 +161,12 @@ async function monitorPost<T>(path: string, body: any): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
-  return res.json();
+  const data = await res.json();
+  if (data && typeof data === 'object' && data.unavailable) {
+    console.warn(`[monitorPost] ${path} → VPS unavailable`);
+    throw new Error(`VPS unavailable for ${path}`);
+  }
+  return data;
 }
 
 // ── API functions ──
