@@ -4990,30 +4990,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </Polyline>
         )}
 
-        {/* ── Radius tool ── */}
+        {/* ── Multi-Radius tool ── */}
         {activeMapTool === 'radius' && radiusCenter && (
           <>
-            <Circle
-              center={radiusCenter}
-              radius={radiusMeters}
-              pane="pane5G"
-              pathOptions={{
-                color: 'hsl(var(--primary))',
-                fillColor: 'hsl(var(--primary))',
-                fillOpacity: 0.08,
-                weight: 2,
-                dashArray: '6 4',
-              }}
-            >
-              <Tooltip permanent direction="center" opacity={1} className="!bg-card !border-border !text-foreground shadow-lg">
-                <div className="flex items-center gap-1.5 text-[10px] font-medium">
-                  <span className="font-semibold">{radiusMeters >= 1000 ? `${(radiusMeters / 1000).toFixed(1)} km` : `${radiusMeters} m`}</span>
-                </div>
-              </Tooltip>
-            </Circle>
+            {[...radiusRadii].sort((a, b) => b - a).map((r, idx) => {
+              const color = RADIUS_RING_COLORS[idx % RADIUS_RING_COLORS.length];
+              const label = r >= 1000 ? `${(r / 1000).toFixed(r >= 1000 && r % 1000 === 0 ? 0 : 1)} km` : `${r} m`;
+              return (
+                <Circle
+                  key={`radius-ring-${r}`}
+                  center={radiusCenter}
+                  radius={r}
+                  pane="pane5G"
+                  pathOptions={{
+                    color,
+                    fillColor: color,
+                    fillOpacity: idx === radiusRadii.length - 1 ? 0.06 : 0.03,
+                    weight: 2,
+                    dashArray: idx === 0 ? undefined : '6 4',
+                  }}
+                >
+                  <Tooltip permanent direction="right" offset={[0, 0]} opacity={1} className="!bg-card/90 !border-border !text-foreground shadow-md !text-[9px] !font-semibold !py-0.5 !px-1.5">
+                    <span>{label}</span>
+                  </Tooltip>
+                </Circle>
+              );
+            })}
             <CircleMarker
               center={radiusCenter}
-              radius={6}
+              radius={7}
               pane="pane5G"
               pathOptions={{
                 color: 'hsl(var(--background))',
@@ -5021,9 +5026,63 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 fillOpacity: 1,
                 weight: 2,
               }}
-            />
+            >
+              <Tooltip permanent direction="top" offset={[0, -10]} opacity={1}>
+                <span className="text-[10px] font-semibold">📍 Centre</span>
+              </Tooltip>
+            </CircleMarker>
           </>
         )}
+
+        {/* ── Polygon tool ── */}
+        {activeMapTool === 'polygon' && polygonPoints.length >= 2 && (
+          polygonClosed ? (
+            <Polygon
+              positions={polygonPoints}
+              pane="pane5G"
+              pathOptions={{
+                color: 'hsl(var(--primary))',
+                fillColor: 'hsl(var(--primary))',
+                fillOpacity: 0.1,
+                weight: 2,
+              }}
+            >
+              {polygonStats && (
+                <Tooltip permanent direction="center" opacity={1} className="!bg-card !border-border !text-foreground shadow-lg">
+                  <div className="flex flex-col items-center gap-0.5 text-[9px] font-medium">
+                    <span className="font-semibold">{polygonStats.fmtArea}</span>
+                    <span className="text-muted-foreground">{polygonStats.fmtPerimeter}</span>
+                  </div>
+                </Tooltip>
+              )}
+            </Polygon>
+          ) : (
+            <Polyline
+              positions={polygonPoints}
+              pane="pane5G"
+              pathOptions={{
+                color: 'hsl(var(--primary))',
+                weight: 2,
+                dashArray: '8 6',
+                opacity: 0.8,
+              }}
+            />
+          )
+        )}
+        {activeMapTool === 'polygon' && polygonPoints.map((point, index) => (
+          <CircleMarker
+            key={`polygon-pt-${index}`}
+            center={point}
+            radius={5}
+            pane="pane5G"
+            pathOptions={{
+              color: 'hsl(var(--background))',
+              fillColor: 'hsl(var(--primary))',
+              fillOpacity: 1,
+              weight: 2,
+            }}
+          />
+        ))}
 
 
         {paramMode && !paramLoading && paramPoints.length > 0 && (
