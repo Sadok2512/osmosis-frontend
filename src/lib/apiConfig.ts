@@ -85,9 +85,12 @@ export function getVpsProxyUrl(
   path: string,
   extraParams?: Record<string, string>,
 ): string {
-  // Direct VPS mode: skip proxy when browser is on VPS
-  const onVps = typeof window !== 'undefined' && window.location.hostname === VPS_HOST;
-  if (onVps) {
+  // Direct mode: skip proxy when browser is on VPS or Cloudflare tunnel
+  const onDirect = typeof window !== 'undefined' && (
+    window.location.hostname === VPS_HOST ||
+    window.location.hostname.endsWith('.qoebit.net')
+  );
+  if (onDirect) {
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     const ep = VPS_ENDPOINTS[service];
     const params = new URLSearchParams(extraParams || {});
@@ -134,25 +137,25 @@ export function getApiUrl(functionName: string): string {
     if (isCloudOnly) {
       return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
     }
-    // When browser is on the VPS itself, call services directly (no proxy needed)
-    const onVps = typeof window !== 'undefined' && (
+    // When browser is on the VPS or on a Cloudflare tunnel domain, call services directly
+    const onDirect = typeof window !== 'undefined' && (
       window.location.hostname === VPS_HOST ||
       window.location.hostname.endsWith('.qoebit.net')
     );
 
-    // KPI Engine endpoints → :8001
+    // KPI Engine endpoints → kpi.qoebit.net (or :8001 on VPS)
     const kpiPrefixes = ['monitor', 'catalog', 'kpi/', 'anomalies', 'clusters', 'config/aggregation', 'config/jobs', 'config/ne-scope', 'config/quality', 'config/stats', 'internal/'];
     const isKpi = kpiPrefixes.some(p => clean.startsWith(p));
     if (isKpi) {
-      return onVps ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${clean}`);
+      return onDirect ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${clean}`);
     }
-    // Parser endpoints → :8000
+    // Parser endpoints → api.qoebit.net/api/v1/* (or :8000 on VPS)
     const parserPrefixes = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range', 'sentinel', 'alarms', 'cm', 'pm'];
     const isParser = parserPrefixes.some(p => clean.startsWith(p));
     if (isParser) {
-      return onVps ? `${VPS_ENDPOINTS.parser}/api/v1/${clean}` : getVpsProxyUrl('parser', `/api/v1/${clean}`);
+      return onDirect ? `${VPS_ENDPOINTS.parser}/api/v1/${clean}` : getVpsProxyUrl('parser', `/api/v1/${clean}`);
     }
-    return onVps ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${clean}`);
+    return onDirect ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${clean}`);
   }
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
 }
@@ -171,12 +174,12 @@ export function getVpsUrl(service: keyof typeof VPS_ENDPOINTS, path: string): st
 export function getApiHeaders(): Record<string, string> {
   const source = getPreferredDataSource();
   if (source === 'vps') {
-    // Direct VPS mode: simple headers (no proxy auth needed)
-    const onVps = typeof window !== 'undefined' && (
+    // Direct mode: simple headers when on VPS or Cloudflare tunnel (no proxy auth needed)
+    const onDirect = typeof window !== 'undefined' && (
       window.location.hostname === VPS_HOST ||
       window.location.hostname.endsWith('.qoebit.net')
     );
-    if (onVps) {
+    if (onDirect) {
       return { 'Content-Type': 'application/json' };
     }
     return getVpsProxyHeaders();
