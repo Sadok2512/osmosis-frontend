@@ -185,9 +185,9 @@ const FilterRepositoryView: React.FC = () => {
               <div className="divide-y divide-border/50">
                 {filtered.map(filter => {
                   const isSelected = selectedFilter?.id === filter.id;
-                  const statusCfg = FILTER_STATUS_CONFIG[filter.status];
-                  const permCfg = FILTER_PERMISSION_CONFIG[filter.permission];
-                  const visCfg = FILTER_VISIBILITY_CONFIG[filter.visibility];
+                  const statusCfg = FILTER_STATUS_CONFIG[filter.status] ?? FILTER_STATUS_CONFIG.draft;
+                  const permCfg = FILTER_PERMISSION_CONFIG[filter.permission ?? 'editable'];
+                  const visCfg = FILTER_VISIBILITY_CONFIG[filter.visibility ?? 'private'];
                   const topoSummary = filter.topology.map(t => t.values.slice(0, 2).join(', ')).join(' • ');
                   const isLocked = filter.permission === 'locked';
 
