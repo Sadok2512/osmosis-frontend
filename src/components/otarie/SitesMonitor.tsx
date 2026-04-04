@@ -6793,8 +6793,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Zap size={11} />
-                QoE
+                <BarChart2 size={11} />
+                KPI
               </button>
               <button
                 onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
