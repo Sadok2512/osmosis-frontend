@@ -6874,6 +6874,36 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 >
                   <ChevronsUpDown size={11} />
                 </button>
+
+                <span className="w-px h-7 bg-border/50 shrink-0" />
+
+                {/* Tech filter in KPI mode: ALL / 5G / 4G */}
+                <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
+                  {(['ALL', '5G', '4G'] as const).map((tech) => (
+                    <button
+                      key={tech}
+                      onClick={() => {
+                        setMapTechnoFilter(tech);
+                        const NR_BANDS = ['NR3500', 'NR700', 'NR2100'];
+                        const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
+                        if (tech === 'ALL') {
+                          setEnabledBands(new Set([...NR_BANDS, ...LTE_BANDS]));
+                        } else if (tech === '5G') {
+                          setEnabledBands(new Set(NR_BANDS));
+                        } else if (tech === '4G') {
+                          setEnabledBands(new Set(LTE_BANDS));
+                        }
+                      }}
+                      className={`px-3 py-2 text-[10px] font-black tracking-wider transition-all ${
+                        mapTechnoFilter === tech
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {tech}
+                    </button>
+                  ))}
+                </div>
               </>
             )}
 
