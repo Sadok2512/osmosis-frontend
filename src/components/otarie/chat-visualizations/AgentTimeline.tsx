@@ -166,11 +166,14 @@ const AgentTimeline: React.FC<AgentTimelineProps> = ({ events, isStreaming }) =>
           ) : summary ? (
             <>
               <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
-              <span className="text-[11px] text-foreground/70 truncate flex-1">
-                <span style={{ color: summary.color }}>{summary.emoji} {summary.label}</span>
-                <span className="text-muted-foreground">
-                  {' '}&mdash; {summary.toolCount} {summary.toolCount === 1 ? 'query' : 'queries'} &mdash; {summary.duration}
-                </span>
+              <span
+                className="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
+                style={{ backgroundColor: summary.color, color: '#fff' }}
+              >
+                {summary.emoji} {summary.label}
+              </span>
+              <span className="text-[11px] text-muted-foreground truncate flex-1">
+                {summary.toolCount} {summary.toolCount === 1 ? 'query' : 'queries'} &mdash; {summary.duration}
               </span>
               <ChevronRight className="w-3 h-3 text-muted-foreground/40 group-hover:text-foreground/60 transition-colors shrink-0" />
             </>
