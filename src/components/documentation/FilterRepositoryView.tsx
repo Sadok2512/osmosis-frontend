@@ -189,40 +189,28 @@ const FilterRepositoryView: React.FC = () => {
                     <div key={filter.id} className="relative">
                       <button
                         onClick={() => setSelectedFilter(isSelected ? null : filter)}
-                        className={`w-full grid grid-cols-[1fr_120px_80px_100px_80px_50px] gap-3 px-6 py-3.5 text-left transition-all hover:bg-muted/40 group ${
+                        className={`w-full grid grid-cols-[1fr_120px_60px_90px_70px_40px] gap-2 px-4 py-1.5 text-left transition-all hover:bg-muted/40 group ${
                           isSelected ? 'bg-primary/5 border-l-2 border-primary' : 'border-l-2 border-transparent'
                         }`}
                       >
-                        {/* Name + Desc */}
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-semibold text-foreground truncate">{filter.name}</h3>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{filter.description}</p>
-                          <p className="text-[9px] text-muted-foreground/60 mt-0.5">by {filter.created_by}</p>
+                        <div className="min-w-0 flex flex-col justify-center">
+                          <h3 className="text-xs font-semibold text-foreground truncate leading-tight">{filter.name}</h3>
+                          <p className="text-[9px] text-muted-foreground truncate leading-tight">{filter.description} · {filter.created_by}</p>
                         </div>
-
-                        {/* Topology Summary */}
                         <div className="flex items-center">
-                          <span className="text-[10px] text-muted-foreground truncate">{topoSummary || '—'}</span>
+                          <span className="text-[9px] text-muted-foreground truncate">{topoSummary || '—'}</span>
                         </div>
-
-                        {/* Condition Count */}
                         <div className="flex items-center">
-                          <span className="text-xs font-bold text-foreground px-2 py-0.5 rounded-lg bg-muted">{filter.condition_count}</span>
+                          <span className="text-[10px] font-bold text-foreground px-1.5 py-0 rounded bg-muted">{filter.condition_count}</span>
                         </div>
-
-                        {/* Modified */}
                         <div className="flex items-center">
-                          <span className="text-[10px] text-muted-foreground">{filter.updated_at}</span>
+                          <span className="text-[9px] text-muted-foreground">{filter.updated_at}</span>
                         </div>
-
-                        {/* Status */}
                         <div className="flex items-center">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
+                          <span className={`text-[9px] font-bold px-1.5 py-0 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
                             {statusCfg.label}
                           </span>
                         </div>
-
-                        {/* Actions placeholder */}
                         <div />
                       </button>
 
