@@ -9150,6 +9150,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const kpiDef = MAP_KPIS.find(k => k.id === id);
                     return { id, label: kpiDef?.label || id };
                   })}
+                  resolveKpiLabel={(id) => MAP_KPIS.find(k => k.id === id)?.label || id}
                   onRemoveKpiOverlay={(kpiId) => {
                     const next = kpiOverlays.filter(k => k !== kpiId);
                     setKpiOverlays(next);
