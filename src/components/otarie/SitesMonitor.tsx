@@ -5428,9 +5428,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const sectorNums = Array.from(new Set(cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
           setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
           // If cells have better coordinates, fly again
-          if (cells[0]?.latitude && cells[0]?.longitude) {
-            const avgLat = cells.reduce((s, c) => s + (c.latitude || 0), 0) / cells.filter(c => c.latitude).length;
-            const avgLng = cells.reduce((s, c) => s + (c.longitude || 0), 0) / cells.filter(c => c.longitude).length;
+          const cellsWithCoords = cells.filter((c: any) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude));
+          if (cellsWithCoords.length > 0) {
+            const avgLat = cellsWithCoords.reduce((s: number, c: any) => s + c.latitude, 0) / cellsWithCoords.length;
+            const avgLng = cellsWithCoords.reduce((s: number, c: any) => s + c.longitude, 0) / cellsWithCoords.length;
             if (Number.isFinite(avgLat) && Number.isFinite(avgLng) && (avgLat !== site.coordinates[0] || avgLng !== site.coordinates[1])) {
               setFlyTarget([avgLat, avgLng]);
             }
