@@ -1,5 +1,6 @@
 import { SiteSummary, SiteDetail, CellProperties } from '../types';
 import { topoApi, BboxFilters, BboxSiteDTO, qoeMapApi, QoeMapSiteData } from '@/lib/localDb';
+import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { supabase } from '@/integrations/supabase/client';
 import topoRaw from '../data/topoData';
 import { DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
