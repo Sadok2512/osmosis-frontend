@@ -4237,7 +4237,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // Cache map position (non-blocking)
     if (v.bounds) {
       const c = v.bounds.getCenter?.();
-      if (c) queueMicrotask(() => mapCache.setMapPosition([c.lat, c.lng], v.zoom));
+      if (c && Number.isFinite(c.lat) && Number.isFinite(c.lng)) {
+        queueMicrotask(() => mapCache.setMapPosition([c.lat, c.lng], v.zoom));
+      }
     }
 
     if (!dashboardActive) return;
