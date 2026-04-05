@@ -4063,6 +4063,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return '#ef4444';
   };
 
+  const getKpiLevel = useCallback((value: number): 'green' | 'orange' | 'red' | 'gray' => {
+    if (isNaN(value) || value == null) return 'gray';
+    const t = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
+    if (t.invert) {
+      if (value <= t.green) return 'green';
+      if (value <= t.orange) return 'orange';
+      return 'red';
+    }
+    if (value >= t.green) return 'green';
+    if (value >= t.orange) return 'orange';
+    return 'red';
+  }, [kpiThresholds, mapKpi]);
+
+  const toggleKpiLevel = useCallback((level: 'green' | 'orange' | 'red' | 'gray') => {
+    setHiddenKpiLevels(prev => {
+      const next = new Set(prev);
+      if (next.has(level)) next.delete(level);
+      else next.add(level);
+      return next;
+    });
+  }, []);
+
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'RRC Success Rate';
   const selectedKpiUnit = MAP_KPIS.find(k => k.id === mapKpi)?.unit || '%';
   const currentThreshold = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
