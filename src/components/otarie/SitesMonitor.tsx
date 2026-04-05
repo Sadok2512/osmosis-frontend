@@ -6186,6 +6186,38 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           }
 
+          /* ── Fallback: sites with no cells → simple KPI circle ── */
+          if (!site.cells || site.cells.length === 0) {
+            const kpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
+            const colorViewOverrideFb = getColorViewFill(site);
+            const { has4G, has5G } = inferSiteTechState(site);
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
+            const fbColor = colorViewOverrideFb || (sectorColorMode === 'kpi' ? getKpiColor(kpiVal) : topoColor);
+            return (
+              <CircleMarker
+                key={site.site_id}
+                center={site.coordinates}
+                radius={isHovered || isSelectedSite ? 8 : 6}
+                pane="pane5G"
+                pathOptions={{
+                  fillColor: fbColor,
+                  fillOpacity: 0.9,
+                  color: isSelectedSite ? '#fff' : deriveStrokeColor(fbColor),
+                  weight: isSelectedSite ? 2.5 : 1.5,
+                }}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                  <span className="text-[10px] font-bold">{site.site_name}</span>
+                </Tooltip>
+              </CircleMarker>
+            );
+          }
+
           /* ── ALL mode: band-based hierarchy ── */
           if (mapTechnoFilter === 'ALL') {
             // Group cells by band+azimuth for band-based sizing
