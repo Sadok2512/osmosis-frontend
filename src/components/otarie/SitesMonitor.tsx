@@ -3917,45 +3917,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLosSelectedCell(null);
   }, []);
 
-  // ── KPI Catalog: loaded from backend /api/v1/kpi/catalog ──
+  // ── KPI Catalog: loaded from Supabase kpi_catalog table ──
+  const FAMILLE_TO_CATEGORY: Record<string, string> = {
+    RETAINABILITY: 'RETENTION', THROUGHPUT: 'THROUGHPUT', TRAFFIC: 'TRAFFIC',
+    ACCESSIBILITY: 'RF', AVAILABILITY: 'RF', CAPACITY: 'TRAFFIC',
+    INTERFERENCE: 'QUALITY', Corporate: 'OTHER', MOBILITY: 'MOBILITY',
+  };
   const [catalogKpis, setCatalogKpis] = useState<{ id: string; label: string; unit: string; category: string }[]>([]);
   useEffect(() => {
     (async () => {
       try {
-        const url = getVpsProxyUrl('parser', '/api/v1/kpi/catalog');
-        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
-        if (!resp.ok) throw new Error('catalog fetch failed');
-        const data = await resp.json();
-        const kpis = (data.kpis || []).map((k: any) => ({
-          id: k.kpi_id, label: k.label, unit: k.unit || '', category: k.category,
+        const { data, error } = await supabase
+          .from('kpi_catalog')
+          .select('kpi_key, display_name, unit, famille, threshold_warning, threshold_critical')
+          .order('famille', { ascending: true })
+          .order('display_name', { ascending: true });
+        if (error) throw error;
+        const kpis = (data || []).map((k: any) => ({
+          id: k.kpi_key,
+          label: k.display_name,
+          unit: k.unit || '',
+          category: FAMILLE_TO_CATEGORY[k.famille] || k.famille || 'OTHER',
         }));
         setCatalogKpis(kpis);
+        console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from kpi_catalog`);
         // Auto-apply thresholds from catalog (don't overwrite user-customized ones)
         const saved = localStorage.getItem('qoebit_kpi_thresholds');
         if (!saved) {
           const thr: Record<string, { green: number; orange: number; invert?: boolean }> = {};
-          for (const k of data.kpis || []) {
-            if (k.threshold_green != null && k.threshold_orange != null) {
-              thr[k.kpi_id] = { green: k.threshold_green, orange: k.threshold_orange, invert: k.invert || false };
+          for (const k of data || []) {
+            if (k.threshold_warning != null && k.threshold_critical != null) {
+              thr[k.kpi_key] = { green: k.threshold_warning, orange: k.threshold_critical, invert: false };
             }
           }
           if (Object.keys(thr).length > 0) setKpiThresholds(prev => ({ ...prev, ...thr }));
         }
       } catch (e) {
-        console.warn('[SitesMonitor] KPI catalog fetch failed, using fallback', e);
+        console.warn('[SitesMonitor] kpi_catalog fetch failed', e);
       }
     })();
   }, []);
-  const MAP_KPIS = catalogKpis.length > 0 ? catalogKpis : [
-    { id: 'cssr', label: 'CSSR', unit: '%', category: 'RF' },
-    { id: 'drop_rate', label: 'Drop Rate', unit: '%', category: 'RF' },
-    { id: 'prb_dl', label: 'PRB Usage DL', unit: '%', category: 'RF' },
-    { id: 'thp_dl', label: 'Throughput DL', unit: 'Mbps', category: 'THROUGHPUT' },
-    { id: 'thp_ul', label: 'Throughput UL', unit: 'Mbps', category: 'THROUGHPUT' },
-    { id: 'overshoot', label: 'Overshooting', unit: '%', category: 'SPATIAL' },
-    { id: 'isd', label: 'Inter-site Distance', unit: 'km', category: 'SPATIAL' },
-    { id: 'volte_drop', label: 'VoLTE Drop Rate', unit: '%', category: 'VOICE' },
-  ];
+  const MAP_KPIS = catalogKpis;
 
   const getCellKpiValue = (cell: any): number => {
     return cell[mapKpi] ?? cell.qoe_score_avg ?? Math.random() * 100;
@@ -7389,7 +7391,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               </div>
               <div className="max-h-[420px] overflow-y-auto py-1">
-                {['RF', 'SPATIAL', 'THROUGHPUT', 'VOICE', 'QUALITY', 'RTT', 'VOLUME'].filter(cat => MAP_KPIS.some(k => k.category === cat)).map(cat => {
+                {[...new Set(MAP_KPIS.map(k => k.category))].filter(cat => MAP_KPIS.some(k => k.category === cat)).map(cat => {
                   const filtered = MAP_KPIS.filter(k => k.category === cat && (!kpiSearch || k.label.toLowerCase().includes(kpiSearch.toLowerCase())));
                   if (filtered.length === 0) return null;
                   return (

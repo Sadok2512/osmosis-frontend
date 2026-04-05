@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, Plus, Trash2, AlertCircle } from 'lucide-react';
-import { TOPOLOGY_DIMENSIONS, PARAMETER_OPTIONS, OPERATOR_OPTIONS } from './filterTypes';
+import { TOPOLOGY_DIMENSIONS, PARAMETER_OPTIONS, OPERATOR_OPTIONS, fetchParameterOptions } from './filterTypes';
 import type { TopologyCondition, ParameterCondition } from './filterTypes';
 import BulkListInput from './BulkListInput';
 
@@ -15,6 +15,8 @@ const STEPS = ['General Info', 'Topology', 'Parameters', 'Logic', 'Review'];
 
 const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClose, initialData, editMode }) => {
   const [step, setStep] = useState(0);
+  const [paramOptions, setParamOptions] = useState<string[]>(PARAMETER_OPTIONS);
+  useEffect(() => { fetchParameterOptions().then(setParamOptions); }, []);
 
   // Step 1
   const [name, setName] = useState(initialData?.name || '');
@@ -52,7 +54,7 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
   };
 
   const addParamCondition = () => {
-    setParamConditions(prev => [...prev, { id: `p-${Date.now()}`, parameter: PARAMETER_OPTIONS[0], operator: '>', value: '' }]);
+    setParamConditions(prev => [...prev, { id: `p-${Date.now()}`, parameter: paramOptions[0] || 'KPI', operator: '>', value: '' }]);
   };
 
   const updateParam = (id: string, field: keyof ParameterCondition, value: string) => {
@@ -185,7 +187,7 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
                 <div key={cond.id} className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/10 p-3">
                   <select value={cond.parameter} onChange={e => updateParam(cond.id, 'parameter', e.target.value)}
                     className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none cursor-pointer">
-                    {PARAMETER_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                    {paramOptions.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                   <select value={cond.operator} onChange={e => updateParam(cond.id, 'operator', e.target.value)}
                     className="w-20 px-2 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none cursor-pointer text-center">

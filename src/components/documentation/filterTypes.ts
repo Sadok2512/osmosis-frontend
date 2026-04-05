@@ -69,12 +69,31 @@ export const TOPOLOGY_DIMENSIONS = [
   { key: 'nci', label: 'NCI', options: [], multiSelect: true, bulkSupport: true },
 ];
 
+// Static fallback — overridden at runtime by fetchParameterOptions()
 export const PARAMETER_OPTIONS = [
   'Availability', 'Traffic Volume', 'Accessibility', 'Retainability',
   'PRB Usage', 'Throughput DL', 'Throughput UL', 'RRC SR', 'ERAB SR',
   'VoLTE CSSR', 'VoLTE CDR', 'Handover SR', 'Session DCR',
   'RTT Avg', 'TCP Retransmission Rate', 'QoE Index',
 ];
+
+// Dynamic fetch from kpi_catalog
+let _cachedParamOptions: string[] | null = null;
+export async function fetchParameterOptions(): Promise<string[]> {
+  if (_cachedParamOptions) return _cachedParamOptions;
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data, error } = await supabase
+      .from('kpi_catalog')
+      .select('display_name')
+      .order('display_name', { ascending: true });
+    if (error) throw error;
+    _cachedParamOptions = (data || []).map(r => r.display_name);
+    return _cachedParamOptions;
+  } catch {
+    return PARAMETER_OPTIONS;
+  }
+}
 
 export const OPERATOR_OPTIONS = ['=', '!=', '>', '>=', '<', '<=', 'IN', 'NOT IN', 'BETWEEN'];
 
