@@ -1551,6 +1551,8 @@ interface DashboardInventoryTabProps {
   onActiveViewIdChange: (id: string | null) => void;
   kpiOverlays?: { id: string; label: string }[];
   onRemoveKpiOverlay?: (kpiId: string) => void;
+  onActivateKpiOverlay?: (kpiId: string) => void;
+  activeKpiOverlayId?: string | null;
   resolveKpiLabel?: (id: string) => string;
   overlayVersion?: number;
 }
@@ -1564,7 +1566,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, resolveKpiLabel, overlayVersion }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, onActivateKpiOverlay, activeKpiOverlayId, resolveKpiLabel, overlayVersion }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -2439,22 +2441,38 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                               if (!viewOverlays.length) return null;
                               return (
                                 <div className={`border-t ${isViewActive ? 'border-emerald-500/20' : 'border-border/30'}`}>
-                                  {viewOverlays.map((ov: { id: string; label: string }) => (
-                                    <div key={ov.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 border-b last:border-b-0 ${isViewActive ? 'bg-emerald-500/10 border-emerald-500/10' : 'bg-muted/30 border-border/20'}`}>
-                                      <BarChart2 size={10} className={isViewActive ? 'text-emerald-600 shrink-0' : 'text-muted-foreground shrink-0'} />
-                                      <span className={`text-[9px] font-bold uppercase tracking-wider ${isViewActive ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>KPI</span>
-                                      <span className={`text-[9px] font-semibold truncate ${isViewActive ? 'text-foreground' : 'text-muted-foreground'}`}>{ov.label}</span>
-                                      {isViewActive && (
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); onRemoveKpiOverlay?.(ov.id); }}
-                                          className="ml-auto p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                          title="Supprimer ce KPI Overlay"
-                                        >
-                                          <X size={10} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  ))}
+                                  {viewOverlays.map((ov: { id: string; label: string }) => {
+                                    const isActiveOverlay = isViewActive && activeKpiOverlayId === ov.id;
+                                    return (
+                                      <div
+                                        key={ov.id}
+                                        className={`flex items-center gap-1.5 px-2.5 py-1.5 border-b last:border-b-0 cursor-pointer transition-colors ${
+                                          isActiveOverlay
+                                            ? 'bg-primary/10 border-primary/20'
+                                            : isViewActive
+                                              ? 'bg-emerald-500/10 border-emerald-500/10 hover:bg-emerald-500/15'
+                                              : 'bg-muted/30 border-border/20'
+                                        }`}
+                                        onClick={(e) => { e.stopPropagation(); if (isViewActive) onActivateKpiOverlay?.(ov.id); }}
+                                      >
+                                        <BarChart2 size={10} className={isActiveOverlay ? 'text-primary shrink-0' : isViewActive ? 'text-emerald-600 shrink-0' : 'text-muted-foreground shrink-0'} />
+                                        <span className={`text-[9px] font-bold uppercase tracking-wider ${isActiveOverlay ? 'text-primary' : isViewActive ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>KPI</span>
+                                        <span className={`text-[9px] font-semibold truncate ${isActiveOverlay ? 'text-primary font-bold' : isViewActive ? 'text-foreground' : 'text-muted-foreground'}`}>{ov.label}</span>
+                                        {isActiveOverlay && (
+                                          <span className="text-[7px] px-1 py-0.5 rounded bg-primary/15 text-primary font-bold uppercase">actif</span>
+                                        )}
+                                        {isViewActive && (
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); onRemoveKpiOverlay?.(ov.id); }}
+                                            className="ml-auto p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                            title="Supprimer ce KPI Overlay"
+                                          >
+                                            <X size={10} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               );
                             })()}
@@ -9163,6 +9181,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   })}
                   overlayVersion={overlayVersion}
                   resolveKpiLabel={(id) => MAP_KPIS.find(k => k.id === id)?.label || id}
+                  activeKpiOverlayId={mapKpi}
+                  onActivateKpiOverlay={(kpiId) => { setMapKpi(kpiId); setSectorColorMode('kpi'); }}
                   onRemoveKpiOverlay={(kpiId) => {
                     const next = kpiOverlays.filter(k => k !== kpiId);
                     setKpiOverlays(next);
