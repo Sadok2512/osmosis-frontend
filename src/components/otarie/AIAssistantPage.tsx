@@ -1013,6 +1013,80 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
+const SITE_LEVEL_DESIGN_PATTERNS = [
+  /coh[ée]rence\s+azimuts?/i,
+  /tilt\s+vs\s+fr[ée]quence/i,
+  /tilt\s+vs\s+isd/i,
+  /delta\s+tilt\s+secteurs?/i,
+  /distance\s+inter-?site/i,
+  /d[ée]tail\s+tilt\s+intra-?site/i,
+  /azimuth\s+spacing/i,
+  /sector\s+configuration/i,
+  /s\d+\s+azimuth\s+coherence/i,
+  /s\d+\s+tilt\s+delta/i,
+  /hba\s+consistency/i,
+  /5g\/4g\s+co-?location/i,
+  /cell\s+state/i,
+  /\b\d+\s*sectors?\b/i,
+  /\b\d+\s*secteurs?\b/i,
+];
+
+const CELL_LEVEL_DESIGN_HINTS = [
+  /\bcell\b/i,
+  /cellule/i,
+  /cell id/i,
+  /\bpci\b/i,
+  /\beci\b/i,
+  /\bnci\b/i,
+  /\becgi\b/i,
+  /earfcn/i,
+];
+
+function isSiteLevelDesignSection(text: string): boolean {
+  if (!text) return false;
+  const siteMatches = SITE_LEVEL_DESIGN_PATTERNS.filter((pattern) => pattern.test(text)).length;
+  const cellMatches = CELL_LEVEL_DESIGN_HINTS.filter((pattern) => pattern.test(text)).length;
+  return siteMatches >= 2 && cellMatches === 0;
+}
+
+function stripSiteLevelDesignSections(text: string): string {
+  if (!/design\s*check/i.test(text)) return text;
+
+  const lines = text.split('\n');
+  const kept: string[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    const isDesignHeading = /^\s{0,3}#{1,6}\s+.*design\s*check/i.test(line) || /^\s*\*\*.*design\s*check.*\*\*\s*$/i.test(line);
+
+    if (!isDesignHeading) {
+      kept.push(line);
+      index += 1;
+      continue;
+    }
+
+    const sectionLines = [line];
+    index += 1;
+
+    while (index < lines.length) {
+      const current = lines[index];
+      const nextIsHeading = /^\s{0,3}#{1,6}\s+/.test(current);
+      const nextIsStrongTitle = /^\s*\*\*.*\*\*\s*$/.test(current) && !/^\s*\|/.test(current);
+      if ((nextIsHeading || nextIsStrongTitle) && sectionLines.length > 1) break;
+      sectionLines.push(current);
+      index += 1;
+    }
+
+    const sectionText = sectionLines.join('\n');
+    if (!isSiteLevelDesignSection(sectionText)) {
+      kept.push(...sectionLines);
+    }
+  }
+
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
 const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
   const cleaned = useMemo(() => {
     let text = content;
@@ -1021,6 +1095,7 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
     text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
     text = text.replace(/<\/?(?:div|span|table|thead|tbody|tr|td|th|style|br|hr|img|p|ul|ol|li|h[1-6]|a|b|i|em|strong|code|pre)[^>]*>/gi, '');
     text = text.replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    text = stripSiteLevelDesignSections(text);
     return text;
   }, [content]);
 
@@ -1028,9 +1103,10 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
   const hasViz = vizBlocks.some(b => b.type !== 'markdown');
 
   const renderWithKpiCards = useCallback((md: string) => {
-    const kpiBlocks = parseKpiBlocks(md);
+    const sanitizedMd = stripSiteLevelDesignSections(md);
+    const kpiBlocks = parseKpiBlocks(sanitizedMd);
     const hasKpiBlocks = kpiBlocks.some(b => b.type !== 'markdown');
-    if (!hasKpiBlocks) return <MarkdownBlock content={md} />;
+    if (!hasKpiBlocks) return <MarkdownBlock content={sanitizedMd} />;
     return (
       <>
         {kpiBlocks.map((block, j) => {
@@ -1102,11 +1178,29 @@ const TableHeadersContext = React.createContext<string[]>([]);
 
 const KpiColorTable: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const headersRef = React.useRef<string[]>([]);
+  const tableRef = React.useRef<HTMLTableElement | null>(null);
   const [headers, setHeaders] = React.useState<string[]>([]);
-  
-  // Detect if this is an anomaly/design-check table
+  const [tableText, setTableText] = React.useState('');
+
+  React.useLayoutEffect(() => {
+    const table = tableRef.current;
+    if (!table) return;
+
+    const nextHeaders = Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent || '').filter(Boolean);
+    if (nextHeaders.length > 0 && nextHeaders.join('|') !== headersRef.current.join('|')) {
+      headersRef.current = nextHeaders;
+      setHeaders(nextHeaders);
+    }
+
+    const nextTableText = table.innerText || table.textContent || '';
+    setTableText((prev) => prev === nextTableText ? prev : nextTableText);
+  }, [children]);
+
   const isAnomalyTable = headers.some(h => /statut|status|état/i.test(h));
-  
+  const isSiteAnomalyTable = isAnomalyTable && isSiteLevelDesignSection(tableText);
+
+  if (isSiteAnomalyTable) return null;
+
   return (
     <TableHeadersContext.Provider value={headers}>
       <div className={`my-4 rounded-xl border overflow-hidden shadow-sm ${isAnomalyTable ? 'border-primary/30' : 'border-border'}`}>
@@ -1117,16 +1211,7 @@ const KpiColorTable: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
         )}
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs" ref={(el) => {
-            if (el) {
-              const ths = el.querySelectorAll('thead th');
-              const h = Array.from(ths).map(th => th.textContent || '');
-              if (h.length > 0 && h.join('|') !== headersRef.current.join('|')) {
-                headersRef.current = h;
-                setHeaders(h);
-              }
-            }
-          }}>{children}</table>
+          <table ref={tableRef} className="w-full border-collapse text-xs">{children}</table>
         </div>
       </div>
     </TableHeadersContext.Provider>
