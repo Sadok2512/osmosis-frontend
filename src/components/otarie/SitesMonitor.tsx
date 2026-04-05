@@ -5129,8 +5129,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
 
 
-  // Show labels: always in KPI mode at zoom >= 9, or when toggled on, or at high zoom
-  const shouldShowLabels = showSiteLabels || (sectorColorMode === 'kpi' && viewport.zoom >= 9) || viewport.zoom >= 12;
+  // Show labels only when explicitly toggled on by the user
+  const shouldShowLabels = showSiteLabels;
 
   const renderSites = useMemo(() => {
     const siteMatchesCurrentTechFilter = (site: SiteSummary) => {
