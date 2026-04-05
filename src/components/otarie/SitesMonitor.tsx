@@ -7713,7 +7713,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); setKpiSearch('');
                             // Save kpiOverlay to active view
                             if (activeViewId) {
-                              mapViewsApi.getById(activeViewId).then(view => {
+                              mapViewsApi.list().then(views => {
+                                const view = views.find((v: any) => v.id === activeViewId);
                                 if (view) {
                                   const curSettings = typeof view.settings === 'object' ? view.settings : {};
                                   mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlay: kpi.id } });
