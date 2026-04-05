@@ -10115,7 +10115,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         >
                           <ChevronLeft size={14} />
                         </button>
-                        <div className="flex-1 flex items-center gap-0.5 overflow-hidden">
+                        <div className="flex-1 flex items-center gap-0.5 overflow-x-auto scrollbar-hide">
                           {cellTabs.map(tab => (
                             <button
                               key={tab.id}
