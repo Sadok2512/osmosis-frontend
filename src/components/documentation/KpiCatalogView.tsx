@@ -568,8 +568,8 @@ const KpiCatalogView: React.FC = () => {
               <p className="text-xs opacity-60 mt-1">Details will appear here</p>
             </div>
           )}
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       {/* Counter Modal */}
       {selectedCounter && <CounterModal counter={selectedCounter} onClose={() => setSelectedCounter(null)} />}
