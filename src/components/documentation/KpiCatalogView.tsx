@@ -418,9 +418,9 @@ const KpiCatalogView: React.FC = () => {
           </div>
         </div>
 
-        {/* RIGHT: Detail Panel */}
+        {/* RIGHT: Floating Detail Panel */}
         {selectedKpi && (
-          <div className="w-1/2 xl:w-2/5 overflow-hidden animate-in slide-in-from-right-4 duration-200">
+          <div className="fixed top-0 right-0 z-40 h-screen w-[460px] p-3 pl-0 animate-in slide-in-from-right-4 duration-200">
             <KpiDetailPanel
               kpi={selectedKpi}
               onClose={() => setSelectedKpi(null)}
