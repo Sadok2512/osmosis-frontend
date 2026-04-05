@@ -124,18 +124,18 @@ const FormulaBlock: React.FC<{ formula: string }> = ({ formula }) => {
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <div className="relative group rounded-xl bg-muted/60 border border-border px-4 py-3.5">
-      <pre className="text-[13px] font-mono text-foreground leading-relaxed whitespace-pre-wrap pr-8">
+    <div className="relative group rounded-xl bg-emerald-600 px-4 py-3.5 shadow-sm">
+      <pre className="text-[13px] font-mono text-white leading-relaxed whitespace-pre-wrap pr-8">
         {formula}
       </pre>
       <button
         onClick={handleCopy}
-        className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-background/80 border border-border/50 opacity-0 group-hover:opacity-100 hover:bg-muted transition-all"
+        className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-white/20 opacity-0 group-hover:opacity-100 hover:bg-white/30 transition-all"
         title="Copy formula"
       >
         {copied
-          ? <Check className="w-3.5 h-3.5 text-green-500" />
-          : <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+          ? <Check className="w-3.5 h-3.5 text-white" />
+          : <Copy className="w-3.5 h-3.5 text-white/80" />
         }
       </button>
     </div>
