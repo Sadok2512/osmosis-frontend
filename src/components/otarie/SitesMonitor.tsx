@@ -1550,6 +1550,7 @@ interface DashboardInventoryTabProps {
   activeViewId: string | null;
   onActiveViewIdChange: (id: string | null) => void;
   activeKpiOverlay?: string | null;
+  activeKpiOverlayLabel?: string | null;
   onClearKpiOverlay?: () => void;
 }
 
