@@ -1552,6 +1552,7 @@ interface DashboardInventoryTabProps {
   kpiOverlays?: { id: string; label: string }[];
   onRemoveKpiOverlay?: (kpiId: string) => void;
   resolveKpiLabel?: (id: string) => string;
+  overlayVersion?: number;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
@@ -1563,7 +1564,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, resolveKpiLabel }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, resolveKpiLabel, overlayVersion }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -1680,6 +1681,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  // Re-fetch views when overlay version changes (KPI added/removed)
+  useEffect(() => {
+    if (overlayVersion === undefined || overlayVersion === 0) return;
+    mapViewsApi.list().then(mvData => {
+      if (Array.isArray(mvData)) setMapViews(mvData);
+    }).catch(() => {});
+  }, [overlayVersion]);
 
   // ── Dashboard settings helpers ──
   const getDashboardSettings = (db: any) => {
@@ -3019,6 +3028,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
   const [mapKpi, setMapKpi] = useState('cssr');
   const [kpiOverlays, setKpiOverlays] = useState<string[]>([]);
+  const [overlayVersion, setOverlayVersion] = useState(0);
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [hiddenKpiLevels, setHiddenKpiLevels] = useState<Set<'green'|'orange'|'red'|'gray'>>(new Set());
@@ -7733,7 +7743,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   const curSettings = typeof view.settings === 'object' ? view.settings : {};
                                   const existing: string[] = Array.isArray((curSettings as any).kpiOverlays) ? (curSettings as any).kpiOverlays : [];
                                   const next = existing.includes(kpi.id) ? existing : [...existing, kpi.id];
-                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } });
+                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } })
+                                    .then(() => setOverlayVersion(v => v + 1));
                                 }
                               });
                             }
@@ -9150,6 +9161,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const kpiDef = MAP_KPIS.find(k => k.id === id);
                     return { id, label: kpiDef?.label || id };
                   })}
+                  overlayVersion={overlayVersion}
                   resolveKpiLabel={(id) => MAP_KPIS.find(k => k.id === id)?.label || id}
                   onRemoveKpiOverlay={(kpiId) => {
                     const next = kpiOverlays.filter(k => k !== kpiId);
@@ -9168,7 +9180,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         const view = views.find((v: any) => v.id === activeViewId);
                         if (view) {
                           const curSettings = typeof view.settings === 'object' ? view.settings : {};
-                          mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } });
+                          mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } })
+                            .then(() => setOverlayVersion(v => v + 1));
                         }
                       });
                     }
