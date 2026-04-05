@@ -7165,7 +7165,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {/* ── Unified mode selector: QoE / Topo / Parameters ── */}
             <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
               <button
-                onClick={() => { setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }}
+                onClick={() => {
+                  if (!activeViewId) {
+                    // Require an active view to enter KPI mode
+                    const { toast } = await import('sonner');
+                    // Can't use await at top level — use inline notification
+                    return;
+                  }
+                  setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset();
+                }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
                   sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
