@@ -2421,20 +2421,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                               </div>
                             </div>
 
-                            {/* KPI Overlay badge */}
-                            {isViewActive && activeKpiOverlay && activeKpiOverlayLabel && (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border-t border-emerald-500/20">
-                                  <BarChart2 size={10} className="text-emerald-600 shrink-0" />
-                                  <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">KPI Overlay</span>
-                                  <span className="text-[9px] font-semibold text-foreground truncate">{activeKpiOverlayLabel}</span>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); onClearKpiOverlay?.(); }}
-                                    className="ml-auto p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                    title="Supprimer le KPI Overlay"
-                                  >
-                                    <X size={10} />
-                                  </button>
-                                </div>
+                            {/* KPI Overlay badges */}
+                            {isViewActive && kpiOverlays && kpiOverlays.length > 0 && (
+                              <div className="border-t border-emerald-500/20">
+                                {kpiOverlays.map((ov) => (
+                                  <div key={ov.id} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border-b border-emerald-500/10 last:border-b-0">
+                                    <BarChart2 size={10} className="text-emerald-600 shrink-0" />
+                                    <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">KPI</span>
+                                    <span className="text-[9px] font-semibold text-foreground truncate">{ov.label}</span>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); onRemoveKpiOverlay?.(ov.id); }}
+                                      className="ml-auto p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                      title="Supprimer ce KPI Overlay"
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
                             )}
 
                             {isEditing && (
