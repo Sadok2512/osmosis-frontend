@@ -1025,92 +1025,23 @@ export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: str
   const cached = kpiValueCache.get(cacheKey);
   if (cached && (Date.now() - cached.ts) < KPI_CACHE_TTL) return cached.data;
 
-  // Try VPS first
-  try {
-    const params = new URLSearchParams({ kpi_id: kpiId, limit: '50000' });
-    if (filters?.vendor) params.set('vendor', filters.vendor);
-    if (filters?.techno) params.set('techno', filters.techno);
-    if (filters?.band) params.set('band', filters.band);
-    if (filters?.dor) params.set('dor', filters.dor);
-    if (filters?.plaque) params.set('plaque', filters.plaque);
+  const params = new URLSearchParams({ kpi_id: kpiId, limit: '50000' });
+  if (filters?.vendor) params.set('vendor', filters.vendor);
+  if (filters?.techno) params.set('techno', filters.techno);
+  if (filters?.band) params.set('band', filters.band);
+  if (filters?.dor) params.set('dor', filters.dor);
+  if (filters?.plaque) params.set('plaque', filters.plaque);
 
-    const url = getVpsProxyUrl('parser', `/api/v1/kpi/cell-values?${params}`);
-    const resp = await fetch(url, { headers: getVpsProxyHeaders() });
-    if (!resp.ok) throw new Error(`KPI fetch failed: ${resp.status}`);
-    const json = await resp.json();
-    if (json.unavailable) throw new Error('VPS unavailable');
+  const url = getVpsProxyUrl('parser', `/api/v1/kpi/cell-values?${params}`);
+  const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!resp.ok) throw new Error(`KPI fetch failed: ${resp.status}`);
+  const json = await resp.json();
+  if (json.unavailable) throw new Error('VPS unavailable — no fallback');
 
-    const valueMap = buildKpiValueMap(json.data || []);
-    kpiValueCache.set(cacheKey, { data: valueMap, ts: Date.now() });
-    console.log(`[TopoService] KPI values (VPS): ${valueMap.size} entries for kpi=${kpiId}`);
-    return valueMap;
-  } catch (vpsErr) {
-    console.warn(`[TopoService] KPI VPS failed for ${kpiId}, trying Supabase fallback:`, vpsErr);
-  }
-
-  // Fallback: Supabase kpi_qoe_aggregated
-  try {
-    // Map common KPI IDs to columns in kpi_qoe_aggregated
-    const colMap: Record<string, string> = {
-      'qoe_index': 'qoe_index', 'qoe_score': 'qoe_index',
-      'debit_dl': 'debit_dl', 'thp_dl': 'debit_dl', 'throughput_dl': 'debit_dl',
-      'debit_ul': 'debit_ul', 'thp_ul': 'debit_ul', 'throughput_ul': 'debit_ul',
-      'rtt_setup_avg': 'rtt_setup_avg', 'latency': 'rtt_setup_avg',
-      'rtt_data_avg': 'rtt_data_avg',
-      'loss_dl_rate': 'loss_dl_rate', 'loss_dl': 'loss_dl_rate',
-      'loss_ul_rate': 'loss_ul_rate',
-      'tcp_retr_rate_dl': 'tcp_retr_rate_dl', 'retr_dl': 'tcp_retr_rate_dl',
-      'tcp_retr_rate_ul': 'tcp_retr_rate_ul',
-      'session_dcr': 'session_dcr', 'drop_rate': 'session_dcr',
-      'session_nbr': 'session_nbr', 'sessions': 'session_nbr',
-      'instability_rate': 'instability_rate',
-      'volume_totale_dl': 'volume_totale_dl',
-      'volume_totale_ul': 'volume_totale_ul',
-      'wind_full_rate': 'wind_full_rate',
-    };
-    const col = colMap[kpiId.toLowerCase()] || colMap[kpiId];
-    if (!col) {
-      console.warn(`[TopoService] No Supabase column mapping for KPI: ${kpiId}`);
-      return new Map();
-    }
-
-    // Get latest date
-    const { data: dateRows } = await supabase
-      .from('kpi_qoe_aggregated')
-      .select('date_part')
-      .order('date_part', { ascending: false })
-      .limit(1);
-    const latestDate = dateRows?.[0]?.date_part;
-    if (!latestDate) return new Map();
-
-    const { data: rows, error } = await supabase
-      .from('kpi_qoe_aggregated')
-      .select(`dimension_2, ${col}`)
-      .eq('date_part', latestDate)
-      .not(col, 'is', null)
-      .limit(1000);
-
-    if (error || !rows) {
-      console.warn('[TopoService] Supabase KPI fallback error:', error);
-      return new Map();
-    }
-
-    const valueMap = new Map<string, number>();
-    for (const row of rows) {
-      const cellName = (row as any).dimension_2;
-      const value = (row as any)[col];
-      if (cellName && value != null) {
-        valueMap.set(`site:${cellName}`, value);
-      }
-    }
-
-    kpiValueCache.set(cacheKey, { data: valueMap, ts: Date.now() });
-    console.log(`[TopoService] KPI values (Supabase fallback): ${valueMap.size} entries for kpi=${kpiId} (col=${col})`);
-    return valueMap;
-  } catch (sbErr) {
-    console.error('[TopoService] Supabase KPI fallback also failed:', sbErr);
-    return new Map();
-  }
+  const valueMap = buildKpiValueMap(json.data || []);
+  kpiValueCache.set(cacheKey, { data: valueMap, ts: Date.now() });
+  console.log(`[TopoService] KPI values: ${valueMap.size} entries for kpi=${kpiId}`);
+  return valueMap;
 }
 
 function buildKpiValueMap(data: any[]): Map<string, number> {
