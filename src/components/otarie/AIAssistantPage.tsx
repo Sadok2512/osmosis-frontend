@@ -1143,7 +1143,7 @@ function convertDesignAnalysisToTable(text: string): string {
     if (!statusMatch) { flushAnalysis(); result.push(line); continue; }
 
     const statusIdx = statusMatch.index!;
-    const status = statusMatch[1];
+    const status = statusMatch[0];
     const checkName = rest.slice(0, statusIdx).trim();
     const details = rest.slice(statusIdx + status.length).trim();
 
