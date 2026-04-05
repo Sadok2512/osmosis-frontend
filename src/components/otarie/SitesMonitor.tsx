@@ -4395,6 +4395,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           setSites(finalSites);
           setBboxTotal(finalSites.length);
           setDashboardFitKey(k => k + 1);
+          // Pre-warm cells cache in background so sectors appear instantly on zoom-in
+          topoApi.prefetchCells(currentBboxFilters || undefined);
         } else {
           // Only clear if we had no prior data
           setSites(prev => prev.length > 0 ? prev : []);
