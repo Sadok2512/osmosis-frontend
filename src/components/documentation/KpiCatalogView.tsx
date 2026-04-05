@@ -5,6 +5,7 @@ import {
   ArrowUp, ArrowDown, Hash, Copy, Check, Clock, User, Shield,
   Layers, Gauge, Info, FlaskConical, AlertTriangle, X
 } from 'lucide-react';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -314,10 +315,10 @@ const KpiCatalogView: React.FC = () => {
       </div>
 
       {/* ── WORKSPACE: Table + Detail ── */}
-      <div className="flex-1 flex overflow-hidden">
+      <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
 
         {/* ── TABLE ── */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-border">
+        <ResizablePanel defaultSize={65} minSize={40} className="flex flex-col min-w-0 border-r border-border">
           {/* Table controls */}
           <div className="shrink-0 flex items-center justify-between px-5 py-2.5 border-b border-border bg-muted/20">
             <div className="flex items-center gap-2">
@@ -431,10 +432,12 @@ const KpiCatalogView: React.FC = () => {
               })}
             </div>
           </div>
-        </div>
+        </ResizablePanel>
+
+        <ResizableHandle withHandle className="hidden md:flex" />
 
         {/* ── DETAIL PANEL ── */}
-        <div className="w-[420px] shrink-0 flex flex-col overflow-hidden bg-card hidden md:flex">
+        <ResizablePanel defaultSize={35} minSize={25} maxSize={60} className="flex flex-col overflow-hidden bg-card hidden md:flex">
           {kpi && statusCfg ? (
             <div className="flex-1 overflow-y-auto">
               {/* Panel Header */}
@@ -565,8 +568,8 @@ const KpiCatalogView: React.FC = () => {
               <p className="text-xs opacity-60 mt-1">Details will appear here</p>
             </div>
           )}
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       {/* Counter Modal */}
       {selectedCounter && <CounterModal counter={selectedCounter} onClose={() => setSelectedCounter(null)} />}
