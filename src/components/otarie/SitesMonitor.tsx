@@ -8983,6 +8983,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (!overlays.length && settings.kpiOverlay && MAP_KPIS.some(k => k.id === settings.kpiOverlay)) {
                       overlays.push(settings.kpiOverlay);
                     }
+                    // Backward compat: populate from mapKpi if overlays still empty
+                    if (!overlays.length && settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) {
+                      overlays.push(settings.mapKpi);
+                    }
                     setKpiOverlays(overlays);
                     if (overlays.length > 0) {
                       setMapKpi(overlays[overlays.length - 1]);
