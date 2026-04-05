@@ -4722,22 +4722,57 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, []);
 
-  // Sites filtered by techno (for map rendering only)
+  // All possible band keys (excluding group headers)
+  const ALL_BAND_KEYS = useMemo(() => {
+    const keys = new Set(Object.keys(DEFAULT_BAND_COLORS));
+    keys.delete('5G_GROUP');
+    keys.delete('4G_GROUP');
+    return keys;
+  }, []);
+
+  // Are band filters active? (not all bands enabled)
+  const isBandFilterActive = useMemo(() => {
+    if (enabledBands.size >= ALL_BAND_KEYS.size) return false;
+    for (const k of ALL_BAND_KEYS) {
+      if (!enabledBands.has(k)) return true;
+    }
+    return false;
+  }, [enabledBands, ALL_BAND_KEYS]);
+
+  // Check if a site has at least one cell matching any enabled band
+  const siteHasEnabledBand = useCallback((site: any): boolean => {
+    if (!site.cells?.length) return false;
+    return site.cells.some((cell: any) => isBandEnabled(cell.bande, cell.techno));
+  }, [isBandEnabled]);
+
+  // Sites filtered by techno AND band (for map rendering only)
   const mapFilteredSites = useMemo(() => {
     if (mapTechnoFilter === 'OFF') return [];
 
+    let result: typeof filteredSites;
     if (mapTechnoFilter === 'ALL') {
       if (enabledTechnos.size === 0) return [];
-      if (enabledTechnos.size === 2) return filteredSites;
-      return filteredSites.filter(s => {
-        if (enabledTechnos.has('5G') && siteMatchesRequestedTech(s, '5G')) return true;
-        if (enabledTechnos.has('4G') && siteMatchesRequestedTech(s, '4G')) return true;
-        return false;
-      });
+      if (enabledTechnos.size === 2) {
+        result = filteredSites;
+      } else {
+        result = filteredSites.filter(s => {
+          if (enabledTechnos.has('5G') && siteMatchesRequestedTech(s, '5G')) return true;
+          if (enabledTechnos.has('4G') && siteMatchesRequestedTech(s, '4G')) return true;
+          return false;
+        });
+      }
+    } else {
+      const tech = mapTechnoFilter as '5G' | '4G';
+      result = filteredSites.filter(s => siteMatchesRequestedTech(s, tech));
     }
-    const tech = mapTechnoFilter as '5G' | '4G';
-    return filteredSites.filter(s => siteMatchesRequestedTech(s, tech));
-  }, [filteredSites, mapTechnoFilter, enabledTechnos]);
+
+    // When band filter is active, hide sites with no cells matching enabled bands
+    if (isBandFilterActive) {
+      result = result.filter(siteHasEnabledBand);
+    }
+
+    return result;
+  }, [filteredSites, mapTechnoFilter, enabledTechnos, isBandFilterActive, siteHasEnabledBand]);
 
   // Dynamic filter options based on actual data
   const uniqueVendors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.vendor).filter(Boolean))].sort(), [sites]);
