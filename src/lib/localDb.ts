@@ -608,6 +608,16 @@ export const topoApi = {
       return { cells: [], total: 0 };
     }
   },
+
+  /** Pre-warm the cells cache so sectors appear instantly on zoom-in */
+  prefetchCells: async (filters?: BboxFilters): Promise<void> => {
+    try {
+      await getCachedCells(filters);
+    } catch (err) {
+      console.warn('[TopoApi] Cells prefetch failed (non-blocking)', err);
+    }
+  },
+
   /** Fetch available filter dimensions from VPS: GET /api/v1/topo/filters */
   filters: async (): Promise<{ filters: { id: string; label: string; values: string[] }[] }> => {
     if (isLocalExpress()) {

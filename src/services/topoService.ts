@@ -654,87 +654,9 @@ export async function fetchCellsByBbox(
   filters?: BboxFilters,
   signal?: AbortSignal,
 ): Promise<SiteSummary[]> {
-  // Strategy: try /sites-with-cells first, then fall back to /cells merge
+  // Strategy: go directly to /cells cache merge (fast & reliable).
+  // /sites-with-cells endpoint consistently times out on large DOR queries — skip it entirely.
   let sitesFromEndpoint: SiteSummary[] | null = null;
-
-  try {
-    const resp = await topoApi.listSitesWithCells(bbox, filters, 8000, signal);
-
-    if ((resp as any)?.unavailable) {
-      throw new Error('VPS parser unavailable');
-    }
-
-    const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
-    sitesFromEndpoint = (resp.sites || [])
-      .filter((s: any) => Number.isFinite(s.latitude) && Number.isFinite(s.longitude))
-      .map((s: any) => {
-        const canonicalSiteId = String(s.code_nidt || s.site_id || s.site_name || '').trim();
-        const displaySiteName = String(s.nom_site || s.site_name || canonicalSiteId).trim();
-        const cells = (s.cells || []).map((c: any) => {
-          const rawTechno = c.techno || '4G';
-          const rawBande = c.bande || '';
-          const effectiveBande = rawBande || inferBandFromCellName(c.nom_cellule || c.cell_id || '', rawTechno);
-          return {
-            cell_id: c.nom_cellule || c.cell_id,
-            cell_name: c.nom_cellule || c.cell_id || '',
-            techno: rawTechno,
-            bande: effectiveBande,
-          vendor: c.constructeur || '',
-          azimut: c.azimut != null ? Number(c.azimut) : null,
-          tilt: c.tilt != null ? Number(c.tilt) : null,
-          pci: c.pci || null,
-          eci: c.eci || null,
-          nci: c.nci || null,
-          cid: c.cid || null,
-          tac: c.tac || null,
-          etat_cellule: c.etat_cellule || null,
-          essentiel: c.essentiel || null,
-          date_mes: c.date_mes || null,
-          date_fn8: c.date_fn8 || null,
-          classe_cellule: c.classe_cellule || null,
-          couverture: c.couverture || null,
-          freq: c.freq || null,
-          secteur: c.secteur || null,
-          code_nidt: c.code_nidt || canonicalSiteId || null,
-          hebergeur_leader: c.hebergeur_leader || null,
-          saisonnalite: c.saisonnalite || null,
-          type_5g: c.type_5g || null,
-          hba: c.hba || null,
-          latitude: c.lat_raw || null,
-          longitude: c.lng_raw || null,
-          zone_arcep: s.zone_arcep || null,
-          plaque: s.plaque || c.plaque || null,
-        };
-        });
-        const site: SiteSummary = {
-          site_id: canonicalSiteId,
-          site_name: displaySiteName,
-          vendor: s.constructeur || cells[0]?.vendor || 'Unknown',
-          dor: s.dor || '',
-          plaque: s.plaque || '',
-          department: (s.plaque || '').replace('DEPT_', ''),
-          cell_count: cells.length,
-          qoe_score_avg: 0,
-          p50_thr_dn_mbps: 0,
-          p50_thr_up_mbps: 0,
-          dms_dl_3: 0,
-          dms_dl_8: 0,
-          dms_dl_30: 0,
-          dms_ul_3: 0,
-          coordinates: [Number(s.latitude), Number(s.longitude)] as [number, number],
-          cells,
-          zone_arcep: s.zone_arcep || null,
-          lte_cells: cells.filter((c: any) => c.techno === '4G' || c.techno === 'LTE').length,
-          nr_cells: cells.filter((c: any) => c.techno === '5G' || c.techno === 'NR').length,
-        };
-        return applyQoeData(site, qoeData);
-      });
-
-    console.log(`[TopoService] BBOX cells: ${sitesFromEndpoint.length} sites, ${resp.total_cells || 0} cells (server-side, 4G/5G only)`);
-  } catch (err: any) {
-    if (err?.name === 'AbortError') throw err;
-    console.warn('[TopoService] Server-side cells fetch failed, trying cells-merge fallback', err);
-  }
 
   // Fallback: use /topo/cells cache merged with /topo/sites for complete cell data
   if (!sitesFromEndpoint || sitesFromEndpoint.length === 0) {
