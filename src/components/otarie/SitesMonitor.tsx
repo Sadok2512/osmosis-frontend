@@ -458,8 +458,8 @@ const FlyToSite = ({
     if (!coords || !isFinite(coords[0]) || !isFinite(coords[1])) return;
 
     const currentZoom = map.getZoom();
-    // Keep current zoom if already reasonably close; only bump if very far out
-    const targetZoom = currentZoom < 10 ? 13 : currentZoom;
+    // Keep current zoom if already at sector-level; only bump to see sectors if too far out
+    const targetZoom = currentZoom < 10 ? 11 : currentZoom;
     const currentCenter = map.getCenter();
     const dist = map.distance(currentCenter, coords);
 
@@ -472,28 +472,28 @@ const FlyToSite = ({
 
     if (dist < 300 && Math.abs(currentZoom - targetZoom) < 1) {
       // Very close — gentle pan only
-      map.panTo(coords, { duration: 0.3, animate: true });
+      map.panTo(coords, { duration: 0.4, animate: true });
       map.once('moveend', handler);
-      return () => {
-        map.off('moveend', handler);
-      };
+      return () => { map.off('moveend', handler); };
     }
 
-    if (dist < 5000 && Math.abs(currentZoom - targetZoom) < 2) {
-      // Nearby — smooth pan without zoom change
-      map.panTo(coords, { duration: 0.5, animate: true });
+    if (dist < 10000 && Math.abs(currentZoom - targetZoom) < 3) {
+      // Nearby — smooth pan with optional zoom adjust
+      if (Math.abs(currentZoom - targetZoom) < 1) {
+        map.panTo(coords, { duration: 0.6, animate: true });
+      } else {
+        map.flyTo(coords, targetZoom, { duration: 1.0 });
+      }
       map.once('moveend', handler);
-      return () => {
-        map.off('moveend', handler);
-      };
+      return () => { map.off('moveend', handler); };
     }
 
-    map.flyTo(coords, targetZoom, { duration: 0.7 });
+    // Far away — smooth flyTo with longer duration
+    const flyDuration = dist > 200000 ? 1.8 : dist > 50000 ? 1.4 : 1.0;
+    map.flyTo(coords, targetZoom, { duration: flyDuration });
     map.once('moveend', handler);
 
-    return () => {
-      map.off('moveend', handler);
-    };
+    return () => { map.off('moveend', handler); };
   }, [coords, map]);
 
   return null;
@@ -5197,7 +5197,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
       {/* FULL SCREEN MAP */}
       <MapContainer
-        key={`map-${showBeamSectors ? 'beams' : 'nobeams'}-${mapDisplayMode}`}
+        key={`map-${mapDisplayMode}`}
         center={initialCenter || FRANCE_CENTER}
         zoom={FRANCE_DEFAULT_ZOOM}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
