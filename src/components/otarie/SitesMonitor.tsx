@@ -1551,6 +1551,8 @@ interface DashboardInventoryTabProps {
   onActiveViewIdChange: (id: string | null) => void;
   kpiOverlays?: { id: string; label: string }[];
   onRemoveKpiOverlay?: (kpiId: string) => void;
+  onActivateKpiOverlay?: (kpiId: string) => void;
+  activeKpiOverlayId?: string | null;
   resolveKpiLabel?: (id: string) => string;
   overlayVersion?: number;
 }
