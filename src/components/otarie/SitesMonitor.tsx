@@ -4851,12 +4851,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
-        // Fallback: if bulk load returns nothing, load per-site but capped & throttled
-        if (cellMap.size === 0 && sitesNeedingCells.length > 0) {
-          const MAX_FALLBACK = 30; // Load up to 30 individual sites
-          const CONCURRENCY = 5;
-          const DELAY_MS = 500; // pause between batches
-          const queue = sitesNeedingCells.slice(0, MAX_FALLBACK);
+        // Bulk BBOX fetch is intentionally capped for performance, so some visible sites
+        // may still be missing their cells. Backfill only unresolved sites individually.
+        const unresolvedAfterBulk = sitesNeedingCells.filter(site => !cellMap.has(site.site_id));
+        if (unresolvedAfterBulk.length > 0) {
+          const CONCURRENCY = 6;
+          const DELAY_MS = 150;
+          const queue = [...unresolvedAfterBulk];
 
           while (queue.length > 0) {
             const batch = queue.splice(0, CONCURRENCY);
@@ -4864,30 +4865,36 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               batch.map(async (site) => {
                 try {
                   const cells = await fetchSiteCells(site.site_id);
-                  return { siteId: site.site_id, cells };
+                  return { site, cells };
                 } catch {
-                  return { siteId: site.site_id, cells: [] as any[] };
+                  return { site, cells: [] as any[] };
                 }
               })
             );
-            for (const r of batchResults) {
-              if (r.cells.length > 0) cellMap.set(r.siteId, r.cells);
+
+            for (const { site, cells } of batchResults) {
+              if (cells.length > 0) {
+                cellMap.set(site.site_id, cells);
+              }
             }
-            if (queue.length > 0) await new Promise(r => setTimeout(r, DELAY_MS));
+
+            if (queue.length > 0) {
+              await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+            }
           }
         }
 
-        // Ultimate fallback: synthesize approximate sectors from site-level lte_cells/nr_cells
-        // when ALL VPS cell endpoints fail (timeout / empty)
-        if (cellMap.size === 0) {
-          console.warn('[SitesMonitor] All cell endpoints failed — generating synthetic sectors from site metadata');
-          for (const site of sitesNeedingCells) {
+        // Final fallback: synthesize approximate sectors only for sites still unresolved.
+        const unresolvedAfterFallback = sitesNeedingCells.filter(site => !cellMap.has(site.site_id));
+        if (unresolvedAfterFallback.length > 0) {
+          console.warn(`[SitesMonitor] Generating synthetic sectors for ${unresolvedAfterFallback.length} unresolved visible sites`);
+          for (const site of unresolvedAfterFallback) {
             const lte = site.lte_cells || 0;
             const nr = site.nr_cells || 0;
             if (lte === 0 && nr === 0) continue;
             const syntheticCells: any[] = [];
-            const azimuths = [0, 120, 240]; // standard tri-sector
-            // Generate 4G synthetic cells
+            const azimuths = [0, 120, 240];
+
             if (lte > 0) {
               const bandsPerSector = Math.max(1, Math.round(lte / 3));
               const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
@@ -4908,7 +4915,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 }
               }
             }
-            // Generate 5G synthetic cells
+
             if (nr > 0) {
               const bandsPerSector5G = Math.max(1, Math.round(nr / 3));
               const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
@@ -4929,6 +4936,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 }
               }
             }
+
             if (syntheticCells.length > 0) {
               cellMap.set(site.site_id, syntheticCells);
             }
