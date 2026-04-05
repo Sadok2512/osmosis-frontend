@@ -2981,7 +2981,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localBande, setLocalBande] = useState('ALL');
   const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
-  const [mapKpi, setMapKpi] = useState('rrc_sr');
+  const [mapKpi, setMapKpi] = useState('');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
@@ -3931,7 +3931,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       try {
         const { data, error } = await supabase
           .from('kpi_catalog')
-          .select('kpi_key, display_name, unit, famille, threshold_warning, threshold_critical')
+          .select('kpi_key, display_name, unit, famille, threshold_warning, threshold_critical, is_map_supported')
+          .eq('is_map_supported', true)
           .order('famille', { ascending: true })
           .order('display_name', { ascending: true });
         if (error) throw error;
@@ -3942,6 +3943,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           category: FAMILLE_TO_CATEGORY[k.famille] || k.famille || 'OTHER',
         }));
         setCatalogKpis(kpis);
+        setMapKpi(prev => prev || kpis[0]?.id || '');
         console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from kpi_catalog`);
         // Auto-apply thresholds from catalog (don't overwrite user-customized ones)
         const saved = localStorage.getItem('qoebit_kpi_thresholds');
@@ -3960,6 +3962,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     })();
   }, []);
   const MAP_KPIS = catalogKpis;
+
+  useEffect(() => {
+    if (!MAP_KPIS.length) return;
+    if (!mapKpi || !MAP_KPIS.some(k => k.id === mapKpi)) {
+      setMapKpi(MAP_KPIS[0].id);
+    }
+  }, [MAP_KPIS, mapKpi]);
 
   // Fetch KPI values when user selects a KPI and mode is 'kpi'
   useEffect(() => {
