@@ -9119,6 +9119,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   onActiveDashboardIdChange={setActiveDashboardId}
                   activeViewId={activeViewId}
                   onActiveViewIdChange={setActiveViewId}
+                  activeKpiOverlay={sectorColorMode === 'kpi' ? mapKpi : null}
+                  activeKpiOverlayLabel={sectorColorMode === 'kpi' ? selectedKpiLabel : null}
+                  onClearKpiOverlay={() => {
+                    setSectorColorMode('topo');
+                    // Remove kpiOverlay from active view
+                    if (activeViewId) {
+                      mapViewsApi.list().then(views => {
+                        const view = views.find((v: any) => v.id === activeViewId);
+                        if (view) {
+                          const curSettings = typeof view.settings === 'object' ? view.settings : {};
+                          const { kpiOverlay: _, ...rest } = curSettings as any;
+                          mapViewsApi.update(activeViewId, { settings: rest });
+                        }
+                      });
+                    }
+                  }}
                 />
                </div>
               </>
