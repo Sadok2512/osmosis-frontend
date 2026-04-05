@@ -1091,9 +1091,10 @@ function stripSiteLevelDesignSections(text: string): string {
  * Matches patterns like: 🧭Cohérence azimuts secteursWARN3 secteursAzimuts: ...
  */
 function convertDesignAnalysisToTable(text: string): string {
-  // Use unicode property escapes for emoji detection
-  const emojiPrefix = /^(\p{Emoji_Presentation}[\uFE0F\u200D\p{Emoji_Presentation}]*)\s*/u;
-  const statusKeywords = /\b(WARN|OK|CRITICAL|CRIT|INFO|KO)\b/;
+  // Match any leading emoji (including variation selectors like 🏗️)
+  const emojiPrefix = /^([\p{Emoji}\p{Emoji_Presentation}][\uFE0E\uFE0F]?[\u200D\p{Emoji}\p{Emoji_Presentation}\uFE0E\uFE0F]*)\s*/u;
+  // Match status keywords that follow a lowercase letter or closing paren (no word boundary needed)
+  const statusRe = /(?<=[a-zéèêëàùûôîïç\)])(?:WARN|CRITICAL|CRIT|OK|KO|INFO)/;
 
   const lines = text.split('\n');
   const result: string[] = [];
