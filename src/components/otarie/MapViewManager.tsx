@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { mapViewsApi } from '@/lib/localDb';
 import { Save, FolderOpen, Trash2, Star, Plus, X, Map } from 'lucide-react';
 import { toast } from 'sonner';
@@ -49,9 +49,23 @@ const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView, activeDa
   const [newName, setNewName] = useState('');
   const [showSaveInput, setShowSaveInput] = useState(false);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     fetchViews();
   }, [activeDashboardId]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!showPanel) return;
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setShowPanel(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPanel]);
 
   const fetchViews = async () => {
     try {
@@ -119,7 +133,7 @@ const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView, activeDa
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={panelRef}>
       <button
         onClick={() => setShowPanel(!showPanel)}
         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
