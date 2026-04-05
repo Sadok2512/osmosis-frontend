@@ -197,8 +197,8 @@ const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, o
           <p className="text-[11px] font-mono text-muted-foreground/60 mt-1 tracking-wide">{kpi.kpi_code}</p>
         </div>
 
-        {/* ── Scrollable content ── */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 scroll-smooth">
+        {/* ── Content ── */}
+        <div className="px-6 py-4 space-y-5">
 
           {/* GENERAL INFORMATION */}
           <Section title="General Information" icon={<BookOpen className="w-4 h-4" />}>
