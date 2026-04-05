@@ -2984,6 +2984,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [mapKpi, setMapKpi] = useState('cssr');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
+  const [hiddenKpiLevels, setHiddenKpiLevels] = useState<Set<'green'|'orange'|'red'|'gray'>>(new Set());
   const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
   const [kpiSearch, setKpiSearch] = useState('');
   const [kpiValues, setKpiValues] = useState<Map<string, number>>(new Map());
@@ -3987,6 +3988,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     let cancelled = false;
     setKpiLoading(true);
+    setHiddenKpiLevels(new Set());
 
     const filters: any = {};
     if (localVendor !== 'ALL') filters.vendor = localVendor;
@@ -4061,6 +4063,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (value >= t.orange) return '#f59e0b';
     return '#ef4444';
   };
+
+  const getKpiLevel = useCallback((value: number): 'green' | 'orange' | 'red' | 'gray' => {
+    if (isNaN(value) || value == null) return 'gray';
+    const t = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
+    if (t.invert) {
+      if (value <= t.green) return 'green';
+      if (value <= t.orange) return 'orange';
+      return 'red';
+    }
+    if (value >= t.green) return 'green';
+    if (value >= t.orange) return 'orange';
+    return 'red';
+  }, [kpiThresholds, mapKpi]);
+
+  const toggleKpiLevel = useCallback((level: 'green' | 'orange' | 'red' | 'gray') => {
+    setHiddenKpiLevels(prev => {
+      const next = new Set(prev);
+      if (next.has(level)) next.delete(level);
+      else next.add(level);
+      return next;
+    });
+  }, []);
 
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'RRC Success Rate';
   const selectedKpiUnit = MAP_KPIS.find(k => k.id === mapKpi)?.unit || '%';
@@ -4805,6 +4829,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         return viewport.bounds!.contains(L.latLng(lat, lng));
       });
     }
+    // KPI legend filter: hide sites whose KPI level is toggled off
+    if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
+      candidates = candidates.filter(s => {
+        const val = s.cells?.length > 0
+          ? getCellKpiValue(s.cells[0])
+          : (kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN);
+        const level = getKpiLevel(val);
+        return !hiddenKpiLevels.has(level);
+      });
+    }
     // If still too many, sample evenly to keep the map responsive
     if (candidates.length > MAX_RENDER_SITES) {
       const step = Math.ceil(candidates.length / MAX_RENDER_SITES);
@@ -4815,7 +4849,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return sampled;
     }
     return candidates;
-  }, [mapFilteredSites, viewport.bounds]);
+  }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, getKpiLevel, kpiValues, mapKpi]);
 
   // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
   const sectorDensityFactor = useMemo(() => {
@@ -7403,53 +7437,40 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
             </div>
 
-            {/* Legend rows */}
-            <div className="px-3 py-2 space-y-1.5">
-              {currentThreshold.invert ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#22c55e' }} />
-                    <span className="text-[10px] font-semibold text-foreground">≤ {currentThreshold.green}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
-                    <span className="text-[9px] text-muted-foreground ml-auto">Bon</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
-                    <span className="text-[10px] font-semibold text-foreground">{currentThreshold.green} – {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
-                    <span className="text-[9px] text-muted-foreground ml-auto">Moyen</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#ef4444' }} />
-                    <span className="text-[10px] font-semibold text-foreground">&gt; {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
-                    <span className="text-[9px] text-muted-foreground ml-auto">Critique</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#6b7280' }} />
-                    <span className="text-[10px] font-semibold text-muted-foreground">No data</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#22c55e' }} />
-                    <span className="text-[10px] font-semibold text-foreground">≥ {currentThreshold.green}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
-                    <span className="text-[9px] text-muted-foreground ml-auto">Bon</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
-                    <span className="text-[10px] font-semibold text-foreground">{currentThreshold.orange} – {currentThreshold.green}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
-                    <span className="text-[9px] text-muted-foreground ml-auto">Moyen</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#ef4444' }} />
-                    <span className="text-[10px] font-semibold text-foreground">&lt; {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
-                    <span className="text-[9px] text-muted-foreground ml-auto">Critique</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#6b7280' }} />
-                    <span className="text-[10px] font-semibold text-muted-foreground">No data</span>
-                  </div>
-                </>
-              )}
+            {/* Legend rows — click to filter */}
+            <div className="px-3 py-2 space-y-0.5">
+              {(() => {
+                const levels: { level: 'green' | 'orange' | 'red' | 'gray'; color: string; label: string; qualifier: string }[] = currentThreshold.invert
+                  ? [
+                      { level: 'green', color: '#22c55e', label: `≤ ${currentThreshold.green}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Bon' },
+                      { level: 'orange', color: '#f59e0b', label: `${currentThreshold.green} – ${currentThreshold.orange}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Moyen' },
+                      { level: 'red', color: '#ef4444', label: `> ${currentThreshold.orange}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Critique' },
+                      { level: 'gray', color: '#6b7280', label: 'No data', qualifier: '' },
+                    ]
+                  : [
+                      { level: 'green', color: '#22c55e', label: `≥ ${currentThreshold.green}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Bon' },
+                      { level: 'orange', color: '#f59e0b', label: `${currentThreshold.orange} – ${currentThreshold.green}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Moyen' },
+                      { level: 'red', color: '#ef4444', label: `< ${currentThreshold.orange}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Critique' },
+                      { level: 'gray', color: '#6b7280', label: 'No data', qualifier: '' },
+                    ];
+                return levels.map(({ level, color, label, qualifier }) => {
+                  const hidden = hiddenKpiLevels.has(level);
+                  return (
+                    <button
+                      key={level}
+                      onClick={() => toggleKpiLevel(level)}
+                      className={`flex items-center gap-2 w-full px-1.5 py-1 rounded-md transition-all cursor-pointer hover:bg-muted/50 ${hidden ? 'opacity-35' : ''}`}
+                      title={hidden ? `Afficher ${qualifier || label}` : `Masquer ${qualifier || label}`}
+                    >
+                      <span className="w-3 h-3 rounded-full shrink-0 relative" style={{ background: color }}>
+                        {hidden && <X size={8} className="absolute inset-0 m-auto text-white" />}
+                      </span>
+                      <span className={`text-[10px] font-semibold ${level === 'gray' ? 'text-muted-foreground' : 'text-foreground'}`}>{label}</span>
+                      {qualifier && <span className="text-[9px] text-muted-foreground ml-auto">{qualifier}</span>}
+                    </button>
+                  );
+                });
+              })()}
             </div>
 
             {/* Threshold Editor */}
