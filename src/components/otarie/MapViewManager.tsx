@@ -49,9 +49,23 @@ const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView, activeDa
   const [newName, setNewName] = useState('');
   const [showSaveInput, setShowSaveInput] = useState(false);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     fetchViews();
   }, [activeDashboardId]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!showPanel) return;
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setShowPanel(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPanel]);
 
   const fetchViews = async () => {
     try {
