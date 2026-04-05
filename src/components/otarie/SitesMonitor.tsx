@@ -7230,6 +7230,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </button>
                   ))}
                 </div>
+
+                {/* Site Name toggle */}
+                <button
+                  onClick={() => setShowSiteLabels(v => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shrink-0 ${
+                    showSiteLabels
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-muted/60 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                  title="Afficher/masquer les noms de sites"
+                >
+                  <MapPin size={11} />
+                  Site Name
+                </button>
               </>
             )}
 
