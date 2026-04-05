@@ -1091,9 +1091,10 @@ function stripSiteLevelDesignSections(text: string): string {
  * Matches patterns like: 🧭Cohérence azimuts secteursWARN3 secteursAzimuts: ...
  */
 function convertDesignAnalysisToTable(text: string): string {
-  // Use unicode property escapes for emoji detection
-  const emojiPrefix = /^(\p{Emoji_Presentation}[\uFE0F\u200D\p{Emoji_Presentation}]*)\s*/u;
-  const statusKeywords = /\b(WARN|OK|CRITICAL|CRIT|INFO|KO)\b/;
+  // Match any leading emoji (including variation selectors like 🏗️)
+  const emojiPrefix = /^([\p{Emoji}\p{Emoji_Presentation}][\uFE0E\uFE0F]?[\u200D\p{Emoji}\p{Emoji_Presentation}\uFE0E\uFE0F]*)\s*/u;
+  // Match status keywords that follow a lowercase letter or closing paren (no word boundary needed)
+  const statusRe = /(?<=[a-zéèêëàùûôîïç\)])(?:WARN|CRITICAL|CRIT|OK|KO|INFO)/;
 
   const lines = text.split('\n');
   const result: string[] = [];
@@ -1138,11 +1139,11 @@ function convertDesignAnalysisToTable(text: string): string {
     const rest = trimmed.slice(emojiMatch[0].length);
 
     // Must contain a status keyword
-    const statusMatch = rest.match(statusKeywords);
+    const statusMatch = rest.match(statusRe);
     if (!statusMatch) { flushAnalysis(); result.push(line); continue; }
 
     const statusIdx = statusMatch.index!;
-    const status = statusMatch[1];
+    const status = statusMatch[0];
     const checkName = rest.slice(0, statusIdx).trim();
     const details = rest.slice(statusIdx + status.length).trim();
 
@@ -1150,7 +1151,7 @@ function convertDesignAnalysisToTable(text: string): string {
     if (/[\u{1F3D7}]/u.test(icon) && /\d+\s*cells/i.test(rest)) {
       const summaryParts = rest.match(/^(.+?)(\d+\s*cells.*)$/i);
       const sName = summaryParts ? summaryParts[1].trim() : checkName;
-      const sCells = summaryParts ? summaryParts[2].replace(statusKeywords, '').trim() : '';
+      const sCells = summaryParts ? summaryParts[2].replace(statusRe, '').trim() : '';
       siteSummaryLine = `**${sName}** — ${sCells} — **${status}**`;
       continue;
     }
