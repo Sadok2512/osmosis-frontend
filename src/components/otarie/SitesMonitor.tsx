@@ -87,6 +87,7 @@ interface SitesMonitorProps {
   highlightedCellIds?: string[];
   onClearHighlights?: () => void;
   onLaunchAI?: (siteName: string) => void;
+  isVisible?: boolean;
 }
 
 // Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
@@ -674,6 +675,37 @@ const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; rese
     map.invalidateSize();
     map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
   }, [enabled, resetKey, map]);
+
+  return null;
+};
+
+const MapVisibilitySync = ({ active }: { active: boolean }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!active) return;
+
+    let cancelled = false;
+    const sync = () => {
+      if (cancelled) return;
+      map.invalidateSize();
+    };
+
+    const raf1 = requestAnimationFrame(() => {
+      sync();
+      requestAnimationFrame(sync);
+    });
+
+    const t1 = window.setTimeout(sync, 120);
+    const t2 = window.setTimeout(sync, 320);
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf1);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [active, map]);
 
   return null;
 };
@@ -2861,7 +2893,7 @@ const SiteConfigTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => 
   );
 };
 
-const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI }) => {
+const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, onCellSelect, highlightedCellIds = [], onClearHighlights, onLaunchAI, isVisible = true }) => {
   const mapCache = useMapSitesStore();
   const [sites, setSitesRaw] = useState<SiteSummary[]>(() => {
     // Restore from cache if valid
@@ -5158,6 +5190,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         zoomDelta={1}
         closePopupOnClick={true}
       >
+        <MapVisibilitySync active={isVisible} />
         <TopoFranceViewportReset
           enabled={sectorColorMode === 'topo' && focusMode === 'global' && !selectedSiteId}
           resetKey={`${sectorColorMode}-${focusMode}-${selectedSiteId ?? 'none'}-${topoResetCounter}`}
