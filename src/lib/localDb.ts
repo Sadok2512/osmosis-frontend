@@ -520,7 +520,6 @@ export const topoApi = {
     const bboxQs = new URLSearchParams();
     bboxQs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
     bboxQs.set('limit', String(limit));
-    bboxQs.set('include_cells', '1');
     if (filters) {
       Object.entries(filters).forEach(([k, v]) => {
         if (v && v !== 'ALL') bboxQs.set(k, v);

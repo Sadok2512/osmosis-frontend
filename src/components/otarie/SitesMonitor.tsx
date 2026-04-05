@@ -5191,33 +5191,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     // Always load all cells for clicked site to ensure complete data
     let siteWithCells = site;
-    if (site.site_name) {
+    if (site.site_id) {
       setLoadingCellsForSite(site.site_id);
       try {
-        const cellResp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites-with-cells?q=${encodeURIComponent(site.site_name)}&limit=500`), {
-          headers: getVpsProxyHeaders(),
-        });
-        const cellData = await cellResp.json();
-        const matchSite = (cellData.sites || []).find((cs: any) => cs.site_name === site.site_name);
-        if (matchSite && matchSite.cells && matchSite.cells.length > 0) {
-          const cells = (matchSite.cells || []).map((c: any) => ({
-            cell_id: c.nom_cellule || c.cell_name,
-            cell_name: c.nom_cellule || c.cell_name || '',
-            techno: c.techno || '4G',
-            band: c.bande || '',
-            bande: c.bande || '',
-            vendor: c.constructeur || '',
-            azimut: c.azimut != null ? Number(c.azimut) : null,
-            tilt: c.tilt != null ? Number(c.tilt) : null,
-            pci: c.pci || null,
-            eci: c.eci || null,
-            tac: c.tac || null,
-            etat_cellule: c.etat_cellule || null,
-            nci: c.nci || null,
-            freq: c.freq || null,
-            zone_arcep: matchSite.zone_arcep || c.zone_arcep || null,
-            plaque: matchSite.plaque || c.plaque || null,
-          }));
+        const cells = await fetchSiteCells(site.site_id);
+        if (cells.length > 0) {
           siteWithCells = {
             ...site,
             cells,
