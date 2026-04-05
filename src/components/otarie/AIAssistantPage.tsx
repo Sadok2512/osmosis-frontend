@@ -1158,7 +1158,7 @@ function convertDesignAnalysisToTable(text: string): string {
   return result.join('\n');
 }
 
-
+const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
   const cleaned = useMemo(() => {
     let text = content;
     text = text.replace(/<!--\s*AGENT:\w+\s*-->\n?/g, '');
