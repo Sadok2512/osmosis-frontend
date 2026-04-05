@@ -4828,6 +4828,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         return viewport.bounds!.contains(L.latLng(lat, lng));
       });
     }
+    // KPI legend filter: hide sites whose KPI level is toggled off
+    if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
+      candidates = candidates.filter(s => {
+        const val = s.cells?.length > 0
+          ? getCellKpiValue(s.cells[0])
+          : (kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN);
+        const level = getKpiLevel(val);
+        return !hiddenKpiLevels.has(level);
+      });
+    }
     // If still too many, sample evenly to keep the map responsive
     if (candidates.length > MAX_RENDER_SITES) {
       const step = Math.ceil(candidates.length / MAX_RENDER_SITES);
@@ -4838,7 +4848,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return sampled;
     }
     return candidates;
-  }, [mapFilteredSites, viewport.bounds]);
+  }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, getKpiLevel, kpiValues, mapKpi]);
 
   // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
   const sectorDensityFactor = useMemo(() => {
