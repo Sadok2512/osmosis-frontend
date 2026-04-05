@@ -1,30 +1,29 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { CSVDataProvider } from '../components/bi/CSVDataStore';
 import AppSidebar from '../components/otarie/AppSidebar';
-import GlobalDashboard from '../components/otarie/GlobalDashboard';
-import SitesMonitor from '../components/otarie/SitesMonitor';
-import AdvancedAnalytics from '../components/otarie/AdvancedAnalytics';
-import AlertsRCA from '../components/otarie/AlertsRCA';
-import RadioMobility from '../components/otarie/RadioMobility';
-import AnalyticBIStudio from '../components/otarie/AnalyticBIStudio';
-import SubscriberExperience from '../components/otarie/SubscriberExperience';
-import DetectorConsole from '../components/otarie/DetectorConsole';
-import SettingsPanel from '../components/otarie/SettingsPanel';
-import DocumentationPage from '../components/otarie/DocumentationPage';
-import AIAssistantPage from '../components/otarie/AIAssistantPage';
 import DashboardOverview from '../components/otarie/DashboardOverview';
 
-import RadioProfilePage from '../components/otarie/RadioProfilePage';
-import BackendAdmin from '../components/otarie/BackendAdmin';
-import TopologiePage from '../components/otarie/TopologiePage';
-import ParametersPage from '../components/otarie/ParametersPage';
-
-import AgentHubPage from '../components/otarie/AgentHubPage';
-import KPIMonitorPage from '../components/kpi-monitor/KPIMonitorPage';
-
-import PmDashboardPage from '../components/pm-dashboard/PmDashboardPage';
-import SentinelPage from '../components/sentinel/SentinelPage';
-import InvestigatorPage from '../components/investigator/InvestigatorPage';
+// Lazy load all heavy page components
+const SitesMonitor = lazy(() => import('../components/otarie/SitesMonitor'));
+const GlobalDashboard = lazy(() => import('../components/otarie/GlobalDashboard'));
+const AdvancedAnalytics = lazy(() => import('../components/otarie/AdvancedAnalytics'));
+const AlertsRCA = lazy(() => import('../components/otarie/AlertsRCA'));
+const RadioMobility = lazy(() => import('../components/otarie/RadioMobility'));
+const AnalyticBIStudio = lazy(() => import('../components/otarie/AnalyticBIStudio'));
+const SubscriberExperience = lazy(() => import('../components/otarie/SubscriberExperience'));
+const DetectorConsole = lazy(() => import('../components/otarie/DetectorConsole'));
+const SettingsPanel = lazy(() => import('../components/otarie/SettingsPanel'));
+const DocumentationPage = lazy(() => import('../components/otarie/DocumentationPage'));
+const AIAssistantPage = lazy(() => import('../components/otarie/AIAssistantPage'));
+const RadioProfilePage = lazy(() => import('../components/otarie/RadioProfilePage'));
+const BackendAdmin = lazy(() => import('../components/otarie/BackendAdmin'));
+const TopologiePage = lazy(() => import('../components/otarie/TopologiePage'));
+const ParametersPage = lazy(() => import('../components/otarie/ParametersPage'));
+const AgentHubPage = lazy(() => import('../components/otarie/AgentHubPage'));
+const KPIMonitorPage = lazy(() => import('../components/kpi-monitor/KPIMonitorPage'));
+const PmDashboardPage = lazy(() => import('../components/pm-dashboard/PmDashboardPage'));
+const SentinelPage = lazy(() => import('../components/sentinel/SentinelPage'));
+const InvestigatorPage = lazy(() => import('../components/investigator/InvestigatorPage'));
 
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
@@ -164,6 +163,12 @@ const Index: React.FC = () => {
     }
   };
 
+  const LazyFallback = () => (
+    <div className="flex-1 flex items-center justify-center bg-background">
+      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+    </div>
+  );
+
   return (
     <CSVDataProvider>
     <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass} ${theme === 'dark' ? 'dark' : ''}`} style={accentStyles[accentColor] as React.CSSProperties}>
@@ -179,11 +184,13 @@ const Index: React.FC = () => {
         enabledModules={enabledModules}
       />
       <div className="flex-1 flex flex-col overflow-hidden relative z-0">
-        {/* Keep SitesMonitor always mounted, hide/show via CSS to preserve map state */}
-        <div style={{ display: (activeTab === 'sites' || activeTab === 'list') ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-          <SitesMonitor isVisible={activeTab === 'sites' || activeTab === 'list'} filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />
-        </div>
-        {activeTab !== 'sites' && activeTab !== 'list' && renderContent()}
+        <Suspense fallback={<LazyFallback />}>
+          {/* Keep SitesMonitor always mounted, hide/show via CSS to preserve map state */}
+          <div style={{ display: (activeTab === 'sites' || activeTab === 'list') ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <SitesMonitor isVisible={activeTab === 'sites' || activeTab === 'list'} filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />
+          </div>
+          {activeTab !== 'sites' && activeTab !== 'list' && renderContent()}
+        </Suspense>
       </div>
     </div>
     </CSVDataProvider>
