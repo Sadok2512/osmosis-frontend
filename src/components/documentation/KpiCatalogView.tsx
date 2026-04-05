@@ -4,6 +4,7 @@ import {
   ChevronRight, Hash, Shield, Layers, BookOpen
 } from 'lucide-react';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { KpiCatalogEntry, KpiStatus, UserRole, CounterEntry, KpiThresholds } from './kpiCatalogTypes';
 import { STATUS_CONFIG, CATEGORY_COLORS, VENDOR_COLORS, TECH_COLORS } from './kpiCatalogTypes';
@@ -28,7 +29,43 @@ async function catalogGet<T>(path: string, params?: Record<string, string>): Pro
     const body = await res.text().catch(() => '');
     throw new Error(body || `API ${res.status}`);
   }
-  return res.json();
+  const json = await res.json();
+  // Detect vps-proxy unavailable response
+  if (json && json.unavailable === true) {
+    throw new Error('VPS_UNAVAILABLE');
+  }
+  return json as T;
+}
+
+/** Fallback: load KPIs from Supabase kpi_catalog table */
+async function loadKpisFromSupabase(params?: Record<string, string>): Promise<any[]> {
+  let query = supabase.from('kpi_catalog').select('*').order('display_name');
+  if (params?.technology && params.technology !== 'ALL') {
+    query = query.ilike('techno', `%${params.technology}%`);
+  }
+  if (params?.vendor && params.vendor !== 'ALL') {
+    query = query.ilike('techno', `%${params.vendor}%`); // vendor not in kpi_catalog, best effort
+  }
+  if (params?.category && params.category !== 'ALL') {
+    query = query.ilike('famille', `%${params.category}%`);
+  }
+  if (params?.search) {
+    query = query.or(`display_name.ilike.%${params.search}%,kpi_key.ilike.%${params.search}%`);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(row => ({
+    ...row,
+    kpi_code: row.kpi_key,
+    category: row.famille || 'Other',
+    unit: row.unit || '',
+    technology: row.techno || 'ALL',
+    vendor: 'ALL',
+    formula: row.formula_sql || '',
+    numerator_name: row.numerator || '',
+    denominator_name: row.denominator || '',
+    status: 'active',
+  }));
 }
 
 async function catalogPost<T = any>(path: string, body: any): Promise<T> {
@@ -184,13 +221,21 @@ const KpiCatalogView: React.FC = () => {
 
     catalogGet<any>('/kpis', params)
       .then(data => {
-        // Backend returns { kpis: [...], total: N } or plain array
         const arr = Array.isArray(data) ? data : (data.kpis || []);
         setKpis(arr.map(mapToEntry));
       })
-      .catch((err) => {
-        console.error('KPI catalog load error:', err);
-        toast.error('Failed to load KPI catalog');
+      .catch(async (err) => {
+        console.warn('VPS catalog unavailable, falling back to database:', err.message);
+        try {
+          const rows = await loadKpisFromSupabase(params);
+          setKpis(rows.map(mapToEntry));
+          if (rows.length === 0) {
+            toast.info('No KPIs found in database');
+          }
+        } catch (fallbackErr) {
+          console.error('Supabase fallback also failed:', fallbackErr);
+          toast.error('Failed to load KPI catalog');
+        }
       })
       .finally(() => setLoading(false));
   }, [debouncedSearch, techFilter, vendorFilter, categoryFilter]);
