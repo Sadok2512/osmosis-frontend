@@ -9558,23 +9558,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {/* RF Spatial KPIs for cell */}
                     <div className="grid grid-cols-3 gap-2">
                       {(() => {
-                        const overshoot = (cell as any).overshooting_factor ?? Math.random() * 25;
-                        const sev = overshoot > 20 ? 'red' : overshoot > 12 ? 'orange' : 'green';
+                        const overshoot = (cell as any).overshoot_factor;
+                        if (overshoot == null) return (
+                          <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
+                            <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Overshoot</div>
+                            <div className="text-[14px] font-extrabold text-muted-foreground">—</div>
+                          </div>
+                        );
+                        const pct = overshoot * 100;
+                        const sev = pct > 20 ? 'red' : pct > 12 ? 'orange' : 'green';
                         const sevColor = sev === 'green' ? 'text-emerald-500' : sev === 'orange' ? 'text-orange-500' : 'text-destructive';
                         return (
                           <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
                             <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Overshoot</div>
-                            <div className={`text-[14px] font-extrabold ${sevColor}`}>{overshoot.toFixed(1)}%</div>
+                            <div className={`text-[14px] font-extrabold ${sevColor}`}>{pct.toFixed(1)}%</div>
                           </div>
                         );
                       })()}
                       <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
-                        <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Inter-site</div>
-                        <div className="text-[14px] font-extrabold text-primary">{((cell as any).inter_site_distance ?? (0.8 + Math.random() * 2.5)).toFixed(2)} km</div>
+                        <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">ISD</div>
+                        <div className="text-[14px] font-extrabold text-primary">
+                          {(cell as any).intersite_distance_m != null ? ((cell as any).intersite_distance_m / 1000).toFixed(2) : '—'}
+                          {(cell as any).intersite_distance_m != null && <span className="text-[10px] font-bold text-muted-foreground ml-0.5">km</span>}
+                        </div>
                       </div>
                       <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
-                        <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Avg UE Dist</div>
-                        <div className="text-[14px] font-extrabold text-foreground">{((cell as any).avg_ue_distance ?? (0.2 + Math.random() * 1.8)).toFixed(2)} km</div>
+                        <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Tilt</div>
+                        <div className="text-[14px] font-extrabold text-foreground">
+                          {(cell as any).tilt != null ? `${(cell as any).tilt}°` : '—'}
+                        </div>
                       </div>
                     </div>
 
@@ -9701,23 +9713,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <div className="px-5 py-4">
                       <div className="grid grid-cols-3 gap-2">
                         {(() => {
-                          const overshoot = (cell as any).overshooting_factor ?? Math.random() * 25;
-                          const sev = overshoot > 20 ? 'red' : overshoot > 12 ? 'orange' : 'green';
+                          const overshoot = (cell as any).overshoot_factor;
+                          if (overshoot == null) return (
+                            <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
+                              <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Overshoot</div>
+                              <div className="text-[14px] font-extrabold text-muted-foreground">—</div>
+                            </div>
+                          );
+                          const pct = overshoot * 100;
+                          const sev = pct > 20 ? 'red' : pct > 12 ? 'orange' : 'green';
                           const sevColor = sev === 'green' ? 'text-emerald-500' : sev === 'orange' ? 'text-orange-500' : 'text-destructive';
                           return (
                             <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
                               <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Overshoot</div>
-                              <div className={`text-[14px] font-extrabold ${sevColor}`}>{overshoot.toFixed(1)}%</div>
+                              <div className={`text-[14px] font-extrabold ${sevColor}`}>{pct.toFixed(1)}%</div>
                             </div>
                           );
                         })()}
                         <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
-                          <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Inter-site</div>
-                          <div className="text-[14px] font-extrabold text-primary">{((cell as any).inter_site_distance ?? (0.8 + Math.random() * 2.5)).toFixed(2)} km</div>
+                          <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">ISD</div>
+                          <div className="text-[14px] font-extrabold text-primary">
+                            {(cell as any).intersite_distance_m != null ? ((cell as any).intersite_distance_m / 1000).toFixed(2) : '—'}
+                            {(cell as any).intersite_distance_m != null && <span className="text-[10px] font-bold text-muted-foreground ml-0.5">km</span>}
+                          </div>
                         </div>
                         <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
-                          <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Avg UE Dist</div>
-                          <div className="text-[14px] font-extrabold text-foreground">{((cell as any).avg_ue_distance ?? (0.2 + Math.random() * 1.8)).toFixed(2)} km</div>
+                          <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Tilt</div>
+                          <div className="text-[14px] font-extrabold text-foreground">
+                            {(cell as any).tilt != null ? `${(cell as any).tilt}°` : '—'}
+                          </div>
                         </div>
                       </div>
                     </div>

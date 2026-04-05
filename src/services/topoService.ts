@@ -224,6 +224,9 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     if (extra.longitude != null) ext.longitude = extra.longitude;
     if (extra.hebergeur_leader) ext.hebergeur_leader = extra.hebergeur_leader;
     if (extra.relative_id != null) ext.relative_id = extra.relative_id;
+    // Spatial KPIs from ref_cell_daily
+    if ((extra as any).intersite_distance_m != null) ext.intersite_distance_m = (extra as any).intersite_distance_m;
+    if ((extra as any).overshoot_factor != null) ext.overshoot_factor = (extra as any).overshoot_factor;
   }
   return base;
 }
