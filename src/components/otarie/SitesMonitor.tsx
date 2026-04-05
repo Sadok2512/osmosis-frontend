@@ -1935,6 +1935,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       viewFilters: vs.viewFilters || dbSettings.viewFilters || [],
       viewConditions: vs.viewConditions || [],
       mapLabelFields: vs.mapLabelFields || dbSettings.mapLabelFields,
+      kpiOverlays: Array.isArray(vs.kpiOverlays) ? vs.kpiOverlays : [],
     };
   };
 
