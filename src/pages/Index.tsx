@@ -163,6 +163,12 @@ const Index: React.FC = () => {
     }
   };
 
+  const LazyFallback = () => (
+    <div className="flex-1 flex items-center justify-center bg-background">
+      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+    </div>
+  );
+
   return (
     <CSVDataProvider>
     <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass} ${theme === 'dark' ? 'dark' : ''}`} style={accentStyles[accentColor] as React.CSSProperties}>
@@ -178,11 +184,13 @@ const Index: React.FC = () => {
         enabledModules={enabledModules}
       />
       <div className="flex-1 flex flex-col overflow-hidden relative z-0">
-        {/* Keep SitesMonitor always mounted, hide/show via CSS to preserve map state */}
-        <div style={{ display: (activeTab === 'sites' || activeTab === 'list') ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-          <SitesMonitor isVisible={activeTab === 'sites' || activeTab === 'list'} filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />
-        </div>
-        {activeTab !== 'sites' && activeTab !== 'list' && renderContent()}
+        <Suspense fallback={<LazyFallback />}>
+          {/* Keep SitesMonitor always mounted, hide/show via CSS to preserve map state */}
+          <div style={{ display: (activeTab === 'sites' || activeTab === 'list') ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <SitesMonitor isVisible={activeTab === 'sites' || activeTab === 'list'} filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />
+          </div>
+          {activeTab !== 'sites' && activeTab !== 'list' && renderContent()}
+        </Suspense>
       </div>
     </div>
     </CSVDataProvider>
