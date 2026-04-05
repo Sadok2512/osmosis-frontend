@@ -3006,6 +3006,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
   const [mapKpi, setMapKpi] = useState('cssr');
+  const [kpiOverlays, setKpiOverlays] = useState<string[]>([]);
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [hiddenKpiLevels, setHiddenKpiLevels] = useState<Set<'green'|'orange'|'red'|'gray'>>(new Set());
