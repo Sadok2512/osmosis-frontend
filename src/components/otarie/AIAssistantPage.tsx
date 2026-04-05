@@ -1103,9 +1103,19 @@ const TableHeadersContext = React.createContext<string[]>([]);
 const KpiColorTable: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const headersRef = React.useRef<string[]>([]);
   const [headers, setHeaders] = React.useState<string[]>([]);
+  
+  // Detect if this is an anomaly/design-check table
+  const isAnomalyTable = headers.some(h => /statut|status|état/i.test(h));
+  
   return (
     <TableHeadersContext.Provider value={headers}>
-      <div className="my-4 rounded-xl border border-border overflow-hidden shadow-sm">
+      <div className={`my-4 rounded-xl border overflow-hidden shadow-sm ${isAnomalyTable ? 'border-primary/30' : 'border-border'}`}>
+        {isAnomalyTable && (
+          <div className="px-4 py-2 bg-primary/5 border-b border-primary/20 flex items-center gap-2">
+            <span className="text-sm">🔍</span>
+            <span className="text-xs font-bold text-primary tracking-wide">Analyse des Anomalies</span>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs" ref={(el) => {
             if (el) {
@@ -1123,6 +1133,35 @@ const KpiColorTable: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   );
 };
 
+const StatusBadge: React.FC<{ type: 'warn' | 'ok' | 'critical' | 'info'; label: string }> = ({ type, label }) => {
+  const styles: Record<string, { bg: string; text: string; icon: string }> = {
+    warn: { bg: 'hsl(38, 92%, 94%)', text: 'hsl(32, 95%, 40%)', icon: '⚠️' },
+    critical: { bg: 'hsl(0, 80%, 95%)', text: 'hsl(0, 80%, 42%)', icon: '🔴' },
+    ok: { bg: 'hsl(142, 60%, 93%)', text: 'hsl(142, 70%, 32%)', icon: '✅' },
+    info: { bg: 'hsl(210, 70%, 94%)', text: 'hsl(210, 70%, 40%)', icon: 'ℹ️' },
+  };
+  const s = styles[type];
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap"
+      style={{ background: s.bg, color: s.text }}>
+      <span className="text-[10px]">{s.icon}</span> {label}
+    </span>
+  );
+};
+
+function detectStatusBadge(text: string): React.ReactNode | null {
+  const t = text.trim();
+  if (/^⚠️?\s*WARN$/i.test(t) || /^WARN$/i.test(t))
+    return <StatusBadge type="warn" label="WARN" />;
+  if (/^🔴?\s*(CRITICAL|CRIT|KO)$/i.test(t) || /^(CRITICAL|CRIT|KO)$/i.test(t))
+    return <StatusBadge type="critical" label={t.replace(/🔴\s*/, '')} />;
+  if (/^✅?\s*OK$/i.test(t) || /^OK$/i.test(t))
+    return <StatusBadge type="ok" label="OK" />;
+  if (/^ℹ️?\s*INFO$/i.test(t) || /^INFO$/i.test(t))
+    return <StatusBadge type="info" label="INFO" />;
+  return null;
+}
+
 const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = React.memo(({ children, style }) => {
   const headers = React.useContext(TableHeadersContext);
   const text = String(children ?? '');
@@ -1138,9 +1177,18 @@ const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }
   }, []);
 
   const headerText = colIndex >= 0 && colIndex < headers.length ? headers[colIndex] : '';
+  const isStatusCol = /statut|status|état/i.test(headerText);
   const kpiColor = headerText ? getKpiColorForHeader(headerText) : null;
 
-  if (colIndex === 0) return <td ref={tdRef} className={`${baseCls} font-medium text-foreground`}>{children}</td>;
+  // Status badge detection (for Statut columns or standalone WARN/OK/CRITICAL)
+  const badge = detectStatusBadge(text);
+  if (badge || isStatusCol) {
+    const renderedBadge = badge || detectStatusBadge(text.replace(/[^\w\s]/g, '').trim());
+    if (renderedBadge) return <td ref={tdRef} className={`${baseCls} text-center`}>{renderedBadge}</td>;
+  }
+
+  // First column = parameter name with accent color
+  if (colIndex === 0) return <td ref={tdRef} className={`${baseCls} font-semibold text-primary whitespace-nowrap`}>{children}</td>;
 
   if (kpiColor) {
     const isNumeric = /^\s*-?\d/.test(text) || /\d+\.?\d*\s*(%|Mbps|ms|s)?\s*$/.test(text);
@@ -1155,6 +1203,11 @@ const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }
     return <td ref={tdRef} className={`${baseCls} font-semibold`} style={{ color: 'hsl(45, 90%, 45%)' }}>{children}</td>;
   if (text.includes('🟢') || /excellent|good|bon/i.test(text))
     return <td ref={tdRef} className={`${baseCls} font-semibold`} style={{ color: 'hsl(142, 70%, 40%)' }}>{children}</td>;
+
+  // Italic style for warning details (Sur-tiltage, intrusion, etc.)
+  if (/sur-tilt|intrusion|dégradation|fortement/i.test(text)) {
+    return <td ref={tdRef} className={`${baseCls} italic`} style={{ color: 'hsl(32, 95%, 40%)' }}>{children}</td>;
+  }
 
   const deltaMatch = text.match(/^([+-])\s*(\d+\.?\d*)\s*(%|pts?|ms|s|Mbps)?$/);
   if (deltaMatch) {
@@ -1182,7 +1235,7 @@ const KpiTd: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }
 
   if (/^[\d\s.]+$/.test(text)) return <td ref={tdRef} className={`${baseCls} font-medium text-foreground`}>{children}</td>;
 
-  return <td ref={tdRef} className={`${baseCls} text-foreground/85`}>{children}</td>;
+  return <td ref={tdRef} className={`${baseCls} text-foreground/85 leading-relaxed`}>{children}</td>;
 });
 KpiTd.displayName = 'KpiTd';
 
@@ -1258,7 +1311,11 @@ const MarkdownBlock: React.FC<{ content: string }> = React.memo(({ content }) =>
       },
       table: ({ children }) => <KpiColorTable>{children}</KpiColorTable>,
       thead: ({ children }) => <thead className="bg-muted/80 sticky top-0 z-10">{children}</thead>,
-      th: ({ children }) => <th className="px-3 py-2.5 text-[11px] font-bold text-foreground text-left border-b-2 border-border tracking-wide">{children}</th>,
+      th: ({ children }) => {
+        const text = String(children ?? '');
+        const isStatus = /statut|status|état/i.test(text);
+        return <th className={`px-3 py-2.5 text-[11px] font-bold text-foreground border-b-2 border-border tracking-wide ${isStatus ? 'text-center w-20' : 'text-left'}`}>{children}</th>;
+      },
       td: ({ children, style }) => <KpiTd style={style}>{children}</KpiTd>,
       tr: ({ children }) => <tr className="hover:bg-muted/30 transition-colors even:bg-muted/10">{children}</tr>,
       blockquote: ({ children }) => (
