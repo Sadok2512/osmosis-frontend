@@ -432,10 +432,12 @@ const KpiCatalogView: React.FC = () => {
               })}
             </div>
           </div>
-        </div>
+        </ResizablePanel>
+
+        <ResizableHandle withHandle className="hidden md:flex" />
 
         {/* ── DETAIL PANEL ── */}
-        <div className="w-[420px] shrink-0 flex flex-col overflow-hidden bg-card hidden md:flex">
+        <ResizablePanel defaultSize={35} minSize={25} maxSize={60} className="flex flex-col overflow-hidden bg-card hidden md:flex">
           {kpi && statusCfg ? (
             <div className="flex-1 overflow-y-auto">
               {/* Panel Header */}
