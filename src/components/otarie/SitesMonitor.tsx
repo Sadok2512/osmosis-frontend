@@ -4217,14 +4217,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       if (controller.signal.aborted) return;
 
-      // Preserve the currently selected site if it was added via search and isn't in the new bbox results
+      // Preserve already loaded cells when fresh BBOX results only contain lightweight site summaries
       setSites(prev => {
+        const prevById = new Map(prev.map(site => [site.site_id, site]));
+        const mergedSites = (newSites || []).map(site => {
+          const prevSite = prevById.get(site.site_id);
+          if (!prevSite?.cells?.length || site.cells?.length) return site;
+          return { ...site, cells: prevSite.cells };
+        });
+
         const selectedId = selectedSiteIdRef.current;
-        const selectedSite = selectedId ? prev.find(s => s.site_id === selectedId) : null;
-        if (selectedSite && !(newSites || []).some(s => s.site_id === selectedId)) {
-          return [selectedSite, ...(newSites || [])];
+        const selectedSite = selectedId ? prevById.get(selectedId) : null;
+        if (selectedSite && !mergedSites.some(s => s.site_id === selectedId)) {
+          return [selectedSite, ...mergedSites];
         }
-        return newSites || [];
+        return mergedSites;
       });
       setBboxTotal(total || 0);
       setBboxLoading(false);
