@@ -1549,9 +1549,8 @@ interface DashboardInventoryTabProps {
   onActiveDashboardIdChange: (id: string | null) => void;
   activeViewId: string | null;
   onActiveViewIdChange: (id: string | null) => void;
-  activeKpiOverlay?: string | null;
-  activeKpiOverlayLabel?: string | null;
-  onClearKpiOverlay?: () => void;
+  kpiOverlays?: { id: string; label: string }[];
+  onRemoveKpiOverlay?: (kpiId: string) => void;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
@@ -1563,7 +1562,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, activeKpiOverlay, activeKpiOverlayLabel, onClearKpiOverlay }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -2422,20 +2421,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                               </div>
                             </div>
 
-                            {/* KPI Overlay badge */}
-                            {isViewActive && activeKpiOverlay && activeKpiOverlayLabel && (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border-t border-emerald-500/20">
-                                  <BarChart2 size={10} className="text-emerald-600 shrink-0" />
-                                  <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">KPI Overlay</span>
-                                  <span className="text-[9px] font-semibold text-foreground truncate">{activeKpiOverlayLabel}</span>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); onClearKpiOverlay?.(); }}
-                                    className="ml-auto p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                    title="Supprimer le KPI Overlay"
-                                  >
-                                    <X size={10} />
-                                  </button>
-                                </div>
+                            {/* KPI Overlay badges */}
+                            {isViewActive && kpiOverlays && kpiOverlays.length > 0 && (
+                              <div className="border-t border-emerald-500/20">
+                                {kpiOverlays.map((ov) => (
+                                  <div key={ov.id} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border-b border-emerald-500/10 last:border-b-0">
+                                    <BarChart2 size={10} className="text-emerald-600 shrink-0" />
+                                    <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">KPI</span>
+                                    <span className="text-[9px] font-semibold text-foreground truncate">{ov.label}</span>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); onRemoveKpiOverlay?.(ov.id); }}
+                                      className="ml-auto p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                      title="Supprimer ce KPI Overlay"
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
                             )}
 
                             {isEditing && (
@@ -3006,6 +3009,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
   const [mapKpi, setMapKpi] = useState('cssr');
+  const [kpiOverlays, setKpiOverlays] = useState<string[]>([]);
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [hiddenKpiLevels, setHiddenKpiLevels] = useState<Set<'green'|'orange'|'red'|'gray'>>(new Set());
@@ -7711,13 +7715,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           key={kpi.id}
                           onClick={() => {
                             setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); setKpiSearch('');
-                            // Save kpiOverlay to active view
+                            // Add to kpiOverlays (avoid duplicates)
+                            setKpiOverlays(prev => prev.includes(kpi.id) ? prev : [...prev, kpi.id]);
+                            // Save kpiOverlays to active view
                             if (activeViewId) {
                               mapViewsApi.list().then(views => {
                                 const view = views.find((v: any) => v.id === activeViewId);
                                 if (view) {
                                   const curSettings = typeof view.settings === 'object' ? view.settings : {};
-                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlay: kpi.id } });
+                                  const existing: string[] = Array.isArray((curSettings as any).kpiOverlays) ? (curSettings as any).kpiOverlays : [];
+                                  const next = existing.includes(kpi.id) ? existing : [...existing, kpi.id];
+                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } });
                                 }
                               });
                             }
@@ -8969,11 +8977,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setActiveViewId(null);
                     }
 
-                    // Restore KPI overlay from view settings
-                    if (settings.kpiOverlay && MAP_KPIS.some(k => k.id === settings.kpiOverlay)) {
-                      setMapKpi(settings.kpiOverlay);
+                    // Restore KPI overlays from view settings
+                    const overlays: string[] = Array.isArray(settings.kpiOverlays) ? settings.kpiOverlays.filter((k: string) => MAP_KPIS.some(m => m.id === k)) : [];
+                    // Backward compat: single kpiOverlay
+                    if (!overlays.length && settings.kpiOverlay && MAP_KPIS.some(k => k.id === settings.kpiOverlay)) {
+                      overlays.push(settings.kpiOverlay);
+                    }
+                    setKpiOverlays(overlays);
+                    if (overlays.length > 0) {
+                      setMapKpi(overlays[overlays.length - 1]);
                       setSectorColorMode('kpi');
                     } else if (settings._isDashboardOnly) {
+                      setKpiOverlays([]);
                       setSectorColorMode('topo');
                     }
 
@@ -9119,18 +9134,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   onActiveDashboardIdChange={setActiveDashboardId}
                   activeViewId={activeViewId}
                   onActiveViewIdChange={setActiveViewId}
-                  activeKpiOverlay={sectorColorMode === 'kpi' ? mapKpi : null}
-                  activeKpiOverlayLabel={sectorColorMode === 'kpi' ? selectedKpiLabel : null}
-                  onClearKpiOverlay={() => {
-                    setSectorColorMode('topo');
-                    // Remove kpiOverlay from active view
+                  kpiOverlays={kpiOverlays.map(id => {
+                    const kpiDef = MAP_KPIS.find(k => k.id === id);
+                    return { id, label: kpiDef?.label || id };
+                  })}
+                  onRemoveKpiOverlay={(kpiId) => {
+                    const next = kpiOverlays.filter(k => k !== kpiId);
+                    setKpiOverlays(next);
+                    // If removing the active mapKpi, switch to last remaining or topo
+                    if (mapKpi === kpiId) {
+                      if (next.length > 0) {
+                        setMapKpi(next[next.length - 1]);
+                      } else {
+                        setSectorColorMode('topo');
+                      }
+                    }
+                    // Persist to view
                     if (activeViewId) {
                       mapViewsApi.list().then(views => {
                         const view = views.find((v: any) => v.id === activeViewId);
                         if (view) {
                           const curSettings = typeof view.settings === 'object' ? view.settings : {};
-                          const { kpiOverlay: _, ...rest } = curSettings as any;
-                          mapViewsApi.update(activeViewId, { settings: rest });
+                          mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } });
                         }
                       });
                     }
