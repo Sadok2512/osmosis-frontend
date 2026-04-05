@@ -221,13 +221,21 @@ const KpiCatalogView: React.FC = () => {
 
     catalogGet<any>('/kpis', params)
       .then(data => {
-        // Backend returns { kpis: [...], total: N } or plain array
         const arr = Array.isArray(data) ? data : (data.kpis || []);
         setKpis(arr.map(mapToEntry));
       })
-      .catch((err) => {
-        console.error('KPI catalog load error:', err);
-        toast.error('Failed to load KPI catalog');
+      .catch(async (err) => {
+        console.warn('VPS catalog unavailable, falling back to database:', err.message);
+        try {
+          const rows = await loadKpisFromSupabase(params);
+          setKpis(rows.map(mapToEntry));
+          if (rows.length === 0) {
+            toast.info('No KPIs found in database');
+          }
+        } catch (fallbackErr) {
+          console.error('Supabase fallback also failed:', fallbackErr);
+          toast.error('Failed to load KPI catalog');
+        }
       })
       .finally(() => setLoading(false));
   }, [debouncedSearch, techFilter, vendorFilter, categoryFilter]);
