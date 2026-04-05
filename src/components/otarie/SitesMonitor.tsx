@@ -8969,6 +8969,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setActiveViewId(null);
                     }
 
+                    // Restore KPI overlay from view settings
+                    if (settings.kpiOverlay && MAP_KPIS.some(k => k.id === settings.kpiOverlay)) {
+                      setMapKpi(settings.kpiOverlay);
+                      setSectorColorMode('kpi');
+                    } else if (settings._isDashboardOnly) {
+                      setSectorColorMode('topo');
+                    }
+
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
                     if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
                     if (settings.center && Array.isArray(settings.center)) {
