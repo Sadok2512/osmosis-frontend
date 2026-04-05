@@ -379,27 +379,26 @@ const KpiCatalogView: React.FC = () => {
                   {/* Accordion Header */}
                   <button
                     onClick={() => setSelectedKpi(isOpen ? null : kpi)}
-                    className={`w-full flex items-center gap-4 px-6 py-3.5 text-left transition-all hover:bg-muted/40 group ${
-                      isOpen ? 'bg-primary/5 border-l-2 border-primary' : 'border-l-2 border-transparent'
+                    className={`w-full flex items-center gap-4 px-5 py-3 text-left transition-all group rounded-lg mx-1 my-0.5 ${
+                      isOpen ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-emerald-50 border border-transparent hover:border-emerald-200'
                     }`}
                   >
-                    <ChevronRight className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
-                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: catColor }} />
+                    <ChevronRight className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90 text-white' : 'text-muted-foreground'}`} />
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-foreground truncate">{kpi.display_name}</h3>
-                      <p className="text-[10px] font-mono text-muted-foreground mt-0.5 truncate">{kpi.kpi_code}</p>
+                      <h3 className={`text-sm font-bold truncate ${isOpen ? 'text-white' : 'text-foreground'}`}>{kpi.display_name}</h3>
+                      <p className={`text-[10px] font-mono mt-0.5 truncate ${isOpen ? 'text-white/70' : 'text-muted-foreground'}`}>{kpi.kpi_code}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline" style={{ color: catColor }}>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider hidden sm:inline ${isOpen ? 'text-white/80' : ''}`} style={isOpen ? {} : { color: catColor }}>
                         {kpi.category}
                       </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${techCfg.bg} ${techCfg.text}`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isOpen ? 'bg-white/20 text-white' : `${techCfg.bg} ${techCfg.text}`}`}>
                         {kpi.technology}
                       </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${vendorCfg.bg} ${vendorCfg.text}`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isOpen ? 'bg-white/20 text-white' : `${vendorCfg.bg} ${vendorCfg.text}`}`}>
                         {kpi.vendor}
                       </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isOpen ? 'bg-white/20 text-white' : `${statusCfg.bg} ${statusCfg.color}`}`}>
                         {statusCfg.label}
                       </span>
                     </div>
