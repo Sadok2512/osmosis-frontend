@@ -5197,7 +5197,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
       {/* FULL SCREEN MAP */}
       <MapContainer
-        key={`map-${showBeamSectors ? 'beams' : 'nobeams'}-${mapDisplayMode}`}
+        key={`map-${mapDisplayMode}`}
         center={initialCenter || FRANCE_CENTER}
         zoom={FRANCE_DEFAULT_ZOOM}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
