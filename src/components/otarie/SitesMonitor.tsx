@@ -9704,7 +9704,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 );
               })()}
 
-              {/* AI Diagnostic + Analyse RF Spatiale — only shown at cell level */}
+              {/* ── AI Diagnostic — Site Level ── */}
+              {onLaunchAI && siteDetail && (
+                <div className="px-5 py-4">
+                  <div className="rounded-2xl px-5 py-5 flex items-center gap-4" style={{ background: 'linear-gradient(135deg, hsl(220 40% 13%), hsl(220 50% 18%))' }}>
+                    <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'hsl(80 60% 45%)', boxShadow: '0 0 24px hsla(80, 60%, 45%, 0.3)' }}>
+                      <Settings2 size={22} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-extrabold text-white uppercase tracking-wide">AI Diagnostic</div>
+                      <div className="text-[11px] text-white/50 font-medium mt-0.5">RCA Analysis • {siteDetail.site_name}</div>
+                    </div>
+                    <button
+                      onClick={() => onLaunchAI(siteDetail.site_name)}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-white/90 transition-colors shrink-0"
+                    >
+                      <Zap size={14} />
+                      Lancer
+                    </button>
+                  </div>
+                </div>
+              )}
 
             </div>
           );

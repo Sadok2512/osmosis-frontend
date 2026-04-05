@@ -147,12 +147,17 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const initialPromptSentRef = useRef(false);
+  const sendingRef = useRef(false);
+  const lastSentPromptRef = useRef<string | null>(null);
   useEffect(() => {
-    if (initialPrompt && !initialPromptSentRef.current && !isLoading) {
-      initialPromptSentRef.current = true;
+    if (initialPrompt && !sendingRef.current && initialPrompt !== lastSentPromptRef.current) {
+      sendingRef.current = true;
+      lastSentPromptRef.current = initialPrompt;
       onPromptConsumed?.();
-      setTimeout(() => send(initialPrompt), 300);
+      setTimeout(() => {
+        send(initialPrompt);
+        sendingRef.current = false;
+      }, 300);
     }
   }, [initialPrompt]);
 
@@ -511,8 +516,27 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
         ? `⚠️ **Erreur backend local**\n\nVérifiez que \`cd server && node index.js\` est lancé.\n\n\`${errorDetail}\``
         : `⚠️ **Erreur** : ${errorDetail}`;
       setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
-    } finally { setIsLoading(false); }
-  }, [messages, isLoading, setMessages, streamChat, extractCellsFromResponse, handleDashboardCreation, addDebugLog]);
+    } finally {
+      setIsLoading(false);
+      // Auto-save conversation to backend (DB is backup, localStorage is primary)
+      try {
+        const sess = sessions.find(s => s.id === activeSessionIdRef.current);
+        if (sess) {
+          const url = getVpsProxyUrl('parser', '/api/v1/ai/conversations');
+          await fetch(url, {
+            method: 'POST',
+            headers: { ...getAgentHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: sess.id,
+              title: sess.title,
+              messages: sess.messages,
+              user_id: getStoredSession()?.id,
+            }),
+          });
+        }
+      } catch {} // Silent - localStorage is primary, DB is backup
+    }
+  }, [messages, isLoading, setMessages, streamChat, extractCellsFromResponse, handleDashboardCreation, addDebugLog, sessions]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
