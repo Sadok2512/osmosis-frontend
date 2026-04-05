@@ -1549,9 +1549,8 @@ interface DashboardInventoryTabProps {
   onActiveDashboardIdChange: (id: string | null) => void;
   activeViewId: string | null;
   onActiveViewIdChange: (id: string | null) => void;
-  activeKpiOverlay?: string | null;
-  activeKpiOverlayLabel?: string | null;
-  onClearKpiOverlay?: () => void;
+  kpiOverlays?: { id: string; label: string }[];
+  onRemoveKpiOverlay?: (kpiId: string) => void;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
