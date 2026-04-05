@@ -6270,6 +6270,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               }
               if (tech === '4G' && !enabledTechnos.has('4G')) continue;
               if (tech === '5G' && !enabledTechnos.has('5G')) continue;
+              if (!isBandEnabled(cell.bande, cell.techno)) continue;
               const bandKey = normalizeBandKey(cell.bande, cell.techno);
               const bandScale = getBandSizeScale(bandKey);
               const radius = zoomRadius * 1.3 * bandScale;
