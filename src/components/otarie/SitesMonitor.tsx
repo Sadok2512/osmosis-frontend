@@ -9179,7 +9179,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         const view = views.find((v: any) => v.id === activeViewId);
                         if (view) {
                           const curSettings = typeof view.settings === 'object' ? view.settings : {};
-                          mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } });
+                          mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } })
+                            .then(() => setOverlayVersion(v => v + 1));
                         }
                       });
                     }
