@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { X, ChevronRight, ChevronLeft, Check, AlertCircle } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Check, AlertCircle, Loader2 } from 'lucide-react';
+import type { KpiCatalogEntry } from './kpiCatalogTypes';
 
 interface KpiCreateWizardProps {
-  onSubmit: (data: Record<string, any>) => void;
+  onSubmit: (data: Record<string, any>) => Promise<void> | void;
   onClose: () => void;
+  initialData?: KpiCatalogEntry | null;
+  mode?: 'create' | 'edit';
 }
 
 const STEPS = ['General Info', 'Formula', 'Numerator', 'Denominator', 'Review'];
@@ -41,53 +44,66 @@ const SelectField: React.FC<{
   </div>
 );
 
-const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose }) => {
+const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, initialData, mode = 'create' }) => {
+  const isEdit = mode === 'edit';
   const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
   // Step 1 — General
-  const [code, setCode] = useState('');
-  const [name, setName] = useState('');
-  const [desc, setDesc] = useState('');
-  const [tech, setTech] = useState('LTE');
-  const [vendor, setVendor] = useState('Nokia');
-  const [category, setCategory] = useState('Accessibility');
-  const [unit, setUnit] = useState('%');
-  const [scope, setScope] = useState('Cell');
+  const [code, setCode] = useState(initialData?.kpi_code || '');
+  const [name, setName] = useState(initialData?.display_name || '');
+  const [desc, setDesc] = useState(initialData?.description || '');
+  const [tech, setTech] = useState(initialData?.technology || 'LTE');
+  const [vendor, setVendor] = useState(initialData?.vendor || 'Nokia');
+  const [category, setCategory] = useState(initialData?.category || 'Accessibility');
+  const [unit, setUnit] = useState(initialData?.unit || '%');
+  const [scope, setScope] = useState(initialData?.scope || 'Cell');
 
   // Step 2 — Formula
-  const [formula, setFormula] = useState('');
-  const [formulaType, setFormulaType] = useState('ratio');
+  const [formula, setFormula] = useState(initialData?.formula || '');
+  const [formulaType, setFormulaType] = useState(initialData?.formula_type || 'ratio');
 
   // Step 3 — Numerator
-  const [numName, setNumName] = useState('');
-  const [numDesc, setNumDesc] = useState('');
-  const [numCounters, setNumCounters] = useState('');
-  const [numSource, setNumSource] = useState('OSS PM');
-  const [numGran, setNumGran] = useState('15min');
+  const [numName, setNumName] = useState(initialData?.numerator?.name || '');
+  const [numDesc, setNumDesc] = useState(initialData?.numerator?.description || '');
+  const [numCounters, setNumCounters] = useState(initialData?.numerator?.counters?.map(c => c.name).join(', ') || '');
+  const [numSource, setNumSource] = useState(initialData?.numerator?.source || 'OSS PM');
+  const [numGran, setNumGran] = useState(initialData?.numerator?.granularity || '15min');
 
   // Step 4 — Denominator
-  const [denName, setDenName] = useState('');
-  const [denDesc, setDenDesc] = useState('');
-  const [denCounters, setDenCounters] = useState('');
-  const [denSource, setDenSource] = useState('OSS PM');
-  const [denGran, setDenGran] = useState('15min');
+  const [denName, setDenName] = useState(initialData?.denominator?.name || '');
+  const [denDesc, setDenDesc] = useState(initialData?.denominator?.description || '');
+  const [denCounters, setDenCounters] = useState(initialData?.denominator?.counters?.map(c => c.name).join(', ') || '');
+  const [denSource, setDenSource] = useState(initialData?.denominator?.source || 'OSS PM');
+  const [denGran, setDenGran] = useState(initialData?.denominator?.granularity || '15min');
+
+  // Thresholds
+  const [thresholdGreen, setThresholdGreen] = useState(initialData?.thresholds?.green?.toString() || '');
+  const [thresholdOrange, setThresholdOrange] = useState(initialData?.thresholds?.orange?.toString() || '');
 
   const canNext = () => {
     if (step === 0) return code.trim() && name.trim();
     return true;
   };
 
-  const handleSubmit = () => {
-    onSubmit({
-      kpi_code: code, nom_ihm: name, definition_courte: desc,
-      techno: tech, vendor, famille: category, unites: unit, scope,
-      formula, formula_type: formulaType,
-      numerateur: numCounters, numerator_name: numName, numerator_desc: numDesc,
-      num_source: numSource, num_granularity: numGran,
-      denominateur: denCounters, denominator_name: denName, denominator_desc: denDesc,
-      den_source: denSource, den_granularity: denGran,
-      status: 'draft',
-    });
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        kpi_code: code, nom_ihm: name, definition_courte: desc,
+        techno: tech, vendor, famille: category, unites: unit, scope,
+        formula, formula_type: formulaType,
+        numerateur: numCounters, numerator_name: numName, numerator_desc: numDesc,
+        num_source: numSource, num_granularity: numGran,
+        denominateur: denCounters, denominator_name: denName, denominator_desc: denDesc,
+        den_source: denSource, den_granularity: denGran,
+        seuil_vert: thresholdGreen ? parseFloat(thresholdGreen) : null,
+        seuil_orange: thresholdOrange ? parseFloat(thresholdOrange) : null,
+        status: isEdit ? (initialData?.status || 'draft') : 'draft',
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const ReviewRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
@@ -103,7 +119,7 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose }) 
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-border">
           <div>
-            <h3 className="text-base font-bold text-foreground">Create New KPI</h3>
+            <h3 className="text-base font-bold text-foreground">{isEdit ? 'Edit KPI' : 'Create New KPI'}</h3>
             <p className="text-xs text-muted-foreground mt-0.5">Step {step + 1} of {STEPS.length}: {STEPS[step]}</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted transition-colors">
@@ -154,8 +170,12 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose }) 
 
           {step === 1 && (
             <>
-              <InputField label="Formula" value={formula} onChange={setFormula} placeholder="e.g. SUM(pmRrcConnEstabSucc) / SUM(pmRrcConnEstabAtt) × 100" textarea mono />
+              <InputField label="Formula" value={formula} onChange={setFormula} placeholder="e.g. SUM(pmRrcConnEstabSucc) / SUM(pmRrcConnEstabAtt) x 100" textarea mono />
               <SelectField label="Formula Type" value={formulaType} onChange={setFormulaType} options={['ratio', 'sum', 'average', 'max', 'min', 'composite']} />
+              <div className="grid grid-cols-2 gap-4">
+                <InputField label="Green Threshold" value={thresholdGreen} onChange={setThresholdGreen} placeholder="e.g. 99.5" />
+                <InputField label="Orange Threshold" value={thresholdOrange} onChange={setThresholdOrange} placeholder="e.g. 98.0" />
+              </div>
             </>
           )}
 
@@ -199,10 +219,17 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose }) 
               <ReviewRow label="Scope" value={scope} />
               <ReviewRow label="Formula" value={formula} />
               <ReviewRow label="Formula Type" value={formulaType} />
+              <ReviewRow label="Green Threshold" value={thresholdGreen || '—'} />
+              <ReviewRow label="Orange Threshold" value={thresholdOrange || '—'} />
               <ReviewRow label="Numerator" value={`${numName} — ${numCounters}`} />
               <ReviewRow label="Denominator" value={`${denName} — ${denCounters}`} />
               <div className="mt-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                <p className="text-xs text-amber-700">This KPI will be created with <strong>Draft</strong> status. Submit for validation after creation.</p>
+                <p className="text-xs text-amber-700">
+                  {isEdit
+                    ? 'The KPI will be updated with the values above.'
+                    : <>This KPI will be created with <strong>Draft</strong> status. Submit for validation after creation.</>
+                  }
+                </p>
               </div>
             </div>
           )}
@@ -213,6 +240,7 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose }) 
           <button
             onClick={() => step > 0 ? setStep(step - 1) : onClose()}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+            disabled={submitting}
           >
             <ChevronLeft className="w-4 h-4" />
             {step === 0 ? 'Cancel' : 'Back'}
@@ -228,10 +256,14 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose }) 
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={!code.trim() || !name.trim()}
+              disabled={!code.trim() || !name.trim() || submitting}
               className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-40 transition-opacity"
             >
-              <Check className="w-4 h-4" /> Submit for Validation
+              {submitting ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+              ) : (
+                <><Check className="w-4 h-4" /> {isEdit ? 'Save Changes' : 'Submit for Validation'}</>
+              )}
             </button>
           )}
         </div>

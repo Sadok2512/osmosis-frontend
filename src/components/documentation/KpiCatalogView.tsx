@@ -1,27 +1,74 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Search, Filter, Plus, Database, BarChart3, RefreshCw,
   ChevronRight, Hash, Shield, Layers, BookOpen
 } from 'lucide-react';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
-import type { KpiCatalogEntry, KpiStatus, UserRole, CounterEntry } from './kpiCatalogTypes';
+import type { KpiCatalogEntry, KpiStatus, UserRole, CounterEntry, KpiThresholds } from './kpiCatalogTypes';
 import { STATUS_CONFIG, CATEGORY_COLORS, VENDOR_COLORS, TECH_COLORS } from './kpiCatalogTypes';
 import KpiDetailPanel from './KpiDetailPanel';
 import KpiCreateWizard from './KpiCreateWizard';
 
 /* ── API helpers ── */
-async function monitorGet<T>(path: string): Promise<T> {
-  const url = getApiUrl(`monitor/${path}`);
-  const res = await fetch(url, { headers: getApiHeaders() });
-  if (!res.ok) throw new Error(`API ${res.status}`);
+const API_BASE = '/api/v1/monitor/catalog';
+
+function catalogUrl(path: string, params?: Record<string, string>): string {
+  return getVpsProxyUrl('parser', `${API_BASE}${path}`, params);
+}
+
+function catalogHeaders(): Record<string, string> {
+  return getVpsProxyHeaders();
+}
+
+async function catalogGet<T>(path: string, params?: Record<string, string>): Promise<T> {
+  const url = catalogUrl(path, params);
+  const res = await fetch(url, { headers: catalogHeaders() });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(body || `API ${res.status}`);
+  }
   return res.json();
 }
 
-async function monitorPost(path: string, body: any) {
-  const url = getApiUrl(`monitor/${path}`);
-  const res = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body) });
+async function catalogPost<T = any>(path: string, body: any): Promise<T> {
+  const url = catalogUrl(path);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: catalogHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({ detail: `API ${res.status}` }));
+    throw new Error(errBody.detail || errBody.message || `API ${res.status}`);
+  }
   return res.json();
+}
+
+async function catalogPut<T = any>(path: string, body: any): Promise<T> {
+  const url = catalogUrl(path);
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: catalogHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({ detail: `API ${res.status}` }));
+    throw new Error(errBody.detail || errBody.message || `API ${res.status}`);
+  }
+  return res.json();
+}
+
+async function catalogDelete(path: string): Promise<void> {
+  const url = catalogUrl(path);
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: catalogHeaders(),
+  });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({ detail: `API ${res.status}` }));
+    throw new Error(errBody.detail || errBody.message || `API ${res.status}`);
+  }
 }
 
 function mapToEntry(k: any): KpiCatalogEntry {
@@ -29,27 +76,32 @@ function mapToEntry(k: any): KpiCatalogEntry {
     id: k.id || k.kpi_key,
     kpi_code: k.kpi_key || k.kpi_code,
     kpi_key: k.kpi_key,
-    display_name: k.display_name || k.kpi_key,
-    description: k.description || '',
+    display_name: k.display_name || k.nom_ihm || k.kpi_key,
+    description: k.description || k.definition_courte || '',
     category: k.category || k.famille || 'Other',
     unit: k.unit || k.unites || '',
-    technology: (k.techno || 'ALL') as any,
+    technology: (k.technology || k.techno || 'ALL') as any,
     vendor: k.vendor || 'ALL',
     formula: k.formula_sql || k.formula || '',
     formula_type: k.formula_type || 'ratio',
     numerator: {
       name: k.numerator_name || k.numerator || 'Numerator',
       description: k.numerator_desc || '',
-      counters: parseCounters(k.numerator_counters || k.numerator || ''),
+      counters: parseCounters(k.numerator_counters || k.numerateur || k.numerator || ''),
       source: k.num_source || 'OSS PM',
       granularity: k.num_granularity || '15min',
     },
     denominator: {
       name: k.denominator_name || k.denominator || 'Denominator',
       description: k.denominator_desc || '',
-      counters: parseCounters(k.denominator_counters || k.denominator || ''),
+      counters: parseCounters(k.denominator_counters || k.denominateur || k.denominator || ''),
       source: k.den_source || 'OSS PM',
       granularity: k.den_granularity || '15min',
+    },
+    thresholds: {
+      green: k.seuil_vert ?? k.threshold_green ?? null,
+      orange: k.seuil_orange ?? k.threshold_orange ?? null,
+      red: k.seuil_rouge ?? k.threshold_red ?? null,
     },
     status: (k.status as KpiStatus) || 'active',
     scope: k.scope || 'Cell',
@@ -60,16 +112,27 @@ function mapToEntry(k: any): KpiCatalogEntry {
   };
 }
 
-function parseCounters(raw: string): CounterEntry[] {
+function parseCounters(raw: string | string[]): CounterEntry[] {
   if (!raw) return [];
-  return raw.split(',').map(s => s.trim()).filter(Boolean).map((name, i) => ({
+  const items = Array.isArray(raw) ? raw : raw.split(',').map(s => s.trim()).filter(Boolean);
+  return items.map((name, i) => ({
     id: `c-${i}`,
-    name,
+    name: typeof name === 'string' ? name : String(name),
     description: `PM counter: ${name}`,
     vendor_mapping: {},
     source_system: 'OSS PM',
     granularity: '15min',
   }));
+}
+
+/* ── Debounce hook ── */
+function useDebounce<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
 }
 
 /* ── Main Component ── */
@@ -82,77 +145,107 @@ const KpiCatalogView: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [selectedKpi, setSelectedKpi] = useState<KpiCatalogEntry | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingKpi, setEditingKpi] = useState<KpiCatalogEntry | null>(null);
   const [userRole] = useState<UserRole>('creator'); // Simulated — swap based on auth
 
-  const loadCatalog = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await monitorGet<any[]>('catalog/kpis');
-      setKpis(data.map(mapToEntry));
-    } catch {
-      // Fallback: load from Supabase kpi_catalog table
-      console.warn('[KpiCatalog] VPS API failed, falling back to Supabase kpi_catalog');
-      try {
-        const { supabase } = await import('@/integrations/supabase/client');
-        const { data: dbRows, error } = await supabase
-          .from('kpi_catalog')
-          .select('*')
-          .order('famille', { ascending: true })
-          .order('display_name', { ascending: true });
-        if (error) throw error;
-        const entries = (dbRows || []).map((k: any) => mapToEntry({
-          ...k,
-          id: k.kpi_key,
-          kpi_code: k.kpi_key,
-          category: k.famille,
-          description: k.definition,
-          formula_sql: k.formula_sql,
-          techno: k.techno || 'ALL',
-          vendor: 'ALL',
-          status: 'active',
-        }));
-        setKpis(entries);
-        toast.info(`Loaded ${entries.length} KPIs from database`);
-      } catch (e2) {
-        console.error('[KpiCatalog] Supabase fallback also failed', e2);
-        toast.error('Failed to load KPI catalog');
-      }
-    } finally {
-      setLoading(false);
-    }
+  // Filter options from backend
+  const [filterOptions, setFilterOptions] = useState<{ technologies: string[]; vendors: string[]; categories: string[] }>({
+    technologies: ['LTE', 'NR'],
+    vendors: ['Nokia', 'Ericsson', 'Huawei'],
+    categories: ['Accessibility', 'Retainability', 'Throughput', 'Traffic', 'Mobility', 'Radio Quality', 'VoLTE', 'Latency', 'Integrity'],
+  });
+
+  const debouncedSearch = useDebounce(search, 300);
+
+  // Load filter options once
+  useEffect(() => {
+    catalogGet<{ technologies: string[]; vendors: string[]; categories: string[] }>('/filters')
+      .then(data => {
+        if (data.technologies?.length || data.vendors?.length || data.categories?.length) {
+          setFilterOptions(prev => ({
+            technologies: data.technologies?.length ? data.technologies : prev.technologies,
+            vendors: data.vendors?.length ? data.vendors : prev.vendors,
+            categories: data.categories?.length ? data.categories : prev.categories,
+          }));
+        }
+      })
+      .catch(() => { /* keep defaults */ });
   }, []);
+
+  const loadCatalog = useCallback(() => {
+    setLoading(true);
+    const params: Record<string, string> = {};
+    if (debouncedSearch) params.search = debouncedSearch;
+    if (techFilter !== 'ALL') params.technology = techFilter;
+    if (vendorFilter !== 'ALL') params.vendor = vendorFilter;
+    if (categoryFilter !== 'ALL') params.category = categoryFilter;
+
+    catalogGet<any>('/kpis', params)
+      .then(data => {
+        // Backend returns { kpis: [...], total: N } or plain array
+        const arr = Array.isArray(data) ? data : (data.kpis || []);
+        setKpis(arr.map(mapToEntry));
+      })
+      .catch((err) => {
+        console.error('KPI catalog load error:', err);
+        toast.error('Failed to load KPI catalog');
+      })
+      .finally(() => setLoading(false));
+  }, [debouncedSearch, techFilter, vendorFilter, categoryFilter]);
 
   useEffect(() => { loadCatalog(); }, [loadCatalog]);
 
-  const categories = useMemo(() => [...new Set(kpis.map(k => k.category))].sort(), [kpis]);
-  const vendors = useMemo(() => [...new Set(kpis.map(k => k.vendor).filter(Boolean))].sort(), [kpis]);
-
-  const filtered = useMemo(() => kpis.filter(k => {
+  // Client-side filtering is still available as a fallback for instant feel
+  const filtered = useMemo(() => {
+    // If the backend handled the filters, just return all
+    // But we keep client-side search for instant responsiveness while debounce fires
+    if (!search || search === debouncedSearch) return kpis;
     const q = search.toLowerCase();
-    const matchSearch = !search ||
-      k.kpi_code.toLowerCase().includes(q) ||
-      k.display_name.toLowerCase().includes(q) ||
-      k.vendor.toLowerCase().includes(q) ||
-      k.category.toLowerCase().includes(q) ||
-      k.description.toLowerCase().includes(q);
-    const matchTech = techFilter === 'ALL' || k.technology === techFilter;
-    const matchVendor = vendorFilter === 'ALL' || k.vendor === vendorFilter;
-    const matchCat = categoryFilter === 'ALL' || k.category === categoryFilter;
-    return matchSearch && matchTech && matchVendor && matchCat;
-  }), [kpis, search, techFilter, vendorFilter, categoryFilter]);
+    return kpis.filter(k => {
+      return k.kpi_code.toLowerCase().includes(q) ||
+        k.display_name.toLowerCase().includes(q) ||
+        k.vendor.toLowerCase().includes(q) ||
+        k.category.toLowerCase().includes(q) ||
+        k.description.toLowerCase().includes(q);
+    });
+  }, [kpis, search, debouncedSearch]);
 
   const handleCreate = async (data: Record<string, any>) => {
     try {
-      const r = await monitorPost('catalog/kpis', data);
-      if (r.status === 'created') {
-        toast.success(`KPI ${data.kpi_code} created`);
-        setShowCreate(false);
-        loadCatalog();
-      } else {
-        toast.error(r.message || 'Creation failed');
+      const r = await catalogPost('/kpis', data);
+      toast.success(`KPI ${data.kpi_code || r.kpi_key || ''} created`);
+      setShowCreate(false);
+      loadCatalog();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create KPI');
+    }
+  };
+
+  const handleEdit = async (data: Record<string, any>) => {
+    if (!editingKpi) return;
+    try {
+      await catalogPut(`/kpis/${encodeURIComponent(editingKpi.kpi_code)}`, data);
+      toast.success(`KPI ${editingKpi.kpi_code} updated`);
+      setEditingKpi(null);
+      // Refresh selected kpi data
+      loadCatalog();
+      // Update selected kpi in-place
+      if (selectedKpi?.kpi_code === editingKpi.kpi_code) {
+        setSelectedKpi(null); // will be reselected after reload
       }
-    } catch {
-      toast.error('API error');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update KPI');
+    }
+  };
+
+  const handleDelete = async (kpi: KpiCatalogEntry) => {
+    try {
+      await catalogDelete(`/kpis/${encodeURIComponent(kpi.kpi_code)}`);
+      toast.success(`KPI ${kpi.kpi_code} deactivated`);
+      setSelectedKpi(null);
+      loadCatalog();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete KPI');
     }
   };
 
@@ -187,18 +280,17 @@ const KpiCatalogView: React.FC = () => {
               <select value={techFilter} onChange={e => setTechFilter(e.target.value)}
                 className="px-3 py-2 rounded-xl border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none cursor-pointer">
                 <option value="ALL">All Tech</option>
-                <option value="LTE">LTE</option>
-                <option value="NR">NR</option>
+                {filterOptions.technologies.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
               <select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}
                 className="px-3 py-2 rounded-xl border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none cursor-pointer">
                 <option value="ALL">All Vendors</option>
-                {vendors.map(v => <option key={v} value={v}>{v}</option>)}
+                {filterOptions.vendors.map(v => <option key={v} value={v}>{v}</option>)}
               </select>
               <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
                 className="px-3 py-2 rounded-xl border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none cursor-pointer">
                 <option value="ALL">All Categories</option>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                {filterOptions.categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <button onClick={loadCatalog} className="p-2 rounded-xl border border-border hover:bg-muted transition-colors" title="Refresh">
                 <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
@@ -243,14 +335,14 @@ const KpiCatalogView: React.FC = () => {
               <div className="divide-y divide-border/50">
                 {filtered.slice(0, 300).map(kpi => {
                   const isSelected = selectedKpi?.kpi_key === kpi.kpi_key;
-                  const statusCfg = STATUS_CONFIG[kpi.status];
+                  const statusCfg = STATUS_CONFIG[kpi.status] || STATUS_CONFIG.active;
                   const vendorCfg = VENDOR_COLORS[kpi.vendor] || { bg: 'bg-muted', text: 'text-muted-foreground' };
                   const techCfg = TECH_COLORS[kpi.technology] || TECH_COLORS.ALL;
                   const catColor = CATEGORY_COLORS[kpi.category] || CATEGORY_COLORS.Other;
 
                   return (
                     <button
-                      key={kpi.kpi_key}
+                      key={kpi.kpi_key || kpi.id}
                       onClick={() => setSelectedKpi(isSelected ? null : kpi)}
                       className={`w-full grid grid-cols-[1fr_100px_80px_80px_80px] gap-3 px-6 py-3.5 text-left transition-all hover:bg-muted/40 group ${
                         isSelected ? 'bg-primary/5 border-l-2 border-primary' : 'border-l-2 border-transparent'
@@ -330,6 +422,8 @@ const KpiCatalogView: React.FC = () => {
             <KpiDetailPanel
               kpi={selectedKpi}
               onClose={() => setSelectedKpi(null)}
+              onEdit={() => setEditingKpi(selectedKpi)}
+              onDelete={() => handleDelete(selectedKpi)}
               userRole={userRole}
             />
           </div>
@@ -339,6 +433,16 @@ const KpiCatalogView: React.FC = () => {
       {/* Create Wizard */}
       {showCreate && (
         <KpiCreateWizard onSubmit={handleCreate} onClose={() => setShowCreate(false)} />
+      )}
+
+      {/* Edit Wizard (reuse Create) */}
+      {editingKpi && (
+        <KpiCreateWizard
+          onSubmit={handleEdit}
+          onClose={() => setEditingKpi(null)}
+          initialData={editingKpi}
+          mode="edit"
+        />
       )}
     </div>
   );

@@ -23,6 +23,12 @@ export interface NumeratorDenominator {
   granularity: string;
 }
 
+export interface KpiThresholds {
+  green?: number | null;
+  orange?: number | null;
+  red?: number | null;
+}
+
 export interface KpiCatalogEntry {
   id: string;
   kpi_code: string;
@@ -37,6 +43,7 @@ export interface KpiCatalogEntry {
   formula_type: string;
   numerator: NumeratorDenominator;
   denominator: NumeratorDenominator;
+  thresholds: KpiThresholds;
   status: KpiStatus;
   scope: string;
   created_by: string;

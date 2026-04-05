@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   X, BookOpen, FlaskConical, ArrowUp, ArrowDown, Info, Clock,
-  User, Hash, Shield, Layers, ChevronRight, ExternalLink, Pencil
+  User, Hash, Shield, Layers, ChevronRight, ExternalLink, Pencil,
+  Trash2, AlertTriangle, Gauge
 } from 'lucide-react';
 import type { KpiCatalogEntry, CounterEntry, UserRole } from './kpiCatalogTypes';
 import { STATUS_CONFIG, VENDOR_COLORS, TECH_COLORS } from './kpiCatalogTypes';
@@ -11,6 +12,7 @@ interface KpiDetailPanelProps {
   kpi: KpiCatalogEntry;
   onClose: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
   userRole: UserRole;
 }
 
@@ -70,11 +72,16 @@ const NumDenSection: React.FC<{
   </Section>
 );
 
-const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, userRole }) => {
+const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, onDelete, userRole }) => {
   const [selectedCounter, setSelectedCounter] = useState<CounterEntry | null>(null);
-  const statusCfg = STATUS_CONFIG[kpi.status];
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const statusCfg = STATUS_CONFIG[kpi.status] || STATUS_CONFIG.active;
   const vendorCfg = VENDOR_COLORS[kpi.vendor] || { bg: 'bg-muted', text: 'text-muted-foreground' };
   const techCfg = TECH_COLORS[kpi.technology] || TECH_COLORS.ALL;
+
+  const hasThresholds = kpi.thresholds && (
+    kpi.thresholds.green != null || kpi.thresholds.orange != null || kpi.thresholds.red != null
+  );
 
   return (
     <>
@@ -101,6 +108,11 @@ const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, u
               {(userRole === 'editor' || userRole === 'creator') && onEdit && (
                 <button onClick={onEdit} className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit KPI">
                   <Pencil className="w-4 h-4" />
+                </button>
+              )}
+              {userRole === 'creator' && onDelete && (
+                <button onClick={() => setShowDeleteConfirm(true)} className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete KPI">
+                  <Trash2 className="w-4 h-4" />
                 </button>
               )}
               <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted transition-colors">
@@ -153,6 +165,32 @@ const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, u
             onCounterClick={setSelectedCounter}
           />
 
+          {/* Thresholds */}
+          {hasThresholds && (
+            <Section title="Thresholds" icon={<Gauge className="w-4 h-4" />}>
+              <div className="grid grid-cols-3 gap-3">
+                {kpi.thresholds.green != null && (
+                  <div className="px-3 py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-green-600">Green</span>
+                    <p className="text-sm font-bold text-green-700 mt-0.5">{kpi.thresholds.green}{kpi.unit === '%' ? '%' : ''}</p>
+                  </div>
+                )}
+                {kpi.thresholds.orange != null && (
+                  <div className="px-3 py-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600">Orange</span>
+                    <p className="text-sm font-bold text-orange-700 mt-0.5">{kpi.thresholds.orange}{kpi.unit === '%' ? '%' : ''}</p>
+                  </div>
+                )}
+                {kpi.thresholds.red != null && (
+                  <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-600">Red</span>
+                    <p className="text-sm font-bold text-red-700 mt-0.5">{kpi.thresholds.red}{kpi.unit === '%' ? '%' : ''}</p>
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
           {/* Metadata */}
           <Section title="Metadata" icon={<Info className="w-4 h-4" />}>
             <div className="space-y-3">
@@ -202,6 +240,41 @@ const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, u
 
       {selectedCounter && (
         <CounterModal counter={selectedCounter} onClose={() => setSelectedCounter(null)} />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="w-full max-w-md mx-4 rounded-2xl bg-card border border-border shadow-2xl animate-in fade-in zoom-in-95 duration-200 p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Delete KPI</h3>
+                <p className="text-xs text-muted-foreground">This will deactivate the KPI</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-1">
+              Are you sure you want to delete <strong className="text-foreground">{kpi.display_name}</strong>?
+            </p>
+            <p className="text-xs text-muted-foreground mb-6 font-mono">{kpi.kpi_code}</p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); onDelete?.(); }}
+                className="px-4 py-2 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:opacity-90 transition-opacity"
+              >
+                Delete KPI
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
