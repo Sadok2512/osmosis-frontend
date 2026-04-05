@@ -4775,26 +4775,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Check if a site has at least one cell matching any enabled band
   const siteHasEnabledBand = useCallback((site: any): boolean => {
-    // If cells are loaded, check at cell level
+    // If cells are loaded, check at cell level (strict)
     if (site.cells?.length) {
       return site.cells.some((cell: any) => isBandEnabled(cell.bande, cell.techno));
     }
-    // Fallback: check site-level bandes/technos arrays
-    const siteBandes: string[] = site.bandes || [];
-    const siteTechnos: string[] = site.technos || [];
-    if (siteBandes.length === 0 && siteTechnos.length === 0) return false;
-    // Check if any site-level band matches an enabled band
-    for (const b of siteBandes) {
-      // Try to match with each techno
-      if (siteTechnos.length > 0) {
-        for (const t of siteTechnos) {
-          if (isBandEnabled(b, t)) return true;
-        }
-      } else {
-        if (isBandEnabled(b, undefined)) return true;
-      }
-    }
-    return false;
+    // Cells not loaded yet → show the site (pass-through) so it doesn't disappear
+    // It will be re-evaluated once cells load in background
+    return true;
   }, [isBandEnabled]);
 
   // Sites filtered by techno AND band (for map rendering only)
