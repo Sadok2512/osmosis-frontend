@@ -7715,13 +7715,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           key={kpi.id}
                           onClick={() => {
                             setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); setKpiSearch('');
-                            // Save kpiOverlay to active view
+                            // Add to kpiOverlays (avoid duplicates)
+                            setKpiOverlays(prev => prev.includes(kpi.id) ? prev : [...prev, kpi.id]);
+                            // Save kpiOverlays to active view
                             if (activeViewId) {
                               mapViewsApi.list().then(views => {
                                 const view = views.find((v: any) => v.id === activeViewId);
                                 if (view) {
                                   const curSettings = typeof view.settings === 'object' ? view.settings : {};
-                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlay: kpi.id } });
+                                  const existing: string[] = Array.isArray((curSettings as any).kpiOverlays) ? (curSettings as any).kpiOverlays : [];
+                                  const next = existing.includes(kpi.id) ? existing : [...existing, kpi.id];
+                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } });
                                 }
                               });
                             }
