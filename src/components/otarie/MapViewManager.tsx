@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { mapViewsApi } from '@/lib/localDb';
 import { Save, FolderOpen, Trash2, Star, Plus, X, Map } from 'lucide-react';
 import { toast } from 'sonner';
