@@ -65,7 +65,7 @@ import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue,
 import { TaggedLink, loadTaggedLinks, persistTaggedLinks, createTaggedLink } from './map/taggedLinks';
 import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, generateMockNeighbors } from './map/neighborTypes';
 import { invalidateSitesCache } from '../../services/mockData';
-import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites } from '../../services/topoService';
+import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters, CellProperties } from '../../types';
 import {
@@ -2986,6 +2986,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
   const [kpiSearch, setKpiSearch] = useState('');
+  const [kpiValues, setKpiValues] = useState<Map<string, number>>(new Map());
+  const [kpiLoading, setKpiLoading] = useState(false);
   const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean }>>(() => {
     try {
       const saved = localStorage.getItem('qoebit_kpi_thresholds');
@@ -3959,11 +3961,53 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
   const MAP_KPIS = catalogKpis;
 
+  // Fetch KPI values when user selects a KPI and mode is 'kpi'
+  useEffect(() => {
+    if (sectorColorMode !== 'kpi' || !mapKpi) {
+      setKpiValues(new Map());
+      return;
+    }
+    let cancelled = false;
+    setKpiLoading(true);
+
+    const filters: any = {};
+    if (localVendor !== 'ALL') filters.vendor = localVendor;
+    if (localTechno !== 'ALL') filters.techno = localTechno;
+    if (localBande !== 'ALL') filters.band = localBande;
+    if (localDor !== 'ALL') filters.dor = localDor;
+    if (localPlaque !== 'ALL') filters.plaque = localPlaque;
+
+    fetchKpiCellValues(mapKpi, filters)
+      .then(data => { if (!cancelled) { setKpiValues(data); console.log(`[KPI] Loaded ${data.size} values for ${mapKpi}`); } })
+      .catch(err => { console.error('[KPI] Fetch failed:', err); if (!cancelled) setKpiValues(new Map()); })
+      .finally(() => { if (!cancelled) setKpiLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [mapKpi, sectorColorMode, localVendor, localTechno, localBande, localDor, localPlaque]);
+
   const getCellKpiValue = (cell: any): number => {
-    return cell[mapKpi] ?? cell.qoe_score_avg ?? Math.random() * 100;
+    // 1. Check fetched KPI values by cell_name
+    const cellName = cell.cell_id || cell.cell_name || '';
+    const fromKpi = kpiValues.get(cellName);
+    if (fromKpi != null) return fromKpi;
+
+    // 2. Check site-level aggregation
+    const siteName = cell.site_name || cell.site_id || '';
+    const fromSite = kpiValues.get(`site:${siteName}`);
+    if (fromSite != null) return fromSite;
+
+    // 3. Check if the cell object has the KPI directly (from QoE data)
+    if (cell[mapKpi] != null) return cell[mapKpi];
+
+    // 4. Fallback to QoE score if available
+    if (cell.qoe_score_avg != null && cell.qoe_score_avg > 0) return cell.qoe_score_avg;
+
+    // 5. No data available — return NaN to signal "no value"
+    return NaN;
   };
 
   const getKpiColor = (value: number): string => {
+    if (isNaN(value) || value == null) return '#6b7280'; // gray for no data
     const t = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
     if (t.invert) {
       if (value <= t.green) return '#22c55e';
@@ -4539,11 +4583,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     if (inventorySortOrder === 'none') return filtered;
     return [...filtered].sort((a, b) => {
-      const va = (a as any)[mapKpi] ?? a.qoe_score_avg ?? 0;
-      const vb = (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
+      const va = kpiValues.get(`site:${a.site_name}`) ?? kpiValues.get(`site:${a.site_id}`) ?? (a as any)[mapKpi] ?? a.qoe_score_avg ?? 0;
+      const vb = kpiValues.get(`site:${b.site_name}`) ?? kpiValues.get(`site:${b.site_id}`) ?? (b as any)[mapKpi] ?? b.qoe_score_avg ?? 0;
       return inventorySortOrder === 'asc' ? va - vb : vb - va;
     });
-  }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters, activeViewConditions]);
+  }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters, activeViewConditions, kpiValues]);
 
   // Radius analysis stats
   const radiusStats = useMemo(() => {
@@ -5873,7 +5917,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (isIndoor) {
             const { has4G, has5G } = inferSiteTechState(site);
             const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
-            const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(site.qoe_score_avg ?? 0);
+            const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? site.qoe_score_avg ?? NaN);
             const colorViewOverrideIndoor = getColorViewFill(site);
             const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
             const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
@@ -6932,7 +6976,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   >
                     <BarChart2 size={12} />
                     <span className="max-w-[140px] truncate">{selectedKpiLabel}</span>
-                    {showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                    {kpiLoading ? (
+                      <span className="inline-block w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    ) : (
+                      showKpiDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />
+                    )}
                   </button>
                 </div>
 
@@ -8008,13 +8056,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              {sectorColorMode !== 'topo' && (
-                                <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg min-w-[48px]" style={{ background: getKpiColor((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0), color: '#fff' }}>
+                              {sectorColorMode !== 'topo' && (() => {
+                                const siteKpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
+                                return (
+                                <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg min-w-[48px]" style={{ background: getKpiColor(siteKpiVal), color: '#fff' }}>
                                   <span className="text-[15px] font-black tracking-tight leading-none">
-                                    {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                                    {isNaN(siteKpiVal) ? '\u2014' : siteKpiVal.toFixed(1)}
                                   </span>
                                 </div>
-                              )}
+                                );
+                              })()}
                               <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
@@ -8305,13 +8356,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               })()}
                             </div>
                             <div className="text-right shrink-0">
-                              {sectorColorMode !== 'topo' && (
-                                <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg min-w-[48px]" style={{ background: getKpiColor((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0), color: '#fff' }}>
+                              {sectorColorMode !== 'topo' && (() => {
+                                const siteKpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
+                                return (
+                                <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg min-w-[48px]" style={{ background: getKpiColor(siteKpiVal), color: '#fff' }}>
                                   <span className="text-[15px] font-black tracking-tight leading-none">
-                                    {((site as any)[mapKpi] ?? site.qoe_score_avg ?? 0).toFixed(1)}
+                                    {isNaN(siteKpiVal) ? '\u2014' : siteKpiVal.toFixed(1)}
                                   </span>
                                 </div>
-                              )}
+                                );
+                              })()}
                               <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">

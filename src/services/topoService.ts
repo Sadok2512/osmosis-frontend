@@ -1093,3 +1093,57 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
     return [];
   }
 }
+
+// ── KPI cell values fetch ──
+const kpiValueCache = new Map<string, { data: Map<string, number>; ts: number }>();
+const KPI_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: string; techno?: string; band?: string; dor?: string; plaque?: string }): Promise<Map<string, number>> {
+  const cacheKey = `${kpiId}_${JSON.stringify(filters || {})}`;
+  const cached = kpiValueCache.get(cacheKey);
+  if (cached && (Date.now() - cached.ts) < KPI_CACHE_TTL) return cached.data;
+
+  const params = new URLSearchParams({ kpi_id: kpiId, limit: '50000' });
+  if (filters?.vendor) params.set('vendor', filters.vendor);
+  if (filters?.techno) params.set('techno', filters.techno);
+  if (filters?.band) params.set('band', filters.band);
+  if (filters?.dor) params.set('dor', filters.dor);
+  if (filters?.plaque) params.set('plaque', filters.plaque);
+
+  const url = getVpsProxyUrl('parser', `/api/v1/kpi/cell-values?${params}`);
+  const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!resp.ok) throw new Error(`KPI fetch failed: ${resp.status}`);
+  const json = await resp.json();
+
+  // Build cell_name → value map (also index by site_name for site-level aggregation)
+  const valueMap = new Map<string, number>();
+  for (const row of (json.data || [])) {
+    if (row.cell_name && row.value != null) {
+      valueMap.set(row.cell_name, row.value);
+    }
+    // Also store by site_name (for site-level coloring, use average)
+    if (row.site_name && row.value != null) {
+      const siteKey = `site:${row.site_name}`;
+      const existing = valueMap.get(siteKey);
+      if (existing != null) {
+        // Running average: store sum and count
+        const countKey = `count:${row.site_name}`;
+        const count = (valueMap.get(countKey) || 1) + 1;
+        valueMap.set(countKey, count);
+        valueMap.set(siteKey, (existing * (count - 1) + row.value) / count);
+      } else {
+        valueMap.set(siteKey, row.value);
+        valueMap.set(`count:${row.site_name}`, 1);
+      }
+    }
+  }
+
+  kpiValueCache.set(cacheKey, { data: valueMap, ts: Date.now() });
+  console.log(`[TopoService] KPI values: ${valueMap.size} entries for kpi=${kpiId}`);
+  return valueMap;
+}
+
+// Clear KPI cache when filters change
+export function clearKpiCache() {
+  kpiValueCache.clear();
+}
