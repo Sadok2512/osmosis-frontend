@@ -3028,6 +3028,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
   const [mapKpi, setMapKpi] = useState('cssr');
   const [kpiOverlays, setKpiOverlays] = useState<string[]>([]);
+  const [overlayVersion, setOverlayVersion] = useState(0);
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [hiddenKpiLevels, setHiddenKpiLevels] = useState<Set<'green'|'orange'|'red'|'gray'>>(new Set());
