@@ -3917,24 +3917,44 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLosSelectedCell(null);
   }, []);
 
-  const MAP_KPIS = [
-    { id: 'rrc_sr', label: 'RRC Success Rate', unit: '%', category: 'RF' },
-    { id: 'erab_sr', label: 'ERAB Success Rate', unit: '%', category: 'RF' },
-    { id: 'prb_usage', label: 'PRB Usage', unit: '%', category: 'RF' },
-    { id: 'cqi_avg', label: 'CQI Average', unit: '', category: 'RF' },
-    { id: 'throughput_dl', label: 'Throughput DL', unit: 'Mbps', category: 'THROUGHPUT' },
-    { id: 'throughput_ul', label: 'Throughput UL', unit: 'Mbps', category: 'THROUGHPUT' },
-    { id: 'avg_distance', label: 'Avg UE Distance', unit: 'km', category: 'SPATIAL' },
-    { id: 'overshooting', label: 'Overshooting Factor', unit: '%', category: 'SPATIAL' },
+  // ── KPI Catalog: loaded from backend /api/v1/kpi/catalog ──
+  const [catalogKpis, setCatalogKpis] = useState<{ id: string; label: string; unit: string; category: string }[]>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const url = getVpsProxyUrl('parser', '/api/v1/kpi/catalog');
+        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+        if (!resp.ok) throw new Error('catalog fetch failed');
+        const data = await resp.json();
+        const kpis = (data.kpis || []).map((k: any) => ({
+          id: k.kpi_id, label: k.label, unit: k.unit || '', category: k.category,
+        }));
+        setCatalogKpis(kpis);
+        // Auto-apply thresholds from catalog (don't overwrite user-customized ones)
+        const saved = localStorage.getItem('qoebit_kpi_thresholds');
+        if (!saved) {
+          const thr: Record<string, { green: number; orange: number; invert?: boolean }> = {};
+          for (const k of data.kpis || []) {
+            if (k.threshold_green != null && k.threshold_orange != null) {
+              thr[k.kpi_id] = { green: k.threshold_green, orange: k.threshold_orange, invert: k.invert || false };
+            }
+          }
+          if (Object.keys(thr).length > 0) setKpiThresholds(prev => ({ ...prev, ...thr }));
+        }
+      } catch (e) {
+        console.warn('[SitesMonitor] KPI catalog fetch failed, using fallback', e);
+      }
+    })();
+  }, []);
+  const MAP_KPIS = catalogKpis.length > 0 ? catalogKpis : [
+    { id: 'cssr', label: 'CSSR', unit: '%', category: 'RF' },
+    { id: 'drop_rate', label: 'Drop Rate', unit: '%', category: 'RF' },
+    { id: 'prb_dl', label: 'PRB Usage DL', unit: '%', category: 'RF' },
+    { id: 'thp_dl', label: 'Throughput DL', unit: 'Mbps', category: 'THROUGHPUT' },
+    { id: 'thp_ul', label: 'Throughput UL', unit: 'Mbps', category: 'THROUGHPUT' },
+    { id: 'overshoot', label: 'Overshooting', unit: '%', category: 'SPATIAL' },
+    { id: 'isd', label: 'Inter-site Distance', unit: 'km', category: 'SPATIAL' },
     { id: 'volte_drop', label: 'VoLTE Drop Rate', unit: '%', category: 'VOICE' },
-    { id: 'qoe_score_avg', label: 'QoE Score', unit: '%', category: 'QUALITY' },
-    { id: 'dms_dl_3', label: 'DMS DL ≥ 3M', unit: '%', category: 'QUALITY' },
-    { id: 'dms_dl_8', label: 'DMS DL ≥ 8M', unit: '%', category: 'QUALITY' },
-    { id: 'dms_dl_30', label: 'DMS DL ≥ 30M', unit: '%', category: 'QUALITY' },
-    { id: 'p50_thr_dn_mbps', label: 'Débit DL Moyen', unit: 'Mbps', category: 'THROUGHPUT' },
-    { id: 'p50_thr_up_mbps', label: 'Débit UL Moyen', unit: 'Mbps', category: 'THROUGHPUT' },
-    { id: 'p95_rtt_ms', label: 'RTT P95', unit: 'ms', category: 'RTT' },
-    { id: 'sessions', label: 'Sessions', unit: '', category: 'VOLUME' },
   ];
 
   const getCellKpiValue = (cell: any): number => {
