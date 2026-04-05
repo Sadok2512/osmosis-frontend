@@ -3936,16 +3936,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }));
         setCatalogKpis(kpis);
         console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from backend catalog`);
-        // Auto-apply thresholds from catalog
-        const saved = localStorage.getItem('qoebit_kpi_thresholds');
-        if (!saved) {
-          const thr: Record<string, { green: number; orange: number; invert?: boolean }> = {};
-          for (const k of json.kpis || []) {
-            if (k.threshold_green != null && k.threshold_orange != null) {
-              thr[k.kpi_id] = { green: k.threshold_green, orange: k.threshold_orange, invert: k.invert || false };
-            }
+        // Auto-apply thresholds from catalog (merge with any saved ones)
+        const thr: Record<string, { green: number; orange: number; invert?: boolean }> = {};
+        for (const k of json.kpis || []) {
+          if (k.threshold_green != null && k.threshold_orange != null) {
+            thr[k.kpi_id] = { green: k.threshold_green, orange: k.threshold_orange, invert: k.invert || false };
           }
-          if (Object.keys(thr).length > 0) setKpiThresholds(prev => ({ ...prev, ...thr }));
+        }
+        if (Object.keys(thr).length > 0) {
+          setKpiThresholds(prev => {
+            // Catalog thresholds as base, user-saved overrides on top
+            const merged = { ...thr, ...prev };
+            return merged;
+          });
         }
       } catch (e) {
         console.warn('[SitesMonitor] KPI catalog fetch failed, using fallback', e);
@@ -3992,13 +3995,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (localDor !== 'ALL') filters.dor = localDor;
     if (localPlaque !== 'ALL') filters.plaque = localPlaque;
 
+    // Also extract attribute-type conditions from Vue filters
+    if (activeViewConditions?.length) {
+      for (const cond of activeViewConditions) {
+        if (cond.mode === 'attribute' && cond.attribute && cond.value) {
+          const attrMap: Record<string, string> = { vendor: 'vendor', techno: 'techno', band: 'band', dor: 'dor', plaque: 'plaque' };
+          const paramKey = attrMap[cond.attribute.toLowerCase()];
+          if (paramKey && !filters[paramKey]) {
+            filters[paramKey] = cond.value;
+          }
+        }
+      }
+    }
+
     fetchKpiCellValues(mapKpi, filters)
       .then(data => { if (!cancelled) { setKpiValues(data); console.log(`[KPI] Loaded ${data.size} values for ${mapKpi}`); } })
       .catch(err => { console.error('[KPI] Fetch failed:', err); if (!cancelled) setKpiValues(new Map()); })
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
     return () => { cancelled = true; };
-  }, [mapKpi, sectorColorMode, localVendor, localTechno, localBande, localDor, localPlaque]);
+  }, [mapKpi, sectorColorMode, localVendor, localTechno, localBande, localDor, localPlaque, activeViewConditions]);
 
   const getCellKpiValue = (cell: any): number => {
     // 1. Check fetched KPI values by cell_name
@@ -4037,6 +4053,51 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'RRC Success Rate';
   const selectedKpiUnit = MAP_KPIS.find(k => k.id === mapKpi)?.unit || '%';
   const currentThreshold = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
+
+  // Cell-level Vue condition filter: hides cells that don't match KPI/attribute conditions
+  const cellMatchesViewConditions = useCallback((cell: any): boolean => {
+    // Check activeViewFilters (mode/kpi/operator/threshold style)
+    const kpiFilters = activeViewFilters.filter(f => f.mode === 'kpi' && f.kpi && f.operator && f.threshold != null);
+    for (const f of kpiFilters) {
+      const val = getCellKpiValue(cell);
+      if (isNaN(val)) return false;
+      const t = f.threshold!;
+      switch (f.operator) {
+        case '<': if (!(val < t)) return false; break;
+        case '>': if (!(val > t)) return false; break;
+        case '<=': if (!(val <= t)) return false; break;
+        case '>=': if (!(val >= t)) return false; break;
+        case '=': if (Math.abs(val - t) >= 0.01) return false; break;
+      }
+    }
+    // Check activeViewConditions (dimension/operator/values style) for cell-level dims
+    for (const cond of activeViewConditions) {
+      if (cond.values.length === 0) continue;
+      const dim = cond.dimension;
+      // Only apply cell-level dimensions here (techno, bande, etc.)
+      const cellVal = (cell as any)[dim];
+      if (cellVal == null) continue;
+      const normVal = String(cellVal).trim().toLowerCase();
+      if (cond.operator === '=' || cond.operator === 'IN') {
+        if (!cond.values.some(v => v.toLowerCase() === normVal)) return false;
+      } else if (cond.operator === 'NOT_IN') {
+        if (cond.values.some(v => v.toLowerCase() === normVal)) return false;
+      } else {
+        // Numeric comparisons
+        const numVal = parseFloat(String(cellVal));
+        const threshold = parseFloat(cond.values[0] ?? '');
+        if (!isNaN(numVal) && !isNaN(threshold)) {
+          switch (cond.operator) {
+            case '>': if (!(numVal > threshold)) return false; break;
+            case '>=': if (!(numVal >= threshold)) return false; break;
+            case '<': if (!(numVal < threshold)) return false; break;
+            case '<=': if (!(numVal <= threshold)) return false; break;
+          }
+        }
+      }
+    }
+    return true;
+  }, [activeViewFilters, activeViewConditions, kpiValues, mapKpi]);
 
   const updateThreshold = useCallback((field: 'green' | 'orange', val: number) => {
     setKpiThresholds(prev => {
@@ -5528,7 +5589,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Points mode — individual cell markers */}
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
-          const cellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled);
+          const cellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled).filter(cellMatchesViewConditions);
           return (
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
@@ -6178,7 +6239,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── 5G / 4G mode: detailed per-band sectors ── */
           // Pre-compute max 4G radius per azimuth for capping 5G
-          const detailCells = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled);
+          const detailCells = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled).filter(cellMatchesViewConditions);
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
             const hasAny5G = detailCells.some(c => getCellTechGroup(c.techno) === '5G');
@@ -7326,6 +7387,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <span className="text-[10px] font-semibold text-foreground">&gt; {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
                     <span className="text-[9px] text-muted-foreground ml-auto">Critique</span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#6b7280' }} />
+                    <span className="text-[10px] font-semibold text-muted-foreground">No data</span>
+                  </div>
                 </>
               ) : (
                 <>
@@ -7343,6 +7408,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#ef4444' }} />
                     <span className="text-[10px] font-semibold text-foreground">&lt; {currentThreshold.orange}{selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}</span>
                     <span className="text-[9px] text-muted-foreground ml-auto">Critique</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#6b7280' }} />
+                    <span className="text-[10px] font-semibold text-muted-foreground">No data</span>
                   </div>
                 </>
               )}
