@@ -1020,7 +1020,7 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
 const kpiValueCache = new Map<string, { data: Map<string, number>; ts: number }>();
 const KPI_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: string; techno?: string; band?: string; dor?: string; plaque?: string }): Promise<Map<string, number>> {
+export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: string; techno?: string; band?: string; dor?: string; plaque?: string; zone_arcep?: string; region?: string; site_name?: string }): Promise<Map<string, number>> {
   const cacheKey = `${kpiId}_${JSON.stringify(filters || {})}`;
   const cached = kpiValueCache.get(cacheKey);
   if (cached && (Date.now() - cached.ts) < KPI_CACHE_TTL) return cached.data;
@@ -1031,6 +1031,9 @@ export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: str
   if (filters?.band) params.set('band', filters.band);
   if (filters?.dor) params.set('dor', filters.dor);
   if (filters?.plaque) params.set('plaque', filters.plaque);
+  if (filters?.zone_arcep) params.set('zone_arcep', filters.zone_arcep);
+  if (filters?.region) params.set('region', filters.region);
+  if (filters?.site_name) params.set('site_name', filters.site_name);
 
   const url = getVpsProxyUrl('parser', `/api/v1/kpi/cell-values?${params}`);
   const resp = await fetch(url, { headers: getVpsProxyHeaders() });
