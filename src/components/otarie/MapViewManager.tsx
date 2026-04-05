@@ -133,7 +133,7 @@ const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView, activeDa
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={panelRef}>
       <button
         onClick={() => setShowPanel(!showPanel)}
         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
