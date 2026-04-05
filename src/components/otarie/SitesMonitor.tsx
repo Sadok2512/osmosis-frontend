@@ -5125,7 +5125,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return getColorForValue(val, colorViewColorMap);
   }, [colorViewMode, colorViewColorMap]);
 
-  const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && !isFlying && showBeamSectors;
+  const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && showBeamSectors;
+
+  useEffect(() => {
+    if (!showSectors) return;
+
+    let changed = false;
+    for (const site of visibleSites) {
+      const hasPotentialCells = (site.cell_count || 0) > 0 || (site.lte_cells || 0) > 0 || (site.nr_cells || 0) > 0;
+      if (!hasPotentialCells) continue;
+      if ((site.cells?.length || 0) > 0) continue;
+      if (!cellLoadAttemptedRef.current.has(site.site_id)) continue;
+
+      cellLoadAttemptedRef.current.delete(site.site_id);
+      changed = true;
+    }
+
+    if (changed) {
+      setSites(prev => [...prev]);
+    }
+  }, [showSectors, visibleSites]);
+
   // Filter cells to 4G/5G only for sector rendering
   const ALLOWED_TECH = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
   const filter4G5GCells = (cells: any[]) => cells.filter(c => !c.techno || ALLOWED_TECH.has(c.techno.trim()));
