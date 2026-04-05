@@ -131,7 +131,7 @@ const deriveStrokeColor = (hex: string): string => {
 // Inactive/faded color for technology hierarchy mode
 const FADED_COLOR = '#94a3b8';
 const FRANCE_CENTER: [number, number] = [46.6, 2.2];
-const FRANCE_DEFAULT_ZOOM = 6;
+const FRANCE_DEFAULT_ZOOM = 7;
 
 type TopoNetworkStats = {
   sites4G: number;
