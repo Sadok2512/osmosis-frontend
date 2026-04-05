@@ -2423,14 +2423,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                             </div>
 
                             {/* KPI Overlay badge */}
-                            {isViewActive && activeKpiOverlay && (() => {
-                              const kpiDef = MAP_KPIS.find(k => k.id === activeKpiOverlay);
-                              if (!kpiDef) return null;
-                              return (
+                            {isViewActive && activeKpiOverlay && activeKpiOverlayLabel && (
                                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border-t border-emerald-500/20">
                                   <BarChart2 size={10} className="text-emerald-600 shrink-0" />
                                   <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">KPI Overlay</span>
-                                  <span className="text-[9px] font-semibold text-foreground truncate">{kpiDef.label}</span>
+                                  <span className="text-[9px] font-semibold text-foreground truncate">{activeKpiOverlayLabel}</span>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); onClearKpiOverlay?.(); }}
                                     className="ml-auto p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
@@ -2439,8 +2436,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                     <X size={10} />
                                   </button>
                                 </div>
-                              );
-                            })()}
+                            )}
 
                             {isEditing && (
                               <div className="border-t border-border/40">
