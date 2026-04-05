@@ -9852,7 +9852,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <div className="flex items-center gap-1.5 mt-1.5 text-[12px]">
                       <span className="font-mono text-muted-foreground">{siteDetail.site_id}</span>
                       <span className="text-muted-foreground">•</span>
-                      <span className="font-semibold text-primary">{primaryTech} {primaryBand}MHZ</span>
+                      <span className="font-semibold text-primary">{techBadgeStr}</span>
                     </div>
                   </div>
                   {/* Close button */}
