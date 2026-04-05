@@ -3988,6 +3988,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     let cancelled = false;
     setKpiLoading(true);
+    setHiddenKpiLevels(new Set());
 
     const filters: any = {};
     if (localVendor !== 'ALL') filters.vendor = localVendor;
