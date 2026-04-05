@@ -112,9 +112,11 @@ function mapToEntry(k: any): KpiCatalogEntry {
   };
 }
 
-function parseCounters(raw: string | string[]): CounterEntry[] {
+function parseCounters(raw: any): CounterEntry[] {
   if (!raw) return [];
-  const items = Array.isArray(raw) ? raw : raw.split(',').map(s => s.trim()).filter(Boolean);
+  if (Array.isArray(raw)) return raw.map((name, i) => ({ id: `c-${i}`, name: String(name), description: `PM counter: ${name}`, vendor_mapping: {}, source_system: 'OSS PM', granularity: '15min' }));
+  if (typeof raw !== 'string') return [];
+  const items = raw.split(',').map(s => s.trim()).filter(Boolean);
   return items.map((name, i) => ({
     id: `c-${i}`,
     name: typeof name === 'string' ? name : String(name),
