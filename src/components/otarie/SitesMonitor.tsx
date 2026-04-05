@@ -8294,10 +8294,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <div className="text-right shrink-0">
                               {sectorColorMode !== 'topo' && (() => {
                                 const siteKpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
+                                if (isNaN(siteKpiVal) || siteKpiVal === 0) return null;
                                 return (
                                 <div className="inline-flex items-center justify-center px-2.5 py-1 rounded-lg min-w-[48px]" style={{ background: getKpiColor(siteKpiVal), color: '#fff' }}>
                                   <span className="text-[15px] font-black tracking-tight leading-none">
-                                    {isNaN(siteKpiVal) ? '\u2014' : siteKpiVal.toFixed(1)}
+                                    {siteKpiVal.toFixed(1)}
                                   </span>
                                 </div>
                                 );
