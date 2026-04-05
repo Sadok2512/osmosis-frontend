@@ -5,6 +5,7 @@ import {
   ArrowUp, ArrowDown, Hash, Copy, Check, Clock, User, Shield,
   Layers, Gauge, Info, FlaskConical, AlertTriangle, X
 } from 'lucide-react';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
