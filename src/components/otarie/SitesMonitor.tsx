@@ -5052,6 +5052,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, currentBboxFilters]);
 
 
+  // Show labels: always in KPI mode at zoom >= 9, or when toggled on, or at high zoom
+  const shouldShowLabels = showSiteLabels || (sectorColorMode === 'kpi' && viewport.zoom >= 9) || viewport.zoom >= 12;
+
   const renderSites = useMemo(() => {
     const siteMatchesCurrentTechFilter = (site: SiteSummary) => {
       if (mapTechnoFilter === 'OFF') return false;
@@ -5763,7 +5766,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                   </Popup>
                 </CircleMarker>
-                {(showSiteLabels || viewport.zoom >= 12) && viewport.zoom >= 10 && (
+                {shouldShowLabels && viewport.zoom >= 8 && (
                   <Marker position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
                     <Tooltip direction="bottom" offset={[0, 8]} permanent className="site-name-label-clean">
                       <span style={{ fontSize: viewport.zoom >= 12 ? '9px' : '7px', fontWeight: 700, color: '#1a1a1a', textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff' }}>{buildSiteLabel(site, mapLabelFields)}</span>
@@ -5872,7 +5875,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Polygon>
                   );
                 })}
-                {(showSiteLabels || viewport.zoom >= 12) && (
+                {shouldShowLabels && (
                   <Marker position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
                     <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
                       <span style={{ fontSize: viewport.zoom >= 12 ? '9px' : '7px', fontWeight: 700, color: '#1a1a1a', textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff' }}>{buildSiteLabel(site, mapLabelFields)}</span>
@@ -6036,7 +6039,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           });
 
           // Pass 4: labels
-          const labels = circleSites.filter(() => (showSiteLabels || viewport.zoom >= 12) && viewport.zoom >= 10).map(site => (
+          const labels = circleSites.filter(() => shouldShowLabels && viewport.zoom >= 8).map(site => (
             <Marker key={`lbl_${site.site_id}`} position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
               <Tooltip direction="bottom" offset={[0, 6]} permanent className="site-name-label-clean">
                 <span style={{ fontSize: '7px', fontWeight: 700, color: '#1a1a1a', textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff' }}>{buildSiteLabel(site, mapLabelFields)}</span>
@@ -6287,7 +6290,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   );
                 })}
                 {/* Site name label */}
-                {(showSiteLabels || viewport.zoom >= 12) && (
+                {shouldShowLabels && (
                   <Marker
                     position={site.coordinates}
                     icon={L.divIcon({
@@ -6422,7 +6425,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   mouseout: () => setHoveredSiteId(null),
                 }}
               >
-                {(showSiteLabels || viewport.zoom >= 12) && (
+                {shouldShowLabels && (
                   <Tooltip direction="bottom" offset={[0, 4]} permanent className="site-name-label-clean">
                     <span style={{
                       fontSize: '8px',
