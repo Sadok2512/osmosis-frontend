@@ -1682,6 +1682,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   useEffect(() => { fetchAll(); }, []);
 
+  // Re-fetch views when overlay version changes (KPI added/removed)
+  useEffect(() => {
+    if (overlayVersion === undefined || overlayVersion === 0) return;
+    mapViewsApi.list().then(mvData => {
+      if (Array.isArray(mvData)) setMapViews(mvData);
+    }).catch(() => {});
+  }, [overlayVersion]);
+
   // ── Dashboard settings helpers ──
   const getDashboardSettings = (db: any) => {
     const w = Array.isArray(db.widgets) ? db.widgets : [];
