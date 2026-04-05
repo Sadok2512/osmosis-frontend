@@ -158,8 +158,8 @@ const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, o
 
   return (
     <>
-      {/* ── Floating panel shell ── */}
-      <div className="h-full flex flex-col bg-card rounded-2xl shadow-2xl shadow-black/8 border border-border/60 overflow-hidden">
+      {/* ── Inline accordion panel ── */}
+      <div className="flex flex-col bg-card rounded-xl border border-border/40 overflow-hidden">
 
         {/* ── Header ── */}
         <div className="shrink-0 px-6 pt-5 pb-4 bg-gradient-to-b from-muted/40 to-transparent">
