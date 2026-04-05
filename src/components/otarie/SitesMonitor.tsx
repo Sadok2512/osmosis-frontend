@@ -2421,25 +2421,33 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                               </div>
                             </div>
 
-                            {/* KPI Overlay badges */}
-                            {isViewActive && kpiOverlays && kpiOverlays.length > 0 && (
-                              <div className="border-t border-emerald-500/20">
-                                {kpiOverlays.map((ov) => (
-                                  <div key={ov.id} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border-b border-emerald-500/10 last:border-b-0">
-                                    <BarChart2 size={10} className="text-emerald-600 shrink-0" />
-                                    <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">KPI</span>
-                                    <span className="text-[9px] font-semibold text-foreground truncate">{ov.label}</span>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); onRemoveKpiOverlay?.(ov.id); }}
-                                      className="ml-auto p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                      title="Supprimer ce KPI Overlay"
-                                    >
-                                      <X size={10} />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            {/* KPI Overlay badges — active view uses live props, inactive reads from persisted settings */}
+                            {(() => {
+                              const viewOverlays = isViewActive
+                                ? (kpiOverlays || [])
+                                : (Array.isArray(vs.kpiOverlays) ? vs.kpiOverlays.map((id: string) => ({ id, label: id })) : []);
+                              if (!viewOverlays.length) return null;
+                              return (
+                                <div className={`border-t ${isViewActive ? 'border-emerald-500/20' : 'border-border/30'}`}>
+                                  {viewOverlays.map((ov: { id: string; label: string }) => (
+                                    <div key={ov.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 border-b last:border-b-0 ${isViewActive ? 'bg-emerald-500/10 border-emerald-500/10' : 'bg-muted/30 border-border/20'}`}>
+                                      <BarChart2 size={10} className={isViewActive ? 'text-emerald-600 shrink-0' : 'text-muted-foreground shrink-0'} />
+                                      <span className={`text-[9px] font-bold uppercase tracking-wider ${isViewActive ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>KPI</span>
+                                      <span className={`text-[9px] font-semibold truncate ${isViewActive ? 'text-foreground' : 'text-muted-foreground'}`}>{ov.label}</span>
+                                      {isViewActive && (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); onRemoveKpiOverlay?.(ov.id); }}
+                                          className="ml-auto p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                          title="Supprimer ce KPI Overlay"
+                                        >
+                                          <X size={10} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
 
                             {isEditing && (
                               <div className="border-t border-border/40">
