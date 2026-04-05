@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, Plus, Trash2, AlertCircle } from 'lucide-react';
-import { TOPOLOGY_DIMENSIONS, PARAMETER_OPTIONS, OPERATOR_OPTIONS } from './filterTypes';
+import { TOPOLOGY_DIMENSIONS, PARAMETER_OPTIONS, OPERATOR_OPTIONS, fetchParameterOptions } from './filterTypes';
 import type { TopologyCondition, ParameterCondition } from './filterTypes';
 import BulkListInput from './BulkListInput';
 
