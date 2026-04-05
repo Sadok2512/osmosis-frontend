@@ -4001,8 +4001,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (localBande !== 'ALL') filters.band = localBande;
     if (localDor !== 'ALL') filters.dor = localDor;
     if (localPlaque !== 'ALL') filters.plaque = localPlaque;
+    if (localZoneArcep !== 'ALL') filters.zone_arcep = localZoneArcep;
 
-    // Extract simple backend-compatible filters from structured view conditions
+    // Extract backend-compatible filters from structured view conditions
     if (activeViewConditions?.length) {
       const attrMap: Record<string, string> = {
         vendor: 'vendor',
@@ -4012,6 +4013,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         bande: 'band',
         dor: 'dor',
         plaque: 'plaque',
+        zone_arcep: 'zone_arcep',
+        region: 'region',
+        site_name: 'site_name',
+        code_nidt: 'site_name',
       };
 
       for (const cond of activeViewConditions) {
@@ -4033,7 +4038,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
     return () => { cancelled = true; };
-  }, [mapKpi, sectorColorMode, localVendor, localTechno, localBande, localDor, localPlaque, activeViewConditions]);
+  }, [mapKpi, sectorColorMode, localVendor, localTechno, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions]);
 
   const getCellKpiValue = (cell: any): number => {
     // 1. Check fetched KPI values by cell_name
