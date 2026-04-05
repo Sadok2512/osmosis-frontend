@@ -1103,9 +1103,19 @@ const TableHeadersContext = React.createContext<string[]>([]);
 const KpiColorTable: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const headersRef = React.useRef<string[]>([]);
   const [headers, setHeaders] = React.useState<string[]>([]);
+  
+  // Detect if this is an anomaly/design-check table
+  const isAnomalyTable = headers.some(h => /statut|status|état/i.test(h));
+  
   return (
     <TableHeadersContext.Provider value={headers}>
-      <div className="my-4 rounded-xl border border-border overflow-hidden shadow-sm">
+      <div className={`my-4 rounded-xl border overflow-hidden shadow-sm ${isAnomalyTable ? 'border-primary/30' : 'border-border'}`}>
+        {isAnomalyTable && (
+          <div className="px-4 py-2 bg-primary/5 border-b border-primary/20 flex items-center gap-2">
+            <span className="text-sm">🔍</span>
+            <span className="text-xs font-bold text-primary tracking-wide">Analyse des Anomalies</span>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs" ref={(el) => {
             if (el) {
