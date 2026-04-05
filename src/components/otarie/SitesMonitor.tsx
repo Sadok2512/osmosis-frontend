@@ -2981,7 +2981,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localBande, setLocalBande] = useState('ALL');
   const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
-  const [mapKpi, setMapKpi] = useState('rrc_sr');
+  const [mapKpi, setMapKpi] = useState('');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
@@ -3758,7 +3758,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const settings = widgets.find((w: any) => w?._type === 'dashboard_settings');
     if (settings) {
       if (settings.mapLayer) setMapLayer(settings.mapLayer);
-      if (settings.mapKpi) setMapKpi(settings.mapKpi);
+      if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
       if (settings.mapTechnoFilter) setMapTechnoFilter(settings.mapTechnoFilter);
       if (settings.enabledBands) setEnabledBands(new Set(settings.enabledBands));
       if (settings.sectorColorMode) setSectorColorMode(settings.sectorColorMode);
@@ -3931,7 +3931,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       try {
         const { data, error } = await supabase
           .from('kpi_catalog')
-          .select('kpi_key, display_name, unit, famille, threshold_warning, threshold_critical')
+          .select('kpi_key, display_name, unit, famille, threshold_warning, threshold_critical, is_map_supported')
+          .eq('is_map_supported', true)
           .order('famille', { ascending: true })
           .order('display_name', { ascending: true });
         if (error) throw error;
@@ -3942,6 +3943,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           category: FAMILLE_TO_CATEGORY[k.famille] || k.famille || 'OTHER',
         }));
         setCatalogKpis(kpis);
+        setMapKpi(prev => prev || kpis[0]?.id || '');
         console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from kpi_catalog`);
         // Auto-apply thresholds from catalog (don't overwrite user-customized ones)
         const saved = localStorage.getItem('qoebit_kpi_thresholds');
@@ -3960,6 +3962,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     })();
   }, []);
   const MAP_KPIS = catalogKpis;
+
+  useEffect(() => {
+    if (!MAP_KPIS.length) return;
+    if (!mapKpi || !MAP_KPIS.some(k => k.id === mapKpi)) {
+      setMapKpi(MAP_KPIS[0].id);
+    }
+  }, [MAP_KPIS, mapKpi]);
 
   // Fetch KPI values when user selects a KPI and mode is 'kpi'
   useEffect(() => {
@@ -5025,7 +5034,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const handleLoadView = useCallback((settings: MapViewSettings) => {
     setMapLayer(settings.mapLayer);
-    setMapKpi(settings.mapKpi);
+    if (MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
     setMapTechnoFilter(settings.mapTechnoFilter as any);
     setEnabledBands(new Set(settings.enabledBands));
     setSectorColorMode(settings.sectorColorMode);
@@ -8695,7 +8704,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     }
 
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
-                    if (settings.mapKpi) setMapKpi(settings.mapKpi);
+                    if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
                     if (settings.center && Array.isArray(settings.center)) {
                       if (settings.center && (settings.center as [number, number])[0] > 41 && (settings.center as [number, number])[0] < 52) setFlyTarget(settings.center as [number, number]);
                     }
