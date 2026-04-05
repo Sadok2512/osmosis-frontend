@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   X, BookOpen, FlaskConical, ArrowUp, ArrowDown, Info, Clock,
-  User, Hash, Shield, Layers, ChevronRight, ExternalLink, Pencil,
-  Trash2, AlertTriangle, Gauge
+  User, Hash, Shield, Layers, ExternalLink, Pencil,
+  Trash2, AlertTriangle, Gauge, Copy, Check, ChevronDown, ChevronRight,
+  Database, FileText
 } from 'lucide-react';
 import type { KpiCatalogEntry, CounterEntry, UserRole } from './kpiCatalogTypes';
 import { STATUS_CONFIG, VENDOR_COLORS, TECH_COLORS } from './kpiCatalogTypes';
@@ -16,27 +17,49 @@ interface KpiDetailPanelProps {
   userRole: UserRole;
 }
 
-const Section: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => (
-  <div className="space-y-3">
-    <div className="flex items-center gap-2 pb-2 border-b border-border/50">
-      <span className="text-primary">{icon}</span>
-      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</h4>
+/* ── Collapsible Section ── */
+const Section: React.FC<{
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  accent?: string;
+}> = ({ title, icon, children, defaultOpen = true, accent }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="group">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2.5 py-2.5 select-none hover:opacity-80 transition-opacity"
+      >
+        <span className={accent || 'text-primary'}>{icon}</span>
+        <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-foreground flex-1 text-left">
+          {title}
+        </span>
+        {open
+          ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+          : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+        }
+      </button>
+      <div className="h-px bg-border mb-3" />
+      {open && <div className="pb-1">{children}</div>}
     </div>
-    {children}
-  </div>
-);
+  );
+};
 
+/* ── Field row ── */
 const Field: React.FC<{ label: string; value: string | React.ReactNode; mono?: boolean }> = ({ label, value, mono }) => (
-  <div>
-    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
-    <p className={`mt-0.5 text-sm text-foreground ${mono ? 'font-mono' : ''}`}>{value || '—'}</p>
+  <div className="py-1">
+    <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">{label}</span>
+    <p className={`mt-0.5 text-[13px] text-foreground leading-snug ${mono ? 'font-mono text-xs' : ''}`}>{value || '—'}</p>
   </div>
 );
 
+/* ── Counter chip ── */
 const CounterChip: React.FC<{ counter: CounterEntry; onClick: () => void }> = ({ counter, onClick }) => (
   <button
     onClick={onClick}
-    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/50 hover:bg-primary/10 hover:text-primary text-xs font-mono text-foreground transition-all group"
+    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/60 hover:bg-primary/10 hover:text-primary border border-border/40 text-xs font-mono text-foreground transition-all group"
   >
     <Hash className="w-3 h-3 text-muted-foreground group-hover:text-primary" />
     {counter.name}
@@ -44,18 +67,28 @@ const CounterChip: React.FC<{ counter: CounterEntry; onClick: () => void }> = ({
   </button>
 );
 
-const NumDenSection: React.FC<{
+/* ── Numerator / Denominator card ── */
+const NumDenCard: React.FC<{
   title: string;
   icon: React.ReactNode;
   data: KpiCatalogEntry['numerator'];
   onCounterClick: (c: CounterEntry) => void;
-}> = ({ title, icon, data, onCounterClick }) => (
-  <Section title={title} icon={icon}>
-    <div className="space-y-3">
+  accentColor: string;
+  accentBg: string;
+  accentBorder: string;
+}> = ({ title, icon, data, onCounterClick, accentColor, accentBg, accentBorder }) => (
+  <div className={`rounded-xl border-2 ${accentBorder} ${accentBg} overflow-hidden`}>
+    {/* Card header */}
+    <div className={`flex items-center gap-2 px-4 py-2.5 border-b ${accentBorder}`}>
+      <span className={accentColor}>{icon}</span>
+      <span className={`text-[11px] font-extrabold uppercase tracking-[0.12em] ${accentColor}`}>{title}</span>
+    </div>
+    {/* Card body */}
+    <div className="px-4 py-3 space-y-2.5">
       <Field label="Name" value={data.name} />
       <Field label="Description" value={data.description} />
       <div>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Counters</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">Counters</span>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {data.counters.length > 0 ? data.counters.map(c => (
             <CounterChip key={c.id} counter={c} onClick={() => onCounterClick(c)} />
@@ -64,14 +97,54 @@ const NumDenSection: React.FC<{
           )}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Source" value={data.source} />
-        <Field label="Granularity" value={data.granularity} />
+      <div className="grid grid-cols-2 gap-3 pt-1">
+        <Field label="Source" value={
+          <span className="flex items-center gap-1.5">
+            <Database className="w-3 h-3 text-muted-foreground" />
+            {data.source || '—'}
+          </span>
+        } />
+        <Field label="Granularity" value={
+          <span className="flex items-center gap-1.5">
+            <Clock className="w-3 h-3 text-muted-foreground" />
+            {data.granularity || '—'}
+          </span>
+        } />
       </div>
     </div>
-  </Section>
+  </div>
 );
 
+/* ── Formula block with copy ── */
+const FormulaBlock: React.FC<{ formula: string }> = ({ formula }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(formula);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <div className="relative group rounded-xl bg-muted/60 border border-border px-4 py-3.5">
+      <pre className="text-[13px] font-mono text-foreground leading-relaxed whitespace-pre-wrap pr-8">
+        {formula}
+      </pre>
+      <button
+        onClick={handleCopy}
+        className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-background/80 border border-border/50 opacity-0 group-hover:opacity-100 hover:bg-muted transition-all"
+        title="Copy formula"
+      >
+        {copied
+          ? <Check className="w-3.5 h-3.5 text-green-500" />
+          : <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+        }
+      </button>
+    </div>
+  );
+};
+
+/* ════════════════════════════════════════════════════════ */
+/*  MAIN PANEL                                             */
+/* ════════════════════════════════════════════════════════ */
 const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, onDelete, userRole }) => {
   const [selectedCounter, setSelectedCounter] = useState<CounterEntry | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -85,26 +158,25 @@ const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, o
 
   return (
     <>
-      <div className="h-full flex flex-col bg-card border-l border-border">
-        {/* Header */}
-        <div className="shrink-0 px-6 py-5 border-b border-border">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
-                  {statusCfg.label}
-                </span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${techCfg.bg} ${techCfg.text}`}>
-                  {kpi.technology}
-                </span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${vendorCfg.bg} ${vendorCfg.text}`}>
-                  {kpi.vendor}
-                </span>
-              </div>
-              <h3 className="text-lg font-bold text-foreground leading-tight">{kpi.display_name}</h3>
-              <p className="text-xs font-mono text-muted-foreground mt-1">{kpi.kpi_code}</p>
+      {/* ── Floating panel shell ── */}
+      <div className="h-full flex flex-col bg-card rounded-2xl shadow-2xl shadow-black/8 border border-border/60 overflow-hidden">
+
+        {/* ── Header ── */}
+        <div className="shrink-0 px-6 pt-5 pb-4 bg-gradient-to-b from-muted/40 to-transparent">
+          {/* Actions row */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
+                {statusCfg.label}
+              </span>
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${techCfg.bg} ${techCfg.text}`}>
+                {kpi.technology}
+              </span>
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${vendorCfg.bg} ${vendorCfg.text}`}>
+                {kpi.vendor}
+              </span>
             </div>
-            <div className="flex items-center gap-1.5 ml-3">
+            <div className="flex items-center gap-1">
               {(userRole === 'editor' || userRole === 'creator') && onEdit && (
                 <button onClick={onEdit} className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit KPI">
                   <Pencil className="w-4 h-4" />
@@ -120,13 +192,17 @@ const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, o
               </button>
             </div>
           </div>
+          {/* KPI identity */}
+          <h3 className="text-xl font-black text-foreground leading-tight tracking-tight">{kpi.display_name}</h3>
+          <p className="text-[11px] font-mono text-muted-foreground/60 mt-1 tracking-wide">{kpi.kpi_code}</p>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-          {/* General Info */}
+        {/* ── Scrollable content ── */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 scroll-smooth">
+
+          {/* GENERAL INFORMATION */}
           <Section title="General Information" icon={<BookOpen className="w-4 h-4" />}>
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Field label="Description" value={kpi.description} />
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Category" value={kpi.category} />
@@ -139,33 +215,41 @@ const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, o
             </div>
           </Section>
 
-          {/* Formula */}
+          {/* FORMULA */}
           <Section title="Formula" icon={<FlaskConical className="w-4 h-4" />}>
-            <div className="px-4 py-4 rounded-xl bg-muted/40 border border-border/50">
-              <p className="text-sm font-mono text-foreground leading-relaxed whitespace-pre-wrap">
-                {kpi.formula || `${kpi.display_name} = Numerator / Denominator`}
-              </p>
+            <FormulaBlock formula={kpi.formula || `${kpi.display_name} = Numerator / Denominator`} />
+            <div className="mt-2">
+              <Field label="Formula Type" value={kpi.formula_type} />
             </div>
-            <Field label="Formula Type" value={kpi.formula_type} />
           </Section>
 
-          {/* Numerator */}
-          <NumDenSection
-            title="Numerator"
-            icon={<ArrowUp className="w-4 h-4" />}
-            data={kpi.numerator}
-            onCounterClick={setSelectedCounter}
-          />
+          {/* NUMERATOR */}
+          <Section title="Numerator" icon={<ArrowUp className="w-4 h-4" />} accent="text-emerald-600">
+            <NumDenCard
+              title="Numerator"
+              icon={<ArrowUp className="w-4 h-4" />}
+              data={kpi.numerator}
+              onCounterClick={setSelectedCounter}
+              accentColor="text-emerald-600"
+              accentBg="bg-emerald-500/5"
+              accentBorder="border-emerald-500/20"
+            />
+          </Section>
 
-          {/* Denominator */}
-          <NumDenSection
-            title="Denominator"
-            icon={<ArrowDown className="w-4 h-4" />}
-            data={kpi.denominator}
-            onCounterClick={setSelectedCounter}
-          />
+          {/* DENOMINATOR */}
+          <Section title="Denominator" icon={<ArrowDown className="w-4 h-4" />} accent="text-sky-600">
+            <NumDenCard
+              title="Denominator"
+              icon={<ArrowDown className="w-4 h-4" />}
+              data={kpi.denominator}
+              onCounterClick={setSelectedCounter}
+              accentColor="text-sky-600"
+              accentBg="bg-sky-500/5"
+              accentBorder="border-sky-500/20"
+            />
+          </Section>
 
-          {/* Thresholds */}
+          {/* THRESHOLDS */}
           {hasThresholds && (
             <Section title="Thresholds" icon={<Gauge className="w-4 h-4" />}>
               <div className="grid grid-cols-3 gap-3">
@@ -191,9 +275,9 @@ const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, o
             </Section>
           )}
 
-          {/* Metadata */}
+          {/* METADATA */}
           <Section title="Metadata" icon={<Info className="w-4 h-4" />}>
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Created By" value={
                   <span className="flex items-center gap-1.5">
@@ -225,10 +309,10 @@ const KpiDetailPanel: React.FC<KpiDetailPanelProps> = ({ kpi, onClose, onEdit, o
               } />
               {kpi.supported_levels.length > 0 && (
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Supported Levels</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">Supported Levels</span>
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {kpi.supported_levels.map(l => (
-                      <span key={l} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground">{l}</span>
+                      <span key={l} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border/30">{l}</span>
                     ))}
                   </div>
                 </div>
