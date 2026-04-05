@@ -9228,36 +9228,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </>
                 )}
 
-                {/* ── RF Spatial KPI Cards ── */}
-                <div className="px-5 py-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    {(() => {
-                      const overshoot = Math.random() * 25;
-                      const sev = overshoot > 20 ? 'red' : overshoot > 12 ? 'orange' : 'green';
-                      const sevColor = sev === 'green' ? 'text-emerald-500' : sev === 'orange' ? 'text-orange-500' : 'text-destructive';
-                      return (
-                        <div className="bg-muted/20 rounded-xl border border-border px-3 py-4 text-center">
-                          <div className="flex items-center justify-center gap-1.5 mb-2">
-                            <Target size={12} className={sevColor} />
-                            <span className={`text-[8px] font-bold uppercase tracking-wider ${sevColor}`}>{sev === 'green' ? 'Normal' : sev === 'orange' ? 'Warning' : 'Critical'}</span>
-                          </div>
-                          <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Overshooting</div>
-                          <div className={`text-[26px] font-black leading-none ${sevColor}`}>{overshoot.toFixed(1)}%</div>
-                        </div>
-                      );
-                    })()}
-                    <div className="bg-muted/20 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
-                      <Ruler size={14} className="text-primary mb-2" />
-                      <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Inter-site</div>
-                      <div className="text-[26px] font-black text-primary leading-none">{(0.8 + Math.random() * 2.5).toFixed(2)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">km</span></div>
-                    </div>
-                    <div className="bg-muted/20 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
-                      <Radio size={14} className="text-foreground/70 mb-2" />
-                      <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Avg UE Dist</div>
-                      <div className="text-[26px] font-black text-foreground leading-none">{(0.2 + Math.random() * 1.8).toFixed(2)}<span className="text-[10px] font-bold text-muted-foreground ml-0.5">km</span></div>
-                    </div>
-                  </div>
-                </div>
+                {/* RF Spatial KPI Cards — only shown at cell level */}
 
                 {/* ── Technology Distribution ── */}
                 <div className="px-5 py-5">
@@ -9335,34 +9306,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 </div>
 
-                {/* ── AI Diagnostic Card ── */}
-                <div className="px-5 py-4">
-                  <div className="rounded-2xl px-5 py-5 flex items-center gap-4" style={{ background: 'linear-gradient(135deg, hsl(220 40% 13%), hsl(220 50% 18%))' }}>
-                    <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'hsl(80 60% 45%)', boxShadow: '0 0 24px hsla(80, 60%, 45%, 0.3)' }}>
-                      <Settings2 size={22} className="text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-extrabold text-white uppercase tracking-wide">AI Diagnostic</div>
-                      <div className="text-[11px] text-white/50 font-medium mt-0.5">RCA Analysis</div>
-                    </div>
-                    <button
-                      onClick={() => { if (onLaunchAI) onLaunchAI('global'); }}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-white/90 transition-colors shrink-0"
-                    >
-                      <Zap size={14} />
-                      Lancer
-                    </button>
-                  </div>
-                </div>
-
-                {/* ── KPI Evolution ── */}
-                <div className="px-5 py-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <BarChart2 size={14} className="text-primary" />
-                    <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Analyse RF Spatiale</h4>
-                  </div>
-                  <SiteKpiChart siteDetail={{ site_name: 'Global', site_id: 'global', qoe_score_avg: avgQoE, dms_dl_3: avgDmsDl3, dms_dl_8: avgDmsDl8, dms_dl_30: avgDmsDl30, dms_ul_3: avgDmsUl3, p50_thr_dn_mbps: avgDl, p50_thr_up_mbps: avgUl, p95_rtt_ms: avgRtt, cells: [] } as any} />
-                </div>
+                {/* AI Diagnostic + Analyse RF Spatiale — only shown at cell level */}
               </div>
             );
           })()}
@@ -9585,48 +9529,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
 
 
-              {/* ── RF Spatial KPI Cards ── */}
-              <div className="px-5 py-4">
-                <div className="grid grid-cols-3 gap-3">
-                  {/* Overshooting Factor */}
-                  {(() => {
-                    const overshoot = (siteDetail as any).overshooting_factor ?? Math.random() * 25;
-                    const sev = overshoot > 20 ? 'red' : overshoot > 12 ? 'orange' : 'green';
-                    const sevColor = sev === 'green' ? 'text-emerald-500' : sev === 'orange' ? 'text-orange-500' : 'text-destructive';
-                    const sevBg = sev === 'green' ? 'bg-emerald-500/10' : sev === 'orange' ? 'bg-orange-500/10' : 'bg-destructive/10';
-                    const sevLabel = sev === 'green' ? 'Normal' : sev === 'orange' ? 'Warning' : 'Critical';
-                    return (
-                      <div className="bg-muted/20 rounded-xl border border-border px-3 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5 mb-2">
-                          <Target size={12} className={sevColor} />
-                          <span className={`text-[8px] font-bold uppercase tracking-wider ${sevColor}`}>{sevLabel}</span>
-                        </div>
-                        <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Overshooting</div>
-                        <div className={`text-[26px] font-black leading-none ${sevColor}`}>{overshoot.toFixed(1)}%</div>
-                        <div className={`w-10 h-1 rounded-full mx-auto mt-2 ${sevBg}`} style={{ background: sev === 'green' ? '#10b981' : sev === 'orange' ? '#f59e0b' : undefined }} />
-                      </div>
-                    );
-                  })()}
-                  {/* Inter-site Distance */}
-                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
-                    <Ruler size={14} className="text-primary mb-2" />
-                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Inter-site</div>
-                    <div className="text-[26px] font-black text-primary leading-none">
-                      {((siteDetail as any).inter_site_distance ?? (0.8 + Math.random() * 2.5)).toFixed(2)}
-                      <span className="text-[10px] font-bold text-muted-foreground ml-0.5">km</span>
-                    </div>
-                  </div>
-                  {/* Avg UE Distance */}
-                  <div className="bg-muted/20 rounded-xl border border-border px-3 py-4 text-center flex flex-col items-center justify-center">
-                    <Radio size={14} className="text-foreground/70 mb-2" />
-                    <div className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Avg UE Dist</div>
-                    <div className="text-[26px] font-black text-foreground leading-none">
-                      {((siteDetail as any).avg_ue_distance ?? (0.2 + Math.random() * 1.8)).toFixed(2)}
-                      <span className="text-[10px] font-bold text-muted-foreground ml-0.5">km</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* RF Spatial KPI Cards — only shown at cell level */}
 
               {/* ── Selected Cell Detail (from left panel) ── */}
               {focusCellId && (() => {
@@ -9700,34 +9603,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 );
               })()}
 
-              {/* ── AI Diagnostic Card — dark style ── */}
-              <div className="px-5 py-4">
-                <div className="rounded-2xl px-5 py-5 flex items-center gap-4" style={{ background: 'linear-gradient(135deg, hsl(220 40% 13%), hsl(220 50% 18%))' }}>
-                  <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'hsl(80 60% 45%)', boxShadow: '0 0 24px hsla(80, 60%, 45%, 0.3)' }}>
-                    <Settings2 size={22} className="text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[14px] font-extrabold text-white uppercase tracking-wide">AI Diagnostic</div>
-                    <div className="text-[11px] text-white/50 font-medium mt-0.5">RCA Analysis</div>
-                  </div>
-                  <button
-                    onClick={() => { if (siteDetail && onLaunchAI) onLaunchAI(siteDetail.site_name); }}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-white/90 transition-colors shrink-0"
-                  >
-                    <Zap size={14} />
-                    Lancer
-                  </button>
-                </div>
-              </div>
-
-              {/* ── KPI Evolution ── */}
-              <div className="px-5 py-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <BarChart2 size={14} className="text-primary" />
-                  <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Analyse RF Spatiale</h4>
-                </div>
-                <SiteKpiChart siteDetail={siteDetail} />
-              </div>
+              {/* AI Diagnostic + Analyse RF Spatiale — only shown at cell level */}
 
             </div>
           );
