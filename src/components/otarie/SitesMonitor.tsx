@@ -2426,7 +2426,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                             {(() => {
                               const viewOverlays = isViewActive
                                 ? (kpiOverlays || [])
-                                : (Array.isArray(vs.kpiOverlays) ? vs.kpiOverlays.map((id: string) => ({ id, label: id })) : []);
+                                : (Array.isArray(vs.kpiOverlays) ? vs.kpiOverlays.map((id: string) => ({ id, label: resolveKpiLabel?.(id) || id })) : []);
                               if (!viewOverlays.length) return null;
                               return (
                                 <div className={`border-t ${isViewActive ? 'border-emerald-500/20' : 'border-border/30'}`}>
