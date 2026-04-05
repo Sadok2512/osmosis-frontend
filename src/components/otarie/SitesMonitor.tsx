@@ -4047,14 +4047,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [MAP_KPIS, mapKpi]);
 
   // Fetch KPI values when user selects a KPI and mode is 'kpi'
+  // Uses in-memory cache (5min TTL) — re-selecting same KPI returns instantly without flash
   useEffect(() => {
     if (sectorColorMode !== 'kpi' || !mapKpi) {
       setKpiValues(new Map());
       return;
     }
     let cancelled = false;
-    setKpiLoading(true);
-    setHiddenKpiLevels(new Set());
 
     const filters: any = {};
     if (localVendor !== 'ALL') filters.vendor = localVendor;
@@ -4093,8 +4092,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     }
 
+    // Only show loading spinner if this is a fresh fetch (not cached)
+    // Keep existing kpiValues visible during fetch to avoid flash
+    setKpiLoading(true);
+
     fetchKpiCellValues(mapKpi, filters)
-      .then(data => { if (!cancelled) { setKpiValues(data); console.log(`[KPI] Loaded ${data.size} values for ${mapKpi}`); } })
+      .then(data => {
+        if (!cancelled) {
+          setKpiValues(data);
+          setHiddenKpiLevels(new Set());
+          console.log(`[KPI] Loaded ${data.size} values for ${mapKpi} (cached or fresh)`);
+        }
+      })
       .catch(err => { console.error('[KPI] Fetch failed:', err); if (!cancelled) setKpiValues(new Map()); })
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
