@@ -2895,7 +2895,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [searchLoading, setSearchLoading] = useState(false);
   const isSearchActive = localSearch.trim().length >= 2;
   const [hoveredSiteId, setHoveredSiteId] = useState<string | null>(null);
-  const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const [flyTarget, setFlyTargetRaw] = useState<[number, number] | null>(null);
+  const setFlyTarget = useCallback((coords: [number, number] | null) => {
+    if (!coords) { setFlyTargetRaw(null); return; }
+    if (Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
+      setFlyTargetRaw(coords);
+    } else {
+      console.warn('[SitesMonitor] Ignored invalid flyTarget:', coords);
+    }
+  }, []);
   const [searchCoordMarker, setSearchCoordMarker] = useState<[number, number] | null>(null);
   const [isFlying, setIsFlying] = useState(false);
   const isFlyingRef = useRef(false);
