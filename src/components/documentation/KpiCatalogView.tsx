@@ -84,12 +84,42 @@ const KpiCatalogView: React.FC = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [userRole] = useState<UserRole>('creator'); // Simulated — swap based on auth
 
-  const loadCatalog = useCallback(() => {
+  const loadCatalog = useCallback(async () => {
     setLoading(true);
-    monitorGet<any[]>('catalog/kpis')
-      .then(data => setKpis(data.map(mapToEntry)))
-      .catch(() => toast.error('Failed to load KPI catalog'))
-      .finally(() => setLoading(false));
+    try {
+      const data = await monitorGet<any[]>('catalog/kpis');
+      setKpis(data.map(mapToEntry));
+    } catch {
+      // Fallback: load from Supabase kpi_catalog table
+      console.warn('[KpiCatalog] VPS API failed, falling back to Supabase kpi_catalog');
+      try {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data: dbRows, error } = await supabase
+          .from('kpi_catalog')
+          .select('*')
+          .order('famille', { ascending: true })
+          .order('display_name', { ascending: true });
+        if (error) throw error;
+        const entries = (dbRows || []).map((k: any) => mapToEntry({
+          ...k,
+          id: k.kpi_key,
+          kpi_code: k.kpi_key,
+          category: k.famille,
+          description: k.definition,
+          formula_sql: k.formula_sql,
+          techno: k.techno || 'ALL',
+          vendor: 'ALL',
+          status: 'active',
+        }));
+        setKpis(entries);
+        toast.info(`Loaded ${entries.length} KPIs from database`);
+      } catch (e2) {
+        console.error('[KpiCatalog] Supabase fallback also failed', e2);
+        toast.error('Failed to load KPI catalog');
+      }
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadCatalog(); }, [loadCatalog]);
