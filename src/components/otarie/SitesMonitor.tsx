@@ -2178,7 +2178,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       ) : (
         <div className="space-y-1.5">
-          {dashboards.filter(db => db.id === expandedDashboardId).map(db => {
+          {dashboards.map(db => {
             const isExpanded = expandedDashboardId === db.id;
             const dbSettings = getDashboardSettings(db);
             const dbColor = dbSettings.color || '';
@@ -2218,22 +2218,32 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       <span>{SETTINGS_MAP_STYLES.find(l => l.value === (dbSettings.mapStyle || dbSettings.mapLayer || 'street'))?.label || 'Street'}</span>
                       <span>•</span>
                       <span>{SETTINGS_KPI_OPTIONS.find(k => k.value === (dbSettings.mapKpi || 'qoe_score_avg'))?.label || 'QoE'}</span>
+                      {dbViews.length > 0 && (
+                        <>
+                          <span>•</span>
+                          <span>{dbViews.length} vue{dbViews.length > 1 ? 's' : ''}</span>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setEditingDashboardId(isEditingDb ? null : db.id); }}
-                    className={`p-1.5 rounded-lg transition-colors shrink-0 ${isEditingDb ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                    title="Settings"
-                  >
-                    <Settings2 size={12} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); if (confirm('Archiver ce dashboard ?')) handleDeleteDashboard(db.id); }}
-                    className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
-                    title="Archiver"
-                  >
-                    <Archive size={12} />
-                  </button>
+                  {isExpanded && (
+                    <>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingDashboardId(isEditingDb ? null : db.id); }}
+                        className={`p-1.5 rounded-lg transition-colors shrink-0 ${isEditingDb ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                        title="Settings"
+                      >
+                        <Settings2 size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (confirm('Archiver ce dashboard ?')) handleDeleteDashboard(db.id); }}
+                        className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
+                        title="Archiver"
+                      >
+                        <Archive size={12} />
+                      </button>
+                    </>
+                  )}
                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                     {db.is_shared ? 'Public' : 'Privé'}
                   </span>
@@ -2306,16 +2316,18 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     </div>
                   </div>
                 )}
-                {/* Ajouter une vue — opens dialog */}
-                <div className="px-3 pt-1.5 pb-2">
-                  <button
-                    onClick={() => { setShowCreateView(db.id); setNewViewName(''); setNewViewFilters({}); }}
-                    className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10 text-[10px] font-bold text-primary/80 hover:text-primary transition-all"
-                  >
-                    <Plus size={11} />
-                    Ajouter une vue
-                  </button>
-                </div>
+                {/* Ajouter une vue — only for active dashboard */}
+                {isExpanded && (
+                  <div className="px-3 pt-1.5 pb-2">
+                    <button
+                      onClick={() => { setShowCreateView(db.id); setNewViewName(''); setNewViewFilters({}); }}
+                      className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10 text-[10px] font-bold text-primary/80 hover:text-primary transition-all"
+                    >
+                      <Plus size={11} />
+                      Ajouter une vue
+                    </button>
+                  </div>
+                )}
                 {/* Create View Dialog */}
                 <Dialog open={showCreateView === db.id} onOpenChange={(open) => { if (!open) { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); } }}>
                   <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
