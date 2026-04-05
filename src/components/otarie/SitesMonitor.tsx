@@ -9181,6 +9181,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   })}
                   overlayVersion={overlayVersion}
                   resolveKpiLabel={(id) => MAP_KPIS.find(k => k.id === id)?.label || id}
+                  activeKpiOverlayId={mapKpi}
+                  onActivateKpiOverlay={(kpiId) => { setMapKpi(kpiId); setSectorColorMode('kpi'); }}
                   onRemoveKpiOverlay={(kpiId) => {
                     const next = kpiOverlays.filter(k => k !== kpiId);
                     setKpiOverlays(next);
