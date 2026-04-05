@@ -9123,18 +9123,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   onActiveDashboardIdChange={setActiveDashboardId}
                   activeViewId={activeViewId}
                   onActiveViewIdChange={setActiveViewId}
-                  activeKpiOverlay={sectorColorMode === 'kpi' ? mapKpi : null}
-                  activeKpiOverlayLabel={sectorColorMode === 'kpi' ? selectedKpiLabel : null}
-                  onClearKpiOverlay={() => {
-                    setSectorColorMode('topo');
-                    // Remove kpiOverlay from active view
+                  kpiOverlays={kpiOverlays.map(id => {
+                    const kpiDef = MAP_KPIS.find(k => k.id === id);
+                    return { id, label: kpiDef?.label || id };
+                  })}
+                  onRemoveKpiOverlay={(kpiId) => {
+                    const next = kpiOverlays.filter(k => k !== kpiId);
+                    setKpiOverlays(next);
+                    // If removing the active mapKpi, switch to last remaining or topo
+                    if (mapKpi === kpiId) {
+                      if (next.length > 0) {
+                        setMapKpi(next[next.length - 1]);
+                      } else {
+                        setSectorColorMode('topo');
+                      }
+                    }
+                    // Persist to view
                     if (activeViewId) {
                       mapViewsApi.list().then(views => {
                         const view = views.find((v: any) => v.id === activeViewId);
                         if (view) {
                           const curSettings = typeof view.settings === 'object' ? view.settings : {};
-                          const { kpiOverlay: _, ...rest } = curSettings as any;
-                          mapViewsApi.update(activeViewId, { settings: rest });
+                          mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } });
                         }
                       });
                     }
