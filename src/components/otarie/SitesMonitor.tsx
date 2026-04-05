@@ -4779,8 +4779,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (site.cells?.length) {
       return site.cells.some((cell: any) => isBandEnabled(cell.bande, cell.techno));
     }
-    // Cells not loaded yet → show the site (pass-through) so it doesn't disappear
-    // It will be re-evaluated once cells load in background
+    // While cells are still loading, keep the site visible.
+    if (cellLoadingRef.current.has(site.site_id)) return true;
+    // If loading has already been attempted and no matching cells were found, hide it.
+    if (cellLoadAttemptedRef.current.has(site.site_id)) return false;
+    // Not loaded yet → temporary pass-through until background fetch completes.
     return true;
   }, [isBandEnabled]);
 
@@ -4900,8 +4903,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [currentBboxFilters]);
 
   useEffect(() => {
-    // Load cells when in cells display mode OR when cell-level view conditions are active
-    if (displayMode !== 'cells' && !hasCellLevelConditions) return;
+    // Load cells when needed for rendering/filtering logic
+    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive;
+    if (!needsCellData) return;
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
@@ -5054,7 +5058,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, currentBboxFilters]);
+  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
 
 
   // Show labels: always in KPI mode at zoom >= 9, or when toggled on, or at high zoom
