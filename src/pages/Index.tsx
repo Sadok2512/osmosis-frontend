@@ -181,7 +181,7 @@ const Index: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden relative z-0">
         {/* Keep SitesMonitor always mounted, hide/show via CSS to preserve map state */}
         <div style={{ display: (activeTab === 'sites' || activeTab === 'list') ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-          <SitesMonitor filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />
+          <SitesMonitor isVisible={activeTab === 'sites' || activeTab === 'list'} filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />
         </div>
         {activeTab !== 'sites' && activeTab !== 'list' && renderContent()}
       </div>
