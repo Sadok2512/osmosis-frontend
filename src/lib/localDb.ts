@@ -238,10 +238,22 @@ export interface BboxFilters {
 // ── Module-level cells cache (avoids re-fetching 50k cells on every zoom/pan) ──
 let _cellsCache: { key: string; cells: any[]; ts: number } | null = null;
 const CELLS_CACHE_TTL = 10 * 60 * 1000; // 10 min
+const CHUNK_SIZE = 10000;
 
 function cellsCacheKey(filters?: BboxFilters): string {
   if (!filters) return 'all';
   return Object.entries(filters).filter(([, v]) => v && v !== 'ALL').map(([k, v]) => `${k}=${v}`).sort().join('&') || 'all';
+}
+
+/** Build filter query string for cells endpoint */
+function buildCellsQs(filters?: BboxFilters, limit = CHUNK_SIZE, offset = 0): URLSearchParams {
+  const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
+  if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
+  if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
+  if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
+  if (filters?.q) qs.set('search', filters.q);
+  return qs;
 }
 
 async function getCachedCells(filters?: BboxFilters, signal?: AbortSignal): Promise<any[]> {
@@ -249,18 +261,45 @@ async function getCachedCells(filters?: BboxFilters, signal?: AbortSignal): Prom
   if (_cellsCache && _cellsCache.key === key && (Date.now() - _cellsCache.ts) < CELLS_CACHE_TTL) {
     return _cellsCache.cells;
   }
-  const qs = new URLSearchParams({ limit: '50000' });
-  if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
-  if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
-  if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
-  if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
-  if (filters?.q) qs.set('search', filters.q);
 
-  const data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
-  const cells = Array.isArray(data) ? data : (data?.rows || data?.cells || []);
-  _cellsCache = { key, cells, ts: Date.now() };
-  console.log(`[TopoApi] Cells cached: ${cells.length} cells`);
-  return cells;
+  // Load first chunk quickly
+  const qs1 = buildCellsQs(filters, CHUNK_SIZE, 0);
+  const data1 = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs1}`), signal);
+  const chunk1 = Array.isArray(data1) ? data1 : (data1?.rows || data1?.cells || []);
+  
+  // Cache first chunk immediately so sectors can render while rest loads
+  _cellsCache = { key, cells: chunk1, ts: Date.now() };
+  console.log(`[TopoApi] Cells chunk 1 cached: ${chunk1.length} cells`);
+
+  // If first chunk is full, load remaining chunks in background
+  if (chunk1.length >= CHUNK_SIZE) {
+    (async () => {
+      try {
+        const allCells = [...chunk1];
+        let offset = CHUNK_SIZE;
+        while (true) {
+          const qs = buildCellsQs(filters, CHUNK_SIZE, offset);
+          const data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
+          const chunk = Array.isArray(data) ? data : (data?.rows || data?.cells || []);
+          if (chunk.length === 0) break;
+          allCells.push(...chunk);
+          // Update cache progressively
+          if (_cellsCache?.key === key) {
+            _cellsCache = { key, cells: allCells, ts: Date.now() };
+          }
+          console.log(`[TopoApi] Cells chunk cached: +${chunk.length} → ${allCells.length} total`);
+          if (chunk.length < CHUNK_SIZE) break;
+          offset += CHUNK_SIZE;
+        }
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.warn('[TopoApi] Background cells loading failed', err);
+        }
+      }
+    })();
+  }
+
+  return chunk1;
 }
 
 export const topoApi = {
