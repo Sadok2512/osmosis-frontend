@@ -5385,7 +5385,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return;
     }
 
-    // Always load all cells for clicked site to ensure complete data
+    // ── Immediately fly to site & select it (don't wait for cells) ──
+    setSelectedSiteSnapshot(site);
+    setFlyTarget(site.coordinates);
+    setSelectedSiteId(site.site_id);
+    setFocusMode('site');
+    setFocusCellId(null);
+    // Auto-expand only the first sector by default (from existing cells)
+    const initialSectorNums = Array.from(new Set(site.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
+    setExpandedSectors(new Set(initialSectorNums.length > 0 ? [initialSectorNums[0]] : []));
+    setShowRightPanel(true);
+    // Ensure inventory panel is open
+    setPanelCollapsed(false);
+
+    // ── Then load all cells asynchronously ──
     let siteWithCells = site;
     if (site.site_id) {
       setLoadingCellsForSite(site.site_id);
@@ -5410,6 +5423,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             }
             return [...prev, siteWithCells];
           });
+          // Update snapshot & sectors after cells loaded
+          setSelectedSiteSnapshot(siteWithCells);
+          const sectorNums = Array.from(new Set(cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
+          setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
+          // If cells have better coordinates, fly again
+          const cellsWithCoords = cells.filter((c: any) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude));
+          if (cellsWithCoords.length > 0) {
+            const avgLat = cellsWithCoords.reduce((s: number, c: any) => s + c.latitude, 0) / cellsWithCoords.length;
+            const avgLng = cellsWithCoords.reduce((s: number, c: any) => s + c.longitude, 0) / cellsWithCoords.length;
+            if (Number.isFinite(avgLat) && Number.isFinite(avgLng) && (avgLat !== site.coordinates[0] || avgLng !== site.coordinates[1])) {
+              setFlyTarget([avgLat, avgLng]);
+            }
+          }
         }
       } catch (err) {
         console.warn('[SitesMonitor] Failed to load cells on site click', err);
@@ -5417,18 +5443,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         setLoadingCellsForSite(null);
       }
     }
-
-    setSelectedSiteSnapshot(siteWithCells);
-    setFlyTarget(siteWithCells.coordinates);
-    setSelectedSiteId(siteWithCells.site_id);
-    setFocusMode('site');
-    setFocusCellId(null);
-    // Auto-expand only the first sector by default
-    const sectorNums = Array.from(new Set(siteWithCells.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
-    setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
-    setShowRightPanel(true);
-    // Ensure inventory panel is open
-    setPanelCollapsed(false);
     // When coming from search, auto-tag the site but keep results visible
     if (isSearchActive) {
       if (!isSiteTagged(siteWithCells.site_id)) {
