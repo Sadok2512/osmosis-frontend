@@ -3758,7 +3758,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const settings = widgets.find((w: any) => w?._type === 'dashboard_settings');
     if (settings) {
       if (settings.mapLayer) setMapLayer(settings.mapLayer);
-      if (settings.mapKpi) setMapKpi(settings.mapKpi);
+      if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
       if (settings.mapTechnoFilter) setMapTechnoFilter(settings.mapTechnoFilter);
       if (settings.enabledBands) setEnabledBands(new Set(settings.enabledBands));
       if (settings.sectorColorMode) setSectorColorMode(settings.sectorColorMode);
@@ -5034,7 +5034,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const handleLoadView = useCallback((settings: MapViewSettings) => {
     setMapLayer(settings.mapLayer);
-    setMapKpi(settings.mapKpi);
+    if (MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
     setMapTechnoFilter(settings.mapTechnoFilter as any);
     setEnabledBands(new Set(settings.enabledBands));
     setSectorColorMode(settings.sectorColorMode);
@@ -8704,7 +8704,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     }
 
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
-                    if (settings.mapKpi) setMapKpi(settings.mapKpi);
+                    if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
                     if (settings.center && Array.isArray(settings.center)) {
                       if (settings.center && (settings.center as [number, number])[0] > 41 && (settings.center as [number, number])[0] < 52) setFlyTarget(settings.center as [number, number]);
                     }
