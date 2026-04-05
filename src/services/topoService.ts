@@ -991,21 +991,55 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
       });
 
       if (siteRows.length > 0) {
-        const sites = buildSitesFromRows(siteRows as TopoRow[]);
-        const matchedSite = sites.find(site => {
-          const ids = [site.site_id, site.site_name]
-            .filter(Boolean)
-            .map(v => String(v).trim().toUpperCase());
-          return ids.includes(normalizedSiteId);
+        // Deduplicate by cell_name
+        const seen = new Set<string>();
+        const uniqueRows = siteRows.filter((r: any) => {
+          const key = r.cell_name || r.nom_cellule || '';
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
         });
-        if (matchedSite && matchedSite.cells.length > 0) {
-          siteCellsCache.set(siteId, { cells: matchedSite.cells, ts: Date.now() });
-          console.log(`[TopoService] Site cells (VPS/cells): ${matchedSite.cells.length} cells for ${siteId}`);
-          return matchedSite.cells;
+
+        // Compute synthetic azimuts based on sector index
+        const sectorIndices = new Set<number>();
+        for (const r of uniqueRows) {
+          const cellName = r.cell_name || r.nom_cellule || '';
+          const lastChar = cellName.slice(-1);
+          sectorIndices.add(/^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1);
+        }
+        const sorted = Array.from(sectorIndices).sort((a, b) => a - b);
+        const sectorAzimutMap = new Map<number, number>();
+        sorted.forEach((idx, i) => {
+          sectorAzimutMap.set(idx, Math.round((360 / Math.max(sorted.length, 1)) * i));
+        });
+
+        const cells: CellProperties[] = uniqueRows.map((r: any) => {
+          const cellName = r.cell_name || r.nom_cellule || '';
+          const lastChar = cellName.slice(-1);
+          const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+          const azimut = r.azimut ?? sectorAzimutMap.get(sectorIdx) ?? 0;
+          const technoRaw = r.techno || '4G';
+          const techno = technoRaw.toUpperCase().includes('5G') || technoRaw.toLowerCase() === '5g' || technoRaw.toLowerCase() === 'nr' ? '5G' : '4G';
+          return buildCellProperties(
+            cellName,
+            techno,
+            r.band || r.bande || inferBandFromCellName(cellName, techno),
+            azimut,
+            r.hba || 30,
+            r,
+          );
+        });
+
+        if (cells.length > 0) {
+          siteCellsCache.set(siteId, { cells, ts: Date.now() });
+          console.log(`[TopoService] Site cells (VPS/cells): ${cells.length} cells for ${siteId}`);
+          return cells;
         }
       }
     }
-  } catch {}
+  } catch (e) {
+    console.warn('[TopoService] VPS /topo/cells failed:', e);
+  }
 
   // Supabase RPC fallback
   try {
