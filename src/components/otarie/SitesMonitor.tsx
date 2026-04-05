@@ -488,8 +488,13 @@ const FlyToSite = ({
       return () => { map.off('moveend', handler); };
     }
 
-    // Far away — smooth flyTo with longer duration
-    const flyDuration = dist > 200000 ? 1.8 : dist > 50000 ? 1.4 : 1.0;
+    // Far away — instant jump to avoid Leaflet zooming out through intermediate regions
+    if (dist > 100000) {
+      map.setView(coords, targetZoom, { animate: false });
+      setTimeout(handler, 50);
+      return () => {};
+    }
+    const flyDuration = dist > 50000 ? 1.4 : 1.0;
     map.flyTo(coords, targetZoom, { duration: flyDuration });
     map.once('moveend', handler);
 
