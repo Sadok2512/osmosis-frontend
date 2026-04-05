@@ -3919,7 +3919,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLosSelectedCell(null);
   }, []);
 
-  // ── KPI Catalog: loaded from Supabase kpi_catalog table ──
+  // ── KPI Catalog: loaded from VPS backend, fallback to Supabase ──
   const FAMILLE_TO_CATEGORY: Record<string, string> = {
     RETAINABILITY: 'RETENTION', THROUGHPUT: 'THROUGHPUT', TRAFFIC: 'TRAFFIC',
     ACCESSIBILITY: 'RF', AVAILABILITY: 'RF', CAPACITY: 'TRAFFIC',
@@ -3928,36 +3928,70 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [catalogKpis, setCatalogKpis] = useState<{ id: string; label: string; unit: string; category: string }[]>([]);
   useEffect(() => {
     (async () => {
+      let kpis: { id: string; label: string; unit: string; category: string }[] = [];
+      let thresholdData: any[] = [];
+
+      // 1) Try VPS backend first
       try {
-        const { data, error } = await supabase
-          .from('kpi_catalog')
-          .select('kpi_key, display_name, unit, famille, threshold_warning, threshold_critical, is_map_supported')
-          .eq('is_map_supported', true)
-          .order('famille', { ascending: true })
-          .order('display_name', { ascending: true });
-        if (error) throw error;
-        const kpis = (data || []).map((k: any) => ({
-          id: k.kpi_key,
-          label: k.display_name,
-          unit: k.unit || '',
-          category: FAMILLE_TO_CATEGORY[k.famille] || k.famille || 'OTHER',
-        }));
+        const url = getVpsProxyUrl('kpi', '/api/monitor/catalog/kpis');
+        const headers = getVpsProxyHeaders();
+        const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error(`VPS ${res.status}`);
+        const json = await res.json();
+        const items = Array.isArray(json) ? json : json.data || json.kpis || [];
+        if (items.length > 0) {
+          kpis = items.map((k: any) => ({
+            id: k.kpi_key || k.id || k.key,
+            label: k.display_name || k.label || k.name || k.kpi_key,
+            unit: k.unit || '',
+            category: FAMILLE_TO_CATEGORY[k.famille || k.family || k.category] || k.category || k.famille || 'OTHER',
+          }));
+          thresholdData = items;
+          console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from VPS backend`);
+        }
+      } catch (e) {
+        console.warn('[SitesMonitor] VPS catalog fetch failed, falling back to Supabase', e);
+      }
+
+      // 2) Fallback to Supabase kpi_catalog
+      if (kpis.length === 0) {
+        try {
+          const { data, error } = await supabase
+            .from('kpi_catalog')
+            .select('kpi_key, display_name, unit, famille, threshold_warning, threshold_critical, is_map_supported')
+            .order('famille', { ascending: true })
+            .order('display_name', { ascending: true });
+          if (error) throw error;
+          kpis = (data || []).map((k: any) => ({
+            id: k.kpi_key,
+            label: k.display_name,
+            unit: k.unit || '',
+            category: FAMILLE_TO_CATEGORY[k.famille] || k.famille || 'OTHER',
+          }));
+          thresholdData = data || [];
+          console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from Supabase fallback`);
+        } catch (e2) {
+          console.warn('[SitesMonitor] Supabase kpi_catalog fetch also failed', e2);
+        }
+      }
+
+      if (kpis.length > 0) {
         setCatalogKpis(kpis);
         setMapKpi(prev => prev || kpis[0]?.id || '');
-        console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from kpi_catalog`);
-        // Auto-apply thresholds from catalog (don't overwrite user-customized ones)
+        // Auto-apply thresholds from catalog
         const saved = localStorage.getItem('qoebit_kpi_thresholds');
         if (!saved) {
           const thr: Record<string, { green: number; orange: number; invert?: boolean }> = {};
-          for (const k of data || []) {
-            if (k.threshold_warning != null && k.threshold_critical != null) {
-              thr[k.kpi_key] = { green: k.threshold_warning, orange: k.threshold_critical, invert: false };
+          for (const k of thresholdData) {
+            const w = k.threshold_warning ?? k.thresholds?.warning;
+            const c = k.threshold_critical ?? k.thresholds?.critical;
+            const key = k.kpi_key || k.id || k.key;
+            if (w != null && c != null && key) {
+              thr[key] = { green: w, orange: c, invert: false };
             }
           }
           if (Object.keys(thr).length > 0) setKpiThresholds(prev => ({ ...prev, ...thr }));
         }
-      } catch (e) {
-        console.warn('[SitesMonitor] kpi_catalog fetch failed', e);
       }
     })();
   }, []);
