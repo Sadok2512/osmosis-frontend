@@ -54,7 +54,7 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
   };
 
   const addParamCondition = () => {
-    setParamConditions(prev => [...prev, { id: `p-${Date.now()}`, parameter: PARAMETER_OPTIONS[0], operator: '>', value: '' }]);
+    setParamConditions(prev => [...prev, { id: `p-${Date.now()}`, parameter: paramOptions[0] || 'KPI', operator: '>', value: '' }]);
   };
 
   const updateParam = (id: string, field: keyof ParameterCondition, value: string) => {
