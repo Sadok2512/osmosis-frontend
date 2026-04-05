@@ -6036,7 +6036,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           });
 
           // Pass 4: labels
-          const labels = circleSites.filter(() => (showSiteLabels || viewport.zoom >= 12) && viewport.zoom >= 10).map(site => (
+          const labels = circleSites.filter(() => (showSiteLabels || (sectorColorMode === 'kpi' && viewport.zoom >= 9) || viewport.zoom >= 12) && viewport.zoom >= 8).map(site => (
             <Marker key={`lbl_${site.site_id}`} position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
               <Tooltip direction="bottom" offset={[0, 6]} permanent className="site-name-label-clean">
                 <span style={{ fontSize: '7px', fontWeight: 700, color: '#1a1a1a', textShadow: '0 0 3px #fff, 0 0 6px #fff, 0 0 9px #fff' }}>{buildSiteLabel(site, mapLabelFields)}</span>
