@@ -4300,6 +4300,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const cellLoadingRef = useRef(new Set<string>());
   const cellLoadAttemptedRef = useRef(new Set<string>());
   const cellLoadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [cellsLoadingCount, setCellsLoadingCount] = useState(0);
 
   // Cleanup
   useEffect(() => {
@@ -4661,6 +4662,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     cellLoadDebounceRef.current = setTimeout(async () => {
       // Mark all as loading
       sitesNeedingCells.forEach(s => cellLoadingRef.current.add(s.site_id));
+      setCellsLoadingCount(cellLoadingRef.current.size);
 
       try {
         const bounds = viewport.bounds!;
@@ -4770,6 +4772,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           cellLoadingRef.current.delete(s.site_id);
           cellLoadAttemptedRef.current.add(s.site_id);
         });
+        setCellsLoadingCount(cellLoadingRef.current.size);
 
         // Merge cells into sites — keep original cell_count (don't overwrite with 4G/5G-only count)
         setSites(prev => prev.map(s => {
@@ -4782,6 +4785,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           cellLoadingRef.current.delete(s.site_id);
           cellLoadAttemptedRef.current.add(s.site_id);
         });
+        setCellsLoadingCount(cellLoadingRef.current.size);
         // Force re-render so filters re-evaluate with attempted flags
         setSites(prev => [...prev]);
       }
@@ -8158,7 +8162,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 <span className="uppercase font-semibold">{site.vendor}</span>
                                 {site.dor && <><span>•</span><span>{site.dor}</span></>}
                                 <span>•</span>
-                                <span>{site.cell_count} cells</span>
+                                <span className="flex items-center gap-1">
+                                  {site.cells.length === 0 && cellsLoadingCount > 0 ? (
+                                    <>
+                                      <RefreshCw size={8} className="animate-spin text-primary" />
+                                      <span className="text-primary animate-pulse">cells…</span>
+                                    </>
+                                  ) : (
+                                    <>{site.cell_count} cells</>
+                                  )}
+                                </span>
                               </div>
                             </div>
                             <Star size={14} className={alreadyTagged ? 'text-yellow-400' : 'text-muted-foreground/30'} fill={alreadyTagged ? 'currentColor' : 'none'} />
@@ -8772,7 +8785,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <span className="text-[9px] font-black text-muted-foreground uppercase">{site.vendor}</span>
                   </div>
                   <div className="pt-6 border-t border-border flex items-center justify-between">
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tight">{site.cells?.length > 0 || site.cell_count > 0 ? `${site.cell_count} CELLS` : '—'}</span>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tight flex items-center gap-1">
+                      {site.cells?.length === 0 && cellsLoadingCount > 0
+                        ? <><RefreshCw size={10} className="animate-spin text-primary" /><span className="text-primary animate-pulse">cells…</span></>
+                        : site.cells?.length > 0 || site.cell_count > 0 ? `${site.cell_count} CELLS` : '—'}
+                    </span>
                     <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all"><ArrowRight size={16} /></div>
                   </div>
                 </div>
