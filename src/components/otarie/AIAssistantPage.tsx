@@ -1311,7 +1311,11 @@ const MarkdownBlock: React.FC<{ content: string }> = React.memo(({ content }) =>
       },
       table: ({ children }) => <KpiColorTable>{children}</KpiColorTable>,
       thead: ({ children }) => <thead className="bg-muted/80 sticky top-0 z-10">{children}</thead>,
-      th: ({ children }) => <th className="px-3 py-2.5 text-[11px] font-bold text-foreground text-left border-b-2 border-border tracking-wide">{children}</th>,
+      th: ({ children }) => {
+        const text = String(children ?? '');
+        const isStatus = /statut|status|état/i.test(text);
+        return <th className={`px-3 py-2.5 text-[11px] font-bold text-foreground border-b-2 border-border tracking-wide ${isStatus ? 'text-center w-20' : 'text-left'}`}>{children}</th>;
+      },
       td: ({ children, style }) => <KpiTd style={style}>{children}</KpiTd>,
       tr: ({ children }) => <tr className="hover:bg-muted/30 transition-colors even:bg-muted/10">{children}</tr>,
       blockquote: ({ children }) => (
