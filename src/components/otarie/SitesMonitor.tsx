@@ -3995,15 +3995,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (localDor !== 'ALL') filters.dor = localDor;
     if (localPlaque !== 'ALL') filters.plaque = localPlaque;
 
-    // Also extract attribute-type conditions from Vue filters
+    // Extract simple backend-compatible filters from structured view conditions
     if (activeViewConditions?.length) {
+      const attrMap: Record<string, string> = {
+        vendor: 'vendor',
+        constructeur: 'vendor',
+        techno: 'techno',
+        band: 'band',
+        bande: 'band',
+        dor: 'dor',
+        plaque: 'plaque',
+      };
+
       for (const cond of activeViewConditions) {
-        if (cond.mode === 'attribute' && cond.attribute && cond.value) {
-          const attrMap: Record<string, string> = { vendor: 'vendor', techno: 'techno', band: 'band', dor: 'dor', plaque: 'plaque' };
-          const paramKey = attrMap[cond.attribute.toLowerCase()];
-          if (paramKey && !filters[paramKey]) {
-            filters[paramKey] = cond.value;
-          }
+        if (!cond.dimension || !cond.values?.length) continue;
+
+        const paramKey = attrMap[cond.dimension.toLowerCase()];
+        const firstValue = cond.values[0];
+        const isInclusive = cond.operator === 'IN' || cond.operator === '=';
+
+        if (paramKey && isInclusive && firstValue && !filters[paramKey]) {
+          filters[paramKey] = firstValue;
         }
       }
     }
