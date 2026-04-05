@@ -15,6 +15,8 @@ const STEPS = ['General Info', 'Topology', 'Parameters', 'Logic', 'Review'];
 
 const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClose, initialData, editMode }) => {
   const [step, setStep] = useState(0);
+  const [paramOptions, setParamOptions] = useState<string[]>(PARAMETER_OPTIONS);
+  useEffect(() => { fetchParameterOptions().then(setParamOptions); }, []);
 
   // Step 1
   const [name, setName] = useState(initialData?.name || '');
