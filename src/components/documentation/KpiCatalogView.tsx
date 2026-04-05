@@ -353,128 +353,98 @@ const KpiCatalogView: React.FC = () => {
         </div>
       </div>
 
-      {/* ── BODY: Split Panel ── */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* LEFT: KPI List */}
-        <div className={`${selectedKpi ? 'w-1/2 xl:w-3/5' : 'w-full'} flex flex-col overflow-hidden transition-all duration-300`}>
-          {/* Column Header */}
-          <div className="shrink-0 grid grid-cols-[1fr_100px_80px_80px_80px] gap-3 px-6 py-3 border-b border-border bg-muted/30">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">KPI</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Category</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tech</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Vendor</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</span>
+      {/* ── BODY: Accordion List ── */}
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center h-32">
+            <RefreshCw className="w-5 h-5 text-muted-foreground animate-spin" />
+            <span className="ml-2 text-sm text-muted-foreground">Loading catalog…</span>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+            <Database className="w-8 h-8 mb-2 opacity-40" />
+            <p className="text-sm">No KPIs match your filters</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border/50">
+            {filtered.slice(0, 300).map(kpi => {
+              const isOpen = selectedKpi?.kpi_key === kpi.kpi_key;
+              const statusCfg = STATUS_CONFIG[kpi.status] || STATUS_CONFIG.active;
+              const vendorCfg = VENDOR_COLORS[kpi.vendor] || { bg: 'bg-muted', text: 'text-muted-foreground' };
+              const techCfg = TECH_COLORS[kpi.technology] || TECH_COLORS.ALL;
+              const catColor = CATEGORY_COLORS[kpi.category] || CATEGORY_COLORS.Other;
 
-          {/* List */}
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center h-32">
-                <RefreshCw className="w-5 h-5 text-muted-foreground animate-spin" />
-                <span className="ml-2 text-sm text-muted-foreground">Loading catalog…</span>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-                <Database className="w-8 h-8 mb-2 opacity-40" />
-                <p className="text-sm">No KPIs match your filters</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border/50">
-                {filtered.slice(0, 300).map(kpi => {
-                  const isSelected = selectedKpi?.kpi_key === kpi.kpi_key;
-                  const statusCfg = STATUS_CONFIG[kpi.status] || STATUS_CONFIG.active;
-                  const vendorCfg = VENDOR_COLORS[kpi.vendor] || { bg: 'bg-muted', text: 'text-muted-foreground' };
-                  const techCfg = TECH_COLORS[kpi.technology] || TECH_COLORS.ALL;
-                  const catColor = CATEGORY_COLORS[kpi.category] || CATEGORY_COLORS.Other;
+              return (
+                <div key={kpi.kpi_key || kpi.id}>
+                  {/* Accordion Header */}
+                  <button
+                    onClick={() => setSelectedKpi(isOpen ? null : kpi)}
+                    className={`w-full flex items-center gap-4 px-6 py-3.5 text-left transition-all hover:bg-muted/40 group ${
+                      isOpen ? 'bg-primary/5 border-l-2 border-primary' : 'border-l-2 border-transparent'
+                    }`}
+                  >
+                    <ChevronRight className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
+                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: catColor }} />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-foreground truncate">{kpi.display_name}</h3>
+                      <p className="text-[10px] font-mono text-muted-foreground mt-0.5 truncate">{kpi.kpi_code}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline" style={{ color: catColor }}>
+                        {kpi.category}
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${techCfg.bg} ${techCfg.text}`}>
+                        {kpi.technology}
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${vendorCfg.bg} ${vendorCfg.text}`}>
+                        {kpi.vendor}
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
+                        {statusCfg.label}
+                      </span>
+                    </div>
+                  </button>
 
-                  return (
-                    <button
-                      key={kpi.kpi_key || kpi.id}
-                      onClick={() => setSelectedKpi(isSelected ? null : kpi)}
-                      className={`w-full grid grid-cols-[1fr_100px_80px_80px_80px] gap-3 px-6 py-3.5 text-left transition-all hover:bg-muted/40 group ${
-                        isSelected ? 'bg-primary/5 border-l-2 border-primary' : 'border-l-2 border-transparent'
-                      }`}
-                    >
-                      {/* KPI Name + Code */}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: catColor }} />
-                          <h3 className="text-sm font-semibold text-foreground truncate">{kpi.display_name}</h3>
-                        </div>
-                        <p className="text-[10px] font-mono text-muted-foreground mt-0.5 truncate">{kpi.kpi_code}</p>
-                        {kpi.unit && <span className="text-[9px] text-muted-foreground">{kpi.unit}</span>}
-                      </div>
-
-                      {/* Category */}
-                      <div className="flex items-center">
-                        <span className="text-[10px] font-bold uppercase tracking-wider truncate" style={{ color: catColor }}>
-                          {kpi.category}
-                        </span>
-                      </div>
-
-                      {/* Tech */}
-                      <div className="flex items-center">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${techCfg.bg} ${techCfg.text}`}>
-                          {kpi.technology}
-                        </span>
-                      </div>
-
-                      {/* Vendor */}
-                      <div className="flex items-center">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${vendorCfg.bg} ${vendorCfg.text}`}>
-                          {kpi.vendor}
-                        </span>
-                      </div>
-
-                      {/* Status */}
-                      <div className="flex items-center">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
-                          {statusCfg.label}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-                {filtered.length > 300 && (
-                  <div className="py-3 text-center text-[10px] text-muted-foreground">
-                    Showing 300 of {filtered.length} — use search to narrow results
-                  </div>
-                )}
+                  {/* Accordion Content — inline detail */}
+                  {isOpen && (
+                    <div className="bg-muted/20 border-l-2 border-primary px-6 py-4 animate-in slide-in-from-top-2 duration-200">
+                      <KpiDetailPanel
+                        kpi={kpi}
+                        onClose={() => setSelectedKpi(null)}
+                        onEdit={() => setEditingKpi(kpi)}
+                        onDelete={() => handleDelete(kpi)}
+                        userRole={userRole}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {filtered.length > 300 && (
+              <div className="py-3 text-center text-[10px] text-muted-foreground">
+                Showing 300 of {filtered.length} — use search to narrow results
               </div>
             )}
           </div>
+        )}
 
-          {/* Footer stats */}
-          <div className="shrink-0 px-6 py-2 border-t border-border bg-muted/20 flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground">
-              {filtered.length} / {kpis.length} KPIs
-            </span>
-            <div className="flex items-center gap-3">
-              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
-                const count = filtered.filter(k => k.status === key).length;
-                if (!count) return null;
-                return (
-                  <span key={key} className={`text-[9px] font-bold ${cfg.color}`}>
-                    {count} {cfg.label}
-                  </span>
-                );
-              })}
-            </div>
+        {/* Footer stats */}
+        <div className="shrink-0 px-6 py-2 border-t border-border bg-muted/20 flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">
+            {filtered.length} / {kpis.length} KPIs
+          </span>
+          <div className="flex items-center gap-3">
+            {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+              const count = filtered.filter(k => k.status === key).length;
+              if (!count) return null;
+              return (
+                <span key={key} className={`text-[9px] font-bold ${cfg.color}`}>
+                  {count} {cfg.label}
+                </span>
+              );
+            })}
           </div>
         </div>
-
-        {/* RIGHT: Floating Detail Panel */}
-        {selectedKpi && (
-          <div className="fixed top-0 right-0 z-40 h-screen w-[460px] p-3 pl-0 animate-in slide-in-from-right-4 duration-200">
-            <KpiDetailPanel
-              kpi={selectedKpi}
-              onClose={() => setSelectedKpi(null)}
-              onEdit={() => setEditingKpi(selectedKpi)}
-              onDelete={() => handleDelete(selectedKpi)}
-              userRole={userRole}
-            />
-          </div>
-        )}
       </div>
 
       {/* Create Wizard */}
