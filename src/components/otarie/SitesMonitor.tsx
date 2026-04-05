@@ -2981,7 +2981,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localBande, setLocalBande] = useState('ALL');
   const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
-  const [mapKpi, setMapKpi] = useState('');
+  const [mapKpi, setMapKpi] = useState('cssr');
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
@@ -3919,53 +3919,55 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLosSelectedCell(null);
   }, []);
 
-  // ── KPI Catalog: loaded from VPS backend only ──
-  const FAMILLE_TO_CATEGORY: Record<string, string> = {
-    RETAINABILITY: 'RETENTION', THROUGHPUT: 'THROUGHPUT', TRAFFIC: 'TRAFFIC',
-    ACCESSIBILITY: 'RF', AVAILABILITY: 'RF', CAPACITY: 'TRAFFIC',
-    INTERFERENCE: 'QUALITY', Corporate: 'OTHER', MOBILITY: 'MOBILITY',
-  };
+  // ── KPI Catalog: loaded from backend /api/v1/kpi/catalog ──
   const [catalogKpis, setCatalogKpis] = useState<{ id: string; label: string; unit: string; category: string }[]>([]);
   useEffect(() => {
     (async () => {
       try {
-        const url = getVpsProxyUrl('kpi', '/api/monitor/catalog/kpis');
-        const headers = getVpsProxyHeaders();
-        const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
-        if (!res.ok) throw new Error(`VPS ${res.status}`);
-        const json = await res.json();
-        const items = Array.isArray(json) ? json : json.data || json.kpis || [];
-        const kpis = items.map((k: any) => ({
-          id: k.kpi_key || k.id || k.key,
-          label: k.display_name || k.label || k.name || k.kpi_key,
+        const url = getVpsProxyUrl('parser', '/api/v1/kpi/catalog');
+        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+        if (!resp.ok) throw new Error(`catalog fetch failed: ${resp.status}`);
+        const json = await resp.json();
+        const kpis = (json.kpis || []).map((k: any) => ({
+          id: k.kpi_id,
+          label: k.label,
           unit: k.unit || '',
-          category: FAMILLE_TO_CATEGORY[k.famille || k.family || k.category] || k.category || k.famille || 'OTHER',
+          category: k.category || 'OTHER',
         }));
-        if (kpis.length > 0) {
-          setCatalogKpis(kpis);
-          setMapKpi(prev => prev || kpis[0]?.id || '');
-          console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from VPS backend`);
-          // Auto-apply thresholds
-          const saved = localStorage.getItem('qoebit_kpi_thresholds');
-          if (!saved) {
-            const thr: Record<string, { green: number; orange: number; invert?: boolean }> = {};
-            for (const k of items) {
-              const w = k.threshold_warning ?? k.thresholds?.warning;
-              const c = k.threshold_critical ?? k.thresholds?.critical;
-              const key = k.kpi_key || k.id || k.key;
-              if (w != null && c != null && key) {
-                thr[key] = { green: w, orange: c, invert: false };
-              }
+        setCatalogKpis(kpis);
+        console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from backend catalog`);
+        // Auto-apply thresholds from catalog
+        const saved = localStorage.getItem('qoebit_kpi_thresholds');
+        if (!saved) {
+          const thr: Record<string, { green: number; orange: number; invert?: boolean }> = {};
+          for (const k of json.kpis || []) {
+            if (k.threshold_green != null && k.threshold_orange != null) {
+              thr[k.kpi_id] = { green: k.threshold_green, orange: k.threshold_orange, invert: k.invert || false };
             }
-            if (Object.keys(thr).length > 0) setKpiThresholds(prev => ({ ...prev, ...thr }));
           }
+          if (Object.keys(thr).length > 0) setKpiThresholds(prev => ({ ...prev, ...thr }));
         }
       } catch (e) {
-        console.warn('[SitesMonitor] VPS catalog fetch failed', e);
+        console.warn('[SitesMonitor] KPI catalog fetch failed, using fallback', e);
+        setCatalogKpis([
+          { id: 'cssr', label: 'CSSR', unit: '%', category: 'RF' },
+          { id: 'drop_rate', label: 'Drop Rate', unit: '%', category: 'RF' },
+          { id: 'prb_dl', label: 'PRB Usage DL', unit: '%', category: 'RF' },
+          { id: 'thp_dl', label: 'Throughput DL', unit: 'Mbps', category: 'THROUGHPUT' },
+          { id: 'thp_ul', label: 'Throughput UL', unit: 'Mbps', category: 'THROUGHPUT' },
+          { id: 'overshoot', label: 'Overshooting', unit: '%', category: 'SPATIAL' },
+          { id: 'isd', label: 'Inter-site Distance', unit: 'km', category: 'SPATIAL' },
+          { id: 'cell_range', label: 'Cell Range', unit: 'km', category: 'SPATIAL' },
+        ]);
       }
     })();
   }, []);
-  const MAP_KPIS = catalogKpis;
+  const MAP_KPIS = catalogKpis.length > 0 ? catalogKpis : [
+    { id: 'cssr', label: 'CSSR', unit: '%', category: 'RF' },
+    { id: 'drop_rate', label: 'Drop Rate', unit: '%', category: 'RF' },
+    { id: 'prb_dl', label: 'PRB Usage DL', unit: '%', category: 'RF' },
+    { id: 'overshoot', label: 'Overshooting', unit: '%', category: 'SPATIAL' },
+  ];
 
   useEffect(() => {
     if (!MAP_KPIS.length) return;
