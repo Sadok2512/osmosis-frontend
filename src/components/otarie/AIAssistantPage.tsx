@@ -1091,70 +1091,74 @@ function stripSiteLevelDesignSections(text: string): string {
  * Matches patterns like: 🧭Cohérence azimuts secteursWARN3 secteursAzimuts: ...
  */
 function convertDesignAnalysisToTable(text: string): string {
-  // Pattern: emoji + Check name + (OK|WARN|INFO|CRITICAL) + details on a single line
-  const designLineRe = /^([🏗️🧭📐📶🗼⚙️🔍📡🛰️📊🔧⚠️🔴✅ℹ️]{1,4})\s*(.+?)\s*(WARN|OK|CRITICAL|CRIT|INFO|KO)\s*(.*)$/;
-  
+  // Use unicode property escapes for emoji detection
+  const emojiPrefix = /^(\p{Emoji_Presentation}[\uFE0F\u200D\p{Emoji_Presentation}]*)\s*/u;
+  const statusKeywords = /\b(WARN|OK|CRITICAL|CRIT|INFO|KO)\b/;
+
   const lines = text.split('\n');
   const result: string[] = [];
   let analysisLines: { icon: string; check: string; status: string; details: string }[] = [];
   let siteSummaryLine: string | null = null;
 
   const flushAnalysis = () => {
-    if (analysisLines.length === 0) return;
-    
-    // Build markdown table
+    if (analysisLines.length === 0) {
+      if (siteSummaryLine) {
+        result.push('', siteSummaryLine, '');
+        siteSummaryLine = null;
+      }
+      return;
+    }
+
     if (siteSummaryLine) {
-      result.push('');
-      result.push(siteSummaryLine);
-      result.push('');
+      result.push('', siteSummaryLine, '');
       siteSummaryLine = null;
     }
-    
+
     result.push('| Vérification | Statut | Détails |');
     result.push('|:---|:---:|:---|');
-    for (const line of analysisLines) {
-      const details = line.details
+    for (const al of analysisLines) {
+      const details = al.details
         .replace(/(\d+)\s*(anomalies?|inversions?|secteurs?)/gi, '**$1** $2')
         .replace(/\|/g, '\\|');
-      result.push(`| ${line.icon} ${line.check} | ${line.status} | ${details} |`);
+      result.push(`| ${al.icon} ${al.check} | ${al.status} | ${details} |`);
     }
     result.push('');
     analysisLines = [];
   };
 
   for (const line of lines) {
-    const m = line.match(designLineRe);
-    if (m) {
-      // Check if this is the summary line (e.g. 🏗️SITE_NAME18 cells · 6 bands...)
-      if (m[1].includes('🏗') && /\d+\s*cells/i.test(m[2])) {
-        // Parse: "SITE_NAME18 cells · 6 bands · 3 sectors"
-        const summaryMatch = m[2].match(/^(.+?)(\d+\s*cells.*)$/i);
-        if (summaryMatch) {
-          siteSummaryLine = `**${summaryMatch[1].trim()}** — ${summaryMatch[2].trim()} — **${m[3]}**`;
-        } else {
-          siteSummaryLine = `**${m[2].trim()}** — **${m[3]}**`;
-        }
-        if (m[4]) siteSummaryLine += ` ${m[4]}`;
-        continue;
-      }
-      
-      // Clean up check name: split camelCase-style joined text
-      let checkName = m[2].trim();
-      // Remove trailing count that got merged (e.g. "secteursWARN" already handled by regex)
-      
-      analysisLines.push({
-        icon: m[1],
-        check: checkName,
-        status: m[3],
-        details: m[4].trim(),
-      });
-    } else {
-      flushAnalysis();
-      result.push(line);
+    const trimmed = line.trim();
+    if (!trimmed) { flushAnalysis(); result.push(line); continue; }
+
+    // Check if line starts with an emoji
+    const emojiMatch = trimmed.match(emojiPrefix);
+    if (!emojiMatch) { flushAnalysis(); result.push(line); continue; }
+
+    const icon = emojiMatch[1];
+    const rest = trimmed.slice(emojiMatch[0].length);
+
+    // Must contain a status keyword
+    const statusMatch = rest.match(statusKeywords);
+    if (!statusMatch) { flushAnalysis(); result.push(line); continue; }
+
+    const statusIdx = statusMatch.index!;
+    const status = statusMatch[1];
+    const checkName = rest.slice(0, statusIdx).trim();
+    const details = rest.slice(statusIdx + status.length).trim();
+
+    // Summary line: 🏗️SITE_NAME 18 cells · 6 bands...
+    if (/[\u{1F3D7}]/u.test(icon) && /\d+\s*cells/i.test(rest)) {
+      const summaryParts = rest.match(/^(.+?)(\d+\s*cells.*)$/i);
+      const sName = summaryParts ? summaryParts[1].trim() : checkName;
+      const sCells = summaryParts ? summaryParts[2].replace(statusKeywords, '').trim() : '';
+      siteSummaryLine = `**${sName}** — ${sCells} — **${status}**`;
+      continue;
     }
+
+    analysisLines.push({ icon, check: checkName, status, details });
   }
   flushAnalysis();
-  
+
   return result.join('\n');
 }
 
