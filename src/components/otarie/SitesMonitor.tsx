@@ -4900,8 +4900,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [currentBboxFilters]);
 
   useEffect(() => {
-    // Load cells when in cells display mode OR when cell-level view conditions are active
-    if (displayMode !== 'cells' && !hasCellLevelConditions) return;
+    // Load cells when needed for rendering/filtering logic
+    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive;
+    if (!needsCellData) return;
     if (!viewport.bounds) return;
 
     const sitesNeedingCells = visibleSites.filter(
@@ -5054,7 +5055,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, currentBboxFilters]);
+  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
 
 
   // Show labels: always in KPI mode at zoom >= 9, or when toggled on, or at high zoom
