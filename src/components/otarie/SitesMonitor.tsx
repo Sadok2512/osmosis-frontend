@@ -7391,7 +7391,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               </div>
               <div className="max-h-[420px] overflow-y-auto py-1">
-                {['RF', 'SPATIAL', 'THROUGHPUT', 'VOICE', 'QUALITY', 'RTT', 'VOLUME'].filter(cat => MAP_KPIS.some(k => k.category === cat)).map(cat => {
+                {[...new Set(MAP_KPIS.map(k => k.category))].filter(cat => MAP_KPIS.some(k => k.category === cat)).map(cat => {
                   const filtered = MAP_KPIS.filter(k => k.category === cat && (!kpiSearch || k.label.toLowerCase().includes(kpiSearch.toLowerCase())));
                   if (filtered.length === 0) return null;
                   return (
