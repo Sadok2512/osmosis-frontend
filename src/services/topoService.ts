@@ -971,58 +971,46 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
     return cached.cells;
   }
 
+  // ── 1) Try lightweight VPS /topo/cells?search=SITE_ID ──
   try {
-    // Try VPS first
-    const bboxFilters: BboxFilters = {};
-    // Use /sites-with-cells for complete cell data
-    const vpsResp = await topoApi.listSitesWithCells(
-      { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 },
-      { ...bboxFilters, q: siteId },
-      1000,
-    ).then(r => {
-      // Convert to cells format expected by downstream code
-      const allCells: any[] = [];
-      for (const s of (r.sites || [])) {
-        const canonicalSiteId = String(s.code_nidt || s.site_id || s.site_name || '').trim();
-        const displaySiteName = String(s.nom_site || s.site_name || canonicalSiteId).trim();
-        for (const c of (s.cells || [])) {
-          allCells.push({
-            ...c,
-            code_nidt: c.code_nidt || canonicalSiteId,
-            nom_site: displaySiteName,
-            site_name: displaySiteName,
-            site_id: canonicalSiteId,
-            nom_cellule: c.nom_cellule,
-            latitude: s.latitude,
-            longitude: s.longitude,
-          });
-        }
-      }
-      return { cells: allCells, total: allCells.length };
-    }).catch(() => null);
+    const qs = new URLSearchParams({ search: siteId, limit: '500' });
+    const url = (() => {
+      const cleanPath = `/topo/cells?${qs}`;
+      // Reuse the same proxy helper used elsewhere
+      const { getVpsProxyUrl, getVpsProxyHeaders } = require('@/lib/apiConfig');
+      return getVpsProxyUrl('parser', `/api/v1${cleanPath}`);
+    })();
 
-    if (vpsResp && vpsResp.cells && vpsResp.cells.length > 0) {
+    const resp = await fetch(url, { headers: (() => {
+      const { getVpsProxyHeaders } = require('@/lib/apiConfig');
+      return getVpsProxyHeaders();
+    })() });
+    if (resp.ok) {
+      const data = await resp.json();
+      const rows: any[] = Array.isArray(data) ? data : (data?.rows || data?.cells || []);
       const normalizedSiteId = siteId.trim().toUpperCase();
-      const matchingRows = vpsResp.cells.filter((cell: any) => {
-        const identities = [cell.code_nidt, cell.site_id, cell.site_name, cell.nom_site]
+
+      // Filter rows belonging to this site
+      const siteRows = rows.filter((r: any) => {
+        const ids = [r.code_nidt, r.site_id, r.site_name, r.nom_site]
           .filter(Boolean)
-          .map((value: unknown) => String(value).trim().toUpperCase());
-        return identities.includes(normalizedSiteId);
+          .map((v: unknown) => String(v).trim().toUpperCase());
+        return ids.includes(normalizedSiteId);
       });
 
-      const sourceRows = matchingRows.length > 0 ? matchingRows : vpsResp.cells;
-      const sites = buildSitesFromRows(sourceRows as TopoRow[]);
-      const matchedSite = sites.find(site => {
-        const identities = [site.site_id, site.site_name]
-          .filter(Boolean)
-          .map(value => String(value).trim().toUpperCase());
-        return identities.includes(normalizedSiteId);
-      });
-
-      if (matchedSite && matchedSite.cells.length > 0) {
-        siteCellsCache.set(siteId, { cells: matchedSite.cells, ts: Date.now() });
-        console.log(`[TopoService] Site cells (VPS): ${matchedSite.cells.length} cells for ${siteId}`);
-        return matchedSite.cells;
+      if (siteRows.length > 0) {
+        const sites = buildSitesFromRows(siteRows as TopoRow[]);
+        const matchedSite = sites.find(site => {
+          const ids = [site.site_id, site.site_name]
+            .filter(Boolean)
+            .map(v => String(v).trim().toUpperCase());
+          return ids.includes(normalizedSiteId);
+        });
+        if (matchedSite && matchedSite.cells.length > 0) {
+          siteCellsCache.set(siteId, { cells: matchedSite.cells, ts: Date.now() });
+          console.log(`[TopoService] Site cells (VPS/cells): ${matchedSite.cells.length} cells for ${siteId}`);
+          return matchedSite.cells;
+        }
       }
     }
   } catch {}
