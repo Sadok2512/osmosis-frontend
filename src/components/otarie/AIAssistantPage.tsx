@@ -1151,7 +1151,7 @@ function convertDesignAnalysisToTable(text: string): string {
     if (/[\u{1F3D7}]/u.test(icon) && /\d+\s*cells/i.test(rest)) {
       const summaryParts = rest.match(/^(.+?)(\d+\s*cells.*)$/i);
       const sName = summaryParts ? summaryParts[1].trim() : checkName;
-      const sCells = summaryParts ? summaryParts[2].replace(statusKeywords, '').trim() : '';
+      const sCells = summaryParts ? summaryParts[2].replace(statusRe, '').trim() : '';
       siteSummaryLine = `**${sName}** — ${sCells} — **${status}**`;
       continue;
     }
