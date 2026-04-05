@@ -7743,7 +7743,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   const curSettings = typeof view.settings === 'object' ? view.settings : {};
                                   const existing: string[] = Array.isArray((curSettings as any).kpiOverlays) ? (curSettings as any).kpiOverlays : [];
                                   const next = existing.includes(kpi.id) ? existing : [...existing, kpi.id];
-                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } });
+                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } })
+                                    .then(() => setOverlayVersion(v => v + 1));
                                 }
                               });
                             }
