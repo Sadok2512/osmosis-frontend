@@ -2460,7 +2460,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                         <span className={`text-[9px] font-bold uppercase tracking-wider ${isActiveOverlay ? 'text-primary' : isViewActive ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>KPI</span>
                                         <span className={`text-[9px] font-semibold truncate ${isActiveOverlay ? 'text-primary font-bold' : isViewActive ? 'text-foreground' : 'text-muted-foreground'}`}>{ov.label}</span>
                                         {isActiveOverlay && (
-                                          <span className="text-[7px] px-1 py-0.5 rounded bg-primary/15 text-primary font-bold uppercase">actif</span>
+                                          <span className="text-[7px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase">actif</span>
                                         )}
                                         {isViewActive && (
                                           <button
