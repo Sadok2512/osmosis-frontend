@@ -1549,6 +1549,9 @@ interface DashboardInventoryTabProps {
   onActiveDashboardIdChange: (id: string | null) => void;
   activeViewId: string | null;
   onActiveViewIdChange: (id: string | null) => void;
+  activeKpiOverlay?: string | null;
+  activeKpiOverlayLabel?: string | null;
+  onClearKpiOverlay?: () => void;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
@@ -1560,7 +1563,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, activeKpiOverlay, activeKpiOverlayLabel, onClearKpiOverlay }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -2418,6 +2421,22 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                 </button>
                               </div>
                             </div>
+
+                            {/* KPI Overlay badge */}
+                            {isViewActive && activeKpiOverlay && activeKpiOverlayLabel && (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border-t border-emerald-500/20">
+                                  <BarChart2 size={10} className="text-emerald-600 shrink-0" />
+                                  <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">KPI Overlay</span>
+                                  <span className="text-[9px] font-semibold text-foreground truncate">{activeKpiOverlayLabel}</span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onClearKpiOverlay?.(); }}
+                                    className="ml-auto p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                    title="Supprimer le KPI Overlay"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                            )}
 
                             {isEditing && (
                               <div className="border-t border-border/40">
@@ -7146,9 +7165,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {/* ── Unified mode selector: QoE / Topo / Parameters ── */}
             <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
               <button
-                onClick={() => { setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset(); }}
+                onClick={() => {
+                  if (!activeViewId) return;
+                  setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset();
+                }}
+                title={!activeViewId ? 'Activez une Vue pour utiliser le mode KPI' : 'Mode KPI'}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
-                  sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen
+                  !activeViewId
+                    ? 'text-muted-foreground/40 cursor-not-allowed'
+                    : sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -7684,7 +7709,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       {filtered.map(kpi => (
                         <button
                           key={kpi.id}
-                          onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); setKpiSearch(''); }}
+                          onClick={() => {
+                            setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); setKpiSearch('');
+                            // Save kpiOverlay to active view
+                            if (activeViewId) {
+                              mapViewsApi.list().then(views => {
+                                const view = views.find((v: any) => v.id === activeViewId);
+                                if (view) {
+                                  const curSettings = typeof view.settings === 'object' ? view.settings : {};
+                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlay: kpi.id } });
+                                }
+                              });
+                            }
+                          }}
                           className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-all ${
                             mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
                           }`}
@@ -8932,6 +8969,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setActiveViewId(null);
                     }
 
+                    // Restore KPI overlay from view settings
+                    if (settings.kpiOverlay && MAP_KPIS.some(k => k.id === settings.kpiOverlay)) {
+                      setMapKpi(settings.kpiOverlay);
+                      setSectorColorMode('kpi');
+                    } else if (settings._isDashboardOnly) {
+                      setSectorColorMode('topo');
+                    }
+
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
                     if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
                     if (settings.center && Array.isArray(settings.center)) {
@@ -9074,6 +9119,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   onActiveDashboardIdChange={setActiveDashboardId}
                   activeViewId={activeViewId}
                   onActiveViewIdChange={setActiveViewId}
+                  activeKpiOverlay={sectorColorMode === 'kpi' ? mapKpi : null}
+                  activeKpiOverlayLabel={sectorColorMode === 'kpi' ? selectedKpiLabel : null}
+                  onClearKpiOverlay={() => {
+                    setSectorColorMode('topo');
+                    // Remove kpiOverlay from active view
+                    if (activeViewId) {
+                      mapViewsApi.list().then(views => {
+                        const view = views.find((v: any) => v.id === activeViewId);
+                        if (view) {
+                          const curSettings = typeof view.settings === 'object' ? view.settings : {};
+                          const { kpiOverlay: _, ...rest } = curSettings as any;
+                          mapViewsApi.update(activeViewId, { settings: rest });
+                        }
+                      });
+                    }
+                  }}
                 />
                </div>
               </>
