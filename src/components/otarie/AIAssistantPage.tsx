@@ -1086,6 +1086,77 @@ function stripSiteLevelDesignSections(text: string): string {
 
   return kept.join('\n').replace(/\n{3,}/g, '\n\n');
 }
+/**
+ * Converts inline design analysis lines (emoji + text + status) into a proper markdown table.
+ * Matches patterns like: 🧭Cohérence azimuts secteursWARN3 secteursAzimuts: ...
+ */
+function convertDesignAnalysisToTable(text: string): string {
+  // Pattern: emoji + Check name + (OK|WARN|INFO|CRITICAL) + details on a single line
+  const designLineRe = /^([🏗️🧭📐📶🗼⚙️🔍📡🛰️📊🔧⚠️🔴✅ℹ️]{1,4})\s*(.+?)\s*(WARN|OK|CRITICAL|CRIT|INFO|KO)\s*(.*)$/;
+  
+  const lines = text.split('\n');
+  const result: string[] = [];
+  let analysisLines: { icon: string; check: string; status: string; details: string }[] = [];
+  let siteSummaryLine: string | null = null;
+
+  const flushAnalysis = () => {
+    if (analysisLines.length === 0) return;
+    
+    // Build markdown table
+    if (siteSummaryLine) {
+      result.push('');
+      result.push(siteSummaryLine);
+      result.push('');
+      siteSummaryLine = null;
+    }
+    
+    result.push('| Vérification | Statut | Détails |');
+    result.push('|:---|:---:|:---|');
+    for (const line of analysisLines) {
+      const details = line.details
+        .replace(/(\d+)\s*(anomalies?|inversions?|secteurs?)/gi, '**$1** $2')
+        .replace(/\|/g, '\\|');
+      result.push(`| ${line.icon} ${line.check} | ${line.status} | ${details} |`);
+    }
+    result.push('');
+    analysisLines = [];
+  };
+
+  for (const line of lines) {
+    const m = line.match(designLineRe);
+    if (m) {
+      // Check if this is the summary line (e.g. 🏗️SITE_NAME18 cells · 6 bands...)
+      if (m[1].includes('🏗') && /\d+\s*cells/i.test(m[2])) {
+        // Parse: "SITE_NAME18 cells · 6 bands · 3 sectors"
+        const summaryMatch = m[2].match(/^(.+?)(\d+\s*cells.*)$/i);
+        if (summaryMatch) {
+          siteSummaryLine = `**${summaryMatch[1].trim()}** — ${summaryMatch[2].trim()} — **${m[3]}**`;
+        } else {
+          siteSummaryLine = `**${m[2].trim()}** — **${m[3]}**`;
+        }
+        if (m[4]) siteSummaryLine += ` ${m[4]}`;
+        continue;
+      }
+      
+      // Clean up check name: split camelCase-style joined text
+      let checkName = m[2].trim();
+      // Remove trailing count that got merged (e.g. "secteursWARN" already handled by regex)
+      
+      analysisLines.push({
+        icon: m[1],
+        check: checkName,
+        status: m[3],
+        details: m[4].trim(),
+      });
+    } else {
+      flushAnalysis();
+      result.push(line);
+    }
+  }
+  flushAnalysis();
+  
+  return result.join('\n');
+}
 
 const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
   const cleaned = useMemo(() => {
@@ -1096,6 +1167,7 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
     text = text.replace(/<\/?(?:div|span|table|thead|tbody|tr|td|th|style|br|hr|img|p|ul|ol|li|h[1-6]|a|b|i|em|strong|code|pre)[^>]*>/gi, '');
     text = text.replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     text = stripSiteLevelDesignSections(text);
+    text = convertDesignAnalysisToTable(text);
     return text;
   }, [content]);
 
