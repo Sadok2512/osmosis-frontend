@@ -70,25 +70,33 @@ export const TOPOLOGY_DIMENSIONS = [
 ];
 
 // Static fallback — overridden at runtime by fetchParameterOptions()
+// These are CM (Configuration Management) parameters, NOT KPIs
 export const PARAMETER_OPTIONS = [
-  'Availability', 'Traffic Volume', 'Accessibility', 'Retainability',
-  'PRB Usage', 'Throughput DL', 'Throughput UL', 'RRC SR', 'ERAB SR',
-  'VoLTE CSSR', 'VoLTE CDR', 'Handover SR', 'Session DCR',
-  'RTT Avg', 'TCP Retransmission Rate', 'QoE Index',
+  'cellIndividualOffset', 'qRxLevMin', 'pMax', 'tReselectionEUTRA',
+  'threshServingLowP', 'sIntraSearch', 'sNonIntraSearch', 'hystRSRP',
+  'timeToTrigger', 'a3Offset', 'reportInterval', 'filterCoefficient',
+  'pZeroNominalPUSCH', 'referenceSignalPower', 'pa', 'pb',
+  'rachPreambleInitialPower', 'powerRampingStep', 'preambleTransMax',
+  'maxHARQ_Msg3Tx', 'nRB_CQI', 'cqi_PMI_ConfigIndex',
+  'srsBandwidthConfig', 'srsSubframeConfig', 'simultaneousAckNackAndCQI',
+  'tac', 'rootSequenceIndex', 'prach_ConfigIndex', 'zeroCorrelationZoneConfig',
+  'highSpeedFlag', 'prach_FreqOffset',
 ];
 
-// Dynamic fetch from kpi_catalog
+// Dynamic fetch from parameter_changes table (CM parameters)
 let _cachedParamOptions: string[] | null = null;
 export async function fetchParameterOptions(): Promise<string[]> {
   if (_cachedParamOptions) return _cachedParamOptions;
   try {
     const { supabase } = await import('@/integrations/supabase/client');
-    const { data, error } = await supabase
-      .from('kpi_catalog')
-      .select('display_name')
-      .order('display_name', { ascending: true });
+    const { data, error } = await (supabase as any)
+      .from('parameter_changes')
+      .select('param_name')
+      .order('param_name', { ascending: true });
     if (error) throw error;
-    _cachedParamOptions = (data || []).map(r => r.display_name);
+    // Deduplicate param names
+    const unique = [...new Set((data || []).map((r: any) => r.param_name).filter(Boolean))] as string[];
+    _cachedParamOptions = unique.length > 0 ? unique : PARAMETER_OPTIONS;
     return _cachedParamOptions;
   } catch {
     return PARAMETER_OPTIONS;
