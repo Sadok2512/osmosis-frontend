@@ -7709,7 +7709,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       {filtered.map(kpi => (
                         <button
                           key={kpi.id}
-                          onClick={() => { setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); setKpiSearch(''); }}
+                          onClick={() => {
+                            setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); setKpiSearch('');
+                            // Save kpiOverlay to active view
+                            if (activeViewId) {
+                              mapViewsApi.getById(activeViewId).then(view => {
+                                if (view) {
+                                  const curSettings = typeof view.settings === 'object' ? view.settings : {};
+                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlay: kpi.id } });
+                                }
+                              });
+                            }
+                          }}
                           className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-all ${
                             mapKpi === kpi.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-foreground'
                           }`}
