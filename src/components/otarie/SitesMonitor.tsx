@@ -1552,6 +1552,7 @@ interface DashboardInventoryTabProps {
   kpiOverlays?: { id: string; label: string }[];
   onRemoveKpiOverlay?: (kpiId: string) => void;
   resolveKpiLabel?: (id: string) => string;
+  overlayVersion?: number;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
