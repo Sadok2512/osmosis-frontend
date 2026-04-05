@@ -2894,11 +2894,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [searchModeSites, setSearchModeSites] = useState<SiteSummary[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const isSearchActive = localSearch.trim().length >= 2;
+  const isValidMapCoords = (coords: [number, number] | null | undefined): coords is [number, number] => (
+    Array.isArray(coords) && Number.isFinite(coords[0]) && Number.isFinite(coords[1])
+  );
   const [hoveredSiteId, setHoveredSiteId] = useState<string | null>(null);
   const [flyTarget, setFlyTargetRaw] = useState<[number, number] | null>(null);
   const setFlyTarget = useCallback((coords: [number, number] | null) => {
-    if (!coords) { setFlyTargetRaw(null); return; }
-    if (Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
+    if (!coords) {
+      setFlyTargetRaw(null);
+      return;
+    }
+
+    if (isValidMapCoords(coords)) {
       setFlyTargetRaw(coords);
     } else {
       console.warn('[SitesMonitor] Ignored invalid flyTarget:', coords);
@@ -2957,7 +2964,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeViewConditions, setActiveViewConditions] = useState<ViewFilterCondition[]>([]);
   const [showLegend, setShowLegend] = useState(true);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: mapCache.cachedZoom || 6 });
-  const [initialCenter] = useState<[number, number] | null>(mapCache.cachedCenter);
+  const [initialCenter] = useState<[number, number] | null>(() => isValidMapCoords(mapCache.cachedCenter) ? mapCache.cachedCenter : null);
   const displayModeRef = useRef<'sites' | 'cells'>('sites');
   const [mapRendering, setMapRendering] = useState(false);
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
@@ -4230,7 +4237,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // Cache map position (non-blocking)
     if (v.bounds) {
       const c = v.bounds.getCenter?.();
-      if (c) queueMicrotask(() => mapCache.setMapPosition([c.lat, c.lng], v.zoom));
+      if (c && Number.isFinite(c.lat) && Number.isFinite(c.lng)) {
+        queueMicrotask(() => mapCache.setMapPosition([c.lat, c.lng], v.zoom));
+      }
     }
 
     if (!dashboardActive) return;
