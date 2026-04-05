@@ -4779,8 +4779,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (site.cells?.length) {
       return site.cells.some((cell: any) => isBandEnabled(cell.bande, cell.techno));
     }
-    // Cells not loaded yet → show the site (pass-through) so it doesn't disappear
-    // It will be re-evaluated once cells load in background
+    // While cells are still loading, keep the site visible.
+    if (cellLoadingRef.current.has(site.site_id)) return true;
+    // If loading has already been attempted and no matching cells were found, hide it.
+    if (cellLoadAttemptedRef.current.has(site.site_id)) return false;
+    // Not loaded yet → temporary pass-through until background fetch completes.
     return true;
   }, [isBandEnabled]);
 
