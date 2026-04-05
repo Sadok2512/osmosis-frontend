@@ -7181,6 +7181,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <MapViewManager
               currentSettings={getCurrentMapSettings()}
               onLoadView={handleLoadView}
+              activeDashboardId={activeDashboardId}
             />
           </div>
         </div>

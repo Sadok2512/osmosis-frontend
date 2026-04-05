@@ -39,9 +39,10 @@ interface MapView {
 interface Props {
   currentSettings: MapViewSettings;
   onLoadView: (settings: MapViewSettings) => void;
+  activeDashboardId?: string | null;
 }
 
-const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView }) => {
+const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView, activeDashboardId }) => {
   const [views, setViews] = useState<MapView[]>([]);
   const [showPanel, setShowPanel] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -50,7 +51,7 @@ const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView }) => {
 
   useEffect(() => {
     fetchViews();
-  }, []);
+  }, [activeDashboardId]);
 
   const fetchViews = async () => {
     try {
@@ -63,11 +64,20 @@ const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView }) => {
     }
   };
 
+  // Filter views to only show those belonging to the active dashboard
+  const filteredViews = activeDashboardId
+    ? views.filter(v => v.description === activeDashboardId)
+    : views;
+
   const handleSave = async () => {
     if (!newName.trim()) return;
     setSaving(true);
     try {
-      await mapViewsApi.create({ name: newName.trim(), settings: currentSettings });
+      await mapViewsApi.create({
+        name: newName.trim(),
+        settings: currentSettings,
+        description: activeDashboardId || '',
+      });
       toast.success(`Vue "${newName}" sauvegardée`);
       setNewName('');
       setShowSaveInput(false);
@@ -121,9 +131,9 @@ const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView }) => {
       >
         <Map size={12} />
         Views
-        {views.length > 0 && (
+        {filteredViews.length > 0 && (
           <span className="ml-0.5 w-4 h-4 rounded-full bg-primary/20 text-primary text-[9px] font-black flex items-center justify-center">
-            {views.length}
+            {filteredViews.length}
           </span>
         )}
       </button>
@@ -170,12 +180,12 @@ const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView }) => {
           </div>
 
           <div className="max-h-64 overflow-y-auto">
-            {views.length === 0 ? (
+            {filteredViews.length === 0 ? (
               <div className="px-4 py-6 text-center text-[11px] text-muted-foreground/60">
-                Aucune vue sauvegardée
+                {activeDashboardId ? 'Aucune vue pour ce dashboard' : 'Aucune vue sauvegardée'}
               </div>
             ) : (
-              views.map(view => (
+              filteredViews.map(view => (
                 <div key={view.id} className="group px-3 py-2.5 border-b border-border/30 hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleLoad(view)} className="flex-1 min-w-0 text-left">
@@ -207,10 +217,10 @@ const MapViewManager: React.FC<Props> = ({ currentSettings, onLoadView }) => {
             )}
           </div>
 
-          {views.length > 0 && (
+          {filteredViews.length > 0 && (
             <div className="px-3 py-2 bg-muted/20 border-t border-border/30">
               <div className="text-[9px] text-muted-foreground/50 text-center">
-                {views.length} vue{views.length > 1 ? 's' : ''} • Cliquer pour charger
+                {filteredViews.length} vue{filteredViews.length > 1 ? 's' : ''} • Cliquer pour charger
               </div>
             </div>
           )}
