@@ -1139,7 +1139,7 @@ function convertDesignAnalysisToTable(text: string): string {
     const rest = trimmed.slice(emojiMatch[0].length);
 
     // Must contain a status keyword
-    const statusMatch = rest.match(statusKeywords);
+    const statusMatch = rest.match(statusRe);
     if (!statusMatch) { flushAnalysis(); result.push(line); continue; }
 
     const statusIdx = statusMatch.index!;
