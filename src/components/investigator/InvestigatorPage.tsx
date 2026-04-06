@@ -103,17 +103,15 @@ const InvestigatorPage: React.FC = () => {
 
   const handleApply = async () => {
     // Require at least one dimension filter (Site, Cell, etc.)
-    if (!hasFilters) return;
+    if (!hasFilters) {
+      setApplyError('Veuillez sélectionner au moins un filtre (Site, Cell…) avant de lancer la requête.');
+      return;
+    }
 
     // Require at least one KPI in a graph slot
     const slotsWithKpis = state.graphSlots.filter(s => s.kpiIds.length > 0);
 
-    // Only query the active slot (avoid redundant requests for inactive slots)
-    const activeSlot = activeSlotId
-      ? state.graphSlots.find(s => s.id === activeSlotId && s.kpiIds.length > 0)
-      : slotsWithKpis[0];
-
-    if (!activeSlot) {
+    if (slotsWithKpis.length === 0) {
       setApplyError('Veuillez ajouter au moins un KPI dans un graphe avant de lancer la requête.');
       return;
     }
@@ -123,23 +121,22 @@ const InvestigatorPage: React.FC = () => {
     setTsData([]);
     setHasUnfilteredFallback(false);
     try {
-      const slotContexts = [{
-        slot: activeSlot,
-        ctx: resolveSlotContext(activeSlot, state),
-      }];
+      // Fix #1: Query ALL slots with KPIs, not just the active one
+      const slotContexts = slotsWithKpis.map(slot => ({
+        slot,
+        ctx: resolveSlotContext(slot, state),
+      }));
 
-      console.log('[Investigator] Active slot:', {
-        kpis: slotContexts[0].ctx.kpiIds, dateFrom: slotContexts[0].ctx.dateFrom,
-        dateTo: slotContexts[0].ctx.dateTo, gran: slotContexts[0].ctx.granularity,
-        splitBy: slotContexts[0].ctx.splitBy, filters: slotContexts[0].ctx.filters,
-      });
+      console.log('[Investigator] Fetching', slotContexts.length, 'slots');
 
       const results = await Promise.all(
-        slotContexts.map(async ({ ctx }) => {
-          console.log('[Investigator] Fetching slot:', ctx.kpiIds, 'from', ctx.dateFrom, 'to', ctx.dateTo, 'gran', ctx.granularity);
+        slotContexts.map(async ({ slot, ctx }) => {
+          console.log('[Investigator] Fetching slot:', slot.id, ctx.kpiIds, 'from', ctx.dateFrom, 'to', ctx.dateTo, 'gran', ctx.granularity);
           const result = await fetchTimeSeriesForSlot(ctx);
-          console.log('[Investigator] Result:', result.data.length, 'points');
-          return result;
+          // Tag each point with slotId for isolation
+          const taggedData = result.data.map(d => ({ ...d, _slotId: slot.id }));
+          console.log('[Investigator] Result slot', slot.id, ':', taggedData.length, 'points');
+          return { ...result, data: taggedData };
         })
       );
 
