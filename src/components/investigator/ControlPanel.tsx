@@ -1284,6 +1284,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               </PopoverContent>
             </Popover>
 
+            {/* Spacer */}
+            <div className="flex-1" />
+
             {/* Apply button */}
             <Button
               onClick={onApply}
