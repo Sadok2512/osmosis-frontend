@@ -214,21 +214,26 @@ const AddFilterDropdown: React.FC<{
           <Plus className="w-3 h-3" /> Ajouter filtre
         </button>
       </PopoverTrigger>
-      <PopoverContent className="min-w-[200px] p-1.5" align="start" sideOffset={4}>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher dimension..."
-          className="w-full px-3 py-1.5 mb-1 border-b border-border/40 bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
-          autoFocus
-        />
-        <div className="max-h-[240px] overflow-y-auto">
+      <PopoverContent className="min-w-[240px] p-0 rounded-xl border border-border/60 shadow-xl bg-card/95 backdrop-blur-md" align="start" sideOffset={6}>
+        <div className="px-3 pt-3 pb-2">
+          <div className="relative">
+            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/60" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher dimension..."
+              className="w-full pl-8 pr-3 py-2 rounded-lg border border-border/50 bg-muted/30 text-xs outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 placeholder:text-muted-foreground/50 transition-all"
+              autoFocus
+            />
+          </div>
+        </div>
+        <div className="max-h-[280px] overflow-y-auto px-1.5 pb-2">
           {filtered.length === 0 && (
-            <div className="px-3 py-2 text-[10px] text-muted-foreground">
+            <div className="px-3 py-4 text-[10px] text-muted-foreground text-center">
               {available.length === 0 ? 'Tous les filtres sont déjà ajoutés' : 'Aucun résultat'}
             </div>
           )}
-          {filtered.map(dim => {
+          {filtered.map((dim, idx) => {
             const isPm = PM_DIMENSION_TYPES.has(dim);
             const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
             return (
@@ -236,12 +241,20 @@ const AddFilterDropdown: React.FC<{
                 key={dim}
                 onClick={() => { onAdd(dim); setOpen(false); setSearch(''); }}
                 className={cn(
-                  "w-full text-left px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                  isPm ? "text-amber-600 hover:bg-amber-500/10" : "text-foreground hover:bg-muted/50"
+                  "w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2 group",
+                  isPm
+                    ? "text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                    : "text-foreground hover:bg-primary/5"
                 )}
               >
-                {label}
-                {isPm && <span className="ml-1 text-[8px] text-amber-500/70">PM</span>}
+                <span className={cn(
+                  "w-1.5 h-1.5 rounded-full shrink-0",
+                  isPm ? "bg-amber-500" : "bg-primary/40 group-hover:bg-primary"
+                )} />
+                <span className="flex-1">{label}</span>
+                {isPm && (
+                  <span className="text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400">PM</span>
+                )}
               </button>
             );
           })}
