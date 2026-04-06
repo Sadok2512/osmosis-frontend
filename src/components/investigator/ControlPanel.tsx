@@ -1520,97 +1520,105 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           );
                         })()}
                       </div>
-                      {/* Split 1 — only show if there are split options or PM dimensions */}
-                      {(splitOptions.length > 0 || activePmDimensions.size > 0) && (
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 1</span>
-                        <select
-                          value={(() => {
-                            const vals = Object.values(cfg.splitByPerKpi || {}).filter(v => v && v !== 'None');
-                            return vals.length > 0 ? vals[0] : 'None';
-                          })()}
-                          onChange={e => {
-                            const val = e.target.value;
-                            if (val === 'None') {
-                              setState(prev => ({
-                                ...prev,
-                                graphSlots: prev.graphSlots.map(s =>
-                                  s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: {} } } : s
-                                ),
-                              }));
-                            } else {
-                              const allSplits: Record<string, string> = {};
-                              slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
-                              setState(prev => ({
-                                ...prev,
-                                graphSlots: prev.graphSlots.map(s =>
-                                  s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: allSplits } } : s
-                                ),
-                              }));
-                            }
-                          }}
-                          className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
-                        >
-                          <option value="None">Aucun</option>
-                          {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                          {activePmDimensions.size > 0 && (
-                            <optgroup label="── PM Dimensions ──">
-                              {Array.from(activePmDimensions).map(d => (
-                                <option key={`pm_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
-                              ))}
-                            </optgroup>
-                          )}
-                        </select>
-                      </div>
-                      )}
-                      {/* Split 2 (cross-tabulation) — only show if Split 1 is active */}
-                      {(splitOptions.length > 0 || activePmDimensions.size > 0) && Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None') && (
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 2</span>
-                        <select
-                          value={(() => {
-                            const vals = Object.values(cfg.splitByPerKpi2 || {}).filter(v => v && v !== 'None');
-                            return vals.length > 0 ? vals[0] : 'None';
-                          })()}
-                          onChange={e => {
-                            const val = e.target.value;
-                            if (val === 'None') {
-                              setState(prev => ({
-                                ...prev,
-                                graphSlots: prev.graphSlots.map(s =>
-                                  s.id === slot.id ? { ...s, splitBy2: 'None', config: { ...cfg, splitByPerKpi2: {} } } : s
-                                ),
-                              }));
-                            } else {
-                              const allSplits2: Record<string, string> = {};
-                              slot.kpiIds.forEach(kid => { allSplits2[kid] = val; });
-                              setState(prev => ({
-                                ...prev,
-                                graphSlots: prev.graphSlots.map(s =>
-                                  s.id === slot.id ? { ...s, splitBy2: val, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s
-                                ),
-                              }));
-                            }
-                          }}
-                          className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
-                        >
-                          <option value="None">Aucun</option>
-                          {splitOptions
-                            .filter(s => {
-                              const split1Val = Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None');
-                              return s.key !== split1Val;
-                            })
-                            .map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                          {activePmDimensions.size > 0 && (
-                            <optgroup label="── PM Dimensions ──">
-                              {Array.from(activePmDimensions).map(d => (
-                                <option key={`pm2_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
-                              ))}
-                            </optgroup>
-                          )}
-                        </select>
-                      </div>
-                      )}
+                      {/* Split 1 & 2 — hidden when no split is active, with "+ Ajouter Split" button */}
+                      {(() => {
+                        const hasSplit1Active = Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None');
+                        const hasSplit2Active = Object.values(cfg.splitByPerKpi2 || {}).some(v => v && v !== 'None');
+                        const hasSplitOptions = splitOptions.length > 0 || activePmDimensions.size > 0;
+                        return (
+                          <>
+                            {hasSplit1Active ? (
+                              <div className="space-y-1">
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 1</span>
+                                <select
+                                  value={Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None') || 'None'}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === 'None') {
+                                      setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: {}, splitByPerKpi2: {} } } : s) }));
+                                    } else {
+                                      const allSplits: Record<string, string> = {};
+                                      slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
+                                      setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: allSplits } } : s) }));
+                                    }
+                                  }}
+                                  className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+                                >
+                                  <option value="None">Aucun</option>
+                                  {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                                  {activePmDimensions.size > 0 && (
+                                    <optgroup label="── PM Dimensions ──">
+                                      {Array.from(activePmDimensions).map(d => (
+                                        <option key={`pm_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                </select>
+                              </div>
+                            ) : hasSplitOptions ? (
+                              <button
+                                onClick={() => {
+                                  const firstKey = splitOptions[0]?.key || (activePmDimensions.size > 0 ? `PM_DIM:${Array.from(activePmDimensions)[0]}` : 'None');
+                                  if (firstKey === 'None') return;
+                                  const allSplits: Record<string, string> = {};
+                                  slot.kpiIds.forEach(kid => { allSplits[kid] = firstKey; });
+                                  setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: allSplits } } : s) }));
+                                }}
+                                className="w-full text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1.5 rounded-md transition-colors border border-dashed border-border"
+                              >
+                                + Ajouter Split
+                              </button>
+                            ) : null}
+
+                            {hasSplit1Active && hasSplit2Active ? (
+                              <div className="space-y-1">
+                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 2</span>
+                                <select
+                                  value={Object.values(cfg.splitByPerKpi2 || {}).find(v => v && v !== 'None') || 'None'}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === 'None') {
+                                      setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: 'None', config: { ...cfg, splitByPerKpi2: {} } } : s) }));
+                                    } else {
+                                      const allSplits2: Record<string, string> = {};
+                                      slot.kpiIds.forEach(kid => { allSplits2[kid] = val; });
+                                      setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: val, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
+                                    }
+                                  }}
+                                  className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+                                >
+                                  <option value="None">Aucun</option>
+                                  {splitOptions
+                                    .filter(s => s.key !== (Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None')))
+                                    .map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                                  {activePmDimensions.size > 0 && (
+                                    <optgroup label="── PM Dimensions ──">
+                                      {Array.from(activePmDimensions).map(d => (
+                                        <option key={`pm2_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                </select>
+                              </div>
+                            ) : hasSplit1Active && hasSplitOptions ? (
+                              <button
+                                onClick={() => {
+                                  const split1Val = Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None');
+                                  const available = splitOptions.filter(s => s.key !== split1Val);
+                                  const firstKey = available[0]?.key || (activePmDimensions.size > 0 ? `PM_DIM:${Array.from(activePmDimensions)[0]}` : 'None');
+                                  if (firstKey === 'None') return;
+                                  const allSplits2: Record<string, string> = {};
+                                  slot.kpiIds.forEach(kid => { allSplits2[kid] = firstKey; });
+                                  setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: firstKey, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
+                                }}
+                                className="w-full text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1.5 rounded-md transition-colors border border-dashed border-border"
+                              >
+                                + Ajouter Split 2
+                              </button>
+                            ) : null}
+                          </>
+                        );
+                      })()}
                       <div className="h-px bg-border/60" />
                       <button
                         onClick={(e) => {
