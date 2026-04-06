@@ -1,4 +1,5 @@
 import React, { useMemo, createContext, useContext } from 'react';
+import { techHex } from '@/constants/brandColors';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOverview } from '../sentinelApi';
 import { ANOMALY_TYPE_LABELS, type DashboardOverviewData } from '../types';
@@ -297,7 +298,7 @@ const MLInsightsTable: React.FC<{ rows: MLInsightRow[] }> = ({ rows }) => {
               <td className="py-2.5 px-3 font-mono font-medium" style={{ color: NOC.accent }}>{row.entity}</td>
               <td className="py-2.5 px-3">
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold"
-                  style={{ background: row.technology === 'NR' ? 'rgba(139,92,246,0.15)' : row.technology === 'LTE' ? 'rgba(6,182,212,0.15)' : 'rgba(100,116,139,0.15)', color: row.technology === 'NR' ? NOC.purple : row.technology === 'LTE' ? NOC.accent : '#94a3b8' }}>
+                  style={{ background: `${techHex(row.technology)}20`, color: techHex(row.technology) }}>
                   <Signal className="w-3 h-3" />{row.technology === 'NR' ? '5G NR' : row.technology === 'LTE' ? 'LTE' : (row.technology || 'Unknown')}
                 </span>
               </td>

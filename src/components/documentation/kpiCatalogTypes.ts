@@ -72,14 +72,4 @@ export const CATEGORY_COLORS: Record<string, string> = {
   Other: 'hsl(220, 10%, 55%)',
 };
 
-export const VENDOR_COLORS: Record<string, { bg: string; text: string }> = {
-  Nokia: { bg: 'bg-blue-500/10', text: 'text-blue-500' },
-  Ericsson: { bg: 'bg-indigo-500/10', text: 'text-indigo-500' },
-  Huawei: { bg: 'bg-rose-500/10', text: 'text-rose-500' },
-};
-
-export const TECH_COLORS: Record<string, { bg: string; text: string }> = {
-  LTE: { bg: 'bg-cyan-500/10', text: 'text-cyan-500' },
-  NR: { bg: 'bg-violet-500/10', text: 'text-violet-500' },
-  ALL: { bg: 'bg-muted', text: 'text-muted-foreground' },
-};
+export { VENDOR_BADGE as VENDOR_COLORS, TECH_BADGE as TECH_COLORS } from '@/constants/brandColors';

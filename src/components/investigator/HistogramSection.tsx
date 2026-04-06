@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { vendorBadge } from '@/constants/brandColors';
 import ReactECharts from 'echarts-for-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { BarChart3, ChevronRight, Search, RefreshCw, MapPin } from 'lucide-react';
@@ -220,7 +221,7 @@ const HistogramSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
                         <p className="text-[10px] font-semibold text-foreground truncate">{h.name}</p>
                         <p className="text-[9px] text-muted-foreground truncate">{h.counter_pattern}</p>
                         <div className="flex gap-1 mt-0.5">
-                          <span className={cn('text-[8px] px-1 py-0.5 rounded font-medium', h.vendor === 'Ericsson' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400')}>{h.vendor}</span>
+                          <span className={cn('text-[8px] px-1 py-0.5 rounded font-medium', vendorBadge(h.vendor).bg, vendorBadge(h.vendor).text)}>{h.vendor}</span>
                           <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground">{h.source}</span>
                           {h.unit && <span className="text-[8px] px-1 py-0.5 rounded bg-cyan-500/10 text-cyan-500">{h.unit}</span>}
                         </div>

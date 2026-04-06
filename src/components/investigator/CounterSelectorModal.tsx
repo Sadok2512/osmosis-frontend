@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { vendorBadge, techBadge } from '@/constants/brandColors';
 import { X, Search, Check, RotateCcw, Star, BarChart3, ChevronDown, ChevronRight, Filter, SlidersHorizontal } from 'lucide-react';
 import { loadFavorites as loadFavoritesDB, saveFavorites as saveFavoritesDB } from '@/services/favoritesService';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
@@ -550,7 +551,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                             {/* Vendor badge */}
                             <div className="w-[60px] flex justify-center">
                               {c.vendor ? (
-                                <Badge className={c.vendor === 'Ericsson' ? 'bg-blue-500/10 text-blue-500' : 'bg-orange-500/10 text-orange-500'}>
+                                <Badge className={cn(vendorBadge(c.vendor).bg, vendorBadge(c.vendor).text)}>
                                   {c.vendor}
                                 </Badge>
                               ) : <span className="text-[9px] text-muted-foreground/30">—</span>}
@@ -558,7 +559,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                             {/* Tech badge */}
                             <div className="w-[50px] flex justify-center">
                               {c.techno ? (
-                                <Badge className="bg-purple-500/10 text-purple-500">{c.techno}</Badge>
+                                <Badge className={cn(techBadge(c.techno).bg, techBadge(c.techno).text)}>{c.techno}</Badge>
                               ) : <span className="text-[9px] text-muted-foreground/30">—</span>}
                             </div>
                             {/* Family/Type badge */}

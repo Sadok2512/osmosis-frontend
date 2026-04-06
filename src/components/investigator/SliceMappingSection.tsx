@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { vendorBadge, vendorHex } from '@/constants/brandColors';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { Layers, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -104,15 +105,14 @@ const SliceMappingSection: React.FC = () => {
           {Array.from(groups.entries()).map(([groupKey, entries]) => {
             const vendor = entries[0].vendor;
             const rat = entries[0].rat;
-            const isEricsson = vendor === 'Ericsson';
-            const borderColor = isEricsson ? 'border-blue-500/30' : 'border-orange-500/30';
-            const headerBg = isEricsson ? 'bg-blue-500/5' : 'bg-orange-500/5';
+            const vBadge = vendorBadge(vendor);
+            const borderColor = `border-[${vendorHex(vendor)}]/30`;
 
             return (
               <div key={groupKey} className={cn('rounded-xl border bg-card overflow-hidden', borderColor)}>
-                <div className={cn('px-4 py-2.5 border-b border-border/40 flex items-center justify-between', headerBg)}>
+                <div className={cn('px-4 py-2.5 border-b border-border/40 flex items-center justify-between')} style={{ background: `${vendorHex(vendor)}08` }}>
                   <div className="flex items-center gap-2">
-                    <span className={cn('text-[10px] px-2 py-0.5 rounded font-bold', isEricsson ? 'bg-blue-500/15 text-blue-400' : 'bg-orange-500/15 text-orange-400')}>
+                    <span className={cn('text-[10px] px-2 py-0.5 rounded font-bold', vBadge.bg, vBadge.text)}>
                       {vendor}
                     </span>
                     <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 font-bold">{rat}</span>

@@ -1,4 +1,5 @@
 import { DataPoint, WorstElement, KpiDefinition } from './types';
+import { vendorHex } from '@/constants/brandColors';
 
 export const KPIS: KpiDefinition[] = [
   { id: '4G_LTE_DCR', label: 'LTE Drop Call Rate', unit: '%', category: 'Accessibility', color: '#3b82f6', thresholds: { warning: 0.5, critical: 1.0 }, higherIsBetter: false },
@@ -91,6 +92,6 @@ export function generateBreakdownData(kpiId: string) {
   return categories.map(cat => ({
     name: cat,
     value: +(def.higherIsBetter ? 92 + Math.random() * 7 : 0.2 + Math.random() * 1.2).toFixed(2),
-    color: cat === 'Ericsson' ? '#3b82f6' : cat === 'Nokia' ? '#10b981' : '#f59e0b',
+    color: vendorHex(cat),
   }));
 }
