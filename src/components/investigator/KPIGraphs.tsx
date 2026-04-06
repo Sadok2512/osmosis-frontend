@@ -1169,7 +1169,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               const weBadge = isWE ? ' <span style="background:rgba(148,163,184,0.2);padding:1px 5px;border-radius:3px;font-size:9px;color:#94a3b8">WE</span>' : '';
               const header = `<div style="font-size:10.5px;color:#94a3b8;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
 
-              // Group items: detect split series (name contains " — ") for total row
+              // Group items: detect split series for total row
+              // Also show split/NE details in tooltip
               const rows: string[] = [];
               let splitTotal = 0;
               let splitCount = 0;
@@ -1178,9 +1179,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 const matchedDef = defs.find(d => d.label === p.seriesName || p.seriesName?.startsWith(d.label + ' — '));
                 const unit = matchedDef?.unit || '';
                 const val = p.value != null ? p.value.toFixed(2) : '—';
-                const isSplit = p.seriesName?.includes(' — ') || (hasSplitData && items.length > 1 && !p.seriesName?.includes('('));
+                const isSplit = p.seriesName?.includes(' — ') || p.seriesName?.includes(' / ') || (hasSplitData && items.length > 1 && !p.seriesName?.includes('('));
                 if (isSplit && p.value != null) { splitTotal += p.value; splitCount++; splitUnit = unit; }
-                rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${p.seriesName}</span><b style="color:#f1f5f9">${val} ${unit}</b></div>`);
+                // Find matching series metadata for NE info
+                const matchedSeries = option.series?.find((s: any) => s.name === p.seriesName);
+                const neInfo = matchedSeries?._networkElement ? ` <span style="font-size:9px;color:#94a3b8;background:rgba(148,163,184,0.15);padding:1px 4px;border-radius:3px;margin-left:4px">NE: ${matchedSeries._networkElement}</span>` : '';
+                rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px">${p.seriesName}${neInfo}</span><b style="color:#f1f5f9">${val} ${unit}</b></div>`);
               }
               // Add total row for split series
               const totalRow = splitCount > 1
