@@ -78,6 +78,7 @@ export interface GraphSlot {
   endDate: string;
   granularity: Granularity;
   splitBy: SplitOption;
+  splitBy2?: SplitOption;
 }
 
 export type JalonVisibility = 'all' | 'personal' | 'team';
