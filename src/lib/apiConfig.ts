@@ -131,9 +131,20 @@ export function getApiUrl(functionName: string): string {
     return `${getLocalApiBase()}/api/${clean}`;
   }
   if (source === 'vps') {
+    // Separate path from inline query string to avoid double-encoding in proxy URL
+    const qIdx = clean.indexOf('?');
+    const cleanPath = qIdx >= 0 ? clean.substring(0, qIdx) : clean;
+    const inlineQs = qIdx >= 0 ? clean.substring(qIdx + 1) : '';
+    const extraParams: Record<string, string> = {};
+    if (inlineQs) {
+      for (const [k, v] of new URLSearchParams(inlineQs).entries()) {
+        extraParams[k] = v;
+      }
+    }
+
     // Cloud-only Edge Functions — always route to Supabase Cloud
     const cloudOnlyFunctions = ['qoe-assistant', 'bi-assistant', 'agent-discussion', 'rag-embed', 'qoe-map-extract', 'admin-auth', 'backend-admin', 'import-dump', 'import-topo'];
-    const isCloudOnly = cloudOnlyFunctions.some(f => clean.startsWith(f));
+    const isCloudOnly = cloudOnlyFunctions.some(f => cleanPath.startsWith(f));
     if (isCloudOnly) {
       return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
     }
@@ -145,17 +156,17 @@ export function getApiUrl(functionName: string): string {
 
     // KPI Engine endpoints → kpi.qoebit.net (or :8001 on VPS)
     const kpiPrefixes = ['monitor', 'catalog', 'kpi/', 'anomalies', 'clusters', 'config/aggregation', 'config/jobs', 'config/ne-scope', 'config/quality', 'config/stats', 'internal/'];
-    const isKpi = kpiPrefixes.some(p => clean.startsWith(p));
+    const isKpi = kpiPrefixes.some(p => cleanPath.startsWith(p));
     if (isKpi) {
-      return onDirect ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${clean}`);
+      return onDirect ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${cleanPath}`, Object.keys(extraParams).length ? extraParams : undefined);
     }
     // Parser endpoints → api.qoebit.net/api/v1/* (or :8000 on VPS)
     const parserPrefixes = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range', 'sentinel', 'alarms', 'cm', 'pm'];
-    const isParser = parserPrefixes.some(p => clean.startsWith(p));
+    const isParser = parserPrefixes.some(p => cleanPath.startsWith(p));
     if (isParser) {
-      return onDirect ? `${VPS_ENDPOINTS.parser}/api/v1/${clean}` : getVpsProxyUrl('parser', `/api/v1/${clean}`);
+      return onDirect ? `${VPS_ENDPOINTS.parser}/api/v1/${clean}` : getVpsProxyUrl('parser', `/api/v1/${cleanPath}`, Object.keys(extraParams).length ? extraParams : undefined);
     }
-    return onDirect ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${clean}`);
+    return onDirect ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${cleanPath}`, Object.keys(extraParams).length ? extraParams : undefined);
   }
   return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
 }
