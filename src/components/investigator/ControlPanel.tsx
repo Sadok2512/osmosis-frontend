@@ -1363,18 +1363,24 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         >
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                           <span className="truncate max-w-[140px]">{name}</span>
-                          {hasSplit && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[8px] font-bold uppercase tracking-wider border border-amber-500/20">
-                              <GitBranch className="w-2.5 h-2.5" />
-                              {splitLabel}
-                            </span>
-                          )}
-                          {hasSplit2 && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 text-[8px] font-bold uppercase tracking-wider border border-sky-500/20">
-                              <GitBranch className="w-2.5 h-2.5" />
-                              {splitLabel2}
-                            </span>
-                          )}
+                          {hasSplit && (() => {
+                            const dc = getDimensionColor(splitVal);
+                            return (
+                              <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border", dc.bg, dc.text, dc.textDark, dc.border)}>
+                                <GitBranch className="w-2.5 h-2.5" />
+                                {splitLabel}
+                              </span>
+                            );
+                          })()}
+                          {hasSplit2 && (() => {
+                            const dc2 = getDimensionColor(splitVal2);
+                            return (
+                              <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border", dc2.bg, dc2.text, dc2.textDark, dc2.border)}>
+                                <GitBranch className="w-2.5 h-2.5" />
+                                {splitLabel2}
+                              </span>
+                            );
+                          })()}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
