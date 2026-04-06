@@ -630,12 +630,6 @@ const JalonsManagerPopup: React.FC<{
                 className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
-            <select value={visibility} onChange={e => setVisibility(e.target.value as JalonVisibility)}
-              className="flex-1 px-1.5 py-0.5 rounded-md border border-border bg-background text-[10px] text-foreground outline-none">
-              {VISIBILITY_OPTIONS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-            </select>
           </div>
           <div className="flex items-center gap-1">
             <span className="text-[8px] text-muted-foreground uppercase shrink-0">Opacité</span>
