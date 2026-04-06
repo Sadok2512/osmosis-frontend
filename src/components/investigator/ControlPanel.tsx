@@ -7,7 +7,7 @@ import { formatDateTime } from './timeUtils';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions, fetchKpisWithData } from './investigatorApi';
 import type { KpiDefinition } from './types';
-import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles, Edit2 } from 'lucide-react';
+import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles, Edit2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
