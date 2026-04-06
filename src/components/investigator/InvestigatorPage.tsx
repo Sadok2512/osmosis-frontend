@@ -15,7 +15,7 @@ import { fetchKpiDefinitions, fetchWorstByDOR, fetchFilterValues, fetchCellDetai
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
-  Settings2, Bell, Cpu, Layers, Table2, Download,
+  Settings2, Bell, Cpu, Layers, Table2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
