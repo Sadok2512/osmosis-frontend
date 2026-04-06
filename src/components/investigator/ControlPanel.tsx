@@ -1246,7 +1246,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             <AddFilterDropdown
               existingKeys={activeFilterDims}
               onAdd={addFilterDimension}
-              filterDimensions={allFilterDimensions.filter(d => !PM_DIMENSION_TYPES.has(d))}
+              filterDimensions={allFilterDimensions.filter(d => !PM_DIMENSION_TYPES.has(d) && !SCOPE_DIMENSIONS.has(d))}
             />
             {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim)).length > 0 && (
               <button
