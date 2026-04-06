@@ -64,6 +64,9 @@ const InvestigatorPage: React.FC = () => {
   const [kpiMetaMap, setKpiMetaMap] = React.useState<Map<string, KpiDefinition>>(new Map());
   const handleApplyRef = useRef<() => void>(() => {});
 
+  // Preload all filter values into cache on mount
+  React.useEffect(() => { preloadAllFilters(); }, []);
+
   // Load KPI metadata for severity/ranking
   React.useEffect(() => {
     fetchKpiDefinitions().then(kpis => {
