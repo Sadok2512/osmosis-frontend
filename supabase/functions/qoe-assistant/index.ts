@@ -2429,7 +2429,7 @@ const TOPO_PROMPT = `Tu es **TOPO** 🗼, agent spécialisé en topologie résea
 
 ## COULEURS CHARTS
 Quand tu génères un chart bar, utilise des couleurs distinctes par catégorie :
-- colors: ["#0d9488","#2563eb","#9333ea","#ea580c","#16a34a","#be185d","#ca8a04","#0891b2"]
+- colors: ["#0d9488","#60a5fa","#9333ea","#ea580c","#1e40af","#be185d","#ca8a04","#0891b2"]
 
 ## RÈGLES DE RÉPONSE
 - Pour les inventaires : présente un tableau Markdown avec les totaux + un chart bar
