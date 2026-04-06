@@ -53,6 +53,8 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
 export interface GraphSlot {
   id: string;
   kpiIds: string[];
+  /** PM counter IDs to overlay on the same timeseries chart */
+  counterIds?: string[];
   /** @deprecated use kpiIds */
   kpiId?: string;
   name: string;
