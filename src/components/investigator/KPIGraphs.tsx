@@ -1421,6 +1421,23 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   <div className="px-3 py-2 border-t border-border/40 bg-muted/20">
                     <button
                       onClick={(e) => {
+                        // If breakdown is enabled, auto-set split for all KPIs
+                        if (cfg.showBreakdown && splitOptions.length > 0) {
+                          const firstSplit = splitOptions[0].key;
+                          const currentSplit = Object.values(cfg.splitByPerKpi || {}).filter(v => v && v !== 'None');
+                          if (currentSplit.length === 0) {
+                            const allSplits: Record<string, string> = {};
+                            kpiIds.forEach(kid => { allSplits[kid] = firstSplit; });
+                            onUpdateSlotConfig(slot.id, { splitByPerKpi: allSplits });
+                          }
+                        } else if (!cfg.showBreakdown) {
+                          // Clear splits when breakdown is disabled
+                          const currentSplit = Object.values(cfg.splitByPerKpi || {}).filter(v => v && v !== 'None');
+                          if (currentSplit.length > 0) {
+                            onUpdateSlotConfig(slot.id, { splitByPerKpi: {} });
+                          }
+                        }
+                        // Close popover
                         (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
                           new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
                         );
