@@ -72,7 +72,7 @@ function stableColorForKpi(kpiId: string): string {
 }
 
 /** Wrapper — full replace on every update so legend stays in sync */
-const SlotChart: React.FC<{ option: any; height: number; onDataZoom?: (start: number, end: number) => void }> = ({ option, height, onDataZoom }) => {
+const SlotChart = React.forwardRef<ReactECharts, { option: any; height: number; onDataZoom?: (start: number, end: number) => void }>(({ option, height, onDataZoom }, ref) => {
   const onDataZoomRef = React.useRef(onDataZoom);
   onDataZoomRef.current = onDataZoom;
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,6 +94,7 @@ const SlotChart: React.FC<{ option: any; height: number; onDataZoom?: (start: nu
   return (
     <div style={{ height, position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
       <ReactECharts
+        ref={ref}
         option={option}
         notMerge={true}
         lazyUpdate={false}
@@ -102,7 +103,7 @@ const SlotChart: React.FC<{ option: any; height: number; onDataZoom?: (start: nu
       />
     </div>
   );
-};
+});
 /** Inline Histogram widget for a slot */
 const HistogramWidget: React.FC<{ kpiIds: string[]; height: number; allKpis: KpiDefinition[] }> = ({ kpiIds, height, allKpis }) => {
   const [histData, setHistData] = React.useState<Record<string, any[]>>({});
