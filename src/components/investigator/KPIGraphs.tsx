@@ -393,11 +393,24 @@ interface Props {
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onRenameSlot: (slotId: string, name: string) => void;
   onOpenKpiSelector: (slotId: string) => void;
+  onDuplicateSlot?: (slotId: string) => void;
   activeSlotId?: string | null;
   onSlotClick?: (slotId: string) => void;
 }
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
+/** Export an ECharts instance to PNG and trigger download */
+const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
+  if (!chartRef) return;
+  const instance = chartRef.getEchartsInstance();
+  if (!instance) return;
+  const url = instance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#ffffff' });
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${filename}.png`;
+  link.click();
+};
+
+const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick }) => {
   const cols = layout === 1 ? 1 : layout === 4 ? 2 : 2;
   const chartHeight = layout === 1 ? 520 : layout === 4 ? 340 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
