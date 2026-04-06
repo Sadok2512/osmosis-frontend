@@ -258,6 +258,7 @@ interface SlotRequestContext {
   dateTo: string;
   granularity: string;
   splitBy?: string;
+  splitBy2?: string;
   filters: { dimension: string; values: string[] }[];
   kpiLevel: string;
   profileQci?: number | null;
