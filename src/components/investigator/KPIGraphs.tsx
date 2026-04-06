@@ -215,7 +215,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
     },
     series: counters.map((counter, i) => ({
-      name: counter,
+      name: displayLabel(counter),
       type: 'line' as const,
       smooth: true,
       data: timestamps.map(ts => { const p = tsData.find(d => d.ts === ts && d.counter === counter); return p ? p.value : 0; }),
