@@ -689,8 +689,30 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     const d = new Date(dateOnly + 'T12:00:00');
     return isNaN(d.getTime()) ? undefined : d;
   };
+  const parseTime = (raw: string | undefined | null): string => {
+    if (!raw) return '00:00';
+    const tPart = raw.split('T')[1];
+    if (!tPart) return '00:00';
+    return tPart.slice(0, 5) || '00:00';
+  };
   const startDate = parseSafeDate(state.startDate);
   const endDate = parseSafeDate(state.endDate);
+  const startTime = parseTime(state.startDate);
+  const endTime = parseTime(state.endDate);
+  const showTimePickers = state.granularity === '15min' || state.granularity === '1h';
+
+  const setStartTime = (time: string) => {
+    setState(prev => {
+      const dateOnly = (prev.startDate || '').split('T')[0];
+      return { ...prev, startDate: `${dateOnly}T${time}` };
+    });
+  };
+  const setEndTime = (time: string) => {
+    setState(prev => {
+      const dateOnly = (prev.endDate || '').split('T')[0];
+      return { ...prev, endDate: `${dateOnly}T${time}` };
+    });
+  };
 
   const addFilterDimension = (dim: string) => {
     setState(prev => {
@@ -760,9 +782,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             <div className="flex items-center gap-1.5 shrink-0">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('h-8 w-[120px] justify-start text-left text-[11px] font-medium rounded-lg bg-card', !startDate && 'text-muted-foreground')}>
+                  <Button variant="outline" className={cn('h-8 justify-start text-left text-[11px] font-medium rounded-lg bg-card', showTimePickers ? 'w-[155px]' : 'w-[120px]', !startDate && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-1.5 h-3 w-3 text-muted-foreground" />
                     {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
+                    {showTimePickers && <span className="ml-1 text-muted-foreground">{startTime}</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -773,20 +796,34 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     today={undefined}
                     onSelect={(d) => d && setState(prev => {
                       const nextStart = format(d, 'yyyy-MM-dd');
-                      const nextEnd = prev.endDate && prev.endDate < nextStart ? nextStart : prev.endDate;
-                      return { ...prev, startDate: nextStart, endDate: nextEnd };
+                      const timePart = parseTime(prev.startDate);
+                      const fullStart = showTimePickers ? `${nextStart}T${timePart}` : nextStart;
+                      const nextEnd = prev.endDate && prev.endDate.split('T')[0] < nextStart ? fullStart : prev.endDate;
+                      return { ...prev, startDate: fullStart, endDate: nextEnd };
                     })}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
+                  {showTimePickers && (
+                    <div className="border-t border-border px-3 py-2 flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground font-medium">Heure</span>
+                      <input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="h-7 px-2 text-[11px] rounded-md border border-border bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+                  )}
                 </PopoverContent>
               </Popover>
               <span className="text-[10px] text-muted-foreground font-medium">→</span>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('h-8 w-[120px] justify-start text-left text-[11px] font-medium rounded-lg bg-card', !endDate && 'text-muted-foreground')}>
+                  <Button variant="outline" className={cn('h-8 justify-start text-left text-[11px] font-medium rounded-lg bg-card', showTimePickers ? 'w-[155px]' : 'w-[120px]', !endDate && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-1.5 h-3 w-3 text-muted-foreground" />
                     {endDate ? format(endDate, 'dd/MM/yyyy') : 'Fin'}
+                    {showTimePickers && <span className="ml-1 text-muted-foreground">{endTime}</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -795,13 +832,28 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     selected={endDate}
                     defaultMonth={endDate || startDate || new Date()}
                     disabled={(date) => !!startDate && date < startDate}
-                    onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))}
+                    onSelect={(d) => d && setState(prev => {
+                      const nextEnd = format(d, 'yyyy-MM-dd');
+                      const timePart = parseTime(prev.endDate);
+                      return { ...prev, endDate: showTimePickers ? `${nextEnd}T${timePart}` : nextEnd };
+                    })}
                     today={undefined}
                     modifiers={startDate ? { rangeStart: startDate } : undefined}
                     modifiersStyles={{ rangeStart: { border: '2px solid hsl(var(--primary))', borderRadius: '6px', fontWeight: 700 } }}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
+                  {showTimePickers && (
+                    <div className="border-t border-border px-3 py-2 flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground font-medium">Heure</span>
+                      <input
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="h-7 px-2 text-[11px] rounded-md border border-border bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+                  )}
                 </PopoverContent>
               </Popover>
             </div>
