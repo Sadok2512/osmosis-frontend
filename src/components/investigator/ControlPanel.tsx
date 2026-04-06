@@ -890,7 +890,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       .then(r => r.ok ? r.json() : []).then(setCounterCatalog).catch(() => {});
   }, []);
 
-  // Detect PM dimension types from selected KPIs → add to filter dimensions
+  // Detect PM dimension types from selected KPIs AND counters → add to filter dimensions
   const activePmDimensions = useMemo(() => {
     const dims = new Set<string>();
     const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0);
@@ -903,7 +903,13 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         }
       }
     }
-    // 2. Fallback: if KPI Engine didn't provide dimension_type (e.g. VPS 502),
+    // Also include dimension types from selected counters
+    for (const c of selectedCounters) {
+      if (c.dimension_type && PM_DIMENSION_TYPES.has(c.dimension_type)) {
+        dims.add(c.dimension_type);
+      }
+    }
+    // Fallback: if KPI Engine didn't provide dimension_type (e.g. VPS 502),
     //    expose all PM dimension types found in counter catalog when KPIs are selected
     if (dims.size === 0 && hasKpis && counterCatalog.length > 0) {
       for (const c of counterCatalog) {
@@ -913,7 +919,22 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       }
     }
     return dims;
-  }, [state.graphSlots, kpiDefs, counterCatalog]);
+  }, [state.graphSlots, kpiDefs, selectedCounters, counterCatalog]);
+
+  // Per-KPI dimension type map: kpi_id → dimension_type (or null)
+  const kpiDimensionMap = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const def of kpiDefs) {
+      m.set(def.id, (def.dimension_type && PM_DIMENSION_TYPES.has(def.dimension_type)) ? def.dimension_type : null);
+    }
+    // Also include catalog entries
+    for (const entry of catalog) {
+      if (!m.has(entry.kpi_key) && entry.dimension_type && PM_DIMENSION_TYPES.has(entry.dimension_type)) {
+        m.set(entry.kpi_key, entry.dimension_type);
+      }
+    }
+    return m;
+  }, [kpiDefs, catalog]);
 
   // Load PM dimension values based on selected KPIs' dimension types
   const primaryKpiDimType = useMemo(() => {
@@ -1536,6 +1557,23 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         const hasSplit1Active = Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None');
                         const hasSplit2Active = Object.values(cfg.splitByPerKpi2 || {}).some(v => v && v !== 'None');
                         const hasSplitOptions = splitOptions.length > 0 || activePmDimensions.size > 0;
+                        // Per-KPI PM dimension: only show dimensions relevant to THIS KPI
+                        const thisKpiDim = kpiDimensionMap.get(kpiIdItem);
+                        const relevantPmDims = thisKpiDim ? [thisKpiDim] : Array.from(activePmDimensions);
+                        const buildSplits = (val: string) => {
+                          const allSplits: Record<string, string> = {};
+                          const isPmDim = val.startsWith('PM_DIM:');
+                          const pmDimType = isPmDim ? val.replace('PM_DIM:', '') : null;
+                          slot.kpiIds.forEach(kid => {
+                            if (isPmDim && pmDimType) {
+                              const kpiDim = kpiDimensionMap.get(kid);
+                              if (kpiDim === pmDimType) allSplits[kid] = val;
+                            } else {
+                              allSplits[kid] = val;
+                            }
+                          });
+                          return allSplits;
+                        };
                         return (
                           <>
                             {hasSplit1Active ? (
@@ -1548,18 +1586,16 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                                     if (val === 'None') {
                                       setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: {}, splitByPerKpi2: {} } } : s) }));
                                     } else {
-                                      const allSplits: Record<string, string> = {};
-                                      slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
-                                      setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: allSplits } } : s) }));
+                                      setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: buildSplits(val) } } : s) }));
                                     }
                                   }}
                                   className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
                                 >
                                   <option value="None">Aucun</option>
                                   {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                                  {activePmDimensions.size > 0 && (
+                                  {relevantPmDims.length > 0 && (
                                     <optgroup label="── PM Dimensions ──">
-                                      {Array.from(activePmDimensions).map(d => (
+                                      {relevantPmDims.map(d => (
                                         <option key={`pm_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
                                       ))}
                                     </optgroup>
@@ -1569,11 +1605,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                             ) : hasSplitOptions ? (
                               <button
                                 onClick={() => {
-                                  const firstKey = splitOptions[0]?.key || (activePmDimensions.size > 0 ? `PM_DIM:${Array.from(activePmDimensions)[0]}` : 'None');
+                                  const firstKey = splitOptions[0]?.key || (relevantPmDims.length > 0 ? `PM_DIM:${relevantPmDims[0]}` : 'None');
                                   if (firstKey === 'None') return;
-                                  const allSplits: Record<string, string> = {};
-                                  slot.kpiIds.forEach(kid => { allSplits[kid] = firstKey; });
-                                  setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: allSplits } } : s) }));
+                                  setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: buildSplits(firstKey) } } : s) }));
                                 }}
                                 className="w-full text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1.5 rounded-md transition-colors border border-dashed border-border"
                               >
@@ -1602,9 +1636,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                                   {splitOptions
                                     .filter(s => s.key !== (Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None')))
                                     .map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                                  {activePmDimensions.size > 0 && (
+                                  {relevantPmDims.length > 0 && (
                                     <optgroup label="── PM Dimensions ──">
-                                      {Array.from(activePmDimensions).map(d => (
+                                      {relevantPmDims.map(d => (
                                         <option key={`pm2_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
                                       ))}
                                     </optgroup>
@@ -1616,7 +1650,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                                 onClick={() => {
                                   const split1Val = Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None');
                                   const available = splitOptions.filter(s => s.key !== split1Val);
-                                  const firstKey = available[0]?.key || (activePmDimensions.size > 0 ? `PM_DIM:${Array.from(activePmDimensions)[0]}` : 'None');
+                                  const firstKey = available[0]?.key || (relevantPmDims.length > 0 ? `PM_DIM:${relevantPmDims[0]}` : 'None');
                                   if (firstKey === 'None') return;
                                   const allSplits2: Record<string, string> = {};
                                   slot.kpiIds.forEach(kid => { allSplits2[kid] = firstKey; });

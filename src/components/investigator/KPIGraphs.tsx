@@ -63,13 +63,39 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
 
 const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
 
+// Extended palette for split dimension values — 20 distinct colors
+const SPLIT_COLORS = [
+  '#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4',
+  '#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6',
+  '#f97316','#a855f7','#22d3ee','#4ade80','#fbbf24',
+  '#fb7185','#2dd4bf','#818cf8','#facc15','#34d399',
+];
+
+/** Deterministic hash for any string key */
+function stableHash(key: string): number {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+  }
+  return ((hash % SPLIT_COLORS.length) + SPLIT_COLORS.length) % SPLIT_COLORS.length;
+}
+
 /** Stable color for a KPI — uses a simple hash so color doesn't shift when KPIs are added/removed */
 function stableColorForKpi(kpiId: string): string {
-  let hash = 0;
-  for (let i = 0; i < kpiId.length; i++) {
-    hash = ((hash << 5) - hash + kpiId.charCodeAt(i)) | 0;
-  }
-  return SERIES_COLORS[((hash % SERIES_COLORS.length) + SERIES_COLORS.length) % SERIES_COLORS.length];
+  return SERIES_COLORS[stableHash(kpiId) % SERIES_COLORS.length];
+}
+
+/** Stable color for a split dimension value — same value ALWAYS gets same color across all graphs */
+function stableColorForSplit(splitValue: string, kpiId?: string): string {
+  // Color is based ONLY on the split value so the same dimension value
+  // (e.g., "PMQAP=9") always gets the same color regardless of which KPI or graph
+  return SPLIT_COLORS[stableHash(splitValue)];
+}
+
+/** Stable color for a raw counter */
+function stableColorForCounter(counterName: string): string {
+  // Offset hash to avoid collision with KPI colors
+  return SPLIT_COLORS[(stableHash('CTR_' + counterName)) % SPLIT_COLORS.length];
 }
 
 /** Wrapper — full replace on every update so legend stays in sync */
@@ -349,8 +375,8 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       axisLine: { show: false },
       axisTick: { show: false },
     },
-    series: counters.map((counter, i) => {
-      const color = SERIES_COLORS[i % SERIES_COLORS.length];
+    series: counters.map((counter, ci) => {
+      const color = stableColorForCounter(counter);
       return {
         name: displayLabel(counter),
         type: 'line' as const,
@@ -372,7 +398,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
             { offset: 1, color: color + '02' },
           ]},
         },
-        ...(i === 0 ? {
+        ...(ci === 0 ? {
           markArea: markAreaData.length > 0 ? { silent: true, data: markAreaData } : undefined,
         } : {}),
       };
@@ -645,7 +671,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         };
 
         // Filter data: if no split configured, aggregate (ignore splitValue)
-        const effectiveData = hasSplit
+        // If split is configured but no data has splitValue (backend returned non-split fallback),
+        // fall back to non-split display instead of showing empty graph
+        const hasSplitData = hasSplit && slotData.some(d => d.splitValue && d.splitValue !== 'ALL');
+        const effectiveData = hasSplitData
           ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
           : slotData.map(d => ({ ...d, splitValue: undefined }));
 
@@ -688,7 +717,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         let series: any[];
 
-        if (hasSplit) {
+        if (hasSplitData) {
           series = kpiIds.flatMap((kpiId, ki) => {
             const def = defs[ki];
             const kpiHasSplit = getKpiHasSplit(kpiId);
@@ -725,10 +754,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               }];
             }
 
-            // Split KPI: one series per split value
-            const splitValues = [...new Set(kpiData.map(d => d.splitValue!))];
-            return splitValues.map((sv, svIdx) => {
-              const color = SERIES_COLORS[svIdx % SERIES_COLORS.length];
+            // Split KPI: one series per split value — stable colors per dimension value
+            const splitValues = [...new Set(kpiData.map(d => d.splitValue!))].sort();
+            return splitValues.map((sv) => {
+              const color = stableColorForSplit(sv, kpiId);
               const svData = kpiData.filter(d => d.splitValue === sv);
               const dataMap = new Map(svData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
@@ -809,8 +838,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           }
           allTimestamps.sort();
 
-          cCounters.forEach((counter, ci) => {
-            const color = SERIES_COLORS[(kpiIds.length + ci) % SERIES_COLORS.length];
+          cCounters.forEach((counter) => {
+            const color = stableColorForCounter(counter);
             const idFromName = Object.entries(cNameMap).find(([, name]) => name === counter)?.[0];
             const displayName = idFromName ? `${counter} (${idFromName})` : counter;
             const cDef = counterCatalog.find(c => c.counter_name === counter);
@@ -1035,10 +1064,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               padding: [0, 0, 0, 4],
             },
             formatter: (name: string) => {
-              // Show a distinguishable short name: last meaningful segment(s)
+              // Handle split series names: "KPI Label — DimValue" or just "DimValue"
+              if (name.includes(' — ')) {
+                const [kpiPart, dimPart] = name.split(' — ');
+                const shortKpi = kpiPart.length > 18 ? kpiPart.slice(0, 16) + '…' : kpiPart;
+                return `${shortKpi} — ${dimPart}`;
+              }
+              // Fallback: truncate long counter/KPI names
+              if (name.length <= 32) return name;
               const parts = name.split('_').filter(Boolean);
-              if (parts.length <= 3 || name.length <= 28) return name;
-              // Keep last 3 segments for uniqueness
+              if (parts.length <= 3) return name.slice(0, 30) + '…';
               const tail = parts.slice(-3).join('_');
               return tail.length > 30 ? tail.slice(0, 28) + '…' : tail;
             },
@@ -1066,12 +1101,25 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               const isWE = dt.getDay() === 0 || dt.getDay() === 6;
               const weBadge = isWE ? ' <span style="background:rgba(148,163,184,0.2);padding:1px 5px;border-radius:3px;font-size:9px;color:#94a3b8">WE</span>' : '';
               const header = `<div style="font-size:10.5px;color:#94a3b8;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
-              const rows = items.map((p: any) => {
-                const def = defs.find(d => d.label === p.seriesName) || defs[0];
+
+              // Group items: detect split series (name contains " — ") for total row
+              const rows: string[] = [];
+              let splitTotal = 0;
+              let splitCount = 0;
+              let splitUnit = '';
+              for (const p of items) {
+                const matchedDef = defs.find(d => d.label === p.seriesName || p.seriesName?.startsWith(d.label + ' — '));
+                const unit = matchedDef?.unit || '';
                 const val = p.value != null ? p.value.toFixed(2) : '—';
-                return `<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1">${p.seriesName}</span><b style="color:#f1f5f9">${val} ${def.unit}</b></div>`;
-              }).join('');
-              return header + rows;
+                const isSplit = p.seriesName?.includes(' — ') || (hasSplitData && items.length > 1 && !p.seriesName?.includes('('));
+                if (isSplit && p.value != null) { splitTotal += p.value; splitCount++; splitUnit = unit; }
+                rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${p.seriesName}</span><b style="color:#f1f5f9">${val} ${unit}</b></div>`);
+              }
+              // Add total row for split series
+              const totalRow = splitCount > 1
+                ? `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;margin-top:2px;border-top:1px solid rgba(255,255,255,0.08)"><span style="width:12px;height:3px;border-radius:2px;background:rgba(255,255,255,0.3);display:inline-block"></span><span style="flex:1;color:#94a3b8;font-weight:600">Total</span><b style="color:#f1f5f9">${splitTotal.toFixed(2)} ${splitUnit}</b></div>`
+                : '';
+              return header + rows.join('') + totalRow;
             },
           },
           xAxis: {

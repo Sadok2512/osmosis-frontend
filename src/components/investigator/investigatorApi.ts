@@ -110,6 +110,8 @@ async function fetchKpiComputeOnTheFly(
               allData.push({ timestamp: s.ts, kpi: `${kpiId}@${dimLabel}`, value: s.kpi_value, splitValue: dimLabel, _isComputed: true } as any);
             }
             if (allData.length > 0) return { data: allData, isComputed: true };
+          } else {
+            console.warn('[KpiCompute] Split by dimension returned 0 series for', kpiId, '— falling back to aggregated query');
           }
         }
       } catch (e) { console.warn('[KpiCompute] Split failed:', e); }
@@ -263,6 +265,7 @@ interface SlotRequestContext {
   granularity: string;
   splitBy?: string;
   splitBy2?: string;
+  splitByPerKpi?: Record<string, string>;
   filters: { dimension: string; values: string[] }[];
   kpiLevel: string;
   profileQci?: number | null;
@@ -288,8 +291,10 @@ export function resolveSlotContext(
 ): SlotRequestContext {
   // Slot-level overrides (use slot values if non-empty, otherwise global)
   // Ensure empty-string slot dates don't skip the global date; trim whitespace too
-  const rawFrom = (slot.startDate && slot.startDate.trim()) || (globalState.startDate && globalState.startDate.trim()) || '2026-03-22';
-  const rawTo = (slot.endDate && slot.endDate.trim()) || (globalState.endDate && globalState.endDate.trim()) || '2026-03-22';
+  const defaultTo = new Date().toISOString().split('T')[0];
+  const defaultFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+  const rawFrom = (slot.startDate && slot.startDate.trim()) || (globalState.startDate && globalState.startDate.trim()) || defaultFrom;
+  const rawTo = (slot.endDate && slot.endDate.trim()) || (globalState.endDate && globalState.endDate.trim()) || defaultTo;
   const gran = normalizeGranularity(slot.granularity || globalState.granularity);
   // For fine granularity, keep full datetime; for daily/weekly, date-only is fine
   const dateFrom = (gran === '15min' || gran === '1h') ? rawFrom : rawFrom.split('T')[0];
@@ -357,6 +362,7 @@ export function resolveSlotContext(
     granularity: gran,
     splitBy: splitValue,
     splitBy2: splitValue2,
+    splitByPerKpi: perKpi,
     filters: activeFilters,
     kpiLevel: globalState.kpiLevel,
     profileQci: globalState.profileQci,
@@ -375,13 +381,13 @@ export async function fetchTimeSeriesForSlot(
 ): Promise<{ data: DataPoint[]; hasUnfilteredFallback: boolean }> {
   if (ctx.kpiIds.length === 0) return { data: [], hasUnfilteredFallback: false };
 
-  console.log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo });
+  console.log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, splitByPerKpi: ctx.splitByPerKpi, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo });
 
-  // Detect PM dimension split (strip PM_DIM: prefix for compute endpoint)
-  const pmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
+  // Detect PM dimension split (global fallback)
+  const globalPmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
   // Non-PM splits (CELL, VENDOR, BAND...) are only handled by KPI Engine, not compute
   const hasNonPmSplit = ctx.splitBy && !ctx.splitBy.startsWith('PM_DIM:') && ctx.splitBy !== 'None';
-  console.log('[fetchTimeSeriesForSlot] pmDimSplit:', pmDimSplit, 'hasNonPmSplit:', hasNonPmSplit);
+  console.log('[fetchTimeSeriesForSlot] globalPmDimSplit:', globalPmDimSplit, 'hasNonPmSplit:', hasNonPmSplit);
 
   // Step 1: Try /kpi/compute FIRST — but ONLY when there's no non-PM split
   // (compute endpoint can't split by CELL/VENDOR/BAND, only KPI Engine can)
@@ -390,6 +396,12 @@ export async function fetchTimeSeriesForSlot(
 
   if (!hasNonPmSplit) {
     for (const kpiId of ctx.kpiIds) {
+      // Per-KPI PM dimension split: only send split_by_dimension for KPIs that have the dimension
+      const perKpiSplit = ctx.splitByPerKpi?.[kpiId];
+      const kpiPmDim = perKpiSplit?.startsWith('PM_DIM:') ? perKpiSplit.replace('PM_DIM:', '') : undefined;
+      // Use per-KPI split if available, otherwise fall back to global (only if this KPI has a per-KPI entry)
+      const pmDimSplit = kpiPmDim || (perKpiSplit ? undefined : globalPmDimSplit);
+
       const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}`;
 
       if (!_computeCache.has(cacheKey)) {
