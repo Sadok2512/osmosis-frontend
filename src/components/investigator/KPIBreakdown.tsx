@@ -242,7 +242,7 @@ const KPIBreakdown: React.FC<Props> = ({
 
   React.useEffect(() => {
     uniqueKpiIds.forEach(kpiId => {
-      const currentBreakdownDim = splitBy && splitBy !== 'None' ? splitBy : 'vendor';
+      const currentBreakdownDim = splitBy && splitBy !== 'None' ? (splitBy.startsWith('PM_DIM:') ? splitBy.replace('PM_DIM:', '') : splitBy) : undefined;
       fetchBreakdownData(kpiId, dateFrom, dateTo, currentBreakdownDim, filters).then(slices => {
         setBreakData(prev => ({ ...prev, [kpiId]: slices }));
       }).catch(() => {});
