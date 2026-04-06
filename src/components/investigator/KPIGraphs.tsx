@@ -1445,7 +1445,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               // For split tables, restructure: one row per (timestamp, split combo)
               if (hasSplitCols) {
                 // Collect unique KPI base names
-                const kpiBaseIds: string[] = [...new Set(option.series.map((s: any) => s._kpiId as string).filter(Boolean))];
+                const kpiBaseIds = Array.from(new Set(option.series.map((s: any) => String(s._kpiId || '')).filter((v: string) => v))) as string[];
                 const kpiLabels: string[] = kpiBaseIds.map((id: string) => {
                   const d = getDef(id);
                   return d?.label || id;
