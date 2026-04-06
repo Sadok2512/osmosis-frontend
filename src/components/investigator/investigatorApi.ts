@@ -486,6 +486,24 @@ export async function fetchTimeSeriesForSlot(
   const canCompute = !hasNonPmSplit1 || !!computeSplitByField;
   console.log('[fetchTimeSeriesForSlot] computePmDim:', computePmDim, 'computeSplitByField:', computeSplitByField, 'canCompute:', canCompute);
 
+  // Fast path: detect raw PM counters and route directly to counter fallback
+  // (avoids 3-4 wasted HTTP calls through KPI compute + KPI Engine)
+  const RAW_COUNTER_RE = /^(M\d|pm[A-Z]|Flex_|flex_)/;
+  const rawCounterIds = ctx.kpiIds.filter(id => RAW_COUNTER_RE.test(id));
+  const kpiOnlyIds = ctx.kpiIds.filter(id => !RAW_COUNTER_RE.test(id));
+
+  if (rawCounterIds.length > 0 && kpiOnlyIds.length === 0) {
+    // ALL items are raw counters — skip compute + KPI Engine entirely
+    console.log('[Investigator] Fast path: all raw counters, using counter fallback directly:', rawCounterIds);
+    const fallback = await fetchCounterTimeSeriesFallback(
+      rawCounterIds, ctx.dateFrom, ctx.dateTo, ctx.granularity,
+      ctx.splitBy, ctx.filters, computeSplitByField,
+    );
+    const allData = fallback.data;
+    if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
+    return { data: allData, hasUnfilteredFallback: false };
+  }
+
   // Step 1: Try /kpi/compute FIRST
   const computeResults: DataPoint[] = [];
   const computeFailed: string[] = [];
